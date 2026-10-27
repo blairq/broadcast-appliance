@@ -7,6 +7,7 @@
 #include "mcp/McpEtiquetas.hpp"
 #include "mcp/McpIndice.hpp"
 #include "mcp/McpTraza.hpp"
+#include "i18n/I18n.hpp"
 
 #include <chrono>
 
@@ -90,25 +91,25 @@ ToolResult ToolResult::ok(const std::string& message) {
 // --- McpCore ------------------------------------------------------------------
 
 McpCore::McpCore() {
-    addCategory("ayuda", "Ayuda", "Guía, temas y fichas de cada herramienta.");
+    addCategory("ayuda", ba::i18n::traducir("mcp", "Ayuda"), ba::i18n::traducir("mcp", "Guía, temas y fichas de cada herramienta."));
     // La ayuda es parte del protocolo de este servidor: siempre esta.
     Tool help;
     help.name = "help";
-    help.title = "Ayuda del appliance";
+    help.title = ba::i18n::traducir("mcp", "Ayuda del appliance");
     help.category = "ayuda";
     help.readOnly = true;
     help.idempotent = true;
     help.description =
-        "Sistema de ayuda. Sin argumentos: guia general, flujos de trabajo y catalogo completo de "
+        ba::i18n::traducir("mcp", "Sistema de ayuda. Sin argumentos: guia general, flujos de trabajo y catalogo completo de "
         "herramientas "
         "por categoria. Con `topic`: un tema (ej. 'escenas', 'imagenes', 'oradores'). Con `tool`: ficha "
         "completa "
-        "de una herramienta (que hace, argumentos, ejemplos). Empeza por aca si no sabes como hacer algo.";
+        "de una herramienta (que hace, argumentos, ejemplos). Empeza por aca si no sabes como hacer algo.");
     help.inputSchema =
         json{{"type", "object"},
              {"properties",
-              {{"topic", {{"type", "string"}, {"description", "Id del tema (ver la guia general)."}}},
-               {"tool", {{"type", "string"}, {"description", "Nombre de una herramienta."}}}}}};
+              {{"topic", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Id del tema (ver la guia general).")}}},
+               {"tool", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de una herramienta.")}}}}}};
     help.examples = {R"({})", R"({"topic": "imagenes"})", R"({"tool": "scene_define"})"};
     help.run = [this](const json& a, Done done) {
         if (a.contains("tool") && a["tool"].is_string()) {
@@ -133,37 +134,37 @@ McpCore::McpCore() {
     // Estado de la salvaguarda de la sesion que llama (lo resuelve callTool).
     Tool sec;
     sec.name = "security_status";
-    sec.title = "Salvaguarda de esta sesion";
+    sec.title = ba::i18n::traducir("mcp", "Salvaguarda de esta sesion");
     sec.category = "ayuda";
     sec.readOnly = true;
     sec.description =
-        "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
+        ba::i18n::traducir("mcp", "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
         "video). Si lo leyo, toda accion que modifica algo espera que el operador la apruebe con un "
         "click: es "
         "una regla del servidor, no depende de vos. Para volver a actuar directo hace falta una sesion nueva "
-        "(reiniciar el asistente).";
-    sec.run = [](const json&, Done done) { done(ToolResult::error("(la resuelve el servidor)")); };
+        "(reiniciar el asistente).");
+    sec.run = [](const json&, Done done) { done(ToolResult::error(ba::i18n::traducir("mcp", "(la resuelve el servidor)"))); };
     addTool(std::move(sec));
 
     Tool search;
     search.name = "help_search";
-    search.title = "Buscar en la ayuda";
+    search.title = ba::i18n::traducir("mcp", "Buscar en la ayuda");
     search.category = "ayuda";
     search.readOnly = true;
     search.idempotent = true;
     search.description =
-        "Busca por palabras en todas las herramientas y temas de ayuda (tolera tildes). Devuelve "
-        "las mejores coincidencias con su descripcion.";
+        ba::i18n::traducir("mcp", "Busca por palabras en todas las herramientas y temas de ayuda (tolera tildes). Devuelve "
+        "las mejores coincidencias con su descripcion.");
     search.inputSchema =
         json{{"type", "object"},
-             {"properties", {{"query", {{"type", "string"}, {"description", "Que queres hacer o saber."}}}}},
+             {"properties", {{"query", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Que queres hacer o saber.")}}}}},
              {"required", {"query"}}};
     search.examples = {R"({"query": "poner un texto en pantalla"})",
                        R"({"query": "ver la camara de un invitado"})"};
     search.run = [this](const json& a, Done done) {
         const json hits = this->search(a.value("query", ""), enCurso_.rol);
         if (hits.empty()) {
-            done(ToolResult::ok("Sin coincidencias. Proba con otras palabras o llama `help` para ver todo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Sin coincidencias. Proba con otras palabras o llama `help` para ver todo.")));
             return;
         }
         std::ostringstream out;

@@ -13,6 +13,7 @@
 
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "i18n/I18n.hpp"
 #include "ui/Discursos.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -48,23 +49,23 @@ json estadoDe(PrompterViewModel& p) {
 } // namespace
 
 void McpService::registerPrompterTools() {
-    core_.addCategory("prompter", "Teleprompter",
-                      "Los discursos que lee el orador (carpeta del evento), el control del texto "
-                      "(arrancar, velocidad, avisos) y qué pantallas hay conectadas.");
+    core_.addCategory("prompter", ba::i18n::traducir("mcp", "Teleprompter"),
+                      ba::i18n::traducir("mcp", "Los discursos que lee el orador (carpeta del evento), el control del texto "
+                      "(arrancar, velocidad, avisos) y qué pantallas hay conectadas."));
     auto* p = static_cast<PrompterViewModel*>(vm_.prompter());
     if (p == nullptr) return;
 
     {
         Tool t;
         t.name = "prompter_estado";
-        t.title = "Como esta el teleprompter";
+        t.title = ba::i18n::traducir("mcp", "Como esta el teleprompter");
         t.category = "prompter";
         t.readOnly = true;
-        t.description = "Que discurso esta cargado, si esta corriendo, por donde va, a que velocidad, "
-                        "cuanto falta, y que pantallas hay conectadas (atril y control).";
-        t.details = "Antes de que alguien suba al atril, lo que importa es `oradores`: si es 0, la tablet "
+        t.description = ba::i18n::traducir("mcp", "Que discurso esta cargado, si esta corriendo, por donde va, a que velocidad, "
+                        "cuanto falta, y que pantallas hay conectadas (atril y control).");
+        t.details = ba::i18n::traducir("mcp", "Antes de que alguien suba al atril, lo que importa es `oradores`: si es 0, la tablet "
                     "esta apagada o nadie abrio el enlace. Eso conviene decirlo AHORA, no con el orador "
-                    "parado ahi.";
+                    "parado ahi.");
         // Se le pregunta al gateway ANTES de contestar: la pagina solo consulta
         // mientras esta a la vista, y por MCP el estado tiene que estar fresco
         // aunque el operador este mirando otra pantalla.
@@ -76,11 +77,11 @@ void McpService::registerPrompterTools() {
     {
         Tool t;
         t.name = "prompter_documentos";
-        t.title = "Los discursos que hay";
+        t.title = ba::i18n::traducir("mcp", "Los discursos que hay");
         t.category = "prompter";
         t.readOnly = true;
-        t.description = "Los discursos de una carpeta de Discursos/ (del evento abierto), con cuantas "
-                        "palabras tienen y cuanto dura leerlos. Sin `carpeta`, los de la raiz.";
+        t.description = ba::i18n::traducir("mcp", "Los discursos de una carpeta de Discursos/ (del evento abierto), con cuantas "
+                        "palabras tienen y cuanto dura leerlos. Sin `carpeta`, los de la raiz.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"carpeta", {{"type", "string"}, {"default", ""}}}}}};
         t.run = [p](const json& a, Done done) {
@@ -110,19 +111,20 @@ void McpService::registerPrompterTools() {
     {
         Tool t;
         t.name = "prompter_leer";
-        t.title = "Leer un discurso";
+        t.title = ba::i18n::traducir("mcp", "Leer un discurso");
         t.category = "prompter";
         t.readOnly = true;
-        t.description = "El texto completo de un discurso, por su ruta relativa "
-                        "(\"intendente.txt\" o \"Apertura/intendente.txt\").";
+        t.description = ba::i18n::traducir("mcp", "El texto completo de un discurso, por su ruta relativa "
+                        "(\"intendente.txt\" o \"Apertura/intendente.txt\").");
         t.inputSchema = {
             {"type", "object"}, {"required", {"rel"}}, {"properties", {{"rel", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString antes = p->abierto();
             p->abrir(QString::fromStdString(a["rel"].get<std::string>()));
             if (p->abierto() != QString::fromStdString(a["rel"].get<std::string>())) {
-                done(ToolResult::error("No pude abrir '" + a["rel"].get<std::string>() +
-                                       "'. prompter_documentos lista los que hay."));
+                done(ToolResult::error(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "No pude abrir '%1'. prompter_documentos lista los que hay."),
+                    {a["rel"].get<std::string>()})));
                 return;
             }
             ToolResult r;
@@ -138,15 +140,15 @@ void McpService::registerPrompterTools() {
     {
         Tool t;
         t.name = "prompter_escribir";
-        t.title = "Escribir un discurso";
+        t.title = ba::i18n::traducir("mcp", "Escribir un discurso");
         t.category = "prompter";
-        t.description = "Escribe (o crea) un discurso y lo guarda en la carpeta del evento. PISA lo que "
-                        "hubiera. No lo manda al teleprompter: eso es prompter_cargar.";
-        t.details = "Para escribir o acortar un discurso: prompter_leer, contar cuanto dura "
+        t.description = ba::i18n::traducir("mcp", "Escribe (o crea) un discurso y lo guarda en la carpeta del evento. PISA lo que "
+                        "hubiera. No lo manda al teleprompter: eso es prompter_cargar.");
+        t.details = ba::i18n::traducir("mcp", "Para escribir o acortar un discurso: prompter_leer, contar cuanto dura "
                     "(140 palabras por minuto), reescribir y guardar. Un renglon vacio separa parrafos, "
                     "y el control del operador puede saltar de parrafo en parrafo: conviene que cada uno "
                     "sea una idea. Nada de markdown ni asteriscos: esto se lee en voz alta y en la tablet "
-                    "se ve tal cual.";
+                    "se ve tal cual.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"rel", "texto"}},
                          {"properties", {{"rel", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
@@ -164,7 +166,7 @@ void McpService::registerPrompterTools() {
                 return;
             }
             const int palabras = Discursos::contarPalabras(texto);
-            done(ToolResult::ok("Guardado.")
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Guardado."))
                      .data(json{{"rel", rel.toStdString()},
                                 {"palabras", palabras},
                                 {"duracionSeg", static_cast<int>(palabras * 60.0 / Discursos::kPpm)}}));
@@ -174,10 +176,10 @@ void McpService::registerPrompterTools() {
     {
         Tool t;
         t.name = "prompter_archivos";
-        t.title = "Ordenar los discursos";
+        t.title = ba::i18n::traducir("mcp", "Ordenar los discursos");
         t.category = "prompter";
-        t.description = "Lo mismo que la lista de la página Prompter: `accion` carpeta (crea `nombre`), renombrar "
-                        "(`rel` → `nombre`), mover (`rel` a la carpeta `carpeta`, \"\" = la raíz) o borrar (`rel`).";
+        t.description = ba::i18n::traducir("mcp", "Lo mismo que la lista de la página Prompter: `accion` carpeta (crea `nombre`), renombrar "
+                        "(`rel` → `nombre`), mover (`rel` a la carpeta `carpeta`, \"\" = la raíz) o borrar (`rel`).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"accion"}},
                          {"properties",
@@ -194,18 +196,18 @@ void McpService::registerPrompterTools() {
             else if (acc == "renombrar") err = p->renombrar(rel, nombre);
             else if (acc == "mover") err = p->mover(rel, QString::fromStdString(a.value("carpeta", std::string())));
             else if (acc == "borrar") err = p->borrar(rel);
-            else err = "accion: carpeta, renombrar, mover o borrar";
-            done(err.isEmpty() ? ToolResult::ok("Listo.") : ToolResult::error(err.toStdString()));
+            else err = QString::fromStdString(ba::i18n::traducir("mcp", "accion: carpeta, renombrar, mover o borrar"));
+            done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")) : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "prompter_cargar";
-        t.title = "Mandar un discurso al teleprompter";
+        t.title = ba::i18n::traducir("mcp", "Mandar un discurso al teleprompter");
         t.category = "prompter";
-        t.description = "Manda un discurso a la pantalla del orador. Queda LISTO pero PARADO: arrancarlo "
-                        "es otra cosa (prompter_control).";
+        t.description = ba::i18n::traducir("mcp", "Manda un discurso a la pantalla del orador. Queda LISTO pero PARADO: arrancarlo "
+                        "es otra cosa (prompter_control).");
         t.inputSchema = {
             {"type", "object"}, {"required", {"rel"}}, {"properties", {{"rel", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
@@ -214,72 +216,79 @@ void McpService::registerPrompterTools() {
                 done(ToolResult::error(err.toStdString()));
                 return;
             }
-            done(ToolResult::ok("Cargado y parado. El orador ya lo ve en el atril."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Cargado y parado. El orador ya lo ve en el atril.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "prompter_control";
-        t.title = "Manejar el texto que esta al aire";
+        t.title = ba::i18n::traducir("mcp", "Manejar el texto que esta al aire");
         t.category = "prompter";
         t.description =
-            "Arranca o para el texto, cambia la velocidad, salta a una parte o le escribe un aviso al "
-            "orador. Lo que no se manda, no se toca. `panico` para en seco sin mover la posicion.";
-        t.details = "Cuidado con `corriendo`: del otro lado hay una persona leyendo en voz alta. Arrancar "
+            ba::i18n::traducir("mcp", "Arranca o para el texto, cambia la velocidad, salta a una parte o le escribe un aviso al "
+            "orador. Lo que no se manda, no se toca. `panico` para en seco sin mover la posicion.");
+        t.details = ba::i18n::traducir("mcp", "Cuidado con `corriendo`: del otro lado hay una persona leyendo en voz alta. Arrancar "
                     "o parar el texto sin que lo pida es de las pocas cosas que se notan al aire al "
                     "instante. La velocidad de fabrica (140 ppm) es la de una lectura normal en "
-                    "castellano; si el orador va mas lento, bajala de a 10.";
+                    "castellano; si el orador va mas lento, bajala de a 10.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"corriendo", {{"type", "boolean"}}},
                            {"ppm", {{"type", "integer"}, {"minimum", 40}, {"maximum", 400}}},
                            {"avancePct", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}},
                            {"parrafo", {{"type", "integer"}, {"minimum", 0}}},
-                           {"aviso", {{"type", "string"}, {"description", "vacio lo saca"}}},
+                           {"aviso", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "vacio lo saca")}}},
                            {"panico", {{"type", "boolean"}}},
-                           {"espejo", {{"type", "boolean"}, {"description", "texto espejado (para el vidrio del prompter)"}}}}}};
+                           {"espejo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "texto espejado (para el vidrio del prompter)")}}}}}};
         t.examples = {R"({"aviso": "Redondeá"})", R"({"ppm": 130})"};
         t.run = [p](const json& a, Done done) {
             // El espejo es de la pantalla del prompter: vale aunque la sala no esté corriendo.
             if (a.contains("espejo")) {
                 p->setEspejo(a.value("espejo", false));
-                if (a.size() == 1) return done(ToolResult::ok(a.value("espejo", false) ? "Espejado." : "Sin espejo."));
+                if (a.size() == 1)
+                    return done(ToolResult::ok(a.value("espejo", false) ? ba::i18n::traducir("mcp", "Espejado.")
+                                                                        : ba::i18n::traducir("mcp", "Sin espejo.")));
             }
             if (!p->enLinea()) {
-                done(ToolResult::error("El teleprompter no contesta: el servidor no esta corriendo."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "El teleprompter no contesta: el servidor no esta corriendo.")));
                 return;
             }
             std::string hecho;
             if (a.value("panico", false)) {
                 p->panico();
-                hecho += "parado en seco; ";
+                hecho += ba::i18n::traducir("mcp", "parado en seco") + "; ";
             }
             if (a.contains("ppm")) {
                 p->setPpm(a["ppm"].get<int>());
-                hecho += "velocidad " + std::to_string(a["ppm"].get<int>()) + " ppm; ";
+                hecho += ba::i18n::llenar(ba::i18n::traducir("mcp", "velocidad %1 ppm"),
+                                          {std::to_string(a["ppm"].get<int>())}) + "; ";
             }
             if (a.contains("avancePct")) {
                 p->irA(a["avancePct"].get<int>() / 100.0);
-                hecho += "saltado al " + std::to_string(a["avancePct"].get<int>()) + "%; ";
+                hecho += ba::i18n::llenar(ba::i18n::traducir("mcp", "saltado al %1%"),
+                                          {std::to_string(a["avancePct"].get<int>())}) + "; ";
             }
             if (a.contains("parrafo")) {
                 p->irAParrafo(a["parrafo"].get<int>());
-                hecho += "al parrafo " + std::to_string(a["parrafo"].get<int>()) + "; ";
+                hecho += ba::i18n::llenar(ba::i18n::traducir("mcp", "al parrafo %1"),
+                                          {std::to_string(a["parrafo"].get<int>())}) + "; ";
             }
             if (a.contains("aviso")) {
                 p->avisar(QString::fromStdString(a["aviso"].get<std::string>()));
-                hecho += a["aviso"].get<std::string>().empty()
-                             ? "aviso sacado; "
-                             : "aviso \"" + a["aviso"].get<std::string>() + "\"; ";
+                hecho += (a["aviso"].get<std::string>().empty()
+                              ? ba::i18n::traducir("mcp", "aviso sacado")
+                              : ba::i18n::llenar(ba::i18n::traducir("mcp", "aviso \"%1\""),
+                                                 {a["aviso"].get<std::string>()})) + "; ";
             }
             if (a.contains("corriendo")) {
                 p->arrancar(a["corriendo"].get<bool>());
-                hecho += a["corriendo"].get<bool>() ? "arrancado; " : "parado; ";
+                hecho += (a["corriendo"].get<bool>() ? ba::i18n::traducir("mcp", "arrancado")
+                                                     : ba::i18n::traducir("mcp", "parado")) + "; ";
             }
             if (hecho.empty()) {
-                done(ToolResult::error(
-                    "No mandaste nada que hacer. Ver help {\"tool\": \"prompter_control\"}."));
+                done(ToolResult::error(ba::i18n::traducir(
+                    "mcp", "No mandaste nada que hacer. Ver help {\"tool\": \"prompter_control\"}.")));
                 return;
             }
             done(ToolResult::ok(hecho));

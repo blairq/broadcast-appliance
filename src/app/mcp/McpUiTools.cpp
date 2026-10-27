@@ -21,6 +21,7 @@
 #include "mcp/McpService.hpp"
 #include "video/VideoGrafos.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "i18n/I18n.hpp"
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"
@@ -53,10 +54,10 @@ int paginaDeId(StudioViewModel& vm, const std::string& id) {
 
 void McpService::registerUiTools() {
     core_.addCategory(
-        "interfaz", "Interfaz de la app",
-        "Navegar páginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
-        "(multiview en otro monitor).");
-    core_.addCategory("sistema", "Sistema", "Videos disponibles, registros, salud, salir.");
+        "interfaz", ba::i18n::traducir("mcp", "Interfaz de la app"),
+        ba::i18n::traducir("mcp", "Navegar páginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
+        "(multiview en otro monitor)."));
+    core_.addCategory("sistema", ba::i18n::traducir("mcp", "Sistema"), ba::i18n::traducir("mcp", "Videos disponibles, registros, salud, salir."));
     StudioViewModel& vm = vm_;
     auto* self = this;
     auto* dash = static_cast<DashboardModel*>(vm.dashboard());
@@ -67,10 +68,10 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "multiview";
-        t.title = "Multiview: ver y armar las multivistas (y sacarlas a una ventana)";
+        t.title = ba::i18n::traducir("mcp", "Multiview: ver y armar las multivistas (y sacarlas a una ventana)");
         t.category = "interfaz";
         t.description =
-            "Las multivistas (pestañas de la página Multiview): varias fuentes en un muro con separación de color y "
+            ba::i18n::traducir("mcp", "Las multivistas (pestañas de la página Multiview): varias fuentes en un muro con separación de color y "
             "borde por cuadro. Sin argumentos devuelve todas y cuál está elegida, y qué fuentes se pueden poner. "
             "`vista` (id o nombre) elige con cuál trabajar (si no, la elegida); `nueva` crea una con ese nombre (con "
             "`copiar`: copia de la elegida); `renombrar` y `borrar` (siempre queda una). Lo demás cambia SOLO lo que "
@@ -80,29 +81,29 @@ void McpService::registerUiTools() {
             "`todas_en_ventanas`: una ventana por multivista, una por monitor (los que no son el principal) en pantalla "
             "completa; `cerrar_ventanas`: las cierra. La respuesta trae `ventana` de cada multivista (\"salida:<n>\"): "
             "para acomodarlas como quieras (zona, tamaño exacto, maximizada, otro monitor) usá ventana_mover con ese id. "
-            "Fuentes: \"program\", \"armada\", \"guest:N\", \"share:N\", \"entrada:<nombre>\".";
+            "Fuentes: \"program\", \"armada\", \"guest:N\", \"share:N\", \"entrada:<nombre>\".");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"vista", {{"type", "string"}, {"description", "id o nombre de la multivista"}}},
-              {"nueva", {{"type", "string"}, {"description", "nombre de una multivista nueva (queda elegida)"}}},
+             {{"vista", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id o nombre de la multivista")}}},
+              {"nueva", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "nombre de una multivista nueva (queda elegida)")}}},
               {"copiar", {{"type", "boolean"}, {"default", false}}},
               {"renombrar", {{"type", "string"}}},
               {"borrar", {{"type", "boolean"}, {"default", false}}},
-              {"restablecer", {{"type", "boolean"}, {"default", false}, {"description", "vuelve la multivista elegida a la de fábrica (con su nombre)"}}},
-              {"fuentes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "en orden"}}},
+              {"restablecer", {{"type", "boolean"}, {"default", false}, {"description", ba::i18n::traducir("mcp", "vuelve la multivista elegida a la de fábrica (con su nombre)")}}},
+              {"fuentes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "en orden")}}},
               {"distribucion", {{"type", "string"}, {"enum", {"control", "grid", "focus", "pip", "row"}}}},
-              {"separacion", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 0-60"}}},
-              {"fondo", {{"type", "string"}, {"description", "color de la separación (#rrggbb)"}}},
-              {"borde", {{"type", "integer"}, {"description", "px por cuadro (a 1920 de ancho), 0-20"}}},
-              {"colorBorde", {{"type", "string"}, {"description", "#rrggbb"}}},
+              {"separacion", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "px (a 1920 de ancho), 0-60")}}},
+              {"fondo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "color de la separación (#rrggbb)")}}},
+              {"borde", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "px por cuadro (a 1920 de ancho), 0-20")}}},
+              {"colorBorde", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "#rrggbb")}}},
               {"nombres", {{"type", "boolean"}}},
               {"tamNombres", {{"type", "integer"}}},
               {"tally", {{"type", "boolean"}}},
-              {"grosorTally", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 1-12; de fábrica 2"}}},
+              {"grosorTally", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "px (a 1920 de ancho), 1-12; de fábrica 2")}}},
               {"vumetros", {{"type", "boolean"}}},
               {"ventana", {{"type", "boolean"}, {"default", false}}},
-              {"monitor", {{"type", "string"}, {"description", "con ventana: id, numero de orden o nombre del monitor (ver `monitores`)"}}},
+              {"monitor", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con ventana: id, numero de orden o nombre del monitor (ver `monitores`)")}}},
               {"pantalla_completa", {{"type", "boolean"}, {"default", false}}},
               {"todas_en_ventanas", {{"type", "boolean"}, {"default", false}}},
               {"cerrar_ventanas", {{"type", "boolean"}, {"default", false}}}}}};
@@ -113,7 +114,7 @@ void McpService::registerUiTools() {
         t.run = [&vm, windows](const json& a, Done done) {
             if (a.value("restablecer", false)) {
                 vm.restablecerMultiview();
-                return done(ToolResult::ok("La multivista elegida volvió a la de fábrica."));
+                return done(ToolResult::ok(ba::i18n::traducir("mcp", "La multivista elegida volvió a la de fábrica.")));
             }
             QString id = vm.multiviewActual();
             if (a.contains("vista")) {
@@ -130,7 +131,7 @@ void McpService::registerUiTools() {
             }
             if (a.contains("nueva")) id = vm.nuevaMultiview(QString::fromStdString(a.value("nueva", std::string())), a.value("copiar", false));
             if (a.value("borrar", false)) {
-                if (!vm.borrarMultiview(id)) return done(ToolResult::error("es la única multivista: siempre queda una"));
+                if (!vm.borrarMultiview(id)) return done(ToolResult::error(ba::i18n::traducir("mcp", "es la única multivista: siempre queda una")));
                 id = vm.multiviewActual();
             }
             if (a.contains("renombrar")) vm.renombrarMultiview(id, QString::fromStdString(a.value("renombrar", std::string())));
@@ -167,18 +168,18 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "ui_show_page";
-        t.title = "Mostrar una pagina";
+        t.title = ba::i18n::traducir("mcp", "Mostrar una pagina");
         t.category = "interfaz";
-        t.description = "Cambia la pagina que ve el operador. Las que hay salen del catalogo de la "
+        t.description = ba::i18n::traducir("mcp", "Cambia la pagina que ve el operador. Las que hay salen del catalogo de la "
                         "interfaz (ver el enum de `page`): si se agrega una pagina nueva al programa, "
-                        "aparece aca sola.";
+                        "aparece aca sola.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
               {"seccion",
                {{"type", "string"},
-                {"description", "Con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                {"description", ba::i18n::traducir("mcp", "Con page=configuracion: a que seccion ir (el nombre tal cual lo "
                                 "muestra la lista, p. ej. \"Video\", \"Red de la conferencia\", "
                                 "\"Apariencia\"). Con page=camaras: \"recinto\" (la grilla de bancas) "
                                 "o el nombre de una entrada. Con page=audio: \"estudio\" (todo el audio, "
@@ -188,11 +189,11 @@ void McpService::registerUiTools() {
                                 "archivos). Con page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], "
                                 "recinto, orden, votacion, conexiones o debate. Con page=personas: \"libreta\" o \"registro\" (los tótems de registro). Con page=latencias: \"mapa\" (los tiempos de cada "
                                 "entrada a cada salida) o \"sincronia\" (la latencia del estudio, quién la marca, la clase "
-                                "de cada entrada, reloj y red: la vista única de sincronización). Sin esto queda la que estaba."}}}}},
+                                "de cada entrada, reloj y red: la vista única de sincronización). Sin esto queda la que estaba.")}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
-            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (w == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             const int pagina = paginaDeId(vm, a["page"].get<std::string>());
             if (pagina < 0)
                 return done(
@@ -218,29 +219,29 @@ void McpService::registerUiTools() {
             {"guion", {"guion", "padron", "publico", "orden", "web", "documentos"}}};
         Tool t;
         t.name = "ui_abrir_panel";
-        t.title = "Abrir un panel o diálogo de una página";
+        t.title = ba::i18n::traducir("mcp", "Abrir un panel o diálogo de una página");
         t.category = "interfaz";
-        t.description = "Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo "
+        t.description = ba::i18n::traducir("mcp", "Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo "
                         "cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, "
                         "entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con "
                         "`fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde "
-                        "difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos). Para mirarlo, capture_ui.";
+                        "difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos). Para mirarlo, capture_ui.");
         json enumPaginas = json::array();
         for (const auto& [p, l] : kPaneles) enumPaginas.push_back(p);
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"page", {{"type", "string"}, {"enum", enumPaginas}}},
-                           {"panel", {{"type", "string"}, {"description", "uno de los de esa página, o \"cerrar\""}}},
-                           {"fuente", {{"type", "string"}, {"description", "escenas → efectos: la fuente a elegir"}}}}},
+                           {"panel", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "uno de los de esa página, o \"cerrar\"")}}},
+                           {"fuente", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "escenas → efectos: la fuente a elegir")}}}}},
                          {"required", {"page", "panel"}}};
         t.examples = {R"({"page": "video", "panel": "superresolucion"})", R"({"page": "video", "panel": "cerrar"})",
                       R"({"page": "escenas", "panel": "efectos", "fuente": "Zócalo"})"};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
-            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (w == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             const std::string pag = a.value("page", std::string()), panel = a.value("panel", std::string());
             const auto it = kPaneles.find(pag);
-            if (it == kPaneles.end()) return done(ToolResult::error("Esa página no tiene paneles para abrir por acá."));
+            if (it == kPaneles.end()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Esa página no tiene paneles para abrir por acá.")));
             if (panel != "cerrar" && std::find(it->second.begin(), it->second.end(), panel) == it->second.end()) {
                 std::string l;
                 for (const auto& x : it->second) l += (l.empty() ? "" : ", ") + x;
@@ -251,7 +252,7 @@ void McpService::registerUiTools() {
             std::string pedido = panel;
             if (pag == "escenas" && panel == "efectos") {
                 const std::string f = a.value("fuente", std::string());
-                if (f.empty()) return done(ToolResult::error("escenas → efectos: falta `fuente` (escena_fuentes_ver las muestra)."));
+                if (f.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "escenas → efectos: falta `fuente` (escena_fuentes_ver las muestra).")));
                 pedido = "efectos:" + f;
             }
             w->setProperty("page", pagina);
@@ -263,30 +264,30 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "ui_page_window";
-        t.title = "Sacar una pagina a su ventana";
+        t.title = ba::i18n::traducir("mcp", "Sacar una pagina a su ventana");
         t.category = "interfaz";
-        t.description = "Abre una pagina en su PROPIA ventana, para mandarla a otro monitor.";
+        t.description = ba::i18n::traducir("mcp", "Abre una pagina en su PROPIA ventana, para mandarla a otro monitor.");
         t.details =
-            "No la saca de la ventana principal: abre otra vista de lo mismo. Las dos se mantienen "
+            ba::i18n::traducir("mcp", "No la saca de la ventana principal: abre otra vista de lo mismo. Las dos se mantienen "
             "sincronizadas solas (todas las paginas leen su estado del mismo lugar), asi que el operador "
             "puede tener el guion en un monitor y las escenas en el otro.\n\n"
             "El operador hace lo mismo con clic derecho en el icono del riel. Si esa pagina ya esta "
             "afuera, no se abre otra igual.\n\n"
-            "Cerrar la ventana no pierde nada: la pagina sigue en la ventana principal.";
+            "Cerrar la ventana no pierde nada: la pagina sigue en la ventana principal.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
               {"seccion",
                {{"type", "string"},
-                {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                {"description", ba::i18n::traducir("mcp", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
                                 "muestra la lista, p. ej. \"Video\", \"Red de la conferencia\", "
-                                "\"Apariencia\"). Sin esto queda la que estaba."}}},
-              {"cerrar", {{"type", "boolean"}, {"description", "true: cierra su ventana (vuelve a la principal)"}}}}},
+                                "\"Apariencia\"). Sin esto queda la que estaba.")}}},
+              {"cerrar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "true: cierra su ventana (vuelve a la principal)")}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
-            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (w == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             const int idx = paginaDeId(vm, a["page"].get<std::string>());
             if (idx < 0)
                 return done(
@@ -307,13 +308,13 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "ui_panel_window";
-        t.title = "Sacar un panel a su ventana";
+        t.title = ba::i18n::traducir("mcp", "Sacar un panel a su ventana");
         t.category = "interfaz";
         t.description =
-            "Abre el padron, la cola de preguntas, la urna, el carrusel o el control PTZ de una camara en su "
-            "PROPIA ventana, para mandarla a otro monitor.";
+            ba::i18n::traducir("mcp", "Abre el padron, la cola de preguntas, la urna, el carrusel o el control PTZ de una camara en su "
+            "PROPIA ventana, para mandarla a otro monitor.");
         t.details =
-            "MAS FINO QUE `ui_page_window`, que saca una pagina entera. En un evento esa es la "
+            ba::i18n::traducir("mcp", "MAS FINO QUE `ui_page_window`, que saca una pagina entera. En un evento esa es la "
             "diferencia entre tener «Publico» en el segundo monitor y tener la cola de preguntas en "
             "uno y la urna en otro: cuando hay alguien moderando y alguien conduciendo, cada uno "
             "mira lo suyo.\n\n"
@@ -332,30 +333,30 @@ void McpService::registerUiTools() {
             "Despues se la manda al monitor que corresponda con `ventana_mover`: la ventana se llama "
             "`ba:panel:<id>` y `ventana_listar` la muestra. Si ese panel ya esta afuera, no se abre "
             "otro igual.\n\n"
-            "El operador hace lo mismo con el boton ⧉ del panel.";
+            "El operador hace lo mismo con el boton ⧉ del panel.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"panel",
                {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel", "mezclador", "ptz"}}}},
-              {"entrada", {{"type", "string"}, {"description", "Con panel=ptz: la entrada de video."}}},
+              {"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Con panel=ptz: la entrada de video.")}}},
               {"cosa",
                {{"type", "string"},
-                {"description", "En vez de `panel`: CUALQUIER cosa de catalogo_listar que vaya a un monitor "
+                {"description", ba::i18n::traducir("mcp", "En vez de `panel`: CUALQUIER cosa de catalogo_listar que vaya a un monitor "
                                 "(una tarjeta del tablero «tarjeta:aire», una pagina «pagina:guion», el "
-                                "programa, una escena, una multiview...)."}}}}}};
+                                "programa, una escena, una multiview...).")}}}}}};
         t.examples = {R"({"panel": "preguntas"})", R"({"panel": "ptz", "entrada": "Cámara 1"})",
                       R"({"cosa": "tarjeta:aire"})"};
         t.run = [self, &vm, windows](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
-            if (w == nullptr || windows == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (w == nullptr || windows == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             // Todo es una cosa del catálogo: el panel de siempre o cualquier otra.
             std::string id = a.value("cosa", a.value("panel", std::string()));
-            if (id.empty()) return done(ToolResult::error("Falta `panel` o `cosa` (catalogo_listar)."));
+            if (id.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `panel` o `cosa` (catalogo_listar).")));
             if (id == "ptz") {
                 const std::string entrada = a.value("entrada", std::string());
                 if (entrada.empty())
-                    return done(ToolResult::error("Falta `entrada`: la camara (ver ptz_camaras)."));
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `entrada`: la camara (ver ptz_camaras).")));
                 id = "ptz:" + entrada;
             }
             CatalogoVisible* cat = vm.catalogoVisible();
@@ -381,9 +382,9 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "ui_notify";
-        t.title = "Aviso en pantalla";
+        t.title = ba::i18n::traducir("mcp", "Aviso en pantalla");
         t.category = "interfaz";
-        t.description = "Muestra un aviso (toast) al operador en la app.";
+        t.description = ba::i18n::traducir("mcp", "Muestra un aviso (toast) al operador en la app.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -394,20 +395,20 @@ void McpService::registerUiTools() {
         t.run = [&vm](const json& a, Done done) {
             emit vm.notify(QString::fromStdString(a["message"]),
                            QString::fromStdString(a.value("level", std::string("info"))));
-            done(ToolResult::ok("Aviso mostrado."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Aviso mostrado.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "dashboard_list";
-        t.title = "Dashboard y ventanas de salida";
+        t.title = ba::i18n::traducir("mcp", "Dashboard y ventanas de salida");
         t.category = "interfaz";
         t.readOnly = true;
         t.description =
-            "Tarjetas del dashboard (id, tipo, posicion), tipos que se pueden agregar, fondo, ventanas "
+            ba::i18n::traducir("mcp", "Tarjetas del dashboard (id, tipo, posicion), tipos que se pueden agregar, fondo, ventanas "
             "sueltas abiertas (cosas del catalogo, disposicion, monitor, pantalla completa) y monitores "
-            "conectados (en su orden fisico, con su id estable).";
+            "conectados (en su orden fisico, con su id estable).");
         t.run = [&vm, dash, windows](const json&, Done done) {
             json kinds = json::array();
             for (const QString& k : dash->cardKinds())
@@ -443,14 +444,14 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "dashboard_card";
-        t.title = "Agregar / quitar tarjeta";
+        t.title = ba::i18n::traducir("mcp", "Agregar / quitar tarjeta");
         t.category = "interfaz";
         t.description =
-            "Agrega una tarjeta al dashboard (kind de dashboard_list; monitor lleva `source` = clave de "
-            "video) o quita una por id. reset=true vuelve a la disposicion por defecto.";
+            ba::i18n::traducir("mcp", "Agrega una tarjeta al dashboard (kind de dashboard_list; monitor lleva `source` = clave de "
+            "video) o quita una por id. reset=true vuelve a la disposicion por defecto.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"add", {{"type", "string"}, {"description", "Tipo de tarjeta."}}},
+                          {{"add", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Tipo de tarjeta.")}}},
                            {"source", {{"type", "string"}}},
                            {"remove", {{"type", "integer"}}},
                            {"reset", {{"type", "boolean"}}}}}};
@@ -460,26 +461,26 @@ void McpService::registerUiTools() {
             if (a.contains("add")) {
                 const QString kind = QString::fromStdString(a["add"]);
                 if (!dash->cardKinds().contains(kind))
-                    return done(ToolResult::error("Tipo de tarjeta desconocido (dashboard_list)."));
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "Tipo de tarjeta desconocido (dashboard_list).")));
                 dash->addCard(kind, QString::fromStdString(a.value("source", std::string())));
             }
-            done(ToolResult::ok("Dashboard actualizado."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Dashboard actualizado.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "dashboard_background";
-        t.title = "Fondo del dashboard";
+        t.title = ba::i18n::traducir("mcp", "Fondo del dashboard");
         t.category = "interfaz";
-        t.description = "Fondo del dashboard: videos sueltos (claves de feeds_list) con su disposición, o una de las "
+        t.description = ba::i18n::traducir("mcp", "Fondo del dashboard: videos sueltos (claves de feeds_list) con su disposición, o una de las "
                         "multivistas de la página Multiview (`multiview`: su id o su nombre; sale con sus fuentes y su "
-                        "estilo, en vivo). `feeds` vuelve a los videos sueltos. `dim` oscurece (0..1).";
+                        "estilo, en vivo). `feeds` vuelve a los videos sueltos. `dim` oscurece (0..1).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"feeds", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-                           {"multiview", {{"type", "string"}, {"description", "id o nombre de una multivista (ver multiview listar)"}}},
-                           {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row", "control", "multiview"}}, {"description", "multiview: sigue a la página Multiview (fuentes y estilo)"}}},
+                           {"multiview", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id o nombre de una multivista (ver multiview listar)")}}},
+                           {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row", "control", "multiview"}}, {"description", ba::i18n::traducir("mcp", "multiview: sigue a la página Multiview (fuentes y estilo)")}}},
                            {"dim", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}}}};
         t.run = [dash, &vm](const json& a, Done done) {
             if (a.contains("feeds")) {
@@ -505,37 +506,37 @@ void McpService::registerUiTools() {
                 dash->setBackgroundLayout("multiview:" + id);
             }
             if (a.contains("dim")) dash->setBackgroundDim(a["dim"]);
-            done(ToolResult::ok("Fondo actualizado."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Fondo actualizado.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "output_window";
-        t.title = "Ventanas sueltas (video, paneles, paginas)";
+        t.title = ba::i18n::traducir("mcp", "Ventanas sueltas (video, paneles, paginas)");
         t.category = "interfaz";
         t.description =
-            "Abre una ventana suelta con cosas del catalogo (`cosas`: ids de catalogo_listar: el programa, una "
+            ba::i18n::traducir("mcp", "Abre una ventana suelta con cosas del catalogo (`cosas`: ids de catalogo_listar: el programa, una "
             "escena, una multiview, un invitado «video:guest:1», un panel, una pagina) o con videos por su clave "
             "(`open`: program, guest:1...), o cambia/cierra una existente (`id`: el numero de dashboard_list o "
             "de «salida:<n>»): monitor, pantalla completa, disposicion. Las ventanas se recuerdan al reiniciar; "
-            "para dejar algo FIJO en un monitor, monitor_asignar.";
+            "para dejar algo FIJO en un monitor, monitor_asignar.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"cosas",
-               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Ids de catalogo_listar."}}},
+               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "Ids de catalogo_listar.")}}},
               {"open",
-               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Videos por su clave (feeds_list)."}}},
-              {"id", {{"type", "integer"}, {"description", "Ventana existente."}}},
+               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "Videos por su clave (feeds_list).")}}},
+              {"id", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "Ventana existente.")}}},
               {"close", {{"type", "boolean"}}},
               {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row"}}}},
-              {"screen", {{"type", "string"}, {"description", "Monitor: id, numero de orden o nombre (monitor_listar)."}}},
+              {"screen", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Monitor: id, numero de orden o nombre (monitor_listar).")}}},
               {"fullscreen", {{"type", "boolean"}}}}}};
         t.examples = {R"({"cosas": ["programa"], "screen": "2", "fullscreen": true})",
                       R"({"open": ["program", "guest:1", "guest:2"], "layout": "pip", "screen": "2"})"};
         t.run = [windows, monitores](const json& a, Done done) {
-            if (windows == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (windows == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             int id = a.value("id", 0);
             const QString layout = QString::fromStdString(a.value("layout", std::string("grid")));
             if (a.contains("cosas") || a.contains("open")) {
@@ -548,7 +549,7 @@ void McpService::registerUiTools() {
                 id = windows->abrirCon(cosas, layout, &err);
                 if (id == 0) return done(ToolResult::error(err.toStdString()));
             } else if (id == 0) {
-                return done(ToolResult::error("Indica `cosas`, `open` o el `id` de una ventana (dashboard_list)."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "Indica `cosas`, `open` o el `id` de una ventana (dashboard_list).")));
             }
             if (windows->ventana(id).isEmpty())
                 return done(ToolResult::error("No hay una ventana " + std::to_string(id) + " (dashboard_list)."));
@@ -559,7 +560,7 @@ void McpService::registerUiTools() {
             if (a.contains("layout")) windows->setDistribucion(id, layout);
             if (a.contains("screen")) {
                 const QString m = monitores ? monitores->resolver(QString::fromStdString(a["screen"].get<std::string>())) : QString();
-                if (m.isEmpty()) return done(ToolResult::error("No conozco ese monitor: monitor_listar dice cuales hay."));
+                if (m.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No conozco ese monitor: monitor_listar dice cuales hay.")));
                 windows->setMonitor(id, m);
             }
             if (a.contains("fullscreen")) windows->setPantallaCompleta(id, a["fullscreen"].get<bool>());
@@ -573,15 +574,15 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "feeds_list";
-        t.title = "Videos disponibles";
+        t.title = ba::i18n::traducir("mcp", "Videos disponibles");
         t.category = "sistema";
         t.readOnly = true;
         t.description =
-            "Claves de video que la app puede mostrar o capturar (program, armada, guest:N, share:N, "
+            ba::i18n::traducir("mcp", "Claves de video que la app puede mostrar o capturar (program, armada, guest:N, share:N, "
             "lobby:K, backstage:K, registro:K (la cámara de un tótem de registro), operator) con su etiqueta "
             "y si ahora tienen imagen.\n\n"
             "`armada` es la escena del bus de preview, renderizada aunque no este al aire: es el "
-            "monitor de preview de una mesa. Solo tiene imagen si hay algo armado (scene_preview).";
+            "monitor de preview de una mesa. Solo tiene imagen si hay algo armado (scene_preview).");
         t.run = [&vm](const json&, Done done) {
             auto* frames = static_cast<FrameService*>(vm.frames());
             QStringList keys = frames->keys();
@@ -611,11 +612,11 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "ui_barra";
-        t.title = "La barra de navegacion";
+        t.title = ba::i18n::traducir("mcp", "La barra de navegacion");
         t.category = "interfaz";
-        t.description = "Donde va la barra lateral, de que tamaño y que paginas muestra.";
+        t.description = ba::i18n::traducir("mcp", "Donde va la barra lateral, de que tamaño y que paginas muestra.");
         t.details =
-            "Sin argumentos, informa como esta. Con ellos, cambia lo que se le diga y deja el resto.\n\n"
+            ba::i18n::traducir("mcp", "Sin argumentos, informa como esta. Con ellos, cambia lo que se le diga y deja el resto.\n\n"
             "`posicion`: izquierda (por defecto), derecha, arriba o abajo. Arriba y abajo convienen en "
             "pantallas anchas y bajas, donde lo que falta es altura.\n\n"
             "`tamano`: el lado del boton en pixeles, de 30 a 64. 34 es chico, 42 normal, 54 grande.\n\n"
@@ -629,23 +630,23 @@ void McpService::registerUiTools() {
             "Esconder una NO la desactiva: la pagina sigue existiendo, el asistente la sigue usando y "
             "se puede abrir en su propia ventana; lo unico que se esconde es su boton. Configuracion "
             "no se puede esconder, porque es por donde se vuelve.\n\n"
-            "El cambio se ve al toque y se guarda solo en Config/riel.json.";
+            "El cambio se ve al toque y se guarda solo en Config/riel.json.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"posicion", {{"type", "string"}, {"enum", {"izquierda", "derecha", "arriba", "abajo"}}}},
               {"tamano", {{"type", "integer"}, {"minimum", 30}, {"maximum", 64}}},
-              {"separadores", {{"type", "boolean"}, {"description", "Lineas entre los grupos."}}},
+              {"separadores", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Lineas entre los grupos.")}}},
               {"expandir",
                {{"type", "boolean"},
-                {"description", "Que se abra en arbol al pasarle el puntero (solo en vertical)."}}},
+                {"description", ba::i18n::traducir("mcp", "Que se abra en arbol al pasarle el puntero (solo en vertical).")}}},
               {"anchoAbierto", {{"type", "integer"}, {"minimum", 180}, {"maximum", 360}}},
               {"mostrar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
               {"esconder", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-              {"restaurar", {{"type", "boolean"}, {"description", "Todo como viene de fabrica."}}}}}};
+              {"restaurar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Todo como viene de fabrica.")}}}}}};
         t.run = [&vm](const json& a, Done done) {
             auto* riel = static_cast<RielConfig*>(vm.riel());
-            if (riel == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (riel == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             if (a.value("restaurar", false)) riel->restaurar();
             if (a.contains("posicion"))
                 riel->setPosicion(QString::fromStdString(a["posicion"].get<std::string>()));
@@ -687,16 +688,16 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "logs_tail";
-        t.title = "Registros";
+        t.title = ba::i18n::traducir("mcp", "Registros");
         t.category = "sistema";
         t.readOnly = true;
-        t.description = "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.";
-        t.details = "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
+        t.description = ba::i18n::traducir("mcp", "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.");
+        t.details = ba::i18n::traducir("mcp", "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
                     "nivel, modulo y descripcion, entrelazando los tres procesos y con filtros. Esto sirve "
                     "cuando hace falta ver el archivo TAL CUAL, sin interpretar: por ejemplo "
                     "cloudflared.log, que lo escribe un programa de terceros con su propio formato.\n\n"
                     "Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, "
-                    "launcher.log (supervisor) y cloudflared.log (tunel).";
+                    "launcher.log (supervisor) y cloudflared.log (tunel).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -707,7 +708,7 @@ void McpService::registerUiTools() {
             const QString dir = QString::fromStdString((ba::platform::dataRoot() / "Logs").string());
             const QString name = QString::fromStdString(a.value("log", std::string("app.log")));
             if (name.contains('/') || name.contains('\\') || name.contains(".."))
-                return done(ToolResult::error("Solo nombres de archivo de Logs/."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "Solo nombres de archivo de Logs/.")));
             QFile f(dir + "/" + name);
             if (!f.open(QIODevice::ReadOnly)) {
                 QStringList logs = QDir(dir).entryList(QStringList{"*.log"}, QDir::Files);
@@ -736,13 +737,13 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "system_info";
-        t.title = "Carpeta del sistema, credenciales y respaldos";
+        t.title = ba::i18n::traducir("mcp", "Carpeta del sistema, credenciales y respaldos");
         t.category = "sistema";
         t.readOnly = true;
-        t.description = "Donde vive el sistema (todo en una carpeta portable), que credenciales hay "
+        t.description = ba::i18n::traducir("mcp", "Donde vive el sistema (todo en una carpeta portable), que credenciales hay "
                         "guardadas (solo nombres; "
                         "estan cifradas en Credenciales/), los respaldos de datos y si hay una version "
-                        "anterior para volver.";
+                        "anterior para volver.");
         t.run = [&vm](const json&, Done done) {
             auto* sys = static_cast<SystemViewModel*>(vm.system());
             json creds = json::array();
@@ -759,18 +760,18 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "system_update";
-        t.title = "Actualizar el sistema";
+        t.title = ba::i18n::traducir("mcp", "Actualizar el sistema");
         t.category = "sistema";
         t.destructive = true;
         t.description =
-            "Actualiza el programa desde una carpeta con la version nueva (descomprimida, FUERA de la "
+            ba::i18n::traducir("mcp", "Actualiza el programa desde una carpeta con la version nueva (descomprimida, FUERA de la "
             "carpeta del "
             "sistema). La app se cierra, el launcher reemplaza SOLO el programa (los datos no se tocan: "
             "Config/, Credenciales/, Logs/, Recordings/, Shares/, Runtime/, Cache/, Respaldos/, Agentes/ y "
             "Media/; Credenciales/ y Config/ ademas se respaldan) y vuelve a abrir sola: esta sesion MCP "
             "se corta y hay que reconectar en ~20 s. Los agentes ya instalados siguen andando; si esta "
             "version fija otra, la pestaña Asistente ofrece actualizarlos. Con check=true solo valida la "
-            "carpeta. rollback=true vuelve a la version anterior.";
+            "carpeta. rollback=true vuelve a la version anterior.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"path", {{"type", "string"}}},
@@ -781,14 +782,14 @@ void McpService::registerUiTools() {
             if (a.value("rollback", false)) {
                 const QString e = sys->startRollback();
                 return done(e.isEmpty()
-                                ? ToolResult::ok("Volviendo a la version anterior: la app se reinicia.")
+                                ? ToolResult::ok(ba::i18n::traducir("mcp", "Volviendo a la version anterior: la app se reinicia."))
                                 : ToolResult::error(e.toStdString()));
             }
             const QString path = QString::fromStdString(a.value("path", std::string()));
             const QString err = sys->checkUpdate(path);
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-            if (a.value("check", false)) return done(ToolResult::ok("La carpeta es una version valida."));
-            done(ToolResult::ok("Actualizando: la app se cierra y vuelve a abrir sola en unos segundos."));
+            if (a.value("check", false)) return done(ToolResult::ok(ba::i18n::traducir("mcp", "La carpeta es una version valida.")));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Actualizando: la app se cierra y vuelve a abrir sola en unos segundos.")));
             QTimer::singleShot(500, sys, [sys, path]() { sys->startUpdate(path); });
         };
         core_.addTool(std::move(t));
@@ -796,13 +797,13 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "app_quit";
-        t.title = "Cerrar la aplicacion";
+        t.title = ba::i18n::traducir("mcp", "Cerrar la aplicacion");
         t.category = "sistema";
         t.destructive = true;
         t.description =
-            "Cierra la aplicacion (corta transmision y grabacion; el servidor MCP tambien se cierra).";
+            ba::i18n::traducir("mcp", "Cierra la aplicacion (corta transmision y grabacion; el servidor MCP tambien se cierra).");
         t.run = [&vm](const json&, Done done) {
-            done(ToolResult::ok("Cerrando la aplicacion."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Cerrando la aplicacion.")));
             QTimer::singleShot(300, &vm, [&vm]() { emit vm.quitRequested(); });
         };
         core_.addTool(std::move(t));

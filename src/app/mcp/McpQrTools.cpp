@@ -13,6 +13,7 @@
 
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "i18n/I18n.hpp"
 #include "qr/Iconos.hpp"
 #include "ui/EnlacesViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
@@ -27,16 +28,16 @@ namespace {
 /// los usan las dos herramientas que dibujan.
 json esquemaEstilo() {
     return json{
-        {"primario", {{"type", "string"}, {"description", "color del codigo (#000000)"}}},
-        {"secundario", {{"type", "string"}, {"description", "si esta, degradado de primario a este"}}},
-        {"fondo", {{"type", "string"}, {"description", "#FFFFFF o \"transparent\""}}},
+        {"primario", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "color del codigo (#000000)")}}},
+        {"secundario", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "si esta, degradado de primario a este")}}},
+        {"fondo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "#FFFFFF o \"transparent\"")}}},
         {"puntos",
          {{"type", "string"},
           {"enum", {"cuadrados", "redondeados", "circulos", "separados", "muy-redondeados"}}}},
         {"ojos", {{"type", "string"}, {"enum", {"cuadrados", "redondeados"}}}},
         {"marco", {{"type", "string"}, {"enum", {"ninguno", "simple", "redondeado"}}}},
         {"correccion", {{"type", "string"}, {"enum", {"baja", "media", "alta", "maxima"}}}},
-        {"icono", {{"type", "string"}, {"description", "id de un icono para el centro (qr_listar los da)"}}},
+        {"icono", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de un icono para el centro (qr_listar los da)")}}},
         {"iconoColor", {{"type", "string"}}}};
 }
 
@@ -59,9 +60,9 @@ QVariantMap aMapa(const json& o) {
 } // namespace
 
 void McpService::registerQrTools() {
-    core_.addCategory("qr", "Códigos QR",
-                      "Generar códigos QR (enlace, WiFi, contacto, reunión, y los del propio aparato: "
-                      "conferencia, teleprompter, rótulos), guardarlos en la biblioteca y exportarlos.");
+    core_.addCategory("qr", ba::i18n::traducir("mcp", "Códigos QR"),
+                      ba::i18n::traducir("mcp", "Generar códigos QR (enlace, WiFi, contacto, reunión, y los del propio aparato: "
+                      "conferencia, teleprompter, rótulos), guardarlos en la biblioteca y exportarlos."));
     auto* q = static_cast<QrViewModel*>(vm_.qr());
     if (q == nullptr) return;
     // Los tipos que existen (los de qr_listar): un tipo mal escrito se rechaza en la
@@ -69,22 +70,22 @@ void McpService::registerQrTools() {
     json tipos = json::array();
     for (const QVariant& v : q->tipos())
         tipos.push_back(v.toMap().value("id").toString().toStdString());
-    const json esquemaTipo = {{"type", "string"}, {"enum", tipos}, {"description", "uno de qr_listar (enlace para una url)"}};
+    const json esquemaTipo = {{"type", "string"}, {"enum", tipos}, {"description", ba::i18n::traducir("mcp", "uno de qr_listar (enlace para una url)")}};
 
     {
         Tool t;
         t.name = "qr_listar";
-        t.title = "Los codigos guardados, y que se puede generar";
+        t.title = ba::i18n::traducir("mcp", "Los codigos guardados, y que se puede generar");
         t.category = "qr";
         t.readOnly = true;
-        t.description = "Los codigos de la biblioteca (del aparato y del evento), los TIPOS que se pueden "
-                        "generar con sus campos, y los iconos que pueden ir al centro.";
-        t.details = "Los tipos con `delAparato: true` (sala, prompter, rotulos) NO llevan datos: el "
+        t.description = ba::i18n::traducir("mcp", "Los codigos de la biblioteca (del aparato y del evento), los TIPOS que se pueden "
+                        "generar con sus campos, y los iconos que pueden ir al centro.");
+        t.details = ba::i18n::traducir("mcp", "Los tipos con `delAparato: true` (sala, prompter, rotulos) NO llevan datos: el "
                     "contenido lo arma el sistema con la clave que corresponda en ese momento. Por eso se "
                     "guardan sin texto y salen siempre al dia.\n\n`para_elegir`: lo que acepta `qr` en "
                     "pantalla_mostrar y en una fuente «Código QR» (crear_fuente {type: ba_qr, settings: {qr}}): los del "
                     "aparato SIEMPRE (\"aparato:publico\", \"aparato:sala\", \"aparato:prompter\", "
-                    "\"aparato:rotulos\"), aunque no esten guardados, y los guardados por su id.";
+                    "\"aparato:rotulos\"), aunque no esten guardados, y los guardados por su id.");
         t.run = [q](const json&, Done done) {
             json guardados = json::array();
             for (const QVariant& v : q->todos()) {
@@ -123,62 +124,63 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "qr_mostrar";
-        t.title = "Mostrarle al operador un QR (y para copiar)";
+        t.title = ba::i18n::traducir("mcp", "Mostrarle al operador un QR (y para copiar)");
         t.category = "qr";
         t.readOnly = true;
         t.description =
-            "Abre en la pantalla del operador una ventana con el código QR de `texto` (una URL, un enlace de la conferencia, "
+            ba::i18n::traducir("mcp", "Abre en la pantalla del operador una ventana con el código QR de `texto` (una URL, un enlace de la conferencia, "
             "un PIN…), una `descripcion` grande, el texto seleccionable y los botones «Copiar al portapapeles» y "
             "«Abrir». USALO SIEMPRE que le pases una URL o un dato largo al operador: desde el chat no lo puede copiar "
             "cómodo; así lo escanea con el celular o lo copia con un clic. `color` (verde, azul, rojo, amarillo, "
             "naranja, violeta, rosa, celeste, gris o #rrggbb) pinta el marco: con varios QR a la vez, poné uno de "
-            "cada color y decile «escaneá el QR verde». Cada llamada abre una ventana nueva.";
+            "cada color y decile «escaneá el QR verde». Cada llamada abre una ventana nueva.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"texto"}},
             {"properties",
-             {{"texto", {{"type", "string"}, {"description", "lo que va en el QR (p. ej. la URL)"}}},
-              {"descripcion", {{"type", "string"}, {"description", "qué es, en grande (p. ej. «Enlace para los invitados»)"}}},
-              {"mensaje", {{"type", "string"}, {"description", "una línea de explicación (opcional)"}}},
+             {{"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que va en el QR (p. ej. la URL)")}}},
+              {"descripcion", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "qué es, en grande (p. ej. «Enlace para los invitados»)")}}},
+              {"mensaje", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "una línea de explicación (opcional)")}}},
               {"color",
                {{"type", "string"},
-                {"description", "verde (de fábrica), azul, rojo, amarillo, naranja, violeta, rosa, celeste, gris o #rrggbb"}}}}}};
+                {"description", ba::i18n::traducir("mcp", "verde (de fábrica), azul, rojo, amarillo, naranja, violeta, rosa, celeste, gris o #rrggbb")}}}}}};
         t.examples = {R"({"texto": "https://sala.ejemplo.com/invitados/#room=sala1", "descripcion": "Enlace para los invitados", "color": "verde"})",
                       R"({"texto": "https://sala.ejemplo.com/sesion/", "descripcion": "Sesión remota", "color": "azul"})"};
         StudioViewModel* vmp = &vm_;
         t.run = [vmp](const json& a, Done done) {
             const std::string texto = a.value("texto", std::string());
-            if (texto.empty()) return done(ToolResult::error("falta `texto`"));
-            if (texto.size() > 2000) return done(ToolResult::error("demasiado largo para un QR legible (más de 2000 caracteres)"));
+            if (texto.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `texto`")));
+            if (texto.size() > 2000) return done(ToolResult::error(ba::i18n::traducir("mcp", "demasiado largo para un QR legible (más de 2000 caracteres)")));
             std::string color = a.value("color", std::string("verde"));
             for (auto& c : color) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             emit vmp->mostrarQr(QString::fromStdString(texto),
                                 QString::fromStdString(a.value("descripcion", a.value("titulo", std::string()))),
                                 QString::fromStdString(a.value("mensaje", std::string())), QString::fromStdString(color));
-            done(ToolResult::ok("Listo: el operador ve el QR " + color + " con el botón para copiar."));
+            done(ToolResult::ok(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "Listo: el operador ve el QR %1 con el botón para copiar."), {color})));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "qr_generar";
-        t.title = "Generar un codigo (sin guardarlo)";
+        t.title = ba::i18n::traducir("mcp", "Generar un codigo (sin guardarlo)");
         t.category = "qr";
         t.readOnly = true;
-        t.description = "Arma el codigo y devuelve QUE DICE y su SVG, sin tocar la biblioteca ni lo que el "
+        t.description = ba::i18n::traducir("mcp", "Arma el codigo y devuelve QUE DICE y su SVG, sin tocar la biblioteca ni lo que el "
                         "operador este diseñando. Para guardarlo: qr_guardar. Para dejarlo en un archivo: "
-                        "qr_exportar.";
-        t.details = "El estilo es opcional: sin el sale negro, cuadrado y sin adornos, que es lo que "
+                        "qr_exportar.");
+        t.details = ba::i18n::traducir("mcp", "El estilo es opcional: sin el sale negro, cuadrado y sin adornos, que es lo que "
                     "siempre se lee.\n\n"
                     "OJO CON EL ESTILO: un icono al centro tapa modulos, asi que sube la correccion de "
                     "errores solo. Y no hay ojos circulares porque NO SE LEEN (se midio: un ojo mas "
-                    "redondo que `redondeados` deja de escanear).";
+                    "redondo que `redondeados` deja de escanear).");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"tipo"}},
             {"properties",
              {{"tipo", esquemaTipo},
-              {"datos", {{"type", "object"}, {"description", "los campos del tipo (qr_listar)"}}},
+              {"datos", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "los campos del tipo (qr_listar)")}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}}}}};
         t.examples = {
             R"({"tipo": "wifi", "datos": {"red": "Estudio", "clave": "…"}, "estilo": {"icono": "wifi", "primario": "#1d4ed8"}})"};
@@ -187,14 +189,14 @@ void McpService::registerQrTools() {
             const QVariantMap datos = aMapa(a.value("datos", json::object()));
             const QString texto = q->contenidoDe(tipo, datos);
             if (texto.isEmpty()) {
-                done(ToolResult::error(
-                    "No pude armar el contenido: ¿es un tipo que existe y estan sus campos? "
-                    "(qr_listar los da). Los del aparato necesitan el servidor corriendo."));
+                done(ToolResult::error(ba::i18n::traducir(
+                    "mcp", "No pude armar el contenido: ¿es un tipo que existe y estan sus campos? "
+                           "(qr_listar los da). Los del aparato necesitan el servidor corriendo.")));
                 return;
             }
             const QString s = q->svgSuelto(tipo, datos, aMapa(a.value("estilo", json::object())));
             if (s.isEmpty()) {
-                done(ToolResult::error("El texto no entra en un codigo QR: acortalo o baja la correccion."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "El texto no entra en un codigo QR: acortalo o baja la correccion.")));
                 return;
             }
             done(ToolResult().data(
@@ -205,11 +207,11 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "qr_guardar";
-        t.title = "Guardar un codigo en la biblioteca";
+        t.title = ba::i18n::traducir("mcp", "Guardar un codigo en la biblioteca");
         t.category = "qr";
-        t.description = "Lo deja guardado para usarlo despues. `ambito`: \"global\" (del aparato, sirve "
+        t.description = ba::i18n::traducir("mcp", "Lo deja guardado para usarlo despues. `ambito`: \"global\" (del aparato, sirve "
                         "para todos los eventos) o \"evento\" (viaja con este). Con `id` de uno que ya "
-                        "existe, lo reemplaza.";
+                        "existe, lo reemplaza.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"nombre", "tipo"}},
@@ -219,7 +221,7 @@ void McpService::registerQrTools() {
               {"ambito", {{"type", "string"}, {"enum", {"global", "evento"}}, {"default", "global"}}},
               {"datos", {{"type", "object"}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
-              {"id", {{"type", "string"}, {"description", "para reemplazar uno que ya existe"}}}}}};
+              {"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para reemplazar uno que ya existe")}}}}}};
         t.run = [q](const json& a, Done done) {
             // Se arma en el editor y se guarda: el operador ve aparecer lo que
             // el asistente hizo, en la pantalla, sin refrescar nada.
@@ -241,7 +243,8 @@ void McpService::registerQrTools() {
                 done(ToolResult::error(err.toStdString()));
                 return;
             }
-            done(ToolResult::ok("Guardado como «" + a["nombre"].get<std::string>() + "».")
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardado como «%1»."),
+                                                 {a["nombre"].get<std::string>()}))
                      .data(json{{"id", q->abierto().toStdString()}, {"dice", q->contenido().toStdString()}}));
         };
         core_.addTool(std::move(t));
@@ -249,11 +252,11 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "qr_borrar";
-        t.title = "Borrar un codigo guardado";
+        t.title = ba::i18n::traducir("mcp", "Borrar un codigo guardado");
         t.category = "qr";
         t.destructive = true;
-        t.description = "Lo saca de la biblioteca. No toca lo que ya se haya exportado ni lo que este en "
-                        "una pantalla.";
+        t.description = ba::i18n::traducir("mcp", "Lo saca de la biblioteca. No toca lo que ya se haya exportado ni lo que este en "
+                        "una pantalla.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties",
@@ -262,18 +265,18 @@ void McpService::registerQrTools() {
         t.run = [q](const json& a, Done done) {
             if (a.contains("ambito")) q->setAmbito(QString::fromStdString(a["ambito"].get<std::string>()));
             const QString err = q->borrar(QString::fromStdString(a["id"].get<std::string>()));
-            done(err.isEmpty() ? ToolResult::ok("Borrado.") : ToolResult::error(err.toStdString()));
+            done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Borrado.")) : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "qr_exportar";
-        t.title = "Dejar un codigo en un archivo";
+        t.title = ba::i18n::traducir("mcp", "Dejar un codigo en un archivo");
         t.category = "qr";
-        t.description = "Escribe el codigo en Exportado/, como PNG (para pegar en algo) o SVG (para "
+        t.description = ba::i18n::traducir("mcp", "Escribe el codigo en Exportado/, como PNG (para pegar en algo) o SVG (para "
                         "imprimir a cualquier tamaño sin que se vea borroso). Con `id` exporta uno "
-                        "guardado; si no, se arma con `tipo`/`datos`/`estilo` como en qr_generar.";
+                        "guardado; si no, se arma con `tipo`/`datos`/`estilo` como en qr_generar.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -281,7 +284,7 @@ void McpService::registerQrTools() {
               {"tipo", esquemaTipo},
               {"datos", {{"type", "object"}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
-              {"nombre", {{"type", "string"}, {"description", "el del archivo"}}},
+              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el del archivo")}}},
               {"formato", {{"type", "string"}, {"enum", {"png", "svg"}}, {"default", "png"}}},
               {"px", {{"type", "integer"}, {"minimum", 64}, {"maximum", 4096}, {"default", 1024}}}}}};
         t.run = [q](const json& a, Done done) {
@@ -298,21 +301,22 @@ void McpService::registerQrTools() {
                                  aMapa(a.value("datos", json::object())),
                                  aMapa(a.value("estilo", json::object())));
             } else {
-                done(ToolResult::error("Falta `id` (uno guardado) o `tipo` (para armar uno nuevo)."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `id` (uno guardado) o `tipo` (para armar uno nuevo).")));
                 return;
             }
             if (s.isEmpty()) {
-                done(ToolResult::error("No pude generar ese codigo."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "No pude generar ese codigo.")));
                 return;
             }
             const QString ruta = q->escribir(s, nombre, QString::fromStdString(a.value("formato", "png")),
                                              a.value("px", 1024));
             if (ruta.isEmpty()) {
-                done(ToolResult::error("No pude escribir el archivo."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "No pude escribir el archivo.")));
                 return;
             }
             done(
-                ToolResult::ok("Guardado en " + ruta.toStdString()).data(json{{"ruta", ruta.toStdString()}}));
+                ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardado en %1"), {ruta.toStdString()}))
+                    .data(json{{"ruta", ruta.toStdString()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -320,11 +324,11 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "enlaces_listar";
-        t.title = "Todos los enlaces del aparato, con su estado";
+        t.title = ba::i18n::traducir("mcp", "Todos los enlaces del aparato, con su estado");
         t.category = "qr";
         t.readOnly = true;
         t.description =
-            "Cada servicio web del aparato en una lista: invitados, tablero, público, teleprompter, rótulos, "
+            ba::i18n::traducir("mcp", "Cada servicio web del aparato en una lista: invitados, tablero, público, teleprompter, rótulos, "
             "corrección, botonera, Companion, sesión remota, presidencia, web del evento, televisores, túnel y "
             "consola. De cada uno: `led` (ok, aviso, apagado, error) y `estado` en palabras, si se puede "
             "prender o apagar (`activable`, `activo`), el enlace de la red local (`local`) y el de afuera "
@@ -332,12 +336,12 @@ void McpService::registerQrTools() {
             "se dan en su página (`pagina`). Para pasarle uno al operador, `qr_mostrar` con ese enlace. Los que "
             "piden aprobación por aparato (`aprueba`: botonera, control, satellite, invitados) traen cuántos "
             "esperan (`pendientes`) y quiénes (`solicitudes`): solo para informar; los aprueba el operador en "
-            "Servicios (el control web, también con control_web_resolver, que pide su aprobación).";
+            "Servicios (el control web, también con control_web_resolver, que pide su aprobación).");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         StudioViewModel* vmp = &vm_;
         t.run = [vmp](const json&, Done done) {
             EnlacesViewModel* e = vmp->enlacesVm();
-            if (e == nullptr) return done(ToolResult::error("no disponible"));
+            if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
             const QJsonDocument d = QJsonDocument::fromVariant(QVariantMap{{"servicios", e->servicios()},
                                                                            {"hay_tunel", e->hayTunel()}});
             done(ToolResult().data(json::parse(d.toJson(QJsonDocument::Compact).toStdString(), nullptr, false)));
@@ -348,16 +352,16 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "direcciones";
-        t.title = "Las direcciones de los servicios (red local y afuera)";
+        t.title = ba::i18n::traducir("mcp", "Las direcciones de los servicios (red local y afuera)");
         t.category = "qr";
         t.readOnly = true;
         t.description =
-            "De dónde sale TODO enlace: lo calcula la conferencia con lo que sabe (dónde escucha, la IP de la máquina, si el "
+            ba::i18n::traducir("mcp", "De dónde sale TODO enlace: lo calcula la conferencia con lo que sabe (dónde escucha, la IP de la máquina, si el "
             "túnel está listo). `local`: la IP de la red y el puerto de la conferencia; `remoto`: el túnel (o null). Por "
             "servicio (invitados, sesion, presidencia, botonera, control, prompter, rotulos, correccion, tablero, "
             "publico, pantalla, companion, evento): `local` (la de la red; nunca 127.0.0.1), `remoto` (por el túnel) "
             "y, si falta alguno, `motivo_local`/`motivo_remoto`. Para los de la sala, pasá el local; el remoto es "
-            "para quien está afuera. Los enlaces con clave (tablero, prompter, rótulos…) dalos con su herramienta.";
+            "para quien está afuera. Los enlaces con clave (tablero, prompter, rótulos…) dalos con su herramienta.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         StudioViewModel* vmp = &vm_;
         t.run = [vmp](const json&, Done done) { done(ToolResult().data(vmp->direcciones().catalogo())); };
@@ -366,14 +370,14 @@ void McpService::registerQrTools() {
     {
         Tool t;
         t.name = "enlace_activar";
-        t.title = "Prender o apagar un servicio web";
+        t.title = ba::i18n::traducir("mcp", "Prender o apagar un servicio web");
         t.category = "qr";
         t.description =
-            "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la "
+            ba::i18n::traducir("mcp", "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la "
             "conferencia con llave), `companion` (la API HTTP de la botonera), `satellite` "
             "(Companion Satellite) o `tunel` (la salida a internet: reinicia la conferencia, los invitados se "
             "reconectan). Es el interruptor de la lista de servicios; para ajustar uno con sus opciones: la "
-            "conferencia con room_set (lobby, cupo, `locked`) y el túnel con acceso_remoto_configurar.";
+            "conferencia con room_set (lobby, cupo, `locked`) y el túnel con acceso_remoto_configurar.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id", "activo"}},
                          {"properties",
@@ -383,15 +387,16 @@ void McpService::registerQrTools() {
         StudioViewModel* vmp = &vm_;
         t.run = [vmp](const json& a, Done done) {
             EnlacesViewModel* e = vmp->enlacesVm();
-            if (e == nullptr) return done(ToolResult::error("no disponible"));
+            if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
             // Como acceso_remoto_*: con el evento corriendo, el túnel (reinicia la sala) no lo toca el asistente.
             if (a.value("id", std::string()) == "tunel")
                 if (auto* ev = static_cast<EventoViewModel*>(vmp->evento()); ev != nullptr && ev->enVivo())
-                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine "
-                                                  "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app."));
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "El evento está corriendo: el túnel no se toca hasta que termine "
+                                                  "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app.")));
             const QString err = e->activar(QString::fromStdString(a.value("id", std::string())), a.value("activo", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-            done(ToolResult::ok(a.value("activo", false) ? "Prendido." : "Apagado."));
+            done(ToolResult::ok(a.value("activo", false) ? ba::i18n::traducir("mcp", "Prendido.")
+                                                         : ba::i18n::traducir("mcp", "Apagado.")));
         };
         core_.addTool(std::move(t));
     }

@@ -17,24 +17,25 @@
 #include "agent/Roles.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "i18n/I18n.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
 
 void McpService::registerAgenteTools() {
-    core_.addCategory("agentes", "Agentes automáticos",
-                      "Roles que atienden solos lo que llega de afuera (recepción del lobby, técnico de "
-                      "audio): cuáles hay, prenderlos, encargarles algo, ver qué hicieron.");
+    core_.addCategory("agentes", ba::i18n::traducir("mcp", "Agentes automáticos"),
+                      ba::i18n::traducir("mcp", "Roles que atienden solos lo que llega de afuera (recepción del lobby, técnico de "
+                      "audio): cuáles hay, prenderlos, encargarles algo, ver qué hicieron."));
     agent::Despachador& d = vm_.despachador();
 
     {
         Tool t;
         t.name = "agente_roles";
-        t.title = "Roles automaticos";
+        t.title = ba::i18n::traducir("mcp", "Roles automaticos");
         t.category = "agentes";
         t.readOnly = true;
-        t.description = "Como esta configurado cada rol: si esta activo, con que proveedor y modelo, que "
-                        "categorias ve, que eventos atiende y si esta trabajando ahora.";
+        t.description = ba::i18n::traducir("mcp", "Como esta configurado cada rol: si esta activo, con que proveedor y modelo, que "
+                        "categorias ve, que eventos atiende y si esta trabajando ahora.");
         t.run = [&d](const json&, Done done) {
             json r = d.roles().aJson();
             for (auto& x : r) {
@@ -48,14 +49,14 @@ void McpService::registerAgenteTools() {
     {
         Tool t;
         t.name = "agente_configurar";
-        t.title = "Prender, apagar o cambiar el motor de un rol";
+        t.title = ba::i18n::traducir("mcp", "Prender, apagar o cambiar el motor de un rol");
         t.category = "agentes";
         t.idempotent = true;
-        t.description = "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el "
+        t.description = ba::i18n::traducir("mcp", "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el "
                         "asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que "
-                        "no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.";
+                        "no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.");
         t.details =
-            "`consola` le da las HERRAMIENTAS PROPIAS DEL AGENTE ademas de su juego MCP: consola, leer "
+            ba::i18n::traducir("mcp", "`consola` le da las HERRAMIENTAS PROPIAS DEL AGENTE ademas de su juego MCP: consola, leer "
             "y escribir archivos, salir a internet.\n\n"
             "Es OTRA COSA que las categorias. Las categorias son lo que el rol sabe hacer DEL APARATO; "
             "esto es la maquina entera. Viene apagado: un rol que mide audio o atiende el lobby no "
@@ -63,7 +64,7 @@ void McpService::registerAgenteTools() {
             "en Medios/— las necesita todas.\n\n"
             "LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval`) cubre "
             "las herramientas del MCP, NO estas. Un rol con consola toca el disco y la red sin pasar "
-            "por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.";
+            "por ahi, en la maquina del estudio. Prendelo cuando el trabajo lo pida, no por si acaso.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"rol"}},
@@ -74,18 +75,19 @@ void McpService::registerAgenteTools() {
               {"modelo", {{"type", "string"}}},
               {"consola",
                {{"type", "boolean"},
-                {"description", "herramientas propias del agente: consola, archivos, internet"}}}}}};
+                {"description", ba::i18n::traducir("mcp", "herramientas propias del agente: consola, archivos, internet")}}}}}};
         t.run = [&d, this](const json& a, Done done) {
             const std::string rol = a["rol"].get<std::string>();
             // En vivo no se le da la máquina entera a un agente: la consola no
             // pasa por las guardas de aire.
             if (a.value("consola", false) && core_.hayAire()) {
-                done(ToolResult::error("Con la transmisión o la grabación andando no se prende la consola de un "
-                                       "agente (no pasa por las guardas de aire). Prendela fuera del aire."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "Con la transmisión o la grabación andando no se prende la consola de un "
+                                       "agente (no pasa por las guardas de aire). Prendela fuera del aire.")));
                 return;
             }
             if (d.roles().porId(rol) == nullptr) {
-                done(ToolResult::error("No existe el rol `" + rol + "`: agente_roles los lista."));
+                done(ToolResult::error(
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe el rol `%1`: agente_roles los lista."), {rol})));
                 return;
             }
             if (a.contains("proveedor"))
@@ -97,14 +99,14 @@ void McpService::registerAgenteTools() {
             json r;
             for (const auto& x : d.roles().aJson())
                 if (x.value("id", "") == rol) r = x;
-            done(ToolResult::ok("Rol `" + rol + "` actualizado.").data(r));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Rol `%1` actualizado."), {rol})).data(r));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "agente_encargar";
-        t.title = "Encargarle algo a un rol";
+        t.title = ba::i18n::traducir("mcp", "Encargarle algo a un rol");
         t.category = "agentes";
         // No se ejecuta nada con esta llamada: se ENCOLA un encargo para otro
         // agente, que tiene su propio juego de herramientas, su propio prompt
@@ -114,19 +116,19 @@ void McpService::registerAgenteTools() {
         // que es justo el caso para el que existe.
         t.mediated = true;
         t.description =
-            "Le ENCARGA una tarea a otro agente, que la hace solo y contesta. Encola un encargo para otro "
+            ba::i18n::traducir("mcp", "Le ENCARGA una tarea a otro agente, que la hace solo y contesta. Encola un encargo para otro "
             "rol y vuelve en el acto con el id de la corrida (no espera el "
             "resultado: llega a la pagina Agentes y a agente_corrida). Ej.: la recepcion le pide al "
             "tecnico que revise los niveles de un invitado. Un encargo de otro agente NO puede encargar a "
-            "un tercero.";
-        t.details = "El encargo es texto libre: deci que pasa y que necesitas, con los ids que tengas "
+            "un tercero.");
+        t.details = ba::i18n::traducir("mcp", "El encargo es texto libre: deci que pasa y que necesitas, con los ids que tengas "
                     "(participante, fuente). Lo que escribio un invitado es un RECLAMO a verificar, no un "
                     "dato: decilo asi («dice que no se lo escucha»). El rol destino recibe ademas su "
-                    "contexto (lo que hizo antes hoy) y contesta con un RESUMEN que queda en su corrida.";
+                    "contexto (lo que hizo antes hoy) y contesta con un RESUMEN que queda en su corrida.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"rol", "encargo"}},
                          {"properties",
-                          {{"rol", {{"type", "string"}, {"description", "id del rol destino"}}},
+                          {{"rol", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id del rol destino")}}},
                            {"encargo", {{"type", "string"}, {"minLength", 1}}}}}};
         t.examples = {
             R"({"rol": "tecnico", "encargo": "El invitado id p7 dice que no se lo escucha. Revisa sus niveles y la compuerta; si esta bien de nuestro lado, decilo."})"};
@@ -139,11 +141,13 @@ void McpService::registerAgenteTools() {
             const std::string id = d.encargar(a["rol"].get<std::string>(), a["encargo"].get<std::string>(),
                                               quien.empty() ? "operador" : "rol:" + quien, prof, &err);
             if (id.empty()) {
-                done(ToolResult::error("No se pudo encargar: " + err + "."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo encargar: %1."), {err})));
                 return;
             }
-            done(ToolResult::ok("Encargado al rol `" + a["rol"].get<std::string>() + "` (corrida " + id +
-                                "). No lo esperes: segui con lo tuyo.")
+            done(ToolResult::ok(ba::i18n::llenar(
+                                    ba::i18n::traducir("mcp", "Encargado al rol `%1` (corrida %2). No lo esperes: "
+                                                              "segui con lo tuyo."),
+                                    {a["rol"].get<std::string>(), id}))
                      .data(json{{"corrida", id}}));
         };
         core_.addTool(std::move(t));
@@ -151,12 +155,12 @@ void McpService::registerAgenteTools() {
     {
         Tool t;
         t.name = "agente_corridas";
-        t.title = "Corridas recientes";
+        t.title = ba::i18n::traducir("mcp", "Corridas recientes");
         t.category = "agentes";
         t.readOnly = true;
         t.description =
-            "Las ultimas corridas de los roles (la mas nueva primero): rol, origen, estado, "
-            "duracion, cuantas herramientas uso y el resumen final. Sin los pasos: agente_corrida.";
+            ba::i18n::traducir("mcp", "Las ultimas corridas de los roles (la mas nueva primero): rol, origen, estado, "
+            "duracion, cuantas herramientas uso y el resumen final. Sin los pasos: agente_corrida.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -170,17 +174,18 @@ void McpService::registerAgenteTools() {
     {
         Tool t;
         t.name = "agente_corrida";
-        t.title = "Una corrida, paso a paso";
+        t.title = ba::i18n::traducir("mcp", "Una corrida, paso a paso");
         t.category = "agentes";
         t.readOnly = true;
-        t.description = "Una corrida completa: el encargo, cada paso (lo que dijo el agente, que herramienta "
-                        "llamo y con que, que le contesto) y el resultado.";
+        t.description = ba::i18n::traducir("mcp", "Una corrida completa: el encargo, cada paso (lo que dijo el agente, que herramienta "
+                        "llamo y con que, que le contesto) y el resultado.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [&d](const json& a, Done done) {
             const json c = d.corrida(a["id"].get<std::string>());
             if (c.is_null()) {
-                done(ToolResult::error("No hay una corrida con id " + a["id"].get<std::string>() + "."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay una corrida con id %1."),
+                                                        {a["id"].get<std::string>()})));
                 return;
             }
             done(ToolResult().data(c));
@@ -190,16 +195,16 @@ void McpService::registerAgenteTools() {
     {
         Tool t;
         t.name = "agente_detener";
-        t.title = "Detener una corrida";
+        t.title = ba::i18n::traducir("mcp", "Detener una corrida");
         t.category = "agentes";
         t.idempotent = true;
-        t.description = "Mata el agente de esa corrida (o la saca de la cola si no arranco). Queda como "
-                        "«detenida», con lo que alcanzo a hacer.";
+        t.description = ba::i18n::traducir("mcp", "Mata el agente de esa corrida (o la saca de la cola si no arranco). Queda como "
+                        "«detenida», con lo que alcanzo a hacer.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [&d](const json& a, Done done) {
             d.detener(QString::fromStdString(a["id"].get<std::string>()));
-            done(ToolResult::ok("Detenida (si estaba corriendo)."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Detenida (si estaba corriendo).")));
         };
         core_.addTool(std::move(t));
     }
@@ -222,8 +227,10 @@ void McpService::registerAgenteTools() {
             else
                 adentro += (adentro.empty() ? "" : ", ") + linea;
         }
-        return "En la conferencia ahora — adentro: " + (adentro.empty() ? "nadie" : adentro) +
-               ". Esperando en el lobby: " + (esperando.empty() ? "nadie" : esperando) + ".";
+        const std::string nadie = ba::i18n::traducir("mcp", "nadie");
+        return ba::i18n::llenar(
+            ba::i18n::traducir("mcp", "En la conferencia ahora — adentro: %1. Esperando en el lobby: %2."),
+            {adentro.empty() ? nadie : adentro, esperando.empty() ? nadie : esperando});
     });
 
     // Un evento de lobby que toma la recepcion habilita la exencion de
