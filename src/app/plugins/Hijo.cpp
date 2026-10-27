@@ -3,6 +3,7 @@
 #include "plugins/Hijo.hpp"
 #include "ajustes/Ajustes.hpp"
 
+#include <QCoreApplication>
 #include <QSocketNotifier>
 #include <QTimer>
 
@@ -94,7 +95,7 @@ bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProc
     });
     proc_->start(QIODevice::ReadWrite | QIODevice::Unbuffered);
     if (!proc_->waitForStarted(ba::ajustes::sAMs("plugins.arranqueS", 10))) {
-        if (error) *error = QStringLiteral("no se pudo lanzar «%1»: %2").arg(programa, proc_->errorString());
+        if (error) *error = QCoreApplication::translate("plugins", "no se pudo lanzar «%1»: %2").arg(programa, proc_->errorString());
         delete proc_;
         proc_ = nullptr;
         return false;
@@ -117,11 +118,11 @@ bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProc
 #else
     int pin[2], pout[2], perr[2] = {-1, -1};
     if (::pipe(pin) != 0) {
-        if (error) *error = "no se pudo crear un pipe";
+        if (error) *error = QCoreApplication::translate("plugins", "no se pudo crear un pipe");
         return false;
     }
     if (::pipe(pout) != 0 || (!unirErrores && ::pipe(perr) != 0)) {
-        if (error) *error = "no se pudo crear un pipe";
+        if (error) *error = QCoreApplication::translate("plugins", "no se pudo crear un pipe");
         return false;
     }
     // Las puntas de la app: no se heredan, y no bloquean.
@@ -182,7 +183,7 @@ bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProc
         ::close(pout[0]);
         if (perr[0] >= 0) ::close(perr[0]);
         if (error)
-            *error = QStringLiteral("no se pudo lanzar «%1»: %2")
+            *error = QCoreApplication::translate("plugins", "no se pudo lanzar «%1»: %2")
                          .arg(programa, QString::fromLocal8Bit(strerror(r)));
         return false;
     }
