@@ -32,10 +32,13 @@ Rectangle {
         { titulo: "Imagen y sonido", secciones: ["Video", "Cámaras y entradas", "Audio", page.traduccionSection] },
         { titulo: "Salida", secciones: ["Transmisión", "Grabación", "Codificación"] },
         { titulo: "Conferencia", secciones: ["Invitados", "Conferencia", "Red de la conferencia"] },
+        { titulo: "Asamblea", secciones: ["Sesión remota"] },
+        { titulo: "Personas", secciones: ["Caras", "Tótems de registro"] },
+        { titulo: "Control y pantallas", secciones: ["Botonera y superficies", "Teleprompter", "Pantallas", "Página del evento"] },
         // Las tres formas de sacar la conferencia a internet, cada una con su página.
         { titulo: "Acceso desde internet", secciones: [page.pinggySection, "Cloudflare", "Túnel propio (WireGuard)"] },
         { titulo: "Asistente", secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
-        { titulo: "Sistema", secciones: [page.aparienciaSection, "Plugins y descargas", page.systemSection] }
+        { titulo: "Sistema", secciones: [page.aparienciaSection, "Plugins y descargas", "Dispositivos y drivers", page.systemSection] }
     ]
     /// Los ajustes avanzados (antes fijos en el código): escondidos salvo que se pidan;
     /// una sección que solo tiene avanzados (Audio, Plugins y descargas) los muestra siempre.
@@ -44,8 +47,9 @@ Rectangle {
     /// Las que tienen vista propia (el formulario del esquema, si tienen campos, va adentro).
     readonly property var propias: [page.systemSection, page.aparienciaSection, page.modelosSection,
                                     page.vozSection, page.traduccionSection, page.controlSection, page.pinggySection]
-    /// Las que reinician la conferencia al aplicar (y ofrecen reiniciarla a mano).
-    readonly property var deLaSala: ["Invitados", "Conferencia", "Red de la conferencia", "Cloudflare", "Túnel propio (WireGuard)", "Pinggy"]
+    /// Las que tienen ajustes que reinician el servidor (gateway) al aplicar, y ofrecen reiniciarlo a mano.
+    readonly property var deLaSala: ["Invitados", "Conferencia", "Red de la conferencia", "Cloudflare", "Túnel propio (WireGuard)", "Pinggy",
+                                     "Sesión remota", "Botonera y superficies", "Teleprompter", "Pantallas", "Página del evento"]
     /// Lo que va arriba de las páginas de túnel: qué es y cuándo conviene.
     readonly property var introducciones: ({
         "Cloudflare": "Saca la conferencia a internet por un túnel de Cloudflare, con tu dominio (p. ej. sala.miorganismo.gob.ar). Hace falta una cuenta de Cloudflare con el dominio cargado y el token del túnel (Zero Trust → Networks → Tunnels → el túnel → token). El video de los de afuera va por la conexión directa o el TURN. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio.",
@@ -229,20 +233,20 @@ Rectangle {
                         Layout.topMargin: 4
                         spacing: 10
                         GlassButton {
-                            compact: true; text: "Reiniciar la conferencia ahora"; icon: "↻"
+                            compact: true; text: "Reiniciar el servidor ahora"; icon: "↻"
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Reiniciar la conferencia?",
-                                text: "Se reinicia solo el servidor de la conferencia (gateway) con la configuración guardada. Los invitados se cortan y vuelven a entrar.",
+                                title: "¿Reiniciar el servidor?",
+                                text: "Se reinicia solo el servidor (gateway: la conferencia y las páginas web) con la configuración guardada. Los invitados y lo que esté conectado se cortan y vuelven a entrar.",
                                 accept: "Reiniciar", reject: "Cancelar",
                                 action: function() {
                                     const e = Studio.conference.reiniciarSala()
-                                    Studio.notify(e === "" ? "La conferencia se está reiniciando." : e, e === "" ? "ok" : "error")
+                                    Studio.notify(e === "" ? "El servidor se está reiniciando." : e, e === "" ? "ok" : "error")
                                 }
                             })
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "Los cambios marcados «reinicia la conferencia» la reinician solos al aplicarlos; el resto del programa sigue andando."
+                            text: "Los cambios marcados «reinicia el servidor» lo reinician solos al aplicarlos; el resto del programa sigue andando."
                         }
                     }
                 }

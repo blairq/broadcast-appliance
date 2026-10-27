@@ -103,14 +103,14 @@ Item {
             Text {
                 id: badgeText
                 anchors.centerIn: parent
-                text: field.badge === "gateway" ? "reinicia la conferencia al aplicar" : "al volver a abrir el programa"
+                text: field.badge === "gateway" ? "reinicia el servidor al aplicar" : "al volver a abrir el programa"
                 color: Theme.textFaint
                 font.pixelSize: 10
             }
             MouseArea { id: badgeMa; anchors.fill: parent; hoverEnabled: true }
             ToolTip.visible: badgeMa.containsMouse; ToolTip.delay: 300
             ToolTip.text: field.badge === "gateway"
-                ? "Al aplicar se reinicia solo el servidor de la conferencia (gateway), sin cerrar el programa: los invitados se cortan y vuelven a entrar. También se puede reiniciar a mano con «Reiniciar la conferencia» (acá o en la página Conferencia)."
+                ? "Al aplicar se reinicia solo el servidor (gateway: la conferencia, la sesión remota, la botonera web, las pantallas…), sin cerrar el programa: lo que está conectado se corta y vuelve a entrar. También se puede reiniciar a mano con «Reiniciar el servidor» (acá) o «Reiniciar la conferencia» (en la página Conferencia)."
                 : "Rige la próxima vez que se abra el programa."
         }
     }

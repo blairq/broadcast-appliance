@@ -445,7 +445,7 @@ Item {
         readonly property var miembros: g.tiras || []
         readonly property real db: g.volumenDb !== undefined ? Math.max(-60, g.volumenDb) : 0
         readonly property int filas: Math.max(1, Math.floor(grilla.height / 26))
-        width: Math.max(110, Math.ceil(miembros.length / filas) * 38 + 12)
+        width: Math.max(110, 12 + 24 + Math.ceil(miembros.length / filas) * 38) // márgenes + el VCA parado + las casillas
         height: parent ? parent.height : 400
         radius: 12
         color: Qt.rgba(1, 1, 1, 0.035)
@@ -474,30 +474,45 @@ Item {
                     m.leerTiras()
                 }
             }
+            // El VCA parado al costado de las casillas (alto hay de sobra), y las casillas.
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 3
-                Text {
-                    text: "VCA"; color: Theme.accentSoft; font { family: Theme.font; pixelSize: 9; weight: Font.Bold }
-                    TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(bq.clave, 0); m.leerTiras() } }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                Layout.fillHeight: true
+                spacing: 6
+                // Fino (del ancho de la perilla): que no corra las casillas.
+                ColumnLayout {
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 18
+                    Layout.maximumWidth: 18
+                    spacing: 4
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "VCA"; color: Theme.accentSoft; font { family: Theme.font; pixelSize: 8; weight: Font.Bold }
+                        TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(bq.clave, 0); m.leerTiras() } }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Fader {
+                            anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; bottom: parent.bottom }
+                            width: 14
+                            db: bq.db
+                            alMover: (x) => Studio.mixer.setGananciaGrupoDb(bq.clave, x)
+                            alCero: () => { Studio.mixer.setGananciaGrupoDb(bq.clave, 0); m.leerTiras() }
+                        }
+                    }
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: m.texto(bq.db); color: Math.abs(bq.db) > 0.05 ? Theme.accent : Theme.textFaint
+                        font { family: Theme.font; pixelSize: 8 }
+                        TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(bq.clave, 0); m.leerTiras() } }
+                    }
                 }
-                Slider {
-                    Layout.fillWidth: true
-                    from: -60; to: 12
-                    value: bq.db
-                    onMoved: Studio.mixer.setGananciaGrupoDb(bq.clave, value)
-                    ToolTip.visible: pressed; ToolTip.text: m.texto(value) + " dB"
-                }
-                Text {
-                    text: m.texto(bq.db); color: Math.abs(bq.db) > 0.05 ? Theme.accent : Theme.textFaint
-                    font { family: Theme.font; pixelSize: 9 }
-                }
-            }
             Item {
                 id: grilla
-                Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.preferredWidth: Math.ceil(bq.miembros.length / bq.filas) * 38
                 Grid {
                     flow: Grid.TopToBottom
                     rows: bq.filas
@@ -525,6 +540,7 @@ Item {
                         }
                     }
                 }
+            }
             }
         }
     }
