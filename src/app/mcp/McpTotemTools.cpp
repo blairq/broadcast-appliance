@@ -179,10 +179,11 @@ void McpService::registerTotemTools() {
             const std::string url = tj.value("url", std::string());
             json out{{"id", id.toStdString()}, {"url", url}, {"urlPantalla", tj.value("urlPantalla", std::string())}};
             if (url.rfind("/registro/", 0) == 0)
-                out["aviso"] = "El servidor todavía no dio su dirección: la url no tiene el comienzo.";
+                out["aviso"] = ba::i18n::traducir("mcp", "El servidor todavía no dio su dirección: la url no tiene el comienzo.");
             if (a.value("mostrar", false))
-                emit vm.mostrarQr(QString::fromStdString(url), "Registro — " + QString::fromStdString(tj.value("nombre", std::string())),
-                                  "Escaneá para registrarte", "verde");
+                emit vm.mostrarQr(QString::fromStdString(url),
+                                  QString::fromStdString(ba::i18n::llenar(ba::i18n::traducir("mcp", "Registro — %1"), {tj.value("nombre", std::string())})),
+                                  QString::fromStdString(ba::i18n::traducir("mcp", "Escaneá para registrarte")), "verde");
             done(ToolResult().data(out));
         };
         core_.addTool(std::move(t));
@@ -243,7 +244,7 @@ void McpService::registerTotemTools() {
             const json est = tv()->estadoJson();
             bool hay = false;
             for (const auto& c : est.value("conexiones", json::array())) hay = hay || c.value("conn", std::string()) == conn;
-            if (!hay) return done(ToolResult::error("No hay ninguna conexión «" + conn + "» (totem_estado)."));
+            if (!hay) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ninguna conexión «%1» (totem_estado)."), {conn})));
             tv()->cortar(QString::fromStdString(conn));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Cortada.")));
         };
@@ -370,18 +371,19 @@ void McpService::registerTotemTools() {
                 if (!r.detalle.empty()) out["detalle"] = r.detalle;
                 if (r.leido) {
                     out["documento"] = documentos::resumenParaAfuera(r.datos);
-                    out["aviso"] = "Los datos completos del documento quedan en esta máquina (en el padrón, si lo "
-                                   "leyó un tótem); acá va solo un resumen.";
+                    out["aviso"] = ba::i18n::traducir("mcp", "Los datos completos del documento quedan en esta máquina (en el padrón, si lo "
+                                   "leyó un tótem); acá va solo un resumen.");
                 } else if (r.dorso) {
                     if (r.dudosa) out["dudosa"] = true;
-                    out["aviso"] = r.noSeVe ? "El modelo no ve los renglones del dorso: más cerca, derecho, sin reflejo."
+                    out["aviso"] = r.noSeVe ? ba::i18n::traducir("mcp", "El modelo no ve los renglones del dorso: más cerca, derecho, sin reflejo.")
                                    : r.dudosa
-                                       ? "Leído sin el verificador compuesto: llamá de nuevo con otra foto de la misma "
-                                         "fuente y, si coincide, se acepta."
-                                       : "No se aceptó el dorso (" + r.detalle +
-                                             "): lo que se transcribió no cierra con los dígitos verificadores.";
+                                       ? ba::i18n::traducir("mcp", "Leído sin el verificador compuesto: llamá de nuevo con otra foto de la misma "
+                                         "fuente y, si coincide, se acepta.")
+                                       : ba::i18n::llenar(ba::i18n::traducir("mcp", "No se aceptó el dorso (%1): lo que se transcribió no cierra con "
+                                                                            "los dígitos verificadores."),
+                                                          {r.detalle});
                 } else if (r.codigos.empty()) {
-                    out["aviso"] = "No se vio ningún código. Más cerca, más quieto, sin reflejo, del lado del código.";
+                    out["aviso"] = ba::i18n::traducir("mcp", "No se vio ningún código. Más cerca, más quieto, sin reflejo, del lado del código.");
                 }
                 done(ToolResult().data(out));
             };
@@ -394,7 +396,7 @@ void McpService::registerTotemTools() {
                     if (l.estado != documentos::LecturaMrz::Estado::Leida)
                         return done(ToolResult().data(
                             {{"leido", false}, {"lado", "dorso"}, {"detalle", l.motivo},
-                             {"aviso", "Esos renglones no se aceptan: no cierran los dígitos verificadores."}}));
+                             {"aviso", ba::i18n::traducir("mcp", "Esos renglones no se aceptan: no cierran los dígitos verificadores.")}}));
                     c.texto = l.texto;
                 }
                 return tv()->lector()->traducir({c}, tipos, responder);
@@ -404,10 +406,10 @@ void McpService::registerTotemTools() {
                 auto* frames = static_cast<FrameService*>(vm.frames());
                 std::uint64_t serie = 0;
                 if (frames == nullptr || !frames->latest(QString::fromStdString(v), img, serie) || img.isNull())
-                    return done(ToolResult::error("No hay imagen en «" + v + "» (¿está conectada esa cámara?)."));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay imagen en «%1» (¿está conectada esa cámara?)."), {v})));
             } else if (const std::string f = a.value("archivo", std::string()); !f.empty()) {
                 if (!img.load(QString::fromStdString(f)))
-                    return done(ToolResult::error("No pude abrir la imagen «" + f + "»."));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No pude abrir la imagen «%1»."), {f})));
             } else if (const std::string b = a.value("imagen_base64", std::string()); !b.empty()) {
                 if (!img.loadFromData(QByteArray::fromBase64(QByteArray::fromStdString(b))))
                     return done(ToolResult::error(ba::i18n::traducir("mcp", "La imagen en base64 no se pudo leer.")));
@@ -432,7 +434,7 @@ void McpService::registerTotemTools() {
                 if (r.leido || !r.error.isEmpty() || lp.isNull()) return responder(std::move(r));
                 lp->leerDorso(img, tipos, confirmador, [responder, frente = std::move(r)](LectorDocumentos::Resultado d) mutable {
                     if (!d.error.isEmpty()) {
-                        frente.detalle = "dorso: " + d.error.toStdString();
+                        frente.detalle = ba::i18n::llenar(ba::i18n::traducir("mcp", "dorso: %1"), {d.error.toStdString()});
                         return responder(std::move(frente));
                     }
                     if (!d.leido) d.codigos = frente.codigos; // lo que se vio del frente (otro código)
@@ -465,10 +467,10 @@ void McpService::registerTotemTools() {
             json out = tv()->atencionJson();
             const std::string url = out.value("url", std::string());
             if (url.rfind("/registro-atiende/", 0) == 0)
-                out["aviso"] = "El servidor todavía no dio su dirección: el link no tiene el comienzo.";
+                out["aviso"] = ba::i18n::traducir("mcp", "El servidor todavía no dio su dirección: el link no tiene el comienzo.");
             if (a.value("mostrar", false))
-                emit vm.mostrarQr(QString::fromStdString(url), "Atención del registro",
-                                  "Para el equipo: mirar y atender los tótems", "azul");
+                emit vm.mostrarQr(QString::fromStdString(url), QString::fromStdString(ba::i18n::traducir("mcp", "Atención del registro")),
+                                  QString::fromStdString(ba::i18n::traducir("mcp", "Para el equipo: mirar y atender los tótems")), "azul");
             done(ToolResult().data(out));
         };
         core_.addTool(std::move(t));
@@ -501,7 +503,7 @@ void McpService::registerTotemTools() {
             else if (accion == "guardar") e = tv()->terminarConn(conn, "guardar", {});
             else if (accion == "devolver") e = tv()->terminarConn(conn, "asistente", {});
             else if (accion == "cancelar") e = tv()->terminarConn(conn, "cancelar", {});
-            else e = "«accion» es atender, guardar, devolver o cancelar.";
+            else e = ba::i18n::traducir("mcp", "«accion» es atender, guardar, devolver o cancelar.");
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(tv()->estadoJson()));
         };
