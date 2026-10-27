@@ -75,6 +75,13 @@ class SettingsModel : public QAbstractListModel {
     Q_INVOKABLE bool tieneBasicos(const QString& section) const;
     /// Si la sección tiene avanzados (el interruptor se muestra solo donde sirve).
     Q_INVOKABLE bool tieneAvanzados(const QString& section) const;
+    /// La etiqueta de una sección en el idioma del operador. El nombre de la sección
+    /// es la clave (la página la compara, el MCP la busca): se traduce solo al mostrarla.
+    /// Una que no está en la tabla sale tal cual.
+    Q_INVOKABLE QString seccionVisible(const QString& seccion) const;
+    /// Si el último apply() no aplicó (en vivo) o no pudo guardar. Para no buscar
+    /// «EN VIVO» o «ERROR» en el resumen, que va en el idioma del operador.
+    bool fallo() const { return fallo_; }
     /// Modo en vivo (T48): mientras devuelva true, lo que reinicia el gateway o el
     /// programa no se aplica (corta a los invitados o el aire).
     void setEnVivo(std::function<bool()> fn) { enVivo_ = std::move(fn); }
@@ -94,6 +101,7 @@ class SettingsModel : public QAbstractListModel {
     std::function<std::string(int)> cupoEnCaliente_;
     int observador_ = 0;     ///< el aviso «Ajustes» del runtime (otro formulario aplicó)
     bool aplicando_ = false; ///< apply() en curso: su propio aviso no lo recarga
+    bool fallo_ = false;     ///< el último apply() no aplicó o no guardó (fallo())
     struct Field {
         QString key;
         QString section;
