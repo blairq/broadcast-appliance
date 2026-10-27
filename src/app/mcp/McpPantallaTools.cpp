@@ -41,27 +41,27 @@ QString idDePantalla(PantallasViewModel& p, const QString& quien) {
 } // namespace
 
 void McpService::registerPantallaTools() {
-    core_.addCategory("pantallas", "Pantallas externas",
-                      "Televisores y proyectores de la sala (Chromecast): cuáles hay y qué mostrar en "
-                      "cada uno (un mensaje, un QR, la hora, una página, el teleprompter).");
+    core_.addCategory("pantallas", ba::i18n::traducir("mcp", "Pantallas externas"),
+                      ba::i18n::traducir("mcp", "Televisores y proyectores de la sala (Chromecast): cuáles hay y qué mostrar en "
+                      "cada uno (un mensaje, un QR, la hora, una página, el teleprompter)."));
     auto* p = static_cast<PantallasViewModel*>(vm_.pantallas());
     if (p == nullptr) return;
 
     {
         Tool t;
         t.name = "pantalla_listar";
-        t.title = "Que pantallas hay";
+        t.title = ba::i18n::traducir("mcp", "Que pantallas hay");
         t.category = "pantallas";
         t.readOnly = true;
         t.description =
-            "Que televisores conoce el sistema y como esta cada uno: libre, ocupado por nosotros, "
-            "tomado por otra aplicacion, o sin responder.";
-        t.details = "`estado` dice mucho: `ocupada` es que el televisor esta con otra aplicacion (Netflix, "
+            ba::i18n::traducir("mcp", "Que televisores conoce el sistema y como esta cada uno: libre, ocupado por nosotros, "
+            "tomado por otra aplicacion, o sin responder.");
+        t.details = ba::i18n::traducir("mcp", "`estado` dice mucho: `ocupada` es que el televisor esta con otra aplicacion (Netflix, "
                     "YouTube) y mandarle algo se la va a pisar — avisale al operador antes. `apagada` es "
                     "que no contesta: puede estar apagado de verdad o en otra red.\n\n"
                     "`sabeMostrarPaginas`: 1 si, 0 no (un parlante sin pantalla contesta el protocolo "
                     "igual), -1 todavia no se pregunto. `fijo` es lo que tiene que mostrar SIEMPRE: vuelve "
-                    "solo cada vez que el aparato aparece.";
+                    "solo cada vez que el aparato aparece.");
         t.run = [p](const json&, Done done) {
             json ps = json::array();
             for (const QVariant& v : p->pantallas()) {
@@ -97,61 +97,61 @@ void McpService::registerPantallaTools() {
         Tool t;
         t.name = "pantalla_buscar";
         t.readOnly = true;
-        t.title = "Buscar televisores en la red";
+        t.title = ba::i18n::traducir("mcp", "Buscar televisores en la red");
         t.category = "pantallas";
-        t.description = "Busca Chromecast en la red local (tarda unos segundos). Las que aparezcan quedan "
-                        "en la lista; volve a mirar con pantalla_listar.";
+        t.description = ba::i18n::traducir("mcp", "Busca Chromecast en la red local (tarda unos segundos). Las que aparezcan quedan "
+                        "en la lista; volve a mirar con pantalla_listar.");
         t.run = [p](const json&, Done done) {
             p->buscar();
-            done(ToolResult::ok("Buscando. En unos segundos preguntale a pantalla_listar que aparecio."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Buscando. En unos segundos preguntale a pantalla_listar que aparecio.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "pantalla_mostrar";
-        t.title = "Mostrar algo en una pantalla";
+        t.title = ba::i18n::traducir("mcp", "Mostrar algo en una pantalla");
         t.category = "pantallas";
         t.description =
-            "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un "
+            ba::i18n::traducir("mcp", "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un "
             "contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
             "completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel "
             "(una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC), escena (UNA "
             "escena cualquiera de las armadas, en vivo, este o no al aire: `escena` es su nombre) o tally (rojo "
             "si esa camara esta al aire, verde si esta armada). Los campos de cada tipo salen de "
-            "pantalla_listar.";
-        t.details = "Ojo con la que este `ocupada`: mostrarle algo le pisa lo que estuviera pasando. Si no "
+            "pantalla_listar.");
+        t.details = ba::i18n::traducir("mcp", "Ojo con la que este `ocupada`: mostrarle algo le pisa lo que estuviera pasando. Si no "
                     "te lo pidieron explicitamente, preguntale al operador con `operator_ask`.\n\n"
                     "El texto se lee DE LEJOS: frases cortas y pocas palabras. «Volvemos en 10 minutos» "
-                    "sirve; un parrafo, no.";
+                    "sirve; un parrafo, no.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"pantalla", "tipo"}},
             {"properties",
-             {{"pantalla", {{"type", "string"}, {"description", "id o nombre, como lo da pantalla_listar"}}},
+             {{"pantalla", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id o nombre, como lo da pantalla_listar")}}},
               {"tipo",
                {{"type", "string"},
                 {"enum",
                  {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "escena", "tally",
                   "votacion"}}}},
-              {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
+              {"carrusel", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "su id, con tipo=carrusel")}}},
               {"qr",
                {{"type", "string"},
-                {"description", "con tipo=qr: \"aparato:publico\" (la pagina del publico, con su clave), "
+                {"description", ba::i18n::traducir("mcp", "con tipo=qr: \"aparato:publico\" (la pagina del publico, con su clave), "
                                 "\"aparato:sala\", \"aparato:prompter\", \"aparato:rotulos\", o el id de uno GUARDADO (qr_listar los da), que sale "
                                 "con el estilo con el que se diseño. Sin esto se usa `texto` y "
-                                "sale con el estilo de fabrica."}}},
-              {"texto", {{"type", "string"}, {"description", "mensaje: lo que dice; qr: lo que codifica"}}},
-              {"pie", {{"type", "string"}, {"description", "la linea de abajo, mas chica"}}},
-              {"url", {{"type", "string"}, {"description", "solo con tipo=url"}}},
+                                "sale con el estilo de fabrica.")}}},
+              {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "mensaje: lo que dice; qr: lo que codifica")}}},
+              {"pie", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la linea de abajo, mas chica")}}},
+              {"url", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "solo con tipo=url")}}},
               {"escena",
                {{"type", "string"},
-                {"description", "con tipo=escena: el nombre de la escena (scene_list las da). Varias "
-                                "pantallas pueden mostrar escenas distintas a la vez, hasta 4 distintas"}}},
+                {"description", ba::i18n::traducir("mcp", "con tipo=escena: el nombre de la escena (scene_list las da). Varias "
+                                "pantallas pueden mostrar escenas distintas a la vez, hasta 4 distintas")}}},
               {"fuente",
                {{"type", "string"},
-                {"description", "con tipo=tally: la camara o escena de esa pantalla (vacio = el estado "
-                                "general, para la cabina)"}}}}}};
+                {"description", ba::i18n::traducir("mcp", "con tipo=tally: la camara o escena de esa pantalla (vacio = el estado "
+                                "general, para la cabina)")}}}}}};
         t.examples = {
             R"({"pantalla": "TV del hall", "tipo": "mensaje", "texto": "Volvemos en 10 minutos"})",
             R"({"pantalla": "TV del hall", "tipo": "qr", "texto": "https://...", "pie": "Escaneá para entrar"})"};
@@ -167,13 +167,13 @@ void McpService::registerPantallaTools() {
             const QString tipo = QString::fromStdString(a["tipo"].get<std::string>());
             if (tipo == "carrusel") {
                 if (!a.contains("carrusel")) {
-                    done(ToolResult::error("Con tipo=carrusel hace falta `carrusel` (su id). "
-                                           "carrusel_listar los da."));
+                    done(ToolResult::error(ba::i18n::traducir("mcp", "Con tipo=carrusel hace falta `carrusel` (su id). "
+                                           "carrusel_listar los da.")));
                     return;
                 }
                 const QString err =
                     p->mostrarCarrusel(id, QString::fromStdString(a["carrusel"].get<std::string>()));
-                done(err.isEmpty() ? ToolResult::ok("Mandado. Tarda un par de segundos.")
+                done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Mandado. Tarda un par de segundos."))
                                    : ToolResult::error(err.toStdString()));
                 return;
             }
@@ -189,7 +189,7 @@ void McpService::registerPantallaTools() {
                 const QString qid = QString::fromStdString(a["qr"].get<std::string>());
                 const QVariantMap guardado = qvm == nullptr ? QVariantMap() : qvm->paraProyectarElegido(qid);
                 if (guardado.value("pendiente").toBool()) {
-                    done(ToolResult::error("La conferencia todavia no dio ese enlace (¿esta andando?): proba de nuevo en un momento."));
+                    done(ToolResult::error(ba::i18n::traducir("mcp", "La conferencia todavia no dio ese enlace (¿esta andando?): proba de nuevo en un momento.")));
                     return;
                 }
                 if (guardado.isEmpty()) {
@@ -216,15 +216,15 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "pantalla_fijar";
-        t.title = "Que una pantalla muestre siempre lo mismo";
+        t.title = ba::i18n::traducir("mcp", "Que una pantalla muestre siempre lo mismo");
         t.category = "pantallas";
         t.description =
-            "Deja fijo lo que esa pantalla tiene que mostrar: se lo manda ahora y CADA VEZ que el aparato "
+            ba::i18n::traducir("mcp", "Deja fijo lo que esa pantalla tiene que mostrar: se lo manda ahora y CADA VEZ que el aparato "
             "vuelva a aparecer (se apago de noche, se reinicio, le cambio la direccion). Con `quitar` en "
-            "true deja de tener algo fijo (no apaga lo que este mostrando).";
-        t.details = "Es para las pantallas que viven puestas: la del hall con el QR de la conferencia, la del "
+            "true deja de tener algo fijo (no apaga lo que este mostrando).");
+        t.details = ba::i18n::traducir("mcp", "Es para las pantallas que viven puestas: la del hall con el QR de la conferencia, la del "
                     "fondo con el reloj. Lo fijado se guarda contra el nombre de servicio del aparato, no "
-                    "contra su IP, asi que sobrevive a que el router le de otra direccion.";
+                    "contra su IP, asi que sobrevive a que el router le de otra direccion.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"pantalla"}},
@@ -235,8 +235,8 @@ void McpService::registerPantallaTools() {
               {"texto", {{"type", "string"}}},
               {"pie", {{"type", "string"}}},
               {"url", {{"type", "string"}}},
-              {"escena", {{"type", "string"}, {"description", "con tipo=escena: su nombre"}}},
-              {"quitar", {{"type", "boolean"}, {"description", "deja de tener algo fijo"}}}}}};
+              {"escena", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con tipo=escena: su nombre")}}},
+              {"quitar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "deja de tener algo fijo")}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
             if (id.isEmpty()) {
@@ -246,12 +246,12 @@ void McpService::registerPantallaTools() {
             }
             if (a.value("quitar", false)) {
                 const QString err = p->desfijar(id);
-                done(err.isEmpty() ? ToolResult::ok("Ya no tiene nada fijo.")
+                done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Ya no tiene nada fijo."))
                                    : ToolResult::error(err.toStdString()));
                 return;
             }
             if (!a.contains("tipo")) {
-                done(ToolResult::error("Falta `tipo` (o `quitar`: true)."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `tipo` (o `quitar`: true).")));
                 return;
             }
             QVariantMap datos;
@@ -260,8 +260,8 @@ void McpService::registerPantallaTools() {
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
             const QString err = p->fijar(id, QString::fromStdString(a["tipo"].get<std::string>()), datos);
             done(err.isEmpty()
-                     ? ToolResult::ok("Fijado, y mandado ahora. Va a volver solo cada vez que el aparato "
-                                      "aparezca.")
+                     ? ToolResult::ok(ba::i18n::traducir("mcp", "Fijado, y mandado ahora. Va a volver solo cada vez que el aparato "
+                                      "aparezca."))
                      : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
@@ -269,28 +269,28 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "pantalla_olvidar";
-        t.title = "Olvidar una pantalla";
+        t.title = ba::i18n::traducir("mcp", "Olvidar una pantalla");
         t.category = "pantallas";
         t.destructive = true;
-        t.description = "Saca la pantalla de la lista de conocidas (con su nombre y lo fijado). Si vuelve a aparecer en "
-                        "la red, se la ve como nueva.";
+        t.description = ba::i18n::traducir("mcp", "Saca la pantalla de la lista de conocidas (con su nombre y lo fijado). Si vuelve a aparecer en "
+                        "la red, se la ve como nueva.");
         t.inputSchema = {{"type", "object"}, {"required", {"pantalla"}}, {"properties", {{"pantalla", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
             if (id.isEmpty()) return done(ToolResult::error("No conozco la pantalla '" + a["pantalla"].get<std::string>() + "'."));
             const QString err = p->olvidar(id);
-            done(err.isEmpty() ? ToolResult::ok("Olvidada.") : ToolResult::error(err.toStdString()));
+            done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Olvidada.")) : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "pantalla_renombrar";
-        t.title = "Cambiarle el nombre a una pantalla";
+        t.title = ba::i18n::traducir("mcp", "Cambiarle el nombre a una pantalla");
         t.category = "pantallas";
         t.idempotent = true;
-        t.description = "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice mas "
-                        "que «Percee TV», y es como la vas a nombrar despues.";
+        t.description = ba::i18n::traducir("mcp", "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice mas "
+                        "que «Percee TV», y es como la vas a nombrar despues.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"pantalla", "nombre"}},
@@ -303,26 +303,26 @@ void McpService::registerPantallaTools() {
                 return;
             }
             const QString err = p->renombrar(id, QString::fromStdString(a["nombre"].get<std::string>()));
-            done(err.isEmpty() ? ToolResult::ok("Listo.") : ToolResult::error(err.toStdString()));
+            done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")) : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "pantalla_agregar";
-        t.title = "Agregar una pantalla a mano";
+        t.title = ba::i18n::traducir("mcp", "Agregar una pantalla a mano");
         t.category = "pantallas";
-        t.description = "Para cuando la busqueda en la red no llega (otra VLAN, el firewall): se agrega con "
-                        "su direccion IP. Tiene que ser un aparato que hable Google Cast.";
+        t.description = ba::i18n::traducir("mcp", "Para cuando la busqueda en la red no llega (otra VLAN, el firewall): se agrega con "
+                        "su direccion IP. Tiene que ser un aparato que hable Google Cast.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"host"}},
                          {"properties",
-                          {{"host", {{"type", "string"}, {"description", "192.168.1.50"}}},
+                          {{"host", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "192.168.1.50")}}},
                            {"nombre", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString err = p->agregar(QString::fromStdString(a.value("nombre", "")),
                                            QString::fromStdString(a["host"].get<std::string>()), 0);
-            done(err.isEmpty() ? ToolResult::ok("Agregada. pantalla_listar dice si contesta.")
+            done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Agregada. pantalla_listar dice si contesta."))
                                : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
@@ -330,11 +330,11 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "carrusel_listar";
-        t.title = "Los carruseles que hay";
+        t.title = ba::i18n::traducir("mcp", "Los carruseles que hay");
         t.category = "pantallas";
         t.readOnly = true;
-        t.description = "Un carrusel es una lista de cosas que rotan en una pantalla, cada una con sus "
-                        "segundos. Devuelve los que hay con sus pasos y cuanto dura la vuelta entera.";
+        t.description = ba::i18n::traducir("mcp", "Un carrusel es una lista de cosas que rotan en una pantalla, cada una con sus "
+                        "segundos. Devuelve los que hay con sus pasos y cuanto dura la vuelta entera.");
         t.run = [p](const json&, Done done) {
             json out = json::array();
             for (const QVariant& v : p->carruseles()) {
@@ -359,21 +359,21 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "carrusel_armar";
-        t.title = "Armar o cambiar un carrusel";
+        t.title = ba::i18n::traducir("mcp", "Armar o cambiar un carrusel");
         t.category = "pantallas";
         t.description =
-            "Crea un carrusel con sus pasos, o le cambia los pasos a uno que ya existe (`id`). Cada paso "
+            ba::i18n::traducir("mcp", "Crea un carrusel con sus pasos, o le cambia los pasos a uno que ya existe (`id`). Cada paso "
             "es un `tipo` de contenido (los mismos de pantalla_mostrar) con sus datos y sus `segundos`. "
-            "Con `borrar: true` y un `id`, lo saca.";
-        t.details = "Si la pantalla ya lo esta mostrando, NO hace falta volver a mandarselo: la lista vive "
+            "Con `borrar: true` y un `id`, lo saca.");
+        t.details = ba::i18n::traducir("mcp", "Si la pantalla ya lo esta mostrando, NO hace falta volver a mandarselo: la lista vive "
                     "en el servidor y el televisor la toma sola en la proxima vuelta. Por eso cambiar un "
                     "paso no hace parpadear nada.\n\n"
                     "Duraciones: un QR necesita al menos 15 segundos para que alguien lo saque del "
-                    "bolsillo y lo escanee; un mensaje corto con 8 alcanza.";
+                    "bolsillo y lo escanee; un mensaje corto con 8 alcanza.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"id", {{"type", "string"}, {"description", "para cambiar uno que ya existe"}}},
+             {{"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para cambiar uno que ya existe")}}},
               {"nombre", {{"type", "string"}}},
               {"borrar", {{"type", "boolean"}}},
               {"transicion", {{"type", "string"}, {"enum", {"fundido", "corte"}}}},
@@ -397,11 +397,11 @@ void McpService::registerPantallaTools() {
             QString id = QString::fromStdString(a.value("id", ""));
             if (a.value("borrar", false)) {
                 if (id.isEmpty()) {
-                    done(ToolResult::error("Para borrar hace falta el `id`."));
+                    done(ToolResult::error(ba::i18n::traducir("mcp", "Para borrar hace falta el `id`.")));
                     return;
                 }
                 const QString err = p->carruselBorrar(id);
-                done(err.isEmpty() ? ToolResult::ok("Borrado.") : ToolResult::error(err.toStdString()));
+                done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Borrado.")) : ToolResult::error(err.toStdString()));
                 return;
             }
             if (id.isEmpty()) {
@@ -440,7 +440,7 @@ void McpService::registerPantallaTools() {
             }
             json r{{"id", id.toStdString()}};
             done(problemas.empty()
-                     ? ToolResult::ok("Listo. Para verlo: pantalla_mostrar con tipo `carrusel`.").data(r)
+                     ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo. Para verlo: pantalla_mostrar con tipo `carrusel`.")).data(r)
                      : ToolResult::error("Algunos pasos no entraron: " + problemas));
         };
         core_.addTool(std::move(t));
@@ -448,10 +448,10 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "pantalla_parar";
-        t.title = "Dejar de mostrar";
+        t.title = ba::i18n::traducir("mcp", "Dejar de mostrar");
         t.category = "pantallas";
         t.idempotent = true;
-        t.description = "La pantalla vuelve a lo que tenia antes (su fondo de pantalla).";
+        t.description = ba::i18n::traducir("mcp", "La pantalla vuelve a lo que tenia antes (su fondo de pantalla).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"pantalla"}},
                          {"properties", {{"pantalla", {{"type", "string"}}}}}};
@@ -478,18 +478,18 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "superficie_listar";
-        t.title = "Que paginas del aparato estan vivas";
+        t.title = ba::i18n::traducir("mcp", "Que paginas del aparato estan vivas");
         t.category = "pantallas";
         t.readOnly = true;
         t.description =
-            "Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, "
-            "un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.";
-        t.details = "No es lo mismo que pantalla_listar. Ahi `mostrando` significa «el comando salio "
+            ba::i18n::traducir("mcp", "Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, "
+            "un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.");
+        t.details = ba::i18n::traducir("mcp", "No es lo mismo que pantalla_listar. Ahi `mostrando` significa «el comando salio "
                     "bien»; aca significa «la pagina contesta». Una pantalla que figura mostrando y NO "
                     "aparece en esta lista es una pantalla que no cargo: eso es lo que hay que mirar "
                     "antes de decirle al operador que ya esta.\n\n"
                     "`que` lo escribe la propia pagina: un carrusel dice «paso 2/3», el programa en vivo "
-                    "dice cuantos cuadros lleva. `desdeSeg` es hace cuanto late.";
+                    "dice cuantos cuadros lleva. `desdeSeg` es hace cuanto late.");
         t.run = [p](const json&, Done done) {
             p->pedirSuperficies([done](QVariantList sup) {
                 json ss = json::array();
@@ -513,26 +513,26 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "superficie_mostrar";
-        t.title = "Cambiarle la pagina a una superficie viva";
+        t.title = ba::i18n::traducir("mcp", "Cambiarle la pagina a una superficie viva");
         t.category = "pantallas";
         t.description =
-            "Le cambia a una superficie lo que muestra SIN volver a castearla: viaja por el canal de "
+            ba::i18n::traducir("mcp", "Le cambia a una superficie lo que muestra SIN volver a castearla: viaja por el canal de "
             "control que la propia pagina tiene abierto, asi que el cambio es inmediato y sin parpadeo. "
-            "Con `recargar` en true la hace recargarse en vez de irse a otra direccion.";
-        t.details = "Sin `a`, va a TODAS las superficies de ese `tipo` (y sin `tipo` tampoco, a todas): "
+            "Con `recargar` en true la hace recargarse en vez de irse a otra direccion.");
+        t.details = ba::i18n::traducir("mcp", "Sin `a`, va a TODAS las superficies de ese `tipo` (y sin `tipo` tampoco, a todas): "
                     "util para mandar la sala entera a la misma pagina. Los ids y los tipos salen de "
                     "superficie_listar.\n\n"
                     "Si la superficie no esta viva no pasa nada y la cuenta vuelve en 0: eso quiere decir "
-                    "que hay que castearla de nuevo con pantalla_mostrar, no empujarle una URL.";
+                    "que hay que castearla de nuevo con pantalla_mostrar, no empujarle una URL.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"a",
-               {{"type", "string"}, {"description", "id de la superficie; vacio = todas las de `tipo`"}}},
-              {"tipo", {{"type", "string"}, {"description", "pantalla, carrusel, programa, prompter..."}}},
-              {"url", {{"type", "string"}, {"description", "a donde ir"}}},
+               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de la superficie; vacio = todas las de `tipo`")}}},
+              {"tipo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "pantalla, carrusel, programa, prompter...")}}},
+              {"url", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "a donde ir")}}},
               {"recargar",
-               {{"type", "boolean"}, {"description", "que se recargue sola, sin cambiar de pagina"}}}}}};
+               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "que se recargue sola, sin cambiar de pagina")}}}}}};
         t.examples = {R"({"a": "carrusel-ug465j2w", "url": "http://.../pantalla/?tipo=reloj"})",
                       R"({"tipo": "carrusel", "recargar": true})"};
         t.run = [p](const json& a, Done done) {
@@ -541,14 +541,14 @@ void McpService::registerPantallaTools() {
                                     : QString();
             const bool recargar = a.value("recargar", false);
             if (url.isEmpty() && !recargar) {
-                done(ToolResult::error("Hace falta `url` (a donde ir) o `recargar` en true."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "Hace falta `url` (a donde ir) o `recargar` en true.")));
                 return;
             }
             p->empujar(a.contains("a") ? QString::fromStdString(a["a"].get<std::string>()) : QString(),
                        a.contains("tipo") ? QString::fromStdString(a["tipo"].get<std::string>()) : QString(),
                        url, recargar, [done](bool ok, int cuantas) {
                            if (!ok) {
-                               done(ToolResult::error("El gateway no acepto la orden."));
+                               done(ToolResult::error(ba::i18n::traducir("mcp", "El gateway no acepto la orden.")));
                                return;
                            }
                            done(ToolResult::ok(cuantas == 0
@@ -571,25 +571,25 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "catalogo_listar";
-        t.title = "Que se puede mostrar";
+        t.title = ba::i18n::traducir("mcp", "Que se puede mostrar");
         t.category = "pantallas";
         t.readOnly = true;
         t.description =
-            "Todo lo que se puede poner en un monitor de la maquina, en una ventana suelta o en una TV de "
+            ba::i18n::traducir("mcp", "Todo lo que se puede poner en un monitor de la maquina, en una ventana suelta o en una TV de "
             "la red: el programa, el preview, cada escena, cada multiview, los paneles (padron, preguntas, "
             "votacion, Mezclador, PTZ de cada camara), las tarjetas del tablero, las paginas y lo de fondo "
-            "del tablero. Cada cosa con su `id` estable.";
-        t.details = "`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window "
+            "del tablero. Cada cosa con su `id` estable.");
+        t.details = ba::i18n::traducir("mcp", "`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window "
                     "con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no "
                     "viaja). Los ids son estables: «escena:<nombre>», «multiview:<id>», «pagina:<id>», "
                     "«tarjeta:<tipo>», «ptz:<entrada>», «programa», «preview», «fondo», «web:<tipo>» (solo "
-                    "TV: un cartel, un QR, la hora...).";
+                    "TV: un cartel, un QR, la hora...).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"donde",
                             {{"type", "string"},
                              {"enum", {"todo", "monitor", "red"}},
-                             {"description", "filtrar: lo que va a un monitor, lo que va a una TV, o todo"}}}}}};
+                             {"description", ba::i18n::traducir("mcp", "filtrar: lo que va a un monitor, lo que va a una TV, o todo")}}}}}};
         t.run = [cat](const json& a, Done done) {
             const std::string donde = a.value("donde", std::string("todo"));
             json cs = json::array();
@@ -610,17 +610,17 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "monitor_listar";
-        t.title = "Que monitores hay y que muestra cada uno";
+        t.title = ba::i18n::traducir("mcp", "Que monitores hay y que muestra cada uno");
         t.category = "pantallas";
         t.readOnly = true;
         t.description =
-            "Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), "
+            ba::i18n::traducir("mcp", "Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), "
             "con su id estable, resolucion, si es el principal, y que muestra cada uno (Salidas, "
             "Pantallas, Pantallas conectadas). Tambien los recordados que no estan conectados: esos se "
-            "esperan y su contenido no va a otro monitor.";
-        t.details = "`orden` es el numero que se ve en el dibujo de la pagina (y con monitor_identificar en "
+            "esperan y su contenido no va a otro monitor.");
+        t.details = ba::i18n::traducir("mcp", "`orden` es el numero que se ve en el dibujo de la pagina (y con monitor_identificar en "
                     "cada monitor). `id` es fabricante|modelo|serie: no cambia aunque cambie el cable o el "
-                    "orden en que prenden. `muestra` son ids de catalogo_listar.";
+                    "orden en que prenden. `muestra` son ids de catalogo_listar.");
         t.run = [mon](const json&, Done done) {
             json ms = json::array();
             for (int r = 0; r < mon->rowCount(); ++r) {
@@ -651,33 +651,33 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "monitor_asignar";
-        t.title = "Poner algo en un monitor";
+        t.title = ba::i18n::traducir("mcp", "Poner algo en un monitor");
         t.category = "pantallas";
         t.idempotent = true;
         t.description =
-            "Deja FIJO en un monitor de esta maquina una cosa del catalogo (el programa, una escena, una "
+            ba::i18n::traducir("mcp", "Deja FIJO en un monitor de esta maquina una cosa del catalogo (el programa, una escena, una "
             "multiview, un panel, una pagina...) o varias, que van en grilla. Se recuerda por monitor: "
-            "vuelve sola al reiniciar, y si el monitor no esta se lo espera.";
-        t.details = "`monitor`: su id, su numero de `orden` («2») o su nombre, como los da monitor_listar. "
+            "vuelve sola al reiniciar, y si el monitor no esta se lo espera.");
+        t.details = ba::i18n::traducir("mcp", "`monitor`: su id, su numero de `orden` («2») o su nombre, como los da monitor_listar. "
                     "`cosas`: ids de catalogo_listar (con `donde: monitor`); una sola = la pantalla entera. "
                     "Reemplaza lo que tenia. `pantallaCompleta` (si no se dice, queda como estaba; de "
                     "entrada true) la pone a pantalla completa; false = una ventana maximizada en ese "
                     "monitor.\n\n"
-                    "No uses el monitor principal (donde esta la interfaz) salvo que lo pidan: lo tapa.";
+                    "No uses el monitor principal (donde esta la interfaz) salvo que lo pidan: lo tapa.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"monitor", "cosas"}},
             {"properties",
-             {{"monitor", {{"type", "string"}, {"description", "id, numero de orden o nombre (monitor_listar)"}}},
+             {{"monitor", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id, numero de orden o nombre (monitor_listar)")}}},
               {"cosas",
-               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "ids de catalogo_listar"}}},
+               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "ids de catalogo_listar")}}},
               {"pantallaCompleta", {{"type", "boolean"}}}}}};
         t.examples = {R"({"monitor": "2", "cosas": ["programa"]})",
                       R"({"monitor": "2", "cosas": ["multiview:principal", "preguntas"], "pantallaCompleta": true})"};
         t.run = [mon](const json& a, Done done) {
             const QString id = mon->resolver(QString::fromStdString(a.value("monitor", std::string())));
             if (id.isEmpty())
-                return done(ToolResult::error("No conozco ese monitor. monitor_listar dice cuales hay."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "No conozco ese monitor. monitor_listar dice cuales hay.")));
             QStringList cosas;
             if (a.contains("cosas") && a["cosas"].is_array())
                 for (const json& c : a["cosas"])
@@ -696,22 +696,22 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "monitor_quitar";
-        t.title = "Sacar lo que muestra un monitor";
+        t.title = ba::i18n::traducir("mcp", "Sacar lo que muestra un monitor");
         t.category = "pantallas";
         t.idempotent = true;
-        t.description = "Deja un monitor de esta maquina sin nada (se cierra su ventana). Con un monitor "
-                        "recordado que no esta conectado, ademas deja de esperarlo.";
+        t.description = ba::i18n::traducir("mcp", "Deja un monitor de esta maquina sin nada (se cierra su ventana). Con un monitor "
+                        "recordado que no esta conectado, ademas deja de esperarlo.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"monitor"}},
             {"properties",
-             {{"monitor", {{"type", "string"}, {"description", "id, numero de orden o nombre (monitor_listar)"}}}}}};
+             {{"monitor", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id, numero de orden o nombre (monitor_listar)")}}}}}};
         t.run = [mon](const json& a, Done done) {
             const QString id = mon->resolver(QString::fromStdString(a.value("monitor", std::string())));
             if (id.isEmpty())
-                return done(ToolResult::error("No conozco ese monitor. monitor_listar dice cuales hay."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "No conozco ese monitor. monitor_listar dice cuales hay.")));
             const QString err = mon->quitar(id);
-            done(err.isEmpty() ? ToolResult::ok("Listo: ese monitor ya no muestra nada.")
+            done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo: ese monitor ya no muestra nada."))
                                : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));

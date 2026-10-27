@@ -10,6 +10,7 @@
 
 #include <QPointer>
 #include "agent/AlertEngine.hpp"
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "plugins/Plugins.hpp"
@@ -20,10 +21,10 @@ namespace ba::app::mcp {
 
 void McpService::registerAlertTools() {
     core_.addCategory(
-        "alertas", "Disparadores (alertas)",
-        "Pedirle al servidor que vigile algo (saturación, silencio, fin de un tema, tiempo de un "
+        "alertas", ba::i18n::traducir("mcp", "Disparadores (alertas)"),
+        ba::i18n::traducir("mcp", "Pedirle al servidor que vigile algo (saturación, silencio, fin de un tema, tiempo de un "
         "orador, lobby, chat, cortes, disco, temporizadores) y que avise o actúe solo. Evita tener "
-        "que consultar cada tanto: el aviso llega al chat del asistente.");
+        "que consultar cada tanto: el aviso llega al chat del asistente."));
     agent::AlertEngine& eng = vm_.alerts();
 
     // Acciones de los disparadores: se ejecutan como llamadas MCP normales.
@@ -56,23 +57,23 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "notificador_listar";
-        t.title = "Notificadores";
+        t.title = ba::i18n::traducir("mcp", "Notificadores");
         t.category = "alertas";
         t.readOnly = true;
-        t.description = "Los avisos fuera del programa (webhook, Telegram, mail SMTP) que puede usar un disparador "
-                        "(`notificar` en alert_create): id, tipo, nombre y si ya tiene cargado su secreto.";
+        t.description = ba::i18n::traducir("mcp", "Los avisos fuera del programa (webhook, Telegram, mail SMTP) que puede usar un disparador "
+                        "(`notificar` en alert_create): id, tipo, nombre y si ya tiene cargado su secreto.");
         t.run = [this](const json&, Done done) { done(ToolResult().data({{"notificadores", vm_.notificador().lista()}})); };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "notificador_agregar";
-        t.title = "Agregar un notificador";
+        t.title = ba::i18n::traducir("mcp", "Agregar un notificador");
         t.category = "alertas";
-        t.description = "Crea (o cambia, con `id`) un notificador: `tipo` webhook, telegram (`chat_id`) o smtp "
+        t.description = ba::i18n::traducir("mcp", "Crea (o cambia, con `id`) un notificador: `tipo` webhook, telegram (`chat_id`) o smtp "
                         "(`servidor`, `puerto` 465 o 587, `usuario`, `de`, `para`). El SECRETO (URL del webhook, token del "
                         "bot, contraseña del mail) NO va por aca: lo carga una persona en la pagina Asistente, seccion "
-                        "Notificaciones. No se lo pidas al operador por el chat.";
+                        "Notificaciones. No se lo pidas al operador por el chat.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"tipo"}},
                          {"properties",
@@ -88,22 +89,22 @@ void McpService::registerAlertTools() {
         t.run = [this](const json& a, Done done) {
             const json r = vm_.notificador().agregar(a, "");
             if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
-            done(ToolResult().text("Creado. Falta que una persona cargue el secreto en la interfaz.").data(r));
+            done(ToolResult().text(ba::i18n::traducir("mcp", "Creado. Falta que una persona cargue el secreto en la interfaz.")).data(r));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "notificador_probar";
-        t.title = "Probar un notificador";
+        t.title = ba::i18n::traducir("mcp", "Probar un notificador");
         t.category = "alertas";
-        t.description = "Manda un aviso de prueba por el notificador `id` y dice si llego.";
+        t.description = ba::i18n::traducir("mcp", "Manda un aviso de prueba por el notificador `id` y dice si llego.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [this](const json& a, Done done) {
-            vm_.notificador().enviar(a.value("id", std::string()), "Prueba de Broadcast Appliance",
-                                     "Si te llego esto, los avisos funcionan.", [done](bool ok, const std::string& d) {
+            vm_.notificador().enviar(a.value("id", std::string()), ba::i18n::traducir("mcp", "Prueba de Broadcast Appliance"),
+                                     ba::i18n::traducir("mcp", "Si te llego esto, los avisos funcionan."), [done](bool ok, const std::string& d) {
                                          if (!ok) return done(ToolResult::error(d));
-                                         done(ToolResult::ok("Llego."));
+                                         done(ToolResult::ok(ba::i18n::traducir("mcp", "Llego.")));
                                      });
         };
         core_.addTool(std::move(t));
@@ -112,41 +113,41 @@ void McpService::registerAlertTools() {
         Tool t;
         t.name = "notificador_borrar";
         t.destructive = true;
-        t.title = "Borrar un notificador";
+        t.title = ba::i18n::traducir("mcp", "Borrar un notificador");
         t.category = "alertas";
-        t.description = "Borra el notificador `id` (y su secreto guardado).";
+        t.description = ba::i18n::traducir("mcp", "Borra el notificador `id` (y su secreto guardado).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [this](const json& a, Done done) {
-            if (!vm_.notificador().borrar(a.value("id", std::string()))) return done(ToolResult::error("no hay ese notificador"));
-            done(ToolResult::ok("Borrado."));
+            if (!vm_.notificador().borrar(a.value("id", std::string()))) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese notificador")));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Borrado.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "alert_types";
-        t.title = "Que se puede vigilar";
+        t.title = ba::i18n::traducir("mcp", "Que se puede vigilar");
         t.category = "alertas";
         t.readOnly = true;
-        t.description = "Referencia tecnica: que parametros admite cada tipo y con que valores vienen. "
-                        "Es documentacion, no hace nada.";
-        t.details = "No crea ningun disparador: para eso es `alert_create`.";
+        t.description = ba::i18n::traducir("mcp", "Referencia tecnica: que parametros admite cada tipo y con que valores vienen. "
+                        "Es documentacion, no hace nada.");
+        t.details = ba::i18n::traducir("mcp", "No crea ningun disparador: para eso es `alert_create`.");
         t.run = [](const json&, Done done) { done(ToolResult().data(agent::AlertEngine::types())); };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "alert_create";
-        t.title = "Crear un disparador";
+        t.title = ba::i18n::traducir("mcp", "Crear un disparador");
         t.category = "alertas";
         t.description =
-            "AVISAME CUANDO: crea un disparador que avisa solo al pasar algo (entra alguien, hay silencio "
+            ba::i18n::traducir("mcp", "AVISAME CUANDO: crea un disparador que avisa solo al pasar algo (entra alguien, hay silencio "
             "al aire, satura el audio, se cae un invitado). Crea un disparador que el servidor evalua solo "
             "(cada 250 ms) y dispara un aviso cuando pasa. "
             "`notify`: [\"llm\"] = te lo escribe en el chat (despierta al asistente), [\"ui\"] = aviso en "
             "pantalla (por defecto las dos). `actions`: herramientas MCP a ejecutar en el acto al dispararse "
             "(p. ej. bajar un volumen, cambiar de escena). `once`: se apaga despues del primer aviso. "
-            "`cooldownSec`: minimo entre avisos. Tipos y parametros: alert_types.";
+            "`cooldownSec`: minimo entre avisos. Tipos y parametros: alert_types.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -162,7 +163,7 @@ void McpService::registerAlertTools() {
                  }()}}},
               {"name", {{"type", "string"}}},
               {"params", {{"type", "object"}}},
-              {"message", {{"type", "string"}, {"description", "Texto propio que acompaña al aviso."}}},
+              {"message", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Texto propio que acompaña al aviso.")}}},
               {"notify", {{"type", "array"}, {"items", {{"type", "string"}, {"enum", {"llm", "ui"}}}}}},
               {"actions",
                {{"type", "array"},
@@ -172,16 +173,16 @@ void McpService::registerAlertTools() {
                   {"required", {"tool"}}}}}},
               {"once", {{"type", "boolean"}}},
               {"sonido", {{"type", "string"}, {"enum", {"ninguno", "aviso", "critico"}},
-                          {"description", "suena para el operador (crítico: hasta que se reconoce)"}}},
-              {"reconocer", {{"type", "boolean"}, {"description", "queda como alarma hasta que alguien la reconoce"}}},
+                          {"description", ba::i18n::traducir("mcp", "suena para el operador (crítico: hasta que se reconoce)")}}},
+              {"reconocer", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "queda como alarma hasta que alguien la reconoce")}}},
               {"permitir_aire",
                {{"type", "array"}, {"items", {{"type", "string"}}},
-                {"description", "herramientas que el disparador puede usar aunque el rol `disparador` no las tenga "
+                {"description", ba::i18n::traducir("mcp", "herramientas que el disparador puede usar aunque el rol `disparador` no las tenga "
                                 "(stream_stop, record_stop, settings_set…); solo fuera del aire, y en vivo igual "
-                                "piden confirmación"}}},
+                                "piden confirmación")}}},
               {"notificar",
                {{"type", "array"}, {"items", {{"type", "string"}}},
-                {"description", "ids de notificadores (notificador_listar): aviso por Telegram, mail o webhook"}}},
+                {"description", ba::i18n::traducir("mcp", "ids de notificadores (notificador_listar): aviso por Telegram, mail o webhook")}}},
               {"cooldownSec", {{"type", "number"}, {"minimum", 0}}}}},
             {"required", {"type"}}};
         t.examples = {
@@ -191,21 +192,21 @@ void McpService::registerAlertTools() {
             R"({"type": "timer", "name": "Pausa", "params": {"in": 600}, "message": "Pasaron 10 minutos: toca la pausa."})"};
         t.run = [&eng, this](const json& a, Done done) {
             if (!a.value("permitir_aire", json::array()).empty() && core_.hayAire())
-                return done(ToolResult::error("`permitir_aire` no se cambia al aire: hacelo fuera de la emisión."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "`permitir_aire` no se cambia al aire: hacelo fuera de la emisión.")));
             const json r = eng.create(a);
             if (r.contains("error")) return done(ToolResult::error(r["error"].get<std::string>()));
-            done(ToolResult().text("Disparador " + r["id"].get<std::string>() + " activo.").data(r));
+            done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Disparador %1 activo."), {r["id"].get<std::string>()})).data(r));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "alert_reconocer";
-        t.title = "Reconocer alarmas";
+        t.title = ba::i18n::traducir("mcp", "Reconocer alarmas");
         t.category = "alertas";
-        t.description = "Reconoce una alarma (`id` del evento, de alert_events o alert_list) o todas (`todas`: true): "
+        t.description = ba::i18n::traducir("mcp", "Reconoce una alarma (`id` del evento, de alert_events o alert_list) o todas (`todas`: true): "
                         "deja de sonar la crítica y sale de la lista de la tarjeta Sistema. Sin argumentos, lista "
-                        "las que esperan.";
+                        "las que esperan.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"id", {{"type", "integer"}}}, {"todas", {{"type", "boolean"}}}}}};
         t.run = [&eng](const json& a, Done done) {
@@ -220,13 +221,13 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "alert_fabrica";
-        t.title = "Disparadores de fábrica";
+        t.title = ba::i18n::traducir("mcp", "Disparadores de fábrica");
         t.category = "alertas";
         t.description =
-            "Los disparadores que vienen prendidos: silencio al aire del programa (crítico), saturación del "
+            ba::i18n::traducir("mcp", "Los disparadores que vienen prendidos: silencio al aire del programa (crítico), saturación del "
             "programa, la transmisión pierde cuadros o se cae (crítico), poco disco (menos de 30 min, también sin "
             "grabar), entrada sin señal (crítico) e invitado caído. `restablecer`: true los vuelve a poner como "
-            "vinieron (los propios no se tocan).";
+            "vinieron (los propios no se tocan).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"restablecer", {{"type", "boolean"}}}}}};
         t.run = [&eng](const json& a, Done done) {
             const json r = eng.fabrica(a.value("restablecer", false));
@@ -237,12 +238,12 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "alert_list";
-        t.title = "Disparadores activos";
+        t.title = ba::i18n::traducir("mcp", "Disparadores activos");
         t.category = "alertas";
         t.readOnly = true;
-        t.description = "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y "
+        t.description = ba::i18n::traducir("mcp", "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y "
                         "los plugins que "
-                        "se declaran disparadores (`plugins`: se prenden y apagan con plugin_activar).";
+                        "se declaran disparadores (`plugins`: se prenden y apagan con plugin_activar).");
         auto* pl = vm_.plugins();
         t.run = [&eng, pl](const json&, Done done) {
             json dePlugins = json::array();
@@ -260,11 +261,11 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "alert_update";
-        t.title = "Cambiar un disparador";
+        t.title = ba::i18n::traducir("mcp", "Cambiar un disparador");
         t.category = "alertas";
         t.description =
-            "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador. "
-            "`silenciada`: true le saca el sonido (sus alarmas siguen apareciendo en la tarjeta Sistema).";
+            ba::i18n::traducir("mcp", "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador. "
+            "`silenciada`: true le saca el sonido (sus alarmas siguen apareciendo en la tarjeta Sistema).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", {{"type", "string"}}},
@@ -276,7 +277,7 @@ void McpService::registerAlertTools() {
                            {"once", {{"type", "boolean"}}},
                            {"sonido", {{"type", "string"}, {"enum", {"ninguno", "aviso", "critico"}}}},
                            {"silenciada", {{"type", "boolean"},
-                                           {"description", "true: no suena (sus alarmas siguen apareciendo, con su color)"}}},
+                                           {"description", ba::i18n::traducir("mcp", "true: no suena (sus alarmas siguen apareciendo, con su color)")}}},
                            {"reconocer", {{"type", "boolean"}}},
                            {"permitir_aire", {{"type", "array"}, {"items", {{"type", "string"}}}}},
                            {"notificar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
@@ -284,7 +285,7 @@ void McpService::registerAlertTools() {
                          {"required", {"id"}}};
         t.run = [&eng, this](const json& a, Done done) {
             if (a.contains("permitir_aire") && core_.hayAire())
-                return done(ToolResult::error("`permitir_aire` no se cambia al aire: hacelo fuera de la emisión."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "`permitir_aire` no se cambia al aire: hacelo fuera de la emisión.")));
             const json r = eng.update(a["id"].get<std::string>(), a);
             if (r.contains("error")) return done(ToolResult::error(r["error"].get<std::string>()));
             done(ToolResult().data(r));
@@ -294,30 +295,30 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "alert_delete";
-        t.title = "Borrar disparadores";
+        t.title = ba::i18n::traducir("mcp", "Borrar disparadores");
         t.category = "alertas";
         t.destructive = true;
-        t.description = "Borra un disparador (`id`) o todos (`all`: true).";
+        t.description = ba::i18n::traducir("mcp", "Borra un disparador (`id`) o todos (`all`: true).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"id", {{"type", "string"}}}, {"all", {{"type", "boolean"}}}}}};
         t.run = [&eng](const json& a, Done done) {
             if (a.value("all", false)) {
                 eng.clear();
             } else if (!a.contains("id") || !eng.remove(a["id"].get<std::string>())) {
-                return done(ToolResult::error("No existe ese disparador (alert_list los muestra)."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "No existe ese disparador (alert_list los muestra).")));
             }
-            done(ToolResult::ok("Listo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "alert_events";
-        t.title = "Avisos recientes";
+        t.title = ba::i18n::traducir("mcp", "Avisos recientes");
         t.category = "alertas";
         t.readOnly = true;
         t.description =
-            "Los avisos disparados (los mas nuevos al final). `sinceId` para leer solo los nuevos.";
+            ba::i18n::traducir("mcp", "Los avisos disparados (los mas nuevos al final). `sinceId` para leer solo los nuevos.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -336,14 +337,14 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "alert_wait";
-        t.title = "Esperar el proximo aviso";
+        t.title = ba::i18n::traducir("mcp", "Esperar el proximo aviso");
         t.category = "alertas";
         t.readOnly = true;
         t.description =
-            "Vuelve apenas salta un disparador (o al vencer `timeoutSec`, max. 300) con los avisos "
+            ba::i18n::traducir("mcp", "Vuelve apenas salta un disparador (o al vencer `timeoutSec`, max. 300) con los avisos "
             "nuevos "
             "desde `sinceId`. Para clientes que no reciben los avisos en su chat: una sola llamada en vez de "
-            "consultar cada tanto.";
+            "consultar cada tanto.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",

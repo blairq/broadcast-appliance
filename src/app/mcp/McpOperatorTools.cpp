@@ -67,10 +67,10 @@ json pendingGuestChat(StudioViewModel& vm) {
 
 void McpService::registerOperatorTools() {
     core_.addCategory(
-        "operador", "Hablar con el operador",
-        "Mensajes y preguntas al operador en la barra de abajo de la app (con color según prioridad) y "
+        "operador", ba::i18n::traducir("mcp", "Hablar con el operador"),
+        ba::i18n::traducir("mcp", "Mensajes y preguntas al operador en la barra de abajo de la app (con color según prioridad) y "
         "ayuda con el chat de los invitados: ver mensajes sin responder y sugerir respuestas que el "
-        "operador manda con un click.");
+        "operador manda con un click."));
     StudioViewModel& vm = vm_;
     auto* msgs = static_cast<OperatorMessages*>(vm.messages());
     // Lo que publica una herramienta lleva qué asistente la llamó (la respuesta tardía le vuelve a él).
@@ -85,16 +85,16 @@ void McpService::registerOperatorTools() {
         {"type", "string"},
         {"enum", {"info", "success", "warning", "critical"}},
         {"default", "info"},
-        {"description", "info = azul, success = verde, warning = ambar, critical = rojo (queda fijo)."}};
+        {"description", ba::i18n::traducir("mcp", "info = azul, success = verde, warning = ambar, critical = rojo (queda fijo).")}};
     {
         Tool t;
         t.name = "operator_message";
-        t.title = "Mensaje al operador";
+        t.title = ba::i18n::traducir("mcp", "Mensaje al operador");
         t.category = "operador";
         t.description =
-            "Muestra un mensaje en la barra de abajo de la app, con el color de la prioridad. Los "
+            ba::i18n::traducir("mcp", "Muestra un mensaje en la barra de abajo de la app, con el color de la prioridad. Los "
             "info/success/warning se van solos a los `ttlSec` (30 por defecto); critical queda hasta que "
-            "lo cierren. Corto y claro: el operador esta en vivo.";
+            "lo cierren. Corto y claro: el operador esta en vivo.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"text", {{"type", "string"}, {"maxLength", 500}}},
@@ -113,16 +113,16 @@ void McpService::registerOperatorTools() {
     {
         Tool t;
         t.name = "operator_ask";
-        t.title = "Preguntarle al operador";
+        t.title = ba::i18n::traducir("mcp", "Preguntarle al operador");
         t.category = "operador";
         t.description =
-            "Le hace una pregunta al operador en la barra de abajo: con `options` (botones) y/o texto libre "
+            ba::i18n::traducir("mcp", "Le hace una pregunta al operador en la barra de abajo: con `options` (botones) y/o texto libre "
             "(`allowText`). Espera la respuesta hasta `timeoutSec` (60 por defecto, max. 600) y la devuelve; "
             "si no "
             "contesta a tiempo, la pregunta queda en la barra y la respuesta te llega despues a tu chat como "
             "[RESPUESTA DEL OPERADOR]. Para decisiones que son del operador (salir al aire, responder a un "
             "invitado "
-            "por el, cambios grandes).";
+            "por el, cambios grandes).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -136,8 +136,8 @@ void McpService::registerOperatorTools() {
               {"photoOf",
                {{"type", "string"},
                 {"description",
-                 "Nombre o id de una persona de la conferencia: adjunta su foto (la ultima que mando su "
-                 "camara) a la tarjeta que ve el operador."}}}}},
+                 ba::i18n::traducir("mcp", "Nombre o id de una persona de la conferencia: adjunta su foto (la ultima que mando su "
+                 "camara) a la tarjeta que ve el operador.")}}}}},
             {"required", {"text"}}};
         t.examples = {
             R"({"text": "Ana escribio preguntando cuando sale. ¿Como queres manejar los mensajes de los invitados?", "options": ["Responde vos por mi", "Sugerime respuestas", "Los contesto yo"]})"};
@@ -157,7 +157,7 @@ void McpService::registerOperatorTools() {
                     return done(ToolResult::ok("Todavia no contesto (la pregunta " + std::to_string(id) +
                                                " sigue en la barra; la respuesta te llega a tu chat)."));
                 if (item.value("status", "") == "dismissed")
-                    return done(ToolResult::ok("El operador cerro la pregunta sin contestar."));
+                    return done(ToolResult::ok(ba::i18n::traducir("mcp", "El operador cerro la pregunta sin contestar.")));
                 done(ToolResult()
                          .text("Respuesta del operador: " + item.value("answer", ""))
                          .data(json{{"id", id}, {"answer", item.value("answer", "")}}));
@@ -168,11 +168,11 @@ void McpService::registerOperatorTools() {
     {
         Tool t;
         t.name = "operator_messages";
-        t.title = "Barra del operador";
+        t.title = ba::i18n::traducir("mcp", "Barra del operador");
         t.category = "operador";
         t.readOnly = true;
         t.description =
-            "Lo que esta en la barra ahora (y con `history`, lo ya contestado/cerrado con sus respuestas).";
+            ba::i18n::traducir("mcp", "Lo que esta en la barra ahora (y con `history`, lo ya contestado/cerrado con sus respuestas).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"history", {{"type", "boolean"}, {"default", false}}}}}};
         t.run = [msgs](const json& a, Done done) {
@@ -188,15 +188,15 @@ void McpService::registerOperatorTools() {
     {
         Tool t;
         t.name = "guest_chat_pending";
-        t.title = "Mensajes de invitados sin responder";
+        t.title = ba::i18n::traducir("mcp", "Mensajes de invitados sin responder");
         t.category = "operador";
         t.readOnly = true;
         t.description =
-            "Conversaciones del chat de la conferencia donde un invitado escribio y el operador todavia no "
-            "contesto (privadas al operador y la general), con los mensajes pendientes.";
+            ba::i18n::traducir("mcp", "Conversaciones del chat de la conferencia donde un invitado escribio y el operador todavia no "
+            "contesto (privadas al operador y la general), con los mensajes pendientes.");
         t.run = [&vm](const json&, Done done) {
             const json p = pendingGuestChat(vm);
-            if (p.empty()) return done(ToolResult::ok("No hay mensajes de invitados sin responder."));
+            if (p.empty()) return done(ToolResult::ok(ba::i18n::traducir("mcp", "No hay mensajes de invitados sin responder.")));
             ToolResult r;
             r.data(json{{"pending", p}});
             r.untrusted = true; // texto de invitados
@@ -207,28 +207,28 @@ void McpService::registerOperatorTools() {
     {
         Tool t;
         t.name = "guest_reply_suggest";
-        t.title = "Sugerir respuestas a un invitado";
+        t.title = ba::i18n::traducir("mcp", "Sugerir respuestas a un invitado");
         t.category = "operador";
-        t.description = "Muestra en la barra del operador el mensaje de un invitado con 1 a 4 respuestas "
+        t.description = ba::i18n::traducir("mcp", "Muestra en la barra del operador el mensaje de un invitado con 1 a 4 respuestas "
                         "sugeridas: el operador "
                         "toca una (o la edita) y se le manda al invitado (en privado si el invitado escribio "
                         "en privado; si no, "
                         "al chat general). Vuelve enseguida; lo que el operador haga te llega a tu chat. "
                         "Para responder vos "
-                        "directamente (si el operador te autorizo): chat_send.";
+                        "directamente (si el operador te autorizo): chat_send.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"participant", {{"type", "string"}, {"description", "Nombre o id del invitado."}}},
+             {{"participant", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre o id del invitado.")}}},
               {"guestText",
-               {{"type", "string"}, {"description", "Lo que escribio (por defecto su ultimo mensaje)."}}},
+               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Lo que escribio (por defecto su ultimo mensaje).")}}},
               {"suggestions",
                {{"type", "array"},
                 {"items", {{"type", "string"}, {"maxLength", 300}}},
                 {"minItems", 1},
                 {"maxItems", 4}}},
               {"public",
-               {{"type", "boolean"}, {"description", "Responder en el chat general en vez de en privado."}}},
+               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Responder en el chat general en vez de en privado.")}}},
               {"priority", prioProp}}},
             {"required", {"participant", "suggestions"}}};
         t.run = [&vm, msgs](const json& a, Done done) {

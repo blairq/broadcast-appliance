@@ -18,6 +18,7 @@
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/SesionRemota.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ptz/ControlCamaras.hpp"
@@ -75,19 +76,24 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
     for (const auto& i : integrantes)
         if (!i.value("banca", std::string()).empty()) ++conBanca;
     if (integrantes.empty())
-        falta("cuerpo", "No hay integrantes cargados.",
-              "Cargalos con cuerpo_importar (planilla) o integrante_editar, cada uno con su banca.");
+        falta("cuerpo", ba::i18n::traducir("mcp", "No hay integrantes cargados."),
+              ba::i18n::traducir("mcp", "Cargalos con cuerpo_importar (planilla) o integrante_editar, cada uno con su banca."));
     else if (conBanca < static_cast<int>(integrantes.size()))
-        aviso("cuerpo", std::to_string(integrantes.size() - conBanca) + " integrante(s) sin banca: no aparecen en el recinto.",
+        aviso("cuerpo",
+              ba::i18n::traducir("mcp", "%n integrante sin banca: no aparece en el recinto.", nullptr,
+                                 static_cast<int>(integrantes.size()) - conBanca),
               "integrante_editar {id, banca}.");
 
     // 2. El recinto.
     const json rec = cuerpo.recinto(true);
     if (rec.value("filas", 0) == 0 && conBanca > 0)
-        falta("recinto", "El recinto no tiene grilla: las bancas no se ven para tocarlas.",
-              "recinto_editar {filas, columnas, auto: true} (o Asamblea → Recinto → «Acomodar solas»).");
+        falta("recinto", ba::i18n::traducir("mcp", "El recinto no tiene grilla: las bancas no se ven para tocarlas."),
+              ba::i18n::traducir("mcp", "recinto_editar {filas, columnas, auto: true} (o Asamblea → Recinto → «Acomodar solas»)."));
     else if (!rec.value("sin_lugar", json::array()).empty())
-        aviso("recinto", std::to_string(rec["sin_lugar"].size()) + " banca(s) sin lugar en la grilla.", "recinto_editar {mover: ...}.");
+        aviso("recinto",
+              ba::i18n::traducir("mcp", "%n banca sin lugar en la grilla.", nullptr,
+                                 static_cast<int>(rec["sin_lugar"].size())),
+              "recinto_editar {mover: ...}.");
 
     // 3. Las cámaras de las bancas (preset PTZ de cada una).
     std::vector<std::string> sinPreset, camaraRara, posicionRara;
@@ -115,12 +121,17 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
         if (cc != nullptr && !posiciones[c].count(pos)) posicionRara.push_back(banca + " (" + c + "/" + pos + ")");
     }
     if (!sinPreset.empty())
-        falta("camaras", std::to_string(sinPreset.size()) + " banca(s) sin toma de cámara: al darles la palabra no se muestra a nadie.",
-              "Apuntá la PTZ a cada banca, guardá la posición (ptz_posicion_crear) y asociala a la banca "
-              "(banca_toma {banca, camara, posicion}).");
+        falta("camaras",
+              ba::i18n::traducir("mcp", "%n banca sin toma de cámara: al darle la palabra no se muestra a nadie.",
+                                 nullptr, static_cast<int>(sinPreset.size())),
+              ba::i18n::traducir("mcp", "Apuntá la PTZ a cada banca, guardá la posición (ptz_posicion_crear) y asociala a la banca "
+              "(banca_toma {banca, camara, posicion})."));
     if (!camaraRara.empty())
-        falta("camaras", "Bancas con una cámara que no existe: " + camaraRara.front() + (camaraRara.size() > 1 ? " y otras" : "") + ".",
-              "Corregí la cámara en el Cuerpo o agregá esa entrada.");
+        falta("camaras",
+              ba::i18n::llenar(camaraRara.size() > 1 ? ba::i18n::traducir("mcp", "Bancas con una cámara que no existe: %1 y otras.")
+                                      : ba::i18n::traducir("mcp", "Bancas con una cámara que no existe: %1."),
+                {camaraRara.front()}),
+              ba::i18n::traducir("mcp", "Corregí la cámara en el Cuerpo o agregá esa entrada."));
     // Muchas bancas en la MISMA posición: al darle la palabra a una no se la encuadra a ella.
     {
         std::map<std::string, std::vector<std::string>> porPosicion;
@@ -132,14 +143,19 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
         }
         for (const auto& [cp, bancas] : porPosicion)
             if (bancas.size() > 2)
-                aviso("camaras", std::to_string(bancas.size()) + " bancas usan la misma posición («" + cp +
-                                     "»): al darle la palabra a una no se la encuadra a ella, se ve el plano entero.",
-                      "Una posición por banca (o por grupo chico de bancas vecinas): apuntá la PTZ, ptz_posicion_crear "
-                      "{entrada, nombre: \"Banca N\"} y banca_toma {banca, camara, posicion}.");
+                aviso("camaras",
+                      ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 bancas usan la misma posición («%2»): al darle la palabra a una no se la encuadra a "
+                          "ella, se ve el plano entero."),
+                        {std::to_string(bancas.size()), cp}),
+                      ba::i18n::traducir("mcp", "Una posición por banca (o por grupo chico de bancas vecinas): apuntá la PTZ, ptz_posicion_crear "
+                      "{entrada, nombre: \"Banca N\"} y banca_toma {banca, camara, posicion}."));
     }
     if (!posicionRara.empty())
-        aviso("camaras", "Bancas con una posición PTZ que la cámara no tiene: " + posicionRara.front() + (posicionRara.size() > 1 ? " y otras" : "") + ".",
-              "ptz_posicion_crear en esa cámara con ese nombre.");
+        aviso("camaras",
+              ba::i18n::llenar(posicionRara.size() > 1 ? ba::i18n::traducir("mcp", "Bancas con una posición PTZ que la cámara no tiene: %1 y otras.")
+                                        : ba::i18n::traducir("mcp", "Bancas con una posición PTZ que la cámara no tiene: %1."),
+                {posicionRara.front()}),
+              ba::i18n::traducir("mcp", "ptz_posicion_crear en esa cámara con ese nombre."));
 
     // 4. LAS ESCENAS: la del orador (la fuente «Banca con la palabra»; si no, cada cámara de
     // bancas en alguna escena), el remoto, el debate.
@@ -147,15 +163,18 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
     if (!eng.escenaDeRanura(1).empty()) {
         // Dar la palabra arma la escena con la ranura 1: no hace falta una por cámara.
     } else if (!camaras.empty()) {
-        aviso("escenas", "No hay una escena con la fuente «Banca con la palabra»: dar la palabra arma la primera escena "
+        aviso("escenas", ba::i18n::traducir("mcp", "No hay una escena con la fuente «Banca con la palabra»: dar la palabra arma la primera escena "
                          "que tenga esa cámara (puede ser cualquiera) y, con una cámara digital, mueve el recorte de "
-                         "todas sus escenas (también el plano general).",
-              "asamblea_escenas_base {crear: true}: crea «Asamblea · Orador» y las del debate con esa fuente.");
+                         "todas sus escenas (también el plano general)."),
+              ba::i18n::traducir("mcp", "asamblea_escenas_base {crear: true}: crea «Asamblea · Orador» y las del debate con esa fuente."));
         for (const auto& [c, n] : camaras)
             if (eng.sourceExists(c) && escenasCon(eng, c).empty())
-                falta("escenas", "Ninguna escena muestra la cámara «" + c + "» (la de " + std::to_string(n) +
-                                     " banca(s)): al darles la palabra no hay qué armar.",
-                      "asamblea_escenas_base (las propone y las crea con crear: true).");
+                falta("escenas",
+                      ba::i18n::llenar(ba::i18n::traducir("mcp", "Ninguna escena muestra la cámara «%1» (la de %n banca): al darle "
+                                                  "la palabra no hay qué armar.",
+                                           nullptr, n),
+                        {c}),
+                      ba::i18n::traducir("mcp", "asamblea_escenas_base (las propone y las crea con crear: true)."));
     }
     auto* sr = vm.sesionRemota();
     bool hayRemotos = false;
@@ -165,28 +184,29 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
     bool remotoVisible = false;
     for (const auto& sc : conRemoto) remotoVisible = remotoVisible || sc != eng.sceneNames().front();
     if (hayRemotos && !remotoVisible)
-        falta("escenas", "Ninguna escena (además de la primera, donde está oculto) muestra «Remoto con la palabra»: al remoto que habla no se lo ve.",
-              "asamblea_escenas_base, o una escena con «Remoto con la palabra» a pantalla completa (scene_define).");
+        falta("escenas", ba::i18n::traducir("mcp", "Ninguna escena (además de la primera, donde está oculto) muestra «Remoto con la palabra»: al remoto que habla no se lo ve."),
+              ba::i18n::traducir("mcp", "asamblea_escenas_base, o una escena con «Remoto con la palabra» a pantalla completa (scene_define)."));
     if (asamblea::Debate* deb = vm.debate()) {
         const json esc = deb->config().value("escenas", json::object());
-        const std::map<std::string, std::string> tipos{{"sala_sala", "dos de la sala"}, {"sala_remoto", "sala y remoto"},
-                                                       {"remoto_remoto", "dos remotos"}};
+        const std::map<std::string, std::string> tipos{{"sala_sala", ba::i18n::traducir("mcp", "dos de la sala")}, {"sala_remoto", ba::i18n::traducir("mcp", "sala y remoto")},
+                                                       {"remoto_remoto", ba::i18n::traducir("mcp", "dos remotos")}};
         const auto nombres = eng.sceneNames();
         for (const auto& [k, txt] : tipos) {
             const std::string sc = esc.value(k, std::string());
             if (sc.empty()) {
                 if (k == "sala_sala" || hayRemotos)
-                    aviso("debate", "El debate entre " + txt + " no tiene escena.",
-                          "debate_config {escenas: {" + k + ": \"…\"}} (asamblea_escenas_base las crea y las configura).");
+                    aviso("debate", ba::i18n::llenar(ba::i18n::traducir("mcp", "El debate entre %1 no tiene escena."), {txt}),
+                          ba::i18n::llenar(ba::i18n::traducir("mcp", "debate_config {escenas: {%1: \"…\"}} (asamblea_escenas_base las crea y las configura)."), {k}));
             } else if (!tiene(nombres, sc)) {
-                falta("debate", "La escena del debate entre " + txt + " («" + sc + "») ya no existe.", "debate_config.");
+                falta("debate", ba::i18n::llenar(ba::i18n::traducir("mcp", "La escena del debate entre %1 («%2») ya no existe."), {txt, sc}), "debate_config.");
             } else if (k == "remoto_remoto" && (!tiene(eng.sceneSources(sc), kRemoto1) || !tiene(eng.sceneSources(sc), kRemoto2))) {
-                falta("debate", "La escena del debate entre dos remotos («" + sc + "») no muestra a los dos: necesita «" + kRemoto1 +
-                                    "» y «" + kRemoto2 + "».",
-                      "Agregá las dos entradas a esa escena (crear_fuente con esos nombres: se comparten).");
+                falta("debate",
+                      ba::i18n::llenar(ba::i18n::traducir("mcp", "La escena del debate entre dos remotos («%1») no muestra a los dos: necesita «%2» y «%3»."),
+                        {sc, kRemoto1, kRemoto2}),
+                      ba::i18n::traducir("mcp", "Agregá las dos entradas a esa escena (crear_fuente con esos nombres: se comparten)."));
             } else if (k == "sala_remoto" && !tiene(eng.sceneSources(sc), kRemoto1)) {
-                falta("debate", "La escena del debate sala-remoto («" + sc + "») no muestra «" + kRemoto1 + "».",
-                      "Agregá «Remoto con la palabra» a esa escena.");
+                falta("debate", ba::i18n::llenar(ba::i18n::traducir("mcp", "La escena del debate sala-remoto («%1») no muestra «%2»."), {sc, kRemoto1}),
+                      ba::i18n::traducir("mcp", "Agregá «Remoto con la palabra» a esa escena."));
             }
         }
     }
@@ -196,27 +216,30 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
     if (dcn.conectada()) {
         const auto sin = dcn.estado().value("bancas_sin_unidad", json::array());
         if (!sin.empty())
-            falta("central", std::to_string(sin.size()) + " banca(s) sin unidad de la central: no se les abre el micrófono.",
-                  "dcn_unidad_asignar {aprender_todas: true} y que alguien apriete el botón de cada banca.");
+            falta("central",
+                  ba::i18n::traducir("mcp", "%n banca sin unidad de la central: no se le abre el micrófono.", nullptr,
+                                     static_cast<int>(sin.size())),
+                  ba::i18n::traducir("mcp", "dcn_unidad_asignar {aprender_todas: true} y que alguien apriete el botón de cada banca."));
     } else {
-        aviso("central", "La central de conferencia no está conectada.",
-              "dcn_conectar (o {transporte: simulador} para probar). Sin ella, los micrófonos de banca son los de la mezcla.");
+        aviso("central", ba::i18n::traducir("mcp", "La central de conferencia no está conectada."),
+              ba::i18n::traducir("mcp", "dcn_conectar (o {transporte: simulador} para probar). Sin ella, los micrófonos de banca son los de la mezcla."));
     }
     if (sr != nullptr) {
         int conLink = 0;
         for (const auto& p : sr->participantes())
             if (p.value("credencial", false)) ++conLink;
         if (conLink == 0)
-            aviso("remotos", "Nadie tiene link para entrar desde afuera (banca virtual).",
-                  "sesion_credencial {banca} a los que sesionan a distancia (o también de respaldo en la sala).");
+            aviso("remotos", ba::i18n::traducir("mcp", "Nadie tiene link para entrar desde afuera (banca virtual)."),
+                  ba::i18n::traducir("mcp", "sesion_credencial {banca} a los que sesionan a distancia (o también de respaldo en la sala)."));
         for (const auto& v : sr->vistas()) {
             const std::string f = v.value("fuente", std::string());
             if (f != "programa" && !tiene(eng.sceneNames(), f))
-                falta("remotos", "Lo que ven en el celular usa la escena «" + f + "», que ya no existe.", "sesion_vistas.");
+                falta("remotos", ba::i18n::llenar(ba::i18n::traducir("mcp", "Lo que ven en el celular usa la escena «%1», que ya no existe."), {f}), "sesion_vistas.");
         }
     }
     if (vm.ordenDelDia().puntos().empty())
-        aviso("orden", "El orden del día está vacío.", "orden_del_dia_cargar {texto} con una línea por punto (se ve en los celulares y en la consola).");
+        aviso("orden", ba::i18n::traducir("mcp", "El orden del día está vacío."),
+              ba::i18n::traducir("mcp", "orden_del_dia_cargar {texto} con una línea por punto (se ve en los celulares y en la consola)."));
 
     return {{"listo", faltas.empty()},
             {"faltas", faltas},
@@ -232,39 +255,39 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
 void McpService::registerAsambleaTools() {
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
-    core_.addCategory("asamblea", "Asamblea (preparar la sesión)",
-                      "Revisar lo que hace falta para sesionar (Cuerpo, recinto, cámaras, escenas, central, banca "
-                      "virtual) y armar las escenas de una asamblea.");
+    core_.addCategory("asamblea", ba::i18n::traducir("mcp", "Asamblea (preparar la sesión)"),
+                      ba::i18n::traducir("mcp", "Revisar lo que hace falta para sesionar (Cuerpo, recinto, cámaras, escenas, central, banca "
+                      "virtual) y armar las escenas de una asamblea."));
     {
         Tool t;
         t.name = "asamblea_revisar";
-        t.title = "¿Está todo para sesionar?";
+        t.title = ba::i18n::traducir("mcp", "¿Está todo para sesionar?");
         t.category = "asamblea";
         t.readOnly = true;
-        t.description = "Revisa lo que necesita una sesión de asamblea y dice qué falta y cómo se arregla: integrantes con "
+        t.description = ba::i18n::traducir("mcp", "Revisa lo que necesita una sesión de asamblea y dice qué falta y cómo se arregla: integrantes con "
                         "banca, la grilla del recinto, el preset de cámara de cada banca, ESCENAS que muestren esas "
                         "cámaras y al remoto con la palabra, las escenas del debate, la central (unidades por banca), la "
                         "banca virtual y el orden del día. Correla antes de dar por armado un evento de asamblea y "
-                        "contale al operador lo que salga.";
+                        "contale al operador lo que salga.");
         t.run = [&vm, &rt](const json&, Done done) { done(ToolResult().data(revisarAsamblea(vm, rt))); };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "asamblea_escenas_base";
-        t.title = "Escenas de una asamblea";
+        t.title = ba::i18n::traducir("mcp", "Escenas de una asamblea");
         t.category = "asamblea";
         t.description =
-            "Propone las escenas que necesita una asamblea, armadas con las cámaras y entradas que hay: «Asamblea · "
+            ba::i18n::traducir("mcp", "Propone las escenas que necesita una asamblea, armadas con las cámaras y entradas que hay: «Asamblea · "
             "Plano general» (la cámara `general`), «Asamblea · Orador» (la fuente «Banca con la palabra»: la toma de la "
             "banca de quien habla; dar la palabra arma esta), «Asamblea · Remoto» (el remoto con la palabra) y las del "
             "debate: dos remotos lado a lado, sala y remoto lado a lado, y dos de la sala lado a lado (ranuras 1 y 2 de "
             "la fuente de banca). Sin `crear` solo dice lo que haría; con `crear: true` crea las que falten "
             "(nunca pisa una que existe) y deja las del debate en debate_config. Mostrale al operador la propuesta antes "
-            "de crear.";
+            "de crear.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"general", {{"type", "string"}, {"description", "La cámara del plano general (de fábrica, la que más bancas tiene)."}}},
+                          {{"general", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La cámara del plano general (de fábrica, la que más bancas tiene).")}}},
                            {"crear", {{"type", "boolean"}}}}}};
         t.run = [&vm, &rt](const json& a, Done done) {
             BroadcastEngine& eng = rt.engine();
@@ -280,7 +303,7 @@ void McpService::registerAsambleaTools() {
                     }
             }
             if (!general.empty() && !eng.sourceExists(general))
-                return done(ToolResult::error("no hay ninguna entrada «" + general + "»"));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay ninguna entrada «%1»"), {general})));
             // Lo que se propone: {escena, fuentes: [{nombre, x, y, w, h}], para}.
             json plan = json::array();
             const auto nombres = eng.sceneNames();
@@ -290,26 +313,26 @@ void McpService::registerAsambleaTools() {
             const auto entera = [](const std::string& f) { return json{{"nombre", f}, {"x", 0}, {"y", 0}, {"w", 1}, {"h", 1}}; };
             const auto izq = [](const std::string& f) { return json{{"nombre", f}, {"x", 0}, {"y", 0.25}, {"w", 0.5}, {"h", 0.5}}; };
             const auto der = [](const std::string& f) { return json{{"nombre", f}, {"x", 0.5}, {"y", 0.25}, {"w", 0.5}, {"h", 0.5}}; };
-            if (!general.empty()) agregar("Asamblea · Plano general", json::array({entera(general)}), "el recinto entero");
+            if (!general.empty()) agregar("Asamblea · Plano general", json::array({entera(general)}), ba::i18n::traducir("mcp", "el recinto entero"));
             // El orador: la fuente «Banca con la palabra» (la cámara y la toma de la banca de
             // quien habla, sola). Con cámaras digitales recorta la toma entera: una sola
             // cámara da el plano general y las bancas a la vez.
             const bool hayTomas = !camaras.empty();
-            if (hayTomas) agregar("Asamblea · Orador", json::array({entera(kBanca1)}), "la banca de quien tiene la palabra");
+            if (hayTomas) agregar("Asamblea · Orador", json::array({entera(kBanca1)}), ba::i18n::traducir("mcp", "la banca de quien tiene la palabra"));
             const bool r1 = eng.sourceExists(kRemoto1), r2 = eng.sourceExists(kRemoto2);
-            if (r1) agregar("Asamblea · Remoto", json::array({entera(kRemoto1)}), "el remoto con la palabra");
-            if (r1 && r2) agregar("Asamblea · Debate remotos", json::array({izq(kRemoto1), der(kRemoto2)}), "debate entre dos remotos");
+            if (r1) agregar("Asamblea · Remoto", json::array({entera(kRemoto1)}), ba::i18n::traducir("mcp", "el remoto con la palabra"));
+            if (r1 && r2) agregar("Asamblea · Debate remotos", json::array({izq(kRemoto1), der(kRemoto2)}), ba::i18n::traducir("mcp", "debate entre dos remotos"));
             if (r1 && hayTomas)
-                agregar("Asamblea · Debate sala y remoto", json::array({izq(kBanca1), der(kRemoto1)}), "debate entre uno de la sala y un remoto");
+                agregar("Asamblea · Debate sala y remoto", json::array({izq(kBanca1), der(kRemoto1)}), ba::i18n::traducir("mcp", "debate entre uno de la sala y un remoto"));
             if (hayTomas)
-                agregar("Asamblea · Debate sala", json::array({izq(kBanca1), der(kBanca2)}), "debate entre dos de la sala, cada uno en su banca");
+                agregar("Asamblea · Debate sala", json::array({izq(kBanca1), der(kBanca2)}), ba::i18n::traducir("mcp", "debate entre dos de la sala, cada uno en su banca"));
             if (plan.empty())
-                return done(ToolResult::error("no hay cámaras de bancas en el Cuerpo ni entradas de remotos: cargá el preset "
-                                              "de cada banca primero (asamblea_revisar)"));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay cámaras de bancas en el Cuerpo ni entradas de remotos: cargá el preset "
+                                              "de cada banca primero (asamblea_revisar)")));
             if (!a.value("crear", false))
                 return done(ToolResult()
-                                .text("Esto es lo que crearía (las que ya existen se dejan como están). Mostraselo al "
-                                      "operador y, si está de acuerdo, llamá de nuevo con crear: true.")
+                                .text(ba::i18n::traducir("mcp", "Esto es lo que crearía (las que ya existen se dejan como están). Mostraselo al "
+                                      "operador y, si está de acuerdo, llamá de nuevo con crear: true."))
                                 .data({{"propuesta", plan}, {"general", general}}));
             json creadas = json::array(), errores = json::array();
             for (const auto& p : plan) {
@@ -350,7 +373,7 @@ void McpService::registerAsambleaTools() {
             }
             rt.save();
             done(ToolResult()
-                     .text(errores.empty() ? "Listo." : "Hecho, con errores en algunas fuentes.")
+                     .text(errores.empty() ? ba::i18n::traducir("mcp", "Listo.") : ba::i18n::traducir("mcp", "Hecho, con errores en algunas fuentes."))
                      .data({{"creadas", creadas}, {"errores", errores}, {"siguiente", "asamblea_revisar"}}));
         };
         core_.addTool(std::move(t));
