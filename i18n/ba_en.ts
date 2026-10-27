@@ -2,6 +2,532 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en" sourcelanguage="es_AR">
 <context>
+    <name>APdf</name>
+    <message>
+        <location filename="../src/app/evento/APdf.cpp" line="+117"/>
+        <source>no existe el archivo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no sé convertir «.%1» a PDF (sé: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no se pudo copiar a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+10"/>
+        <source>no se pudo leer %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>este equipo no trae %1 para convertir «.%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>%1 no pudo abrir el archivo (¿está dañado?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no se pudo escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no arrancó %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 tardó más de 3 minutos: se cortó</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>AccesoRemoto</name>
+    <message>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+84"/>
+        <source>Sin consultar todavía.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Por internet (pinggy): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pinggy no conecta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conectando por pinggy…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Por internet (Cloudflare)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por internet (Cloudflare): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Solo en la red local: nadie de afuera puede entrar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>con tu cuenta (dirección al azar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>con tu cuenta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>con tu API key: arma el túnel y la dirección fija de la cuenta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>con tu token</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>con tu token: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Pinggy gratis</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sin cuenta: dirección al azar, se corta a los 60 minutos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+26"/>
+        <location line="+287"/>
+        <source>no disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-311"/>
+        <location line="+26"/>
+        <source>El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-24"/>
+        <source>No hay API key de pinggy guardada (Configuración → Pinggy).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No hay token de pinggy guardado (Configuración → Pinggy).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No hay token de Cloudflare guardado (Configuración → Cloudflare).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No conozco esa forma de conectar: «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+63"/>
+        <source>La conferencia no está andando: el estado del túnel se ve cuando arranca.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>La conferencia no informa el estado del túnel (el gateway es de una versión anterior).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+28"/>
+        <source>No se pudo guardar en Credenciales/ (¿el disco está lleno o es de solo lectura?).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <location line="+20"/>
+        <location line="+16"/>
+        <source>No se pudo borrar de Credenciales/.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>No se pudo guardar en Credenciales/.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>&lt;el destino que muestra el panel de pinggy&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Para que %1 lleve a la conferencia por pinggy:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>1) En el DNS de %1 (lo hace quien administra el dominio), crear este registro:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>     Tipo:     CNAME</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>     Nombre:   %1   (si el panel pide solo la parte de adelante: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>     Destino:  %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>     TTL:      300 (5 minutos)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>   Si el DNS está en Cloudflare: con la nube GRIS («solo DNS», sin proxy). Con la nube naranja no anda.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>2) En el panel de pinggy (dashboard.pinggy.io, cuenta Pro):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>   a. Domains → agregar el dominio %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>   b. Asignarlo al token de túnel que usa este equipo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>   c. Con el túnel APAGADO (en este equipo: Configuración → Pinggy → «Túnel de pinggy» apagado),</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>      validar el dominio y emitir el certificado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>   d. Recién después prender el túnel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>   Guía de pinggy: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>3) Opcional, para más adelante (todavía no se usa): un nombre por servicio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>   (sesion.%1, botonera.%1…) con un comodín:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>4) El dominio raíz (%1, sin «%2.» adelante) no se puede apuntar con CNAME.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>   Para eso pinggy usa «relays» (registros TXT más A/AAAA de la región): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>   Ojo: por un relay no pasa UDP (el video de los invitados iría solo por TCP).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Falta el dominio (p. ej. sala.miorganismo.gob.ar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Consultando el DNS de %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>no resuelve a ninguna dirección</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>resuelve a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Bien: %1 apunta a %2 (%3). Si recién se cargó en pinggy, falta validar el dominio y emitir el certificado con el túnel apagado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 apunta a %2. Cargá el «Destino del CNAME» para comparar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 apunta a %2, pero tendría que apuntar a %3. Hay que corregir el registro CNAME.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No se pudo consultar el DNS (%1). ¿Hay internet en este equipo?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 no tiene un registro CNAME (%2). Falta crear el registro, o todavía no se propagó (con TTL 300, unos minutos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Si el DNS está en Cloudflare con la nube naranja, pasala a gris: así se ve como direcciones de Cloudflare y no como CNAME.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Falta la API key de pinggy (guardala acá arriba).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Consultando el panel de pinggy…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>No se pudo llegar a pinggy: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Pinggy no aceptó la API key (¿es la del plan Pro? ¿la copiaste entera?).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Pinggy contestó %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Pinggy contestó algo que no es JSON.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Pinggy no tiene ningún túnel activo con esta cuenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <source>Al azar no hay nada que probar: la da pinggy cada vez que arranca el túnel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Escribí primero el subdominio o el dominio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Falta el token de túnel: sin él pinggy no puede dar una dirección fija.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Ya anda: el túnel de este equipo está saliendo por %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El túnel de este equipo está prendido y pinggy deja un solo túnel por token: apagalo (y aplicá) para probar otra dirección.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Probando %1 en pinggy…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Esa dirección la está usando ahora un túnel de tu cuenta (¿otro equipo con el mismo token?). Apagalo allá o usá otra.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>Pinggy dio %1: está asignada a tu token y libre. Prendé el túnel y aplicá.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pinggy NO dio %1 (dio otra al azar: %2): no está asignada a tu token. En dashboard.pinggy.io → Domains, cargala y asignala a este token.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Esa dirección está en uso por otro túnel (¿otro equipo con el mismo token?): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pinggy no aceptó el token guardado: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No arrancó la prueba (¿falta ba-pinggy en el programa?) o pinggy no contestó en 30 s.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pinggy no contestó como se esperaba.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>Falta la API key: pegala en «API key» y guardala.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>El subdominio va con letras, números y guiones (sin espacios ni acentos), p. ej. sala-concejo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pidiendo los datos a tu cuenta de pinggy…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>No pude leer los subdominios de la cuenta: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Pidiendo «%1» en pinggy…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Pinggy no dio «%1»: %2. Probá con otro nombre (o dejalo vacío para usar el que ya tenés).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>No pude pedir el token: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Tu cuenta de pinggy no tiene ningún token activo (¿el plan Pro está vencido?).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No se pudo guardar el token en Credenciales/.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Token guardado. Dirección: %1. Prendé el túnel y aplicá.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Token guardado, pero no se pudo prender el túnel: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Listo: el túnel sale con tu plan Pro por https://%1 (video de los de afuera por el puerto %2). La conferencia se reinicia sola con eso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Listo: el túnel sale con tu plan Pro por https://%1. La conferencia se reinicia sola con eso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Falta la API key.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cortando los túneles activos de la cuenta…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No pude ver los túneles activos: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La cuenta no tenía ningún túnel activo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+8"/>
+        <source>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>AgentViewModel</name>
     <message>
         <location filename="../src/app/agent/AgentViewModel.cpp" line="+263"/>
@@ -1508,6 +2034,120 @@
     </message>
 </context>
 <context>
+    <name>AtencionViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AtencionViewModel.cpp" line="+225"/>
+        <source>Atiende %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+549"/>
+        <source>Esta compilación no trae el motor de voz.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-545"/>
+        <source>Falta el reconocedor de voz (voz a texto) que usa la recepción: bajalo en Configuración → Modelos locales (o elegí otro en Agentes).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Falta la voz del atendedor: elegila en Configuración → Voz del sistema → Voz del atendedor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>No se pudo atender hablando a «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No se pudo atender hablando a «%1»: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Se lo sigue atendiendo mirándole la cara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sigue por chat.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+146"/>
+        <source>A «%1» no se lo está atendiendo hablando en la sesión remota (atencion_estado dice a quién).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Falta qué decirle.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+94"/>
+        <source>Anoté a «%1» en Personas con la cara de su cámara y lo vinculé a su banca: la próxima vez se lo reconoce.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>«%1» quedó habilitado solo: la cámara lo reconoció y el padrón del evento lo deja entrar solo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>La recepción no tomó a «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>«%1» espera que lo habiliten en la sesión remota, y no hay quién lo atienda: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>La voz del atendedor no cargó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Primero hay que bajar esa voz (Configuración → Modelos locales).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Hola, ¿qué tal? Soy la que atiende la conferencia. ¿Me decís tu nombre y apellido, tal como querés que se lea en pantalla?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No hay voz cargada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>La voz no generó audio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>Se esperaba un objeto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Este equipo no tiene reconocimiento de rostros.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La voz «%1» no está bajada (modelos_locales / Configuración → Modelos locales).</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AudioPage</name>
     <message>
         <location filename="../src/app/qml/pages/AudioPage.qml" line="+180"/>
@@ -2283,6 +2923,43 @@ Agregá un micrófono o una entrada del sistema.</source>
     </message>
 </context>
 <context>
+    <name>Bancas</name>
+    <message>
+        <location filename="../src/app/asamblea/Bancas.cpp" line="+48"/>
+        <location line="+38"/>
+        <location line="+61"/>
+        <location line="+12"/>
+        <source>no hay nadie con esa banca, id o nombre en el cuerpo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <source>la banca no tiene preset de cámara (Cuerpo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la cámara «%1» está al aire: no se mueve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+104"/>
+        <source>el PTZ no está disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>la cámara «%1» está al aire: moverla se ve (pedilo con forzar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>la fila de bancas está vacía</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>BancoSuperRes</name>
     <message>
         <location filename="../src/app/video/BancoSuperRes.cpp" line="+160"/>
@@ -2535,6 +3212,57 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
     <message>
         <location line="+6"/>
         <source>Cerrar</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Botonera</name>
+    <message>
+        <location filename="../src/app/control/Botonera.cpp" line="+1810"/>
+        <source>Los argumentos no son JSON válido (un objeto {…})</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>El JSON de la celda no se entiende</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>el JSON no se entiende</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>BotoneraGateway</name>
+    <message>
+        <location filename="../src/app/control/BotoneraGateway.cpp" line="+61"/>
+        <source>API remota de la botonera: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>El gateway no está andando: la tablet no tendría a quién conectarse.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>No pude preguntarle a la conferencia su dirección en la red local.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No hay dirección en la red local.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>La conferencia no informó la dirección de «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>sin respuesta</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3649,6 +4377,74 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
 </context>
 <context>
+    <name>CarruselViewModel</name>
+    <message>
+        <location filename="../src/app/ui/CarruselViewModel.cpp" line="+47"/>
+        <source>Carruseles: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>«%1»: %2 láminas listas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Conversión cancelada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No se pudo desarmar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+92"/>
+        <source>Poné un nombre: sin nombre no se lo puede volver a encontrar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Ya hay un carrusel llamado «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Esa imagen ya estaba en el carrusel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>No hay ningún carrusel llamado «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>«%1» no tiene láminas todavía</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>No se pudo poner en la escena: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>«%1» quedó en «%2». Tocá una lámina para ponerla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>«%1» ya no maneja ninguna fuente. La imagen quedó como estaba.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Esperá: ya se está desarmando otro</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CatalogoFiltros</name>
     <message>
         <location filename="../src/app/qml/controls/CatalogoFiltros.qml" line="+79"/>
@@ -3907,6 +4703,19 @@ Recorrer la tira no cambia lo que se ve.</source>
     <message>
         <location line="+6"/>
         <source>  [de fábrica: %1]</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ClienteOnvif</name>
+    <message>
+        <location filename="../src/app/dispositivos/Onvif.cpp" line="+41"/>
+        <source>sin respuesta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+109"/>
+        <source>la cámara no tiene el servicio %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -4928,6 +5737,66 @@ El PIN anterior deja de servir para entrar.</source>
     </message>
 </context>
 <context>
+    <name>ConferenceViewModel</name>
+    <message>
+        <location filename="../src/app/ui/ConferenceViewModel.cpp" line="+161"/>
+        <source>La conferencia respondio: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+118"/>
+        <source>No hay nadie mas en la fila</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+103"/>
+        <source>%1 espera en el lobby</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+193"/>
+        <location line="+12"/>
+        <location line="+91"/>
+        <source>No se pudo reiniciar la conferencia: %1. Si sigue, cerrá y volvé a abrir el programa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>Tunel configurado: reiniciando la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Pasaron los %1 que esperaban</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>PIN nuevo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>No se pudo desbloquear (¿la conferencia está conectada?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Desbloqueados todos (y el bloqueo general)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Desbloqueada %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>«%1» agregado a la escena %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Configuraciones</name>
     <message>
         <location filename="../src/app/arranque/Configuraciones.cpp" line="+394"/>
@@ -4982,6 +5851,155 @@ El PIN anterior deja de servir para entrar.</source>
     <message>
         <location line="+27"/>
         <source>%1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ControlWeb</name>
+    <message>
+        <location filename="../src/app/control/ControlWeb.cpp" line="+385"/>
+        <source>Este aparato fue quitado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ControlWebGateway</name>
+    <message>
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+85"/>
+        <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>sin respuesta</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Conversor</name>
+    <message>
+        <location filename="../src/app/carrusel/Conversion.cpp" line="+125"/>
+        <source>ya hay una conversión en curso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no existe: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no sé desarmar %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no puedo escribir en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>este equipo no trae DeckCraft: convertí la presentación a PDF y traé el PDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no pude crear una carpeta temporal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Convirtiendo la presentación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>DeckCraft no pudo abrir el archivo (¿está dañado?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no se pudo arrancar DeckCraft</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>DeckCraft tardó demasiado y lo corté</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>el PDF no se pudo leer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>el PDF no tiene páginas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+25"/>
+        <source>Armando las láminas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-5"/>
+        <source>no pude escribir la lámina %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>CuerpoViewModel</name>
+    <message>
+        <location filename="../src/app/asamblea/CuerpoViewModel.cpp" line="+88"/>
+        <source>no hay imagen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>no se pudo guardar la foto en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location line="+9"/>
+        <source>no hay un integrante con ese id</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <source>no se pudo leer la imagen «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>su banca no tiene cámara (preset PTZ en el Cuerpo): subí la foto a mano</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>la cámara «%1» no da imagen ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>foto capturada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>capturada sin mover la cámara: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Importados %1, actualizados %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>, %1 con error (%2)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -5127,6 +6145,19 @@ Se prende desde el Registro.</source>
     <message>
         <location line="+2"/>
         <source>«%1» tiene un error de QML. Mirá el Registro, que trae el archivo y la línea.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Debate</name>
+    <message>
+        <location filename="../src/app/asamblea/Debate.cpp" line="+202"/>
+        <source>%1: se terminó su tiempo de debate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>%1: queda un minuto</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -5830,6 +6861,295 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>Discursos</name>
+    <message>
+        <location filename="../src/app/ui/Discursos.cpp" line="+116"/>
+        <source>Esa ruta se sale de la carpeta de discursos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No pude escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+15"/>
+        <source>No hay carpeta de discursos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <location line="+15"/>
+        <location line="+14"/>
+        <source>Ponele un nombre.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-26"/>
+        <location line="+15"/>
+        <location line="+15"/>
+        <source>Ese nombre no se puede usar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-29"/>
+        <location line="+34"/>
+        <source>Ya hay un discurso que se llama así.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <source>No pude crear %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Ya hay una carpeta que se llama así.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No pude crear la carpeta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+19"/>
+        <location line="+15"/>
+        <source>No encuentro ese discurso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-22"/>
+        <source>No pude renombrarlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Esa carpeta no se puede usar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Allá ya hay un discurso que se llama así.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No pude moverlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>No pude borrarlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Dispositivos</name>
+    <message>
+        <location filename="../src/app/dispositivos/Dispositivos.cpp" line="+108"/>
+        <source>No está conectado: lo que lo usa lo espera y vuelve solo cuando aparece</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Todavía no se buscó en esta sesión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+84"/>
+        <source>solo se les pone nombre a los dispositivos de audio y video (cámaras, micrófonos, placas, NDI, cámaras de red)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>está conectado: solo se olvida uno que ya no está</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>no hay un detector «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>«%1» no está conectado ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no hay un equipo «%1» (equipos_escanear primero)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>«%1» no aplica a este equipo ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>falta «%1» (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>«%1» no es una acción de este equipo (tiene: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>DocumentosViewModel</name>
+    <message>
+        <location filename="../src/app/ui/DocumentosViewModel.cpp" line="+133"/>
+        <source>sin miniatura (no es un PDF ni una imagen, o no se pudo leer)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>no se pudo pasar a PDF: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>se cerró mientras convertía</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <location line="+21"/>
+        <source>no hay un documento «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-19"/>
+        <source>solo un PDF tiene páginas para elegir la carátula</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la página tiene que ir de 1 a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no se pudo hacer la carátula de la página %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>no es un PDF que se pueda leer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Pasando «%1» a PDF…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No se pudo agregar «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Drivers</name>
+    <message>
+        <location filename="../src/app/dispositivos/Drivers.cpp" line="+49"/>
+        <source>no se pudo listar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>se prueban aparte los proveedores de GStreamer: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>%1 anda: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 falló (%2): %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 queda en cuarentena: no se vuelve a cargar solo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>(%1 de %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Máquina nueva: revisando todo%1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Máquina conocida: %1 drivers listos, revisando novedades%2…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Todavía no se revisaron los drivers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n driver anda</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>, %1 en cuarentena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>probando…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no está instalado ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>anda</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>anda · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>falló %1 de %2: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>en cuarentena (%1 fallas): %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>sin probar</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>EditorCara</name>
     <message>
         <location filename="../src/app/qml/controls/EditorCara.qml" line="+64"/>
@@ -6090,6 +7410,73 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>Emisor</name>
+    <message>
+        <location filename="../src/app/graficos/Emisor.cpp" line="+212"/>
+        <source>El video del gráfico: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>El video del gráfico no salió: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>los plugins no están disponibles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>el plugin «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>El gráfico no salió: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <location line="+26"/>
+        <location line="+89"/>
+        <location line="+84"/>
+        <source>esa fuente de gráfico ya no está en ninguna escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-184"/>
+        <location line="+98"/>
+        <source>el renderizador de gráficos no está en este bundle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-41"/>
+        <source>El gráfico no se pudo dibujar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>No se pudo reproducir el gráfico: esa fuente ya no está</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+54"/>
+        <source>el renderizador no devolvió el cuadro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no se pudo actualizar esa fuente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>esa fuente de gráfico ya no está</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>EnlacesPage</name>
     <message>
         <location filename="../src/app/qml/pages/EnlacesPage.qml" line="+37"/>
@@ -6195,6 +7582,188 @@ Se prende desde el Registro.</source>
     <message>
         <location line="+18"/>
         <source>Aprobar</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>EnlacesViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EnlacesViewModel.cpp" line="+148"/>
+        <location line="+24"/>
+        <location line="+23"/>
+        <location line="+13"/>
+        <location line="+44"/>
+        <location line="+3"/>
+        <location line="+2"/>
+        <source>El servidor no responde</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-81"/>
+        <source>Andando, en la red local y desde afuera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Andando en la red local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Pidiendo el enlace…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Anda desde afuera; en la red local no: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Cerrada con llave: nadie nuevo puede entrar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Se abre con el QR de emparejar (Botonera → Generar QR); sin el código no entra.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Ninguna tablet llega: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lista para emparejar (solo red local)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Sin emparejar no entra nadie. Aparatos emparejados: %1 · desde afuera, con PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sin emparejar no entra nadie. Aparatos emparejados: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Ningún aparato llega: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n aparato conectado</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ningún aparato conectado ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Cada programa usa su token (Botonera → API remota).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Apagada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Escuchando en la red local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>En Companion: Satellite → %1, puerto %2 (TCP).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>esta máquina</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Escuchando en el puerto %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apagado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Sin credencial no entra nadie: se dan en Asamblea → Conexiones remotas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>No hay un evento abierto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sin generar: Evento → Web del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Cada televisor, desde Pantallas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Uno por tótem, desde Personas → Registro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Una por persona, desde el evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Conectado por %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conectando…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No se pudo conectar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Apagado: los enlaces de afuera no andan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+76"/>
+        <source>No hay un servicio «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«%1» no se prende ni se apaga desde acá.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>«%1» no pide aprobaciones.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -7535,6 +9104,887 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>EventoViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="+191"/>
+        <source>Portada (antes de empezar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Cierre (al terminar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+15"/>
+        <location line="+43"/>
+        <source>No hay ningún evento abierto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-48"/>
+        <source>Página web del evento: %1 archivos generados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>El subdominio va con letras, números y guiones.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No se pudo guardar sitio.json.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>No conozco la página «%1»: portada, cierre, una sección o un .html propio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No se pudo escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Aviso en la página del evento: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+175"/>
+        <source>No se pudo crear el evento del día: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>No se pudo poner en curso: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>No se pudo mover: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>No se pudo crear la carpeta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>No se pudo guardar la ficha: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>No se pudo crear el evento: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>No se pudo abrir el evento: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>El padron de este evento no se pudo leer: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>No se pudo borrar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+114"/>
+        <source>Arrancar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Parar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Mostrar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sacar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prender el rótulo automático</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apagar el rótulo automático</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Silenciar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Activar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cambiar el volumen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Lo que diga el gráfico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Al avanzar a otra cue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sola (a los «cuándo se va» ms)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Queda hasta que la saquen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>El programa (lo que sale al aire)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Un reloj</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El teleprompter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Quién está al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La votación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+145"/>
+        <source>Bloque nuevo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+87"/>
+        <source>No se pudo guardar el guion: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <location line="+581"/>
+        <source>El guion no tiene ningún cue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-559"/>
+        <source>%1 %2 — %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 %2 — no existe la escena &quot;%3&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 %2 — el guion lo tiene, pero todavía no sé ejecutarlo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 %2 — listo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Ensayo acelerado: %1 de %2 cues recorridos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>, %n bloque vacío que no pasa</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>, %1 sin ejecución todavía</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>, %1 con problemas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>El guion no se corrio en esta sesion: no hay de donde sacar los tiempos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El guion no avanzo ningun cue todavia.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se cuando arranco la grabacion. Los capitulos se miden desde ahi, no desde el arranque del evento: si el guion empezo antes, todas las marcas estarian corridas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Bloque %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Todos los bloques empezaron antes de que arrancara la grabacion.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Antes de empezar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>YouTube ignora las listas de menos de tres capitulos: quedaron %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>El servidor no está disponible.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>No pude pedirle el enlace a la conferencia. Fijate `room_status`.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+193"/>
+        <source>(bloque borrado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Todavía no hay nada que informar: el guion no se corrió</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No se pudo escribir el informe en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Informe guardado en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>no existe un grafico llamado &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>todavia no hay ninguna fuente de grafico llamada &quot;%1&quot;: agregala a la escena donde tiene que verse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no existe una escena llamada &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>el programa todavía no sabe ejecutar este tipo de cue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La revisión no encontró problemas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>La revisión encontró %n problema que impide correr el guion</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>La revisión encontró cosas para mirar, ninguna grave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+99"/>
+        <source>Ensayo: el guion corre sin salir al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ensayo apagado: el guion sale al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>Arranca el ensayo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Arranca el evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Terminó el ensayo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Terminó el evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Vuelve atrás</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Salta al cue elegido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Guion en pausa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Sigue el guion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>No se pudo crear la escena del video: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Creé la escena «%1» para los videos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>No se pudo crear la fuente de video: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>(ensayo) %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No se pudo poner la escena &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El cue no se pudo ejecutar: no existe la escena &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Al aire: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No se pudo dar la palabra: no dice a quién</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Habla %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Música: para</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No encontré la música &quot;%1&quot; en los medios del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+172"/>
+        <source>El cue no se pudo ejecutar: falta «%1» en los medios del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-167"/>
+        <source>No se pudo reproducir %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Música: %1 (en bucle)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Música: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>No se pudo cargar el discurso: no dice cuál</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>No se pudo abrir el discurso: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No encontré el discurso &quot;%1&quot; en la carpeta del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Teleprompter: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>No hay motor de gráficos para los vínculos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No existe el vínculo &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El cue no se pudo ejecutar: no existe el vínculo &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Prende el rótulo automático %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Apaga el rótulo automático %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No hay renderizador de gráficos en este bundle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No hay ninguna fuente de gráfico llamada &quot;%1&quot; en las escenas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El cue no se pudo ejecutar: falta la fuente de gráfico &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>No se pudo sacar el gráfico: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Saca el gráfico de %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>No se pudo sacar al aire el gráfico &quot;%1&quot;: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El cue de gráfico falló: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Al aire el gráfico %1 en %2 (se va al avanzar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Al aire el gráfico %1 en %2 (se va solo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Al aire el gráfico %1 en %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Espera tu confirmación: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>El cue de audio no dice sobre que fuente actuar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+12"/>
+        <source>No existe la fuente de audio &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-11"/>
+        <source>El cue no se pudo ejecutar: no existe la fuente &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Silencia %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Activa %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>No sé qué es la acción de audio &quot;%1&quot; (silenciar, activar o volumen)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Video: para</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No encontré el video &quot;%1&quot; en los medios del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>No se pudo cargar %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>No se pudo poner al aire la escena del video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Video: %1 (en bucle)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Video: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>No se puede mandar a la pantalla: el servidor de herramientas no está</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Pantalla «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No se pudo mandar a «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Todavía no sé ejecutar un cue de tipo &quot;%1&quot;: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+96"/>
+        <source>No se pudo guardar el padron: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Para anotar a alguien hace falta al menos su nombre.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+61"/>
+        <source>%n persona llegó (escanearon su invitación).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Escanearon códigos que no están en el padrón: %1. Si corresponde, anotalos con el padrón.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>%1 de la lista de auto-aceptar pasaron al padrón del evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>(sin nombre)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ExtensionesModel</name>
+    <message>
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="+69"/>
+        <source>el nombre de la carpeta tiene caracteres que no se pueden usar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>le falta extension.json</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>extension.json no es JSON válido: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>«tarjeta» tiene que ser un archivo de la propia carpeta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>falta el archivo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+89"/>
+        <source>La tarjeta «%1» tiene un error (mirá el Registro)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>La tarjeta «%1» tardaba demasiado en cargar: quedó apagada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>«%1» se va a cargar de nuevo</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FacebookClient</name>
+    <message>
+        <location filename="../src/app/facebook/FacebookClient.cpp" line="+91"/>
+        <source>El ID de la app de Meta es un numero largo (Panel de la app -&gt; Configuracion -&gt; Basica).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Falta la clave secreta de la app (Configuracion -&gt; Basica -&gt; Clave secreta, &quot;Mostrar&quot;).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No se pudo guardar en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+68"/>
+        <source>La sesion de Facebook vencio o fue revocada: conecta la cuenta de nuevo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Falta un permiso (o la app no lo tiene aprobado): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Facebook pide esperar (limite de pedidos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Facebook rechazo la redireccion: agrega la URL de redireccion en la app de Meta (Inicio de sesion con Facebook -&gt; Configuracion).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Facebook respondio %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Falta configurar la app de Meta (ID y clave secreta).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>El puerto %1 esta ocupado: cambialo en la configuracion de Facebook (y en la app de Meta).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>Esperando a Facebook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No coincide</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Este enlace no corresponde al login en curso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cancelado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No se dio permiso. Podes cerrar esta pestaña.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cancelaste el permiso en Facebook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>¡Listo!</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Broadcast Appliance ya puede usar tus Paginas de Facebook. Podes cerrar esta pestaña.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>El login no se completo a tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <location line="+125"/>
+        <location line="+169"/>
+        <source>Sin conexion con Facebook: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-231"/>
+        <source>La cuenta no administra ninguna Pagina de Facebook (la API solo permite transmitir a Paginas).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Login cancelado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>No hay una cuenta de Facebook conectada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+169"/>
+        <source>No hay una Pagina de Facebook elegida.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-100"/>
+        <source>Facebook no entrego la direccion de ingesta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+99"/>
+        <source>No existe el archivo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>No se pudo leer %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>La subida se corto: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>FacebookPage</name>
     <message>
         <location filename="../src/app/qml/pages/FacebookPage.qml" line="+18"/>
@@ -7888,6 +10338,79 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>FacebookViewModel</name>
+    <message>
+        <location filename="../src/app/ui/FacebookViewModel.cpp" line="+70"/>
+        <source>Facebook: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>App de Meta guardada: ahora conecta tu cuenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Conectado a Facebook: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Cuenta de Facebook desconectada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+55"/>
+        <source>Transmitiendo a Facebook en PRUEBA (sin publicar): publicalo cuando quieras.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Transmitiendo en vivo a Facebook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La app ya esta transmitiendo: corta esa transmision primero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>La app no pudo empezar a transmitir: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Vivo publicado en la Pagina.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Vivo de Facebook terminado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Borrado de Facebook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Video actualizado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Subido a Facebook: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Ya hay una subida en curso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>FilaDsk</name>
     <message>
         <location filename="../src/app/qml/controls/FilaDsk.qml" line="+23"/>
@@ -8036,6 +10559,45 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>FrameService</name>
+    <message>
+        <location filename="../src/app/ui/FrameService.cpp" line="+64"/>
+        <source>Armada (preview)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tu cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+2"/>
+        <source>Invitado %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>%1 — pantalla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lobby %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fila %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tótem de registro %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>GraficaLatencia</name>
     <message>
         <location filename="../src/app/qml/controls/GraficaLatencia.qml" line="+104"/>
@@ -8065,6 +10627,39 @@ Se prende desde el Registro.</source>
     <message>
         <location line="+11"/>
         <source>click: marcar este momento</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>GraficoViewModel</name>
+    <message>
+        <location filename="../src/app/ui/GraficoViewModel.cpp" line="+263"/>
+        <source>No se guardó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Gráfico guardado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>el renderizador no devolvió el cuadro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>No se agregó el medio: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Medio agregado: %1 (ojo: el video no trae transparencia, va a tapar lo de atrás)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Medio agregado: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -9167,6 +11762,80 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     </message>
 </context>
 <context>
+    <name>HistoricoViewModel</name>
+    <message>
+        <location filename="../src/app/ui/HistoricoViewModel.cpp" line="+267"/>
+        <source>no hay un evento «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>es de otro evento: abrilo para traerle lo del día</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>el evento no tiene día (ni inicio, ni fecha): pasá desde y hasta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <location line="+70"/>
+        <source>No está ese evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-68"/>
+        <source>Es de otro evento: abrilo para volver a esa configuración, o creá un evento nuevo desde esta foto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Ese evento no tiene esa foto de la configuración.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>Está en curso: se sigue escribiendo, los sellos valen cuando termine.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>la retención está apagada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+73"/>
+        <source>no hay una categoría «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«%1»: true o false</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>`retencion`: {grabaciones_dias, aviso_disco_pct}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>en `retencion` no hay «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1»: un entero (días, o % de 0 a 100)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>`bus_excluir`: una lista de patrones del bus</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>IdentificarPantallas</name>
     <message>
         <location filename="../src/app/qml/IdentificarPantallas.qml" line="+88"/>
@@ -9390,6 +12059,136 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message>
         <location line="+0"/>
         <source>No está en ninguna escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>InputsViewModel</name>
+    <message>
+        <location filename="../src/app/ui/InputsViewModel.cpp" line="+121"/>
+        <source>Elegi una fuente NDI.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Esta version no trae NDI.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>%1 (no se ve)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Entrada de audio predeterminada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Micrófono</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Elegí una entrada de audio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>NDI: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Plugin: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>todas (audio)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>Automático: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Automático</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Elegi una camara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Cámara %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>La direccion tiene que empezar con rtsp://, rtmp://, srt://, http(s)://, udp:// o rtp://.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Red %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LectorDocumentos</name>
+    <message>
+        <location filename="../src/app/ui/LectorDocumentos.cpp" line="+90"/>
+        <location line="+99"/>
+        <location line="+11"/>
+        <source>modelo local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-108"/>
+        <location line="+136"/>
+        <source>modelo propio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-67"/>
+        <source>Esta compilación no trae el lector de códigos de barras (zxing-cpp).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <location line="+15"/>
+        <source>modelo local: %1; </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>No hay con qué leer el dorso (%1%2): hace falta la visión del modelo local o un modelo propio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>sin modelo propio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>El %1 no leyó el dorso: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>no cierra el verificador compuesto: hace falta otra foto que coincida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>los renglones no son de un documento de los aceptados</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -10306,6 +13105,59 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
     </message>
 </context>
 <context>
+    <name>Medios</name>
+    <message>
+        <location filename="../src/app/graficos/Medios.cpp" line="+118"/>
+        <source>ese medio no sirve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>el gráfico no tiene «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no se pudo sacar «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>no existe «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>ese nombre no sirve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no se pudo copiar la secuencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la carpeta no tiene cuadros PNG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>no se pudo copiar «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>«%1» no es una imagen que se pueda leer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no sé usar «%1» en un gráfico (GIF, PNG, JPG, WebP, una carpeta de PNG o un video)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MediosPage</name>
     <message>
         <location filename="../src/app/qml/pages/MediosPage.qml" line="+58"/>
@@ -10363,6 +13215,42 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
     <message>
         <location line="+10"/>
         <source>Sumar a «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MediosViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+251"/>
+        <source>%n archivo a «%1»</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No se pudo mover todo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>No se pudo crear la carpeta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>No se pudo renombrar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>%1 a la papelera. Están en Papelera/, no se perdieron.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No se pudo borrar todo: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -10598,7 +13486,7 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
 <context>
     <name>ModelosLocales</name>
     <message>
-        <location filename="../src/app/agent/ModelosLocales.cpp" line="+250"/>
+        <location filename="../src/app/agent/ModelosLocales.cpp" line="+251"/>
         <source>«%1» no es un modelo GGUF del catálogo.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11375,6 +14263,34 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
     <message>
         <location line="+1"/>
         <source>Cliente OAuth (client_secret*.json *.json)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>OperatorMessages</name>
+    <message>
+        <location filename="../src/app/ui/OperatorMessages.cpp" line="+183"/>
+        <source>Ese formulario ya no esta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No se pueden guardar credenciales ahora.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Ese mensaje ya no esta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Escribi la respuesta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El chat de la conferencia no esta disponible.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -19034,6 +21950,219 @@ Agregale imágenes desde la pestaña Archivos.</source>
     </message>
 </context>
 <context>
+    <name>PantallasViewModel</name>
+    <message>
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+449"/>
+        <source>Este programa se compiló sin búsqueda en la red: agregá el televisor a mano con su dirección IP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+107"/>
+        <source>(la pide el gateway al mandar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+100"/>
+        <source>No encontré ningún televisor en la red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Encontré %n pantalla</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Poné la dirección IP del televisor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Ya está en la lista.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <location line="+10"/>
+        <location line="+14"/>
+        <location line="+23"/>
+        <location line="+12"/>
+        <source>No la encuentro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-58"/>
+        <source>Esperá a que termine lo que está haciendo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+114"/>
+        <source>Ponele un nombre.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-98"/>
+        <location line="+118"/>
+        <location line="+22"/>
+        <location line="+11"/>
+        <location line="+14"/>
+        <location line="+60"/>
+        <source>No encuentro ese carrusel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-222"/>
+        <location line="+117"/>
+        <location line="+259"/>
+        <source>No sé mostrar «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-359"/>
+        <source>Esta pantalla no está mostrando nada nuestro: mandale algo primero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+65"/>
+        <location line="+12"/>
+        <location line="+10"/>
+        <source>No lo encuentro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Lo que va en vivo (el programa o una escena) no entra en un carrusel: mandalo directo a la pantalla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <location line="+12"/>
+        <location line="+13"/>
+        <source>Ese paso no está.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <location line="+153"/>
+        <location line="+87"/>
+        <source>No encuentro esa pantalla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-237"/>
+        <source>Ese carrusel no tiene ningún paso todavía.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+150"/>
+        <source>Esperá: está ocupada con lo anterior.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-149"/>
+        <source>%1 no sabe mostrar páginas web.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Carrusel — %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+144"/>
+        <source>%1 no sabe mostrar páginas web: contesta el protocolo, pero no tiene dónde mostrarlas (¿es un parlante?).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>El servidor no está corriendo: sin él no hay urna que mostrar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>No pude sacar el enlace del público</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+23"/>
+        <location line="+72"/>
+        <location line="+72"/>
+        <source>%1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-156"/>
+        <source>El servidor no está corriendo: sin él no hay programa que mandar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>No pude sacar el enlace del programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Lo que sale al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Poné una dirección.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos, o fijate que el servidor esté corriendo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Elegí qué escena mostrar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El servidor no está corriendo: sin él no hay escena que mandar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No hay ninguna escena que se llame «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Ya hay %1 escenas distintas en las pantallas: pasá alguna a una escena que ya se esté mostrando, o pará una.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No pude preparar la escena: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>No pude sacar el enlace de la escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Escena — %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PastillaIA</name>
     <message>
         <location filename="../src/app/qml/controls/PastillaIA.qml" line="+35"/>
@@ -19185,6 +22314,67 @@ Agregale imágenes desde la pestaña Archivos.</source>
     <message>
         <location line="+10"/>
         <source>Mostrar «%1» (desde la página 1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PdfEscena</name>
+    <message>
+        <location filename="../src/app/ui/PdfEscena.cpp" line="+127"/>
+        <source>no tiene ningún PDF elegido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no está el archivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>no hay ninguna fuente PDF en las escenas (armá la escena «PDF»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no hay una fuente PDF llamada «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>no hay un documento «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no existe %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no es un PDF que se pueda abrir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+55"/>
+        <source>esa fuente no tiene un PDF que se pueda abrir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-49"/>
+        <location line="+9"/>
+        <location line="+53"/>
+        <source>no está la fuente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no se pudo crear la escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>no se pudo agregar la fuente PDF</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -19396,6 +22586,176 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     <message>
         <location line="+2"/>
         <source>Borrar</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PersonasViewModel</name>
+    <message>
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="+130"/>
+        <source>Este equipo se compiló sin reconocimiento de rostros. Para activarlo: `make deps-rostros` y volver a compilar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+271"/>
+        <source>La tarjeta Rostros mandó algo que no se entiende.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>La tarjeta Rostros de «%1» no contestó (¿hay imagen?).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <location line="+26"/>
+        <source>No hay imagen en «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+174"/>
+        <location line="+23"/>
+        <location line="+33"/>
+        <source>La foto no se pudo leer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-48"/>
+        <location line="+56"/>
+        <source>No se ve ninguna cara en la foto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-54"/>
+        <source>No hay ficha con ese id.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>La cara de la foto no sirve para reconocerla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Anoté a «%1» en Personas: dio su nombre y se le ve bien la cara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+107"/>
+        <source>Ponele un nombre: sin eso la ficha no sirve para nada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>No se ve ninguna cara ahí.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hay %1 caras en el cuadro: no adivino cuál es. Elegí una fuente donde esté sola.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No existe esa persona.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Cara sumada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Esa pose ya la tenía: probá desde otro ángulo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+60"/>
+        <source>%1 entró sola: tiene permiso en el padrón del evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alguien de la lista del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>%1 llegó y no está en el padrón del evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Alguien</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 llegó.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Alguien de la libreta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+147"/>
+        <source>La libreta llegó a %1 fichas: apagué el anotado automático para no llenarla de desconocidos. Completá o borrá las que sobran.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <location line="+12"/>
+        <source>Cámara · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Playlist</name>
+    <message>
+        <location filename="../src/app/medios/Playlist.cpp" line="+253"/>
+        <source>no hay ese ítem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>fuera de la lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Plugins</name>
+    <message>
+        <location filename="../src/app/plugins/Plugins.cpp" line="+1736"/>
+        <source>No es un JSON válido (tiene que ser un objeto: { … })</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No existe el plugin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+192"/>
+        <source>No se pudo guardar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-182"/>
+        <source>Los argumentos no son un JSON válido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+177"/>
+        <source>El plugin no declara la clave «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
+        <source>Instalado «%1»: probalo y prendelo</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -19948,6 +23308,19 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
 </context>
 <context>
+    <name>Presidencia</name>
+    <message>
+        <location filename="../src/app/asamblea/Presidencia.cpp" line="+174"/>
+        <source>Prioridad del presidente: todos callados (también los remotos)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+203"/>
+        <source>No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PrompterPage</name>
     <message>
         <location filename="../src/app/qml/pages/PrompterPage.qml" line="+52"/>
@@ -20319,6 +23692,93 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     <message>
         <location line="+10"/>
         <source>«%1» tiene cambios que no están en el disco.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PrompterViewModel</name>
+    <message>
+        <location filename="../src/app/ui/PrompterViewModel.cpp" line="+95"/>
+        <source>El guion del evento no está disponible.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Los discursos viven en la carpeta del evento. Abrí o creá un evento en la pestaña Guion y volvé: son los mismos archivos que usa el cue «teleprompter».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>No pude abrir «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <location line="+172"/>
+        <source>No hay ningún documento abierto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-5"/>
+        <source>El servidor no está disponible.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>El servidor no está corriendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PropertiesModel</name>
+    <message>
+        <location filename="../src/app/ui/PropertiesModel.cpp" line="+123"/>
+        <source>Cámara o capturadora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Las cámaras USB y capturadoras conectadas a esta máquina.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>(no está conectada)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No se encontró ninguna cámara ni capturadora conectada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo decodifica. Automático: el que conviene para el lienzo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo decodifica. Automático: el que conviene para el lienzo (%1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Automático: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Automático</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>O un pipeline de GStreamer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cualquier origen: «rtspsrc location=rtsp://… ! decodebin», «videotestsrc»…</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -21223,6 +24683,44 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
 </context>
 <context>
+    <name>PublicoViewModel</name>
+    <message>
+        <location filename="../src/app/ui/PublicoViewModel.cpp" line="+90"/>
+        <source>No pude hablar con el servidor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>No pude sumarla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>No se pudo abrir la votación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>No pude cerrarla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No pude cambiarlo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>No pude cambiar la página: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Página del público actualizada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>QrControlEscenas</name>
     <message>
         <location filename="../src/app/qml/controls/QrControlEscenas.qml" line="+31"/>
@@ -21686,6 +25184,85 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
 </context>
 <context>
+    <name>QrViewModel</name>
+    <message>
+        <location filename="../src/app/ui/QrViewModel.cpp" line="+321"/>
+        <source>lo arma el sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>No hay ningún evento abierto: los códigos del evento se guardan en su carpeta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Sin ícono</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+129"/>
+        <source>Todavía no tengo ese enlace: hace falta que el servidor esté corriendo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>Ponele un nombre.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <location line="+30"/>
+        <source>No lo encuentro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>Ya está en ese ámbito.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Copiado al evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Copiado a la biblioteca general</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+97"/>
+        <source>Registro de personas: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 (guardado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Registro de personas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
+        <source>No hay nada que exportar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>No pude escribir el archivo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Guardado en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>RecintoGrilla</name>
     <message>
         <location filename="../src/app/qml/controls/RecintoGrilla.qml" line="+137"/>
@@ -22110,6 +25687,94 @@ APRETADO</source>
     </message>
 </context>
 <context>
+    <name>Red</name>
+    <message>
+        <location filename="../src/app/red/Red.cpp" line="+233"/>
+        <source>Falta el usuario.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo guardar (Credenciales/).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>ya hay un escaneo en curso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Buscando en %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Probando puertos: %1 de %2…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Reconociendo equipos…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+98"/>
+        <source>no tiene video (ni RTSP ni ONVIF)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>Reconociendo equipos (faltan %1)…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+141"/>
+        <source>«%1» no está en el último escaneo: red_escanear primero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+481"/>
+        <source>«%1» no es una cámara de red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo guardar la clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>La cámara no contestó por ONVIF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1. Revisá el usuario y la clave y que la cámara tenga la hora bien.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1. Revisá el usuario y la clave (%2) y que la cámara tenga la hora bien.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>La cámara contestó por ONVIF pero no ofrece PTZ (o ese usuario no tiene permiso de PTZ). Queda el PTZ digital.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>PTZ real activado por ONVIF (%1 presets de la cámara). El joystick ahora mueve la cámara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>PTZ real activado por ONVIF. El joystick ahora mueve la cámara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>RegistroPage</name>
     <message>
         <location filename="../src/app/qml/pages/RegistroPage.qml" line="+53"/>
@@ -22260,6 +25925,92 @@ Probá bajando el nivel, sacando el módulo o vaciando la búsqueda. Los archivo
     </message>
 </context>
 <context>
+    <name>RegistroViewModel</name>
+    <message>
+        <location filename="../src/app/ui/RegistroViewModel.cpp" line="+173"/>
+        <source>«%1» se va a cargar en el próximo arranque</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No se pudo escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Registro exportado %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>desde nivel: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>modulo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>busca: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>(%1 lineas)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Registro guardado en Logs/%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>Marca puesta en el registro</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>RespaldoEntradas</name>
+    <message>
+        <location filename="../src/app/escenas/RespaldoEntradas.cpp" line="+32"/>
+        <source>al_perder_aire: avisar, armar o cortar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>«%1» se quedó sin señal al aire: se cortó a «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«%1» se quedó sin señal al aire y no se pudo cortar a «%2»: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>«%1» se quedó sin señal al aire: «%2» quedó armada (TAKE)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«%1» se quedó sin señal al aire: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>%1 se quedó sin señal AL AIRE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 y %2 se quedaron sin señal AL AIRE</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>RetardoCanal</name>
     <message>
         <location filename="../src/app/qml/controls/RetardoCanal.qml" line="+39"/>
@@ -22375,6 +26126,49 @@ Probá bajando el nivel, sacando el módulo o vaciando la búsqueda. Los archivo
     <message>
         <location line="+0"/>
         <source>Conferencia sin conexión</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>RotuladorViewModel</name>
+    <message>
+        <location filename="../src/app/ui/RotuladorViewModel.cpp" line="+170"/>
+        <source>no hay motor de gráficos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo disparar el vínculo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>esa fuente no tiene ningún gráfico elegido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>No se pudo sacar el gráfico al aire: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>Un rótulo pedido desde el celular no salió: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Rótulo al aire desde el celular</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>El servidor no está corriendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>El servidor no responde</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -22515,6 +26309,59 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
     <message>
         <location line="+3"/>
         <source>Sin la clave adentro, el QR abre la página y pide la clave. Decísela vos: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SatelliteServidor</name>
+    <message>
+        <location filename="../src/app/control/SatelliteServidor.cpp" line="+175"/>
+        <source>puerto entre 1024 y 65535</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>prendido en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>apagado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>no pude abrir el puerto %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>fuera de la red local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>falta DEVICEID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>IP rechazada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>IP no permitida: aprobala en Servicios o en Botonera (Aparatos)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>aparato desconocido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>tecla fuera de rango</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -22870,6 +26717,25 @@ Para la escena base de la que salen las demás.</source>
     </message>
 </context>
 <context>
+    <name>Seguidor</name>
+    <message>
+        <location filename="../src/app/ui/Seguidor.cpp" line="+113"/>
+        <location line="+38"/>
+        <source>Este programa se armó sin reconocimiento de rostros</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-32"/>
+        <source>El seguimiento no está disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» no tiene PTZ: prendé el digital o configurá su motor</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SelectorHerramientas</name>
     <message>
         <location filename="../src/app/qml/controls/SelectorHerramientas.qml" line="+145"/>
@@ -23022,6 +26888,24 @@ Para la escena base de la que salen las demás.</source>
     <message>
         <location line="+5"/>
         <source>El servidor de OpenCode no arrancó a tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SesionRemota</name>
+    <message>
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+358"/>
+        <source>%1 entró a la sesión y espera que lo habiliten</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Acceso de %1 bloqueado 15 minutos por PIN errado varias veces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>%1 (remoto) pidió la palabra</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -23240,13 +27124,7 @@ Para la escena base de la que salen las demás.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <location line="+1880"/>
-        <source>actualizar</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="-1879"/>
+        <location line="+2"/>
         <source>Actualizar igual</source>
         <translation type="unfinished"></translation>
     </message>
@@ -23280,12 +27158,7 @@ Para la escena base de la que salen las demás.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>volver a la versión anterior</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>La aplicación se cierra, se restaura el programa anterior y vuelve a abrir sola. %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -24800,6 +28673,53 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
 </context>
 <context>
+    <name>Sondeo</name>
+    <message>
+        <location filename="../src/app/dispositivos/Sondeo.cpp" line="+56"/>
+        <source>no se pudo lanzar la sonda de drivers: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <location line="+8"/>
+        <source>la sonda ya está trabajando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+81"/>
+        <source>la sonda terminó sin terminar de listar (código %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>(código %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>la sonda de drivers terminó antes de empezar (código %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>la sonda no terminó de listar a tiempo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>la sonda de drivers no arrancó en %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SourcesModel</name>
+    <message>
+        <location filename="../src/app/ui/ListModels.cpp" line="+288"/>
+        <source>No existe la fuente &apos;%1&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SpeakerCard</name>
     <message>
         <location filename="../src/app/qml/controls/SpeakerCard.qml" line="+90"/>
@@ -24982,6 +28902,743 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     <message>
         <location line="+21"/>
         <source>Al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>StudioViewModel</name>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+219"/>
+        <source>%1 (no se pudo: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 → «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cada evento tiene ahora su carpeta con todo lo suyo. Se separaron: %1 (abrilos con «Abrir otro…» en la página del evento)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+112"/>
+        <source>esta versión no tiene %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>La playlist sigue donde estaba antes del corte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>Un rótulo automático no salió: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+215"/>
+        <source>Evento «%1» creado: reiniciando para abrirlo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Abriendo el evento «%1»: la app se reinicia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No se pudo crear «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+199"/>
+        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>El aviso por «%1» no salió: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+110"/>
+        <source>Modo seguro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+186"/>
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <location line="+5"/>
+        <source>el motor no está andando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Central DCN, banca %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <location line="+8"/>
+        <source>Central (debate): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Central (fin del debate): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>## Banca virtual</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>## Transcripción</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Archivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>no contestó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+139"/>
+        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+136"/>
+        <source>grabación del programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Conferencia reiniciada con la configuración nueva.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La conferencia no se reinició (%1): apretá «Reiniciar la conferencia» en Configuración o en la página Conferencia.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <location line="+14"/>
+        <source>No disponible.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>pide emparejarse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+1963"/>
+        <source>Tablet emparejada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1963"/>
+        <location line="+1963"/>
+        <source>Emparejamiento rechazado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1943"/>
+        <source>pide entrar al control web</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Aparato emparejado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pedido rechazado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>todo, o: escenas, audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>quiere conectar un Satellite</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Ese pedido ya no está.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Permitir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una IP pide conectar: permitila acá abajo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 IP piden conectar: permitilas acá abajo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>espera en el lobby</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>espera en el lobby · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Admitir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una persona espera en el lobby: admitila acá abajo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+333"/>
+        <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+153"/>
+        <source>%1 (banca %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1: queda 1 minuto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1: se terminó su tiempo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Grabación detenida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Se cortó la grabación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La grabación se detuvo sola. Revisá el espacio libre en el disco y volvé a grabar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Transmisión detenida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Se cayó la transmisión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La emisión se cortó sola (internet o el servidor de destino). Revisá la conexión y volvé a salir al aire.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Se cortó la transmisión: reconectando… (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Transmisión recuperada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+133"/>
+        <location line="+7"/>
+        <source>El escáner de red no está disponible.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+13"/>
+        <source>No escribiste ninguna clave.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <source>Los plugins no están disponibles.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>No se pudo leer %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Plataforma desconocida: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El monitor «%1» no está conectado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+152"/>
+        <source>Punto %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>CON QUÓRUM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>SIN QUÓRUM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 presentes de %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Grabando en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+10"/>
+        <source>No se pudo grabar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Grabando (con poco disco)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No se pudo transmitir: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Transmitiendo al destino nuevo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+140"/>
+        <source>%1 (copia)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 (copia %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Escena copiada: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Escena copiada, pero %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>«%1» protegida: no se puede borrar ni renombrar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«%1» ya no está protegida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>El servidor MCP no está disponible.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Guardado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo guardar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+147"/>
+        <source>Volvemos enseguida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuarto intermedio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Minuto de silencio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sesión suspendida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dificultades técnicas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>no hay un invitado «%1» en la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Sumada a la cola de preguntas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No se pudo sumar la pregunta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+71"/>
+        <source>Nombres del cuerpo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+154"/>
+        <source>No se pudo emparejar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Control web (/control/)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>La sesión remota no está andando.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+69"/>
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Grabando «%1» aparte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+97"/>
+        <source>ya se está midiendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>tipo desconocido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>modo desconocido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>La repetición no llegó a escribirse.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Repetición armada: dale TAKE.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+129"/>
+        <source>no se cambia en vivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Estás AL AIRE y grabando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+15"/>
+        <source>Estás AL AIRE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-14"/>
+        <source>Estás grabando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+3"/>
+        <source>Hay %n persona conectada</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%1, y hay %n persona conectada</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%1 y hay %n persona conectada</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>se corta la emisión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>se detiene la grabación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>esa persona queda afuera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>esas personas quedan afuera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1. Si cerrás, %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Estás GRABANDO</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Hay gente conectada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>corta la emisión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>corta la grabación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la desconecta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>desconecta a quienes están conectados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: actualizar cierra la aplicación y %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: %2 cierra la aplicación y %3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+165"/>
+        <location line="+75"/>
+        <source>Multiview %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -25483,6 +30140,44 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
 </context>
 <context>
+    <name>SystemViewModel</name>
+    <message>
+        <location filename="../src/app/ui/SystemViewModel.cpp" line="+67"/>
+        <source>%1 · programa del %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Elegi la carpeta de la version nueva.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Esa carpeta no es una version de Broadcast Appliance (tiene que tener %1 y %2).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>La version nueva tiene que estar fuera de la carpeta del sistema.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No encuentro el launcher (%1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo lanzar el actualizador.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>No hay una version anterior guardada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>TarjetaEnVentana</name>
     <message>
         <location filename="../src/app/qml/controls/TarjetaEnVentana.qml" line="+31"/>
@@ -25645,6 +30340,22 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
 </context>
 <context>
+    <name>TerminalView</name>
+    <message numerus="yes">
+        <location filename="../src/app/term/TerminalView.cpp" line="+208"/>
+        <source>↑ historial (%n linea) — rueda abajo o cualquier tecla para volver</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>— el agente no esta corriendo —</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Theme</name>
     <message>
         <location filename="../src/app/qml/Theme.qml" line="+23"/>
@@ -25695,6 +30406,19 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>TiemposModel</name>
+    <message>
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+379"/>
+        <source>ya hay un análisis midiendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>no existe la entrada «%1»</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -26007,6 +30731,210 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
 </context>
 <context>
+    <name>TotemsViewModel</name>
+    <message>
+        <location filename="../src/app/ui/TotemsViewModel.cpp" line="+346"/>
+        <source>No pude leer los tótems de registro: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>No se pudo guardar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+132"/>
+        <source>Si el código no sale, pide la parte de atrás y la lee con el %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sin lectura del dorso: %1 (o configurá un modelo propio).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>No hay un evento abierto: los tótems son de un evento (abrí o creá uno).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>No hay un evento abierto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>No hay ese tótem.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Opción %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+9"/>
+        <location line="+11"/>
+        <source>No hay ese campo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Esta compilación no trae el motor de voz.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+127"/>
+        <source>La voz de los tótems no cargó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+119"/>
+        <source>No te veo la cara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+268"/>
+        <source>Alguien se registró en un tótem pero no hay un evento abierto: no quedó anotado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+214"/>
+        <source>Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>No veo los renglones de abajo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No se leen bien los renglones de abajo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <location line="+270"/>
+        <source>alguien del equipo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <location line="+40"/>
+        <location line="+32"/>
+        <source>No hay esa conexión (ya se fue).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-69"/>
+        <source>Ya la atiende %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Ese tótem ya no existe.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Esa conversación ya terminó.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Esa conversación no está en curso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+31"/>
+        <source>La atiende otra persona.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-28"/>
+        <source>No la está atendiendo nadie: ya la lleva el asistente.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>«como» es asistente, guardar o cancelar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Todavía no hay una conversación en curso ahí: atendela para empezarla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+101"/>
+        <source>Guion solo (sin el rol «registro»).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Guion solo: el rol «%1» está apagado (pestaña Agentes).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Entiende con el modelo local: lo que dice la gente no sale de esta máquina.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cargando el modelo local…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Guion solo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con el modelo local (se carga cuando se conecta un tótem).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Guion solo: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Entiende con %1: lo que dice la gente (sus datos) sale de esta máquina hacia ese servicio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>no hay un modelo local instalado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>falta llama-server en el programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>el rol «registro» está apagado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>el modelo local todavía está cargando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>modelo local</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Traductor</name>
     <message>
         <location filename="../src/app/agent/Traductor.cpp" line="+194"/>
@@ -26131,6 +31059,102 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     <message>
         <location line="+47"/>
         <source>no hay un término «%1» en el glosario</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TwitchClient</name>
+    <message>
+        <location filename="../src/app/twitch/TwitchClient.cpp" line="+86"/>
+        <source>El Client ID de Twitch son unos 30 caracteres (lo muestra la consola de desarrolladores al administrar la app).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>No se pudo guardar en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>La sesion de Twitch vencio o fue revocada: conecta la cuenta de nuevo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Falta un permiso: desconecta y volve a conectar la cuenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El Client ID de Twitch no es valido.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Twitch pide esperar (demasiados pedidos seguidos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Twitch respondio %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Falta el Client ID de la app de Twitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <location line="+136"/>
+        <location line="+51"/>
+        <source>Sin conexion con Twitch: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-166"/>
+        <source>El codigo vencio sin que se autorizara. Proba de nuevo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>Cancelaste el permiso en Twitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>No hay una cuenta de Twitch conectada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+123"/>
+        <source>No hay ninguna categoria de Twitch llamada &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>Twitch no entrego la clave de transmision.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+60"/>
+        <location line="+64"/>
+        <source>Chat de Twitch: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Chat de Twitch conectado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Chat de Twitch: la sesion no es valida (reconecta la cuenta).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Chat de Twitch: reconectando…</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -26374,6 +31398,64 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     <message>
         <location line="+1"/>
         <source>Enviar</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TwitchViewModel</name>
+    <message>
+        <location filename="../src/app/ui/TwitchViewModel.cpp" line="+82"/>
+        <source>Twitch: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>App de Twitch guardada: ahora conecta tu cuenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Conectado a Twitch: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Cuenta de Twitch desconectada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <source>Canal de Twitch actualizado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Transmitiendo a Twitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Ya se esta transmitiendo a Twitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La app ya esta transmitiendo: corta esa transmision primero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>La app no pudo empezar a transmitir: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Transmision a Twitch cortada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>VOD borrado de Twitch.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -28079,6 +33161,39 @@ Escucha:
     </message>
 </context>
 <context>
+    <name>Vinculos</name>
+    <message>
+        <location filename="../src/app/graficos/Vinculos.cpp" line="+170"/>
+        <source>el vínculo no dice en qué fuente de escena se ve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el vínculo no dice qué gráfico poner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no existe el gráfico «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>el vínculo no dice de dónde sale ningún campo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <source>no existe ese vínculo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no hay ninguna fuente de gráfico llamada «%1» en las escenas</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>VisorMedio</name>
     <message>
         <location filename="../src/app/qml/controls/VisorMedio.qml" line="+122"/>
@@ -29111,6 +34226,209 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
 </context>
 <context>
+    <name>YouTubeClient</name>
+    <message>
+        <location filename="../src/app/youtube/YouTubeClient.cpp" line="+122"/>
+        <source>Ese cliente es de tipo &quot;Aplicacion web&quot;: crea uno de tipo &quot;App de escritorio&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No parece un cliente OAuth de Google: el ID termina en .apps.googleusercontent.com y hace falta el secreto. Pega el JSON completo que descargaste.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No se pudo guardar en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+75"/>
+        <source>Se agoto la cuota diaria de la API de YouTube (10.000 unidades). Se renueva a la medianoche, hora del Pacifico.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Tu canal no tiene habilitadas las transmisiones en vivo. Habilitalas en youtube.com/features (tarda hasta 24 h la primera vez).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El permiso otorgado no alcanza: desconecta y volve a conectar la cuenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>YouTube no permite esa operacion con esta cuenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La sesion de YouTube vencio o fue revocada: conecta la cuenta de nuevo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El cliente OAuth no es valido (ID o secreto): revisa la configuracion.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El cliente OAuth debe ser de tipo &quot;App de escritorio&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El evento no puede pasar a ese estado ahora (¿el stream esta llegando?).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El evento ya esta en ese estado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>YouTube todavia no recibe video: empeza a transmitir desde la app y espera unos segundos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+369"/>
+        <source>No existe ese video (o no es de este canal).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-368"/>
+        <location line="+549"/>
+        <location line="+68"/>
+        <source>No existe ese evento en vivo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-616"/>
+        <source>Llegaste al limite de subidas de YouTube por hoy.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+2"/>
+        <source>La API de YouTube no esta habilitada en tu proyecto de Google Cloud (Biblioteca -&gt; YouTube Data API v3).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>YouTube respondio %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No hay una cuenta de YouTube conectada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <location line="+326"/>
+        <source>Sin conexion con YouTube: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-303"/>
+        <source>Falta configurar el cliente OAuth (ID y secreto de Google Cloud).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No se pudo abrir el puerto local para el login.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>Esperando la respuesta de Google.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No coincide</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Este enlace no corresponde al login en curso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Cancelado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No se dio permiso. Podes cerrar esta pestaña.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Cancelaste el permiso (o tu cuenta no esta como usuario de prueba en la pantalla de consentimiento).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Google respondio: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>¡Listo!</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Broadcast Appliance ya puede usar tu cuenta de YouTube. Podes cerrar esta pestaña.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>El login no se completo en 5 minutos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Google no entrego un refresh token: quita el acceso de la app en myaccount.google.com/permissions y volve a conectar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Sin conexion con Google: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Login cancelado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>Esa cuenta no tiene un canal de YouTube (crealo en youtube.com).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
+        <source>No existe el archivo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>La subida se corto: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+93"/>
+        <source>El evento se creo pero no se pudo preparar la ingesta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>YouTubePage</name>
     <message>
         <location filename="../src/app/qml/pages/YouTubePage.qml" line="+19"/>
@@ -29596,6 +34914,310 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
 </context>
 <context>
+    <name>YouTubeViewModel</name>
+    <message>
+        <location filename="../src/app/ui/YouTubeViewModel.cpp" line="+92"/>
+        <source>YouTube: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Credenciales de Google guardadas: ahora conecta tu cuenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Conectado a YouTube: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Cuenta de YouTube desconectada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+89"/>
+        <source>Video actualizado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Video borrado de YouTube.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Subido a YouTube: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Ya hay una subida en curso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Evento creado: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Transmitiendo a YouTube. El evento pasa a en vivo cuando YouTube recibe la señal.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Ya se esta transmitiendo a este evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La app ya esta transmitiendo: corta esa transmision primero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>YouTube no entrego servidor o clave de ingesta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>La app no pudo empezar a transmitir: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>Evento terminado en YouTube.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Evento borrado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>YouTube: el chat de ese evento no esta disponible (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>YouTube: ese evento no tiene chat (todavia no empezo o esta deshabilitado).</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>acceso</name>
+    <message>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="-682"/>
+        <source>Está vacío.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Tiene espacios o saltos de línea: copialo de nuevo, entero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Es demasiado corto: copialo entero del panel de pinggy.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Es demasiado largo: ¿se pegó otra cosa?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+545"/>
+        <source>pinggy no aceptó la API key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no se pudo llegar a pinggy: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pinggy contestó %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>acciones</name>
+    <message>
+        <location filename="../src/app/control/Acciones.cpp" line="+52"/>
+        <source>Aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Oradores</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prompter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>TAKE (el preview al aire)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>FTB: a negro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sacar el negro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Placa «Volvemos enseguida»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sacar la placa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grabar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Salidas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Siguiente banca (armar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Terminar al orador presencial</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Armar la banca que pidió la palabra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Siguiente punto del orden del día</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sesión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Prompter: correr</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prompter: parar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prompter: pánico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Reconocer las alarmas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Seguridad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Subir/bajar la capa DSK %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Capas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Escenas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Armar «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cortar a «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Mutear/desmutear «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>capa inválida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>no hay una acción «%1» (acciones_listar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>todavía no está listo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>la tecla «%1» no se entiende (p. ej. «Ctrl+Shift+T» o «F5»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no hay una acción «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>«%1» ya es de «%2»: sacala primero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>este sistema todavía no tiene atajos globales (sirve como local)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>actualizacion</name>
     <message>
         <location filename="../src/app/agent/Actualizacion.cpp" line="+60"/>
@@ -29635,6 +35257,66 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+5"/>
         <source>no se sabe buscar actualizaciones de %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/launcher/Updater.cpp" line="+106"/>
+        <source>no se pudo apartar %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>no se pudo instalar %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>El sistema sigue abierto: cerralo y volve a intentar (%1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>No hay una version anterior guardada para volver atras.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Esa carpeta no parece una version de Broadcast Appliance (falta %1 o %2).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La version nueva tiene que estar FUERA de la carpeta del sistema.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>La version nueva esta danada (%1 archivos faltan, %2 no coinciden con manifest.json). No se instalo nada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>No se pudo copiar la version nueva (%1). No se instalo nada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>No se pudo respaldar Credenciales/ y Config/ (%1). No se instalo nada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>No se pudo reemplazar el programa (%1). Quedo la version anterior.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Se volvio a la version anterior (%1 elementos del programa). Datos intactos; respaldo en %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Actualizado (%1 elementos del programa). Datos intactos; respaldo en %2.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -29693,9 +35375,197 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
 </context>
 <context>
+    <name>aire</name>
+    <message>
+        <location filename="../src/app/escenas/Conmutador.cpp" line="+48"/>
+        <source>no se pudo poner «%1» al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>al aire: «%1» (salió «%2», por %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>al aire: «%1» (salió «%2», por %3, %4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>corte directo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>«%1» ya está al aire: armá otra para el próximo take.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no existe la escena «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No hay ninguna escena armada: elegí una en el bus de preview.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>No hay ninguna escena armada para la T-bar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>tipo: cut, fade, swipe, slide o fade_to_color (vacío = la global)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>ajustes</name>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="+48"/>
+        <location filename="../src/app/ui/SettingsModel.cpp" line="+42"/>
+        <source>Video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cámaras y entradas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Transmisión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grabación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Codificación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Invitados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pantallas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red de la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cloudflare</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Túnel propio (WireGuard)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pinggy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Asistente (MCP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Modelos locales</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apariencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sistema y datos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera y superficies</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dispositivos y drivers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Página del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plugins y descargas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Teleprompter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tótems de registro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Traducción</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voz del sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Control del sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Automático (el del sistema: %1)</source>
         <translation>Automatic (the system&apos;s: %1)</translation>
     </message>
@@ -29710,9 +35580,2766 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location line="+180"/>
+        <location line="+14"/>
+        <source>Solo esta máquina (vía túnel)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red local, todas las interfaces (también sin túnel)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Solo %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 (esta máquina ya no la tiene)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Automática (la de la red)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>%1 (el nombre del equipo, si la red lo resuelve)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Automatico (hardware si hay)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>x264 (software)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Ancho del lienzo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Resolución de composición.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alto del lienzo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ancho de salida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Resolución que se codifica (se escala desde el lienzo).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alto de salida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuadros por segundo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>29,97 / 59,94 / 23,976: las cadencias NTSC (America, Japón).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formato de salida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>NV12 (8 bits 4:2:0, el de siempre)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>I420 (8 bits 4:2:0)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>I444 (8 bits 4:4:4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>P010 (10 bits 4:2:0, HDR)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>I010 (10 bits 4:2:0)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que reciben los codificadores. HDR necesita 10 bits (y un codificador que lo acepte: HEVC/AV1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Espacio de color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Las entradas que se normalizan se llevan a este espacio de color.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rango</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Limitado (16-235, broadcast)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Completo (0-255)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Transición</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Corte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fundido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Barrido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Deslizar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fundido a color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Duración de la transición</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Mejorar imagen de las cámaras</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Limpia el ruido, pega el color a los bordes (el LED del micrófono, la corbata) y afila, en la GPU y sin demora. Cada entrada puede seguir esto, forzarlo o apagarlo en Cámaras PTZ.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mejorar imagen: ruido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuánto se mezcla con el cuadro anterior donde no hay movimiento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mejorar imagen: color pegado al brillo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Saca el color corrido alrededor de los bordes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mejorar imagen: nitidez</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Enfoque adaptativo (sin halos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Legalizar para TV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sí, PAL (+133 %)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sí, estricto (+120 %)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Solo el rango (luma y croma)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pasa cada entrada por el legalizador (balegal, en GStreamer): luma y croma en rango legal y, si se pasa la gama compuesta, menos saturación en ese punto. Para entregas a un canal.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Placa «sin señal» después de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Una entrada que deja de mandar cuadros muestra la placa «sin señal» pasado este tiempo. Más corto, se ve antes que se cortó; más largo, aguanta cortes chicos de la red sin parpadear. Rige al armar cada entrada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rearmar si no llegan datos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Una entrada que no da error pero tampoco manda nada se desarma y se vuelve a armar pasado este tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Espera máxima entre reintentos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Una entrada que no arma se reintenta a los 0,2, 0,5, 1 y 2 s y después cada vez más espaciado, hasta este tope. Con una cámara apagada mucho rato, un tope más alto no la martilla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Placa de entradas sin uso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Una entrada que ninguna escena usa desarma su placa («sin señal») pasado este tiempo, para no gastar hilos. Rearmarla es una negociación de la GPU: con poco tiempo, cada cambio de escena la rearma.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Servidor RTMP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>p. ej. rtmp://a.rtmp.youtube.com/live2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Variable con la clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>La clave no se guarda en disco: se lee de esta variable de entorno o se escribe al transmitir.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Espera máxima entre reconexiones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si se corta la transmisión, se reconecta a los 1, 2, 4, 8… s hasta este tope.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Transmitir al arrancar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Carpeta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Relativa al bundle o absoluta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>MKV (sobrevive a un corte de energía)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>MP4 y MOV se graban en MKV (un corte no los arruina) y se pasan al formato al terminar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pasar a MP4/MOV al terminar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Con MP4 o MOV elegidos: al detener, el MKV se pasa al formato sin recodificar y se borra si salió bien.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grabar al arrancar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Respaldo local automático.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Calidad del archivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Como la transmisión (no cuesta otro encode)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Calidad de archivo (para editar; un encode más)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>«Calidad de archivo» usa su propio codificador a calidad constante: el archivo sale mejor que lo que se transmite.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Calidad constante (CRF)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Con «Calidad de archivo»: 14 casi sin pérdida, 18 muy buena, 23 normal, 28 chico.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pistas de audio extra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Números de pista de la Matriz (2 a 6) separados por coma: cada una se graba aparte con lo que le cruces en la Matriz. La 1 (el programa) va siempre.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Copia en otro disco</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Una segunda grabación igual, en otra carpeta (otro disco). Vacío = sin copia.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Colchón si el disco se traba</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que la grabación del programa junta en memoria mientras el disco no escribe (un disco USB que se reinicia, por ejemplo). Más segundos, más memoria (a 6 Mbps, un minuto son ~45 MB; hay un tope de 512 MB).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Si el disco no da abasto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Preguntar si le doy el disco a la grabación del programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Dárselo solo (pausa ISO, repetición, copia y registro)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No hacer nada (solo avisar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuando lo grabado espera para entrar al disco: se puede pausar todo lo demás que escribe para que la grabación del programa no pierda nada. Todo sigue solo cuando el disco vuelve a andar bien.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El disco está en apuros con</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Segundos que lo grabado espera para entrar al disco (o el registro trabado escribiendo) hasta avisar y, según lo de arriba, darle el disco al programa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Vuelve a la normalidad después de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Segundos con el disco al día hasta que se retoma lo pausado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Repetición: últimos segundos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Guarda en memoria los últimos N segundos del programa para el botón «Repetir». 0 = apagada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Codificador de video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si el elegido no está o falla al arrancar, se usa el siguiente disponible y al final x264.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bitrate de video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Control de tasa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>CBR (constante, para transmitir)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>VBR (variable)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>CQP (calidad fija, para grabar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Intervalo de keyframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Las plataformas de streaming piden 2 s.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Preset de x264</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Solo aplica a x264: más lento = mejor calidad y más CPU.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bitrate de audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cantidad de invitados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la conferencia» antes de subirlo mucho. Cambia en caliente (hasta %1), sin cortar a nadie.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lugares reservados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los lugares que la conferencia deja listos al arrancar (sus canales de video y audio). Ya no limita el cupo: los que faltan se crean cuando el cupo sube. Cambiarlo reinicia el gateway.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de invitados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Audio de invitados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Procesamiento de voz</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Podio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Corbatero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>De mano</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sin procesar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Channel strip nativo: HPF, EQ, de-esser, gate, compresor y limitador.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Placa si un invitado no manda video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El lugar de un invitado que deja de mandar video muestra su placa pasado este tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video del invitado: ancho</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video del invitado: alto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Retorno al invitado: ancho</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Retorno al invitado: alto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Nombre de la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Nombre de la conferencia a la que entran los invitados.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lobby de admisión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada invitado espera a que lo hagas pasar (y mientras espera solo te ve a vos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Previews del lobby</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos de los que esperan pueden mostrarte su cámara a la vez.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fila de oradores</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Modo oradores: cuántos en la fila pueden ver el programa a la vez (cada uno usa una sesión de video).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Previews de la fila</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Modo oradores: cuántos de la fila (los primeros) te muestran su cámara en la app.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Integrantes mirando a la vez</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sesión remota: cuántos integrantes pueden mirar un canal a la vez en su celular (cada uno es una conexión de video).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Retorno a las pantallas: ancho</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Resolución del programa que va a las pantallas de la sala y a los celulares.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Retorno a las pantallas: alto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PIN: intentos por dirección</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>PIN mal tantas veces desde una misma dirección: se la bloquea un rato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PIN: bloqueo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuánto queda bloqueada esa dirección.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tope por archivo compartido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Puerto de la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Acceso (dónde escucha)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la conferencia.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dirección para el QR y el enlace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que va en el QR de la conferencia y en el enlace para los invitados de la red local: elegila de la lista (las IP de esta máquina) o escribila (una IP o un nombre). Vacía, la elige sola (la de la interfaz de «Acceso», o la de la red). Si «Acceso» está en «Solo esta máquina», pasa a «Red local» para que se pueda entrar. Al aplicar se reinicia solo la conferencia.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>HTTPS propio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los navegadores solo dan cámara y micrófono en paginas seguras: sin HTTPS, un invitado por la red local o por IP pública no puede usarlos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Puerto HTTPS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Un certificado propio evita el aviso del navegador: deja cert.pem + key.pem en Credenciales/ y al reiniciar se importan (cifrados).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>WebRTC: primer puerto UDP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Rango fijo para el firewall y la redirección del servidor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>WebRTC: último puerto UDP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Puerto de la API de control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Solo en 127.0.0.1: la usa esta app.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Túnel de Cloudflare</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Saca la conferencia a internet por un túnel de Cloudflare (cloudflared). Necesita el token del túnel (acá arriba).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dominio público (Cloudflare)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El hostname que apunta al túnel en el panel de Cloudflare (p. ej. sala.midominio.com). Lo usa el QR remoto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Túnel WireGuard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Conecta a un servidor propio con IP pública: los invitados entran directo, sin Cloudflare. Sin permisos de administrador ni drivers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Servidor WireGuard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>host:puerto (p. ej. vps.midominio.com:51820).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Clave pública del servidor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>La que muestra &apos;wg show&apos; en el servidor (base64).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dirección en el túnel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>La que el servidor le asigna a este equipo (AllowedIPs).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>IP o dominio público</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por donde entran los invitados; también es la que se anuncia para WebRTC.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Puerto de métricas del túnel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo usa cloudflared en esta máquina (127.0.0.1) para informar cómo anda el túnel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>WireGuard: puerto web que redirige el servidor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>WireGuard: puerto seguro que redirige el servidor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Keepalive</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Mantiene abierto el NAT del lado de este equipo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Túnel de pinggy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Saca todas las páginas de la conferencia (invitados, sesión remota, público, botonera) por una sola dirección pública de pinggy.io, sin abrir puertos ni tener IP pública. Necesita el token de túnel guardado acá abajo. La API de control y el MCP nunca salen por el túnel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Región del servidor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Automática (la más cercana)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Estados Unidos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Europa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Asia-Pacífico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por dónde pasa el tráfico. La automática elige la de menos demora; si se corta seguido, probá con Estados Unidos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dirección pública</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>La que dé pinggy (al azar, cambia cada vez)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Subdominio fijo de pinggy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Dominio propio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Al azar: anda sin configurar nada, pero el enlace (y el QR) cambia cada vez que se conecta. Subdominio fijo (plan Pro): el que pinggy le asigna al token en dashboard.pinggy.io → Domains. Dominio propio (plan Pro): un nombre de la organización (p. ej. sala.miorganismo.gob.ar) cargado en el panel de pinggy y apuntado con un CNAME.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Subdominio o dominio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Tal cual figura en el panel de pinggy: p. ej. sala-concejo.a.pinggy.link (subdominio fijo) o sala.miorganismo.gob.ar (dominio propio). Sin https:// ni barras.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Destino del CNAME</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo muestra el panel de pinggy al cargar el dominio propio, del estilo &lt;id&gt;.a.pinggy.link. Es a donde tiene que apuntar el registro CNAME del dominio (las instrucciones para el que administra el DNS están acá abajo).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN por el túnel (video de los invitados de afuera)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El audio y el video de los invitados que entran por internet viajan por el túnel (un servidor TURN propio dentro de este equipo). Apagado, solo pasan las páginas: el video de los de afuera puede no conectar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN: puerto TCP fijo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Con plan Pro se puede reservar un puerto TCP fijo en pinggy. 0 = el que dé pinggy.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN también por UDP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Menos demora que por TCP, si la red del invitado lo deja pasar. Necesita un puerto UDP de pinggy (Pro).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN: puerto UDP fijo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>0 = el que dé pinggy.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Solo desde estas direcciones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>IPs o redes separadas por coma (p. ej. 200.45.10.0/24, 181.1.2.3). Vacío: desde cualquier lado (el PIN sigue protegiendo).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Puerto local del túnel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que entra por pinggy llega a este puerto de esta máquina (solo 127.0.0.1) y se marca como «de afuera». Cambialo solo si otro programa lo usa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Servidor MCP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Permite que un asistente de IA (Claude u otro cliente MCP) maneje y vea toda la app. Solo en esta máquina y con token (cifrado en Credenciales/; bin/64bit/ba-mcp --token lo muestra).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Puerto MCP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>http://127.0.0.1:&lt;puerto&gt;/mcp. Para clientes que lanzan un proceso: bin/64bit/ba-mcp.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Aprobar acciones del asistente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si leyó mensajes/datos de invitados o del público (recomendado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Siempre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Nunca: aprobación automática (bajo tu responsabilidad)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Salvaguarda determinista: cuando el asistente leyo algo escrito por invitados o por el publico (chat, nombres, archivos, su video), toda accion que modifica algo espera tu click de aprobacion en la barra de abajo. Asi un invitado no puede hacer que el asistente cambie nada. Con «Nunca» se aprueba todo solo: un invitado podria escribir en el chat algo que el asistente termine haciendo. Solo se cambia desde aca (el asistente no puede).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una aprobación espera hasta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que el asistente pide aprobar se rechaza solo si nadie contesta en este tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Memoria de la charla (contexto)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Contexto del modelo local de chat (pestaña Asistente, «modelo local»). Más, recuerda más de la charla y usa más memoria de la placa. Rige al volver a arrancarlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Capas en la GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>999 = todas (lo más rápido). Si la placa se queda sin memoria, bajalo; 0 = solo la CPU. Rige al volver a arrancarlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Ancho de las vistas previas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El tamaño con que se dibujan las vistas previas del programa y las escenas. Más grande se ve mejor y usa más la placa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Oscuro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Claro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tema de las interfaces web</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El de todas las páginas de control (dashboard, botonera, presidencia, rótulos, corrección): cambia en todos los aparatos sin recargar. También en Servicios → Templates.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>El del programa: la interfaz, los avisos, el registro y el asistente. El de cada evento (lo que ven y escuchan el público y los invitados) se elige en el evento. Cambia al reiniciar el programa.</source>
         <translation>The program&apos;s: the interface, notices, the log and the assistant. Each event&apos;s language (what the audience and guests see and hear) is chosen in the event. It changes when the program restarts.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Copia sombra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Colgado si no responde</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si el programa (o la conferencia) deja de latir este tiempo, se guarda un volcado y se reinicia solo. Más corto, vuelve antes; más largo, aguanta trabas largas sin reiniciar. Rige al volver a abrir el programa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Gracia al arrancar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Recién abierto, el programa todavía no late: no se lo vigila durante este tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caídas antes del modo seguro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si se cae más veces que esto en la ventana de abajo, arranca en modo seguro (sin restaurar lo que estaba andando).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ventana de caídas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Reinicios sin preguntar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Con el diálogo de recuperación prendido: cuántas fallas seguidas se reinician solas antes de preguntar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Diálogo de recuperación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si está apagado, el supervisor reinicia solo sin preguntar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+307"/>
+        <source>EN VIVO: no se aplica «%1»: reinicia el gateway o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>Video aplicado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Video: %1 (se aplica al reiniciar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Mejorar imagen: prendido en las cámaras que siguen lo general.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mejorar imagen: apagado en las cámaras que siguen lo general.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Codificación aplicada (rige en la próxima salida).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Codificación: se aplica al detener las salidas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <source>Cupo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Los avanzados del arranque rigen al volver a abrir el programa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>Pinggy: falta el subdominio o dominio; mientras tanto se usa la dirección al azar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Algunos cambios rigen desde el proximo arranque.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>ERROR al guardar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Configuracion guardada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Se reinicia la conferencia por: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Reiniciando la conferencia con la configuración nueva…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/AjustesAvanzados.cpp" line="+12"/>
+        <source>Un corte espera el primer cuadro hasta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Al cortar a una escena nueva, lo más que se espera su primer cuadro antes de mostrar lo que haya.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Vistas sin uso se sueltan a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Las vistas capturadas (miniaturas, multiview) que nadie mira se desarman pasado este tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Primera captura de una escena: espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Al capturar una escena que no estaba armada, cuánto se espera a que llegue su primer cuadro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sostener el último cuadro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si una entrada se traba un instante, se sigue mostrando su último cuadro este tiempo (después, la placa).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Latencia mínima de red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El colchón más chico de una cámara de red (RTSP/SRT), aunque la entrada pida menos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Modo de una entrada de red nueva</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Baja latencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Normal (con colchón)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que usa una entrada de red que no eligió: baja latencia (sin colchón) o normal.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Transporte RTSP por defecto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>TCP atraviesa mejor redes con pérdida y firewalls; UDP tiene menos demora.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Buscar una ventana que no está cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Una entrada que captura una ventana cerrada: cada cuánto se la busca de nuevo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Buscar un dispositivo que no está cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Respaldo por si el sistema no avisa que se enchufó la cámara o el micrófono.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Realineo de horas: entre correcciones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo mínimo entre dos correcciones automáticas de la sincronía de una cámara de red.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Realineo de horas: pausa si va y viene</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si una corrección deshace la anterior, la sincronía de esa entrada queda quieta este tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Avisar si la hora de la cámara está corrida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Con sincronía por NTP: avisa si las horas de la cámara vienen adelantadas más que esto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Superresolución lenta: avisar a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si la superresolución no da abasto este tiempo seguido, avisa (y si se permite, pasa a «barata»).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Superresolución: primera pausa en «barata»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuánto queda en modo barato la primera vez; se duplica cada vez que vuelve a pasar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Superresolución: pausa máxima en «barata»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Superresolución: olvidar las pausas después de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Tanto tiempo sin problemas y la cuenta de pausas vuelve a cero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PTZ VISCA: sin respuesta después de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PTZ VISCA: reconectar cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PTZ por red (ONVIF, Panasonic): espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se espera la respuesta de una cámara PTZ por la red.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Buscar en la red: a la vez</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántas direcciones se prueban a la vez al buscar cámaras en la red.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Buscar en la red: espera por dirección</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Buscar en la red: espera la respuesta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Analizar una cámara encontrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se espera para saber qué manda una dirección (resolución, códec).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Margen del mezclador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que el mezclador espera sobre la latencia del estudio. Más, menos cortes con fuentes desparejas; menos, menos demora.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cola de cada fuente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se guarda de una fuente antes del mezclador (lo que no entra se tira: una fuente trabada no traba el resto).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Vúmetros: cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada cuánto se actualizan los medidores.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Vúmetros: retención del pico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cola de la escucha</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Las salidas de monitoreo (auriculares, escucha de racks).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Compensación de latencia: tope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo más que se retrasa una rama de un rack para alinearla con otra más lenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Revisar los equipos de audio cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Para ver si se enchufó o desenchufó una placa o unos auriculares.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuarentena de un driver a las</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>fallas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fallas seguidas (error, se colgó, se cayó) para que un driver deje de cargarse solo. «Probar de nuevo» en Dispositivos y equipos → Drivers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prueba de un driver: tiempo límite</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se espera a un driver que se prueba aparte antes de darlo por colgado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Primera búsqueda: esperar a los drivers hasta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>En una máquina nueva, la primera búsqueda de cámaras y micrófonos espera a que se prueben los drivers (con este tope).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Entre dos búsquedas de dispositivos, al menos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Aunque el sistema avise seguido que cambiaron los dispositivos (un driver que toma y suelta la placa).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Búsqueda de cámaras y micrófonos: tiempo límite</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Si no termina, se prueban los drivers aparte para encontrar el que se colgó.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voz a texto: frase máxima</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo más largo que se manda junto a transcribir.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voz a texto con Nemotron: idioma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Castellano (América)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Castellano (España)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Que lo detecte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El idioma que se le fija a Nemotron (su «prompt» de idioma). Detectarlo solo cuesta palabras al principio de cada frase.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voz a texto con Nemotron: hilos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los núcleos del procesador para Nemotron (todas las voces juntas).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voz a texto con Nemotron: margen antes de la voz</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se le pasa al modelo de antes de que el detector oiga voz (el comienzo de la palabra).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voz a texto con Nemotron: margen después de la voz</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se le sigue pasando al modelo después de la voz; si no vuelve, la frase se cierra.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Reconocedor sin uso: soltarlo a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Un reconocedor de voz (Parakeet o Nemotron) que ya nadie usa se saca de la memoria pasado esto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Desconectada si no sale nada en</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+13"/>
+        <source>Cola antes del codificador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <source>Si el codificador no da abasto, con más de esto se tiran cuadros en vez de atrasar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Espera al cortar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se espera a que el servidor reciba el final al cortar la transmisión.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Margen de latencia de las salidas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que suman las salidas (transmisión y grabación) sobre la latencia del estudio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mensajes de chat que se guardan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>YouTube y Facebook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Facebook: leer el chat cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>YouTube: reintentar el chat cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>YouTube: evento sin chat, volver a mirar cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Twitch: estado del vivo cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Twitch: espera máxima para reconectar el chat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tiempo para completar un login</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>YouTube y Facebook: lo que se espera a que termines de entrar en el navegador.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Colchón de cada ISO</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Como el de la grabación del programa, para cada entrada grabada aparte (pueden ser muchas: menos memoria).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tope de memoria del colchón</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Aunque falten segundos, el colchón no pasa de esto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Partir la grabación cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>0 = un solo archivo. Con tramos, cada archivo cierra y abre otro (con MP4/MOV, al terminar se pasan todos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Repetición: tope para guardarla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Repetición: tramos de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Más chico, la repetición empieza más justo; más grande, menos archivos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Primera revisión de disco y retención</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Después de abrir el programa (la retención se ajusta en la página Histórico).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Revisar disco y retención cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tiempo de cada orador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Modo oradores: el tiempo con que entra cada uno (se cambia también en la conferencia).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Margen antes de rotar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Modo oradores por tiempo: después de llegar a cero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tope de vistas web</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Consola del operador, tablero de oradores y celulares: cada uno es una conexión.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Soltar una vista caída a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Soltar una vista que no conecta a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Semáforo de red: rojo con pérdida de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El semáforo de cada invitado (rojo, ámbar, verde).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Semáforo de red: ámbar con pérdida de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Semáforo de red: rojo con demora de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ida y vuelta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Semáforo de red: ámbar con demora de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Semáforo de red: rojo con variación de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Semáforo de red: ámbar con variación de</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PIN: tope de intentos de todos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Último recurso ante muchos intentos desde muchas direcciones.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PIN: bloqueo general</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Vida del pase de un invitado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El pase que recibe al poner el PIN, para entrar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Archivos compartidos: espera de red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota: conexiones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota: mensajes por segundo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por conexión.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota: latido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota: tiempo para identificarse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota: intentos por dirección</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada 10 minutos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota: fallas para bloquear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota: bloqueo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sesión remota: foto del integrante</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grilla de personas: cuadros por segundo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los mosaicos que arma la conferencia (BA.Grilla.&lt;k&gt;). Menos cuadros, menos procesador.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera web: conexiones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera web: mensajes por segundo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera web: latido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera web: tiempo para identificarse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera web: una solicitud espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Superficie de control: desconectada a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prompter remoto: desconectado a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pantallas: recordar una desconectada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pantallas: tope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Programa ↔ conferencia: espera máxima para reconectar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Programa ↔ conferencia: dar por caída a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fotos y red de los invitados: cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pantallas (TV/Cast): espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Un televisor dormido tarda en despertar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pantallas: buscar durante</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pantallas: revisar lo que muestran cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Un televisor que se reinició vuelve solo a lo suyo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera: acciones por segundo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera: código para emparejar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera: tiempo para confirmar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera: mantener apretado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera: acciones en el historial</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: parecido para ponerle nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Más alto, se equivoca menos y reconoce menos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: parecido para admitir sin preguntar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: veces vista para anotarla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: olvidar una pendiente a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: fichas automáticas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: mirar cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: guardar lo visto cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: alto mínimo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Más chicas no se reconocen (el parecido se vuelve una lotería).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: nitidez mínima</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: luz mínima</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: luz máxima</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caras: giro máximo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conexiones simultáneas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tiempo para conectarse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Proxy por nombre: tiempo para conectarse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Proxy por nombre: conexión quieta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Proxy por nombre: conexiones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Proxy por nombre: tope por dirección</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Página del evento: caché de /api/v1/evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada cuánto como mucho se arma la respuesta que piden los navegadores (la misma para todos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Página del evento: reenvío del estado a la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por si la conferencia se reinició: cada cuánto se le vuelve a mandar el estado del evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Túnel: espera máxima para reconectar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Contarles a los asistentes lo que va pasando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Quién entra o se va de la conferencia, las entradas que toman o pierden señal, el aire y la grabación. El del evento lo recibe solo para tenerlo en contexto (no hace nada); el de automatización, por si hay algo acordado para eso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Novedades: cada cuánto se mandan juntas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que pasa en ese rato va en un solo mensaje (cada mensaje es una respuesta del asistente).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Arranque automático: demora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«Probar» un proveedor: espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Instalar un agente: tope para descomprimir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Vigía de «salió al aire»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Juntar alertas antes de mandarlas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Juntar notas antes de mandarlas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Esperar antes de atender a un recién llegado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Para que el reconocimiento de caras llegue a contestar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Encargos de agentes: tope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Encargos de agentes: historial</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Generar una imagen: espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Traza del MCP: tope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Respuesta más larga</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location filename="../src/app/ui/SettingsModel.cpp" line="-581"/>
+        <source>tokens</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Temperatura</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Más alta, respuestas más variadas; más baja, más previsibles.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Penalidad por repetir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ayuda a que no repita la misma llamada en un bucle.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tope para cargar el modelo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Espera a la primera palabra del modelo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pasado esto, contesta el guion (la persona está esperando frente a la pantalla).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tope de un turno del modelo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fallas seguidas antes de seguir con el guion solo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por conversación.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pedidos juntos al mismo modelo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los demás tótems esperan en cola (el modelo local reparte la GPU entre los que atiende).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Espera de red del modelo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hugging Face: espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Recordar que un modelo no tiene ficha</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Caídas del traductor antes de rendirse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Relanzar el traductor a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Traducir sin esperar el final con</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>caracteres</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El rótulo se va a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Después de la última frase traducida.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Subtítulos: líneas como máximo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voz del prompter: mirar el avance cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voz del prompter: preparar la frase antes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Descargas a la vez</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Rige al volver a abrir el programa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Descargas: espera de red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por operación (no el total).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Descargas: historial</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pedidos por internet: espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se espera por operación de red en los pedidos de la app (APIs, catálogos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plugins: tope para bajar dependencias</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plugins: caídas antes de desactivarlo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>En la ventana de abajo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plugins: ventana de caídas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plugins: espera de un pedido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plugins: tope para arrancar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Herramientas de Python: tope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Gráficos: tope para dibujar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Carrusel: tope para convertir un documento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Un PowerPoint, con DeckCraft.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Notificaciones (webhooks): espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prioridad del video y el audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>En Windows, el programa y los hilos del video y el audio van sobre lo normal y sin el ahorro de energía (EcoQoS) que en un Intel desde la 12.ª generación los manda a los núcleos de eficiencia, y que Windows 11 aplica cuando la ventana no está al frente. En macOS, saca a la app de App Nap (con la ventana tapada se estiran sus esperas). Apagarlo solo para comparar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video y audio en un mismo grupo de núcleos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los hilos del video y el audio (cada entrada hasta la mezcla, y la mezcla) corren en un grupo de núcleos que comparte la caché y no se mueven de ahí: en un AMD con varios CCD, uno (y el resto del programa en el otro, así no pierde núcleos); en un Intel desde la 12.ª generación, los de rendimiento. Medido en un Ryzen 9 5900X: la cámara llega ~4 ms antes y la latencia del estudio baja de ~26 a ~21 ms. En macOS no se puede.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Primer arranque: esperar el latido hasta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Después de instalar o actualizar, el sistema revisa las firmas y el programa tarda más en arrancar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Espera máxima para relanzar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cierre ordenado: espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cierre forzado: espera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Falla del entorno: reintentar a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Que la máquina no se duerma con el programa abierto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Mientras el programa está abierto, el sistema no se suspende (Windows: powercfg /requests; macOS: pmset -g assertions; Linux: systemd-inhibit --list). Al cerrar el programa vuelve a lo de siempre.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ni que se apague la pantalla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Con el programa abierto, las pantallas no se apagan por inactividad (el multiview, un monitor de sala). En Linux lo decide el escritorio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Actualizar o reiniciar: esperar el cierre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Salida de los procesos: tope por archivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Programa sin avance a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Interfaz trabada a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El aviso; lo que se hace después se ajusta en la tarjeta de salud.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cartel «volvimos de una caída»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Se muestra si la caída fue hace menos que esto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tras un corte: retomar la playlist a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tras un corte: restaurar la placa a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Arrancar los plugins a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Revisar los elementos de GStreamer a los</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Evento en curso: revisar cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Acreditaciones: revisar cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Registro: líneas que se muestran</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Medios: archivos por carpeta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Frases transcriptas que se guardan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Carrusel: elementos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN: conexiones de video a la vez</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos invitados de afuera pueden tener video por el túnel a la vez.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN: conexiones abiertas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN: vida máxima sin renovar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Una conexión de video que no se renueva se cierra pasado este tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN: renovar el desafío cada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN: cola por conexión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que se guarda si la conexión con el navegador no da abasto (después se descarta).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TURN: vida de la credencial</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>La que reciben los navegadores para usar el TURN (se renueva sola).</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -30302,6 +38929,29 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <source>La grabación se cortó</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-3646"/>
+        <source>Disparador</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>app</name>
+    <message>
+        <location filename="../src/app/main.cpp" line="+65"/>
+        <source>terminate sin excepción</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>excepción sin atajar (%1): %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>excepción sin atajar (de un tipo que no es std::exception)</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>argumentos</name>
@@ -30563,6 +39213,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+13"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-683"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation type="unfinished"></translation>
     </message>
@@ -30764,6 +39415,440 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+16"/>
         <source>ya se está reiniciando la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/RegistroViewModel.cpp" line="-96"/>
+        <source>«%1» vuelve a cargarse en el próximo arranque</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+21"/>
+        <source>modo seguro: no se carga nada del disco en esta corrida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+173"/>
+        <source>playlist tras el corte: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sigue donde estaba</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/DiarioDeArranque.cpp" line="+180"/>
+        <source>«%1» se llevó puesto el arranque anterior (van %2); queda apagado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1» se llevó puesto el arranque anterior (van %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+96"/>
+        <source>no se carga «%1»: rompió el arranque %2 veces. Se prende de nuevo desde el visor del registro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>asamblea</name>
+    <message>
+        <location filename="../src/app/asamblea/Bancas.cpp" line="-167"/>
+        <source>la cámara «%1» está al aire: no se movió (armá otra o mové después del corte)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la banca no tiene preset de cámara (Cuerpo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>ninguna escena muestra «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>¿a quién o a qué banca?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>la banca %1 no tiene toma de cámara (configurala en las bancas)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>no hay una banca «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>%1 (banca %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>hay más de uno: decí cuál</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1 no tiene banca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>esa posición está en varias cámaras: decí cuál</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no encontré una banca, una persona ni una posición «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/ConferenciaDcn.cpp" line="+92"/>
+        <source>Quórum no está disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no hay una votación cerrada en la central (cerrala primero)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <location line="+18"/>
+        <source>los plugins no están disponibles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>el control de la central (plugin bosch-dcn) no está corriendo: conectalo en Asamblea → Conferencia (o dcn_conectar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>falló</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>no se pudo instalar el plugin bosch-dcn: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/Cuerpo.cpp" line="+110"/>
+        <source>falta la banca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+188"/>
+        <source>falta la posición de la cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-109"/>
+        <source>distribucion: grilla, hemiciclo o lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>filas entre 1 y 40 y columnas entre 1 y 60</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>bancas: una lista de {banca, fila, columna}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>no entran %1 bancas en %2×%3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>mover: falta la banca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>hay un lugar sin banca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la banca «%1» queda fuera de la grilla (%2×%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>la banca «%1» está dos veces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>dos bancas en la fila %1, columna %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>la banca «%1» ya es de %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>sin banca no hay toma de cámara: poné primero su banca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>falta el nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>no se pudo abrir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>la planilla no tiene la columna «nombre»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>fila %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/Debate.cpp" line="-146"/>
+        <source>la configuración va como objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <location line="+1"/>
+        <source>no hay nadie con la banca, id o nombre «%1» en el Cuerpo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>un debate es entre dos personas distintas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>no hay escena configurada para un debate entre dos de la sala</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no hay escena configurada para un debate entre uno de la sala y un remoto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no hay escena configurada para un debate entre dos remotos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>no hay un debate en curso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el turno es a, b, ambos o nadie</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/OrdenDelDia.cpp" line="+153"/>
+        <source>no encontré puntos en el texto (una línea por punto: «1. Expte. 123/24 – Título»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>estado: pendiente, en_tratamiento, votado, comision o retirado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no hay un punto %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>no quedan puntos pendientes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/Presidencia.cpp" line="-229"/>
+        <source>Sin la central no hay micrófono de la presidencia que abrir.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>La central no tiene una unidad de presidente.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Central: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Para hablarle hace falta tu micrófono: elegilo en Configuración → Voz del sistema.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El servidor (el gateway) no está andando.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/Quorum.cpp" line="+85"/>
+        <source>miembros entre 0 y 1000</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>mínimo: &quot;mitad_mas_uno&quot; o un número</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>mayoría: simple, absoluta, dos_tercios_presentes o dos_tercios_miembros</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>el CSV no tiene votos («nombre;afirmativo|negativo|abstención|ausente»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>los votos no pueden ser negativos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>mayoría desconocida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>falta la cantidad de miembros del cuerpo (quorum_regla) para los dos tercios de los miembros</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/SeguirMicrofono.cpp" line="+67"/>
+        <source>modo: proponer o automatico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>fuente: niveles o conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>no hay ninguna propuesta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>Banca %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="-248"/>
+        <source>El servidor todavía no dio su dirección: completá el comienzo del link.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+74"/>
+        <location line="+29"/>
+        <source>no hay ningún integrante con ese id en el Cuerpo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-27"/>
+        <source>primero generá su link y PIN (la contraseña va con esa credencial)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>el usuario va de 3 a 40 letras, números, punto, guion o guion bajo (sin espacios ni tildes)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>el usuario «%1» ya lo tiene otro integrante</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>primero generá su link y PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+164"/>
+        <location line="+12"/>
+        <source>no está conectado a la sesión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+152"/>
+        <source>las vistas van en una lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>hasta dos canales (además de su propia cámara)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>a cada canal le falta la fuente: «programa» o el nombre de una escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>El servidor todavía no dio su dirección: esperá unos segundos y probá de nuevo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Todavía no hay una dirección para el link: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+75"/>
+        <source>hacen falta al menos dos opciones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/Votaciones.cpp" line="+67"/>
+        <source>acción de votación desconocida: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>falta el tema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>cerrala primero</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -31028,6 +40113,572 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location filename="../src/app/arranque/Configuraciones.hpp" line="+160"/>
         <source>no se puede reiniciar desde acá</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ba::app::SystemViewModel</name>
+    <message>
+        <location filename="../src/app/ui/SystemViewModel.hpp" line="+53"/>
+        <source>Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>botonera</name>
+    <message>
+        <location filename="../src/app/control/Botonera.cpp" line="-1418"/>
+        <source>no hay una plantilla «%1» (botonera_plantillas)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Perfil</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Página 1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+51"/>
+        <location line="+745"/>
+        <location line="+91"/>
+        <location line="+107"/>
+        <location line="+32"/>
+        <source>no hay un perfil «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1020"/>
+        <source>herramientas_permitidas es una lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>herramientas_permitidas: solo nombres</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>solo una persona puede sumar herramientas a un perfil (hacelo en la página Botonera): «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>solo una persona puede habilitar la edición desde el aparato</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>columnas y filas van de 1 a 16</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Página</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no hay esa página</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 va de 1 a 16</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>una acción es un objeto {tipo, …}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>secuencias demasiado anidadas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>falta `herramienta`</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no existe la herramienta «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>`args` es un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>falta `ir_a` (id de página)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>falta el `id` de la receta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>una secuencia lleva `pasos`</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>paso: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>tipo de acción desconocido «%1» (herramienta, pagina, receta, secuencia)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+110"/>
+        <source>la celda es un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-108"/>
+        <source>faltan x e y (enteros)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>tipo «%1»: boton, fader, perilla, medidor, texto o reloj</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>`estado` es una lista de ligaduras</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>cada ligadura lleva `tema`</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>op «%1» desconocido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>efecto: fondo, color, texto, titilar, valor, icono, activo, nivel, imagen, borde, borde_titilar, insignia o atenuar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+44"/>
+        <location line="+101"/>
+        <location line="+10"/>
+        <location line="+893"/>
+        <source>no hay esa página (perfil «%1», página «%2»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1042"/>
+        <source>la celda se sale de la grilla (%1×%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>(%1, %2) está fuera de la grilla (%3×%4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>los campos son un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>falta la cara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>un video de cámara no se puede poner al aire, solo se ve en el botón</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <location line="+10"/>
+        <source>no hay celda en (%1, %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>esta cara no se puede poner al aire (un video de cámara solo se ve en el botón)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>«%1» no está en las herramientas del perfil; hasta que una persona la sume, el botón avisa y no hace nada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>un perfil lleva `paginas`</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>celda inválida: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <location line="+47"/>
+        <source>Director</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-46"/>
+        <source>Escenas con tally (un toque arma, TAKE corta), FTB, grabación y transmisión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+66"/>
+        <source>Audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-65"/>
+        <source>Un fader por fuente con su medidor y mudo; loudness del programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+88"/>
+        <source>Asamblea</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-87"/>
+        <source>Las bancas del cuerpo (un toque: al aire armado), siguiente, terminar, TAKE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+108"/>
+        <source>Recinto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-107"/>
+        <source>Las bancas donde están en la sala (un toque: al aire armado), siguiente, terminar, TAKE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+128"/>
+        <source>Micrófonos de bancas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-127"/>
+        <source>La central de conferencia: la cara de cada banca donde está en la sala; un toque le da o le corta el audio, mantener la pone al aire; siguiente, cerrar todos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Correr y parar, velocidad, avisos al orador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pasar las páginas del PDF de la escena, elegir otro de la documentación del evento y poner la escena «PDF» al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Volver de FTB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>AIRE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>AIRE
+{{v}}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <location line="+23"/>
+        <source>Siguiente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-22"/>
+        <location line="+23"/>
+        <source>Terminar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>Siguiente ▶</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cerrar todos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+2"/>
+        <source>sin central</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>Abiertos {{v}}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Limpiar pedidos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>▶ Correr</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>■ Parar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Velocidad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Redondeá</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Un minuto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sacar aviso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PÁNICO</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>◀ Página</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Página ▶</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>⏮ Primera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Última ⏭</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Escena PDF
+(armar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+159"/>
+        <source>no hay un aparato «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>ese perfil no tiene la página «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>ya hay %1 aparatos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>no es un acceso HTTP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la API remota está apagada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>ese acceso es del perfil «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no hay una página «%1» en «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+86"/>
+        <source>no hay esa solicitud</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+179"/>
+        <source>Asistente (prueba)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>caidas</name>
+    <message>
+        <location filename="../src/core/diag/CaidaCompartida.hpp" line="+67"/>
+        <source>violación de acceso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>corrupción del heap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>desborde de búfer en la pila (o fail-fast)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>desbordamiento de pila</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>instrucción inválida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>división por cero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>punto de interrupción</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>excepción de C++ sin atrapar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>abort (o terminate)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>excepción</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/launcher/Supervisor.cpp" line="+333"/>
+        <source>terminó sin código</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>error de memoria (SIGSEGV)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>se abortó (SIGABRT)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>error de bus (SIGBUS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>lo mató el sistema (SIGKILL: ¿falta de memoria?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>error aritmético (SIGFPE)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>instrucción inválida (SIGILL)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>violación de acceso (0xC0000005)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>desbordamiento de pila (0xC00000FD)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>terminó con el código %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+76"/>
+        <source>se cayó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location filename="../src/launcher/Volcados.cpp" line="+174"/>
+        <source>se colgó (dejó de latir)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/launcher/Volcados.cpp" line="-2"/>
+        <source>%1 en %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -31301,6 +40952,34 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <source>no anuncia sus modos: negocia GStreamer</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../src/app/camaras/SincroLabios.cpp" line="+76"/>
+        <source>no se escuchó ningún aplauso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no se vio ningún aplauso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>se oyeron aplausos y se vieron aplausos, pero ninguno coincide: ¿la persona estaba frente a esta cámara?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+15"/>
+        <source>solo %n aplauso: pedí unos cuantos más antes de confiar en el número</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>las mediciones varían ±%1 ms entre sí: la cámara tiene jitter y este número es aproximado</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>captura</name>
@@ -31383,6 +41062,193 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+3"/>
         <source>La ventana a capturar (aunque esté tapada). Se recuerda la aplicación: si se cierra y se vuelve a abrir, la captura sigue sola.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>caras</name>
+    <message>
+        <location filename="../src/app/control/CarasBotonera.cpp" line="+54"/>
+        <source>No entiendo la ruta %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <location line="+34"/>
+        <source>No se puede leer el video: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>El archivo no tiene video que se pueda leer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>No llegó ninguna imagen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>No se pudo guardar en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>No existe %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Leyendo %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>No se pudo leer la imagen: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <location line="+23"/>
+        <source>Elegí una cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-21"/>
+        <source>Sacando la foto…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+31"/>
+        <source>«%1» no da imagen ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-17"/>
+        <source>Grabando %1 s…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Grabando… %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/CalidadCara.cpp" line="+62"/>
+        <source>Pedile que se ponga entero en el cuadro: la cara sale cortada por el borde.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pedile que se acerque a la camara: la cara se ve demasiado chica.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hay poca luz sobre la cara. Pedile que se ponga de frente a una ventana o que prenda una luz.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>La cara esta quemada de luz (contraluz). Pedile que se corra de la ventana o que la deje a su espalda.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Pedile que mire de frente a la camara: la cara esta girada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>La imagen sale borrosa. Pedile que se quede quieto un momento o que revise el enfoque.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Asi sirve.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>carrusel</name>
+    <message>
+        <location filename="../src/app/carrusel/CarruselStore.cpp" line="+38"/>
+        <source>no se pudo abrir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>la biblioteca de carruseles esta rota (JSON invalido): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>un carrusel necesita un nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>no se pudo escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no se pudo terminar de escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se pudo reemplazar la biblioteca: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>child</name>
+    <message>
+        <location filename="../src/launcher/ChildOutput.cpp" line="+130"/>
+        <source>==== %1 | el launcher lanza %2 (%3) | args: %4 ====</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>(ninguno)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/launcher/ChildProcess.cpp" line="+96"/>
+        <source>runtime C++: bundle %1, sistema %2 -&gt; %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>ausente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>se usa el del bundle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>se usa el del sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+156"/>
+        <source>no se pudo preparar %1; &apos;%2&apos; se lanza sin capturar su salida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no se pudo lanzar &apos;%1&apos; (%2): %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>lanzado &apos;%1&apos; pid=%2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -31617,6 +41483,242 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
 </context>
 <context>
+    <name>control</name>
+    <message>
+        <location filename="../src/launcher/ControlChannel.cpp" line="+19"/>
+        <source>sin canal &apos;%1&apos; para el shutdown (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>fallo el envio del shutdown por &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>shutdown enviado por &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>control-web</name>
+    <message>
+        <location filename="../src/app/control/ControlWeb.cpp" line="-181"/>
+        <source>el perfil es una lista de categorías (texto) o &quot;*&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>el perfil es una lista de categorías o &quot;*&quot; (todas)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>código de emparejamiento (perfil %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>emparejar rechazado desde %1: código inválido o vencido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>código inválido o vencido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>ya hay %1 aparatos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Navegador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1» (%2) pide emparejarse (perfil %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>no hay esa solicitud</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>aprobar un aparato lo hace una persona (en la app, Servicios → Control web)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>emparejamiento negado: «%1» (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>emparejado desde %1 con el perfil %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>no hay un aparato «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>ampliar el perfil de un aparato lo hace una persona: solo se puede achicar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>perfil %1 → %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>perfil %1 → %2 (achicado por el asistente)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>%1: quitado (su token deja de valer)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>acceso desde afuera: apagado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>habilitar el acceso desde afuera lo hace una persona</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>el PIN es de 4 a 12 cifras</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>acceso desde afuera (túnel, con PIN): HABILITADO</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Este aparato no está emparejado (o fue quitado).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>conectado desde %1 (afuera)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>conectado desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+93"/>
+        <source>La app no está lista para recibir órdenes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Demasiadas órdenes por segundo: esperá un momento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>pidió «%1», que no existe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No existe la herramienta «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>RECHAZADA %1 (categoría «%2» fuera de su perfil)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«%1» (categoría «%2») no está en el perfil de este aparato. Lo amplía una persona desde la app.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>a confirmar (de aire, con aire) %1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>«%1» cambia lo que sale y hay aire (transmisión o grabación). ¿Lo hacés igual?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>llamó (confirmada) %1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>llamó %1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>la app no está lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>necesita la categoría «%1», que no está en el perfil</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no está disponible en esta app</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>no hay un tema «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+108"/>
+        <source>la herramienta falló: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/control/TemasWeb.hpp" line="+33"/>
+        <source>Neumorfismo oscuro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Relieve suave sobre gris carbón. El de fábrica: cansa poco la vista en la sala a oscuras.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Neumorfismo claro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Gris perla (no blanco), relieve difuso y acento azul: para salas con luz.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>controlsistema</name>
     <message>
         <location filename="../src/app/agent/ControlSistema.cpp" line="+16"/>
@@ -31696,6 +41798,396 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="+1"/>
         <source>Mostrar avisos de Windows</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>credenciales</name>
+    <message>
+        <location filename="../src/launcher/main.cpp" line="+122"/>
+        <source>importada %1 (cifrada en Credenciales/)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>cuentas</name>
+    <message>
+        <location filename="../src/app/net/AccountGuides.cpp" line="+57"/>
+        <source>Para que la app (y el asistente por MCP) pueda crear transmisiones en vivo y administrar tus videos, Google pide que cada instalación tenga su propia credencial. Se hace una sola vez, en unos 5 minutos:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Creá un proyecto en Google Cloud</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cualquier nombre (por ejemplo «Broadcast Appliance»). Si ya tenés uno, podés usarlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Crear proyecto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Habilitá la YouTube Data API v3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con el proyecto elegido arriba, tocá «Habilitar».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Configurá la pantalla de consentimiento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Google Auth Platform → «Comenzar»: nombre de la app, tu mail de soporte, público «Externo» y tu mail de contacto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pantalla de consentimiento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Agregate como usuario de prueba</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En «Público», agregá el mail de la cuenta de YouTube que vas a usar. En modo prueba el acceso vence cada 7 días; si tocás «Publicar app» no vence (al conectar vas a ver un aviso de «app no verificada»: es normal, la app sos vos).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Público / usuarios de prueba</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Creá el cliente OAuth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«Clientes» → «Crear cliente» → tipo de aplicación «App de escritorio» → «Crear» → «Descargar JSON».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Clientes OAuth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>App de escritorio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Externo (con tu mail como usuario de prueba)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+42"/>
+        <source>ID de cliente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-38"/>
+        <source>Secreto del cliente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>El JSON que descarga Google (client_secret_….json) trae el ID y el secreto: la app lo puede importar sola desde Descargas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Después de guardar la credencial: youtube_login abre el navegador para elegir la cuenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Para transmitir en vivo el canal tiene que tener habilitado el vivo en youtube.com/features (la primera vez tarda hasta 24 h).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Twitch pide registrar una app (gratis) para usar su API. Se hace una sola vez, en unos 3 minutos:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Activá la verificación en dos pasos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Twitch la exige para registrar apps.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Seguridad de la cuenta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Registrá la app</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nombre: el que quieras (por ejemplo «Broadcast Appliance de &lt;tu canal&gt;»). URL de redireccionamiento de OAuth: http://localhost (no se usa, pero el campo es obligatorio). Categoría: «Broadcaster Suite». Tipo de cliente: «Público». Crear.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Registrar app en Twitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Copiá el ID de cliente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En la lista de apps → «Administrar» → «ID de cliente». Si elegiste «Confidencial», generá también un secreto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Mis apps de Twitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Público</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Secreto (solo si la app es «Confidencial»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>vacío si es «Público»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Con un cliente «Público» alcanza el ID (no hay secreto).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Después de guardar: twitch_login muestra un código que la persona confirma en twitch.tv/activate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>La API de Facebook permite transmitir y administrar videos en PÁGINAS (no en el perfil personal). Para usarla, creá una app de Meta propia (queda en modo desarrollo: solo vos la usás) — unos 5 minutos:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Creá la app de Meta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«Crear app» → caso de uso «Otro» → tipo «Empresa» → un nombre (por ejemplo «Broadcast Appliance») → Crear. Si te pide cuenta de desarrollador, registrate con tu cuenta de Facebook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Mis apps de Meta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Agregá «Inicio de sesión con Facebook»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En el panel de la app: «Agregar producto» → «Inicio de sesión con Facebook» → Configuración → en «URI de redireccionamiento de OAuth válidos» agregá exactamente: %1 y guardá.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Documentación del inicio de sesión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Copiá el ID y la clave secreta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Configuración de la app → «Básica»: «Identificador de la app» y «Clave secreta de la app» (tocá «Mostrar»).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Panel de apps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Empresa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Identificador de la app</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Clave secreta de la app</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Se transmite a una PÁGINA de la que seas administrador: después de conectar, facebook_pages para elegirla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>En modo desarrollo la app solo la pueden usar sus administradores: no hace falta revisión de Meta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Después de guardar: facebook_login abre el navegador para autorizar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>No hay ningun client_secret_….json de tipo «App de escritorio» en Descargas (%1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>datos</name>
+    <message>
+        <location filename="../src/launcher/Datos.cpp" line="+42"/>
+        <source>no se pudo crear la carpeta de datos %1 (%2): se usan los datos de adentro del programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <location line="+79"/>
+        <source>no se pudo mudar %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-78"/>
+        <source>datos mudados: %1 -&gt; %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>no se pudo crear %1: %2 (sigue sin configuraciones)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no se pudo mover launcher.json: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>no se pudo copiar %1 a la configuración Principal: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 (copia) -&gt; Configuraciones/Principal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no se pudo mudar %1 a la configuración Principal: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 -&gt; Configuraciones/Principal</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>descargas</name>
+    <message>
+        <location filename="../src/app/net/Descargas.cpp" line="+46"/>
+        <source>encolada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya estaba en la cola</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya se está bajando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya está bajado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pedido inválido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>En la cola</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>Empezando…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>falló: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+68"/>
+        <source>Bajando %1… %2 / %3 MB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <location line="+4"/>
+        <source>no se pudo bajar %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no se pudo dejar %1: %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -31921,9 +42413,666 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
 </context>
 <context>
+    <name>dispositivos</name>
+    <message>
+        <location filename="../src/app/dispositivos/Conocidos.cpp" line="+122"/>
+        <source>el nombre es muy largo (hasta 80 letras)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+17"/>
+        <source>no hay un dispositivo «%1» (equipos_listar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <source>ya hay un dispositivo que se llama «%1»: elegí otro nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se pudo guardar el nombre en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>la configuración tiene que ser un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+7"/>
+        <source>no se pudo guardar en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>no hay un dispositivo «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/dispositivos/Registro.cpp" line="+80"/>
+        <source>Equipo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Cámara o capturadora · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>La que tenga elegida el sistema (la sigue si cambia)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lo que se reproduce por esa salida (no es un micrófono) · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Micrófono o entrada de audio · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Salida de audio (placa de sonido, auriculares, HDMI) · %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>Red local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cámaras IP, grabadores y equipos de video de la subred: ONVIF, puertos, MAC/fabricante, URLs RTSP típicas probadas (unos 10 s).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>el escáner de red no está disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Driver en cuarentena: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1. No se vuelve a cargar solo; «Probar de nuevo» en Dispositivos y equipos → Drivers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Cámaras, micrófonos y placas de sonido de esta máquina</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Las cámaras y capturadoras, los micrófonos y entradas de audio y las salidas de las placas de sonido, con su id estable. Se vuelve a buscar solo cuando se enchufa o se desenchufa algo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>la búsqueda anterior sigue trabada adentro de un driver: se lo está probando aparte (Dispositivos y equipos → Drivers)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>la búsqueda de cámaras y micrófonos no terminó en %1 s: se prueban los drivers aparte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>NDI® en la red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los emisores NDI que se anuncian en la red (unos 4 s).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>USB, HID y serie</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los equipos conectados por USB (vid:pid, marca, si son cámaras UVC), las interfaces HID y los puertos serie: por dónde se le habla a un equipo raro (la primera vez baja pyusb/hidapi/pyserial).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+328"/>
+        <source>los plugins no están disponibles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-313"/>
+        <source>cámara UVC</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Pedir usuario y clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Muestra al operador el formulario seguro de la barra (se guarda cifrada; nadie la ve).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no hay barra del operador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Usuario y clave de %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Se guarda cifrado en este equipo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+14"/>
+        <source>Usuario</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <location line="+11"/>
+        <source>Clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <source>Formulario %1 en la barra del operador.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Cargar usuario y clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Guarda el usuario y la clave de la cámara (cifrados). Solo desde la interfaz: el asistente usa «pedir_clave».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+17"/>
+        <location line="+20"/>
+        <location line="+29"/>
+        <location line="+30"/>
+        <location line="+43"/>
+        <location line="+21"/>
+        <source>el escáner no está disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-155"/>
+        <source>Guardada (cifrada). Ahora «Ficha» o «Funciones ONVIF».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Ficha y plan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ONVIF completo (equipo, perfiles, PTZ, imagen) + análisis del stream con GStreamer + cómo conectarla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Ficha lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Funciones ONVIF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Todo lo que la cámara dice que puede, por protocolo: ejes PTZ y cómo se mueven (continuo, absoluto, relativo), límites, foco, home, presets, comandos auxiliares, imagen; y su posición actual. Con las respuestas crudas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Funciones mapeadas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Llamar una operación ONVIF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Para explorar: manda `cuerpo` (el XML del Body, p. ej. &lt;tptz:GetStatus&gt;&lt;tptz:ProfileToken&gt;{perfil}&lt;/tptz:ProfileToken&gt;&lt;/tptz:GetStatus&gt;) al `servicio`, con la clave guardada. {perfil}, {config_ptz} y {fuente} se reemplazan por los de la cámara. Devuelve la respuesta aplanada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Servicio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Cuerpo (XML del Body)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>La cámara contestó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Pedido HTTP a la cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Para la API propia de la marca (Axis VAPIX: /axis-cgi/com/ptz.cgi?query=limits; Hikvision ISAPI: /ISAPI/PTZCtrl/channels/1/status…), con el usuario y la clave guardados (Basic o Digest). Devuelve el texto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Ruta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Método</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuerpo (POST/PUT)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Agregar como entrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La conecta al estudio sincronizada (colchón, reloj), normalizada si hace falta y con su PTZ ONVIF si tiene.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+51"/>
+        <location line="+31"/>
+        <source>Escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-78"/>
+        <source>dónde ponerla (no la que está al aire sin querer)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+46"/>
+        <location line="+18"/>
+        <location line="+13"/>
+        <source>Nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-67"/>
+        <source>Agregada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Activar su PTZ real</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Con la clave guardada: la consulta por ONVIF y configura el motor de la entrada que ya la muestra.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Entrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>vacío: la que ya toma video de esta cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location line="+32"/>
+        <source>Agregar como entrada de video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <source>La suma al estudio como entrada (sincronizada y normalizada), con el nombre que le pusiste y su formato preferido si lo configuraste.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+18"/>
+        <location line="+14"/>
+        <source>las entradas no están disponibles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-26"/>
+        <source>Entrada «%1» agregada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Agregar como entrada de audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lo suma como entrada de audio (suena en todas las escenas; su procesamiento, en Audio).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Entrada de audio agregada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Recibe este emisor NDI como entrada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Entrada NDI agregada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Explorar sus controles UVC</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Si es una cámara UVC: su terminal de cámara (PTZ estándar y rangos) y sus unidades de extensión con los selectores que contestan (lo propio de la marca). Es el primer paso para un plugin de PTZ.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Controles UVC</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/dispositivos/SondaAsio.cpp" line="+133"/>
+        <source>no se pudo cargar el driver (COM %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>no dice cuántos canales tiene (error %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 entradas, %2 salidas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/dispositivos/SondaGst.cpp" line="+87"/>
+        <source>no se pudo cargar su plugin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+23"/>
+        <source>%n dispositivo</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>(%1 de audio, %2 de video)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>GStreamer no arrancó en la sonda</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>documentos</name>
+    <message>
+        <location filename="../src/core/documentos/DniArgentino.hpp" line="+38"/>
+        <source>DNI argentino</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>tu DNI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/documentos/Documento.hpp" line="+93"/>
+        <location filename="../src/core/documentos/Mrz.hpp" line="+96"/>
+        <source>tu documento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/documentos/Mrz.cpp" line="+280"/>
+        <source>no hay tres renglones de 30 caracteres</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+27"/>
+        <source>una letra donde va un número</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-22"/>
+        <source>un número donde va una letra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>no es una cédula (TD1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sin emisor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>número largo mal cortado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>no cierra el verificador del número</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el número se puede corregir de más de una forma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no cierra el verificador del nacimiento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no cierra el verificador del vencimiento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>una fecha imposible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+1"/>
+        <source>no cierra el verificador compuesto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>sin apellido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>sin número de documento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>no se ven los renglones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/documentos/Mrz.hpp" line="-1"/>
+        <source>Documento de identidad con zona MRZ (OACI TD1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/documentos/lector/LectorCodigos.cpp" line="+90"/>
+        <source>formato desconocido: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drivers</name>
+    <message>
+        <location filename="../src/core/hw/SaludDrivers.cpp" line="+219"/>
+        <source>no hay un driver «%1» en esta máquina</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» no está instalado ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <source>no contesta: ¿está corriendo el servidor de JACK?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no contestó en %1 s: se colgó al cargarlo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>se cayó el proceso que lo probaba (el driver lo tumbó)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>se cayó el proceso que lo probaba (el driver lo tumbó): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+3"/>
+        <source>no arrancó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>no arrancó (no dijo por qué)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>dsk</name>
+    <message>
+        <location filename="../src/app/control/Dsk.cpp" line="+77"/>
+        <location line="+18"/>
+        <source>la capa va de 1 a 4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-17"/>
+        <source>la definición es un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>la capa «%1» es fija (p. ej. el intérprete de LSA): bajarla necesita confirmación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>la capa no tiene contenido: definila primero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>falta la entrada (la cámara del intérprete)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Intérprete LSA</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>dump</name>
+    <message>
+        <location filename="../src/launcher/Volcados.cpp" line="-15"/>
+        <source>no se pudo abrir el proceso (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>MiniDumpWriteDump falló (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>no se pudo crear el canal de caídas de %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>emision</name>
     <message>
-        <location line="-1474"/>
+        <location filename="../src/app/emision/BroadcastEngine.cpp" line="-1474"/>
         <source>GStreamer no arrancó: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -32476,6 +43625,338 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
 </context>
 <context>
+    <name>energia</name>
+    <message>
+        <location filename="../src/core/platform/Energia_linux.cpp" line="+53"/>
+        <source>no está libdbus-1 (sin D-Bus no se puede pedir que no suspenda)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>libdbus-1 sin las funciones esperadas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no hay bus de sistema: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>logind no aceptó el pedido: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>sin suspender ni reposo por inactividad (systemd-inhibit --list)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>logind no devolvió el bloqueo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/platform/Energia_mac.mm" line="+31"/>
+        <location filename="../src/core/platform/Energia_win.cpp" line="+49"/>
+        <source>(rechazado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sin reposo del sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../src/core/platform/Energia_win.cpp" line="+2"/>
+        <source>sin apagar la pantalla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <location line="+13"/>
+        <source>sin App Nap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>Broadcast Appliance: estudio en vivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>no se pudo pedir que no lo frene App Nap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/platform/Energia_win.cpp" line="-9"/>
+        <source>Windows no aceptó el pedido de energía (error %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>sin suspender el sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>no se pudo sacar del modo eficiencia (error %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>fuera del modo eficiencia (EcoQoS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/launcher/main.cpp" line="+65"/>
+        <source>Broadcast Appliance: estudio abierto</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>enlaces</name>
+    <message>
+        <location filename="../src/app/ui/EnlacesViewModel.cpp" line="-325"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+3"/>
+        <location line="+2"/>
+        <source>Conferencia y público</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <source>Ingreso de invitados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los que entran a la conferencia con cámara y micrófono (pasan por el lobby).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tablero de oradores</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una tablet o un monitor que muestra quién habla y su tiempo (solo mirar).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Página del público</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La gente de la sala o de afuera: preguntas, urna y votaciones. Se proyecta o se imprime.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Invitaciones personales</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una por persona del padrón: acredita al entrar. Se dan desde el evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Registro de personas (tótems)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una TV con cámara o el celular de quien escanea el QR: se registra hablando. Uno o varios por evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+3"/>
+        <location line="+4"/>
+        <location line="+2"/>
+        <source>Producción</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-17"/>
+        <source>Teleprompter: control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El celular del operador o del orador: avanzar, pausar, velocidad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Teleprompter: lo que lee el orador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La tablet o el monitor del atril.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rótulos desde el celular</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cambiar los textos de la escena al aire (nombres, cargos) desde un celular.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Puesto de corrección de subtítulos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una persona que corrige los subtítulos en vivo desde otra computadora.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera en una tablet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una tablet como superficie de control. Se empareja con un código de un solo uso (solo red local).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Emparejar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Control web (dashboard)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una tablet, notebook o PC como consola completa en el navegador: escenas, PTZ, mezclador, salidas. Se empareja con un QR y una persona lo aprueba acá (solo red local).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Emparejar (QR)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>API para Companion (HTTP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bitfocus Companion u otro programa que aprieta botones de la botonera por HTTP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Companion Satellite</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Un Stream Deck conectado a Companion en otra máquina (TCP, no es una página web).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+2"/>
+        <source>Asamblea</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Sesión remota</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cada integrante entra a su banca virtual con su credencial (una por persona).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Consola de presidencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La presidencia maneja la sesión desde el navegador (una credencial por consola).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+2"/>
+        <source>Evento y pantallas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Web del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La página pública del evento abierto: portada, una por bloque y el cierre.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Televisores de la sala</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cada televisor recibe su propio enlace (con permiso de un solo uso) al mandarle algo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Internet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Salida a internet (túnel)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lo que hace que los enlaces «de afuera» anden desde cualquier lugar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/EnlacesViewModel.hpp" line="+86"/>
+        <source>Un pedido esperando: aprobalo acá abajo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 pedidos esperando: aprobalos acá abajo</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>escenas</name>
     <message>
         <location filename="../src/app/arranque/OperateMode.cpp" line="-413"/>
@@ -32514,6 +43995,281 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location line="-15"/>
         <source>no se pudo recortar &apos;%1&apos; en &apos;%2&apos; (¿recorte más grande que la imagen?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+257"/>
+        <source>sin canal: hay más de %1 grillas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>no hay una grilla de personas que se llame «%1» (crear_fuente con type ba_grilla)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no se pudieron guardar los ajustes de «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>no hay una grilla de personas que se llame «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>«%1» no está conectado (las claves son sala:&lt;id&gt; o asamblea:&lt;id&gt;, ver grilla_personas_estado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>falta a quién (la clave)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/escenas/FuenteGrilla.cpp" line="+35"/>
+        <source>Grilla de personas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Quiénes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>De dónde</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Conferencia y Asamblea</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Solo la Conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Solo la Asamblea</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: los admitidos (al aire o en la fila de oradores). Asamblea: los integrantes habilitados en la sesión remota.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Orden</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Por llegada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Quien habla, primero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Por prioridad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Decide quiénes entran cuando no entran todos y dónde va el que llega; a los que ya están no los mueve. Prioridad: el campo «prioridad» del integrante (Asamblea); en la Conferencia, el presentador fijo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Celdas como mucho</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Si no entran todos, la última celda es un cuadro «+N». 0 = sin tope (hasta 64).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Solo los que tienen la cámara prendida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Sin los que ya están al aire en otra fuente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El invitado que ocupa un lugar del programa, el integrante con la palabra cuando su canal o la banca están al aire, y quien ya se ve en otra grilla al aire (también en una escena puesta en una capa DSK).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Reparto entre grillas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Grupo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Las grillas con el mismo grupo se reparten la gente sin repetir (por ejemplo, una por escena). Vacío = esta grilla muestra a todos. La misma fuente en dos escenas es la misma imagen.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Lugar en el grupo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La primera del grupo (el número más chico) manda el orden y el modo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cómo se reparten</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Llenar en orden (la primera hasta su tope, después la siguiente)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Parejo (la misma cantidad en cada una)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Aspecto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ancho</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Forma de cada celda</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuadrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>3:4 (retrato)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>9:16 (celular)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Llenar el lugar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Separación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Margen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Resaltar a quien habla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Color del resaltado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Fondo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>De fábrica, transparente: se ve la escena entre las celdas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Transición al reacomodar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuánto tarda cada cara en ir a su lugar nuevo cuando entra o sale alguien (0 = de golpe).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>La arma la conferencia en el canal %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Todavía sin canal: hay más de 8 grillas, o la conferencia no arrancó.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+119"/>
+        <source>los ajustes van en un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>«%1» es uno de: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>«%1» va de %2 a %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>«%1» es true o false</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>«%1» no es un ajuste de la grilla de personas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>«grupo» es un texto (vacío = sola)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -32575,11 +44331,738 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
 </context>
 <context>
+    <name>estudio</name>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+3860"/>
+        <source>%1 y %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>, </source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>evento</name>
     <message>
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="+937"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="-2278"/>
+        <source>Escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pone una escena al aire.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Música</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Arranca o para un tema de los medios del evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Reproduce un video de los medios del evento en su propia escena.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Teleprompter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Carga un discurso y lo deja listo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Orador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Le da la palabra a alguien, con su tiempo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Gráfico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Saca al aire un gráfico animado en una fuente de escena.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pantalla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Manda contenido a una pantalla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Silencia una fuente, la activa o le cambia el volumen.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pausa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Espera los segundos que diga la duración.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Espera al operador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Frena el guion hasta que confirmes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nota</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No hace nada: es una indicación para vos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+820"/>
         <source>El del programa (%1)</source>
         <translation>The program&apos;s (%1)</translation>
+    </message>
+    <message>
+        <location line="+304"/>
+        <source>%1 a las %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Te esperamos en %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>(El evento todavía no tiene fecha en el guion.)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cuándo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>En tu huso horario: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Este es tu enlace personal:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Escanealo o abrilo al llegar: queda registrado que llegaste, y desde ahí podés preguntar y votar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Tu código, por si te lo piden: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Nota: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Acta — %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>**Fecha:** sin fecha en el guion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>**Fecha:** %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Asistencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Presentes: **%1** de %2 en el padrón (%3 en el lugar, %4 en línea, %5 sin dato de por dónde)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Presentes: **%1** de %2 en el padrón (%3 en el lugar, %4 en línea)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Con derecho a voto presentes: **%1** de %2 — **quórum**</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No llegaron: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Papel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Por dónde</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Llegó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Voto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>(sin nombre)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>sí</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Lo que se votó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se votó nada en este evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Votación formal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Encuesta (resultado indicativo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> — consulta, no vinculante</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>, secreta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Votaron %1 de %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Votaron %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>No votaron: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Generada por Broadcast Appliance el %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1053"/>
+        <source>PTZ probado con las cámaras reales (presets, que no se muevan al aire)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Casteo probado en los televisores del recinto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ensayo de caída: cerrar la app al aire y cronometrar cuánto tarda en volver</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Glosario y nombres revisados (integrantes, localidades)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Máquina de respaldo lista con la escena básica</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los invitados remotos con auriculares (o mix-minus probado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prueba de sonido con cada micrófono de la sala</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/APdf.cpp" line="-117"/>
+        <location line="+24"/>
+        <location filename="../src/app/evento/EventoStore.cpp" line="+35"/>
+        <location filename="../src/app/evento/EventoWeb.cpp" line="+196"/>
+        <location filename="../src/app/evento/Padron.cpp" line="+422"/>
+        <source>no se pudo escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>no se pudo leer la imagen: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/CierreEvento.cpp" line="+209"/>
+        <source>el evento no tiene sellos.json (no se cerró, o se está sellando)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/Documentos.cpp" line="+122"/>
+        <source>no existe el archivo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no se pudo copiar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <location line="+11"/>
+        <location line="+20"/>
+        <source>no se pudo guardar el índice de documentos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-18"/>
+        <location line="+20"/>
+        <source>no hay un documento «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/Evento.cpp" line="+110"/>
+        <source>no dice que escena poner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no dice que archivo reproducir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no dice que texto cargar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no dice quien habla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no dice cuanto tiempo tiene para hablar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no dice que vinculo prender o apagar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no dice en que fuente de escena se ve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no dice que grafico sacar al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no dice a que pantalla va</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no dice que mandarle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no dice que hacer con el audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no dice sobre que fuente de audio actuar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>la accion &quot;%1&quot; no existe (silenciar, activar o volumen)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>una pausa sin duracion no espera nada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no dice nada: al operador le va a aparecer un cartel vacio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+173"/>
+        <source>el evento no tiene ningun bloque</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>ningun cue tiene duracion prevista: no se puede calcular el desvio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la fecha no es un dia valido en formato YYYY-MM-DD: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>la hora de arranque no esta en formato HH:MM: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>el evento no tiene fecha: no se lo puede convocar ni archivar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>hay dia pero no hora de arranque: las horas previstas no se pueden calcular</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no hay huso horario: el que se conecta de otro huso no sabe a que hora es</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>el bloque no tiene nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>el bloque esta vacio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>seis cues automaticos seguidos: si algo sale mal el guion sigue solo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/EventoStore.cpp" line="+6"/>
+        <source>no se pudo escribir %1 entero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>no se pudo reemplazar %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+128"/>
+        <source>falta «%1» en los medios del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>&quot;%1&quot; apunta fuera de %2/</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>falta el archivo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1 es una carpeta, no un archivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 esta vacio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+128"/>
+        <location line="+45"/>
+        <source>ese nombre no sirve para una carpeta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-35"/>
+        <source>«%1» es un evento, no una carpeta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+46"/>
+        <source>no se pudo crear la carpeta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>no hay guion en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>el guion esta dañado (JSON invalido): mira en Respaldos/</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no existe la carpeta del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>no se pudo escribir en la carpeta del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no se pudo escribir el guion entero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se pudo reemplazar el guion: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>nombre de carpeta invalido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+15"/>
+        <location line="+40"/>
+        <location line="+18"/>
+        <source>no existe ese evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-67"/>
+        <source>no se pudo borrar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>no se puede mover un evento adentro de sí mismo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>no se pudo mover: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>no hay ningún evento en curso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+13"/>
+        <source>día inválido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Creado solo: no había ningún evento en curso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/EventoWeb.cpp" line="-113"/>
+        <source>Sección %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+90"/>
+        <source>no se pudo crear %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>El evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>no encontré las plantillas del sitio en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>En vivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>en vivo por internet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/FotosConfig.cpp" line="+185"/>
+        <source>la foto está vacía</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>nada para restaurar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/Historico.cpp" line="+331"/>
+        <source>no está la carpeta del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no se pudo crear %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>no se pudo copiar %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/evento/Padron.cpp" line="-24"/>
+        <source>no se pudo abrir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>el padron esta roto (JSON invalido): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>no se pudo terminar de escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no se pudo reemplazar el padron: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>eventos</name>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4078"/>
+        <source>cada evento a su carpeta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+500"/>
+        <source>[eventos] papelera: %1 con más de %2 días, borrados</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>extensiones</name>
+    <message>
+        <location filename="../src/app/ui/ExtensionesModel.cpp" line="-28"/>
+        <source>la tarjeta «%1» no cargó: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>la tarjeta «%1» tardó más de %2 ms en cargar: se cortó y quedó apagada (se prende desde el Registro)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>«%1» vuelve a cargarse</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -32867,6 +45350,1825 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
 </context>
 <context>
+    <name>gateway</name>
+    <message>
+        <location filename="../src/gateway/AdminApi.cpp" line="+178"/>
+        <source>control: PIN de la conferencia cambiado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>API de control de la sala (solo para la app).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>sin token</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>hay invitados en lugares que se irían</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el cupo va de 1 a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>apagado en la configuración</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>el proxy está apagado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+332"/>
+        <source>hace falta una pregunta y al menos dos opciones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+130"/>
+        <source>canal de escena invalido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>La conferencia esta cerrada: abrila para poder mandarle el programa a una pantalla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No pude sacar un permiso de ingreso para la pantalla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+110"/>
+        <source>nivel desconocido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+114"/>
+        <source>ese participante no está mandando medios</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/BaWeb.cpp" line="+113"/>
+        <source>ba-web: no está el binario (%1); el túnel va directo al gateway</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>ba-web: no se pudo escribir %1; el túnel va directo al gateway</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>ba-web: lanzado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>(túnel 127.0.0.1:%1 -&gt; %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>(HTTPS de la red local :%1 -&gt; %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>ba-web: detenido (reinicios=%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>ba-web: no se pudo lanzar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>ba-web: se cerró; se relanza en %1 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Botonera.cpp" line="+123"/>
+        <location line="+7"/>
+        <location line="+27"/>
+        <location line="+2"/>
+        <location filename="../src/gateway/ControlWeb.cpp" line="+122"/>
+        <location line="+7"/>
+        <location filename="../src/gateway/Sesion.cpp" line="+109"/>
+        <location line="+7"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+801"/>
+        <location line="+102"/>
+        <location line="+11"/>
+        <location line="+3"/>
+        <location line="+27"/>
+        <location line="+117"/>
+        <location line="+49"/>
+        <location line="+94"/>
+        <location line="+16"/>
+        <location line="+53"/>
+        <location line="+15"/>
+        <location line="+49"/>
+        <location line="+181"/>
+        <location line="+6"/>
+        <location line="+9"/>
+        <location line="+18"/>
+        <location line="+204"/>
+        <source>no encontrado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-32"/>
+        <location filename="../src/gateway/ControlWeb.cpp" line="-3"/>
+        <location filename="../src/gateway/Sesion.cpp" line="-3"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-216"/>
+        <location line="+7"/>
+        <source>ruta invalida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+75"/>
+        <source>usá POST</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>acción: presionar, soltar o tocar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>celda inválida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>demasiados intentos; esperá 10 minutos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>botonera: API remota sin token válido desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>token inválido o API remota apagada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>botonera: rechazado %1 %2 (fuera de la red local u origen ajeno)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location filename="../src/gateway/ControlWeb.cpp" line="+85"/>
+        <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+429"/>
+        <source>solo desde la red local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>ruta desconocida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+79"/>
+        <location filename="../src/gateway/ControlWeb.cpp" line="+85"/>
+        <location filename="../src/gateway/Registro.cpp" line="+349"/>
+        <location filename="../src/gateway/RegistroAtiende.cpp" line="+348"/>
+        <location filename="../src/gateway/Sesion.cpp" line="+155"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+418"/>
+        <source>falta Sec-WebSocket-Key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>demasiadas botoneras</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>botonera: token inválido desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>botonera: %1 conectada desde %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>botonera: %1 manda demasiado; se corta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>botonera: %1 desconectada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Cloudflared.cpp" line="+64"/>
+        <source>cloudflared: sin token de tunel (Configuración → Cloudflare o BA_TUNNEL_TOKEN); sin tunel, solo acceso local</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>cloudflared: no esta el binario (%1); sin tunel. `make deps-cloudflared`</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>cloudflared: no se pudo lanzar (se reintentara con backoff)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>cloudflared: supervisor arrancado (metrics=127.0.0.1:%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>cloudflared: supervisor detenido (reinicios=%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>cloudflared: no se pudo lanzar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>cloudflared: lanzado (pid=%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+88"/>
+        <source>cloudflared: tunel arriba (metrics ok)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>cloudflared: el token del tunel (BA_TUNNEL_TOKEN) no es valido; tunel desactivado hasta corregirlo y reiniciar el gateway</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>cloudflared: sin metricas; reiniciando con backoff</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>cloudflared: caido; reiniciando con backoff</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>cloudflared: proximo reintento en hasta %1 s si vuelve a caer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/ControlWeb.cpp" line="-90"/>
+        <source>control web: rechazado %1 %2 (de afuera, sin el acceso por el túnel habilitado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>control web: rechazado %1 %2 (origen ajeno)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+93"/>
+        <source>demasiados aparatos conectados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>control web: token o PIN inválido desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>control web: token inválido desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>control web: %1 conectado desde %2 (afuera) [%3]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>control web: %1 conectado desde %2 [%3]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>control web: %1 manda demasiado; se corta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>control web: %1 desconectado [%2]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Direcciones.cpp" line="+41"/>
+        <source>Invitados (conferencia)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Integrantes (sesión remota)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Consola de la presidencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Registro de personas (tótems)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera (tablet)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La botonera anda solo en la red local (nunca por el túnel).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Control web (dashboard)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Teleprompter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rótulos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Corrección de subtítulos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tablero de oradores</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Página del público</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Televisores de la sala</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los televisores van por la red local.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>API de Companion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Companion va por la red local.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Página del evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>No encontré ninguna dirección de red en esta máquina (¿está conectada la red?). Se puede escribir en Configuración → Red de la conferencia → «Dirección para el QR».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La puerta de la sala no está abierta (ver el registro del gateway).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>No hay salida a internet (Configuración → Acceso remoto).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Sin HTTPS el navegador no da cámara ni micrófono por la red local.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>La conferencia escucha solo en esta máquina (Configuración → Red de la sala → Acceso): por la red local no entran; desde afuera, por el túnel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No hay una página del evento publicada (Evento → Web del evento).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La puerta de la sala no está abierta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>El control web desde afuera está apagado (se habilita con PIN).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>No conozco el servicio «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Grillas.cpp" line="+207"/>
+        <source>falta «grillas» (una lista)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>cada grilla es un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>«canal» va de 1 a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el canal %1 está dos veces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>tamaño fuera de 16x16..3840x2160</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>«celdas» es una lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>más de %1 celdas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>cada celda es un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>celda sin «persona»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» está dos veces en la misma grilla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>celda de «%1» sin tamaño</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+387"/>
+        <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>grillas: no se pudo publicar BA.Grilla.%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>grillas: BA.Grilla.%1 %2x%3, %4 personas (+%5), %6 ms por cuadro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/MediaPump.cpp" line="+264"/>
+        <source>escena %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>atencion: voz del que atiende (BA.Audio.Atendedor)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>MediaPump: en marcha (slots=%1, lobby=%2, fila=%3, sesiones=%4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>MediaPump: detenido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>video out: %1 listo (%2x%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>video out: no se pudo publicar %1 (se salta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>audio out: %1 listo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>audio out: no se pudo crear %1 (se salta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>MediaPump: lugares %1 -&gt; %2 (sin reiniciar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>retorno mix-minus del slot %1 abierto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>retorno audio: BA.Audio.ContentForReturn abierto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>retorno audio: A cambio o se cerro; reabriendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>retorno video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>%1: suscrito (%2x%3) -&gt; %4x%5</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>%1: A cambio o se cerro; resuscribiendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>%1: %2 fps, %3 ms por cuadro, %4 ms de A a B (no llega: la pantalla se va a atrasar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1: %2 fps, %3 ms por cuadro, %4 ms de A a B</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>operador: microfono (BA.Audio.Operator) abierto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+53"/>
+        <location line="+41"/>
+        <source>%1 abierta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <source>registro: voz del asistente del canal %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+67"/>
+        <source>operador: camara (BA.Operator) suscrita (%1x%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+148"/>
+        <source>la prueba es para los de adentro (programa o fila): en el lobby no recibe el retorno</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>ya hay una prueba andando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>no llegó audio de su micrófono durante la prueba (¿lo tiene silenciado?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+112"/>
+        <source>sube %1: %2 fps (%3x%4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Pinggy.cpp" line="+103"/>
+        <source>forwarding a un puerto prohibido (%1): la API de control, el MCP y la señalización común nunca van por el túnel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+78"/>
+        <source>error sin detalle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+73"/>
+        <source>pinggy: %1; túnel desactivado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>pinggy: no está el binario (%1); sin túnel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>falta ba-pinggy en bin/64bit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>pinggy: sin token (BA_PINGGY_TOKEN o Credenciales/pinggy-token): túnel anónimo, 60 minutos y URL al azar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>pinggy: no se pudo lanzar (se reintentará con backoff)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>pinggy: supervisor arrancado (http -&gt; 127.0.0.1:%1, TURN -&gt; 127.0.0.1:%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>pinggy: supervisor arrancado (http -&gt; 127.0.0.1:%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>pinggy: supervisor detenido (reinicios=%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>pinggy: no se pudo lanzar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no se pudo lanzar ba-pinggy: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>pinggy: lanzado (pid=%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+63"/>
+        <source>pinggy: túnel listo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pinggy: túnel listo: %1 (TURN %2 %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>pinggy: reconectando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>pinggy: %1 (no se reintenta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <location line="+10"/>
+        <source>pinggy: error no recuperable; túnel desactivado hasta corregirlo y reiniciar el gateway</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>ba-pinggy se cerró; reintento en %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pinggy: ba-pinggy se cerró; reiniciando con backoff</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Registro.cpp" line="-193"/>
+        <source>registro: %1 (tótem %2) conectado desde %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>registro: %1 (tótem %2) desconectado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>registro: %1 toma el canal %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>registro: %1 suelta el canal %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+116"/>
+        <source>registro: origen ajeno desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../src/gateway/RegistroAtiende.cpp" line="-13"/>
+        <location filename="../src/gateway/Sesion.cpp" line="-14"/>
+        <source>origen invalido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>registro lleno</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>registro: demasiados intentos fallidos desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>registro: %1 manda demasiado; se corta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>registro: %1 quiso mandar algo más que el micrófono y la cámara; se ignora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>sin cuadro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <location filename="../src/gateway/RegistroAtiende.cpp" line="+160"/>
+        <source>falta msg</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/RegistroAtiende.cpp" line="-406"/>
+        <source>Alguien del equipo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+82"/>
+        <source>registro: atención remota %1 («%2») conectada desde %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>registro: atención remota %1 desconectada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+138"/>
+        <source>registro: origen ajeno en la atención remota desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>atencion llena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>registro: demasiados intentos fallidos (atención remota) desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>registro: la atención remota %1 manda demasiado; se corta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Sesion.cpp" line="-59"/>
+        <source>sesion: %1 bloqueado 15 min por PIN errado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>sesion: origen ajeno desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>sesion llena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>sesion: demasiados intentos desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+63"/>
+        <source>sesion: %1 conectado desde %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>sesion: %1 manda demasiado; se corta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>sesion: la atención de %1 quiso mandar algo más que audio; se ignora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+108"/>
+        <source>sesion: %1 desconectado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-254"/>
+        <source>sin foto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+143"/>
+        <source>no está conectado a la sesión remota</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>sesion: atención hablada para %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sesion: atención hablada apagada para %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+94"/>
+        <source>%1 (canal %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sesion: medios a la sala: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>nadie</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1459"/>
+        <source>senalizacion: fallo la inicializacion de sockets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>senalizacion: no se pudo bind %1:%2 (puerto en uso o direccion invalida?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>pantalla %1 sale: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>senalizacion: escuchando en %1:%2 (webroot=%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>control: no se pudo abrir 127.0.0.1:%1 (la sala queda sin API de control)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>control: API del operador en 127.0.0.1:%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>aparatos: no se pudo abrir 127.0.0.1:%1 (la botonera y el control web no llegan desde la red)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>puerta de la sala: 127.0.0.1:%1 (detrás del HTTPS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>puerta de la sala: no se pudo abrir %1:%2 (los televisores y Companion no llegan)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>puerta de la sala: http en %1:%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>tunel: no se pudo abrir 127.0.0.1:%1 (pinggy queda sin destino)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>tunel: escucha de pinggy en 127.0.0.1:%1 (todo externo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+162"/>
+        <source>direcciones: red %1, afuera %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location filename="../src/gateway/main.cpp" line="+754"/>
+        <location line="+2"/>
+        <source>(ninguna)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>(no)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+88"/>
+        <source>senalizacion: %1 conexiones sin cerrar tras %2 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>senalizacion: detenida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>servidor saturado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>senalizacion: conexion rechazada, tope de %1 conexiones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>conexion: excepcion %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+209"/>
+        <source>sin carátula</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>no hay evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+317"/>
+        <source>falta `texto` (o es demasiado largo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+86"/>
+        <source>sin fondo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+287"/>
+        <source>archivos: subida fallida de %1 (codigo %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>archivos: %1 compartio &apos;%2&apos; (%3, %4 bytes)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+336"/>
+        <source>ws: superficie %1 (%2) conectada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>reenganche invalido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+49"/>
+        <source>token invalido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-30"/>
+        <source>ws: pantalla %1 volvio (solo mira, escena del canal %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ws: pantalla %1 conectada (solo mira, escena del canal %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>ws: pantalla %1 volvio (solo mira)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ws: pantalla %1 conectada (solo mira)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>sesion vencida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>ws: token invalido (code=%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>ws: %1 reenganchado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>ws: &apos;%1&apos; entro a la conferencia (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+112"/>
+        <source>ws: la pantalla %1 ofrecio mandar medios; se corta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>ws: offer de %1 sin ruta de medios (sin lugar); se ignora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>ws: sin sesiones WebRTC libres para %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>ws: medios de %1 (sesion %2) conectados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ws: medios de %1 (sesion %2) cerrados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>ws: setRemoteOffer fallo (sesion %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>ws: offer de %1 aceptado (sesion %2, pantalla, sesion nueva)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ws: offer de %1 aceptado (sesion %2, invitado, sesion nueva)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>ws: offer de %1 aceptado (sesion %2, pantalla)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ws: offer de %1 aceptado (sesion %2, invitado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>sesion: sin sesiones WebRTC libres para el remoto %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>sesion: medios del remoto %1 (sesion %2) conectados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sesion: medios del remoto %1 (sesion %2) cerrados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>sesion: setRemoteOffer del remoto %1 falló</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>sesion: oferta del remoto %1 aceptada (sesion %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>sesion: la vista de %1 quiso mandar medios; se ignora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>sesion: sin sesiones WebRTC libres para la vista de %1 (vistasRemotas)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>sesion: vista de %1 (sesion %2) conectada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sesion: vista de %1 (sesion %2) cerrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>sesion: setRemoteOffer de la vista de %1 falló</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>sesion: sin sesiones WebRTC libres para atender hablando a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>sesion: atención hablada de %1 (sesion %2) conectada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sesion: atención hablada de %1 (sesion %2) cerrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>sesion: setRemoteOffer de la atención de %1 falló</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>registro: sin sesiones WebRTC libres para la atención remota %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>registro: atención remota %1 (sesion %2) conectada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>registro: atención remota %1 (sesion %2) cerrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>registro: setRemoteOffer de la atención remota %1 falló</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>registro: sin sesiones WebRTC libres para %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>registro: audio de %1 (sesion %2) conectado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>registro: audio de %1 (sesion %2) cerrado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>registro: setRemoteOffer de %1 falló</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>ws: frame corrupto (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>ws: mensaje invalido de %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>pantalla %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>ws: la pantalla %1 mando &apos;%2&apos;; se descarta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+119"/>
+        <source>pin: bloqueos levantados por el operador (%1, %2 IP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>todos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/main.cpp" line="-498"/>
+        <source>%1 (nueva)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+193"/>
+        <source>arranque: guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>no se pudo crear BA.Health</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>BA.Health slot 0 = Running (pid=%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>auth: clave HMAC inyectada por el entorno (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>auth: clave HMAC generada para este arranque (256 bits)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>auth: sin fuente de entropia para la clave HMAC; no se arranca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>auth: --pin llega por linea de comandos y es visible en la lista de procesos; preferir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>auth: PIN de la conferencia: el de hoy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>auth: PIN de la conferencia nuevo del día: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>auth: no se pudo generar un PIN; la conferencia queda cerrada hasta un ChangePin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+110"/>
+        <source>control: sin entropia para el token de la API; la sala queda sin control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+93"/>
+        <source>tunel: no se pudo resolver la direccion publica %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>red: IP de la máquina %1; en el QR: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <location line="+243"/>
+        <source>https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-231"/>
+        <source>proxy: no arrancó (ver el motivo arriba)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>tunel: sin clave privada WireGuard; tunel deshabilitado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>tunel: falta la clave publica del servidor (wireguard.serverPublicKey)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>tunel: direccion invalida (wireguard.address = %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>tunel: WireGuard hacia %1 como %2 (clave %3; publica %4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>tunel: no arranco WireGuard/pila IP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>tunel: este build no trae lwIP (make deps-lwip); tunel deshabilitado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>sin clave o direccion del tunel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>entropia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>/etc/wireguard/wg0.conf -- servidor con IP publica para Broadcast Appliance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Instalar: apt install wireguard iptables   Activar: systemctl enable --now wg-quick@wg0</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>&apos;%1&apos; es la interfaz publica del servidor: cambiala si se llama distinto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Abrir en el firewall del proveedor: UDP %1, TCP %2, UDP %3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Broadcast Appliance (este equipo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>turn: escuchando en el puerto %1 (TCP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>turn: no arrancó (%1): los invitados de afuera no van a tener video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+54"/>
+        <source>https: ba-web no lo atiende; arranca el terminador propio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+161"/>
+        <source>tunel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>senalizacion no arranco; el gateway sigue sin tunel web</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>puerta de la sala: https en %1:%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>puerta de la sala: no arrancó el HTTPS en el puerto %1 (los servicios de la sala no llegan por HTTPS desde la red)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>El túnel todavía no está listo (%1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>control: no se pudo publicar %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>pinggy: sin la escucha del tunel (127.0.0.1:%1); no se lanza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>tunel: desactivado por configuracion (solo acceso local)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>control: escuchando en &apos;control.gateway&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>control: sin canal de control (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>control: shutdown pedido por el launcher</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>parando: deteniendo componentes...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>cierre ordenado: BA.Health slot 0 = Terminated; exito</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/net/IpStack.cpp" line="+626"/>
+        <source>pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/net/TlsTerminator.cpp" line="+191"/>
+        <source>https: certificado propio (Credenciales/tls-propio)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>https: el certificado propio es invalido; se usa uno autofirmado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+93"/>
+        <source>https: no se pudo generar el certificado autofirmado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>https: certificado autofirmado nuevo (Credenciales/tls-autofirmado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>https: certificado autofirmado nuevo (no se pudo guardar: cambiara en el proximo arranque)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>https: no arranco Winsock (WSAStartup)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>https: no se pudo crear el socket (error %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>https: no se pudo crear el socket (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <location line="+4"/>
+        <source>el puerto ya esta en uso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>error %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>https: no se pudo escuchar en %1:%2 (%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>https: escuchando en %1:%2 -&gt; 127.0.0.1:%3 (huella %4...)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/net/WgDevice.cpp" line="+198"/>
+        <source>wireguard: no se pudo resolver %1 (se reintenta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>wireguard: escuchando UDP %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+80"/>
+        <source>wireguard: el peer no responde; se reintenta con el proximo trafico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+290"/>
+        <source>wireguard: sesion establecida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>wireguard: el servidor pidio cookie (bajo carga); se reintenta con MAC2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/proxy/Acme.cpp" line="+54"/>
+        <source>no se pudo leer el directorio ACME (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>la CA no dio un nonce</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>no se pudo firmar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>acme: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>sin nombres</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la clave de la cuenta no sirve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>la CA no aceptó la cuenta (%1: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>la CA no aceptó la orden (%1: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>autorización ilegible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>la CA no ofrece HTTP-01 para %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>la CA no pudo validar %1: %2 (¿el nombre apunta a esta máquina y el puerto 80 llega desde internet?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>la validación no terminó en 60 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no se pudo armar el CSR</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>la CA no aceptó el CSR (%1: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>la orden quedó inválida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>el certificado no salió en 60 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no se pudo bajar el certificado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>acme: certificado nuevo para %1 y otros</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>acme: certificado nuevo para %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/proxy/GestorProxy.cpp" line="+60"/>
+        <source>proxy: falta el dominio (proxy.dominio): no arranca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+104"/>
+        <source>acme: pidiendo el certificado de %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="-323"/>
+        <source>no se pudo abrir el puerto %1 (error %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no se pudo abrir el puerto %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+201"/>
+        <source>proxy: el certificado de la casa es inválido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>proxy: %1 (en Linux, los puertos de menos de 1024 piden permiso: usá otro, p. ej. 8443)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>proxy: %1 — sin el 80 no hay desafío HTTP-01 de ACME ni redirección a https</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>proxy: atendiendo %1 y %2 para *.%3 (%4 servicios)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>proxy: atendiendo %1 para *.%2 (%3 servicios)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+264"/>
+        <source>el servicio no esta andando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/turn/Servidor.cpp" line="+869"/>
+        <source>turn: falta el secreto (16 bytes o más)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>turn: dirección inválida: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>turn: dirección de relay inválida: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>turn: bindRelay inválido: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>turn: sin peers permitidos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>turn: rango de puertos RTC inválido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>turn: no se pudo escuchar en %1:%2 (TCP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>turn: no se pudo escuchar en %1:%2 (UDP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>grabacion</name>
     <message>
         <location filename="../src/app/arranque/OperateMode.cpp" line="-615"/>
@@ -32901,6 +47203,361 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <message>
         <location filename="../src/app/emision/BroadcastEngine.cpp" line="-655"/>
         <source>la copia en %1 no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>graficos</name>
+    <message>
+        <location filename="../src/app/graficos/Catalogo.cpp" line="+47"/>
+        <source>nombre de gráfico inválido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no existe el gráfico «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>el gráfico «%1» no tiene grafico.json</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>«%1» lo dibuja el plugin «%2»: se pide con Emisor::resolver</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>la descripción no es JSON válido: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>el gráfico no tiene ni «declarativo» en su grafico.json ni un grafico.qml</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>ese nombre no sirve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>ya hay un gráfico con ese nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no se pudo crear la carpeta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Texto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Lo que dice el gráfico.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <location line="+21"/>
+        <source>no se pudo escribir el grafico.qml</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-18"/>
+        <location line="+16"/>
+        <location line="+47"/>
+        <source>no se pudo escribir el grafico.json</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-50"/>
+        <source>la descripción no es JSON válido (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>el gráfico del plugin no tiene nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no se pudo crear la carpeta del gráfico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/graficos/Emisor.cpp" line="-230"/>
+        <source>el plugin no devolvió ni «declarativo», ni «qml», ni «secuencia»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/graficos/GraficoProceso.cpp" line="+55"/>
+        <source>no se pudo arrancar el renderizador de gráficos (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>el renderizador no aceptó el pedido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>el gráfico se colgó (¿un bucle infinito?): se cortó el dibujo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el renderizador de gráficos se murió</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>el renderizador contestó algo que no entiendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>el renderizador falló sin decir por qué</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
+        <source>no se pudieron leer los cuadros del renderizador: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/graficos/GraficoSource.cpp" line="+96"/>
+        <source>Gráfico animado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Gráfico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ancho</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/graficos/Medios.cpp" line="+36"/>
+        <source>no entiendo la ruta %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+62"/>
+        <source>no se puede leer el video: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>no se pudo escribir el cuadro %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>el archivo no tiene video que se pueda leer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>no se pudo escribir secuencia.json</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/graficos/VideoEnGrafico.cpp" line="+98"/>
+        <source>cada capa de «escena» tiene que ser un objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1391"/>
+        <source>«%1» no arrancó al abrir: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/grafico/Componentes.cpp" line="+67"/>
+        <source>no se puede leer «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>«%1» es demasiado grande para un gráfico (más de %2 MB decodificado): importalo como secuencia de cuadros</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>«%1» no tiene ninguna imagen que se pueda leer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>la secuencia de cuadros crudos está incompleta (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no se pudo leer la secuencia de cuadros crudos (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>la carpeta «%1» no tiene cuadros (PNG)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+132"/>
+        <source>no está «%1» (se busca en la carpeta del gráfico: medios/…)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>«%1» es un video: se importa primero (grafico_medio_agregar, o «Agregar medio» en Gráficos) y queda como secuencia de cuadros con su alfa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Medio: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/grafico/Declarativo.cpp" line="+386"/>
+        <source>el gráfico no tiene ninguna capa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>no sé qué es una capa de tipo «%1». Las que hay: barra, panel, texto, medio, torta, barras.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/grafico/Renderizador.cpp" line="+56"/>
+        <source>ese módulo es de Qt 5 y acá no está. Usá «import QtQuick.Effects» con MultiEffect (desenfoque, sombra, máscara).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no viaja en este bundle. Usá «import QtQuick.Effects» con MultiEffect.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>es de Qt 6.8 y acá hay 6.6. Para vector animable usá Shape con PathSvg, que acepta el atributo «d» de un SVG tal cual.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>qml: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>línea %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>no se pudo crear el contexto de OpenGL</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no se pudo crear la superficie fuera de pantalla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no se pudo activar el contexto de OpenGL</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>no se pudo inicializar el renderizador de QML</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>no se pudo crear el destino de dibujo de %1x%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+75"/>
+        <location line="+118"/>
+        <source>el gráfico no devolvió ningún objeto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-113"/>
+        <location line="+111"/>
+        <source>la raíz del gráfico tiene que ser un Item (algo que se pueda dibujar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-101"/>
+        <source>el gráfico no declara el parámetro «%1». Los parámetros van declarados como propiedades del Item raíz y listados en grafico.json.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <location line="+100"/>
+        <source>el renderizador no devolvió ninguna imagen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-25"/>
+        <source>el gráfico no declara el parámetro «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/grafico/main.cpp" line="+88"/>
+        <source>los cuadros de la tira no tienen el mismo tamaño</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>no se pudo crear la memoria compartida: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+97"/>
+        <source>la tira necesita al menos un momento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>los momentos van en orden</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la tira salió incompleta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no sé qué es la operación «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>renderizador de graficos listo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>no entendí el pedido: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -33901,10 +48558,171 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
 </context>
 <context>
+    <name>health</name>
+    <message>
+        <location filename="../src/launcher/Supervisor.cpp" line="-272"/>
+        <source>no se pudo crear BA.Health</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>BA.Health listo con %1 slots</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>historico</name>
     <message>
         <location filename="../src/app/arranque/OperateMode.cpp" line="-730"/>
         <source>se volvió a la configuración de «%1»: %2 (lo de antes en Config/.restaurar/%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/HistoricoViewModel.cpp" line="-73"/>
+        <source>grabaciones borradas (retención de %1 días)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+23"/>
+        <source>la app se cierra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>%1 %2 (con la app cerrada)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+127"/>
+        <source>sellado %1 (%2 archivos)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>la app arranca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>cierre pendiente de «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>retención: grabaciones borradas de %1 eventos (%2 MB)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+81"/>
+        <source>deja de estar en curso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>en curso</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>iconos</name>
+    <message>
+        <location filename="../src/core/qr/Iconos.cpp" line="+18"/>
+        <source>WiFi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Enlace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Persona</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Teléfono</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Correo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Calendario</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Micrófono</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Reproducir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pantalla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lugar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Entrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Información</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Estrella</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Corazón</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Carrito</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Documento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Casa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mundo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Candado</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -34046,6 +48864,141 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
 </context>
 <context>
+    <name>instance</name>
+    <message>
+        <location filename="../src/launcher/Supervisor.cpp" line="-41"/>
+        <source>no se inicia: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>integrity</name>
+    <message>
+        <location line="+91"/>
+        <source>integridad OK antes de arrancar (%1 archivos, %2 leídos, %3 para leer en el fondo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>integridad: %1 ausentes, %2 con hash distinto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>integridad en el fondo OK (%1 leídos en %2 ms)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>integridad en el fondo: %1 ausentes, %2 con hash distinto (el próximo arranque lo muestra)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ipc</name>
+    <message>
+        <location filename="../src/core/platform/LocalSocket_posix.cpp" line="+159"/>
+        <location line="+138"/>
+        <source>nombre de canal invalido: &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-132"/>
+        <location line="+138"/>
+        <source>no se pudo resolver la ruta del socket para &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-124"/>
+        <source>el servidor de &apos;%1&apos; no es del mismo usuario</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>timeout conectando a &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+121"/>
+        <location line="+14"/>
+        <source>el canal &apos;%1&apos; ya tiene un servidor activo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>el servidor no esta escuchando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>conexion rechazada: el cliente no es del mismo usuario</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/platform/LocalSocket_win.cpp" line="+166"/>
+        <source>no se pudo conectar a &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+125"/>
+        <source>el canal &apos;%1&apos; ya tiene un servidor activo o no se pudo crear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>no se pudo armar el descriptor de seguridad del pipe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/platform/SingleInstance_posix.cpp" line="+48"/>
+        <source>nombre de lock invalido: &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <location line="+27"/>
+        <location filename="../src/core/platform/SingleInstance_win.cpp" line="+44"/>
+        <source>ya hay otra instancia en ejecucion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>no se pudo resolver el lockfile para &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>laminas</name>
+    <message>
+        <location filename="../src/app/ui/CarruselViewModel.cpp" line="-310"/>
+        <source>no pude guardar el carrusel «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1»: %2 laminas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>desarmar «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+314"/>
+        <source>desarmando %1 -&gt; «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>launcher</name>
+    <message>
+        <location filename="../src/launcher/main.cpp" line="-6"/>
+        <source>raiz del bundle: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>lspdsp</name>
     <message>
         <location filename="../src/app/audio/LspDsp.cpp" line="+73"/>
@@ -34064,6 +49017,14 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
 </context>
 <context>
+    <name>marca</name>
+    <message>
+        <location filename="../src/app/ui/RegistroViewModel.cpp" line="+94"/>
+        <source>marca del operador</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>matriz</name>
     <message>
         <location filename="../src/app/audio/Matriz.cpp" line="-407"/>
@@ -34076,6 +49037,125 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     <message>
         <location filename="../src/app/arranque/GuiMode.cpp" line="-139"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>medios</name>
+    <message>
+        <location filename="../src/app/medios/Medios.cpp" line="+203"/>
+        <source>esa ruta se sale de la carpeta del sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no existe: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>«%1» es una carpeta del sistema: no se mueve ni se borra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>el destino no es una carpeta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se puede mover una carpeta adentro de si misma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se pudo mover (¿permisos?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>nombre de carpeta no valido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no existe la carpeta %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+20"/>
+        <source>ya hay algo llamado «%1» ahi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>no se pudo crear (¿permisos?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>nombre no valido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>no se pudo renombrar (¿permisos?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no se pudo crear la papelera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no se pudo mover a la papelera (¿permisos?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/medios/Playlist.cpp" line="-195"/>
+        <source>no estaba sonando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>la playlist cambió</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>`items` tiene que ser una lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no existe el archivo «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>en «%1» el out tiene que ser mayor que el in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>no hay un ítem %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>la playlist está vacía</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>no hay medio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>acción: play, next, prev, stop o ir</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -34119,6 +49199,14 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     <message>
         <location line="+3"/>
         <source>no se entendio la respuesta: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>modo-vivo</name>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1790"/>
+        <source>modo en vivo: se desbloqueó «%1» — motivo: %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -34446,6 +49534,980 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
 </context>
 <context>
+    <name>motor</name>
+    <message>
+        <location filename="../src/motor/BancoSr.cpp" line="+104"/>
+        <source>GStreamer no tiene el elemento «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <location filename="../src/motor/Composicion.cpp" line="+1136"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1513"/>
+        <location line="+204"/>
+        <location filename="../src/motor/Mezcla.cpp" line="+322"/>
+        <location filename="../src/motor/OrigenRed.cpp" line="+199"/>
+        <location filename="../src/motor/Salidas.cpp" line="+168"/>
+        <location line="+69"/>
+        <location line="+298"/>
+        <source>error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location filename="../src/motor/Entrada.cpp" line="-593"/>
+        <source>el pipeline no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>la red no procesó ningún cuadro en %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no salió ningún cuadro en %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>la red no terminó ningún cuadro en %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la red no terminó ningún cuadro en %1 s: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Candado.cpp" line="+53"/>
+        <source>%1 %2 ms en %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>la interfaz tomó el candado del motor en %1 (no tiene que tomarlo nunca: ver docs/planes/PLAN-MOTOR-SIN-ESPERAS.md)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>la interfaz esperó el candado del motor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la interfaz tuvo el candado del motor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>el candado del motor estuvo tomado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>la vuelta del motor se demoró</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Capturas.cpp" line="+148"/>
+        <location filename="../src/motor/Composicion.cpp" line="-631"/>
+        <source>falta %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+161"/>
+        <source>en Wayland la ventana se elige al capturar la pantalla (el portal del sistema)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>hace falta X11 (ximagesrc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Capturas_mac.mm" line="+72"/>
+        <source>falta bacapturaventana (ScreenCaptureKit, macOS 12.3 o más nuevo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Composicion.cpp" line="-235"/>
+        <location line="+20"/>
+        <location line="+10"/>
+        <location line="+67"/>
+        <location line="+89"/>
+        <location line="+120"/>
+        <source>composición %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-298"/>
+        <source>composición %1: con el módulo «%2»: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+68"/>
+        <source>mezcla %1: %2 cuadros/s, hueco %3 ms (pts %4 ms)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>el compositor no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+98"/>
+        <source>el mezclador no tiene el puerto «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>el puerto «%1» ya tiene una entrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>no se pudo armar «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>falta intersrc, queue, glupload, glcolorconvert o gltransformation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>falta intersrc, queue, d3d12upload o d3d12convert</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>falta intersrc, queue o videocrop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>composición %1: falta %2 (la capa %3 va sin sombra)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>composición %1: la capa «%2» se armó en %3 ms (crear %4, propiedades (el productor) %5, agregar y enlazar %6, el pad del mezclador %7, arrancar %8)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+480"/>
+        <source>composición %1 (%2): %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Entrada.cpp" line="-801"/>
+        <source>%1: la placa no se pudo armar (%2): sin placa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+73"/>
+        <source>%1 — sin señal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>%1: placa rearmada en %2 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+263"/>
+        <source>no hay un análisis en curso en esta entrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+69"/>
+        <location line="+174"/>
+        <location line="+36"/>
+        <location line="+103"/>
+        <location line="+1030"/>
+        <source>%1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1336"/>
+        <source>el micrófono %1: se espera a que se conecte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el micrófono %1: esperando que se conecte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>la cámara %1: se espera a que se conecte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la cámara %1: esperando que se conecte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>la ventana de «%1»: se espera a que se abra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la ventana de «%1»: esperando que se abra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1: apareció el dispositivo, se conecta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: se abrió la ventana, se captura</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+108"/>
+        <source>el rack de audio todavía no está (la app no registró barack): se agrega cuando esté</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
+        <source>%1: cadena: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+352"/>
+        <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: las horas de su audio van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>%1: su video trae sus propias horas (corridas %2 ms del estudio): se realinea</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>%1: su audio trae sus propias horas (corridas %2 ms del estudio): se realinea</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>%1 llega tarde (%2 ms, el tope del estudio es %3 ms): va con su propia demora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>%1: va con su propia demora: %2 ms (antes %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>%1: la hora de la cámara está corrida %2 ms; se deja de usar (ntp-sync)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>%1: no llegan datos hace %2 s sin error: se rearma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no llegaban datos (se rearma)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+54"/>
+        <source>%1: placa en reposo (nadie la usa) en %2 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>%1 (placa): %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+71"/>
+        <source>%1: la señal llega entrelazada: se desentrelaza en la GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+99"/>
+        <source>%1 (aviso de %2): %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>terminó (EOS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>%1: %2 (se reintenta; sigue igual)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: %2 (se reintenta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>no es un medio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+37"/>
+        <source>acción: play, pausa, reiniciar o parar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+294"/>
+        <source>la entrada no está andando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no hay un elemento «%1» en la entrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1» no tiene la propiedad «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Escucha.cpp" line="+95"/>
+        <source>la salida de audio no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el dispositivo «%1» no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no está «%1»: va por la salida del sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+68"/>
+        <source>escucha: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Mapa.cpp" line="+200"/>
+        <source>procesa video en memoria de sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>decodifica video en CPU (no es de hardware)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>codifica video en CPU (no es de hardware)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Mezcla.cpp" line="-243"/>
+        <source>mezcla %1: no está balimitador (plugin baaudio): sale sin limitador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <location line="+15"/>
+        <location line="+50"/>
+        <source>mezcla %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-51"/>
+        <source>el mezclador no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>falta intersrc, queue, volume o level</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+163"/>
+        <source>mezcla %1 (%2): %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>mezcla %1 (aviso de %2): %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Motor.cpp" line="+60"/>
+        <source>motor: %1 plugins de la composición cargados en %2 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>motor: la sombra de D3D12, adelantada en %1 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>el bus PROGRAMA no arrancó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>el video del PROGRAMA no arrancó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>el programa para el gateway: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>al apagar quedaron %1 órdenes sin correr</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <source>latencia del estudio: %1 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>latencia del estudio: %1 ms (la marca «%2»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>tic de la entrada «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+115"/>
+        <source>falta el id</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el id no puede tener «:»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya hay una entrada «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <location line="+34"/>
+        <location line="+20"/>
+        <location line="+8"/>
+        <location line="+19"/>
+        <location line="+9"/>
+        <location line="+11"/>
+        <location line="+173"/>
+        <location line="+559"/>
+        <location line="+81"/>
+        <location line="+26"/>
+        <source>no hay una entrada «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-915"/>
+        <source>no se pudo publicar el reloj en el puerto %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+79"/>
+        <source>pista fuera de rango (1…6)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>la escena tiene que ser un objeto {nombre, capas}</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>falta el nombre de la escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <location line="+17"/>
+        <location line="+48"/>
+        <location line="+46"/>
+        <location line="+133"/>
+        <location line="+173"/>
+        <location line="+720"/>
+        <source>no hay una escena «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1070"/>
+        <source>transición: corte, mezcla, empuje o cortina</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>no hay nada armado en el preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+53"/>
+        <source>el motor está sin video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-25"/>
+        <source>el PROGRAMA no tiene DSK</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>el multiview no arrancó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
+        <location line="+473"/>
+        <source>el motor no está andando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>invitado fuera de rango (1…64)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>modo: programa, mix_minus o apagado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>el retorno no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>«%1» no tiene audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>modo: programa, directo, pfl, seleccion o apagado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+113"/>
+        <source>«%1» no está andando</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+25"/>
+        <source>no existe la entrada «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <source>no hay un análisis en curso en «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+128"/>
+        <source>esperarCola desde el hilo de la interfaz: no tendría que esperar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>orden %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+118"/>
+        <source>no se pudo poner el limitador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/OrigenRed.cpp" line="-91"/>
+        <source>origen %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>origen %1: no arrancó; se reintenta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
+        <source>origen %1: %2 (se reconecta en %3 s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Piezas.cpp" line="+156"/>
+        <source>%1: no tiene la propiedad «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+95"/>
+        <source>no está el elemento «%1» (filtro %2): pasa sin él</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>no hay %1 para darle %2 a «%3»: va en memoria de sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+172"/>
+        <source>el elegido a mano</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el elegido a mano (%1) ya no está: el que conviene</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>la cámara no anuncia sus modos: negocia GStreamer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+168"/>
+        <source>no se pudo mirar el archivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>el archivo no tiene video ni audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no se pudo leer el archivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+267"/>
+        <source>sin contexto GL para el video: %1 (se compone en la CPU)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>D3D12: la autoprueba no se arma: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>D3D12: la autoprueba no entregó cuadros (%1) (se compone en la CPU)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>D3D12: la autoprueba no entregó cuadros (%1): %2 (se compone en la CPU)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>D3D12: la autoprueba entregó %1 cuadros; contextos: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ninguno</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>video del motor: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Prioridad.cpp" line="+183"/>
+        <source>GetSystemCpuSetInformation falló (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>sin CPU Sets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+33"/>
+        <source>un solo grupo de núcleos: no hace falta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-28"/>
+        <source>%1 procesadores lógicos (los de rendimiento)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 procesadores lógicos (un CCD)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>lo demás, en los otros %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>SetProcessDefaultCpuSets falló (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>macOS no deja elegir núcleos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>%1 procesadores lógicos (los de rendimiento: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 procesadores lógicos (un L3: %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>%1 de %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 grupos de L3 (CCD)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sin datos de la topología</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+53"/>
+        <source>procesador: los hilos del video y el audio no pueden subir de prioridad (hace falta CAP_SYS_NICE o RLIMIT_NICE)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>procesador: %1; prioridad del video y el audio: sí; video y audio juntos: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>procesador: %1; prioridad del video y el audio: no; video y audio juntos: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Reloj.cpp" line="+152"/>
+        <source>GStreamer rehízo su lista de plugins en %1 s: revisó %2 de %3 (el detalle, en Logs/gst-plugins-*.log)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>el plugin %1 tardó %2 s en revisarse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>el plugin %1 no contestó al revisarlo: queda afuera (GStreamer lo anota y no lo vuelve a cargar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>GStreamer no está en el programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>gst_init falló</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+123"/>
+        <source>falta el servidor NTP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>falta el aparato que publica el reloj</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>PTP no arrancó: necesita gst-ptp-helper con permisos para los puertos 319/320</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>reloj desconocido «%1» (sistema, ntp, ptp o red)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>el reloj %1 no se sincronizó en %2 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se pudo crear el reloj %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: se usa el del sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Salidas.cpp" line="-303"/>
+        <source>no terminó en 2 minutos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>no hay tramos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>falta splitmuxsrc o matroskamux</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>todavía no hay nada guardado (esperá unos segundos)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>no hay qué grabar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <location line="+278"/>
+        <source>no hay codificador de video (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-263"/>
+        <source>no se pudo enganchar el codificador %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+65"/>
+        <source>la grabación no arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>grabación: %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+250"/>
+        <source>solo audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-233"/>
+        <source>grabación: no cerró a tiempo (el último tramo puede quedar sin índice)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>grabación %1: en pausa (el disco, para otra)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>grabación %1: sigue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>grabación (%1): %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <location line="+96"/>
+        <source>la dirección tiene que empezar con rtmp://, rtmps:// o srt://</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-27"/>
+        <source>no se pudo conectar con %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>transmisión: %1 (se reintenta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>transmisión a %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>transmisión: volvió (después de %1 intentos)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>se cortó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>transmisión: %1 (se reconecta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/motor/Vistas.cpp" line="+78"/>
+        <source>vista %1: %2 cuadros/s, hueco máx %3 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <source>entra a vista %1: %2 cuadros/s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>no hay nada para ver en «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>ndi</name>
     <message>
         <location filename="../src/app/emision/NdiSource.cpp" line="+144"/>
@@ -34473,6 +50535,1568 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     <message>
         <location filename="../src/app/emision/BroadcastEngine.cpp" line="-767"/>
         <source>escena «%1» en el canal %2 (%3x%4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/pantallas/Buscar.cpp" line="+32"/>
+        <source>Este programa se compiló sin búsqueda en la red (mDNS): agregá el televisor a mano poniendo su dirección IP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+206"/>
+        <source>No pude buscar en la red (¿el firewall bloquea el mDNS?): agregá el televisor a mano con su dirección IP.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>La búsqueda en la red falló: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/pantallas/Cast.cpp" line="+258"/>
+        <source>no se pudo inicializar el azar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no contesta en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+8"/>
+        <source>no se pudo preparar el TLS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>el aparato rechazó la conexión segura</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no terminó de conectar a tiempo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>el canal no está abierto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>se cortó al escribir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <location line="+27"/>
+        <source>el aparato no contestó a tiempo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>el aparato cerró la conexión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+141"/>
+        <source>el televisor no pudo abrir DashCast (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>sin motivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>el televisor no dijo por dónde hablarle a la aplicación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/pantallas/Catalogo.cpp" line="+28"/>
+        <source>Padrón</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Preguntas del público</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Votación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Carrusel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mezclador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Salida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="-1063"/>
+        <source>Escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Tarjeta del tablero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Página</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tablero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Para la TV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Registro de personas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>Programa (lo que sale al aire)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Preview (la escena armada)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Lo de fondo en el tablero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+146"/>
+        <source>%1 (ya no existe)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/pantallas/Monitores.cpp" line="+264"/>
+        <source>No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+145"/>
+        <source>No hay nada que se llame «%1» en lo que se puede mostrar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» no se puede mostrar en un monitor (solo en una TV de la red).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Elegí qué mostrar (para dejarlo vacío, «Quitar»).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Como mucho %1 cosas en un monitor: más ya no se leen.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+10"/>
+        <location line="+11"/>
+        <source>No conozco ese monitor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+2"/>
+        <source>«%1» no se puede mostrar en una ventana (solo en una TV de la red).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Elegí qué mostrar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Como mucho %1 cosas en una ventana: más ya no se leen.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <source>No hay una ventana con ese id.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="-68"/>
+        <source>Un mensaje</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Texto grande, para que se lea desde el fondo de la sala.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Texto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Empezamos en 5 minutos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+9"/>
+        <location line="+6"/>
+        <source>Abajo, más chico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>Sala principal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Un código QR</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El QR ocupa la pantalla entera: se escanea desde lejos. Uno del aparato (el del Público, el de la Conferencia…), uno guardado en «Códigos QR» con su estilo, o lo que se escriba.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Qué QR</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Qué codifica (si es a mano)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Escaneá para entrar a la sala</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>La hora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La hora, grande. Para el fondo del escenario.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Una página web</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cualquier dirección. Tiene que ser alcanzable DESDE el televisor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dirección</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>El teleprompter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>La vista del orador: el discurso que esté cargado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>La votación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La que esté abierta, con las opciones y el QR para votar desde el teléfono. El resultado se ve solo cuando corresponde: con la urna cerrada, o abierta si se decidió mostrarlo. Si no hay ninguna, dice que no hay.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Tally de cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rojo si esa cámara está AL AIRE, verde si está armada para el próximo take. Se mira de reojo desde atrás de la cámara, así que es la pantalla entera de color. `fuente` es el nombre de la cámara o de la escena; vacío muestra el estado general, que sirve para la cabina.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Cámara o escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cam 1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Lo que sale al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El programa en vivo por WebRTC: unas décimas de retardo, no los segundos del reproductor de fábrica del televisor. La pantalla entra a la conferencia como una más: si el lobby está prendido, hay que hacerla pasar, y ocupa un lugar mientras dure.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Una escena</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cualquiera de las escenas armadas, en vivo, esté o no al aire. Varias pantallas pueden mostrar escenas distintas a la vez (hasta 4 escenas distintas; las pantallas con la misma escena comparten). Cada escena que se muestra es una composición más para la máquina.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+486"/>
+        <source>busqueda en la red: %1 encontradas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+262"/>
+        <source>publico el carrusel «%1» (%2 pasos)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>a «%1»: carrusel «%2» -&gt; %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>empujo a %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>todas(%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>recargar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+170"/>
+        <source>a «%1» (%2): %3 -&gt; %4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>a «%1»: escena «%2» (canal %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>canal de escena %1 («%2») sin pantallas: se suelta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>«%1» acepto: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>«%1» no pudo: %2 (intento %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>perfil</name>
+    <message>
+        <location filename="../src/core/diag/Perfil.cpp" line="+469"/>
+        <source>perfil %1: %2 núcleos, %3 MB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>build con BA_PERFILAR: se mide la CPU por hilo y la GPU cada segundo (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>persist</name>
+    <message>
+        <location filename="../src/core/persist/Restore.cpp" line="+188"/>
+        <source>no se pudo leer: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>header malformado: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>no se pudo inicializar el store: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>ok: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>checksum no coincide en %1 (esperado %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>cuerpo no es un StateDoc JSON valido: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>ruta vacia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>dir vacio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>sin snapshots en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>ningun snapshot bueno en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>recuperado seq=%1 en %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>plugins</name>
+    <message>
+        <location filename="../src/app/plugins/Hijo.cpp" line="+98"/>
+        <location line="+88"/>
+        <source>no se pudo lanzar «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-65"/>
+        <location line="+4"/>
+        <source>no se pudo crear un pipe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/plugins/Plugins.cpp" line="-1944"/>
+        <source>%1
+…(cortado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+203"/>
+        <location line="+202"/>
+        <location line="+163"/>
+        <location line="+30"/>
+        <location line="+145"/>
+        <location line="+1150"/>
+        <source>no existe el plugin «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1675"/>
+        <source>«%1» no estaba aprobado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+124"/>
+        <source>tu documento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+93"/>
+        <source>id «%1»: minúsculas, números y guiones (es el nombre de la carpeta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>el contenido de «%1» tiene que ser texto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no se pudo escribir «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>no se pudo escribir plugin.json</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>id «%1»: minúsculas, números y guiones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no existe el ejemplo «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya hay un plugin «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no se pudo copiar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>«%1» tiene una versión nueva en la app, pero su código se cambió a mano: no se actualizó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no se pudo copiar «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>la app (ejemplo actualizado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» actualizado con la versión de la app (los ajustes quedaron)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>no se pudo mover a la papelera: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>ya vienen con el programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>ya estaban</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+172"/>
+        <source>falta el Python del programa (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-149"/>
+        <source>Dependencias de «%1» (pip)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>pip: %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>pip no pudo bajar las dependencias</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>no se pudo pedir la descarga</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>el probador se cortó (¿tardó demasiado?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el probador no devolvió un informe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+68"/>
+        <source>el código cambió desde que se aprobó para el aire: en vivo no arranca (revisalo y aprobalo de nuevo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>en vivo solo arrancan los plugins aprobados para el aire (Plugins → «Aprobar para el aire»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plugin «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>no terminó de arrancar en 20 s (¿se quedó esperando algo antes de plugin.correr()?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>no se pudo arrancar Python</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>se cayó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>terminó (código %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>El plugin «%1» se cayó %2 veces en un minuto y quedó apagado: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>(todavía no corrió: no hay registro)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>(no existe el plugin «%1»)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>[app] línea que no es del protocolo (¿un print a stdout?): %1
+</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>[app] error con «%1»: %2
+</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>[app] hola (pid %1, medios en %2)
+</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>«%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>el sistema todavía no está listo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>«%1» no está en las herramientas del plugin (plugin.json → herramientas)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>«%1» no está en &quot;secretos&quot; de plugin.json</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+71"/>
+        <source>%1: entrada «%2»: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>entrada «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>%1: PTZ de «%2»: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>PTZ de «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+76"/>
+        <source>el plugin «%1» no está corriendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>«%1» no contestó en %2 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>el video no está disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>«%1» es de audio: va como filtro de una fuente (plugin_tarjeta con `fuente`)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>el plugin «%1» no declaró la tarjeta «%2» (¿está corriendo? plugin_activar; plugin_ver dice lo que declara)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>no hay una fuente «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» no tiene audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+190"/>
+        <source>El plugin «%1» no arrancó: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>mirá su registro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+97"/>
+        <source>«%1» no tiene panel (o no está prendido)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» no está corriendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>el panel de «%1» no tiene el control «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» lo muestra el plugin: no se mueve desde afuera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>«%1» no es una opción de «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+172"/>
+        <source>no se pudo armar el zip: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no existe «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no se pudo abrir el zip: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ptz</name>
+    <message>
+        <location filename="../src/app/ptz/ControlCamaras.cpp" line="+80"/>
+        <source>Dirección (IP o nombre)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Puerto (vacío = el de siempre)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Usuario</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Solo digital</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La cámara no se mueve: recorte y zoom en la GPU.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>VISCA por IP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sony, PTZOptics, BirdDog, Avonic, Marshall, AVer, Lumens y la mayoría de las chinas. Sony usa UDP 52381; PTZOptics y similares, TCP 5678 o UDP 1259.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Transporte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>UDP con encabezado Sony (52381)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TCP crudo (5678)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>UDP crudo (1259)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Dirección VISCA (1-7)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Cámaras IP en general (Profile S). «Buscar en la red» las encuentra solas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Perfil (vacío = el que tenga PTZ)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>AW-HE40/42/50/60/70/130, AW-UE70/100/150/160 (control por HTTP).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Digital (recorte en la GPU)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+105"/>
+        <source>No hay una entrada de video «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>«%1» no tiene PTZ: prendé el digital o elegí un backend</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>«%1» no tiene foco controlable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>«%1» no deja cambiar el autofoco</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>«%1» no tiene una posición número %2 (ptz_posiciones da las que hay)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location filename="../src/app/ptz/ControlCamarasPosiciones.cpp" line="+342"/>
+        <source>El número de preset va desde 1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location filename="../src/app/ptz/ControlCamarasPosiciones.cpp" line="-159"/>
+        <location line="+21"/>
+        <source>Preset %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+194"/>
+        <source>El PTZ digital está apagado en «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-75"/>
+        <source>Backend «%1» desconocido (ninguno, visca, onvif, panasonic, plugin)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Falta el plugin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location filename="../src/app/ptz/PtzOnvif.cpp" line="+115"/>
+        <location filename="../src/app/ptz/PtzPanasonic.cpp" line="+41"/>
+        <location filename="../src/app/ptz/PtzVisca.cpp" line="+59"/>
+        <source>Falta la dirección de la cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>Modo «%1»: general, si o no</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Modo «%1»: optico o digital</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>«%1» no tiene backend de hardware</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/ControlCamarasFoto.cpp" line="+83"/>
+        <source>La foto queda sin memoria de la cámara (%1): tocarla sirve mientras no se la mueva.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no contestó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>La entrada «%1» no da imagen ahora: no hay foto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location filename="../src/app/ptz/ControlCamarasPosiciones.cpp" line="-86"/>
+        <source>No se pudo guardar la foto en %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Primero sacá una foto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>La cámara se movió desde la foto y no tiene una memoria para volver: sacá otra foto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/ControlCamarasPosiciones.cpp" line="-33"/>
+        <location line="+247"/>
+        <location line="+50"/>
+        <source>No hay una posición «%1» en «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-269"/>
+        <source>La entrada «%1» no da imagen ahora: la posición queda sin foto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
+        <source>Preset de la cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Traído de la cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>la cámara no contesta: no se grabó en ella</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la cámara no tiene memorias</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>no quedan memorias libres en la cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>No hay nada que registrar: prendé el PTZ digital o configurá la cámara (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+53"/>
+        <source>El número %1 ya es de «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+60"/>
+        <source>No hay una posición «%1» en «%2» (hay: %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>se grabó con el backend %1 y la cámara ahora tiene %2: la cabeza no se mueve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>la cámara no contesta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>el PTZ digital está apagado: el recorte no se aplica</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>se registró en %1 y la entrada ahora es %2x%3 (el recorte es proporcional: cae en el mismo lugar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>No se pudo ir a «%1»: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/Interlock.hpp" line="+34"/>
+        <source>La cámara «%1» está AL AIRE: moverla se ve en lo que sale (transmisión o grabación).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/Posiciones.cpp" line="+94"/>
+        <source>La posición necesita un nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Ya hay una posición «%1» en esta cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>El nombre no puede ser solo un número (se confunde con el id)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/PtzDigital.cpp" line="+14"/>
+        <source>Digital (recorte en la entrada)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <location line="+36"/>
+        <source>El PTZ digital está apagado en esta entrada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>El preset digital %1 está vacío</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Yendo al preset digital %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Preset digital %1 guardado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Cuadro completo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/PtzOnvif.cpp" line="-31"/>
+        <source>Sin respuesta de la cámara (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>La cámara no acepta el usuario o la clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../src/app/ptz/PtzVisca.cpp" line="+86"/>
+        <source>La cámara contestó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Conectando con %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Conectada, pero la cámara no tiene PTZ por ONVIF (queda el digital)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Conectada (ONVIF, perfil %1, %2 presets)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+87"/>
+        <source>La cámara no aceptó el movimiento (HTTP %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>La cámara no tiene el preset %1 (tiene %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location filename="../src/app/ptz/PtzPanasonic.cpp" line="+67"/>
+        <location filename="../src/app/ptz/PtzVisca.cpp" line="+63"/>
+        <source>Yendo al preset %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location filename="../src/app/ptz/PtzPanasonic.cpp" line="+5"/>
+        <location filename="../src/app/ptz/PtzVisca.cpp" line="+10"/>
+        <source>Preset %1 guardado en la cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>«%1» grabada en la cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/PtzPanasonic.cpp" line="-69"/>
+        <source>Probando %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>Sin respuesta de %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Conectada (Panasonic %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>La cámara rechazó %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/PtzPlugin.cpp" line="+37"/>
+        <source>Plugin «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El plugin «%1» no está corriendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/PtzProtocolos.cpp" line="+143"/>
+        <source>largo de mensaje inválido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>orden que la cámara no entiende</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la cámara está ocupada (buffer lleno)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>orden cancelada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no hay socket</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>la cámara no puede hacer eso ahora</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>error VISCA %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+472"/>
+        <source>la cámara contestó un error SOAP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ptz/PtzVisca.cpp" line="-197"/>
+        <source>Sin respuesta de %1:%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Conectada (VISCA TCP %1:%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>No conecta con %1:%2 (%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Buscando %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>No encuentro «%1» en la red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+63"/>
+        <source>Conectada (VISCA %1 %2:%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>qr</name>
+    <message>
+        <location filename="../src/app/ui/QrViewModel.cpp" line="-750"/>
+        <source>Un enlace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Una dirección web. Lo más usado y lo que menos ocupa.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dirección</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Red WiFi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El teléfono ofrece conectarse solo, sin tipear la clave.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nombre de la red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Estudio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Seguridad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Un contacto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El teléfono ofrece agregarlo a la agenda (vCard).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nombre y apellido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ana Pérez</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Teléfono</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Correo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Organización</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cargo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Web</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Una reunión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Meet, Zoom o Teams. Si ya tenés el enlace entero, pegalo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plataforma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Código o enlace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Clave (Zoom)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Un texto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lo que sea. El teléfono lo muestra y ofrece copiarlo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+12"/>
+        <source>Texto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <source>Llamar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Al escanearlo, el teléfono ofrece llamar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Número</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Escribir un correo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Abre el correo con el destinatario puesto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Para</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Asunto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Entrar a la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El enlace de invitados de esta conferencia, con su PIN adentro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El teleprompter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>La pantalla del orador (solo lee, no lleva clave).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rotular desde el celular</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Los textos de la escena al aire, con su clave.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Preguntas del publico</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La pagina para preguntar y votar desde la butaca, con su clave.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+456"/>
+        <source>guardado «%1» (%2, %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>borrado %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+91"/>
+        <source>Público: preguntar y votar (con la clave adentro)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: entrar como invitado (con el PIN adentro)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prompter: la vista del orador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rótulos: cargarlos desde el teléfono</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+127"/>
+        <source>exportado a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/qr/Qr.cpp" line="+158"/>
+        <source>No hay nada que codificar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>El texto es demasiado largo para un código QR (probá con menos corrección de errores, o acortá el enlace).</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -34936,10 +52560,745 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
 </context>
 <context>
+    <name>recovery</name>
+    <message>
+        <location filename="../src/launcher/RecoveryUi.cpp" line="+203"/>
+        <source>RegisterClassW fallo; sin UI de recuperacion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>CreateWindowExW fallo; sin UI de recuperacion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>no se pudo crear el static de estado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>no se pudo crear el static de integridad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>no se pudo crear un boton de accion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>UI de recuperacion mostrada: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>UI de recuperacion (sin GUI en esta plataforma)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A caido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>B caido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>integridad con fallos</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>recuperacion</name>
+    <message>
+        <location line="-245"/>
+        <source>El supervisor detecto un problema en los procesos hijos:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>• Proceso A (aplicacion): CAIDO (codigo de salida %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>• Proceso A (aplicacion): CAIDO.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>• Proceso B (gateway): CAIDO (codigo de salida %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>• Proceso B (gateway): CAIDO.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Se detectaron problemas de integridad en el disco.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El supervisor requiere una accion del operador.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Elija una accion:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Integridad del disco: OK (%1 archivos verificados).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Integridad del disco: %1 verificados, %2 ausentes, %3 con hash distinto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+109"/>
+        <location filename="../src/launcher/Supervisor.cpp" line="+204"/>
+        <source>Broadcast Appliance — Recuperación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <location line="+82"/>
+        <source>Reintentar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-81"/>
+        <source>Forzar reinicio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+78"/>
+        <source>Salir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <source>Broadcast Appliance tuvo un problema.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La interfaz/motor (A) se cerro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La sala de invitados (B) se cerro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hay archivos del programa con fallas de integridad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Reiniciar todo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Cerrar todo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Seguir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>¿Cerrar todo el programa? Se corta la transmisión y la grabación.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/launcher/Supervisor.cpp" line="-310"/>
+        <source>Broadcast Appliance — Integridad</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>red</name>
+    <message>
+        <location filename="../src/app/net/HttpsClient.cpp" line="+122"/>
+        <source>no se pudo conectar a %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>sin raices de certificados (falta data/cacert.pem: make deps-cacert)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+11"/>
+        <source>no se pudo preparar TLS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>certificado de %1 no valido: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>TLS con %1 fallo: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+150"/>
+        <source>no se pudo abrir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location line="+20"/>
+        <source>se corto al enviar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <source>se corto la subida en %1 de %2 bytes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>el servidor no respondio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>respuesta cortada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>cabeceras demasiado grandes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>respuesta HTTP invalida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>no se pudo escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>descarga incompleta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/red/Biblioteca.cpp" line="+121"/>
+        <source>Genérica</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>no se reconoció la marca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>ONVIF modelo «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>su servidor web dice «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>su página web se llama «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>MAC de %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>tiene abierto el puerto %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/red/Plan.cpp" line="+58"/>
+        <source>no se pudo armar el plan: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Perfil «%1»: %2x%3 %4 a %5 fps (el más chico que cubre el lienzo de %6 líneas; ojo: MJPEG se decodifica por CPU)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Perfil «%1»: %2x%3 %4 a %5 fps (el más chico que cubre el lienzo de %6 líneas, se decodifica por hardware)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Sin perfiles ONVIF: se usa la URL que contestó (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>viene entrelazada</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>píxel no cuadrado (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>cuadros por segundo variables</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>manda %1 fps y el estudio va a %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Normalizar por las dudas (no se pudo analizar el stream antes): GStreamer desentrelaza si hace falta, lleva a los cuadros del estudio y a píxel cuadrado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Normalizar con GStreamer porque %1 (desentrelaza, lleva a los cuadros del estudio y a píxel cuadrado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Sin normalizar: ya viene progresiva, con píxel cuadrado y a los cuadros del estudio (cero CPU extra)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El color (%1, rango %2) lo convierte libobs en la GPU: no hace falta tarjeta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>lo que declare</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el que declare</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>OJO: manda HDR y el estudio es SDR: pasar la cámara a SDR (Rec.709)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Colchón de 60 ms (es PTZ: se maneja mirando la imagen; con Wi-Fi o por internet, 300-600)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Colchón de 200 ms (red local cableada; con Wi-Fi o por internet, 400-800)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>PTZ por ONVIF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PTZ por ONVIF con el perfil «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>(%1 presets)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>, con posición de inicio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Sin PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/red/Red.cpp" line="-461"/>
+        <source>(no cuadrado)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>no contestó a tiempo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>URL inválida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no se pudo abrir el stream</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>esta compilación no trae GStreamer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>falló al procesar el análisis: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>falló al leer la respuesta ONVIF: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>ONVIF rechazó el usuario y la clave guardados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ONVIF rechazó el usuario y la clave guardados: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+142"/>
+        <source>el video no está disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>el PTZ no está disponible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+69"/>
+        <source>ONVIF configurado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-23"/>
+        <source>Cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>no se pudo configurar: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>no (se pidió sin PTZ)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>no tiene PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/red/Rtsp.cpp" line="+111"/>
+        <source>se ve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pide usuario y clave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>clave incorrecta o sin permiso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no existe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no contesta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>contestó %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>registro</name>
     <message>
         <location filename="../src/app/arranque/Registrar.cpp" line="+52"/>
         <source>registro abierto (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/registro/AgenteTotem.cpp" line="+30"/>
+        <source>no empezó a contestar en %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>tardó más de %1 s en contestar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+92"/>
+        <source>modelo: %1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>modelo (texto): «%1»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>el modelo no contestó a tiempo, sigue el guion en este turno: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/registro/Totems.cpp" line="+241"/>
+        <source>El id del tótem va de 1 a 32 letras minúsculas, números o guiones (sin espacios ni tildes).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Ponele un nombre al tótem.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>La clave «%1» no sirve: van letras minúsculas, números y guion bajo (sin espacios ni tildes).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Hay dos campos con la clave «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El campo «%1» es de opciones: hacen falta al menos dos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>La ficha del evento es muy larga (hasta 4000 letras): dejá lo que se pregunta en la puerta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>Ya hay un tótem con el id «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>No hay ningún tótem «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Los cambios tienen que ser un objeto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No conozco «%1» en un tótem.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>no se pudo leer %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la configuración de registro está rota (JSON inválido): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>no hay un evento abierto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>no se pudo escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se pudo terminar de escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no se pudo reemplazar la configuración de registro: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/RegistroViewModel.cpp" line="-116"/>
+        <source>nivel de registro cambiado a %1 desde el visor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>registro exportado a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/TotemsViewModel.cpp" line="-1509"/>
+        <source>no se pudieron publicar los tótems: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+270"/>
+        <source>tótem «%1»: intento fallido desde %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+251"/>
+        <source>tótem «%1» (%2): empieza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>tótem «%1» (%2): empieza con %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>tótem (%1): oyó «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>tótem (%1): turno «%2»</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+161"/>
+        <source>registrado por el tótem «%1»: «%2» (padrón %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+202"/>
+        <source>tótem «%1» (%2): documento leído (%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>tótem «%1» (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: documento leído por el dorso, con el %2 (%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>%1: dorso: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+181"/>
+        <source>no se pudo publicar el link de atención remota: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+97"/>
+        <source>tótem (%1): la persona interrumpió al asistente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>tótem «%1» (%2): la atiende %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>alguien del equipo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>tótem «%1» (%2): atención terminada (%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>atención remota: intento fallido desde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>atención remota: entró «%1» desde %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+112"/>
+        <source>el modelo de los tótems no cargó (sigue el guion solo): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>tótem «%1» (%2): por ahora el guion solo (%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>tótem «%1» (%2): el modelo no contesta, sigue el guion solo (%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/diag/SalidaAsincrona.cpp" line="+90"/>
+        <source>registro: el disco no daba abasto; se perdieron %1 bytes de salida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/AdminApi.cpp" line="-107"/>
+        <source>nivel cambiado a %1 desde la API de control</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -34948,6 +53307,602 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     <message>
         <location filename="../src/app/emision/BroadcastEngine.cpp" line="+930"/>
         <source>no se guardó: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>resolucion</name>
+    <message>
+        <location filename="../src/app/resolucion/Plan.cpp" line="+134"/>
+        <source>no está en ninguna escena: no se puede decir cuánto hace falta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>El PTZ está después de la superresolución: recorta píxeles que la superres inventó. Va antes: la superres tiene que recibir la ventana real de la cámara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>«%1» solo trabaja en RAM y está entre tarjetas que van en la GPU: el video baja y vuelve a subir en cada cuadro. Movelo al principio o al final de la cadena.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>La superresolución no está agrandando: entra y sale %1 (el motor no acepta ese tamaño —el de Apple llega a 960×960— o está en reposo). En esta cadena sobra; si hace falta, tiene que recibir %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La superresolución agranda algo que ya cubre lo que se ve: entra %1, sale %2 y la escena lo muestra como mucho a %3. Gasta la GPU en píxeles que después se tiran.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La superresolución recibe un recorte estirado (%1 con el detalle de %2): rinde peor que con la ventana real. El PTZ debería entregarle %3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Con zoom %1 el PTZ toma una ventana de %2 de la cámara y la estira a %3 (se ve a %4).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Una superresolución después del PTZ, o un modo más grande de la cámara, devuelve detalle.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>El PTZ saca %1 y se ve a %2: podría entregar lo que se pide.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>«%1» agranda a %2 y se ve como mucho a %3: se escala de más.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Llega a la escena en %1 y se ve como mucho a %2: se procesa de más.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>La cámara entrega %1 y para lo que se ve alcanza %2 (%3): se captura, se decodifica y se escala de más.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>La cámara entrega %1 y hace falta %2: tiene %3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>El modo actual lo decodifica el sistema en la CPU sin decirlo; %1 hace lo mismo a la vista.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La fuente da %1 cps y el lienzo pide %2: se repiten cuadros.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>La cámara tiene %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/resolucion/ResolucionModel.cpp" line="+157"/>
+        <source>no se pudo armar el plan: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>riel</name>
+    <message>
+        <location filename="../src/app/ui/RielConfig.cpp" line="+37"/>
+        <source>En vivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dashboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Escenas y fuentes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cámaras PTZ: mover, zoom, presets y mejorar la imagen de cada cámara</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia (lobby, invitados, chat)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rótulos en vivo: los textos de la escena que está al aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Teleprompter: los discursos y el control del atril</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Público: las preguntas de la gente y la urna, para moderar en vivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Asamblea: central de conferencia (micrófonos de banca), recinto, orden del día y votación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Evento</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Evento: el abierto (con sus escenas, mezclador, medios y asamblea), su guion, padrón, orden del día y web; evento nuevo o abrir otro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Medios: música, videos, imágenes y presentaciones, con vista previa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Gráficos animados: zócalos, placas y tickers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Códigos QR: la biblioteca y el estudio de diseño</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Personas: quién es quién, para que el sistema los reconozca</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Histórico: todos los eventos, qué pasó en cada uno, con qué configuración, qué se grabó y transmitió</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Salidas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pantallas: los monitores de esta máquina y las TV de la red, y qué va en cada uno</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Multiview: varias fuentes en un muro, con separación y bordes de color, tally y vúmetros; a otro monitor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>YouTube (cuenta, videos, en vivo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Twitch (canal, vivo, chat)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Facebook (Páginas, vivos, videos)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Señales y equipos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Entradas de video: las cámaras, capturadoras, NDI y señales de red que usa el evento, con su imagen y en qué escenas están</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Entradas de audio: los micrófonos, líneas y placas que usa el evento, y si están conectados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Dispositivos y equipos: todo lo de audio y video de la máquina con el nombre que le pusiste y si está conectado; buscar en la red y el USB y manejarlo (ONVIF, claves, PTZ, UVC)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Video: qué se le hace a cada entrada (croma, color, recorte) y salidas con nombre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Audio: el procesamiento de cada entrada de audio (módulos LSP por fuente)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Botonera: superficie de control en una tablet (QR), Stream Deck o MIDI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Asistente: la terminal del agente que trabaja con vos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Agentes: los roles automáticos, qué hacen y qué hicieron</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Plugins: programas en Python para equipos raros, tarjetas y automatizaciones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Latencias del pipeline: cuánto tarda cada cosa, de cada entrada a cada salida (video y audio, tarjeta por tarjeta, módulo por módulo), y los análisis</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Logs del sistema: todo lo que pasa, de los tres procesos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Configuración</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>rostros</name>
+    <message>
+        <location filename="../src/app/ui/PersonasViewModel.cpp" line="-437"/>
+        <source>alta automática: «%1» (ficha %2, lobby %3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+227"/>
+        <source>auto-aceptada del evento: «%1» (ficha %2, lobby %3, parecido %4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>acreditado en la puerta: «%1» (ficha %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/core/rostros/Personas.cpp" line="+139"/>
+        <source>el archivo de personas no es una lista</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>no se pudo escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>error al escribir %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>no se pudo reemplazar %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>sala</name>
+    <message>
+        <location filename="../src/app/sala/Atencion.cpp" line="+30"/>
+        <source>el rol de recepción</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el asistente de automatización</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>nadie</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>No hay quién atienda: prendé el rol «recepción» (Agentes) o el asistente de automatización (pestaña ✦). El del evento no atiende el lobby: es la charla con vos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/ControlSala.cpp" line="+60"/>
+        <location filename="../src/app/sala/OradoresSala.cpp" line="+20"/>
+        <location filename="../src/app/sala/PaginaPublico.cpp" line="+17"/>
+        <source>no hay nada para cambiar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>el mensaje está vacío</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <location line="+23"/>
+        <source>Ese archivo ya no está.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>No se pudo leer el archivo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>No se pudo copiar el archivo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>No se pudo agregar la fuente: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>Falta la direccion del servidor (host:puerto)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>El gateway no pudo generar la configuracion: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/CupoSala.cpp" line="+19"/>
+        <source>el cupo va de 1 a %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Cupo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cupo de invitados: %1 (la conferencia no contesta: rige cuando arranque).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Cupo de invitados: %1 → %2, sin reiniciar la conferencia.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/Direcciones.cpp" line="+75"/>
+        <source>La conferencia no informó ese servicio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>La conferencia no responde.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/EnlacesSala.cpp" line="+35"/>
+        <source>La conferencia no responde</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>La conferencia no está corriendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/OradoresSala.cpp" line="-4"/>
+        <source>configuración inválida</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>el tiempo general tiene que ser de más de cero segundos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>carrusel: manual, chain o time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>el tiempo tiene que ser de más de cero segundos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/PaginaPublico.cpp" line="+11"/>
+        <source>No pude leer la imagen: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Esa imagen pesa mas de 2 MB. La bajan todos los telefonos del salon: achicala antes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/ParticipantesSala.cpp" line="+107"/>
+        <source>pedido desconocido: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>la conferencia no pudo hacer la prueba</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/Pedido.cpp" line="+22"/>
+        <source>la conferencia no contesta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>la conferencia no lo aceptó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/PreguntasSala.cpp" line="+21"/>
+        <source>accion: elegir, des_elegir, al_aire, responder, descartar, limpiar o vaciar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Falta el id de la pregunta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>La pregunta está vacía.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>ese mensaje ya no está en el chat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/ReglasSala.cpp" line="+15"/>
+        <source>la conferencia está llena: sacá a alguien primero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ya no está en la conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no aplica en su estado actual</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no hay nadie más en la fila</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+1"/>
+        <source>la conferencia (gateway) no responde</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>La conferencia no pudo hacer la prueba.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Se escucha el retorno por su micrófono (%1 dB): que use auriculares o baje el parlante.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>La red no alcanza: que se acerque al wifi o use cable (o bajarle la calidad).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>La red anda justa: puede haber cortes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Todo bien: sin eco y la red alcanza.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>cambios inválidos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>falta el dominio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/SeguridadSala.cpp" line="+20"/>
+        <source>no se cambia en vivo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no se pudo guardar %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/Teleprompter.cpp" line="+22"/>
+        <source>No dice qué discurso.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No pude abrir «%1».</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/VotacionSala.cpp" line="+22"/>
+        <source>Hacen falta al menos dos opciones: con una sola no hay nada que decidir.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Van hasta diez opciones.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>modo: encuesta o formal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Una votación formal necesita el padrón, y el padrón vive en el evento: abrí uno.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No hay nadie con derecho a voto y presente en el padrón (hace falta «vota» y estado «llegó»). Una votación formal donde nadie puede votar da un resultado que parece válido.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -35026,6 +53981,59 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
 </context>
 <context>
+    <name>shadow</name>
+    <message>
+        <location filename="../src/launcher/ShadowCopy.cpp" line="+236"/>
+        <source>no se pudo obtener la carpeta temporal; ejecutar desde la raiz (fail-safe)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>copia sombra reutilizada (reused): %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>no se pudo limpiar la copia sombra a medias: %1; ejecutar desde la raiz</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>fallo al copiar %1 hacia %2; ejecutar desde la raiz</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>no se pudo escribir el marker .shadow_ok en %1; ejecutar desde la raiz</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>copia sombra creada: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>no se pudo borrar la copia sombra: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>copia sombra eliminada: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/launcher/Supervisor.cpp" line="+43"/>
+        <source>ejecutando desde la raiz original</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>ejecutando desde la copia sombra: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>sincronia</name>
     <message>
         <location filename="../src/app/video/Sincronia.cpp" line="+81"/>
@@ -35055,6 +54063,104 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     <message>
         <location line="+15"/>
         <source>no hay una coincidencia clara entre las dos (confianza %1): hace falta más movimiento en común, o que las dos vean lo mismo</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>sup</name>
+    <message>
+        <location filename="../src/launcher/Supervisor.cpp" line="-51"/>
+        <source>operador eligio salir ante fallos de integridad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>operador eligio continuar pese a fallos de integridad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+124"/>
+        <source>readopt: adoptado %1 pid=%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>circuit breaker: A entra en modo seguro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>%1: reinicio en %2 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+63"/>
+        <source>%1 no puede funcionar en este entorno (ver su log: p. ej. sin sesion grafica); reintento en %2 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>B se cerró en orden (reinicio de la sala); se relanza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 termino inesperadamente; reiniciando con backoff</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>%1 se cayó (%2); terminar y relanzar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 colgado (heartbeat estancado); volcado + terminar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>forzar reinicio: terminando hijos y relanzando desde 0</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>cierre pedido (señal/sesion)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>A salio limpiamente (codigo 0); cierre ordenado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>recuperación: el operador eligió salir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+55"/>
+        <source>%1 cerro por el canal de control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 cerro tras la señal de terminacion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1 no cerro a tiempo; se fuerza</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>cierre ordenado: A primero (corta la emision), despues B</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>clean_shutdown marcado</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -35101,6 +54207,370 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     <message>
         <location line="+53"/>
         <source>`espera_ui_s`: segundos (10 a 3600)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>tarjetas</name>
+    <message>
+        <location filename="../src/app/pantallas/Tarjetas.hpp" line="+28"/>
+        <source>Dirección</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Aire</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Salidas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Escenas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mezclador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Invitados</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Monitor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fuentes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Oradores</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Carrusel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Control PTZ</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>term</name>
+    <message>
+        <location filename="../src/app/term/Pty_win.cpp" line="+74"/>
+        <source>CreatePseudoConsole (hace falta Windows 10 1809 o posterior)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>tiempos</name>
+    <message>
+        <location filename="../src/app/tiempos/Tiempos.cpp" line="+43"/>
+        <source>espera en el colchón: cada cuadro sale a su hora de captura + la latencia fijada, para que todas las entradas salgan juntas (por eso es más que lo que tarda cada tarjeta)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>sale %1 ms más tarde que lo fijado</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location line="+1"/>
+        <source>PTZ digital</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Mejorar imagen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+1"/>
+        <source>Superresolución</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plugin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rostros</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rack de audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Limitador</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+225"/>
+        <source>Voz a texto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Texto a voz</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Traducción</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>escucha una copia del audio: no atrasa lo que sale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>la hora que trae está corrida %1 s del reloj del estudio: no es una demora, es otro reloj</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>lo que agrega el compositor: su latencia y esperar a la capa que llega última (el colchón de cada entrada ya está en su tramo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>el compositor agrega %1 ms (más de dos cuadros): algo de adentro no da abasto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Mezcla del programa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>Transmisión</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Transmisión %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Grabación</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
+        <source>%1 puede trabajar en la GPU pero negoció RAM (lo que tiene al lado la obligó)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 acepta cualquier memoria pero negoció RAM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 trabaja en RAM: sus pads solo aceptan memoria del sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>El video baja de la %1 en «%2» y vuelve a subir en «%3». Cada cruce copia el cuadro entero (%4 entre bajar y subir, más CPU y ancho de memoria).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>El video baja de la %1 en «%2» y vuelve a subir en «%3»: %4. Cada cruce copia el cuadro entero (%5 entre bajar y subir, más CPU y ancho de memoria).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Desde «%1» el video sigue en RAM hasta la salida de la entrada (%2 lo bajó de la GPU y nadie lo vuelve a subir).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>La fuente entrega los cuadros con %1 de edad desde que se tomaron (la cámara, el USB, el driver y el sistema): es lo que más pesa y no lo agrega ninguna tarjeta. Probá otro modo de la cámara (crudo o MJPEG, menos resolución o más cps).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>%1 publica los cuadros con otra hora: salen %2 «más jóvenes» que como entraron. Lo que se mide después queda corrido eso; si es un mezclador de video, el contenido queda %2 más tarde que el audio en las salidas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>%1 agrega %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>: la cola guarda %1 de video</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>: tarda o retiene cuadros (un filtro temporal que guarda cuadros cuenta aunque procese rápido)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>%1 tarda %2 pero le declara %3 al pipeline: la compensación del estudio no lo sabe; si lo que falta se acerca al colchón de la entrada, llega tarde a la mezcla.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>%1 declara %2 pero tarda %3: el estudio espera de más por él.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>«%1» convierte en la CPU (%2 → %3): %4; lo pide %5</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>«%1» convierte en la CPU (%2 → %3): %4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Antes de la composición, la cadena de la placa «sin señal» retiene %1: el conmutador no deja pasar el cuadro apenas llega (un fallbackswitch espera la latencia declarada + un margen). Es el colchón de esta entrada; la composición ya espera sola a la más lenta.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-343"/>
+        <source>se cerró la app midiendo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
+        <source>midiendo (la página se ve)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>en reposo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>no se pudo armar el grafo: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+126"/>
+        <source>%1: llegan datos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: dejaron de llegar datos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: ya no está</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: llega tarde a la mezcla</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1: volvió a llegar a tiempo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: se rearmó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Al aire: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1: arrancó</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1: paró</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Latencia del estudio: %1 → %2 ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+97"/>
+        <source>sondas en %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+87"/>
+        <source>no llegó ninguna medición (¿el motor está andando?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>totems</name>
+    <message>
+        <location filename="../src/app/ui/TotemsViewModel.cpp" line="-1721"/>
+        <source>el modelo local no tiene un proyector de visión en el catálogo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>falta bajar la visión del modelo local («%1», modelo_local_bajar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>falta llama-server en el programa</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -35680,11 +55150,239 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
         <source>Armado</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../src/gateway/Botonera.cpp" line="-159"/>
+        <location filename="../src/gateway/ControlWeb.cpp" line="-196"/>
+        <source>demasiados intentos; esperá 10 minutos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location filename="../src/gateway/ControlWeb.cpp" line="+6"/>
+        <source>código inválido</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+92"/>
+        <source>Este aparato no está emparejado (o fue revocado).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+94"/>
+        <source>Este aparato fue revocado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/ControlWeb.cpp" line="-37"/>
+        <source>Este aparato fue revocado (o se apagó el acceso desde afuera).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+142"/>
+        <source>Demasiados intentos: esperá 10 minutos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Este aparato no está emparejado, o falta el PIN para entrar desde afuera.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Este aparato no está emparejado (o fue quitado).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Registro.cpp" line="-134"/>
+        <location filename="../src/gateway/RegistroAtiende.cpp" line="-38"/>
+        <location filename="../src/gateway/Sesion.cpp" line="-591"/>
+        <location line="+5"/>
+        <source>Mensaje inválido.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location filename="../src/gateway/RegistroAtiende.cpp" line="+3"/>
+        <location filename="../src/gateway/Sesion.cpp" line="+3"/>
+        <source>Demasiados intentos desde esta conexión. Esperá 10 minutos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Este enlace de registro no es válido (o lo cambiaron). Pedí el nuevo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Hay demasiadas conexiones ahora. Probá en un rato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>Todavía no hay un canal de audio para vos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>La página ofreció algo más que el micrófono y la cámara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No hay lugar para escucharte ahora.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>Este tótem se dio de baja o le cambiaron el enlace.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Se cerró esta pantalla de registro.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/RegistroAtiende.cpp" line="+5"/>
+        <source>Este enlace de atención no es válido (o lo cambiaron). Pedí el nuevo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Hay demasiadas personas atendiendo ahora. Probá en un rato.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>Esa conversación ya terminó.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>La página ofreció algo más que audio y video.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>No hay lugar para ver y oír ahora.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Cambiaron el enlace de atención (o se cerró el evento).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Sesion.cpp" line="+8"/>
+        <source>Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+11"/>
+        <source>Usuario o contraseña incorrectos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>Por PIN errado varias veces, tu acceso está bloqueado 15 minutos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>El PIN no es correcto.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Este link no es válido (o fue revocado). Pedile uno nuevo a la secretaría.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Entraste desde otro lado: esta ventana se cerró.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+89"/>
+        <source>no hay lugar para el audio en la sala</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>La sala no tiene lugar para mandarte la imagen ahora.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>La página ofreció algo más que el micrófono.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>La sala no tiene lugar para escucharte ahora.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+141"/>
+        <source>Tu acceso fue revocado.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+94"/>
+        <source>La presidencia te desconectó.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1666"/>
+        <source>no existe ese carrusel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+59"/>
+        <source>falta id de fuente</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+125"/>
+        <source>sin codigo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
+        <source>la pregunta esta vacia</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/Votacion.cpp" line="+145"/>
+        <source>la votacion no esta abierta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>esa opcion no existe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>falta el codigo: en una votacion formal hay que identificarse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>ese codigo no figura entre los que pueden votar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>no se de que telefono viene</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>web/control</name>
     <message>
-        <location line="+2"/>
+        <location filename="../build/i18n-actualizar/cadenas-web.cpp" line="+2"/>
         <source>Aparato sin nombre</source>
         <translation type="unfinished"></translation>
     </message>

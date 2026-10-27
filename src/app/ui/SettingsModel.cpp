@@ -5,6 +5,7 @@
 #include "arranque/AjustesMotor.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "ui/SettingsModel.hpp"
+#include <QCoreApplication>
 #include <QMetaObject>
 #include <QPointer>
 
@@ -106,7 +107,8 @@ QString etiquetaIdioma() {
 /// (una de las IPv4 que tiene la máquina ahora; la guardada aunque no esté).
 QVariantList opcionesTemaWeb() {
     QVariantList out;
-    for (const auto& t : control::temasWeb()) out << QVariantMap{{"value", t.id}, {"label", t.nombre}};
+    for (const auto& t : control::temasWeb())
+        out << QVariantMap{{"value", t.id}, {"label", QCoreApplication::translate("control-web", t.nombre)}};
     return out;
 }
 

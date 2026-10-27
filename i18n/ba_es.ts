@@ -2,6 +2,17 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="es" sourcelanguage="es_AR">
 <context>
+    <name>AccesoRemoto</name>
+    <message numerus="yes">
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+725"/>
+        <source>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</source>
+        <translation>
+            <numerusform>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</numerusform>
+            <numerusform>Pedí cortar %n túneles de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>AgentesPage</name>
     <message numerus="yes">
         <location filename="../src/app/qml/pages/AgentesPage.qml" line="+304"/>
@@ -240,6 +251,28 @@
     </message>
 </context>
 <context>
+    <name>Drivers</name>
+    <message numerus="yes">
+        <location filename="../src/app/dispositivos/Drivers.cpp" line="+173"/>
+        <source>%n driver anda</source>
+        <translation>
+            <numerusform>%n driver anda</numerusform>
+            <numerusform>%n drivers andan</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>EnlacesViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/EnlacesViewModel.cpp" line="+210"/>
+        <source>%n aparato conectado</source>
+        <translation>
+            <numerusform>%n aparato conectado</numerusform>
+            <numerusform>%n aparatos conectados</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>EquiposPage</name>
     <message numerus="yes">
         <location filename="../src/app/qml/pages/EquiposPage.qml" line="+134"/>
@@ -282,6 +315,33 @@
         <translation>
             <numerusform>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</numerusform>
             <numerusform>La revisión encontró %n problemas graves. Mirá «Revisión» antes de salir.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>EventoViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1157"/>
+        <source>, %n bloque vacío que no pasa</source>
+        <translation>
+            <numerusform>, %n bloque vacío que no pasa</numerusform>
+            <numerusform>, %n bloques vacíos que no pasan</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+404"/>
+        <source>La revisión encontró %n problema que impide correr el guion</source>
+        <translation>
+            <numerusform>La revisión encontró %n problema que impide correr el guion</numerusform>
+            <numerusform>La revisión encontró %n problemas que impiden correr el guion</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+748"/>
+        <source>%n persona llegó (escanearon su invitación).</source>
+        <translation>
+            <numerusform>%n persona llegó (escaneó su invitación).</numerusform>
+            <numerusform>%n personas llegaron (escanearon su invitación).</numerusform>
         </translation>
     </message>
 </context>
@@ -428,6 +488,17 @@
         <translation>
             <numerusform>%n archivo · %1</numerusform>
             <numerusform>%n archivos · %1</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>MediosViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+251"/>
+        <source>%n archivo a «%1»</source>
+        <translation>
+            <numerusform>%n archivo a «%1»</numerusform>
+            <numerusform>%n archivos a «%1»</numerusform>
         </translation>
     </message>
 </context>
@@ -764,6 +835,17 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     </message>
 </context>
 <context>
+    <name>PantallasViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+657"/>
+        <source>Encontré %n pantalla</source>
+        <translation>
+            <numerusform>Encontré %n pantalla</numerusform>
+            <numerusform>Encontré %n pantallas</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>PastillaIA</name>
     <message numerus="yes">
         <location filename="../src/app/qml/controls/PastillaIA.qml" line="+37"/>
@@ -1031,6 +1113,33 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     </message>
 </context>
 <context>
+    <name>StudioViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4319"/>
+        <source>Hay %n persona conectada</source>
+        <translation>
+            <numerusform>Hay %n persona conectada</numerusform>
+            <numerusform>Hay %n personas conectadas</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%1, y hay %n persona conectada</source>
+        <translation>
+            <numerusform>%1, y hay %n persona conectada</numerusform>
+            <numerusform>%1, y hay %n personas conectadas</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%1 y hay %n persona conectada</source>
+        <translation>
+            <numerusform>%1 y hay %n persona conectada</numerusform>
+            <numerusform>%1 y hay %n personas conectadas</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>TarjetaTraduccion</name>
     <message numerus="yes">
         <location filename="../src/app/qml/controls/TarjetaTraduccion.qml" line="+80"/>
@@ -1038,6 +1147,17 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>
             <numerusform>Bajar %1 → %2 (%n paquete)</numerusform>
             <numerusform>Bajar %1 → %2 (%n paquetes)</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>TerminalView</name>
+    <message numerus="yes">
+        <location filename="../src/app/term/TerminalView.cpp" line="+208"/>
+        <source>↑ historial (%n linea) — rueda abajo o cualquier tecla para volver</source>
+        <translation>
+            <numerusform>↑ historial (%n línea) — rueda abajo o cualquier tecla para volver</numerusform>
+            <numerusform>↑ historial (%n líneas) — rueda abajo o cualquier tecla para volver</numerusform>
         </translation>
     </message>
 </context>
@@ -1217,6 +1337,28 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>
             <numerusform>%n comentario</numerusform>
             <numerusform>%n comentarios</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>camaras</name>
+    <message numerus="yes">
+        <location filename="../src/app/camaras/SincroLabios.cpp" line="+122"/>
+        <source>solo %n aplauso: pedí unos cuantos más antes de confiar en el número</source>
+        <translation>
+            <numerusform>solo %n aplauso: pedí unos cuantos más antes de confiar en el número</numerusform>
+            <numerusform>solo %n aplausos: pedí unos cuantos más antes de confiar en el número</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>dispositivos</name>
+    <message numerus="yes">
+        <location filename="../src/app/dispositivos/SondaGst.cpp" line="+120"/>
+        <source>%n dispositivo</source>
+        <translation>
+            <numerusform>%n dispositivo</numerusform>
+            <numerusform>%n dispositivos</numerusform>
         </translation>
     </message>
 </context>

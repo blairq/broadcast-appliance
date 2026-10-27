@@ -1,6 +1,7 @@
 // ============================================================================
 // src/app/agent/ModelosLocales.cpp — ver ModelosLocales.hpp
 // ============================================================================
+#include "i18n/I18n.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "ajustes/Ajustes.hpp"
 
@@ -631,7 +632,7 @@ QString ModelosLocales::descargar(const QString& repo) {
         descargando_ = true;
         emit descargaCambio();
     }
-    return QString::fromUtf8(net::Descargas::texto(r));
+    return QString::fromStdString(ba::i18n::traducir("descargas", net::Descargas::texto(r)));
 }
 
 std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& repo, bool actualizacion) {

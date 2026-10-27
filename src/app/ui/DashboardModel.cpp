@@ -4,6 +4,7 @@
 
 #include "ui/DashboardModel.hpp"
 #include "pantallas/Tarjetas.hpp"
+#include <QCoreApplication>
 #include <QSizeF>
 
 #include <QFile>
@@ -47,7 +48,7 @@ QVariantList DashboardModel::tiposDeTarjeta() const {
     for (const auto& k : kKinds) {
         const QString id = QString::fromUtf8(k.id);
         const bool abierta = std::any_of(cards_.begin(), cards_.end(), [&](const Card& c) { return c.kind == id; });
-        out << QVariantMap{{"kind", id}, {"titulo", QString::fromUtf8(k.titulo)}, {"icono", QString::fromUtf8(k.icono)},
+        out << QVariantMap{{"kind", id}, {"titulo", QCoreApplication::translate("tarjetas", k.titulo)}, {"icono", QString::fromUtf8(k.icono)},
                            {"abierta", abierta}};
     }
     return out;
@@ -131,7 +132,7 @@ QStringList DashboardModel::cardKinds() const {
 QString DashboardModel::kindTitle(const QString& kind) const {
     for (const auto& k : kKinds) {
         if (kind == k.id) {
-            return QString::fromUtf8(k.titulo);
+            return QCoreApplication::translate("tarjetas", k.titulo);
         }
     }
     // Las de Extensiones/ las nombra su ficha; aca no se las conoce. Devolver

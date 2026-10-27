@@ -3802,7 +3802,8 @@ QString StudioViewModel::temaWeb() const { return qs(rt_.config().temaWeb); }
 QVariantList StudioViewModel::temasWeb() const {
     QVariantList out;
     for (const auto& t : control::temasWeb())
-        out << QVariantMap{{"id", t.id},       {"nombre", t.nombre},         {"descripcion", t.descripcion},
+        out << QVariantMap{{"id", t.id},       {"nombre", QCoreApplication::translate("control-web", t.nombre)},
+                           {"descripcion", QCoreApplication::translate("control-web", t.descripcion)},
                            {"fondo", t.fondo}, {"superficie", t.superficie}, {"texto", t.texto},
                            {"acento", t.acento}};
     return out;
