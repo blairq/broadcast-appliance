@@ -157,7 +157,7 @@ class Configuraciones : public QObject {
     Q_INVOKABLE QString recuperarUi(const QString& id);
     Q_INVOKABLE QString vaciarPapeleraUi(const QString& id);
     /// Reinicia con la que esté anotada (después de activar por MCP).
-    QString reiniciar() { return reiniciar_ ? reiniciar_() : QStringLiteral("no se puede reiniciar desde acá"); }
+    QString reiniciar() { return reiniciar_ ? reiniciar_() : tr("no se puede reiniciar desde acá"); }
 
     /// Volver a medir cuánto ocupa cada evento (en otro hilo; avisa con cambio()).
     Q_INVOKABLE void medir();

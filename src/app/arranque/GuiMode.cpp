@@ -24,6 +24,7 @@
 
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QQuickWindow>
@@ -134,7 +135,7 @@ class CartelDeCarga : public QRasterWindow {
         pintar(p);
         if (!pintado_) {
             pintado_ = true;
-            ba::diag::registro().info("arranque: el cartel de carga ya se ve");
+            ba::diag::registro().info(ba::i18n::traducir("arranque", "arranque: el cartel de carga ya se ve"));
         }
         // Para mirarlo sin captura de pantalla (pruebas): BA_CARTEL_PNG=archivo.png.
         if (const QByteArray png = qgetenv("BA_CARTEL_PNG"); !png.isEmpty()) {
@@ -171,16 +172,19 @@ class CartelDeCarga : public QRasterWindow {
         f.setWeight(QFont::Normal);
         p.setFont(f);
         p.setPen(tenue);
-        const QString version = QString(BA_APP_VERSION).isEmpty() ? QString() : "Versión " + QString(BA_APP_VERSION) + " · ";
-        p.drawText(QRect(m + 108, 92, width() - m * 2 - 108, 22), Qt::AlignLeft | Qt::AlignVCenter,
-                   version + "estudio de transmisión todo en uno");
+        const QString lema = QCoreApplication::translate("arranque", "estudio de transmisión todo en uno");
+        const QString version =
+            QString(BA_APP_VERSION).isEmpty()
+                ? lema
+                : QCoreApplication::translate("arranque", "Versión %1 · %2").arg(QString(BA_APP_VERSION), lema);
+        p.drawText(QRect(m + 108, 92, width() - m * 2 - 108, 22), Qt::AlignLeft | Qt::AlignVCenter, version);
 
         // Lo que está haciendo, con una barra que avanza con cada etapa.
         f.setPixelSize(13);
         p.setFont(f);
         p.setPen(texto);
         p.drawText(QRect(m, 168, width() - m * 2, 20), Qt::AlignLeft | Qt::AlignVCenter,
-                   estado_.isEmpty() ? QStringLiteral("Cargando…") : estado_);
+                   estado_.isEmpty() ? QCoreApplication::translate("arranque", "Cargando…") : estado_);
         const QRect barra(m, 196, width() - m * 2, 4);
         p.setPen(Qt::NoPen);
         p.setBrush(borde);
@@ -211,7 +215,7 @@ class CartelDeCarga : public QRasterWindow {
         p.setFont(f);
         p.setPen(tenue);
         p.drawText(QRect(m, 244, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
-                   "Hecho por Jorge Ortega");
+                   QCoreApplication::translate("arranque", "Hecho por %1").arg("Jorge Ortega"));
         p.setPen(acento);
         QFont fe = p.font();
         fe.setUnderline(sobreEnlace_); // es un enlace: subrayado con el mouse encima
@@ -222,7 +226,7 @@ class CartelDeCarga : public QRasterWindow {
         p.setFont(fe);
         p.setPen(apagado);
         p.drawText(QRect(m, 284, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
-                   "Software libre (GPL-3.0) · GStreamer, Qt y ONNX Runtime");
+                   QCoreApplication::translate("arranque", "Software libre (GPL-3.0) · GStreamer, Qt y ONNX Runtime"));
     }
 
    public:
@@ -282,7 +286,9 @@ int runGui(int argc, char** argv) {
     rt.configure(argc, argv);
     const int rc = rt.start();
     if (rc != 0) {
-        std::printf("ba-app: el motor no pudo arrancar: %s\n", rt.lastError().c_str());
+        std::printf("ba-app: %s\n",
+                    ba::i18n::llenar(ba::i18n::traducir("arranque", "el motor no pudo arrancar: %1"), {rt.lastError()})
+                        .c_str());
         return rc;
     }
     // Las entradas de audio que el sistema tardó en abrir (BroadcastEngine::
@@ -298,10 +304,10 @@ int runGui(int argc, char** argv) {
     {
         QElapsedTimer relojGui;
         relojGui.start();
-        arranque::avisar("Cargando la configuración del estudio…");
+        arranque::avisar(ba::i18n::traducir("arranque", "Cargando la configuración del estudio…"));
         StudioViewModel vm(rt);
-        ba::diag::registro().info("arranque: el modelo de la app, " + std::to_string(relojGui.restart()) +
-                                  " ms");
+        ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: el modelo de la app, %1 ms"),
+                                                   {std::to_string(relojGui.restart())}));
         auto* frames = static_cast<FrameService*>(vm.frames());
         VideoItem::setService(frames);
         qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &vm);
@@ -327,12 +333,12 @@ int runGui(int argc, char** argv) {
         engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
         relojGui.restart();
-        arranque::avisar("Abriendo la interfaz…");
+        arranque::avisar(ba::i18n::traducir("arranque", "Abriendo la interfaz…"));
         engine.load(QUrl("qrc:/qml/Main.qml"));
-        ba::diag::registro().info("arranque: la interfaz (QML), " + std::to_string(relojGui.restart()) +
-                                  " ms");
+        ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: la interfaz (QML), %1 ms"),
+                                                   {std::to_string(relojGui.restart())}));
         if (engine.rootObjects().isEmpty()) {
-            std::printf("ba-app: no se pudo cargar la interfaz QML\n");
+            std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "no se pudo cargar la interfaz QML").c_str());
             rt.stop();
             return 3;
         }
@@ -350,7 +356,7 @@ int runGui(int argc, char** argv) {
                     arranque::oyente() = nullptr;
                     cartel.reset();
                     ba::diag::diario().arranqueOk();
-                    ba::diag::registro().info("arranque terminado: la interfaz dibujo");
+                    ba::diag::registro().info(ba::i18n::traducir("arranque", "arranque terminado: la interfaz dibujo"));
                 },
                 Qt::QueuedConnection);
             // Con qué dibuja Qt y dónde: el backend (D3D11, OpenGL, Metal, Vulkan…) y si
@@ -363,9 +369,11 @@ int runGui(int argc, char** argv) {
                                                  "Vulkan", "Metal", "Null", "Direct3D 12"};
                     const int api = w->rendererInterface() ? static_cast<int>(w->rendererInterface()->graphicsApi()) : 0;
                     const bool hiloPropio = QThread::currentThread() != qApp->thread();
-                    ba::diag::registro().info(std::string("dibujo de Qt: ") +
-                                              (api >= 0 && api < 9 ? kApi[api] : "otro") +
-                                              (hiloPropio ? ", en su hilo (QSGRenderThread)" : ", en el hilo principal"));
+                    const std::string cual = api >= 0 && api < 9 ? kApi[api] : ba::i18n::traducir("arranque", "otro");
+                    ba::diag::registro().info(ba::i18n::llenar(
+                        hiloPropio ? ba::i18n::traducir("arranque", "dibujo de Qt: %1, en su hilo (QSGRenderThread)")
+                                   : ba::i18n::traducir("arranque", "dibujo de Qt: %1, en el hilo principal"),
+                        {cual}));
                 },
                 Qt::DirectConnection);
         }
@@ -373,7 +381,8 @@ int runGui(int argc, char** argv) {
         // Servidor MCP: un asistente de IA maneja y ve toda la app (127.0.0.1 + token).
         relojGui.restart();
         mcp::McpService mcpService(rt, vm);
-        ba::diag::registro().info("arranque: el servidor MCP, " + std::to_string(relojGui.restart()) + " ms");
+        ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: el servidor MCP, %1 ms"),
+                                                   {std::to_string(relojGui.restart())}));
         // Modo prueba: el MCP ejecuta todo sin esperar la aprobación de una persona.
         bool modoTest = false;
         for (int i = 1; i < argc; ++i)
@@ -382,7 +391,7 @@ int runGui(int argc, char** argv) {
             mcpService.core().setSinAprobaciones(true);
             vm.setModoTest(true);
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
-                                       "MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire");
+                                       ba::i18n::traducir("mcp", "MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire"));
         }
         mcpService.setMainWindow([&engine]() -> QQuickWindow* {
             return engine.rootObjects().isEmpty() ? nullptr
@@ -472,10 +481,15 @@ int runGui(int argc, char** argv) {
         };
         if (rt.config().mcpEnabled) {
             if (mcpService.start(static_cast<quint16>(rt.config().mcpPort))) {
-                std::printf("ba-app: servidor MCP en %s (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)\n",
-                            mcpService.url().toLocal8Bit().constData());
+                std::printf("ba-app: %s\n",
+                            ba::i18n::llenar(ba::i18n::traducir("arranque", "servidor MCP en %1 (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)"),
+                                             {mcpService.url().toStdString()})
+                                .c_str());
             } else {
-                std::printf("ba-app: el servidor MCP no pudo abrir el puerto %d\n", rt.config().mcpPort);
+                std::printf("ba-app: %s\n",
+                            ba::i18n::llenar(ba::i18n::traducir("arranque", "el servidor MCP no pudo abrir el puerto %1"),
+                                             {std::to_string(rt.config().mcpPort)})
+                                .c_str());
             }
         }
         // El servidor arranca DESPUES de que la interfaz se dibujo, asi que hay
@@ -500,8 +514,11 @@ int runGui(int argc, char** argv) {
                 auto* win = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
                 QTimer::singleShot(snapshotDelayMs, win, [win, path]() {
                     const bool ok = win->grabWindow().save(path);
-                    std::printf("ba-app: captura de la ventana %s: %s\n", ok ? "guardada" : "FALLO",
-                                path.toLocal8Bit().constData());
+                    std::printf("ba-app: %s\n",
+                                ba::i18n::llenar(ok ? ba::i18n::traducir("arranque", "captura de la ventana guardada: %1")
+                                                    : ba::i18n::traducir("arranque", "captura de la ventana FALLO: %1"),
+                                                 {path.toStdString()})
+                                    .c_str());
                     // Las ventanas de salida, como <path>-salida-N.png.
                     int n = 1;
                     for (QWindow* w : QGuiApplication::topLevelWindows()) {
@@ -510,9 +527,12 @@ int runGui(int argc, char** argv) {
                             continue;
                         }
                         const QString p = QString(path).replace(".png", QString("-salida-%1.png").arg(n++));
-                        std::printf("ba-app: captura de ventana de salida %s: %s\n",
-                                    q->grabWindow().save(p) ? "guardada" : "FALLO",
-                                    p.toLocal8Bit().constData());
+                        std::printf("ba-app: %s\n",
+                                    ba::i18n::llenar(q->grabWindow().save(p)
+                                                         ? ba::i18n::traducir("arranque", "captura de ventana de salida guardada: %1")
+                                                         : ba::i18n::traducir("arranque", "captura de ventana de salida FALLO: %1"),
+                                                     {p.toStdString()})
+                                        .c_str());
                     }
                 });
             }

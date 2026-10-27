@@ -1,6 +1,8 @@
 // src/app/agent/ControlSistema.cpp — ver ControlSistema.hpp
 #include "agent/ControlSistema.hpp"
 
+#include <QtGlobal>
+
 #include <fstream>
 #include <system_error>
 
@@ -8,24 +10,25 @@ namespace ba::app::agent {
 
 using json = nlohmann::json;
 
+// Las etiquetas se traducen al mostrarlas: ba::i18n::traducir("controlsistema", etiqueta).
 const std::vector<std::pair<std::string, std::string>>& ControlSistema::capacidades() {
     static const std::vector<std::pair<std::string, std::string>> c{
-        {"pantalla", "Ver la pantalla (capturas, monitores)"},
-        {"mouse", "Mover y hacer clic con el mouse"},
-        {"teclado", "Escribir y mandar teclas"},
-        {"ejecutar", "Abrir programas, archivos y enlaces"},
-        {"ejecutar_admin", "Ejecutar como administrador (pide UAC)"},
-        {"buscar", "Buscar archivos"},
-        {"ventanas", "Listar, activar, minimizar y cerrar ventanas"},
-        {"portapapeles", "Leer y escribir el portapapeles"},
-        {"procesos", "Ver los procesos y cerrar uno (por su número)"},
-        {"comandos", "Correr comandos (cmd o PowerShell) y leer lo que contestan"},
-        {"sistema", "Ver los datos del equipo (memoria, discos, Windows) y leer el registro"},
-        {"archivos", "Leer y listar archivos"},
-        {"archivos_escribir", "Escribir, copiar, mover y borrar archivos (a la papelera)"},
-        {"navegador", "Chrome y Edge: la consola, JavaScript, navegar (un navegador con perfil propio)"},
-        {"registro", "Escribir y borrar valores del registro de Windows"},
-        {"avisos", "Mostrar avisos de Windows"}};
+        {"pantalla", QT_TRANSLATE_NOOP("controlsistema", "Ver la pantalla (capturas, monitores)")},
+        {"mouse", QT_TRANSLATE_NOOP("controlsistema", "Mover y hacer clic con el mouse")},
+        {"teclado", QT_TRANSLATE_NOOP("controlsistema", "Escribir y mandar teclas")},
+        {"ejecutar", QT_TRANSLATE_NOOP("controlsistema", "Abrir programas, archivos y enlaces")},
+        {"ejecutar_admin", QT_TRANSLATE_NOOP("controlsistema", "Ejecutar como administrador (pide UAC)")},
+        {"buscar", QT_TRANSLATE_NOOP("controlsistema", "Buscar archivos")},
+        {"ventanas", QT_TRANSLATE_NOOP("controlsistema", "Listar, activar, minimizar y cerrar ventanas")},
+        {"portapapeles", QT_TRANSLATE_NOOP("controlsistema", "Leer y escribir el portapapeles")},
+        {"procesos", QT_TRANSLATE_NOOP("controlsistema", "Ver los procesos y cerrar uno (por su número)")},
+        {"comandos", QT_TRANSLATE_NOOP("controlsistema", "Correr comandos (cmd o PowerShell) y leer lo que contestan")},
+        {"sistema", QT_TRANSLATE_NOOP("controlsistema", "Ver los datos del equipo (memoria, discos, Windows) y leer el registro")},
+        {"archivos", QT_TRANSLATE_NOOP("controlsistema", "Leer y listar archivos")},
+        {"archivos_escribir", QT_TRANSLATE_NOOP("controlsistema", "Escribir, copiar, mover y borrar archivos (a la papelera)")},
+        {"navegador", QT_TRANSLATE_NOOP("controlsistema", "Chrome y Edge: la consola, JavaScript, navegar (un navegador con perfil propio)")},
+        {"registro", QT_TRANSLATE_NOOP("controlsistema", "Escribir y borrar valores del registro de Windows")},
+        {"avisos", QT_TRANSLATE_NOOP("controlsistema", "Mostrar avisos de Windows")}};
     return c;
 }
 

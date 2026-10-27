@@ -10,6 +10,14 @@
 #include <cstdlib>
 #include <sstream>
 
+#include "i18n/I18n.hpp"
+
+// Las tablas se marcan para lupdate y se traducen al mostrarlas. Sin Qt (los tests de
+// audio enlazan este archivo sin Qt), la marca es el texto tal cual.
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(contexto, texto) texto
+#endif
+
 namespace ba::app::audio {
 
 using json = nlohmann::json;
@@ -31,29 +39,29 @@ std::string withBand(const std::string& name, int n) {
 
 std::vector<ModuleType> build() {
     std::vector<ModuleType> c;
-    const ModuleParam inGain{"entrada_db", "Input gain", "Ganancia de entrada (dB)."};
-    const ModuleParam outGain{"salida_db", "Output gain", "Ganancia de salida (dB)."};
-    const ModuleParam bypass{"bypass", "Bypass", "Desactivado (true/false)."};
+    const ModuleParam inGain{"entrada_db", "Input gain", QT_TRANSLATE_NOOP("modulos", "Ganancia de entrada (dB).")};
+    const ModuleParam outGain{"salida_db", "Output gain", QT_TRANSLATE_NOOP("modulos", "Ganancia de salida (dB).")};
+    const ModuleParam bypass{"bypass", "Bypass", QT_TRANSLATE_NOOP("modulos", "Desactivado (true/false).")};
     {
         ModuleType t;
         t.key = "gate";
         t.aliases = {"compuerta", "noise_gate"};
         t.pluginId = "in.lsp-plug.gate_stereo";
-        t.title = "Compuerta (gate)";
+        t.title = QT_TRANSLATE_NOOP("modulos", "Compuerta (gate)");
         t.help =
-            "Cierra el canal cuando la señal baja del umbral (ruido de fondo entre frases). Calibrar: umbral "
-            "6-10 dB sobre el piso de ruido y bien debajo de la voz; reduccion -20..-40 dB.";
+            QT_TRANSLATE_NOOP("modulos", "Cierra el canal cuando la señal baja del umbral (ruido de fondo entre frases). Calibrar: umbral "
+            "6-10 dB sobre el piso de ruido y bien debajo de la voz; reduccion -20..-40 dB.");
         t.params = {
-            {"umbral_db", "Curve threshold", "Por debajo de este nivel (dBFS) cierra."},
-            {"zona_db", "Curve zone size", "Transicion abierta-cerrada (dB, negativo)."},
-            {"reduccion_db", "Reduction", "Cuanto atenua cerrada (dB, negativo; -inf = silencio)."},
-            {"ataque_ms", "Attack", "Tiempo de apertura (ms)."},
-            {"liberacion_ms", "Release", "Tiempo de cierre (ms)."},
-            {"sosten_ms", "Hold time", "Espera antes de cerrar (ms)."},
-            {"histeresis", "Hysteresis", "Umbral de cierre distinto al de apertura (on/off)."},
-            {"umbral_histeresis_db", "Hysteresis threshold", "Umbral de cierre (dBFS) con histeresis."},
-            {"detector_pasa_altos", "High-pass filter mode", "Filtro del detector (off, 12/24/36 dB/oct)."},
-            {"detector_pasa_altos_hz", "High-pass filter frequency", "Corte del filtro del detector (Hz)."},
+            {"umbral_db", "Curve threshold", QT_TRANSLATE_NOOP("modulos", "Por debajo de este nivel (dBFS) cierra.")},
+            {"zona_db", "Curve zone size", QT_TRANSLATE_NOOP("modulos", "Transicion abierta-cerrada (dB, negativo).")},
+            {"reduccion_db", "Reduction", QT_TRANSLATE_NOOP("modulos", "Cuanto atenua cerrada (dB, negativo; -inf = silencio).")},
+            {"ataque_ms", "Attack", QT_TRANSLATE_NOOP("modulos", "Tiempo de apertura (ms).")},
+            {"liberacion_ms", "Release", QT_TRANSLATE_NOOP("modulos", "Tiempo de cierre (ms).")},
+            {"sosten_ms", "Hold time", QT_TRANSLATE_NOOP("modulos", "Espera antes de cerrar (ms).")},
+            {"histeresis", "Hysteresis", QT_TRANSLATE_NOOP("modulos", "Umbral de cierre distinto al de apertura (on/off).")},
+            {"umbral_histeresis_db", "Hysteresis threshold", QT_TRANSLATE_NOOP("modulos", "Umbral de cierre (dBFS) con histeresis.")},
+            {"detector_pasa_altos", "High-pass filter mode", QT_TRANSLATE_NOOP("modulos", "Filtro del detector (off, 12/24/36 dB/oct).")},
+            {"detector_pasa_altos_hz", "High-pass filter frequency", QT_TRANSLATE_NOOP("modulos", "Corte del filtro del detector (Hz).")},
             inGain,
             outGain,
             bypass};
@@ -72,15 +80,15 @@ std::vector<ModuleType> build() {
         t.key = "compresor";
         t.aliases = {"compressor", "comp"};
         t.pluginId = "in.lsp-plug.compressor_stereo";
-        t.title = "Compresor";
-        t.help = "Reduce la dinamica: lo que pasa el umbral se atenua segun el ratio. Voz: ratio 2-4, ataque "
-                 "5-20 ms, liberacion 80-200 ms, 3-6 dB de reduccion en las partes fuertes.";
-        t.params = {{"umbral_db", "Attack threshold", "Umbral (dBFS)."},
-                    {"ratio", "Ratio", "Relacion de compresion (1..100)."},
-                    {"rodilla_db", "Knee", "Rodilla (dB, negativo = mas suave)."},
-                    {"ataque_ms", "Attack time", "Ataque (ms)."},
-                    {"liberacion_ms", "Release time", "Liberacion (ms)."},
-                    {"ganancia_db", "Makeup gain", "Recuperacion de ganancia (dB)."},
+        t.title = QT_TRANSLATE_NOOP("modulos", "Compresor");
+        t.help = QT_TRANSLATE_NOOP("modulos", "Reduce la dinamica: lo que pasa el umbral se atenua segun el ratio. Voz: ratio 2-4, ataque "
+                 "5-20 ms, liberacion 80-200 ms, 3-6 dB de reduccion en las partes fuertes.");
+        t.params = {{"umbral_db", "Attack threshold", QT_TRANSLATE_NOOP("modulos", "Umbral (dBFS).")},
+                    {"ratio", "Ratio", QT_TRANSLATE_NOOP("modulos", "Relacion de compresion (1..100).")},
+                    {"rodilla_db", "Knee", QT_TRANSLATE_NOOP("modulos", "Rodilla (dB, negativo = mas suave).")},
+                    {"ataque_ms", "Attack time", QT_TRANSLATE_NOOP("modulos", "Ataque (ms).")},
+                    {"liberacion_ms", "Release time", QT_TRANSLATE_NOOP("modulos", "Liberacion (ms).")},
+                    {"ganancia_db", "Makeup gain", QT_TRANSLATE_NOOP("modulos", "Recuperacion de ganancia (dB).")},
                     inGain,
                     outGain,
                     bypass};
@@ -100,18 +108,18 @@ std::vector<ModuleType> build() {
         t.key = "deesser";
         t.aliases = {"de-esser", "sibilancia"};
         t.pluginId = "in.lsp-plug.deesser_stereo";
-        t.title = "De-esser";
+        t.title = QT_TRANSLATE_NOOP("modulos", "De-esser");
         t.help =
-            "Atenua las sibilancias (s, ch). La deteccion arranca en `deteccion_hz` (4-8 kHz segun la voz); "
-            "`escuchar` deja oir solo lo que detecta para ajustar.";
+            QT_TRANSLATE_NOOP("modulos", "Atenua las sibilancias (s, ch). La deteccion arranca en `deteccion_hz` (4-8 kHz segun la voz); "
+            "`escuchar` deja oir solo lo que detecta para ajustar.");
         t.params = {
-            {"umbral_db", "Threshold", "Umbral de la sibilancia detectada (dBFS)."},
-            {"ratio", "Ratio", "Cuanto la atenua."},
-            {"rodilla_db", "Knee", "Rodilla (dB)."},
-            {"ataque_ms", "Attack time", "Ataque (ms)."},
-            {"liberacion_ms", "Release time", "Liberacion (ms)."},
-            {"deteccion_hz", "High-pass filter frequency", "Desde que frecuencia detecta (Hz)."},
-            {"escuchar", "Sidechain listen", "Escuchar solo lo detectado (on/off). Apagar al terminar."},
+            {"umbral_db", "Threshold", QT_TRANSLATE_NOOP("modulos", "Umbral de la sibilancia detectada (dBFS).")},
+            {"ratio", "Ratio", QT_TRANSLATE_NOOP("modulos", "Cuanto la atenua.")},
+            {"rodilla_db", "Knee", QT_TRANSLATE_NOOP("modulos", "Rodilla (dB).")},
+            {"ataque_ms", "Attack time", QT_TRANSLATE_NOOP("modulos", "Ataque (ms).")},
+            {"liberacion_ms", "Release time", QT_TRANSLATE_NOOP("modulos", "Liberacion (ms).")},
+            {"deteccion_hz", "High-pass filter frequency", QT_TRANSLATE_NOOP("modulos", "Desde que frecuencia detecta (Hz).")},
+            {"escuchar", "Sidechain listen", QT_TRANSLATE_NOOP("modulos", "Escuchar solo lo detectado (on/off). Apagar al terminar.")},
             inGain,
             outGain,
             bypass};
@@ -124,18 +132,18 @@ std::vector<ModuleType> build() {
         t.key = "eq";
         t.aliases = {"ecualizador", "equalizer", "filtro", "filtro_multibanda"};
         t.pluginId = "in.lsp-plug.para_equalizer_x8_stereo";
-        t.title = "Ecualizador parametrico (8 bandas)";
+        t.title = QT_TRANSLATE_NOOP("modulos", "Ecualizador parametrico (8 bandas)");
         t.help =
-            "Filtros por banda (0-7): tipo (Off, Bell, Hi-pass, Lo-pass, Hi-shelf, Lo-shelf, Notch...), "
+            QT_TRANSLATE_NOOP("modulos", "Filtros por banda (0-7): tipo (Off, Bell, Hi-pass, Lo-pass, Hi-shelf, Lo-shelf, Notch...), "
             "frecuencia, ganancia y Q. Voz tipica: pasa-altos 80 Hz, -2..-4 dB en 200-300 Hz si embarra, +2 "
-            "dB en 3-5 kHz para claridad. Medir con audio_measure (respuesta).";
+            "dB en 3-5 kHz para claridad. Medir con audio_measure (respuesta).");
         t.params = {inGain, outGain, bypass};
-        t.bandParams = {{"tipo", "Filter type {n}", "Tipo de filtro."},
-                        {"modo", "Filter mode {n}", "Modo (RLC, BWC, LRX, APO...)."},
-                        {"pendiente", "Filter slope {n}", "Pendiente (x1..x4)."},
-                        {"frecuencia_hz", "Frequency {n}", "Frecuencia (Hz)."},
-                        {"ganancia_db", "Gain {n}", "Ganancia (dB)."},
-                        {"q", "Quality factor {n}", "Q (ancho: mas alto = mas angosto)."}};
+        t.bandParams = {{"tipo", "Filter type {n}", QT_TRANSLATE_NOOP("modulos", "Tipo de filtro.")},
+                        {"modo", "Filter mode {n}", QT_TRANSLATE_NOOP("modulos", "Modo (RLC, BWC, LRX, APO...).")},
+                        {"pendiente", "Filter slope {n}", QT_TRANSLATE_NOOP("modulos", "Pendiente (x1..x4).")},
+                        {"frecuencia_hz", "Frequency {n}", QT_TRANSLATE_NOOP("modulos", "Frecuencia (Hz).")},
+                        {"ganancia_db", "Gain {n}", QT_TRANSLATE_NOOP("modulos", "Ganancia (dB).")},
+                        {"q", "Quality factor {n}", QT_TRANSLATE_NOOP("modulos", "Q (ancho: mas alto = mas angosto).")}};
         t.bandFirst = 0;
         t.bandCount = 8;
         t.presets = {
@@ -149,20 +157,20 @@ std::vector<ModuleType> build() {
     {
         ModuleType t;
         t.key = "multibanda";
-        t.aliases = {"compresor_multibanda", "mb_compressor", "mbcomp"};
+        t.aliases = {"compresor_multibanda", "mb_compressor", QT_TRANSLATE_NOOP("modulos", "mbcomp")};
         t.pluginId = "in.lsp-plug.mb_compressor_stereo";
-        t.title = "Compresor multibanda";
+        t.title = QT_TRANSLATE_NOOP("modulos", "Compresor multibanda");
         t.help =
-            "Comprime cada banda por separado (hasta 8). Las bandas 2-8 se activan con `activa` y empiezan "
-            "en `corte_hz`; la banda 1 va desde abajo.";
-        t.params = {{"modo", "Compressor mode", "Classic / Modern / Linear Phase."}, inGain, outGain, bypass};
-        t.bandParams = {{"activa", "Compression band enable {n}", "Banda activa (2-8)."},
-                        {"corte_hz", "Split frequency {n}", "Frecuencia donde empieza la banda (2-8)."},
-                        {"umbral_db", "Attack threshold {n}", "Umbral (dBFS)."},
-                        {"ratio", "Ratio {n}", "Ratio."},
-                        {"ataque_ms", "Attack time {n}", "Ataque (ms)."},
-                        {"liberacion_ms", "Release time {n}", "Liberacion (ms)."},
-                        {"ganancia_db", "Makeup gain {n}", "Recuperacion (dB)."}};
+            QT_TRANSLATE_NOOP("modulos", "Comprime cada banda por separado (hasta 8). Las bandas 2-8 se activan con `activa` y empiezan "
+            "en `corte_hz`; la banda 1 va desde abajo.");
+        t.params = {{"modo", "Compressor mode", QT_TRANSLATE_NOOP("modulos", "Classic / Modern / Linear Phase.")}, inGain, outGain, bypass};
+        t.bandParams = {{"activa", "Compression band enable {n}", QT_TRANSLATE_NOOP("modulos", "Banda activa (2-8).")},
+                        {"corte_hz", "Split frequency {n}", QT_TRANSLATE_NOOP("modulos", "Frecuencia donde empieza la banda (2-8).")},
+                        {"umbral_db", "Attack threshold {n}", QT_TRANSLATE_NOOP("modulos", "Umbral (dBFS).")},
+                        {"ratio", "Ratio {n}", QT_TRANSLATE_NOOP("modulos", "Ratio.")},
+                        {"ataque_ms", "Attack time {n}", QT_TRANSLATE_NOOP("modulos", "Ataque (ms).")},
+                        {"liberacion_ms", "Release time {n}", QT_TRANSLATE_NOOP("modulos", "Liberacion (ms).")},
+                        {"ganancia_db", "Makeup gain {n}", QT_TRANSLATE_NOOP("modulos", "Recuperacion (dB).")}};
         t.bandFirst = 1;
         t.bandCount = 8;
         c.push_back(t);
@@ -172,13 +180,13 @@ std::vector<ModuleType> build() {
         t.key = "limitador";
         t.aliases = {"limiter", "techo"};
         t.pluginId = "in.lsp-plug.limiter_stereo";
-        t.title = "Limitador";
-        t.help = "Techo que la señal no pasa (al final de la cadena). Transmision: -1 dBFS.";
-        t.params = {{"umbral_db", "Threshold", "Techo (dBFS)."},
-                    {"lookahead_ms", "Lookahead", "Anticipacion (ms)."},
-                    {"ataque_ms", "Attack time", "Ataque (ms)."},
-                    {"liberacion_ms", "Release time", "Liberacion (ms)."},
-                    {"modo", "Operating mode", "Modo (Herm Thin, Exp...)."},
+        t.title = QT_TRANSLATE_NOOP("modulos", "Limitador");
+        t.help = QT_TRANSLATE_NOOP("modulos", "Techo que la señal no pasa (al final de la cadena). Transmision: -1 dBFS.");
+        t.params = {{"umbral_db", "Threshold", QT_TRANSLATE_NOOP("modulos", "Techo (dBFS).")},
+                    {"lookahead_ms", "Lookahead", QT_TRANSLATE_NOOP("modulos", "Anticipacion (ms).")},
+                    {"ataque_ms", "Attack time", QT_TRANSLATE_NOOP("modulos", "Ataque (ms).")},
+                    {"liberacion_ms", "Release time", QT_TRANSLATE_NOOP("modulos", "Liberacion (ms).")},
+                    {"modo", "Operating mode", QT_TRANSLATE_NOOP("modulos", "Modo (Herm Thin, Exp...).")},
                     inGain,
                     outGain,
                     bypass};
@@ -236,12 +244,12 @@ json paramJson(ClapInstance& inst, const ParamInfo& p) {
 }
 
 std::string setParam(ClapInstance& inst, const ParamInfo& p, const json& v) {
-    if (p.readOnly()) return "es de solo lectura";
+    if (p.readOnly()) return ba::i18n::traducir("modulos", "es de solo lectura");
     double out = 0;
     std::string text;
     if (v.is_boolean()) {
         out = v.get<bool>() ? p.max : p.min;
-        return inst.setValue(p.id, out) ? "" : "cola llena";
+        return inst.setValue(p.id, out) ? "" : ba::i18n::traducir("modulos", "cola llena");
     }
     if (v.is_number()) {
         // Unidades reales por la conversion del plugin; si no la acepta, el
@@ -252,34 +260,34 @@ std::string setParam(ClapInstance& inst, const ParamInfo& p, const json& v) {
     } else if (v.is_string()) {
         text = v.get<std::string>();
     } else {
-        return "valor invalido";
+        return ba::i18n::traducir("modulos", "valor invalido");
     }
     // Listas (tipo de filtro, modo...): por el texto de cada opcion.
     if ((p.isEnum() || p.stepped()) && !isNumberText(text) && p.max - p.min <= 64) {
         const std::string want = lower(text);
         for (double k = p.min; k <= p.max + 1e-9; k += 1) {
             const std::string o = lower(inst.valueText(p.id, k));
-            if (o == want || o.rfind(want, 0) == 0) return inst.setValue(p.id, k) ? "" : "cola llena";
+            if (o == want || o.rfind(want, 0) == 0) return inst.setValue(p.id, k) ? "" : ba::i18n::traducir("modulos", "cola llena");
         }
         std::string opts;
         for (double k = p.min; k <= p.max + 1e-9; k += 1)
             opts += (opts.empty() ? "" : ", ") + inst.valueText(p.id, k);
-        return "opcion desconocida '" + text + "' (validas: " + opts + ")";
+        return ba::i18n::llenar(ba::i18n::traducir("modulos", "opcion desconocida '%1' (validas: %2)"), {text, opts});
     }
-    if (text == "on" || text == "true") return inst.setValue(p.id, p.max) ? "" : "cola llena";
-    if (text == "off" || text == "false") return inst.setValue(p.id, p.min) ? "" : "cola llena";
+    if (text == "on" || text == "true") return inst.setValue(p.id, p.max) ? "" : ba::i18n::traducir("modulos", "cola llena");
+    if (text == "off" || text == "false") return inst.setValue(p.id, p.min) ? "" : ba::i18n::traducir("modulos", "cola llena");
     if (inst.textToValue(p.id, text, out)) {
         out = std::clamp(out, p.min, p.max);
-        return inst.setValue(p.id, out) ? "" : "cola llena";
+        return inst.setValue(p.id, out) ? "" : ba::i18n::traducir("modulos", "cola llena");
     }
     if (isNumberText(text)) {
         out = std::strtod(text.c_str(), nullptr);
         if (out < p.min - 1e-9 || out > p.max + 1e-9)
-            return "fuera de rango (" + inst.valueText(p.id, p.min) + " .. " + inst.valueText(p.id, p.max) +
-                   ")";
-        return inst.setValue(p.id, out) ? "" : "cola llena";
+            return ba::i18n::llenar(ba::i18n::traducir("modulos", "fuera de rango (%1 .. %2)"),
+                                       {inst.valueText(p.id, p.min), inst.valueText(p.id, p.max)});
+        return inst.setValue(p.id, out) ? "" : ba::i18n::traducir("modulos", "cola llena");
     }
-    return "no se entiende '" + text + "'";
+    return ba::i18n::llenar(ba::i18n::traducir("modulos", "no se entiende '%1'"), {text});
 }
 
 json readModule(ClapInstance& inst, const ModuleType& t) {
@@ -327,7 +335,7 @@ json applyModule(ClapInstance& inst, const ModuleType* t, const json& values) {
     auto apply = [&](const std::string& label, const std::string& lspName, const json& v) {
         const ParamInfo* p = findParam(ps, lspName);
         if (p == nullptr) {
-            errors[label] = "no existe el parametro";
+            errors[label] = ba::i18n::traducir("modulos", "no existe el parametro");
             return;
         }
         const std::string e = setParam(inst, *p, v);
@@ -342,8 +350,9 @@ json applyModule(ClapInstance& inst, const ModuleType* t, const json& values) {
             for (const auto& bj : it.value()) {
                 const int b = bj.value("banda", -1);
                 if (b < t->bandFirst || b >= t->bandFirst + t->bandCount) {
-                    errors["bandas"] = "banda fuera de rango (" + std::to_string(t->bandFirst) + ".." +
-                                       std::to_string(t->bandFirst + t->bandCount - 1) + ")";
+                    errors["bandas"] = ba::i18n::llenar(ba::i18n::traducir("modulos", "banda fuera de rango (%1..%2)"),
+                                                       {std::to_string(t->bandFirst),
+                                                        std::to_string(t->bandFirst + t->bandCount - 1)});
                     continue;
                 }
                 for (auto bi = bj.begin(); bi != bj.end(); ++bi) {
@@ -356,7 +365,7 @@ json applyModule(ClapInstance& inst, const ModuleType* t, const json& values) {
                             known = true;
                         }
                     if (!known)
-                        errors["banda " + std::to_string(b) + "." + bi.key()] = "parametro desconocido";
+                        errors["banda " + std::to_string(b) + "." + bi.key()] = ba::i18n::traducir("modulos", "parametro desconocido");
                 }
             }
             continue;

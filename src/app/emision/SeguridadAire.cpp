@@ -4,6 +4,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "arranque/ArchivoConfig.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::app::emision {
@@ -21,7 +22,7 @@ void SeguridadAire::guardar() {
 }
 
 std::string SeguridadAire::ftb(bool activar, int ms, const std::string& audio) {
-    if (audio != "bajar" && audio != "mantener") return "audio: bajar o mantener";
+    if (audio != "bajar" && audio != "mantener") return ba::i18n::traducir("emision", "audio: bajar o mantener");
     if (!rt_.engine().ftb(activar, ms, audio == "bajar")) return rt_.engine().lastError();
     guardar();
     return {};

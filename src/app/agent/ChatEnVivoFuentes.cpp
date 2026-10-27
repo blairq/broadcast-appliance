@@ -9,6 +9,7 @@
 #include <QByteArray>
 #include <QString>
 
+#include "i18n/I18n.hpp"
 #include "net/Credentials.hpp"
 #include "platform/Paths.hpp"
 
@@ -46,7 +47,7 @@ bool ChatEnVivo::fuenteDeProveedor(const std::string& proveedor, const std::stri
         QByteArray clave;
         const QString cred = QString::fromStdWString(ba::platform::credentialsDir().wstring());
         if (!ba::app::cred::read(cred, n.clave, clave) || clave.trimmed().isEmpty()) {
-            if (falta != nullptr) *falta = std::string("falta la clave de ") + n.nombre + " (pestaña Agentes)";
+            if (falta != nullptr) *falta = ba::i18n::llenar(ba::i18n::traducir("asistente", "falta la clave de %1 (pestaña Agentes)"), {n.nombre});
             return false;
         }
         out.url = n.url;
@@ -57,8 +58,9 @@ bool ChatEnVivo::fuenteDeProveedor(const std::string& proveedor, const std::stri
         return true;
     }
     if (falta != nullptr)
-        *falta = "ese motor solo se usa por su agente de consola (tarda en arrancar): para el tótem elegí el modelo "
-                 "local, el propio, OpenRouter o Gemini con clave";
+        *falta = ba::i18n::traducir("asistente",
+                                    "ese motor solo se usa por su agente de consola (tarda en arrancar): para el tótem "
+                                    "elegí el modelo local, el propio, OpenRouter o Gemini con clave");
     return false;
 }
 

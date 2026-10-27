@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "audio/EntradasAudio.hpp"
+#include "i18n/I18n.hpp"
 
 #include "audio/UnificarEntradas.hpp"
 #include "emision/InputSpecs.hpp"
@@ -64,7 +65,7 @@ std::string pipelineDeMicrofono(const std::string& dispositivo) {
 
 std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine& engine) {
     std::vector<BroadcastEngine::ListItem> out;
-    out.push_back({"Entrada de audio predeterminada", "default", false});
+    out.push_back({ba::i18n::traducir("audio", "Entrada de audio predeterminada"), "default", false});
 #if defined(BA_HAVE_GST)
     if (gst_is_initialized()) {
         GstDeviceMonitor* mon = gst_device_monitor_new();

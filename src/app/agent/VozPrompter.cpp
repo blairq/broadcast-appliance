@@ -77,7 +77,7 @@ VozPrompter::VozPrompter(AppRuntime& rt, Voz& voz, ConferenceViewModel* sala, QO
     connect(&reloj_, &QTimer::timeout, this, [this]() { tick(); });
     revisarVoz();
     if (activa_) reloj_.start();
-    setEstado(activa_ ? "Esperando el teleprompter" : "Apagada");
+    setEstado(activa_ ? tr("Esperando el teleprompter") : tr("Apagada"));
 }
 
 VozPrompter::~VozPrompter() {
@@ -93,11 +93,11 @@ void VozPrompter::setActiva(bool on) {
     if (on) {
         siguiente_ = -1;
         reloj_.start();
-        setEstado("Esperando el teleprompter");
+        setEstado(tr("Esperando el teleprompter"));
     } else {
         reloj_.stop();
         reiniciar("apagada");
-        setEstado("Apagada");
+        setEstado(tr("Apagada"));
     }
     emit cambio();
 }
@@ -110,9 +110,10 @@ void VozPrompter::guardar() const {
         f.write(QByteArray::fromStdString(nlohmann::json{{"activa", activa_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
 }
 
-void VozPrompter::setEstado(const QString& e) {
-    if (e == estado_) return;
+void VozPrompter::setEstado(const QString& e, bool noPuedeLeer) {
+    if (e == estado_ && noPuedeLeer == noPuedeLeer_) return;
     estado_ = e;
+    noPuedeLeer_ = noPuedeLeer;
     emit cambio();
 }
 
@@ -149,7 +150,7 @@ void VozPrompter::consultar() {
         consultando_ = false;
         if (!error.empty()) {
             hayEstado_ = false;
-            setEstado("El teleprompter no contesta");
+            setEstado(tr("El teleprompter no contesta"), true);
             return;
         }
         const double llegada = ahoraMs();
@@ -190,26 +191,26 @@ void VozPrompter::tick() {
         consultar();
     }
     if (!hayEstado_ || frases_.empty()) {
-        if (hayEstado_) setEstado("No hay texto cargado en el teleprompter");
+        if (hayEstado_) setEstado(tr("No hay texto cargado en el teleprompter"));
         return;
     }
 #if defined(BA_HAVE_VOZ)
     if (!habla_->cargada()) {
-        setEstado("Sin voz: elegí una en Configuración → Voz del sistema");
+        setEstado(tr("Sin voz: elegí una en Configuración → Voz del sistema"), true);
         return;
     }
 #endif
     if (!est_.corriendo) {
-        setEstado("En pausa: sigue cuando el teleprompter siga");
+        setEstado(tr("En pausa: sigue cuando el teleprompter siga"));
         return;
     }
     const double ahoraG = ahoraMs() - offsetMs_; // reloj del gateway
     const double p = pv::posicionEn(est_, ahoraG);
     if (p >= static_cast<double>(palabras_.size())) {
-        setEstado("Terminó el texto");
+        setEstado(tr("Terminó el texto"));
         return;
     }
-    setEstado(QString("Leyendo a %1 palabras por minuto").arg(est_.ppm));
+    setEstado(tr("Leyendo a %1 palabras por minuto").arg(est_.ppm));
 
     // Ubicarse: la frase en la que está el teleprompter. Si ya la empezó, se
     // dice desde la palabra en la que va.

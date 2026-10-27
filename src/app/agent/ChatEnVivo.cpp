@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 #include "net/HttpsClient.hpp"
 
 namespace ba::app::agent {
@@ -162,14 +163,17 @@ void ChatEnVivo::arrancar(const std::shared_ptr<Trabajo>& t) {
         lector.terminar();
         std::string error;
         if (t->cancel->load()) error = "cancelado";
-        else if (r.status == 0) error = "no contesta: " + r.error;
+        else if (r.status == 0) error = ba::i18n::llenar(ba::i18n::traducir("asistente", "no contesta: %1"), {r.error});
         else if (r.status >= 400) {
             // Sin bodyChunk (no es 2xx), el cuerpo viene entero: lo que dice el servidor ayuda.
             const json j = json::parse(r.body, nullptr, false);
             std::string msg = j.is_object() && j.contains("error") && j["error"].is_object()
                                   ? j["error"].value("message", std::string())
                                   : std::string();
-            error = "el servidor contestó " + std::to_string(r.status) + (msg.empty() ? std::string() : ": " + msg);
+            error = msg.empty() ? ba::i18n::llenar(ba::i18n::traducir("asistente", "el servidor contestó %1"),
+                                                   {std::to_string(r.status)})
+                                : ba::i18n::llenar(ba::i18n::traducir("asistente", "el servidor contestó %1: %2"),
+                                                   {std::to_string(r.status), msg});
         } else if (!lector.turno().error.empty()) {
             error = lector.turno().error;
         }

@@ -4,6 +4,8 @@
 
 #include "arranque/ArchivoConfig.hpp"
 
+#include <QCoreApplication>
+
 namespace ba::app::config {
 
 ModoVivoConfig::ModoVivoConfig(std::filesystem::path dataRoot)
@@ -26,7 +28,8 @@ std::string ModoVivoConfig::cambiar(const nlohmann::json& a) {
     nlohmann::json p = nlohmann::json::array();
     for (const QString& x : paginas_) p.push_back(x.toStdString());
     if (!guardar(archivo_, {{"activo", activo_}, {"incluir_grabando", incluirGrabando_}, {"paginas", p}}))
-        return "rige, pero no se pudo guardar modo-vivo.json";
+        // QCoreApplication y no ba::i18n: test_config_persistida compila esto sin ba_core.
+        return QCoreApplication::translate("modovivo", "rige, pero no se pudo guardar modo-vivo.json").toStdString();
     return {};
 }
 

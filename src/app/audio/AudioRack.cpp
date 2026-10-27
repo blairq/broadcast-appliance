@@ -13,6 +13,7 @@
 #include <deque>
 #include <set>
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::app::audio {
 
@@ -370,17 +371,17 @@ void AudioRack::insertInChain(const std::string& id, const std::string& after) {
 std::string AudioRack::addPlugin(const std::string& pluginId, const std::string& label,
                                  const std::string& after, std::string* error, const std::string& idBase) {
     if (!after.empty() && (find(after) == nullptr || after == "out")) {
-        if (error != nullptr) *error = "no existe el nodo " + after;
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "no existe el nodo %1"), {after});
         return {};
     }
     auto inst = ClapInstance::create(lib_, pluginId, services_, error);
     if (!inst) return {};
     if (inst->outputs().empty()) {
-        if (error != nullptr) *error = pluginId + " no tiene salida de audio";
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "%1 no tiene salida de audio"), {pluginId});
         return {};
     }
     if (!inst->activate(sr_, kMaxFrames)) {
-        if (error != nullptr) *error = "no se pudo activar " + pluginId;
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "no se pudo activar %1"), {pluginId});
         return {};
     }
     auto n = std::make_unique<Node>();
@@ -668,12 +669,12 @@ std::string AudioRack::addGenerator(const std::string& label) {
 
 bool AudioRack::remove(const std::string& id, std::string* error) {
     if (id == "in" || id == "out") {
-        if (error != nullptr) *error = "la entrada y la salida no se quitan";
+        if (error != nullptr) *error = ba::i18n::traducir("rack", "la entrada y la salida no se quitan");
         return false;
     }
     Node* n = find(id);
     if (n == nullptr) {
-        if (error != nullptr) *error = "no existe el nodo " + id;
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "no existe el nodo %1"), {id});
         return false;
     }
     // Puente: lo que entraba por su entrada principal va a donde salia.
@@ -731,19 +732,19 @@ bool AudioRack::connect(const std::string& from, const std::string& fromPort, co
     Node* a = find(from);
     Node* b = find(to);
     if (a == nullptr || b == nullptr) {
-        if (error != nullptr) *error = "no existe " + std::string(a == nullptr ? from : to);
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "no existe %1"), {a == nullptr ? from : to});
         return false;
     }
     const int pa = portIndex(*a, fromPort, false);
     const int pb = portIndex(*b, toPort, true);
     if (pa < 0 || pb < 0) {
         if (error != nullptr)
-            *error = pa < 0 ? from + " no tiene la salida '" + fromPort + "'"
-                            : to + " no tiene la entrada '" + toPort + "'";
+            *error = pa < 0 ? ba::i18n::llenar(ba::i18n::traducir("rack", "%1 no tiene la salida '%2'"), {from, fromPort})
+                            : ba::i18n::llenar(ba::i18n::traducir("rack", "%1 no tiene la entrada '%2'"), {to, toPort});
         return false;
     }
     if (from == to || wouldCycle(from, to)) {
-        if (error != nullptr) *error = "ese cable cerraria un ciclo";
+        if (error != nullptr) *error = ba::i18n::traducir("rack", "ese cable cerraria un ciclo");
         return false;
     }
     // Un cable de puerto entero reemplaza a los de canal sueltos entre los
@@ -1012,7 +1013,7 @@ void AudioRack::registrar(AudioRack* r, bool alta) {
                     const std::int64_t desde = x->enProcesoDesde_.load();
                     if (desde != 0 && ahora - desde > 200'000'000LL && !x->colgado_.exchange(true)) {
                         std::lock_guard<std::mutex> l3(x->saltadosMu_);
-                        x->saltados_.push_back("rack colgado (un módulo no volvió en 200 ms)");
+                        x->saltados_.push_back(ba::i18n::traducir("rack", "rack colgado (un módulo no volvió en 200 ms)"));
                     }
                 }
             }
@@ -1333,7 +1334,7 @@ json AudioRack::save() const {
 
 bool AudioRack::load(const json& j, std::string* error) {
     if (!j.is_object() || !j.contains("nodos")) {
-        if (error != nullptr) *error = "rack invalido";
+        if (error != nullptr) *error = ba::i18n::traducir("rack", "rack invalido");
         return false;
     }
     // Todo nuevo: se vacia (fuera del audio primero) y se arma de cero.
@@ -1423,7 +1424,7 @@ bool AudioRack::load(const json& j, std::string* error) {
     }
     rebuild();
     if (!firstError.empty() && error != nullptr)
-        *error = "algunos modulos no se pudieron cargar: " + firstError;
+        *error = ba::i18n::llenar(ba::i18n::traducir("rack", "algunos modulos no se pudieron cargar: %1"), {firstError});
     return true;
 }
 
@@ -1457,14 +1458,14 @@ json AudioRack::measure(const std::string& kind, const std::string& node, double
     for (const auto& id : ids) {
         Node* n = find(id);
         if (n == nullptr) {
-            if (error != nullptr) *error = "no existe el nodo " + id;
+            if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "no existe el nodo %1"), {id});
             return nullptr;
         }
         if (n->kind != "plugin" || n->bypass) continue;
         std::string e;
         auto c = ClapInstance::create(lib_, n->pluginId, nullptr, &e);
         if (!c || !c->activate(sr_, kMaxFrames)) {
-            if (error != nullptr) *error = "no se pudo clonar " + id + ": " + e;
+            if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "no se pudo clonar %1: %2"), {id, e});
             return nullptr;
         }
         c->loadState(n->clap->saveState());

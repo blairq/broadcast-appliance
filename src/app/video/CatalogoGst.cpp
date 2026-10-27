@@ -2,6 +2,7 @@
 
 #include "video/CatalogoGst.hpp"
 
+#include "i18n/I18n.hpp"
 #include "platform/GstEntorno.hpp"
 
 #include <algorithm>
@@ -66,7 +67,7 @@ std::string g_err;
 bool iniciarGst() {
     std::call_once(g_una, []() {
         if (!ba::platform::prepararGst()) {
-            g_err = "GStreamer no está en el programa";
+            g_err = ba::i18n::traducir("gstreamer", "GStreamer no está en el programa");
             return;
         }
         // Si el registro se rehace acá (y no en el motor): lo mismo que motor::iniciarGStreamer.
@@ -75,7 +76,7 @@ bool iniciarGst() {
         const bool rehacer = ba::platform::empezarRegistro();
         GError* e = nullptr;
         g_ok = gst_init_check(nullptr, nullptr, &e);
-        if (!g_ok) g_err = e != nullptr ? e->message : "gst_init falló";
+        if (!g_ok) g_err = e != nullptr ? e->message : ba::i18n::traducir("gstreamer", "gst_init falló");
         if (e != nullptr) g_error_free(e);
         if (rehacer && !delUsuario) gst_debug_set_threshold_for_name("GST_PLUGIN_LOADING", GST_LEVEL_NONE);
         ba::platform::registroTerminado(g_ok);
@@ -215,13 +216,14 @@ bool iniciarGStreamer(std::string* error) {
     if (!ok && error != nullptr) *error = g_err;
     return ok;
 #else
-    if (error != nullptr) *error = "esta compilación no trae GStreamer";
+    if (error != nullptr) *error = ba::i18n::traducir("gstreamer", "esta compilación no trae GStreamer");
     return false;
 #endif
 }
 
 CatalogoGst::CatalogoGst()
-    : error_("GStreamer se está iniciando (la primera vez revisa sus módulos: unos segundos)") {}
+    : error_(ba::i18n::traducir("gstreamer",
+                                "GStreamer se está iniciando (la primera vez revisa sus módulos: unos segundos)")) {}
 
 CatalogoGst::CatalogoGst(const std::filesystem::path& docs) {
     std::ifstream in(docs);
@@ -240,7 +242,7 @@ void CatalogoGst::iniciar() {
     disponible_ = iniciarGst();
     if (!disponible_) error_ = g_err;
 #else
-    error_ = "esta compilación no trae GStreamer";
+    error_ = ba::i18n::traducir("gstreamer", "esta compilación no trae GStreamer");
 #endif
 }
 

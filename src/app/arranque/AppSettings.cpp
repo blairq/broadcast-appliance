@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "arranque/AppSettings.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
 #include "arranque/RutasPortables.hpp"
@@ -69,8 +70,7 @@ json readJson(const fs::path& path, bool& exists) {
             fs::path backup = path;
             backup += ".corrupto";
             fs::copy_file(path, backup, fs::copy_options::overwrite_existing, cec);
-            std::printf("ba-app: %s no es JSON valido; se cargo la generacion anterior (%s)\n", path.string().c_str(),
-                        prev.string().c_str());
+            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "%1 no es JSON valido; se cargo la generacion anterior (%2)"), {path.string(), prev.string()}).c_str());
             configRecuperada() = path.filename().string();
             return pj;
         }
@@ -80,8 +80,7 @@ json readJson(const fs::path& path, bool& exists) {
         fs::path backup = path;
         backup += ".corrupto";
         fs::copy_file(path, backup, fs::copy_options::overwrite_existing, cec);
-        std::printf("ba-app: %s no es JSON valido; se usan valores por defecto (copia en %s)\n",
-                    path.string().c_str(), backup.string().c_str());
+        std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "%1 no es JSON valido; se usan valores por defecto (copia en %2)"), {path.string(), backup.string()}).c_str());
         return json::object();
     }
     return j;
@@ -206,7 +205,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     if (!exists) {
         std::string err;
         if (saveAppConfig(path, c, dataRoot, &err)) {
-            std::printf("ba-app: configuracion por defecto escrita en %s\n", path.string().c_str());
+            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "configuracion por defecto escrita en %1"), {path.string()}).c_str());
         }
         return c;
     }
@@ -322,12 +321,12 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
                 // Las cámaras de libobs de antes pasan a GStreamer (mismo nombre,
                 // lugar y recorte: las tarjetas, el PTZ y los vínculos siguen).
                 if (inputs::migrarCamara(spec))
-                    std::printf("ba-app: cámara '%s' pasada a GStreamer\n", spec.name.c_str());
+                    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "cámara '%1' pasada a GStreamer"), {spec.name}).c_str());
                 if (inputs::migrarMedio(spec))
-                    std::printf("ba-app: medio '%s' pasado a GStreamer\n", spec.name.c_str());
+                    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "medio '%1' pasado a GStreamer"), {spec.name}).c_str());
                 if (inputs::migrarVideoInvitado(spec))
-                    std::printf("ba-app: video de invitado '%s' pasado a GStreamer\n", spec.name.c_str());
-                if (inputs::migrarNdi(spec)) std::printf("ba-app: NDI '%s' pasado a GStreamer\n", spec.name.c_str());
+                    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "video de invitado '%1' pasado a GStreamer"), {spec.name}).c_str());
+                if (inputs::migrarNdi(spec)) std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "NDI '%1' pasado a GStreamer"), {spec.name}).c_str());
                 scene.sources.push_back(spec);
             }
             c.scenes.push_back(scene);
@@ -349,8 +348,8 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
             // Los micrófonos de libobs de antes pasan a GStreamer (mismo nombre,
             // volumen y silencio: los racks y los vínculos siguen andando).
             if (inputs::migrarMicrofono(spec))
-                std::printf("ba-app: micrófono '%s' pasado a GStreamer\n", spec.name.c_str());
-            if (inputs::migrarMedio(spec)) std::printf("ba-app: medio '%s' pasado a GStreamer\n", spec.name.c_str());
+                std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "micrófono '%1' pasado a GStreamer"), {spec.name}).c_str());
+            if (inputs::migrarMedio(spec)) std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "medio '%1' pasado a GStreamer"), {spec.name}).c_str());
             c.audioInputs.push_back(spec);
         }
     }

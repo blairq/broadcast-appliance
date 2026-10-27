@@ -247,11 +247,11 @@ QString ModelosLocales::ggufParaChat(const QString& pedido, QString* falta, QStr
     if (!pedido.isEmpty()) {
         const json e = entradaCatalogo(pedido);
         if (e.empty() || e.value("formato", std::string()) != "gguf") {
-            if (falta != nullptr) *falta = "«" + pedido + "» no es un modelo GGUF del catálogo.";
+            if (falta != nullptr) *falta = tr("«%1» no es un modelo GGUF del catálogo.").arg(pedido);
             return {};
         }
         if (const QString f = archivoDe(pedido); !f.isEmpty()) return f;
-        if (falta != nullptr) *falta = "El modelo «" + pedido + "» todavía no está: se baja ahora.";
+        if (falta != nullptr) *falta = tr("El modelo «%1» todavía no está: se baja ahora.").arg(pedido);
         if (repoParaBajar != nullptr) *repoParaBajar = pedido;
         return {};
     }
@@ -259,7 +259,7 @@ QString ModelosLocales::ggufParaChat(const QString& pedido, QString* falta, QStr
     QString repo = activo_;
     if (repo.isEmpty()) repo = instaladoDeTipo("reactivo");
     if (repo.isEmpty()) {
-        if (falta != nullptr) *falta = "No hay un modelo local: bajalo en Configuración → Modelos locales.";
+        if (falta != nullptr) *falta = tr("No hay un modelo local: bajalo en Configuración → Modelos locales.");
         return {};
     }
     if (const QString f = archivoDe(repo); !f.isEmpty()) return f;
@@ -269,7 +269,8 @@ QString ModelosLocales::ggufParaChat(const QString& pedido, QString* falta, QStr
     if (hermano != repo && !entradaCatalogo(hermano).empty()) {
         if (const QString f = archivoDe(hermano); !f.isEmpty()) return f;
         if (falta != nullptr)
-            *falta = "El chat del modelo local usa su versión GGUF (" + hermano + "), que todavía no está: se baja ahora.";
+            *falta = tr("El chat del modelo local usa su versión GGUF (%1), que todavía no está: se baja ahora.")
+                         .arg(hermano);
         if (repoParaBajar != nullptr) *repoParaBajar = hermano;
         return {};
     }
@@ -287,11 +288,12 @@ QString ModelosLocales::ggufParaChat(const QString& pedido, QString* falta, QStr
     }
     if (!elegido.isEmpty()) {
         if (falta != nullptr)
-            *falta = "El chat del modelo local usa un modelo GGUF (" + elegido + "), que todavía no está: se baja ahora.";
+            *falta = tr("El chat del modelo local usa un modelo GGUF (%1), que todavía no está: se baja ahora.")
+                         .arg(elegido);
         if (repoParaBajar != nullptr) *repoParaBajar = elegido;
         return {};
     }
-    if (falta != nullptr) *falta = "El modelo local activo (" + repo + ") no tiene versión GGUF para el chat.";
+    if (falta != nullptr) *falta = tr("El modelo local activo (%1) no tiene versión GGUF para el chat.").arg(repo);
     return {};
 }
 
@@ -371,9 +373,9 @@ bool ModelosLocales::hayMotor() const {
 
 QString ModelosLocales::motor() const {
 #if defined(__APPLE__)
-    return hayMotor() ? "MLX (ba-modelo)" : "falta ba-modelo en bin/64bit (make modelo-mac)";
+    return hayMotor() ? "MLX (ba-modelo)" : tr("falta ba-modelo en bin/64bit (make modelo-mac)");
 #else
-    return hayMotor() ? "llama.cpp (ba-modelo)" : "falta ba-modelo en bin/64bit (tools/deps/llamacpp-lib.sh)";
+    return hayMotor() ? "llama.cpp (ba-modelo)" : tr("falta ba-modelo en bin/64bit (tools/deps/llamacpp-lib.sh)");
 #endif
 }
 
@@ -510,7 +512,7 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
         std::error_code ec;
         if (estaBajado && fs::exists(bajado, ec)) {
             mj = leer(bajado);
-            de = "el modelo bajado";
+            de = tr("el modelo bajado").toStdString();
         } else if (!forzar && fs::exists(guardado, ec)) {
             const json g = leer(guardado);
             // Un «no hay» guardado vale 6 horas: el repo pudo publicarlo después (o la
@@ -529,7 +531,7 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
             const net::HttpResponse res =
                 pedirHf("https://huggingface.co/" + r + "/resolve/" + rev + "/modelo.json");
             if (!res.error.empty()) {
-                f = {{"estado", "error"}, {"nota", "Sin conexión con Hugging Face: " + res.error}};
+                f = {{"estado", "error"}, {"nota", tr("Sin conexión con Hugging Face: %1").arg(QString::fromStdString(res.error)).toStdString()}};
             } else if (res.status == 200) {
                 mj = json::parse(res.body, nullptr, false);
                 de = "Hugging Face (" + rev.substr(0, 10) + ")";
@@ -550,22 +552,25 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
                     if (m.status == 200) {
                         mj = json::parse(m.body, nullptr, false);
                         de = "Hugging Face (main)";
-                        nota = "El modelo.json se publicó después del commit fijado en el catálogo; los "
-                               "pesos son los mismos, así que le corresponde.";
+                        nota = tr("El modelo.json se publicó después del commit fijado en el catálogo; los "
+                                  "pesos son los mismos, así que le corresponde.")
+                                   .toStdString();
                     }
                 } else if (a.status == 200 && b.status == 200) {
-                    nota = "El repo tiene un modelo.json más nuevo, pero los pesos cambiaron desde el commit "
-                           "fijado: no corresponde a esta versión.";
+                    nota = tr("El repo tiene un modelo.json más nuevo, pero los pesos cambiaron desde el commit "
+                              "fijado: no corresponde a esta versión.")
+                               .toStdString();
                 }
-                if (mj.is_null() && nota.empty()) nota = "El repo todavía no publica modelo.json.";
+                if (mj.is_null() && nota.empty()) nota = tr("El repo todavía no publica modelo.json.").toStdString();
             } else {
                 const net::HttpResponse a = pedirHf("https://huggingface.co/api/models/" + r);
-                nota = a.status == 200 ? "El repo todavía no publica modelo.json."
-                                       : "El repo es privado o ya no existe en Hugging Face.";
+                nota = (a.status == 200 ? tr("El repo todavía no publica modelo.json.")
+                                        : tr("El repo es privado o ya no existe en Hugging Face."))
+                           .toStdString();
             }
             if (mj.is_discarded()) {
                 mj = json();
-                nota = "El modelo.json del repo no es un JSON válido.";
+                nota = tr("El modelo.json del repo no es un JSON válido.").toStdString();
             }
             if (f.empty()) {
                 // Se guarda para mirarlo sin red la próxima vez (también el «no hay»).
@@ -621,7 +626,7 @@ QString ModelosLocales::descargar(const QString& repo) {
         enCurso_.insert(repo);
         if (textoDescarga_.isEmpty() || !descargando_) {
             progreso_ = 0;
-            textoDescarga_ = "En la cola: " + repo;
+            textoDescarga_ = tr("En la cola: %1").arg(repo);
         }
         descargando_ = true;
         emit descargaCambio();
@@ -632,7 +637,7 @@ QString ModelosLocales::descargar(const QString& repo) {
 std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& repo, bool actualizacion) {
     const json entrada = entradaCatalogo(repo);
     if (entrada.empty()) {
-        errorPedido_ = "Ese modelo no está en el catálogo.";
+        errorPedido_ = tr("Ese modelo no está en el catálogo.").toStdString();
         emit notify(QString::fromStdString(errorPedido_), "error");
         return std::nullopt;
     }
@@ -659,7 +664,7 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
         directo.sha256 = entrada.value("sha256", std::string());
         directo.tamano = entrada.value("bytes", std::uint64_t{0});
         if (directo.nombre.empty() || directo.sha256.size() != 64 || directo.tamano == 0) {
-            errorPedido_ = "La entrada del catálogo no trae archivo, sha256 y bytes: no se baja.";
+            errorPedido_ = tr("La entrada del catálogo no trae archivo, sha256 y bytes: no se baja.").toStdString();
             emit notify(QString::fromStdString(errorPedido_), "error");
             return std::nullopt;
         }
@@ -694,7 +699,7 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
                     emit yo->descargaCambio();
                 });
         };
-        avisar(0, "Consultando Hugging Face…");
+        avisar(0, tr("Consultando Hugging Face…"));
         QString err;
         RepoHf repo;
         if (!directo.url.empty()) {
@@ -708,23 +713,23 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
             req.cancel = ctx.banderaCancelar();
             const net::HttpResponse res = net::HttpsClient::request(req);
             if (!res.error.empty())
-                err = "Sin conexión con Hugging Face: " + QString::fromStdString(res.error);
+                err = tr("Sin conexión con Hugging Face: %1").arg(QString::fromStdString(res.error));
             else if (res.status == 401 || res.status == 404)
-                err = "El modelo no está publicado (o es privado) en Hugging Face.";
+                err = tr("El modelo no está publicado (o es privado) en Hugging Face.");
             else if (res.status != 200)
-                err = QString("Hugging Face contestó %1.").arg(res.status);
+                err = tr("Hugging Face contestó %1.").arg(res.status);
             else
                 repo = leerRepoHf(res.body);
             if (err.isEmpty() && (repo.commit.empty() || repo.archivos.empty()))
-                err = "No se entendió la respuesta de Hugging Face.";
+                err = tr("No se entendió la respuesta de Hugging Face.");
             if (err.isEmpty() && !revision.empty() && repo.commit != revision)
-                err = "Hugging Face no devolvió el commit fijado en el catálogo.";
+                err = tr("Hugging Face no devolvió el commit fijado en el catálogo.");
         }
         if (!err.isEmpty()) return err.toStdString();
         if (ctx.cancelado()) return "cancelada";
         // Ya está esa versión (los que siguen «main»): nada que bajar.
         if (commitInstalado(destino) == repo.commit) {
-            avisar(1.0, "Ya estaba al día.");
+            avisar(1.0, tr("Ya estaba al día."));
             return {};
         }
         std::vector<ArchivoHf> archivos;
@@ -743,7 +748,7 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
             ArchivoHf conSha = a;
             if (const auto f = shaFijo.find(a.nombre); f != shaFijo.end()) {
                 if (!a.sha256.empty() && a.sha256 != f->second)
-                    return "El sha256 de " + a.nombre + " no es el del catálogo: no se baja.";
+                    return tr("El sha256 de %1 no es el del catálogo: no se baja.").arg(QString::fromStdString(a.nombre)).toStdString();
                 conSha.sha256 = f->second;
             }
             archivos.push_back(conSha);
@@ -753,7 +758,7 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
             if (std::none_of(archivos.begin(), archivos.end(), [&f](const ArchivoHf& a) {
                     return a.nombre == f || (!f.empty() && f.back() == '/' && a.nombre.rfind(f, 0) == 0);
                 }))
-                return "Al repo le falta " + f + " (en el commit fijado).";
+                return tr("Al repo le falta %1 (en el commit fijado).").arg(QString::fromStdString(f)).toStdString();
         // La carpeta a medio bajar se conserva entre intentos (cada archivo sigue
         // donde se cortó) mientras sea del MISMO commit; si es de otro, de cero.
         std::error_code ec;
@@ -813,10 +818,10 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
             const std::string e = ctx.bajar(url, final, hecho, total, a.nombre);
             if (!e.empty()) return ctx.cancelado() ? std::string("cancelada") : e;
             avisar(static_cast<double>(hecho + a.tamano) / static_cast<double>(std::max<std::uint64_t>(total, 1)) * 0.98,
-                   "Verificando " + nombre + "…");
+                   tr("Verificando %1…").arg(nombre));
             if (!verificado(final, a)) {
                 fs::remove(final, ec); // éste sí de cero
-                return "El archivo " + a.nombre + " no coincide con el hash publicado. No se instaló nada.";
+                return tr("El archivo %1 no coincide con el hash publicado. No se instaló nada.").arg(QString::fromStdString(a.nombre)).toStdString();
             }
             hecho += a.tamano;
         }
@@ -842,7 +847,7 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
         // mantienen vivos los archivos reusados).
         fs::remove_all(destino, ec);
         fs::rename(staging, destino, ec);
-        if (ec) return "No se pudo dejar el modelo en su lugar: " + ec.message();
+        if (ec) return tr("No se pudo dejar el modelo en su lugar: %1").arg(QString::fromStdString(ec.message())).toStdString();
         return {};
     };
     p.alTerminar = [yo, qrepo](bool ok, const std::string& error) {
@@ -850,14 +855,14 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
         yo->enCurso_.erase(qrepo);
         if (ok) yo->revisarHerramientas(qrepo, true);
         yo->descargando_ = !yo->enCurso_.empty();
-        const QString e = error == "cancelada" ? QString("Descarga cancelada.") : QString::fromStdString(error);
+        const QString e = error == "cancelada" ? tr("Descarga cancelada.") : QString::fromStdString(error);
         if (!yo->descargando_) {
             yo->progreso_ = ok ? 1.0 : 0.0;
-            yo->textoDescarga_ = ok ? "Listo." : e;
+            yo->textoDescarga_ = ok ? tr("Listo.") : e;
         }
         emit yo->descargaCambio();
         emit yo->cambio();
-        emit yo->notify(ok ? "Modelo bajado y verificado: " + qrepo : e, ok ? "ok" : "error");
+        emit yo->notify(ok ? tr("Modelo bajado y verificado: %1").arg(qrepo) : e, ok ? "ok" : "error");
         yo->revisarDisco();
     };
     return p;
@@ -916,7 +921,7 @@ void ModelosLocales::registrarActualizaciones() {
             if (nueva.empty()) continue;
             net::Descargas::Actualizacion a;
             a.actual = i.commit.substr(0, 12);
-            a.detalle = "Hay una versión más nueva de " + i.titulo;
+            a.detalle = tr("Hay una versión más nueva de %1").arg(QString::fromStdString(i.titulo)).toStdString();
             a.pedido = std::move(*i.pedido);
             a.pedido.version = nueva.substr(0, 12);
             out.push_back(std::move(a));
@@ -1069,12 +1074,12 @@ std::pair<QVariantList, QVariantMap> ModelosLocales::calcularDisco(const std::se
         QString motivo;
         const bool reactivo = f.m["tipo"].toString() == "reactivo";
         if (!f.m["completo"].toBool()) {
-            motivo = "quedó a medio instalar";
+            motivo = tr("quedó a medio instalar");
         } else if (reactivo && !f.m["activo"].toBool()) {
-            if (!f.m["enCatalogo"].toBool()) motivo = "ya no está en el catálogo";
+            if (!f.m["enCatalogo"].toBool()) motivo = tr("ya no está en el catálogo");
             for (const Fila& o : filas)
                 if (&o != &f && o.familia == f.familia && o.version > f.version && o.m["completo"].toBool())
-                    motivo = "está bajada la v" + QString::number(o.version);
+                    motivo = tr("está bajada la v%1").arg(o.version);
         }
         f.m["viejo"] = !motivo.isEmpty();
         f.m["motivo"] = motivo;
@@ -1160,7 +1165,7 @@ void ModelosLocales::activar(const QString& repo) {
     if (entradaCatalogo(repo).value("tipo", std::string("reactivo")) != "reactivo")
         return; // la voz se usa sola
     if (!instalado(repo)) {
-        emit notify("Primero hay que bajar el modelo.", "error");
+        emit notify(tr("Primero hay que bajar el modelo."), "error");
         return;
     }
     if (!hayMotor()) {
@@ -1171,7 +1176,7 @@ void ModelosLocales::activar(const QString& repo) {
     activo_ = repo;
     guardarAjustes();
     info_.clear();
-    setEstado("cargando", "Cargando el modelo y leyendo las fichas…");
+    setEstado("cargando", tr("Cargando el modelo y leyendo las fichas…"));
 
     proc_ = new QProcess(this);
     proc_->setProgram(exeMotor(dirBinarios_));
@@ -1192,14 +1197,14 @@ void ModelosLocales::activar(const QString& repo) {
     });
     connect(proc_, &QProcess::finished, this, [this](int code, QProcess::ExitStatus) {
         const bool esperado = estado_ == "apagado";
-        fallanTodos("el motor se cerró");
+        fallanTodos(tr("el motor se cerró"));
         proc_->deleteLater();
         proc_ = nullptr;
         if (!esperado)
-            setEstado("error", QString("El motor se cerró (código %1). %2").arg(code).arg(detalleError_));
+            setEstado("error", tr("El motor se cerró (código %1). %2").arg(code).arg(detalleError_));
     });
     connect(proc_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
-        if (e == QProcess::FailedToStart) setEstado("error", "No se pudo lanzar ba-modelo.");
+        if (e == QProcess::FailedToStart) setEstado("error", tr("No se pudo lanzar ba-modelo."));
     });
     proc_->start();
 }
@@ -1221,17 +1226,17 @@ void ModelosLocales::linea(const QByteArray& l) {
     const std::string ev = j.value("ev", std::string());
     if (ev == "listo") {
         info_ = aVariant(j);
-        QString d = QString("Listo · prefijo de %1 tokens en %2 s")
+        QString d = tr("Listo · prefijo de %1 tokens en %2 s")
                         .arg(j.value("tokens_prefijo", 0))
                         .arg(j.value("ms_prefijo", 0.0) / 1000.0, 0, 'f', 1);
         const std::string m = j.value("mtp", std::string("no"));
-        d += m == "no" ? " · sin MTP" : " · cabeza MTP " + QString::fromStdString(m);
-        d += j.value("vision", false) ? " · con visión" : " · solo texto";
+        d += " · " + (m == "no" ? tr("sin MTP") : tr("cabeza MTP %1").arg(QString::fromStdString(m)));
+        d += " · " + (j.value("vision", false) ? tr("con visión") : tr("solo texto"));
         setEstado("listo", d);
         return;
     }
     if (ev == "aviso") {
-        emit notify("Modelo local: " + QString::fromStdString(j.value("aviso", std::string())), "warn");
+        emit notify(tr("Modelo local: %1").arg(QString::fromStdString(j.value("aviso", std::string()))), "warn");
         return;
     }
     if (ev == "error") {
@@ -1252,7 +1257,7 @@ void ModelosLocales::linea(const QByteArray& l) {
 
 void ModelosLocales::pedir(json pedido, Respuesta r, std::function<void(const QString&)> delta) {
     if (proc_ == nullptr || estado_ != "listo") {
-        if (r) r(json{{"error", "sin modelo"}});
+        if (r) r(json{{"error", tr("sin modelo").toStdString()}});
         return;
     }
     const std::int64_t id = proximoId_++;
@@ -1292,7 +1297,7 @@ void ModelosLocales::generar(const QString& texto, bool conPrefijo, int maxToken
 void ModelosLocales::ver(const QString& imagen, const QString& pregunta, int maxTokens,
                          std::function<void(const QString&)> delta, Respuesta fin) {
     if (listo() && !conVision()) {
-        if (fin) fin(json{{"error", "el modelo activo no trae visión"}});
+        if (fin) fin(json{{"error", tr("el modelo activo no trae visión").toStdString()}});
         return;
     }
     pedir(json{{"op", "ver"},

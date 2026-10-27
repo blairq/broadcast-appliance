@@ -4,6 +4,7 @@
 
 #include "evento/EventoStore.hpp"
 #include "evento/FotosConfig.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
 #include <QCoreApplication>
@@ -88,7 +89,7 @@ std::string copiar(const fs::path& de, const fs::path& a, bool conGrabaciones, b
             fs::copy(e.path(), a / e.path().filename(), fs::copy_options::recursive | fs::copy_options::skip_existing, e2);
         else
             fs::copy_file(e.path(), a / e.path().filename(), fs::copy_options::skip_existing, e2);
-        if (e2) return "no se pudo copiar " + n + ": " + e2.message();
+        if (e2) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo copiar %1: %2"), {n, e2.message()});
     }
     fs::remove_all(a / "Config" / ".restaurar", ec);
     if (sinHistorial)
@@ -114,11 +115,11 @@ void sembrar(const fs::path& a) {
 std::string copiarTodo(const fs::path& de, const fs::path& a, std::atomic<std::uintmax_t>* hechos) {
     std::error_code ec;
     fs::create_directories(a, ec);
-    if (ec) return "no se pudo crear " + aU8(a) + ": " + ec.message();
+    if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo crear %1: %2"), {aU8(a), ec.message()});
     for (auto it = fs::recursive_directory_iterator(de, fs::directory_options::skip_permission_denied, ec);
          !ec && it != fs::recursive_directory_iterator(); it.increment(ec)) {
         const fs::path rel = fs::relative(it->path(), de, ec);
-        if (ec) return "no se pudo copiar: " + ec.message();
+        if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo copiar: %1"), {ec.message()});
         const std::string arriba = aU8(*rel.begin());
         if (arriba == "configuracion.json" || arriba == "Logs" || arriba == "Runtime" ||
             (it.depth() == 1 && arriba == "Config" && aU8(rel.filename()) == "al-aire.json") ||
@@ -136,9 +137,9 @@ std::string copiarTodo(const fs::path& de, const fs::path& a, std::atomic<std::u
             fs::copy_file(it->path(), a / rel, fs::copy_options::overwrite_existing, e2);
             if (!e2 && hechos) *hechos += it->file_size(e2);
         }
-        if (e2) return "no se pudo copiar " + aU8(rel) + ": " + e2.message();
+        if (e2) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo copiar %1: %2"), {aU8(rel), e2.message()});
     }
-    return ec ? "no se pudo recorrer " + aU8(de) + ": " + ec.message() : std::string();
+    return ec ? ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo recorrer %1: %2"), {aU8(de), ec.message()}) : std::string();
 }
 } // namespace
 
@@ -194,9 +195,9 @@ fs::path Configuraciones::datos() const { return ba::platform::dataRoot(); }
 fs::path Configuraciones::carpeta(const std::string& nombre) const { return datos() / "Configuraciones" / deU8(nombre); }
 
 std::string Configuraciones::nombreValido(const std::string& n) {
-    if (n.empty() || n.size() > 60) return "el nombre tiene que tener entre 1 y 60 letras";
+    if (n.empty() || n.size() > 60) return ba::i18n::traducir("configuraciones", "el nombre tiene que tener entre 1 y 60 letras");
     if (n[0] == '.' || n.find_first_of("/\\:*?\"<>|") != std::string::npos || n.find("..") != std::string::npos)
-        return "el nombre no puede tener / \\ : * ? \" < > | ni empezar con punto";
+        return ba::i18n::traducir("configuraciones", "el nombre no puede tener / \\ : * ? \" < > | ni empezar con punto");
     return {};
 }
 
@@ -250,15 +251,15 @@ std::string Configuraciones::crearSinAvisar(const std::string& nombre, const std
     if (const std::string e = nombreValido(nombre); !e.empty()) return e;
     const fs::path dst = carpeta(nombre);
     std::error_code ec;
-    if (fs::exists(dst, ec)) return "ya hay una configuración «" + nombre + "»";
+    if (fs::exists(dst, ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "ya hay una configuración «%1»"), {nombre});
     std::string err;
     std::string desc = descripcion;
     if (desde.empty() || desde == "vacia") {
         fs::create_directories(dst / "Config", ec);
-        if (ec) return "no se pudo crear " + aU8(dst) + ": " + ec.message();
+        if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo crear %1: %2"), {aU8(dst), ec.message()});
     } else if (desde.rfind("demo:", 0) == 0) {
         const fs::path de = ba::platform::bundleRoot() / "Demos" / deU8(desde.substr(5));
-        if (!fs::is_directory(de, ec)) return "no hay ninguna demo «" + desde.substr(5) + "»";
+        if (!fs::is_directory(de, ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ninguna demo «%1»"), {desde.substr(5)});
         err = copiar(de, dst, true);
         if (desc.empty()) desc = leerJson(de / "configuracion.json").value("descripcion", std::string());
     } else if (desde.rfind("evento:", 0) == 0) {
@@ -268,7 +269,7 @@ std::string Configuraciones::crearSinAvisar(const std::string& nombre, const std
         if (barra == std::string::npos) return "evento:<carpeta>/<inicio|cierre|ultima>";
         const fs::path eventos = ba::platform::configRoot() / "Eventos";
         const json foto = leerJson(eventos / deU8(resto.substr(0, barra)) / "config" / (resto.substr(barra + 1) + ".json"));
-        if (!foto.contains("archivos")) return "no encuentro esa foto de la configuración del evento";
+        if (!foto.contains("archivos")) return ba::i18n::traducir("configuraciones", "no encuentro esa foto de la configuración del evento");
         err = copiar(ba::platform::configRoot(), dst, false);
         if (err.empty()) {
             fs::remove_all(dst / "Config", ec);
@@ -285,7 +286,7 @@ std::string Configuraciones::crearSinAvisar(const std::string& nombre, const std
     } else {
         // "actual" u otra configuración por su nombre.
         const fs::path de = desde == "actual" ? ba::platform::configRoot() : carpeta(desde);
-        if (!fs::is_directory(de, ec)) return "no hay ninguna configuración «" + desde + "»";
+        if (!fs::is_directory(de, ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ninguna configuración «%1»"), {desde});
         err = copiar(de, dst, conGrabaciones);
     }
     if (!err.empty()) {
@@ -316,10 +317,10 @@ std::string Configuraciones::origenDe(const std::string& desde, std::filesystem:
         // La copia propia marcada como plantilla (una del programa editada) le gana a la original.
         const bool propia = fs::is_directory(carpeta(n), ec) && leerJson(carpeta(n) / "configuracion.json").value("plantilla", false);
         *de = propia ? carpeta(n) : fs::is_directory(demo, ec) ? demo : carpeta(n);
-        return fs::is_directory(*de, ec) ? std::string() : "no hay ninguna plantilla «" + n + "»";
+        return fs::is_directory(*de, ec) ? std::string() : ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ninguna plantilla «%1»"), {n});
     }
     *de = origen == "actual" ? ba::platform::configRoot() : carpeta(origen);
-    return fs::is_directory(*de, ec) ? std::string() : "no hay ningún evento «" + origen + "»";
+    return fs::is_directory(*de, ec) ? std::string() : ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ningún evento «%1»"), {origen});
 }
 
 std::string Configuraciones::crearEvento(const std::string& nombre, const std::string& desde,
@@ -327,13 +328,13 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
     if (const std::string e = nombreValido(nombre); !e.empty()) return e;
     const fs::path dst = carpeta(nombre);
     std::error_code ec;
-    if (fs::exists(dst, ec)) return "ya hay un evento «" + nombre + "»";
+    if (fs::exists(dst, ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "ya hay un evento «%1»"), {nombre});
     std::string err;
     const std::string origen = desde.empty() ? std::string("cero") : desde;
     fs::path de;
     if (origen == "cero") {
         fs::create_directories(dst / "Config", ec);
-        if (ec) return "no se pudo crear " + aU8(dst) + ": " + ec.message();
+        if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo crear %1: %2"), {aU8(dst), ec.message()});
     } else if (origen.rfind("evento:", 0) == 0) {
         // Cómo estaba un evento cerrado: la foto de su Config/ (no es una copia del evento).
         err = crearSinAvisar(nombre, origen, descripcion);
@@ -373,7 +374,7 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
         ruta = store.crear(nombre, &e2);
         if (ruta.empty()) {
             fs::remove_all(dst, ec);
-            return "no se pudo crear su guion: " + e2;
+            return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo crear su guion: %1"), {e2});
         }
         store.iniciar(ruta, QDateTime::currentMSecsSinceEpoch(), &e2);
     }
@@ -387,10 +388,10 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
 QString Configuraciones::nuevoEventoAparte(const QString& nombre, const QString& desde, bool abrir,
                                            std::function<void(QString)> listo) {
     const std::string n = nombre.toStdString(), d = desde.toStdString();
-    if (!copia_.isEmpty()) return "ya se está copiando «" + copia_.value("nombre").toString() + "»";
+    if (!copia_.isEmpty()) return QString::fromStdString(ba::i18n::llenar(ba::i18n::traducir("configuraciones", "ya se está copiando «%1»"), {copia_.value("nombre").toString().toStdString()}));
     if (const std::string e = nombreValido(n); !e.empty()) return QString::fromStdString(e);
     std::error_code ec;
-    if (fs::exists(carpeta(n), ec)) return "ya hay un evento «" + nombre + "»";
+    if (fs::exists(carpeta(n), ec)) return tr("ya hay un evento «%1»").arg(nombre);
     fs::path de;
     if (const std::string e = origenDe(d, &de); !e.empty()) return QString::fromStdString(e);
     // Lo que va a copiar (para el progreso): lo medido, o se mide ahora.
@@ -415,7 +416,7 @@ QString Configuraciones::nuevoEventoAparte(const QString& nombre, const QString&
         QMetaObject::invokeMethod(
             QCoreApplication::instance(), [yo, t]() { if (yo && !yo->copia_.isEmpty()) yo->copia_["total"] = static_cast<double>(t); },
             Qt::QueuedConnection);
-        const std::string e = yo ? yo->crearEvento(n, d, {}, hechos.get()) : std::string("se cerró la app");
+        const std::string e = yo ? yo->crearEvento(n, d, {}, hechos.get()) : ba::i18n::traducir("configuraciones", "se cerró la app");
         QMetaObject::invokeMethod(
             QCoreApplication::instance(),
             [yo, n, e, abrir, listo = std::move(listo)]() {
@@ -498,7 +499,7 @@ json Configuraciones::separarEventos(const fs::path& datos) {
             evento::EventoStore nuevo(dst / "Eventos");
             const std::string h = aU8(hoja);
             if (nuevo.datos(h).estado != "terminado") nuevo.iniciar(h, QDateTime::currentMSecsSinceEpoch());
-            escribirJson(dst / "configuracion.json", {{"descripcion", "Separado de «" + aU8(c.filename()) + "»"},
+            escribirJson(dst / "configuracion.json", {{"descripcion", ba::i18n::llenar(ba::i18n::traducir("configuraciones", "Separado de «%1»"), {aU8(c.filename())})},
                                                       {"creada_ms", QDateTime::currentMSecsSinceEpoch()},
                                                       {"desde", aU8(c.filename())},
                                                       {"evento", h}});
@@ -512,7 +513,7 @@ json Configuraciones::separarEventos(const fs::path& datos) {
 
 std::string Configuraciones::marcarPlantilla(const std::string& nombre, bool plantilla) {
     std::error_code ec;
-    if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ningún evento «" + nombre + "»";
+    if (!fs::is_directory(carpeta(nombre), ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ningún evento «%1»"), {nombre});
     json meta = leerJson(carpeta(nombre) / "configuracion.json");
     meta["plantilla"] = plantilla;
     escribirJson(carpeta(nombre) / "configuracion.json", meta);
@@ -585,7 +586,7 @@ json Configuraciones::plantillas() const {
 std::string Configuraciones::plantillaAjustar(const std::string& id, const json& cambios) {
     bool hay = false;
     for (const auto& p : plantillasAdmin()) hay = hay || p.value("id", std::string()) == id;
-    if (!hay) return "no hay una plantilla «" + id + "»";
+    if (!hay) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay una plantilla «%1»"), {id});
     json a = leerJson(datos() / "plantillas.json");
     if (!a.is_object()) a = json::object();
     if (cambios.contains("nombre") && cambios["nombre"].is_string()) {
@@ -609,7 +610,7 @@ std::string Configuraciones::plantillaMover(const std::string& id, int delta) {
     std::vector<std::string> ids;
     for (const auto& p : plantillasAdmin()) ids.push_back(p.value("id", std::string()));
     const auto it = std::find(ids.begin(), ids.end(), id);
-    if (it == ids.end()) return "no hay una plantilla «" + id + "»";
+    if (it == ids.end()) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay una plantilla «%1»"), {id});
     const int i = static_cast<int>(it - ids.begin()), j = std::clamp(i + delta, 0, static_cast<int>(ids.size()) - 1);
     if (i == j) return {};
     std::swap(ids[static_cast<std::size_t>(i)], ids[static_cast<std::size_t>(j)]);
@@ -626,7 +627,7 @@ std::string Configuraciones::plantillaParaEditar(const std::string& id) {
     if (!fs::is_directory(carpeta(id), ec)) {
         // Del programa: una copia propia, marcada como plantilla con sus datos (le gana a la original).
         const fs::path demo = ba::platform::bundleRoot() / "Demos" / deU8(id);
-        if (!fs::is_directory(demo, ec)) return "no hay una plantilla «" + id + "»";
+        if (!fs::is_directory(demo, ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay una plantilla «%1»"), {id});
         if (const std::string e = crearSinAvisar(id, "demo:" + id, "", false); !e.empty()) return e;
         const json original = leerJson(demo / "configuracion.json");
         json meta = leerJson(carpeta(id) / "configuracion.json");
@@ -644,11 +645,11 @@ std::string Configuraciones::plantillaParaEditar(const std::string& id) {
 std::string Configuraciones::plantillaRestablecer(const std::string& id) {
     for (const auto& p : plantillasAdmin())
         if (p.value("id", std::string()) == id) {
-            if (!p.value("editada", false)) return "«" + id + "» no tiene cambios propios para sacar";
-            if (p.value("activa", false)) return "está abierta: pasá a otro evento antes de restablecerla";
+            if (!p.value("editada", false)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "«%1» no tiene cambios propios para sacar"), {id});
+            if (p.value("activa", false)) return ba::i18n::traducir("configuraciones", "está abierta: pasá a otro evento antes de restablecerla");
             return borrar(id);
         }
-    return "no hay una plantilla «" + id + "»";
+    return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay una plantilla «%1»"), {id});
 }
 
 std::string Configuraciones::plantillaDesdeActual(const std::string& nombre, const std::string& escenario) {
@@ -663,7 +664,7 @@ std::string Configuraciones::plantillaDesdeActual(const std::string& nombre, con
 
 std::string Configuraciones::activar(const std::string& nombre) {
     std::error_code ec;
-    if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ningún evento «" + nombre + "»";
+    if (!fs::is_directory(carpeta(nombre), ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ningún evento «%1»"), {nombre});
     escribirJson(datos() / "configuraciones.json", {{"activa", nombre}});
     emit cambio();
     return {};
@@ -671,20 +672,20 @@ std::string Configuraciones::activar(const std::string& nombre) {
 
 std::string Configuraciones::renombrar(const std::string& de, const std::string& a) {
     if (const std::string e = nombreValido(a); !e.empty()) return e;
-    if (de == activa()) return "el evento abierto no se renombra (abrí otro primero)";
+    if (de == activa()) return ba::i18n::traducir("configuraciones", "el evento abierto no se renombra (abrí otro primero)");
     if (const std::string e = enUsoPorLaCopia(de); !e.empty()) return e;
     std::error_code ec;
-    if (!fs::is_directory(carpeta(de), ec)) return "no hay ningún evento «" + de + "»";
-    if (fs::exists(carpeta(a), ec)) return "ya hay un evento «" + a + "»";
+    if (!fs::is_directory(carpeta(de), ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ningún evento «%1»"), {de});
+    if (fs::exists(carpeta(a), ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "ya hay un evento «%1»"), {a});
     fs::rename(carpeta(de), carpeta(a), ec);
-    if (ec) return "no se pudo renombrar: " + ec.message();
+    if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo renombrar: %1"), {ec.message()});
     emit cambio();
     return {};
 }
 
 std::string Configuraciones::describir(const std::string& nombre, const std::string& descripcion) {
     std::error_code ec;
-    if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ningún evento «" + nombre + "»";
+    if (!fs::is_directory(carpeta(nombre), ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ningún evento «%1»"), {nombre});
     json meta = leerJson(carpeta(nombre) / "configuracion.json");
     meta["descripcion"] = descripcion;
     escribirJson(carpeta(nombre) / "configuracion.json", meta);
@@ -693,15 +694,15 @@ std::string Configuraciones::describir(const std::string& nombre, const std::str
 }
 
 std::string Configuraciones::borrar(const std::string& nombre) {
-    if (nombre == activa()) return "el evento abierto no se borra (abrí otro primero)";
+    if (nombre == activa()) return ba::i18n::traducir("configuraciones", "el evento abierto no se borra (abrí otro primero)");
     if (const std::string e = enUsoPorLaCopia(nombre); !e.empty()) return e;
     std::error_code ec;
-    if (nombreValido(nombre) != "" || !fs::is_directory(carpeta(nombre), ec)) return "no hay ningún evento «" + nombre + "»";
+    if (nombreValido(nombre) != "" || !fs::is_directory(carpeta(nombre), ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ningún evento «%1»"), {nombre});
     const fs::path pap = datos() / "Configuraciones" / ".papelera" /
                          deU8(nombre + "-" + std::to_string(QDateTime::currentSecsSinceEpoch()));
     fs::create_directories(pap.parent_path(), ec);
     fs::rename(carpeta(nombre), pap, ec);
-    if (ec) return "no se pudo mover a la papelera: " + ec.message();
+    if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo mover a la papelera: %1"), {ec.message()});
     emit cambio();
     return {};
 }
@@ -722,10 +723,9 @@ std::pair<std::string, long long> enPapelera(const std::string& id) {
 std::string Configuraciones::enUsoPorLaCopia(const std::string& nombre) const {
     if (copia_.isEmpty()) return {};
     const QString n = QString::fromStdString(nombre);
-    if (copia_.value("nombre").toString() == n) return "«" + nombre + "» se está creando (copiando): esperá a que termine";
+    if (copia_.value("nombre").toString() == n) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "«%1» se está creando (copiando): esperá a que termine"), {nombre});
     if (copia_.value("origen").toString() == n)
-        return "se está copiando «" + nombre + "» a «" + copia_.value("nombre").toString().toStdString() +
-               "»: esperá a que termine";
+        return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "se está copiando «%1» a «%2»: esperá a que termine"), {nombre, copia_.value("nombre").toString().toStdString()});
     return {};
 }
 
@@ -746,11 +746,11 @@ json Configuraciones::papelera() const {
 }
 
 std::string Configuraciones::vaciarPapelera(const std::string& id) {
-    if (vaciando_) return "ya se está vaciando la papelera";
+    if (vaciando_) return ba::i18n::traducir("configuraciones", "ya se está vaciando la papelera");
     std::vector<std::string> ids;
     for (const json& p : papelera())
         if (id.empty() || p.value("id", std::string()) == id) ids.push_back(p.value("id", std::string()));
-    if (ids.empty()) return id.empty() ? "la papelera está vacía" : "no hay nada «" + id + "» en la papelera";
+    if (ids.empty()) return id.empty() ? ba::i18n::traducir("configuraciones", "la papelera está vacía") : ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay nada «%1» en la papelera"), {id});
     vaciar(ids);
     return {};
 }
@@ -799,13 +799,13 @@ std::string Configuraciones::recuperar(const std::string& id, const std::string&
     const fs::path de = datos() / "Configuraciones" / ".papelera" / deU8(id);
     if (id.empty() || id.find_first_of("/\\") != std::string::npos || id.find("..") != std::string::npos ||
         !fs::is_directory(de, ec))
-        return "no hay nada «" + id + "» en la papelera";
-    if (enPapelera(id).second == 1) return "eso quedó a medio borrar: no se puede recuperar";
+        return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay nada «%1» en la papelera"), {id});
+    if (enPapelera(id).second == 1) return ba::i18n::traducir("configuraciones", "eso quedó a medio borrar: no se puede recuperar");
     const std::string n = como.empty() ? enPapelera(id).first : como;
     if (const std::string e = nombreValido(n); !e.empty()) return e;
-    if (fs::exists(carpeta(n), ec)) return "ya hay un evento «" + n + "»: recuperalo con otro nombre";
+    if (fs::exists(carpeta(n), ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "ya hay un evento «%1»: recuperalo con otro nombre"), {n});
     fs::rename(de, carpeta(n), ec);
-    if (ec) return "no se pudo sacar de la papelera: " + ec.message();
+    if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo sacar de la papelera: %1"), {ec.message()});
     emit cambio();
     return {};
 }
@@ -826,7 +826,7 @@ QString Configuraciones::crearUi(const QString& n, const QString& d, const QStri
 }
 QString Configuraciones::nuevoEventoUi(const QString& n, const QString& desde, bool abrir) {
     // Una copia puede ser de varios GB (grabaciones): en otro hilo, con progreso (`copia`).
-    if (n.toStdString() == activa() && abrir) return "ya es el evento abierto";
+    if (n.toStdString() == activa() && abrir) return tr("ya es el evento abierto");
     return nuevoEventoAparte(n, desde, abrir, {});
 }
 QString Configuraciones::marcarPlantillaUi(const QString& n, bool p) {
@@ -846,17 +846,17 @@ QString Configuraciones::plantillaRestablecerUi(const QString& id) { return QStr
 QString Configuraciones::plantillaBorrarUi(const QString& id) {
     for (const auto& p : plantillasAdmin())
         if (p.value("id", std::string()) == id.toStdString()) {
-            if (p.value("programa", false)) return "las del programa no se borran: ocultala (o restablecela si la editaste)";
-            if (p.value("activa", false)) return "está abierta: pasá a otro evento antes de borrarla";
+            if (p.value("programa", false)) return tr("las del programa no se borran: ocultala (o restablecela si la editaste)");
+            if (p.value("activa", false)) return tr("está abierta: pasá a otro evento antes de borrarla");
             return QString::fromStdString(borrar(id.toStdString()));
         }
-    return "no hay una plantilla «" + id + "»";
+    return tr("no hay una plantilla «%1»").arg(id);
 }
 QString Configuraciones::plantillaDesdeActualUi(const QString& n, const QString& esc) {
     return QString::fromStdString(plantillaDesdeActual(n.trimmed().toStdString(), esc.toStdString()));
 }
 QString Configuraciones::cambiarUi(const QString& n) {
-    if (n.toStdString() == activa()) return "ya es la activa";
+    if (n.toStdString() == activa()) return tr("ya es la activa");
     if (const std::string e = activar(n.toStdString()); !e.empty()) return QString::fromStdString(e);
     return reiniciar();
 }

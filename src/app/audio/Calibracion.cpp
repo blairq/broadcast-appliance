@@ -7,6 +7,7 @@
 #include "audio/LspDsp.hpp"
 #include "audio/Modules.hpp"
 #include "audio/RackManager.hpp"
+#include <QCoreApplication>
 
 #include <QDateTime>
 #include <QJsonArray>
@@ -77,7 +78,7 @@ json calibracionDe(const QString& tipo, const QString& modelo, const QString& ar
         ss << f.rdbuf();
         const auto t = calib::leerArchivoCalibracion(ss.str());
         if (t.empty()) {
-            *error = "no se pudo leer el archivo de calibración (se esperan líneas «frecuencia dB»)";
+            *error = QCoreApplication::translate("calibracion", "no se pudo leer el archivo de calibración (se esperan líneas «frecuencia dB»)");
             return {};
         }
         json p = json::array();
@@ -85,7 +86,7 @@ json calibracionDe(const QString& tipo, const QString& modelo, const QString& ar
         c["puntos"] = p;
         c["archivo"] = fs::u8path(archivo.toStdString()).filename().u8string();
     } else if (tipo != "plano") {
-        *error = "tipo de calibración: plano, modelo o archivo";
+        *error = QCoreApplication::translate("calibracion", "tipo de calibración: plano, modelo o archivo");
         return {};
     }
     return c;
@@ -208,9 +209,10 @@ std::string Calibracion::idNuevo(const std::string& prefijo) const {
     return prefijo + std::to_string(max + 1);
 }
 
-void Calibracion::setEstado(const QString& e, const QString& m) {
+void Calibracion::setEstado(const QString& e, const QString& m, bool aviso) {
     estado_ = e;
     mensaje_ = m;
+    mensajeAviso_ = aviso;
     emit estadoCambio();
 }
 
@@ -226,8 +228,8 @@ void Calibracion::rehacerAnalisis() {
 }
 
 QString Calibracion::nueva(const QString& nombre, double largo, double ancho, double alto) {
-    if (estado_ == "midiendo") return "hay una medición en curso";
-    if (largo <= 0 || ancho <= 0 || alto <= 0) return "las medidas de la sala van en metros, mayores que cero";
+    if (estado_ == "midiendo") return tr("hay una medición en curso");
+    if (largo <= 0 || ancho <= 0 || alto <= 0) return tr("las medidas de la sala van en metros, mayores que cero");
     const QDateTime t = QDateTime::currentDateTime();
     s_ = {{"id", "c" + t.toString("yyyyMMdd-HHmmss").toStdString()},
           {"nombre", nombre.isEmpty() ? "Sala" : nombre.toStdString()},
@@ -248,11 +250,11 @@ QString Calibracion::nueva(const QString& nombre, double largo, double ancho, do
 }
 
 QString Calibracion::abrir(const QString& id) {
-    if (estado_ == "midiendo") return "hay una medición en curso";
+    if (estado_ == "midiendo") return tr("hay una medición en curso");
     std::ifstream f(root_ / "Mediciones" / "Calibraciones" / fs::u8path(id.toStdString()) / "sesion.json");
-    if (!f) return "no está la sesión " + id;
+    if (!f) return tr("no está la sesión %1").arg(id);
     json j = json::parse(f, nullptr, false);
-    if (!j.is_object()) return "la sesión " + id + " está dañada";
+    if (!j.is_object()) return tr("la sesión %1 está dañada").arg(id);
     s_ = std::move(j);
     for (const char* k : {"parlantes", "microfonos", "puntos", "mediciones", "aplicado"})
         if (!s_[k].is_array()) s_[k] = json::array();
@@ -264,8 +266,8 @@ QString Calibracion::abrir(const QString& id) {
 }
 
 QString Calibracion::setSala(double largo, double ancho, double alto) {
-    if (!s_.is_object()) return "no hay sesión abierta";
-    if (largo <= 0 || ancho <= 0 || alto <= 0) return "las medidas van en metros, mayores que cero";
+    if (!s_.is_object()) return tr("no hay sesión abierta");
+    if (largo <= 0 || ancho <= 0 || alto <= 0) return tr("las medidas van en metros, mayores que cero");
     s_["sala"] = {{"largo", largo}, {"ancho", ancho}, {"alto", alto}};
     guardar();
     rehacerAnalisis();
@@ -274,7 +276,7 @@ QString Calibracion::setSala(double largo, double ancho, double alto) {
 }
 
 QString Calibracion::setObjetivo(double pendiente) {
-    if (!s_.is_object()) return "no hay sesión abierta";
+    if (!s_.is_object()) return tr("no hay sesión abierta");
     s_["objetivo"]["pendiente_db_oct"] = std::clamp(pendiente, -3.0, 1.0);
     guardar();
     rehacerAnalisis();
@@ -283,8 +285,8 @@ QString Calibracion::setObjetivo(double pendiente) {
 }
 
 QString Calibracion::agregarParlante(const QString& nombre, const QString& dispositivo, int canal, double x, double y) {
-    if (!s_.is_object()) return "no hay sesión abierta";
-    if (dispositivo.isEmpty()) return "falta la salida (dispositivo)";
+    if (!s_.is_object()) return tr("no hay sesión abierta");
+    if (dispositivo.isEmpty()) return tr("falta la salida (dispositivo)");
     const std::string id = idNuevo("p");
     s_["parlantes"].push_back({{"id", id},
                                {"nombre", nombre.isEmpty() ? "Parlante " + id.substr(1) : nombre.toStdString()},
@@ -301,8 +303,8 @@ QString Calibracion::agregarParlante(const QString& nombre, const QString& dispo
 
 QString Calibracion::agregarMicrofono(const QString& nombre, const QString& dispositivo, int canal, const QString& tipo,
                                       const QString& modelo, const QString& archivo) {
-    if (!s_.is_object()) return "no hay sesión abierta";
-    if (dispositivo.isEmpty()) return "falta la entrada (dispositivo)";
+    if (!s_.is_object()) return tr("no hay sesión abierta");
+    if (dispositivo.isEmpty()) return tr("falta la entrada (dispositivo)");
     QString e;
     const json cal = calibracionDe(tipo, modelo, archivo, &e);
     if (!e.isEmpty()) return e;
@@ -321,7 +323,7 @@ QString Calibracion::agregarMicrofono(const QString& nombre, const QString& disp
 QString Calibracion::setCalibracionMicrofono(const QString& id, const QString& tipo, const QString& modelo,
                                              const QString& archivo) {
     json* m = s_.is_object() ? buscarEn(s_["microfonos"], id.toStdString()) : nullptr;
-    if (m == nullptr) return "no está el micrófono " + id;
+    if (m == nullptr) return tr("no está el micrófono %1").arg(id);
     QString e;
     const json cal = calibracionDe(tipo, modelo, archivo, &e);
     if (!e.isEmpty()) return e;
@@ -333,10 +335,10 @@ QString Calibracion::setCalibracionMicrofono(const QString& id, const QString& t
 }
 
 QString Calibracion::agregarPunto(const QString& nombre, const QString& tipo, double x, double y) {
-    if (!s_.is_object()) return "no hay sesión abierta";
+    if (!s_.is_object()) return tr("no hay sesión abierta");
     const QString t = tipo.isEmpty() ? "escucha" : tipo;
     if (t != "escucha" && t != "cerca" && t != "pared" && t != "microfono")
-        return "tipo de punto: escucha, cerca, pared o microfono";
+        return tr("tipo de punto: escucha, cerca, pared o microfono");
     const std::string id = idNuevo("pt");
     s_["puntos"].push_back({{"id", id},
                             {"nombre", nombre.isEmpty() ? "Punto " + id.substr(2) : nombre.toStdString()},
@@ -353,7 +355,7 @@ QString Calibracion::agregarPunto(const QString& nombre, const QString& tipo, do
 
 QString Calibracion::mover(const QString& id, double x, double y) {
     json* o = buscar(id.toStdString());
-    if (o == nullptr || o->contains("parlante")) return "no está " + id + " (parlante, micrófono o punto)";
+    if (o == nullptr || o->contains("parlante")) return tr("no está %1 (parlante, micrófono o punto)").arg(id);
     const json sala = s_.value("sala", json::object());
     (*o)["x"] = std::clamp(x, 0.0, sala.value("largo", 100.0));
     (*o)["y"] = std::clamp(y, 0.0, sala.value("ancho", 100.0));
@@ -363,7 +365,7 @@ QString Calibracion::mover(const QString& id, double x, double y) {
 }
 
 QString Calibracion::quitar(const QString& id) {
-    if (!s_.is_object()) return "no hay sesión abierta";
+    if (!s_.is_object()) return tr("no hay sesión abierta");
     const std::string k = id.toStdString();
     for (const char* lista : {"parlantes", "microfonos", "puntos"}) {
         json& l = s_[lista];
@@ -377,11 +379,11 @@ QString Calibracion::quitar(const QString& id) {
                 return {};
             }
     }
-    return "no está " + id;
+    return tr("no está %1").arg(id);
 }
 
 QString Calibracion::borrarMedicion(const QString& id) {
-    if (!s_.is_object()) return "no hay sesión abierta";
+    if (!s_.is_object()) return tr("no hay sesión abierta");
     json& l = s_["mediciones"];
     for (size_t i = 0; i < l.size(); ++i)
         if (l[i].value("id", "") == id.toStdString()) {
@@ -393,35 +395,35 @@ QString Calibracion::borrarMedicion(const QString& id) {
             emit sesionCambio();
             return {};
         }
-    return "no está la medición " + id;
+    return tr("no está la medición %1").arg(id);
 }
 
 QString Calibracion::medir(const QString& parlante, const QString& punto, const QString& microfono, const QString& etapa,
                            double duracionS, double nivelDb) {
     const auto* L = lspdsp::api();
-    if (L == nullptr) return "falta ba-lspdsp: " + QString::fromStdString(lspdsp::error());
-    if (!s_.is_object()) return "no hay sesión abierta (calibracion_crear)";
-    if (estado_ == "midiendo") return "ya hay una medición en curso";
+    if (L == nullptr) return tr("falta ba-lspdsp: %1").arg(QString::fromStdString(lspdsp::error()));
+    if (!s_.is_object()) return tr("no hay sesión abierta (calibracion_crear)");
+    if (estado_ == "midiendo") return tr("ya hay una medición en curso");
     const json* pa = buscarEn(s_["parlantes"], parlante.toStdString());
     const json* pt = buscarEn(s_["puntos"], punto.toStdString());
     const json* mi = buscarEn(s_["microfonos"], microfono.toStdString());
-    if (pa == nullptr) return "no está el parlante " + parlante;
-    if (pt == nullptr) return "no está el punto " + punto;
-    if (mi == nullptr) return "no está el micrófono " + microfono;
+    if (pa == nullptr) return tr("no está el parlante %1").arg(parlante);
+    if (pt == nullptr) return tr("no está el punto %1").arg(punto);
+    if (mi == nullptr) return tr("no está el micrófono %1").arg(microfono);
     const QString et = etapa.isEmpty() ? "antes" : etapa;
-    if (et != "antes" && et != "verificacion" && et != "sustitucion") return "etapa: antes, verificacion o sustitucion";
+    if (et != "antes" && et != "verificacion" && et != "sustitucion") return tr("etapa: antes, verificacion o sustitucion");
     const QString salida = QString::fromStdString(pa->value("salida", json::object()).value("dispositivo", ""));
     const QString entrada = QString::fromStdString(mi->value("entrada", json::object()).value("dispositivo", ""));
     const bool simulada = salida == kSalaSimulada || entrada == kSalaSimulada;
-    if (simulada && salida != entrada) return "la sala simulada va en la salida Y en la entrada (o en ninguna)";
-    if (!simulada && alAire_ && alAire_()) return "hay una emisión o grabación en curso: el barrido saldría al aire";
+    if (simulada && salida != entrada) return tr("la sala simulada va en la salida Y en la entrada (o en ninguna)");
+    if (!simulada && alAire_ && alAire_()) return tr("hay una emisión o grabación en curso: el barrido saldría al aire");
 
     const float dur = static_cast<float>(std::clamp(duracionS > 0 ? duracionS : 4.0, 1.0, 15.0));
     // De fábrica -20 dBFS; nunca más de -6 (con el volumen del equipo se sube de a poco).
     const float amp = static_cast<float>(std::pow(10.0, std::clamp(nivelDb != 0 ? nivelDb : -20.0, -60.0, -6.0) / 20.0));
     if (med_ != nullptr) L->medicionLiberar(med_);
     med_ = L->medicionCrear(kFrecuencia, dur, 20.0f, 20000.0f, amp, 0.0f);
-    if (med_ == nullptr) return "no se pudo armar el barrido";
+    if (med_ == nullptr) return tr("no se pudo armar el barrido");
     // El estímulo: lo que emite la medición sin nada en la entrada.
     std::vector<float> estimulo(L->medicionDuracionMuestras(med_)), cero(1024, 0.0f);
     L->medicionArrancar(med_);
@@ -452,7 +454,7 @@ QString Calibracion::medir(const QString& parlante, const QString& punto, const 
     const QString e = lazo_->arrancar(estimulo, kFrecuencia, [this, yo, gen, base](std::vector<float> cap, QString err) {
         if (!yo || gen != generacion_) return;
         if (!err.isEmpty()) return terminarMedicion(base, {}, err);
-        setEstado("analizando", "Calculando la respuesta impulsiva…");
+        setEstado("analizando", tr("Calculando la respuesta impulsiva…"));
         if (hilo_.joinable()) hilo_.join();
         ba_medicion* m = med_;
         hilo_ = std::thread([this, yo, gen, base, m, cap = std::move(cap)]() mutable {
@@ -476,7 +478,7 @@ QString Calibracion::medir(const QString& parlante, const QString& punto, const 
         return e;
     }
     const QString nom = QString::fromStdString(pa->value("nombre", "")) + " → " + QString::fromStdString(pt->value("nombre", ""));
-    setEstado("midiendo", "Midiendo " + nom + (simulada ? " (sala simulada)" : "") + "…");
+    setEstado("midiendo", simulada ? tr("Midiendo %1 (sala simulada)…").arg(nom) : tr("Midiendo %1…").arg(nom));
     return {};
 }
 
@@ -484,13 +486,13 @@ void Calibracion::cancelar() {
     if (estado_.isEmpty()) return;
     ++generacion_;
     if (lazo_) lazo_->cancelar();
-    setEstado("", "Medición cancelada");
+    setEstado("", tr("Medición cancelada"));
 }
 
 void Calibracion::terminarMedicion(json med, std::vector<float> ir, QString error) {
     lazo_.reset();
     if (!error.isEmpty() || !s_.is_object()) {
-        setEstado("", "No se pudo medir: " + error);
+        setEstado("", tr("No se pudo medir: %1").arg(error), true);
         emit medicionTerminada({}, error);
         return;
     }
@@ -508,9 +510,15 @@ void Calibracion::terminarMedicion(json med, std::vector<float> ir, QString erro
     rehacerAnalisis();
     const double snr = med.value("snr_db", 0.0);
     QString aviso;
-    if (snr < 40) aviso = " — relación señal/ruido baja (" + QString::number(snr, 'f', 0) + " dB): subí el nivel o bajá el ruido y repetí";
-    setEstado("", "Medido: directo a " + QString::number(med.value("directo_ms", 0.0), 'f', 1) + " ms, RT60 " +
-                      QString::number(med.value("rt60_s", 0.0), 'f', 2) + " s" + aviso);
+    const QString directo = QString::number(med.value("directo_ms", 0.0), 'f', 1);
+    const QString rt60 = QString::number(med.value("rt60_s", 0.0), 'f', 2);
+    if (snr < 40)
+        setEstado("", tr("Medido: directo a %1 ms, RT60 %2 s — relación señal/ruido baja (%3 dB): subí el nivel o "
+                         "bajá el ruido y repetí")
+                          .arg(directo, rt60, QString::number(snr, 'f', 0)),
+                  true);
+    else
+        setEstado("", tr("Medido: directo a %1 ms, RT60 %2 s").arg(directo, rt60));
     emit sesionCambio();
     emit ultimaCambio();
     emit medicionTerminada(QString::fromStdString(id), {});
@@ -520,14 +528,14 @@ QString Calibracion::calibrarPorSustitucion(const QString& microfono, const QStr
     json* mic = s_.is_object() ? buscarEn(s_["microfonos"], microfono.toStdString()) : nullptr;
     const json* mr = buscar(conReferencia.toStdString());
     const json* mm = buscar(conMicrofono.toStdString());
-    if (mic == nullptr) return "no está el micrófono " + microfono;
-    if (mr == nullptr || !mr->contains("curva")) return "no está la medición de referencia " + conReferencia;
-    if (mm == nullptr || !mm->contains("curva")) return "no está la medición con el micrófono " + conMicrofono;
+    if (mic == nullptr) return tr("no está el micrófono %1").arg(microfono);
+    if (mr == nullptr || !mr->contains("curva")) return tr("no está la medición de referencia %1").arg(conReferencia);
+    if (mm == nullptr || !mm->contains("curva")) return tr("no está la medición con el micrófono %1").arg(conMicrofono);
     if (mr->value("parlante", "") != mm->value("parlante", "") || mr->value("punto", "") != mm->value("punto", ""))
-        return "las dos mediciones tienen que ser del mismo parlante en el mismo punto";
+        return tr("las dos mediciones tienen que ser del mismo parlante en el mismo punto");
     const json* ref = buscar(mr->value("microfono", ""));
-    if (ref == nullptr) return "no está el micrófono de referencia";
-    if (mr->value("microfono", "") == microfono.toStdString()) return "la referencia tiene que ser otro micrófono";
+    if (ref == nullptr) return tr("no está el micrófono de referencia");
+    if (mr->value("microfono", "") == microfono.toStdString()) return tr("la referencia tiene que ser otro micrófono");
     const calib::Curva cr = calib::curvaMicrofono(*ref);
     calib::Curva d(calib::grilla().size());
     for (size_t i = 0; i < d.size(); ++i)
@@ -548,20 +556,20 @@ QString Calibracion::calibrarPorSustitucion(const QString& microfono, const QStr
 }
 
 QString Calibracion::aplicar(const QString& parlante, const QString& fuente) {
-    if (racks_ == nullptr) return "no hay racks de audio";
+    if (racks_ == nullptr) return tr("no hay racks de audio");
     const json prop = propuesta_.value("parlantes", json::object()).value(parlante.toStdString(), json::object());
-    if (!prop.contains("filtros")) return "no hay propuesta para " + parlante + " (medí y analizá primero)";
+    if (!prop.contains("filtros")) return tr("no hay propuesta para %1 (medí y analizá primero)").arg(parlante);
     std::string e;
     AudioRack* r = racks_->rack(fuente.toStdString(), true, &e);
-    if (r == nullptr) return "no hay rack para «" + fuente + "»: " + QString::fromStdString(e);
+    if (r == nullptr) return tr("no hay rack para «%1»: %2").arg(fuente, QString::fromStdString(e));
     const ModuleType* eq = findModule("eq");
     std::string nodo = "eq-sala";
     if (r->plugin(nodo) == nullptr) {
         nodo = r->addPlugin(eq->pluginId, "EQ de sala", "", &e, "eq-sala");
-        if (nodo.empty()) return "no se pudo agregar el EQ: " + QString::fromStdString(e);
+        if (nodo.empty()) return tr("no se pudo agregar el EQ: %1").arg(QString::fromStdString(e));
     }
     ClapInstance* inst = r->plugin(nodo);
-    if (inst == nullptr) return "el EQ no quedó cargado";
+    if (inst == nullptr) return tr("el EQ no quedó cargado");
     json bandas = json::array();
     int b = 0;
     for (const auto& f : prop["filtros"]) {
@@ -577,20 +585,21 @@ QString Calibracion::aplicar(const QString& parlante, const QString& fuente) {
     const json res = applyModule(*inst, eq, {{"bandas", bandas}});
     racks_->markDirty();
     if (res.contains("errores") && !res["errores"].empty())
-        return "el EQ quedó a medias: " + QString::fromStdString(res["errores"].dump());
+        return tr("el EQ quedó a medias: %1").arg(QString::fromStdString(res["errores"].dump()));
     s_["aplicado"].push_back({{"fecha", ahora()}, {"parlante", parlante.toStdString()}, {"fuente", fuente.toStdString()},
                               {"nodo", nodo}, {"filtros", prop["filtros"]}});
     guardar();
     emit sesionCambio();
-    setEstado("", "Aplicado en el rack de «" + fuente + "» (nodo " + QString::fromStdString(nodo) +
-                      "). Ahora: verificar (medir los mismos puntos con etapa verificacion).");
+    setEstado("", tr("Aplicado en el rack de «%1» (nodo %2). Ahora: verificar (medir los mismos puntos con etapa "
+                     "verificacion).")
+                      .arg(fuente, QString::fromStdString(nodo)));
     return {};
 }
 
 QString Calibracion::revertir(const QString& fuente) {
-    if (racks_ == nullptr) return "no hay racks de audio";
+    if (racks_ == nullptr) return tr("no hay racks de audio");
     AudioRack* r = racks_->rack(fuente.toStdString(), false);
-    if (r == nullptr || r->plugin("eq-sala") == nullptr) return "«" + fuente + "» no tiene EQ de sala";
+    if (r == nullptr || r->plugin("eq-sala") == nullptr) return tr("«%1» no tiene EQ de sala").arg(fuente);
     std::string e;
     if (!r->remove("eq-sala", &e)) return QString::fromStdString(e);
     racks_->markDirty();
@@ -599,7 +608,7 @@ QString Calibracion::revertir(const QString& fuente) {
         guardar();
         emit sesionCambio();
     }
-    setEstado("", "Sacado el EQ de sala de «" + fuente + "»");
+    setEstado("", tr("Sacado el EQ de sala de «%1»").arg(fuente));
     return {};
 }
 

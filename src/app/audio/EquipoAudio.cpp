@@ -6,6 +6,7 @@
 #include "audio/GstVoz.hpp"
 
 #include "emision/FuentesApp.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QAudioDevice>
 #include <QAudioFormat>
@@ -205,8 +206,10 @@ struct EquipoAudio::Salida {
                     hh->error = e;
                 };
                 if (!d.isFormatSupported(formato(c))) {
-                    std::printf("ba-app: la salida '%s' no acepta %d canales a 48 kHz\n", n.c_str(), c);
-                    poner("no acepta " + std::to_string(c) + " canales a 48 kHz (float)");
+                    std::printf("ba-app: %s\n",
+                                ba::i18n::llenar(ba::i18n::traducir("audio", "la salida '%1' no acepta %2 canales a 48 kHz"), {n, std::to_string(c)})
+                                    .c_str());
+                    poner(ba::i18n::llenar(ba::i18n::traducir("audio", "no acepta %1 canales a 48 kHz (float)"), {std::to_string(c)}));
                     return;
                 }
                 hh->io = std::make_unique<anillo::AlDispositivoMulti>(p, c);
@@ -214,7 +217,8 @@ struct EquipoAudio::Salida {
                 hh->sink->setBufferSize(static_cast<qsizetype>(anillo::kColchon * c * sizeof(float) * 2));
                 hh->sink->start(hh->io.get());
                 if (hh->sink->error() != QAudio::NoError) {
-                    poner("no se pudo abrir (error de Qt " + std::to_string(static_cast<int>(hh->sink->error())) + ")");
+                    poner(ba::i18n::llenar(ba::i18n::traducir("audio", "no se pudo abrir (error de Qt %1)"),
+                                        {std::to_string(static_cast<int>(hh->sink->error()))}));
                     hh->sink.reset();
                     hh->io.reset();
                     return;
@@ -270,7 +274,9 @@ struct EquipoAudio::Entrada {
                 hh->fuentes = refs;
                 hh->canales = c;
                 if (!d.isFormatSupported(formato(c))) {
-                    std::printf("ba-app: la entrada '%s' no da %d canales a 48 kHz\n", n.c_str(), c);
+                    std::printf("ba-app: %s\n",
+                                ba::i18n::llenar(ba::i18n::traducir("audio", "la entrada '%1' no da %2 canales a 48 kHz"), {n, std::to_string(c)})
+                                    .c_str());
                     return;
                 }
                 hh->src = std::make_unique<QAudioSource>(d, formato(c));
@@ -328,7 +334,8 @@ struct EquipoAudio::Entrada {
             const auto todas = fuentes::listar();
             const bool existe = std::any_of(todas.begin(), todas.end(), [&](const auto& p) { return p.first == n; });
             if (existe && !fuentes::ajustesDe(n).value("fisica", false)) {
-                std::printf("ba-app: la entrada física '%s' choca con otra fuente; no se crea\n", n.c_str());
+                std::printf("ba-app: %s\n",
+                            ba::i18n::llenar(ba::i18n::traducir("audio", "la entrada física '%1' choca con otra fuente; no se crea"), {n}).c_str());
                 continue;
             }
             std::string nom;

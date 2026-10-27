@@ -8,6 +8,7 @@
 #include "platform/Paths.hpp"
 #include "plugins/Hijo.hpp"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
 #include <QJsonDocument>
@@ -78,10 +79,14 @@ const char* kIdiomas[] = {"es", "en", "pt", "fr", "de", "ru", "zh"};
 inline int kMaxCaidas() { return ba::ajustes::entero("traductor.maxCaidas", 5); }
 } // namespace
 
+// Los nombres se traducen al mostrarlos (QCoreApplication::translate("idiomas", …)): el MCP
+// también los lee de acá.
 const std::map<std::string, std::string>& Traductor::nombresIdiomas() {
     static const std::map<std::string, std::string> m{
-        {"es", "castellano"}, {"en", "inglés"}, {"pt", "portugués (Brasil)"}, {"fr", "francés"},
-        {"de", "alemán"},     {"ru", "ruso"},   {"zh", "chino mandarín"}};
+        {"es", QT_TRANSLATE_NOOP("idiomas", "castellano")}, {"en", QT_TRANSLATE_NOOP("idiomas", "inglés")},
+        {"pt", QT_TRANSLATE_NOOP("idiomas", "portugués (Brasil)")}, {"fr", QT_TRANSLATE_NOOP("idiomas", "francés")},
+        {"de", QT_TRANSLATE_NOOP("idiomas", "alemán")}, {"ru", QT_TRANSLATE_NOOP("idiomas", "ruso")},
+        {"zh", QT_TRANSLATE_NOOP("idiomas", "chino mandarín")}};
     return m;
 }
 
@@ -185,9 +190,10 @@ json Traductor::lista() const {
         pasos(t.value("idioma_desde", std::string("es")), t.value("a", std::string()), &err);
         const json f = faltan(t.value("idioma_desde", std::string("es")), t.value("a", std::string()));
         t["faltan"] = f;
-        t["estado"] = t.value("desde", std::string()).empty() ? "elegí qué salida de texto traducir"
+        // «pausada» y «lista» son estados (los compara EstadoIA); el resto, el texto que se muestra.
+        t["estado"] = t.value("desde", std::string()).empty() ? tr("elegí qué salida de texto traducir").toStdString()
                       : !err.empty()                          ? err
-                      : !f.empty()                 ? "falta bajar " + std::to_string(f.size()) + " paquete(s)"
+                      : !f.empty() ? tr("falta bajar %n paquete", "", static_cast<int>(f.size())).toStdString()
                       : !t.value("activa", true)   ? "pausada"
                       : motor_.startsWith("error") ? motor_.toStdString()
                                                    : "lista";
@@ -201,16 +207,16 @@ json Traductor::lista() const {
 std::string Traductor::agregar(const std::string& desde, const std::string& idiomaDesde, const std::string& a,
                                const std::string& nombre, const json& opciones, json* hecha) {
     const std::string de = idiomaDesde.empty() ? "es" : idiomaDesde;
-    if (desde.empty()) return "falta la salida de texto a traducir (`desde`)";
-    if (!nombresIdiomas().count(a)) return "idioma «" + a + "» desconocido (hay: es, en, pt, fr, de, ru, zh)";
-    if (!nombresIdiomas().count(de)) return "idioma de origen «" + de + "» desconocido";
+    if (desde.empty()) return tr("falta la salida de texto a traducir (`desde`)").toStdString();
+    if (!nombresIdiomas().count(a)) return tr("idioma «%1» desconocido (hay: es, en, pt, fr, de, ru, zh)").arg(q(a)).toStdString();
+    if (!nombresIdiomas().count(de)) return tr("idioma de origen «%1» desconocido").arg(q(de)).toStdString();
     std::string err;
     pasos(de, a, &err);
     if (!err.empty()) return err;
     const std::string n = nombre.empty() ? desde + " · " + a : nombre;
-    if (n == desde) return "la salida traducida no puede llamarse igual que la original";
+    if (n == desde) return tr("la salida traducida no puede llamarse igual que la original").toStdString();
     for (const auto& t : traducciones_)
-        if (t.value("nombre", "") == n) return "ya hay una traducción que publica en «" + n + "»";
+        if (t.value("nombre", "") == n) return tr("ya hay una traducción que publica en «%1»").arg(q(n)).toStdString();
     json t{{"desde", desde},
            {"idioma_desde", de},
            {"a", a},
@@ -246,9 +252,9 @@ std::string Traductor::ajustar(const std::string& id, const json& cambios) {
          {"activa", "rotulo", "archivo", "nombre", "a", "idioma_desde", "espera_ms", "maximo_ms", "desde"})
         if (cambios.contains(k)) c[k] = cambios[k];
     if (c.contains("a") && !nombresIdiomas().count(c.value("a", std::string())))
-        return "idioma «" + c.value("a", std::string()) + "» desconocido";
+        return tr("idioma «%1» desconocido").arg(q(c.value("a", std::string()))).toStdString();
     if (c.contains("idioma_desde") && !nombresIdiomas().count(c.value("idioma_desde", std::string())))
-        return "idioma de origen «" + c.value("idioma_desde", std::string()) + "» desconocido";
+        return tr("idioma de origen «%1» desconocido").arg(q(c.value("idioma_desde", std::string()))).toStdString();
     for (auto& t : porMigrar_)
         if (t.value("id", "") == id) {
             for (auto it = c.begin(); it != c.end(); ++it)
@@ -271,7 +277,7 @@ std::string Traductor::ajustar(const std::string& id, const json& cambios) {
         emit flujos_.cambio();
         return {};
     }
-    return "no hay una traducción «" + id + "»";
+    return tr("no hay una traducción «%1»").arg(q(id)).toStdString();
 }
 
 std::string Traductor::quitar(const std::string& id) {
@@ -291,7 +297,7 @@ std::string Traductor::quitar(const std::string& id) {
     traducciones_.erase(std::remove_if(traducciones_.begin(), traducciones_.end(),
                                        [&](const json& t) { return t.value("id", "") == id; }),
                         traducciones_.end());
-    if (traducciones_.size() == n) return "no hay una traducción «" + id + "»";
+    if (traducciones_.size() == n) return tr("no hay una traducción «%1»").arg(q(id)).toStdString();
     guardar();
     emit cambio();
     emit flujos_.cambio();
@@ -307,9 +313,11 @@ json Traductor::salidas() const {
             {{"flujo", t.value("nombre", "")},
              {"fuente", t.value("desde", "")},
              {"origen",
-              "Traducción al " +
-                  (idioma != nombresIdiomas().end() ? idioma->second : t.value("a", std::string())) +
-                  " de «" + t.value("desde", std::string()) + "»"},
+              tr("Traducción al %1 de «%2»")
+                  .arg(idioma != nombresIdiomas().end() ? QCoreApplication::translate("idiomas", idioma->second.c_str())
+                                                        : q(t.value("a", std::string())),
+                       q(t.value("desde", std::string())))
+                  .toStdString()},
              {"modo", "traduccion"},
              {"salidas",
               {{"archivo", t.value("archivo", false)}, {"rotulo", t.value("rotulo", std::string())}}}});
@@ -337,7 +345,7 @@ json Traductor::pasos(const std::string& de, const std::string& a, std::string* 
     }
     json out = json::array();
     if (de == a) {
-        if (error) *error = "el idioma de origen y el de destino son el mismo";
+        if (error) *error = tr("el idioma de origen y el de destino son el mismo").toStdString();
         return out;
     }
     const auto armar = [&](const std::string& x, const std::string& y) {
@@ -351,7 +359,7 @@ json Traductor::pasos(const std::string& de, const std::string& a, std::string* 
     if (armar(de, a)) return out;
     out = json::array();
     if (de != "en" && a != "en" && armar(de, "en") && armar("en", a)) return out;
-    if (error) *error = "no hay cómo traducir de " + de + " a " + a;
+    if (error) *error = tr("no hay cómo traducir de %1 a %2").arg(q(de)).arg(q(a)).toStdString();
     return json::array();
 }
 
@@ -385,7 +393,7 @@ void Traductor::arrancarMotor() {
     const fs::path script = raiz / "traductor" / "traductor.py";
     std::error_code ec;
     if (!fs::exists(python, ec) || !fs::exists(script, ec)) {
-        motor_ = "error: el programa no trae el Python o el traductor";
+        motor_ = "error: " + tr("el programa no trae el Python o el traductor"); // «error» es el estado
         fallarCola();
         return;
     }
@@ -448,9 +456,9 @@ void Traductor::alSalir() {
     auto pend = std::move(enCurso_);
     enCurso_.clear();
     for (auto& [id, cb] : pend)
-        cb({{"error", "el traductor se cerró"}});
+        cb({{"error", tr("el traductor se cerró").toStdString()}});
     if (++caidas_ > kMaxCaidas()) {
-        motor_ = "error: el traductor se cayó varias veces seguidas (ver Logs)";
+        motor_ = "error: " + tr("el traductor se cayó varias veces seguidas (ver Logs)");
         for (auto& p : cola_)
             p.listo({{"error", motor_.toStdString()}});
         cola_.clear();
@@ -487,15 +495,14 @@ void Traductor::traducir(const QString& texto, const std::string& de, const std:
     for (const auto& p : ps) {
         const fs::path carpeta = modelos_.carpetaInstalada(q(p.value("repo", "")));
         if (carpeta.empty())
-            return listo({{"error", "falta bajar " + p.value("repo", std::string()) +
-                                        " (Traducción: «Bajar», o traduccion_bajar)"}});
+            return listo({{"error", tr("falta bajar %1 (Traducción: «Bajar», o traduccion_bajar)").arg(q(p.value("repo", std::string()))).toStdString()}});
         cadena.push_back({{"de", p["de"]},
                           {"a", p["a"]},
                           {"paquete", (carpeta / p.value("archivo", std::string())).string()}});
     }
     // Si se juntan muchas (alguien habla rapidísimo), se descartan las más viejas.
     while (cola_.size() > 8) {
-        cola_.front().listo({{"error", "descartada: llegaron otras más nuevas"}});
+        cola_.front().listo({{"error", tr("descartada: llegaron otras más nuevas").toStdString()}});
         cola_.pop_front();
     }
     cola_.push_back({{{"op", "traducir"},
@@ -573,7 +580,7 @@ void Traductor::soltar(const std::string& id) {
                      if (!yo) return;
                      if (r.contains("texto") && !r["texto"].get<std::string>().empty()) {
                          yo->flujos_.publicar(q(nombre), q(r["texto"].get<std::string>()),
-                                              "Traducción de «" + flujo + "»");
+                                              tr("Traducción de «%1»").arg(flujo));
                          yo->ultima_[id] = {
                              {"texto", r["texto"]},
                              {"ms", r.value("ms", 0)},
@@ -651,7 +658,7 @@ std::string Traductor::glosarioCsv() const {
 }
 
 std::string Traductor::glosarioImportarCsv(const std::string& csv, const std::string& revisadoPor, int* cuantos) {
-    if (revisadoPor.empty()) return "falta `revisado_por`: quién revisó el glosario";
+    if (revisadoPor.empty()) return tr("falta `revisado_por`: quién revisó el glosario").toStdString();
     std::istringstream is(csv);
     std::string l;
     int n = 0;
@@ -679,7 +686,7 @@ std::string Traductor::glosarioImportarCsv(const std::string& csv, const std::st
         else ++n;
     }
     if (cuantos != nullptr) *cuantos = n;
-    if (n == 0) return errores.empty() ? "el CSV no tiene términos" : errores.front();
+    if (n == 0) return errores.empty() ? tr("el CSV no tiene términos").toStdString() : errores.front();
     return {};
 }
 
@@ -693,7 +700,7 @@ QString Traductor::glosarioExportarUi() {
 
 QString Traductor::glosarioImportarUi(const QUrl& url, const QString& revisadoPor) {
     std::ifstream f(url.toLocalFile().toStdString());
-    if (!f) return "no pude leer el archivo";
+    if (!f) return tr("no pude leer el archivo");
     const std::string csv((std::istreambuf_iterator<char>(f)), {});
     int n = 0;
     const std::string e = glosarioImportarCsv(csv, revisadoPor.trimmed().toStdString(), &n);
@@ -717,12 +724,12 @@ std::string Traductor::glosarioAgregar(const json& entrada) {
     leerGlosario(); // por si lo editaron a mano
     json e = entrada;
     if (e.contains("es") && e["es"].is_string()) e["es"] = json::array({e["es"]});
-    if (variantes(e).empty()) return "falta `es`: el término en castellano (o una lista de formas)";
+    if (variantes(e).empty()) return tr("falta `es`: el término en castellano (o una lista de formas)").toStdString();
     bool alguno = false;
     for (const char* k : kIdiomas)
         if (std::string(k) != "es" && e.contains(k) && e[k].is_string() && !e[k].get<std::string>().empty())
             alguno = true;
-    if (!alguno) return "falta al menos una traducción (en, pt, fr, de, ru, zh)";
+    if (!alguno) return tr("falta al menos una traducción (en, pt, fr, de, ru, zh)").toStdString();
     json limpio = json::object();
     for (const char* k : kIdiomas)
         if (e.contains(k)) limpio[k] = e[k];
@@ -769,7 +776,7 @@ std::string Traductor::glosarioQuitar(const std::string& es) {
             deFabrica = true;
         }
     }
-    if (t.size() == n && !deFabrica) return "no hay un término «" + es + "» en el glosario";
+    if (t.size() == n && !deFabrica) return tr("no hay un término «%1» en el glosario").arg(q(es)).toStdString();
     guardarGlosario();
     emit glosarioCambio();
     return {};
@@ -792,7 +799,7 @@ QVariantList Traductor::traduccionesQml() const { return qv(lista()).toList(); }
 QVariantList Traductor::idiomasQml() const {
     QVariantList out;
     for (const char* k : kIdiomas)
-        out << QVariantMap{{"codigo", k}, {"nombre", q(nombresIdiomas().at(k))}};
+        out << QVariantMap{{"codigo", k}, {"nombre", QCoreApplication::translate("idiomas", nombresIdiomas().at(k).c_str())}};
     return out;
 }
 
@@ -809,14 +816,15 @@ QVariantList Traductor::gruposQml() const {
     for (const auto& x : operador_["grupos_apagados"])
         apagados.insert(x.get<std::string>());
     QVariantList out;
-    static const std::map<std::string, std::string> nombres{{"general", "Generales de cabina"},
-                                                            {"asamblea", "Términos de asamblea"},
-                                                            {"localidades", "Localidades"},
-                                                            {"operador", "Agregados por el operador"}};
+    static const std::map<std::string, const char*> nombres{
+        {"general", QT_TRANSLATE_NOOP("traductor", "Generales de cabina")},
+        {"asamblea", QT_TRANSLATE_NOOP("traductor", "Términos de asamblea")},
+        {"localidades", QT_TRANSLATE_NOOP("traductor", "Localidades")},
+        {"operador", QT_TRANSLATE_NOOP("traductor", "Agregados por el operador")}};
     for (const auto& [k, v] : g) {
         const auto n = nombres.find(k);
         out << QVariantMap{{"grupo", q(k)},
-                           {"nombre", q(n != nombres.end() ? n->second : k)},
+                           {"nombre", n != nombres.end() ? QCoreApplication::translate("traductor", n->second) : q(k)},
                            {"activo", !apagados.count(k)},
                            {"cuantos", v.first}};
     }

@@ -54,6 +54,9 @@ class VozPrompter : public QObject {
     bool activa() const { return activa_; }
     void setActiva(bool on);
     QString estado() const { return estado_; }
+    /// Prendida pero sin poder leer (sin voz o el teleprompter no contesta): lo que
+    /// mira EstadoIA, que no compara el texto del estado (sale en el idioma del operador).
+    bool noPuedeLeer() const { return noPuedeLeer_; }
 
    signals:
     void cambio();
@@ -64,7 +67,7 @@ class VozPrompter : public QObject {
     void reiniciar(const QString& porque);
     void agendar(int desde, int hasta, double inicioMs);
     void revisarVoz();
-    void setEstado(const QString& e);
+    void setEstado(const QString& e, bool noPuedeLeer = false);
     void guardar() const;
 
     AppRuntime& rt_;
@@ -77,6 +80,7 @@ class VozPrompter : public QObject {
     bool activa_ = false;
     bool consultando_ = false;
     QString estado_;
+    bool noPuedeLeer_ = false;
 
     // Lo que informó el gateway, y la diferencia entre su reloj y el nuestro.
     std::string texto_;

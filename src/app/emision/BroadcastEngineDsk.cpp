@@ -14,6 +14,7 @@
 #include "emision/BroadcastEngine.hpp"
 
 #include "Motor.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 
@@ -63,12 +64,12 @@ void BroadcastEngine::publicarCapas(int ms) {
     }
     if (ftb_) capas.push_back({{"entrada", kFtb}, {"orden", 899}});
     const std::string e = motor_->dsk(capas, ms);
-    if (!e.empty()) setError("capas: " + e);
+    if (!e.empty()) setError(ba::i18n::llenar(ba::i18n::traducir("emision", "capas: %1"), {e}));
 }
 
 bool BroadcastEngine::ftb(bool activar, int ms, bool bajarAudio) {
     if (!started_) {
-        setError("el motor no está andando");
+        setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
     // Las internas se recuerdan acá: el motor las arma en su cola (ver
@@ -87,11 +88,11 @@ bool BroadcastEngine::ftb(bool activar, int ms, bool bajarAudio) {
 
 bool BroadcastEngine::placa(bool activar, const std::string& texto, const std::string& imagen, int ms) {
     if (!started_) {
-        setError("el motor no está andando");
+        setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
     if (activar) {
-        placaTexto_ = texto.empty() ? std::string("Volvemos enseguida") : texto;
+        placaTexto_ = texto.empty() ? ba::i18n::traducir("emision", "Volvemos enseguida") : texto;
         placaImagen_ = imagen;
         const int H = video_.baseHeight, W = video_.baseWidth;
         if (internasPedidas_.insert(kPlacaFondo).second)
@@ -122,12 +123,12 @@ nlohmann::json BroadcastEngine::estadoPlaca() const {
 
 bool BroadcastEngine::dskArmar(int capa, const std::vector<std::string>& contenido, const nlohmann::json& recuadro) {
     if (capa < 1 || capa > 4) {
-        setError("la capa va de 1 a 4");
+        setError(ba::i18n::traducir("emision", "la capa va de 1 a 4"));
         return false;
     }
     for (const auto& n : contenido)
         if (escena(n) == nullptr && sources_.count(n) == 0) {
-            setError("no existe la escena o fuente «" + n + "»");
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena o fuente «%1»"), {n}));
             return false;
         }
     Dsk& d = dsk_[capa - 1];
@@ -142,11 +143,11 @@ bool BroadcastEngine::dskArmar(int capa, const std::vector<std::string>& conteni
 
 bool BroadcastEngine::dskMostrar(int capa, bool visible, int ms) {
     if (capa < 1 || capa > 4) {
-        setError("la capa va de 1 a 4");
+        setError(ba::i18n::traducir("emision", "la capa va de 1 a 4"));
         return false;
     }
     if (visible && dsk_[capa - 1].contenido.empty()) {
-        setError("la capa " + std::to_string(capa) + " está vacía (dsk_armar primero)");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "la capa %1 está vacía (dsk_armar primero)"), {std::to_string(capa)}));
         return false;
     }
     dsk_[capa - 1].visible = visible;
@@ -182,7 +183,7 @@ std::vector<std::string> BroadcastEngine::fuentesDsk() const {
 
 bool BroadcastEngine::textoGlobal(const std::string& nombre, const std::string& texto) {
     if (!started_) {
-        setError("el motor no está andando");
+        setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
     const json s{{"text", texto},

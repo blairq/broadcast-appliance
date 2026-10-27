@@ -6,6 +6,7 @@
 // tipos se editan igual con sus ajustes tal cual (PropertiesModel).
 // ============================================================================
 #include "emision/BroadcastEngine.hpp"
+#include "i18n/I18n.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
 
@@ -18,12 +19,12 @@ void registrarTiposBasicos() {
     {
         Tipo t;
         t.id = "color_source_v3";
-        t.nombre = "Color";
+        t.nombre = ba::i18n::traducir("fuentes", "Color");
         t.defectos = {{"color", 0xFFD1D1D1}, {"width", 1920}, {"height", 1080}};
         t.props = [](const json&) {
-            return std::vector<Prop>{{"color", "Color", "color"},
-                                     {"width", "Ancho", "int", 1, 7680, 1},
-                                     {"height", "Alto", "int", 1, 4320, 1}};
+            return std::vector<Prop>{{"color", ba::i18n::traducir("fuentes", "Color"), "color"},
+                                     {"width", ba::i18n::traducir("fuentes", "Ancho"), "int", 1, 7680, 1},
+                                     {"height", ba::i18n::traducir("fuentes", "Alto"), "int", 1, 4320, 1}};
         };
         fuentes::registrar(t);
         t.id = "color_source";
@@ -32,13 +33,13 @@ void registrarTiposBasicos() {
     {
         Tipo t;
         t.id = "text_ft2_source_v2";
-        t.nombre = "Texto";
+        t.nombre = ba::i18n::traducir("fuentes", "Texto");
         t.defectos = {{"text", ""}, {"font", {{"face", "Helvetica"}, {"size", 48}}}, {"color1", 0xFFFFFFFF}, {"outline", false}};
         t.props = [](const json&) {
-            return std::vector<Prop>{{"text", "Texto", "textarea"},
-                                     {"font", "Letra", "font"},
-                                     {"color1", "Color", "color"},
-                                     {"outline", "Contorno", "bool"}};
+            return std::vector<Prop>{{"text", ba::i18n::traducir("fuentes", "Texto"), "textarea"},
+                                     {"font", ba::i18n::traducir("fuentes", "Letra"), "font"},
+                                     {"color1", ba::i18n::traducir("fuentes", "Color"), "color"},
+                                     {"outline", ba::i18n::traducir("fuentes", "Contorno"), "bool"}};
         };
         for (const char* id : {"text_ft2_source_v2", "text_ft2_source", "text_gdiplus", "text_gdiplus_v2", "ba_texto"}) {
             t.id = id;
@@ -48,10 +49,10 @@ void registrarTiposBasicos() {
     {
         Tipo t;
         t.id = "image_source";
-        t.nombre = "Imagen";
+        t.nombre = ba::i18n::traducir("fuentes", "Imagen");
         t.props = [](const json&) {
-            Prop p{"file", "Archivo", "path"};
-            p.ayuda = "PNG, JPEG, WebP… (con su transparencia)";
+            Prop p{"file", ba::i18n::traducir("fuentes", "Archivo"), "path"};
+            p.ayuda = ba::i18n::traducir("fuentes", "PNG, JPEG, WebP… (con su transparencia)");
             return std::vector<Prop>{p};
         };
         fuentes::registrar(t);
@@ -59,13 +60,13 @@ void registrarTiposBasicos() {
     {
         Tipo t;
         t.id = inputs::kMedioType;
-        t.nombre = "Video o audio de un archivo";
+        t.nombre = ba::i18n::traducir("fuentes", "Video o audio de un archivo");
         t.audio = true;
         t.defectos = {{"looping", false}, {"clear_on_media_end", false}};
         t.props = [](const json&) {
-            return std::vector<Prop>{{"local_file", "Archivo", "path"},
-                                     {"looping", "Repetir", "bool"},
-                                     {"clear_on_media_end", "Desaparecer al terminar", "bool"}};
+            return std::vector<Prop>{{"local_file", ba::i18n::traducir("fuentes", "Archivo"), "path"},
+                                     {"looping", ba::i18n::traducir("fuentes", "Repetir"), "bool"},
+                                     {"clear_on_media_end", ba::i18n::traducir("fuentes", "Desaparecer al terminar"), "bool"}};
         };
         fuentes::registrar(t);
     }
@@ -73,15 +74,16 @@ void registrarTiposBasicos() {
         // La escena la resuelve al publicarse (la toma de la banca de su ranura).
         Tipo t;
         t.id = BroadcastEngine::kTipoBanca;
-        t.nombre = "Banca con la palabra";
+        t.nombre = ba::i18n::traducir("fuentes", "Banca con la palabra");
         t.defectos = {{"ranura", 1}};
         t.props = [](const json&) {
-            Prop p{"ranura", "Muestra", "list"};
-            p.opciones = json::array({{{"value", 1}, {"label", "Quien tiene la palabra (en un debate, el primero)"}}});
+            Prop p{"ranura", ba::i18n::traducir("fuentes", "Muestra"), "list"};
+            p.opciones = json::array({{{"value", 1}, {"label", ba::i18n::traducir("fuentes", "Quien tiene la palabra (en un debate, el primero)")}}});
             for (int r = 2; r <= BroadcastEngine::kRanurasBanca; ++r)
-                p.opciones.push_back({{"value", r}, {"label", r == 2 ? std::string("El segundo de un debate")
-                                                                     : "El " + std::to_string(r) + "º de un debate"}});
-            p.ayuda = "La cámara y la posición de cada banca se eligen en Asamblea › Recinto (la toma de la banca).";
+                p.opciones.push_back({{"value", r}, {"label", r == 2 ? ba::i18n::traducir("fuentes", "El segundo de un debate")
+                                                                     : ba::i18n::llenar(ba::i18n::traducir("fuentes", "El %1º de un debate"),
+                                                                                        {std::to_string(r)})}});
+            p.ayuda = ba::i18n::traducir("fuentes", "La cámara y la posición de cada banca se eligen en Asamblea › Recinto (la toma de la banca).");
             return std::vector<Prop>{p};
         };
         fuentes::registrar(t);

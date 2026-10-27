@@ -12,6 +12,7 @@
 
 #include "agent/ModeloPropio.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 #include "net/Credentials.hpp"
 #include "net/HttpsClient.hpp"
 #include "platform/Paths.hpp"
@@ -23,13 +24,13 @@ using nlohmann::json;
 bool fuentePropia(const std::filesystem::path& dataRoot, FuenteMirada& out, std::string* error) {
     const ModeloPropio mp = ModeloPropio::leer(dataRoot / "Config" / "modelo-propio.json");
     if (!mp.completo()) {
-        if (error != nullptr) *error = "no hay un modelo propio configurado";
+        if (error != nullptr) *error = ba::i18n::traducir("mirada", "no hay un modelo propio configurado");
         return false;
     }
     QByteArray clave;
     const QString cred = QString::fromStdWString(ba::platform::credentialsDir().wstring());
     if (!ba::app::cred::read(cred, "modelo-propio-api-key", clave)) {
-        if (error != nullptr) *error = "falta la clave del modelo propio";
+        if (error != nullptr) *error = ba::i18n::traducir("mirada", "falta la clave del modelo propio");
         return false;
     }
     out.url = mp.url;
@@ -46,7 +47,7 @@ bool modeloPropioListo(const std::filesystem::path& dataRoot) {
 
 std::string mirarCon(const FuenteMirada& f, const QImage& img, const PedidoMirada& p, std::string& error) {
     if (img.isNull()) {
-        error = "no hay imagen";
+        error = ba::i18n::traducir("mirada", "no hay imagen");
         return {};
     }
     int x = 0, y = 0, w = 0, h = 0;
@@ -57,7 +58,7 @@ std::string mirarCon(const FuenteMirada& f, const QImage& img, const PedidoMirad
     QBuffer buf(&jpg);
     buf.open(QIODevice::WriteOnly);
     if (!parte.save(&buf, "JPG", p.calidad)) {
-        error = "no se pudo codificar la imagen";
+        error = ba::i18n::traducir("mirada", "no se pudo codificar la imagen");
         return {};
     }
     const json body = cuerpoMirada(f.modelo, p, jpg.toBase64().toStdString());
@@ -74,20 +75,20 @@ std::string mirarCon(const FuenteMirada& f, const QImage& img, const PedidoMirad
     req.timeoutMs = p.esperaMs > 0 ? p.esperaMs : ba::ajustes::sAMs("mcp.imagenTimeoutS", 45);
     const net::HttpResponse r = net::HttpsClient::request(req);
     if (r.status == 0) {
-        error = "no contesta: " + r.error;
+        error = ba::i18n::llenar(ba::i18n::traducir("mirada", "no contesta: %1"), {r.error});
         return {};
     }
     if (r.status >= 400) {
-        error = "el servidor contesto " + std::to_string(r.status);
+        error = ba::i18n::llenar(ba::i18n::traducir("mirada", "el servidor contesto %1"), {std::to_string(r.status)});
         return {};
     }
     try {
         const json d = json::parse(r.body);
         const std::string texto = d["choices"][0]["message"].value("content", std::string());
-        if (texto.empty()) error = "el modelo contesto vacio";
+        if (texto.empty()) error = ba::i18n::traducir("mirada", "el modelo contesto vacio");
         return texto;
     } catch (const json::exception& e) {
-        error = std::string("no se entendio la respuesta: ") + e.what();
+        error = ba::i18n::llenar(ba::i18n::traducir("mirada", "no se entendio la respuesta: %1"), {e.what()});
         return {};
     }
 }

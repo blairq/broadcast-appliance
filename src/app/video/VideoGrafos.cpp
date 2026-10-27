@@ -12,6 +12,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/InputSpecs.hpp"
 
@@ -72,7 +73,8 @@ QVariantList controlesGst(const json& props) {
         const std::string tipo = p.value("tipo", "");
         QString ayuda = q(p.value("descripcion", ""));
         if (!p.value("enVivo", false))
-            ayuda += QStringLiteral(" (GStreamer no asegura que cambie con el video andando)");
+            ayuda = QCoreApplication::translate("video", "%1 (GStreamer no asegura que cambie con el video andando)")
+                        .arg(ayuda);
         QVariantMap r{
             {"name", q(p.value("nombre", ""))}, {"label", q(p.value("nombre", ""))}, {"help", ayuda}};
         const json& v = p.contains("valor") ? p["valor"] : p["defecto"];
@@ -101,7 +103,7 @@ QVariantList controlesGst(const json& props) {
                 QStringList nicks;
                 for (const auto& o : p.value("opciones", json::array()))
                     nicks << q(o.value("nick", ""));
-                r["help"] = ayuda + QStringLiteral(" Valores, unidos con «+»: ") + nicks.join(", ");
+                r["help"] = QCoreApplication::translate("video", "%1 Valores, unidos con «+»: %2").arg(ayuda, nicks.join(", "));
             }
         } else {
             continue;
@@ -126,30 +128,36 @@ struct Virtual {
     const char* origen; ///< el pipeline, antes de las caps
 };
 const Virtual kVirtuales[] = {
-    {"barras-hd", "Barras HD (SMPTE RP 219)",
-     "Las barras de color de HD: para calibrar monitores y probar la cadena.",
+    {"barras-hd", QT_TRANSLATE_NOOP("video", "Barras HD (SMPTE RP 219)"),
+     QT_TRANSLATE_NOOP("video", "Las barras de color de HD: para calibrar monitores y probar la cadena."),
      "videotestsrc pattern=smpte-rp-219 is-live=true"},
-    {"barras", "Barras SMPTE (100 %)", "Las barras clásicas al 100 %.",
+    {"barras", QT_TRANSLATE_NOOP("video", "Barras SMPTE (100 %)"), QT_TRANSLATE_NOOP("video", "Las barras clásicas al 100 %."),
      "videotestsrc pattern=smpte100 is-live=true"},
-    {"barras-75", "Barras SMPTE (75 %)", "Barras al 75 %: las de ajuste de la TV analógica.",
+    {"barras-75", QT_TRANSLATE_NOOP("video", "Barras SMPTE (75 %)"),
+     QT_TRANSLATE_NOOP("video", "Barras al 75 %: las de ajuste de la TV analógica."),
      "videotestsrc pattern=smpte75 is-live=true"},
-    {"barras-hora", "Barras con la hora",
-     "Barras HD con la hora encima: se ve si la señal está viva o congelada.",
+    {"barras-hora", QT_TRANSLATE_NOOP("video", "Barras con la hora"),
+     QT_TRANSLATE_NOOP("video", "Barras HD con la hora encima: se ve si la señal está viva o congelada."),
      "videotestsrc pattern=smpte-rp-219 is-live=true ! clockoverlay time-format=\"%H:%M:%S\" "
      "font-desc=\"Sans 40\" "
      "halignment=center valignment=bottom"},
-    {"negro", "Negro", "Una pantalla negra (para tapar una salida sin sacarla).",
+    {"negro", QT_TRANSLATE_NOOP("video", "Negro"),
+     QT_TRANSLATE_NOOP("video", "Una pantalla negra (para tapar una salida sin sacarla)."),
      "videotestsrc pattern=black is-live=true"},
-    {"blanco", "Blanco", "Una pantalla blanca.", "videotestsrc pattern=white is-live=true"},
-    {"verde", "Verde croma", "Verde para probar una llave de croma.",
+    {"blanco", QT_TRANSLATE_NOOP("video", "Blanco"), QT_TRANSLATE_NOOP("video", "Una pantalla blanca."),
+     "videotestsrc pattern=white is-live=true"},
+    {"verde", QT_TRANSLATE_NOOP("video", "Verde croma"), QT_TRANSLATE_NOOP("video", "Verde para probar una llave de croma."),
      "videotestsrc pattern=green is-live=true"},
-    {"zona", "Placa de zonas", "Círculos concéntricos (zone plate): muestran el aliasing de un escalado.",
+    {"zona", QT_TRANSLATE_NOOP("video", "Placa de zonas"),
+     QT_TRANSLATE_NOOP("video", "Círculos concéntricos (zone plate): muestran el aliasing de un escalado."),
      "videotestsrc pattern=zone-plate kx2=20 ky2=20 kt=1 is-live=true"},
-    {"damero", "Damero", "Cuadros de 8 píxeles: nitidez y escalado.",
+    {"damero", QT_TRANSLATE_NOOP("video", "Damero"), QT_TRANSLATE_NOOP("video", "Cuadros de 8 píxeles: nitidez y escalado."),
      "videotestsrc pattern=checkers-8 is-live=true"},
-    {"pelota", "Pelota en movimiento", "Una pelota que se mueve: para ver cuadros perdidos o trabados.",
+    {"pelota", QT_TRANSLATE_NOOP("video", "Pelota en movimiento"),
+     QT_TRANSLATE_NOOP("video", "Una pelota que se mueve: para ver cuadros perdidos o trabados."),
      "videotestsrc pattern=ball is-live=true"},
-    {"ruido", "Ruido", "Nieve de TV.", "videotestsrc pattern=snow is-live=true"},
+    {"ruido", QT_TRANSLATE_NOOP("video", "Ruido"), QT_TRANSLATE_NOOP("video", "Nieve de TV."),
+     "videotestsrc pattern=snow is-live=true"},
 };
 
 } // namespace
@@ -283,7 +291,7 @@ json VideoGrafos::erroresDe(const std::string& entrada) const {
             const std::string id = f.value("id", std::string());
             if (!enEntrada_.at(entrada).count(id)) continue;
             if (!f.value("andando", false))
-                out[id] = "el elemento " + f.value("elemento", std::string()) + " no está en la cadena";
+                out[id] = tr("el elemento %1 no está en la cadena").arg(q(f.value("elemento", std::string()))).toStdString();
             else if (f.contains("error"))
                 out[id] = f["error"];
         }
@@ -292,7 +300,7 @@ json VideoGrafos::erroresDe(const std::string& entrada) const {
 
 json VideoGrafos::describir(const std::string& entrada) const {
     if (!entrada.empty() && !esEntrada(entrada))
-        return {{"error", "«" + entrada + "» no es una entrada de video"}};
+        return {{"error", tr("«%1» no es una entrada de video").arg(q(entrada)).toStdString()}};
     json d = conPublicadas(grafo_.describir(entrada, !entrada.empty()));
     // Por qué no corre una tarjeta (lo informa el filtro de su entrada).
     std::map<std::string, json> errores;
@@ -359,9 +367,9 @@ QString VideoGrafos::ajustarPad(const QString& id, const QString& puerto, const 
     const json v = paraGst(deVariant(valor));
     return q(editar([&](GrafoVideo& g) {
         const GrafoVideo::Nodo* n = g.nodo(id.toStdString());
-        if (n == nullptr || n->tipo != "mezcla") return "«" + id.toStdString() + "» no es una Mezcla de GStreamer";
+        if (n == nullptr || n->tipo != "mezcla") return tr("«%1» no es una Mezcla de GStreamer").arg(id).toStdString();
         if (GrafoVideo::plantillaDePuerto(*n, puerto.toStdString()).empty())
-            return "«" + n->etiqueta + "» no tiene la entrada «" + puerto.toStdString() + "»";
+            return tr("«%1» no tiene la entrada «%2»").arg(q(n->etiqueta), puerto).toStdString();
         return ajustarEn(g, id.toStdString(), json{{"pads", {{puerto.toStdString(), {{clave.toStdString(), v}}}}}});
     }));
 }
@@ -394,15 +402,15 @@ QVariantList VideoGrafos::propiedadesModuloCon(const QString& elemento, const QV
 QVariantList VideoGrafos::modulosAudio() const { return aVariant(gst().modulosAudio()).toList(); }
 
 QString VideoGrafos::versionGst() const {
-    return gst().disponible() ? q(gst().version()) : q("Sin GStreamer: " + gst().error());
+    return gst().disponible() ? q(gst().version()) : tr("Sin GStreamer: %1").arg(q(gst().error()));
 }
 
 QVariantList VideoGrafos::virtuales() {
     QVariantList out;
     for (const auto& v : kVirtuales)
         out << QVariantMap{{"id", v.id},
-                           {"nombre", q(v.nombre)},
-                           {"descripcion", q(v.descripcion)},
+                           {"nombre", QCoreApplication::translate("video", v.nombre)},
+                           {"descripcion", QCoreApplication::translate("video", v.descripcion)},
                            {"pipeline", q(v.origen)}};
     return out;
 }
@@ -413,21 +421,25 @@ std::string VideoGrafos::agregarModuloEn(GrafoVideo& g, const std::string& eleme
     // `baplugin`: una tarjeta de un plugin de Python. Lo registra el módulo de
     // video (no está en el catálogo de la app): no se valida acá.
     // Los de superresolución (también del módulo de video): agrandan x2.
-    static const std::map<std::string, std::string> kSuperres{{"bavtsuperres", "Superresolución · Apple"},
-                                                              {"bafsr", "Superresolución · FSR"},
-                                                              {"baonnxsr", "Superresolución · red"}};
+    static const std::map<std::string, const char*> kSuperres{
+        {"bavtsuperres", QT_TRANSLATE_NOOP("VideoGrafos", "Superresolución · Apple")},
+        {"bafsr", QT_TRANSLATE_NOOP("VideoGrafos", "Superresolución · FSR")},
+        {"baonnxsr", QT_TRANSLATE_NOOP("VideoGrafos", "Superresolución · red")}};
     const auto sr = kSuperres.find(elemento);
     const json m = elemento == "baplugin"
                        ? json{{"tarjeta", true},
-                              {"titulo", "Plugin · " + (propiedades.is_object()
-                                                            ? propiedades.value("tarjeta", std::string())
-                                                            : std::string())}}
-                   : sr != kSuperres.end() ? json{{"tarjeta", true}, {"titulo", sr->second}}
+                              {"titulo", tr("Plugin · %1")
+                                             .arg(q(propiedades.is_object() ? propiedades.value("tarjeta", std::string())
+                                                                            : std::string()))
+                                             .toStdString()}}
+                   : sr != kSuperres.end()
+                       ? json{{"tarjeta", true},
+                              {"titulo", QCoreApplication::translate("VideoGrafos", sr->second).toStdString()}}
                                            : gst().modulo(elemento);
     if (m.empty()) {
         if (error)
-            *error =
-                gst().disponible() ? "no existe el módulo de GStreamer «" + elemento + "»" : gst().error();
+            *error = gst().disponible() ? tr("no existe el módulo de GStreamer «%1»").arg(q(elemento)).toStdString()
+                                        : gst().error();
         return {};
     }
     // Los nuestros que van con una tarjeta propia del grafo (superres, rostros, seguir):
@@ -436,9 +448,10 @@ std::string VideoGrafos::agregarModuloEn(GrafoVideo& g, const std::string& eleme
         return g.agregar(tipo, grupo, despues, json::object(), error);
     if (!m.value("tarjeta", false)) {
         if (error)
-            *error = "«" + elemento + "» no va como tarjeta de filtro (" +
-                     m.value("categoria", std::string()) +
-                     "): " + m.value("uso", m.value("descripcion", std::string()));
+            *error = tr("«%1» no va como tarjeta de filtro (%2): %3")
+                         .arg(q(elemento), q(m.value("categoria", std::string())),
+                              q(m.value("uso", m.value("descripcion", std::string()))))
+                         .toStdString();
         return {};
     }
     const std::string id = g.agregar(
@@ -454,13 +467,16 @@ std::string VideoGrafos::agregarMezclaEn(GrafoVideo& g, const std::string& eleme
                                          std::string* error) const {
     const json m = gst().modulo(elemento);
     if (m.empty()) {
-        if (error) *error = gst().disponible() ? "no existe el módulo de GStreamer «" + elemento + "»" : gst().error();
+        if (error)
+            *error = gst().disponible() ? tr("no existe el módulo de GStreamer «%1»").arg(q(elemento)).toStdString()
+                                        : gst().error();
         return {};
     }
     if (!m.value("mezcla", false)) {
         if (error)
-            *error = "«" + elemento + "» no junta varias entradas (" + m.value("categoria", std::string()) +
-                     "): va como tarjeta (tipo gst) o no va";
+            *error = tr("«%1» no junta varias entradas (%2): va como tarjeta (tipo gst) o no va")
+                         .arg(q(elemento), q(m.value("categoria", std::string())))
+                         .toStdString();
         return {};
     }
     // Los puertos son los del módulo (sus plantillas de pads de video): se guardan con el
@@ -487,10 +503,10 @@ std::string VideoGrafos::agregarSuperres(const std::string& entrada, const std::
     const std::map<std::string, std::string> elementos{
         {"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}};
     const auto it = elementos.find(motor);
-    if (it == elementos.end()) return "motor: apple, fsr u onnx";
+    if (it == elementos.end()) return tr("motor: apple, fsr u onnx").toStdString();
     if (!motoresSuperres().contains(QString::fromStdString(motor)))
-        return "este sistema no tiene el motor «" + motor + "»";
-    if (motor == "onnx" && modelo.empty()) return "el motor onnx necesita `modelo` (la ruta del .onnx)";
+        return tr("este sistema no tiene el motor «%1»").arg(q(motor)).toStdString();
+    if (motor == "onnx" && modelo.empty()) return tr("el motor onnx necesita `modelo` (la ruta del .onnx)").toStdString();
     // La tarjeta «Superresolución» (el plugin basuperres), con el motor elegido.
     return editar([&](GrafoVideo& g) {
         std::string e;
@@ -539,15 +555,15 @@ QString VideoGrafos::agregarModulo(const QString& elemento, const QString& despu
 
 std::string VideoGrafos::crearEntradaVirtual(const std::string& nombre, const std::string& preset,
                                              const std::string& escena) {
-    if (nombre.empty()) return "falta el nombre";
-    if (!rt_.engine().sourceTypeId(nombre).empty()) return "ya hay una fuente que se llama «" + nombre + "»";
+    if (nombre.empty()) return tr("falta el nombre").toStdString();
+    if (!rt_.engine().sourceTypeId(nombre).empty()) return tr("ya hay una fuente que se llama «%1»").arg(q(nombre)).toStdString();
     std::string origen;
     if (preset.rfind("pipeline:", 0) == 0) {
         origen = preset.substr(9);
     } else {
         for (const auto& v : kVirtuales)
             if (preset == v.id) origen = v.origen;
-        if (origen.empty()) return "no existe la entrada virtual «" + preset + "» (ver virtuales)";
+        if (origen.empty()) return tr("no existe la entrada virtual «%1» (ver virtuales)").arg(q(preset)).toStdString();
         // Al tamaño y la cadencia del lienzo.
         const VideoConfig& v = rt_.engine().videoConfig();
         origen += " ! video/x-raw,width=" + std::to_string(v.baseWidth) + ",height=" + std::to_string(v.baseHeight) +
@@ -561,7 +577,7 @@ std::string VideoGrafos::crearEntradaVirtual(const std::string& nombre, const st
     ajustes["latencia"] = 0; // generada acá: no hay red que esperar
     spec.settingsJson = ajustes.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const std::string sc = escena.empty() ? rt_.engine().currentScene() : escena;
-    if (!rt_.addSource(sc, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
+    if (!rt_.addSource(sc, spec)) return rt_.lastError().empty() ? tr("no se pudo crear").toStdString() : rt_.lastError();
     rt_.save();
     sincronizar();
     return {};
@@ -638,9 +654,9 @@ std::string VideoGrafos::nombresRepetidos(const GrafoVideo& g) {
         const std::string nombre = n.params.value("nombre", std::string());
         if (nombre.empty()) continue; // nombrarSalidas le pone uno libre
         if ((n.tipo == "salida" || GrafoVideo::esComposicion(n.tipo)) && !salidas.insert(nombre).second)
-            return "ya hay una salida que se llama «" + nombre + "»: cada una con su nombre";
+            return tr("ya hay una salida que se llama «%1»: cada una con su nombre").arg(q(nombre)).toStdString();
         if (n.tipo == "toma" && !tomas.insert({n.grupo, nombre}).second)
-            return "esa entrada ya tiene una toma «" + nombre + "»";
+            return tr("esa entrada ya tiene una toma «%1»").arg(q(nombre)).toStdString();
     }
     return {};
 }
@@ -685,7 +701,7 @@ QString VideoGrafos::agregar(const QString& tipo, const QString& despues) {
 }
 QString VideoGrafos::agregarFiltro(const QString& filtroId, const QString& despues) {
     const std::string nombre = nombreFiltro(filtroId.toStdString());
-    if (nombre.empty()) return "No existe el filtro «" + filtroId + "»";
+    if (nombre.empty()) return tr("No existe el filtro «%1»").arg(filtroId);
     return q(editar([&](GrafoVideo& g) {
         std::string e;
         const std::string id =
@@ -714,7 +730,7 @@ QString VideoGrafos::correr(const QString& id, int paso) {
     return q(editar([&](GrafoVideo& g) {
         // La cadena de la entrada, en orden: de la entrada a la escena.
         const GrafoVideo::Nodo* n = g.nodo(id.toStdString());
-        if (n == nullptr) return std::string("no existe la tarjeta «") + id.toStdString() + "»";
+        if (n == nullptr) return tr("no existe la tarjeta «%1»").arg(id).toStdString();
         std::vector<std::string> cadena;
         std::string actual = GrafoVideo::idEntrada(n->grupo);
         for (int guarda = 0; guarda < 64; ++guarda) {
@@ -729,16 +745,16 @@ QString VideoGrafos::correr(const QString& id, int paso) {
             actual = sig;
         }
         const auto it = std::find(cadena.begin(), cadena.end(), id.toStdString());
-        if (it == cadena.end()) return std::string("«") + id.toStdString() + "» no está en la cadena de la entrada";
+        if (it == cadena.end()) return tr("«%1» no está en la cadena de la entrada").arg(id).toStdString();
         const long i = it - cadena.begin();
         std::string e;
         if (paso < 0) {
-            if (i <= 1) return std::string("ya está primera");
+            if (i <= 1) return tr("ya está primera").toStdString();
             g.reubicar(id.toStdString(), cadena[static_cast<size_t>(i - 2)], &e);
         } else {
             // Después de la siguiente (que no sea la escena).
             if (i + 1 >= static_cast<long>(cadena.size()) || g.nodo(cadena[static_cast<size_t>(i + 1)])->tipo == "escena")
-                return std::string("ya está última");
+                return tr("ya está última").toStdString();
             g.reubicar(id.toStdString(), cadena[static_cast<size_t>(i + 1)], &e);
         }
         return e;
@@ -886,7 +902,7 @@ QString VideoGrafos::mover(const QString& id, int x, int y) {
 }
 std::string VideoGrafos::ajustarEn(GrafoVideo& g, const std::string& id, json p) const {
     const GrafoVideo::Nodo* n = g.nodo(id);
-    if (n == nullptr) return "no existe la tarjeta «" + id + "»";
+    if (n == nullptr) return tr("no existe la tarjeta «%1»").arg(q(id)).toStdString();
     std::string e;
     // La etiqueta y lo local son de la tarjeta; lo demás, de quien la maneja.
     for (const char* propio : {"etiqueta", "local"})
@@ -913,7 +929,7 @@ std::string VideoGrafos::ajustarEn(GrafoVideo& g, const std::string& id, json p)
                 if (!tiene.count(it.key())) {
                     std::string cuales;
                     for (const auto& t : tiene) cuales += (cuales.empty() ? "" : ", ") + t;
-                    return "«" + elemento + "» no tiene la propiedad «" + it.key() + "» (tiene: " + cuales + ")";
+                    return tr("«%1» no tiene la propiedad «%2» (tiene: %3)").arg(q(elemento), q(it.key()), q(cuales)).toStdString();
                 }
         }
     }
@@ -1002,22 +1018,24 @@ QString VideoGrafos::aEscena(const QString& id, const QString& escena) {
     return q(ponerEnEscena(id.toStdString(), escena.toStdString()));
 }
 
-std::string VideoGrafos::ponerEnEscena(const std::string& id, const std::string& escena) {
+std::string VideoGrafos::ponerEnEscena(const std::string& id, const std::string& escena, bool* otraConEseNombre) {
     const GrafoVideo::Nodo* n = grafo_.nodo(id);
     if (n == nullptr || (n->tipo != "salida" && !GrafoVideo::esComposicion(n->tipo)))
-        return "«" + id + "» no es una salida ni un compositor (o una mezcla) del grafo";
+        return tr("«%1» no es una salida ni un compositor (o una mezcla) del grafo").arg(q(id)).toStdString();
     const bool comp = GrafoVideo::esComposicion(n->tipo);
     const std::string nombre = n->params.value("nombre", std::string());
     const std::string tipo = rt_.engine().sourceTypeId(nombre);
-    if (!tipo.empty() && tipo != (comp ? kTipoCompositor : kTipoSalida))
-        return "ya hay otra fuente que se llama «" + nombre + "»";
+    if (!tipo.empty() && tipo != (comp ? kTipoCompositor : kTipoSalida)) {
+        if (otraConEseNombre != nullptr) *otraConEseNombre = true;
+        return tr("ya hay otra fuente que se llama «%1»").arg(q(nombre)).toStdString();
+    }
     SourceSpec spec;
     spec.id = comp ? kTipoCompositor : kTipoSalida;
     spec.name = nombre;
     spec.settingsJson = comp ? json{{"nodo", n->id}, {"config", grafo_.configCompositor(n->id).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)
                              : json{{"fuente", n->grupo}, {"productor", productorDe(nombre)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const std::string sc = escena.empty() ? rt_.engine().currentScene() : escena;
-    if (!rt_.addSource(sc, spec)) return rt_.lastError().empty() ? "no se pudo agregar" : rt_.lastError();
+    if (!rt_.addSource(sc, spec)) return rt_.lastError().empty() ? tr("no se pudo agregar").toStdString() : rt_.lastError();
     rt_.save();
     emit cambio();
     return {};
@@ -1152,8 +1170,10 @@ void VideoGrafos::aplicar(const std::string& entrada) {
             if (quiero != hay) cambia[k] = quiero;
         }
         if (!cambia.empty()) {
-            ba::diag::registro().linea(ba::diag::Nivel::Info, "video-grafo", 0,
-                                       "«" + entrada + "»: normalizar: " + cambia.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            ba::diag::registro().linea(
+                ba::diag::Nivel::Info, "video-grafo", 0,
+                ba::i18n::llenar(ba::i18n::traducir("video-grafo", "«%1»: normalizar: %2"),
+                                 {entrada, cambia.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}));
             rt_.updateSourceSettings(entrada, cambia.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         }
     }
@@ -1167,8 +1187,9 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         const json previo = actual.is_object() ? actual.value("filtros", json()) : json();
         const std::string previoJs = previo.is_string() ? previo.get<std::string>() : previo.is_null() ? "" : previo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (previoJs != js) {
-            ba::diag::registro().linea(ba::diag::Nivel::Info, "video-grafo", 0,
-                                       "«" + entrada + "»: filtros en la entrada: " + js);
+            ba::diag::registro().linea(
+                ba::diag::Nivel::Info, "video-grafo", 0,
+                ba::i18n::llenar(ba::i18n::traducir("video-grafo", "«%1»: filtros en la entrada: %2"), {entrada, js}));
             rt_.updateSourceSettings(entrada, json{{"filtros", js}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         }
     }
@@ -1206,8 +1227,11 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         if (tipo == "in" || tipo == "out" || tipo == "toma") continue;
         sin[n.value("id", std::string())] =
             tipo == "traer"
-                ? "el motor todavía no lleva imagen a la escena de otra entrada (traer)"
-                : "la tarjeta «" + tipo + "» todavía no corre en el motor de GStreamer (solo las de la cadena: color, croma, recorte, superresolución, módulos)";
+                ? tr("el motor todavía no lleva imagen a la escena de otra entrada (traer)").toStdString()
+                : tr("la tarjeta «%1» todavía no corre en el motor de GStreamer (solo las de la cadena: color, croma, "
+                     "recorte, superresolución, módulos)")
+                      .arg(q(tipo))
+                      .toStdString();
     }
     if (sin.empty()) sinCorrer_.erase(entrada);
     compensarAudio(entrada);
@@ -1650,14 +1674,14 @@ std::string VideoGrafos::configurarReloj(const json& cambios) {
         if (cambios.contains(k)) r[k] = cambios[k];
     const std::string tipo = r.value("tipo", std::string("sistema"));
     if (tipo != "sistema" && tipo != "ntp" && tipo != "ptp" && tipo != "red")
-        return "reloj desconocido «" + tipo + "»: sistema, ntp, ptp o red";
+        return tr("reloj desconocido «%1»: sistema, ntp, ptp o red").arg(q(tipo)).toStdString();
     if ((tipo == "ntp" || tipo == "red") && r.value("servidor", std::string()).empty())
-        return "con reloj " + tipo + " hace falta `servidor`";
+        return tr("con reloj %1 hace falta `servidor`").arg(q(tipo)).toStdString();
     // Publicar el reloj de este aparato (para que otros usen `red` contra él).
     const int publicar = r.value("publicar_puerto", 0);
     if (publicar != reloj_.value("publicar_puerto", 0)) {
         const std::string e = rt_.engine().publicarReloj(publicar);
-        if (!e.empty()) return "no se pudo publicar el reloj: " + e;
+        if (!e.empty()) return tr("no se pudo publicar el reloj: %1").arg(q(e)).toStdString();
     }
     reloj_ = r;
     QSaveFile f(QString::fromStdString((archivo_.parent_path() / "video-reloj.json").string()));
@@ -1667,7 +1691,7 @@ std::string VideoGrafos::configurarReloj(const json& cambios) {
     }
     // Todo el estudio corre con UN reloj (el del motor): cambiarlo rearma el motor.
     if (!rt_.engine().ponerReloj(tipo, r.value("servidor", std::string()), r.value("puerto", 0), r.value("dominio", 0)))
-        return "no se pudo cambiar el reloj: " + rt_.engine().lastError();
+        return tr("no se pudo cambiar el reloj: %1").arg(q(rt_.engine().lastError())).toStdString();
     // Las de red, con la latencia del estudio si no tienen una propia.
     if (reloj_.contains("latencia_ms"))
         for (const std::string& n : rt_.engine().sourceNames()) {
@@ -1684,7 +1708,7 @@ std::string VideoGrafos::configurarReloj(const json& cambios) {
 // --- Estado de una entrada -------------------------------------------------------------
 
 json VideoGrafos::estadoEntrada(const std::string& entrada) const {
-    if (!esEntrada(entrada)) return {{"error", "«" + entrada + "» no es una entrada de video"}};
+    if (!esEntrada(entrada)) return {{"error", tr("«%1» no es una entrada de video").arg(q(entrada)).toStdString()}};
     json out{{"entrada", entrada}, {"tipo", rt_.engine().sourceTypeId(entrada)}};
     const json e = rt_.engine().estadoEntrada(entrada);
     if (!e.is_object()) return out;
@@ -1761,8 +1785,8 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
                                          const std::string& escena, int audio, int normalizar, int ntpSync,
                                          int superres, const std::string& sincronia) {
     if (!sincronia.empty() && sincronia != "colchon" && sincronia != "gstreamer")
-        return "`sincronia`: colchon o gstreamer";
-    if (nombre.empty()) return "falta el nombre";
+        return tr("`sincronia`: colchon o gstreamer").toStdString();
+    if (nombre.empty()) return tr("falta el nombre").toStdString();
     // Si ya existe (de GStreamer), se actualiza: otra URI, otro colchón.
     if (rt_.engine().sourceTypeId(nombre) == kTipoVirtual) {
         json d = json::object();
@@ -1781,12 +1805,12 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
         rt_.save();
         return {};
     }
-    if (uri.empty()) return "falta `uri` (srt://, rtmp://, rtsp://, udp://, http://)";
+    if (uri.empty()) return tr("falta `uri` (srt://, rtmp://, rtsp://, udp://, http://)").toStdString();
     if (!rt_.engine().sourceTypeId(nombre).empty())
-        return "ya hay una fuente que se llama «" + nombre + "» (y no es de red)";
-    if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
+        return tr("ya hay una fuente que se llama «%1» (y no es de red)").arg(q(nombre)).toStdString();
+    if (escena.empty()) return tr("falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)").toStdString();
     EscenaNueva escenaNueva{*this, escena};
-    if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
+    if (!asegurarEscena(escena, &escenaNueva.creada)) return tr("no se pudo crear la escena «%1»").arg(q(escena)).toStdString();
     json ajustes = relojParaFuente();
     ajustes["uri"] = uri;
     ajustes["audio"] = audio != 0;
@@ -1800,7 +1824,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
     spec.id = kTipoVirtual;
     spec.name = nombre;
     spec.settingsJson = ajustes.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
+    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? tr("no se pudo crear").toStdString() : rt_.lastError();
     rt_.save();
     sincronizar();
     return {};
@@ -1808,7 +1832,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
 
 std::string VideoGrafos::agregarTarjetaGst(const std::string& entrada, const std::string& elemento,
                                            const json& propiedades, json* hecho) {
-    if (!esEntrada(entrada)) return "«" + entrada + "» no es una entrada de video";
+    if (!esEntrada(entrada)) return tr("«%1» no es una entrada de video").arg(q(entrada)).toStdString();
     std::string id;
     const std::string e = editar([&](GrafoVideo& g) {
         std::string err;
@@ -1839,10 +1863,10 @@ std::string VideoGrafos::agregarTarjetaGst(const std::string& entrada, const std
 std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const std::string& video,
                                               const std::string& audio, const std::string& escena,
                                               int latenciaMs, int normalizar, const json& extra) {
-    if (nombre.empty()) return "falta el nombre";
+    if (nombre.empty()) return tr("falta el nombre").toStdString();
     // Una cámara del equipo (`camara` en extra) no necesita pipeline: la abre el motor.
     const bool conCamara = extra.is_object() && extra.contains("camara");
-    if (video.empty() && audio.empty() && !conCamara) return "falta el pipeline (de video y/o de audio)";
+    if (video.empty() && audio.empty() && !conCamara) return tr("falta el pipeline (de video y/o de audio)").toStdString();
     json ajustes = extra.is_object() ? extra : json::object();
     ajustes["uri"] = "";
     ajustes["pipeline"] = video;
@@ -1859,10 +1883,10 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
         return {};
     }
     if (!rt_.engine().sourceTypeId(nombre).empty())
-        return "ya hay una fuente que se llama «" + nombre + "» (y no es de GStreamer)";
-    if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
+        return tr("ya hay una fuente que se llama «%1» (y no es de GStreamer)").arg(q(nombre)).toStdString();
+    if (escena.empty()) return tr("falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)").toStdString();
     EscenaNueva escenaNueva{*this, escena};
-    if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
+    if (!asegurarEscena(escena, &escenaNueva.creada)) return tr("no se pudo crear la escena «%1»").arg(q(escena)).toStdString();
     json todo = relojParaFuente();
     todo.update(ajustes);
     if (!todo.contains("normalizar")) todo["normalizar"] = false;
@@ -1874,7 +1898,7 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
     spec.id = kTipoVirtual;
     spec.name = nombre;
     spec.settingsJson = todo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
+    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? tr("no se pudo crear").toStdString() : rt_.lastError();
     rt_.save();
     sincronizar();
     return {};
@@ -1923,7 +1947,7 @@ QString VideoGrafos::desfaseUi(const QString& entrada, double ms) {
 }
 
 QString VideoGrafos::superresUi(const QString& entrada, bool activa) {
-    if (activa && !haySuperres()) return "Este sistema no tiene superresolución (necesita macOS 26).";
+    if (activa && !haySuperres()) return tr("Este sistema no tiene superresolución (necesita macOS 26).");
     return q(crearEntradaRed(entrada.toStdString(), {}, -1, {}, -1, -1, -1, activa ? 1 : 0));
 }
 
@@ -1934,13 +1958,13 @@ QString VideoGrafos::sincroniaUi(const QString& entrada, const QString& modo) {
 std::string VideoGrafos::superresMotor(const std::string& entrada, const std::string& motor,
                                        const std::string& modelo) {
     if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
-        return "«" + entrada + "» no es una entrada de red";
+        return tr("«%1» no es una entrada de red").arg(q(entrada)).toStdString();
     if (!motor.empty() && motor != "apple" && motor != "fsr" && motor != "onnx")
-        return "motor: apple, fsr u onnx (o vacío para apagar)";
+        return tr("motor: apple, fsr u onnx (o vacío para apagar)").toStdString();
     const QStringList hay = motoresSuperres();
     if (!motor.empty() && !hay.contains(QString::fromStdString(motor)))
-        return "este sistema no tiene el motor «" + motor + "»";
-    if (motor == "onnx" && modelo.empty()) return "el motor onnx necesita `modelo` (la ruta del .onnx)";
+        return tr("este sistema no tiene el motor «%1»").arg(q(motor)).toStdString();
+    if (motor == "onnx" && modelo.empty()) return tr("el motor onnx necesita `modelo` (la ruta del .onnx)").toStdString();
     // El interruptor viejo (superres) lo manda el motor.
     if (!rt_.updateSourceSettings(entrada, json{{"superres", false},
                                                 {"superres_motor", motor},
@@ -1956,8 +1980,8 @@ bool hayElemento(const char* elemento);
 } // namespace
 
 std::string VideoGrafos::controlEntrada(const std::string& entrada, const json& control) {
-    if (!rt_.engine().sourceExists(entrada)) return "no existe «" + entrada + "»";
-    if (!control.is_object() || control.empty()) return "`control` tiene que ser un objeto con campos";
+    if (!rt_.engine().sourceExists(entrada)) return tr("no existe «%1»").arg(q(entrada)).toStdString();
+    if (!control.is_object() || control.empty()) return tr("`control` tiene que ser un objeto con campos").toStdString();
     return rt_.engine().controlEntrada(entrada, control);
 }
 
@@ -2049,24 +2073,26 @@ void VideoGrafos::evaluarSuperres() {
         char ax[32];
         std::snprintf(ax, sizeof ax, "%.2f", aumento);
         if (!activo) {
-            estado[e]["motivo"] = "el programador está apagado: trabaja siempre";
+            estado[e]["motivo"] = tr("el programador está apagado: trabaja siempre").toStdString();
             continue;
         }
         if (forzado == "siempre") {
             candidatos.push_back({e, 100.0}); // primero, consuma lo que consuma
-            estado[e]["motivo"] = "forzada a trabajar siempre";
+            estado[e]["motivo"] = tr("forzada a trabajar siempre").toStdString();
         } else if (forzado != "nunca" && seVe && aumento > umbral) {
             double pr = (ap > 0 ? 2.0 : 0.0) + (av > 0 ? 1.0 : 0.0) + std::min(aumento, 4.0) / 4.0;
             if (modoSr_.count(e) && modoSr_[e] == "activo") pr += 0.05; // estabilidad
             candidatos.push_back({e, pr});
-            estado[e]["motivo"] = std::string(ap > 0 ? "al aire" : "en preview") + ", agrandada x" + ax;
+            estado[e]["motivo"] =
+                (ap > 0 ? tr("al aire, agrandada x%1") : tr("en preview, agrandada x%1")).arg(q(ax)).toStdString();
         } else if (forzado == "nunca") {
             if (seVe && aumento > umbral) quiero[e] = sinTurno;
-            estado[e]["motivo"] = "forzada a no trabajar";
+            estado[e]["motivo"] = tr("forzada a no trabajar").toStdString();
         } else if (!seVe) {
-            estado[e]["motivo"] = "no está al aire ni en preview: se prende sola cuando se vea (o elegí «Siempre»)";
+            estado[e]["motivo"] =
+                tr("no está al aire ni en preview: se prende sola cuando se vea (o elegí «Siempre»)").toStdString();
         } else {
-            estado[e]["motivo"] = std::string("en pantalla casi no se agranda (x") + ax + "): no hace falta";
+            estado[e]["motivo"] = tr("en pantalla casi no se agranda (x%1): no hace falta").arg(q(ax)).toStdString();
         }
     }
     std::sort(candidatos.begin(), candidatos.end(), [](const Cand& a, const Cand& b) { return a.prioridad > b.prioridad; });
@@ -2121,8 +2147,8 @@ void VideoGrafos::evaluarSuperres() {
             } else {
                 quiero[c.entrada] = sinTurno;
                 estado[c.entrada]["motivo"] = activas >= tope
-                                                  ? "ya trabajan " + std::to_string(tope) + " (el tope)"
-                                                  : std::string("no le alcanza la placa al lado de las otras");
+                                                  ? tr("ya trabajan %1 (el tope)").arg(tope).toStdString()
+                                                  : tr("no le alcanza la placa al lado de las otras").toStdString();
             }
         }
     // La alarma «no llega»: una red activa que tarda más que el umbral (de fábrica, el
@@ -2149,10 +2175,15 @@ void VideoGrafos::evaluarSuperres() {
                 t.bypassHasta = ahora + std::min<qint64>(static_cast<qint64>(ajustes::sAMs("superres.baratoS", 15)) << std::min(t.veces - 1, 4),
                                                          static_cast<qint64>(ajustes::sAMs("superres.baratoMaxS", 120)));
             }
-            char t2[256];
-            std::snprintf(t2, sizeof t2, "superresolución de «%s» no llega: %.1f ms por cuadro (cuadro %.1f ms)%s",
-                          e.c_str(), ms, cuadroMs, bypassAuto ? "; pasada a barato" : "");
-            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "video-grafo", 0, t2);
+            const std::string msTxt = QString::number(ms, 'f', 1).toStdString(),
+                              cuadroTxt = QString::number(cuadroMs, 'f', 1).toStdString();
+            ba::diag::registro().linea(
+                ba::diag::Nivel::Aviso, "video-grafo", 0,
+                ba::i18n::llenar(bypassAuto ? ba::i18n::traducir("video-grafo", "superresolución de «%1» no llega: %2 ms "
+                                                                                "por cuadro (cuadro %3 ms); pasada a barato")
+                                            : ba::i18n::traducir("video-grafo", "superresolución de «%1» no llega: %2 ms "
+                                                                                "por cuadro (cuadro %3 ms)"),
+                                 {e, msTxt, cuadroTxt}));
             emit superresTarde(QString::fromStdString(e), ms, cuadroMs, bypassAuto);
         }
         if (!lenta && ahora >= t.bypassHasta) t.avisado = false;
@@ -2163,13 +2194,15 @@ void VideoGrafos::evaluarSuperres() {
         const bool enBypass = bypassAuto && !siempre && ahora < t.bypassHasta;
         if (enBypass && quiero[e] == "activo") quiero[e] = sinTurno;
         if (lenta) {
-            char m[160];
-            std::snprintf(m, sizeof m, "no llega: %.0f ms por cuadro (un cuadro dura %.0f ms)%s", ms, cuadroMs,
-                          enBypass ? "; pasada a barata, vuelve a probar sola" : "");
-            estado[e]["motivo"] = m;
+            estado[e]["motivo"] =
+                (enBypass ? tr("no llega: %1 ms por cuadro (un cuadro dura %2 ms); pasada a barata, vuelve a probar sola")
+                          : tr("no llega: %1 ms por cuadro (un cuadro dura %2 ms)"))
+                    .arg(QString::number(ms, 'f', 0), QString::number(cuadroMs, 'f', 0))
+                    .toStdString();
         } else if (enBypass) {
-            estado[e]["motivo"] = "no llegaba a tiempo: barata un rato, vuelve a probar en " +
-                                  std::to_string((t.bypassHasta - ahora + 999) / 1000) + " s (o elegí «Siempre»)";
+            estado[e]["motivo"] = tr("no llegaba a tiempo: barata un rato, vuelve a probar en %1 s (o elegí «Siempre»)")
+                                      .arg((t.bypassHasta - ahora + 999) / 1000)
+                                      .toStdString();
         }
         estado[e]["tarde"] = (t.desde != 0 && ahora - t.desde >= 2000) || enBypass;
         if (enBypass) estado[e]["bypass_s"] = (t.bypassHasta - ahora + 999) / 1000;
@@ -2185,8 +2218,9 @@ void VideoGrafos::evaluarSuperres() {
         if (controlEntrada(e, json{{"superres", modo}, {"transicion_ms", transicion}}).empty()) {
             if (modo == "activo") ultimoCambioSr_ = ahora;
             modoSr_[e] = modo;
-            ba::diag::registro().linea(ba::diag::Nivel::Info, "video-grafo", 0,
-                                       "superresolución de «" + e + "»: " + modo);
+            ba::diag::registro().linea(
+                ba::diag::Nivel::Info, "video-grafo", 0,
+                ba::i18n::llenar(ba::i18n::traducir("video-grafo", "superresolución de «%1»: %2"), {e, modo}));
         }
     }
     for (auto it = modoSr_.begin(); it != modoSr_.end();)
@@ -2205,7 +2239,7 @@ json VideoGrafos::programador() const {
 }
 
 std::string VideoGrafos::configurarProgramador(const json& cambios) {
-    if (!cambios.is_object()) return "se esperaba un objeto";
+    if (!cambios.is_object()) return tr("se esperaba un objeto").toStdString();
     for (const char* k : {"activo", "capacidad", "max_activas", "uso_pct", "transicion_ms", "en_preview", "sin_turno",
                           "umbral_aumento", "bypass_auto", "umbral_pct"})
         if (cambios.contains(k)) programador_[k] = cambios[k];
@@ -2248,19 +2282,19 @@ QString VideoGrafos::configurarProgramadorUi(const QVariantMap& cambios) {
 
 std::string VideoGrafos::filtrosAudio(const std::string& entrada, const json& filtros) {
     if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
-        return "«" + entrada + "» no es una entrada de GStreamer (red, pipeline o plugin)";
-    if (!filtros.is_array()) return "`filtros` tiene que ser una lista de {elemento, propiedades}";
+        return tr("«%1» no es una entrada de GStreamer (red, pipeline o plugin)").arg(q(entrada)).toStdString();
+    if (!filtros.is_array()) return tr("`filtros` tiene que ser una lista de {elemento, propiedades}").toStdString();
     json limpios = json::array();
     // Los id, únicos (se editan y se nombran por él): uno repetido es un error; los que
     // faltan, «a0», «a1»… sin repetir uno que vino puesto.
     std::set<std::string> ids;
     for (const auto& f : filtros)
         if (f.is_object() && f.contains("id") && f["id"].is_string())
-            if (!ids.insert(f["id"].get<std::string>()).second) return "dos filtros con el id «" + f["id"].get<std::string>() + "»";
+            if (!ids.insert(f["id"].get<std::string>()).second) return tr("dos filtros con el id «%1»").arg(q(f["id"].get<std::string>())).toStdString();
     int i = 0;
     for (const auto& f : filtros) {
         const std::string el = f.is_object() ? f.value("elemento", std::string()) : std::string();
-        if (el.empty()) return "a un filtro le falta `elemento`";
+        if (el.empty()) return tr("a un filtro le falta `elemento`").toStdString();
         if (!hayElemento(el.c_str())) return "GStreamer no tiene el elemento «" + el + "»";
         std::string id = f.contains("id") && f["id"].is_string() ? f["id"].get<std::string>() : std::string();
         if (id.empty()) {
@@ -2309,12 +2343,12 @@ QVariantMap VideoGrafos::estudioLatenciaUi() { return aVariant(estudioLatencia()
 void VideoGrafos::ponerTopeEstudioUi(int tope) { estudioLatencia(tope); }
 
 std::string VideoGrafos::claseSincronia(const std::string& entrada, const std::string& clase) {
-    if (rt_.engine().sourceTypeId(entrada).empty()) return "no hay una entrada «" + entrada + "»";
+    if (rt_.engine().sourceTypeId(entrada).empty()) return tr("no hay una entrada «%1»").arg(q(entrada)).toStdString();
     json v;
     if (clase == "sala") v = true;
     else if (clase == "propia") v = false;
     else if (clase == "auto") v = nullptr; // sin elegir: la de su tipo
-    else return "clase: sala, propia o auto";
+    else return tr("clase: sala, propia o auto").toStdString();
     if (!rt_.updateSourceSettings(entrada, json{{"estudio", v}}.dump(-1, ' ', false, json::error_handler_t::replace)))
         return rt_.lastError();
     rt_.save();
@@ -2322,12 +2356,12 @@ std::string VideoGrafos::claseSincronia(const std::string& entrada, const std::s
 }
 
 QString VideoGrafos::bajarLatenciaUi() {
-    return rt_.engine().bajarLatenciaEstudio() ? QString() : QStringLiteral("ya está en lo que piden las entradas sincronizadas");
+    return rt_.engine().bajarLatenciaEstudio() ? QString() : tr("ya está en lo que piden las entradas sincronizadas");
 }
 
 std::string VideoGrafos::automixer(const std::string& entrada, const std::string& grupo) {
     if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
-        return "«" + entrada + "» no es una entrada de GStreamer (los micrófonos del equipo lo son)";
+        return tr("«%1» no es una entrada de GStreamer (los micrófonos del equipo lo son)").arg(q(entrada)).toStdString();
     json l = json::array();
     json propsMesa = json::object();
     for (const auto& f : filtrosAudioDe(entrada))
@@ -2345,10 +2379,10 @@ std::string VideoGrafos::automixer(const std::string& entrada, const std::string
 }
 
 std::string VideoGrafos::automixerAjustes(const std::string& grupo, const json& ajustes) {
-    if (!ajustes.is_object() || ajustes.empty()) return "faltan los ajustes";
+    if (!ajustes.is_object() || ajustes.empty()) return tr("faltan los ajustes").toStdString();
     for (const auto& [k, v] : ajustes.items())
         if (!kAjustesMesa.count(k) || !v.is_number())
-            return "ajuste desconocido «" + k + "» (umbral_db, hold_ms, piso_hold_db, max_abiertos, ataque_ms, liberacion_ms)";
+            return tr("ajuste desconocido «%1» (umbral_db, hold_ms, piso_hold_db, max_abiertos, ataque_ms, liberacion_ms)").arg(q(k)).toStdString();
     int n = 0;
     for (const std::string& nombre : rt_.engine().sourceNames()) {
         if (rt_.engine().sourceTypeId(nombre) != kTipoVirtual) continue;
@@ -2365,7 +2399,7 @@ std::string VideoGrafos::automixerAjustes(const std::string& grupo, const json& 
         if (const std::string e = filtrosAudio(nombre, l); !e.empty()) return e;
         ++n;
     }
-    return n > 0 ? std::string() : "la mesa «" + grupo + "» no tiene micrófonos";
+    return n > 0 ? std::string() : tr("la mesa «%1» no tiene micrófonos").arg(q(grupo)).toStdString();
 }
 
 json VideoGrafos::automixerEstado() const {
@@ -2429,7 +2463,7 @@ QString VideoGrafos::agregarFiltroAudioUi(const QString& entrada, const QString&
         {"volumen", {{"elemento", "volume"}, {"propiedades", {{"volume", 1.5}}}}},
         {"automixer", {{"elemento", "baautomixer"}, {"propiedades", {{"grupo", "mesa"}}}}}};
     const auto it = kComunes.find(cual.toStdString());
-    if (it == kComunes.end()) return "filtro desconocido";
+    if (it == kComunes.end()) return tr("filtro desconocido");
     json l = filtrosAudioDe(entrada.toStdString());
     json f = it->second;
     f["id"] = cual.toStdString() + std::to_string(l.size());
@@ -2445,7 +2479,7 @@ QString VideoGrafos::ponerFiltrosAudioUi(const QString& entrada, const QVariantL
 
 QString VideoGrafos::quitarFiltroAudioUi(const QString& entrada, int indice) {
     json l = filtrosAudioDe(entrada.toStdString());
-    if (indice < 0 || indice >= static_cast<int>(l.size())) return "no hay ese filtro";
+    if (indice < 0 || indice >= static_cast<int>(l.size())) return tr("no hay ese filtro");
     l.erase(l.begin() + indice);
     return q(filtrosAudio(entrada.toStdString(), l));
 }
@@ -2511,7 +2545,7 @@ QStringList VideoGrafos::escenasUi() const {
 // --- Desfases --------------------------------------------------------------------------
 
 std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, bool relativo, json* hecho) {
-    if (!esEntrada(entrada)) return "«" + entrada + "» no es una entrada de video";
+    if (!esEntrada(entrada)) return tr("«%1» no es una entrada de video").arg(q(entrada)).toStdString();
     // En el motor toda entrada se corre en vivo (para adelante o para atrás): el offset de su salida.
     {
         const json actual = json::parse(rt_.engine().sourceSettingsJson(entrada), nullptr, false);
@@ -2521,7 +2555,10 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
         if (!rt_.updateSourceSettings(entrada, json{{"desfase", ahora}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) return rt_.lastError();
         rt_.save();
         if (hecho != nullptr)
-            *hecho = {{"entrada", entrada}, {"como", "desfase de la fuente"}, {"antes_ms", antes}, {"ahora_ms", ahora}};
+            *hecho = {{"entrada", entrada},
+                      {"como", tr("desfase de la fuente").toStdString()},
+                      {"antes_ms", antes},
+                      {"ahora_ms", ahora}};
         return {};
     }
     // Otra entrada (una cámara): solo se puede ATRASAR, con una tarjeta retardo
@@ -2535,14 +2572,16 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
         }
     const double ahora = relativo ? antes + ms : ms;
     if (ahora < 0)
-        return "«" + entrada + "» es una cámara: no se la puede adelantar (" +
-               std::to_string(std::lround(ahora)) + " ms). Atrasá la otra entrada.";
+        return tr("«%1» es una cámara: no se la puede adelantar (%2 ms). Atrasá la otra entrada.")
+            .arg(q(entrada))
+            .arg(std::lround(ahora))
+            .toStdString();
     const std::string e = editar([&](GrafoVideo& g) {
         std::string err;
         if (id.empty()) {
             const std::string nuevo = g.agregar("retardo", entrada, GrafoVideo::idEntrada(entrada),
                                                 json{{"ms", std::lround(ahora)}, {"sincronia", true}}, &err);
-            if (!nuevo.empty()) g.ajustar(nuevo, json{{"etiqueta", "Sincronía (retardo)"}}, nullptr);
+            if (!nuevo.empty()) g.ajustar(nuevo, json{{"etiqueta", tr("Sincronía (retardo)").toStdString()}}, nullptr);
         } else {
             g.ajustar(id, json{{"ms", std::lround(ahora)}}, &err);
         }
@@ -2551,7 +2590,7 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
     if (!e.empty()) return e;
     if (hecho != nullptr)
         *hecho = {{"entrada", entrada},
-                  {"como", "retardo en el grafo"},
+                  {"como", tr("retardo en el grafo").toStdString()},
                   {"antes_ms", antes},
                   {"ahora_ms", std::lround(ahora)}};
     return {};
@@ -2560,10 +2599,10 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
 void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int segundos, bool aplicar,
                                std::function<void(json)> listo) {
     for (const std::string& e : {a, b})
-        if (!esEntrada(e)) return listo({{"error", "«" + e + "» no es una entrada de video"}});
-    if (a == b) return listo({{"error", "son la misma entrada"}});
+        if (!esEntrada(e)) return listo({{"error", tr("«%1» no es una entrada de video").arg(q(e)).toStdString()}});
+    if (a == b) return listo({{"error", tr("son la misma entrada").toStdString()}});
     motor::Motor* mot = rt_.engine().motor();
-    if (mot == nullptr) return listo({{"error", "el motor no está andando"}});
+    if (mot == nullptr) return listo({{"error", tr("el motor no está andando").toStdString()}});
     // La huella de cada cuadro de lo que sale de cada entrada: una grilla de luma
     // de 16x9 (promedios de bloque) con su hora. Una vista chica del motor por entrada (con el reloj del
     // estudio: cada cuadro llega a su hora).
@@ -2577,7 +2616,7 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
     for (int k = 0; k < 2; ++k) {
         if (!mot->verPedir(claves[k], 160, 90).empty()) {
             if (k == 1) mot->verSoltar(claves[0]);
-            return listo({{"error", "no se puede mirar «" + (k == 0 ? a : b) + "»"}});
+            return listo({{"error", tr("no se puede mirar «%1»").arg(q(k == 0 ? a : b)).toStdString()}});
         }
         mot->verAvisar(claves[k], [h, k](const motor::Cuadro& c) {
             if (c.ancho < 16 || c.alto < 9) return;
@@ -2627,12 +2666,18 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
         r["medido"] = true;
         r["desfase_ms"] = std::lround(m.desfaseMs);
         const bool alineadas = std::fabs(m.desfaseMs) < m.cuadroMs * 0.5;
-        r["significa"] = alineadas ? "están sincronizadas (menos de medio cuadro de diferencia)"
+        r["significa"] = alineadas ? tr("están sincronizadas (menos de medio cuadro de diferencia)").toStdString()
                          : m.desfaseMs > 0
-                             ? "«" + b + "» atrasa " + std::to_string(std::lround(m.desfaseMs)) +
-                                   " ms respecto de «" + a + "»"
-                             : "«" + a + "» atrasa " + std::to_string(std::lround(-m.desfaseMs)) +
-                                   " ms respecto de «" + b + "»";
+                             ? tr("«%1» atrasa %2 ms respecto de «%3»")
+                                   .arg(q(b))
+                                   .arg(std::lround(m.desfaseMs))
+                                   .arg(q(a))
+                                   .toStdString()
+                             : tr("«%1» atrasa %2 ms respecto de «%3»")
+                                   .arg(q(a))
+                                   .arg(std::lround(-m.desfaseMs))
+                                   .arg(q(b))
+                                   .toStdString();
         r["confianza"] = std::round(m.confianza * 100) / 100;
         r["metodo"] = m.metodo;
         r["resolucion_ms"] = std::round(m.cuadroMs);
@@ -2678,13 +2723,13 @@ json VideoGrafos::entradasDeHost(const std::string& host) const {
 }
 
 std::string VideoGrafos::sumarAEscena(const std::string& nombre, const std::string& escena) {
-    if (rt_.engine().sourceTypeId(nombre).empty()) return "no existe «" + nombre + "»";
+    if (rt_.engine().sourceTypeId(nombre).empty()) return tr("no existe «%1»").arg(q(nombre)).toStdString();
     EscenaNueva escenaNueva{*this, escena};
-    if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
+    if (!asegurarEscena(escena, &escenaNueva.creada)) return tr("no se pudo crear la escena «%1»").arg(q(escena)).toStdString();
     SourceSpec spec;
     spec.id = rt_.engine().sourceTypeId(nombre);
     spec.name = nombre;
-    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo" : rt_.lastError();
+    if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? tr("no se pudo").toStdString() : rt_.lastError();
     rt_.save();
     return {};
 }
@@ -2752,8 +2797,8 @@ json VideoGrafos::paramsPreset(const std::string& preset, int cuantas, double ca
 
 std::string VideoGrafos::presetPanoramica(const std::string& id, const std::string& preset, double campo) {
     const GrafoVideo::Nodo* n = grafo_.nodo(id);
-    if (n == nullptr || n->tipo != "panoramica") return "«" + id + "» no es una Panorámica";
-    if (preset != "360" && preset != "fila") return "preset: 360 o fila";
+    if (n == nullptr || n->tipo != "panoramica") return tr("«%1» no es una Panorámica").arg(q(id)).toStdString();
+    if (preset != "360" && preset != "fila") return tr("preset: 360 o fila").toStdString();
     const int cuantas = std::max(preset == "360" ? 2 : 1, grafo_.lentesConectadas(id));
     const json p = paramsPreset(preset, cuantas, campo);
     return editar([&](GrafoVideo& g) {
@@ -2765,15 +2810,15 @@ std::string VideoGrafos::presetPanoramica(const std::string& id, const std::stri
 std::string VideoGrafos::armarPanoramica(const std::vector<std::string>& camaras, const std::string& preset, double campo,
                                          const std::string& nombre, const std::string& escena, const json& params,
                                          json* hecho) {
-    if (camaras.empty()) return "falta `camaras` (de 1 a " + std::to_string(kMaxLentes360) + ")";
+    if (camaras.empty()) return tr("falta `camaras` (de 1 a %1)").arg(kMaxLentes360).toStdString();
     if (static_cast<int>(camaras.size()) > kMaxLentes360)
-        return "hasta " + std::to_string(kMaxLentes360) + " cámaras (una textura no pasa de 16384 de ancho)";
+        return tr("hasta %1 cámaras (una textura no pasa de 16384 de ancho)").arg(kMaxLentes360).toStdString();
     for (size_t i = 0; i < camaras.size(); ++i) {
-        if (!esEntrada(camaras[i])) return "«" + camaras[i] + "» no es una entrada de video";
+        if (!esEntrada(camaras[i])) return tr("«%1» no es una entrada de video").arg(q(camaras[i])).toStdString();
         for (size_t j = 0; j < i; ++j)
-            if (camaras[i] == camaras[j]) return "«" + camaras[i] + "» está dos veces";
+            if (camaras[i] == camaras[j]) return tr("«%1» está dos veces").arg(q(camaras[i])).toStdString();
     }
-    if (preset == "360" && camaras.size() != 2) return "el preset 360 es de dos lentes";
+    if (preset == "360" && camaras.size() != 2) return tr("el preset 360 es de dos lentes").toStdString();
     std::string id;
     const std::string err = editar([&](GrafoVideo& g) {
         std::string e;
@@ -2808,9 +2853,10 @@ std::string VideoGrafos::armarPanoramica(const std::vector<std::string>& camaras
     json ocultas = json::array();
     if (!escena.empty()) {
         EscenaNueva escenaNueva{*this, escena};
-        if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
-        const std::string pe = ponerEnEscena(id, escena);
-        if (!pe.empty() && pe.find("ya hay") == std::string::npos) return pe;
+        if (!asegurarEscena(escena, &escenaNueva.creada)) return tr("no se pudo crear la escena «%1»").arg(q(escena)).toStdString();
+        bool otraConEseNombre = false;
+        const std::string pe = ponerEnEscena(id, escena, &otraConEseNombre);
+        if (!pe.empty() && !otraConEseNombre && pe.find("ya hay") == std::string::npos) return pe;
         for (const auto& e : camaras)
             if (mostrarEnEscena(e, escena, false)) ocultas.push_back(e);
     }
@@ -2824,10 +2870,11 @@ std::string VideoGrafos::armarPanoramica(const std::vector<std::string>& camaras
                   {"lienzo", std::to_string(static_cast<int>(camaras.size()) * la) + "x" + std::to_string(al)},
                   {"ocultas", ocultas},
                   {"calibrar",
-                   "video_tarjeta_ajustar sobre la tarjeta: ver=entrada para encajar centros y círculos; "
-                   "ver=tira o panorama con guia=esfera para cómo encajan (lenteN_yaw, _pitch, _roll, _campo) "
-                   "hasta que el horizonte quede derecho y sin costuras; guía rectángulo o círculo encima de "
-                   "algo que lo sea para la deformación (lenteN_k1, _k2)"}};
+                   tr("video_tarjeta_ajustar sobre la tarjeta: ver=entrada para encajar centros y círculos; "
+                      "ver=tira o panorama con guia=esfera para cómo encajan (lenteN_yaw, _pitch, _roll, _campo) "
+                      "hasta que el horizonte quede derecho y sin costuras; guía rectángulo o círculo encima de "
+                      "algo que lo sea para la deformación (lenteN_k1, _k2)")
+                       .toStdString()}};
     return {};
 }
 
@@ -2839,8 +2886,8 @@ json VideoGrafos::capasDeDisposicion(const std::string& disposicion, const std::
     };
     const std::string d = disposicion.empty() ? std::string("mosaico") : disposicion;
     if (d != "mosaico" && d != "pip" && d != "lado")
-        return falla("no conozco la disposición «" + disposicion + "» (mosaico, pip o lado)");
-    if (d != "mosaico" && puertos.size() < 2) return falla("hacen falta al menos dos entradas");
+        return falla(tr("no conozco la disposición «%1» (mosaico, pip o lado)").arg(q(disposicion)).toStdString());
+    if (d != "mosaico" && puertos.size() < 2) return falla(tr("hacen falta al menos dos entradas").toStdString());
     const size_t n = puertos.size();
     json capas = json::object();
     for (size_t i = 0; i < n; ++i) {
@@ -2876,7 +2923,7 @@ std::string VideoGrafos::disponerEn(GrafoVideo& g, const std::string& comp, cons
     const json capas = capasDeDisposicion(disposicion, puertos, &e);
     if (capas.is_null()) return e;
     const GrafoVideo::Nodo* n = g.nodo(comp);
-    if (n == nullptr || n->tipo != "compositor") return "«" + comp + "» no es un compositor";
+    if (n == nullptr || n->tipo != "compositor") return tr("«%1» no es un compositor").arg(q(comp)).toStdString();
     // Las capas se mezclan clave por clave: primero se borran todas las que
     // había (si no, quedaría el `orden` de un pip o la opacidad de antes).
     json borrar = json::object();
@@ -2890,7 +2937,7 @@ std::string VideoGrafos::disponerEn(GrafoVideo& g, const std::string& comp, cons
 std::string VideoGrafos::aplicarDisposicion(const std::string& compositor, const std::string& disposicion) {
     return editar([&](GrafoVideo& g) {
         const GrafoVideo::Nodo* n = g.nodo(compositor);
-        if (n == nullptr || n->tipo != "compositor") return "«" + compositor + "» no es un compositor";
+        if (n == nullptr || n->tipo != "compositor") return tr("«%1» no es un compositor").arg(q(compositor)).toStdString();
         // Sus entradas conectadas, en el orden de sus puertos (la primera es el fondo del pip).
         std::vector<std::string> puertos;
         for (const auto& p : g.puertosEntrada(*n))
@@ -2902,12 +2949,12 @@ std::string VideoGrafos::aplicarDisposicion(const std::string& compositor, const
 std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,
                                       const std::string& disposicion, const std::string& nombre,
                                       bool ocultarSueltas, json* hecho) {
-    if (escena.empty()) return "falta `escena`";
+    if (escena.empty()) return tr("falta `escena`").toStdString();
     EscenaNueva escenaNueva{*this, escena};
-    if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
-    if (entradas.size() < 2) return "hacen falta al menos dos entradas";
+    if (!asegurarEscena(escena, &escenaNueva.creada)) return tr("no se pudo crear la escena «%1»").arg(q(escena)).toStdString();
+    if (entradas.size() < 2) return tr("hacen falta al menos dos entradas").toStdString();
     for (const auto& e : entradas)
-        if (!esEntrada(e)) return "«" + e + "» no es una entrada de video";
+        if (!esEntrada(e)) return tr("«%1» no es una entrada de video").arg(q(e)).toStdString();
     {
         std::string e;
         if (capasDeDisposicion(disposicion, entradas, &e).is_null()) return e;
@@ -2949,8 +2996,9 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
         return disponerEn(g, comp, disposicion, puertos);
     });
     if (!err.empty()) return err;
-    const std::string pe = ponerEnEscena(comp, escena);
-    if (!pe.empty() && pe.find("ya hay") == std::string::npos) return pe;
+    bool otraConEseNombre = false;
+    const std::string pe = ponerEnEscena(comp, escena, &otraConEseNombre);
+    if (!pe.empty() && !otraConEseNombre && pe.find("ya hay") == std::string::npos) return pe;
     json ocultas = json::array();
     if (ocultarSueltas)
         for (const auto& e : entradas)
@@ -2964,7 +3012,7 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
             {"entradas", entradas},
             {"ocultas", ocultas},
             {"nota",
-             "las entradas ocultas siguen alimentando el mosaico (el compositor las mantiene activas)"}};
+             tr("las entradas ocultas siguen alimentando el mosaico (el compositor las mantiene activas)").toStdString()}};
     return {};
 }
 

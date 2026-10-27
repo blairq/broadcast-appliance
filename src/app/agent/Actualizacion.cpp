@@ -9,6 +9,7 @@
 #include <cctype>
 #include <map>
 
+#include "i18n/I18n.hpp"
 #include "net/HttpsClient.hpp"
 
 namespace ba::app::agent {
@@ -56,17 +57,17 @@ json ultimaPublicada(const std::string& runtime, const json& base, std::string* 
         // trae el checksum (SHA-256) de cada plataforma.
         const std::string fuente = base.value("fuente", std::string());
         const auto corte = fuente.find("/claude-code-releases/");
-        if (corte == std::string::npos) return fallo("no se reconoce la fuente de Claude Code");
+        if (corte == std::string::npos) return fallo(ba::i18n::traducir("actualizacion", "no se reconoce la fuente de Claude Code"));
         const std::string raiz = fuente.substr(0, corte) + "/claude-code-releases";
         const auto rv = getJson(raiz + "/latest");
         std::string v = rv.body;
         v.erase(std::remove_if(v.begin(), v.end(), [](unsigned char c) { return std::isspace(c); }), v.end());
         if (rv.status != 200 || !pareceVersion(v))
-            return fallo("no se pudo leer la ultima version de Claude Code");
+            return fallo(ba::i18n::traducir("actualizacion", "no se pudo leer la ultima version de Claude Code"));
         const auto rm = getJson(raiz + "/" + v + "/manifest.json");
         const json m = json::parse(rm.body, nullptr, false);
         if (rm.status != 200 || !m.is_object())
-            return fallo("no se pudo leer el manifest de Claude Code " + v);
+            return fallo(ba::i18n::llenar(ba::i18n::traducir("actualizacion", "no se pudo leer el manifest de Claude Code %1"), {v}));
         const json plats = m.value("platforms", json::object());
         const std::map<std::string, std::string> nombres{{"linux-x64", "linux-x64"},
                                                          {"linux-arm64", "linux-arm64"},
@@ -94,9 +95,9 @@ json ultimaPublicada(const std::string& runtime, const json& base, std::string* 
         // (@opencode/cli-<plataforma>), cada uno con su integridad SHA-512.
         const auto r = getJson("https://registry.npmjs.org/@opencode/cli/latest");
         const json j = json::parse(r.body, nullptr, false);
-        if (r.status != 200 || !j.is_object()) return fallo("no se pudo leer la ultima version de opencode");
+        if (r.status != 200 || !j.is_object()) return fallo(ba::i18n::traducir("actualizacion", "no se pudo leer la ultima version de opencode"));
         const std::string v = j.value("version", std::string());
-        if (!pareceVersion(v)) return fallo("version de opencode no reconocida");
+        if (!pareceVersion(v)) return fallo(ba::i18n::traducir("actualizacion", "version de opencode no reconocida"));
         json nuevas = json::object();
         for (const auto& [clave, pin] : basePlats.items()) {
             const std::string npm = pin.value("npm", std::string());
@@ -120,7 +121,7 @@ json ultimaPublicada(const std::string& runtime, const json& base, std::string* 
         // El manifiesto oficial de cada plataforma: version, url y SHA-512 (en hex; aca en
         // base64, como lo espera el instalador).
         const std::string raiz = base.value("fuente", std::string());
-        if (raiz.rfind("https://", 0) != 0) return fallo("no se reconoce la fuente de Antigravity");
+        if (raiz.rfind("https://", 0) != 0) return fallo(ba::i18n::traducir("actualizacion", "no se reconoce la fuente de Antigravity"));
         std::string v;
         json nuevas = json::object();
         for (const auto& [clave, pin] : basePlats.items()) {
@@ -141,12 +142,12 @@ json ultimaPublicada(const std::string& runtime, const json& base, std::string* 
             e["sha512"] = b64.toStdString();
             nuevas[clave] = e;
         }
-        if (v.empty()) return fallo("no se pudo leer el manifiesto de Antigravity");
+        if (v.empty()) return fallo(ba::i18n::traducir("actualizacion", "no se pudo leer el manifiesto de Antigravity"));
         out["version"] = v;
         out["fuente"] = raiz;
         out["plataformas"] = nuevas;
     } else {
-        return fallo("no se sabe buscar actualizaciones de " + runtime);
+        return fallo(ba::i18n::llenar(ba::i18n::traducir("actualizacion", "no se sabe buscar actualizaciones de %1"), {runtime}));
     }
     return out;
 }

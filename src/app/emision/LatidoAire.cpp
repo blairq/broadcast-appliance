@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "emision/LatidoAire.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
 #include "diag/Registro.hpp"
@@ -56,8 +57,9 @@ void LatidoAire::uiTick(bool hayAire) {
         trabaTerminadaMs_ = ms;
         ultimaTrabaMs_ = ms;
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "supervisor", 0,
-                                  "la interfaz estuvo trabada " + std::to_string(ms) + " ms" +
-                                      (motorVivo_ ? " (el motor siguió: el aire no se cortó)" : ""));
+                                  ba::i18n::llenar(motorVivo_ ? ba::i18n::traducir("supervisor", "la interfaz estuvo trabada %1 ms (el motor siguió: el aire no se cortó)")
+                                                              : ba::i18n::traducir("supervisor", "la interfaz estuvo trabada %1 ms"),
+                                                   {std::to_string(ms)}));
         escribirEstadoUi(false, ms);
     }
 }
@@ -86,8 +88,8 @@ void LatidoAire::bucle() {
         if (uiTrabada && !avisoTraba) {
             avisoTraba = true;
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "supervisor", 0,
-                                      std::string("la interfaz no responde") +
-                                          (vivo ? "; el motor sigue y el aire no se corta" : "; el motor tampoco"));
+                                      vivo ? ba::i18n::traducir("supervisor", "la interfaz no responde; el motor sigue y el aire no se corta")
+                                           : ba::i18n::traducir("supervisor", "la interfaz no responde; el motor tampoco"));
         }
         if (!uiTrabada) avisoTraba = false;
         if (uiTrabada) escribirEstadoUi(true, uiNs / 1'000'000ULL);
@@ -140,7 +142,7 @@ std::string LatidoAire::ponerPolitica(const json& c) {
     {
         std::lock_guard<std::mutex> l(mu_);
         if (c.contains("espera_ui_s")) {
-            if (!c["espera_ui_s"].is_number_integer()) return "`espera_ui_s`: segundos (10 a 3600)";
+            if (!c["espera_ui_s"].is_number_integer()) return ba::i18n::traducir("supervisor", "`espera_ui_s`: segundos (10 a 3600)");
             pol_.esperaUiS = std::clamp(c["espera_ui_s"].get<int>(), 10, 3600);
         }
         if (c.contains("matar_si_ui_trabada_sin_aire"))

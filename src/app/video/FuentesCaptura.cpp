@@ -4,6 +4,7 @@
 #include "video/FuentesCaptura.hpp"
 
 #include "emision/FuentesApp.hpp"
+#include "i18n/I18n.hpp"
 
 #include "Capturas.hpp" // el del motor (src/motor)
 
@@ -38,8 +39,15 @@ std::vector<Pantalla> pantallasDelEquipo() {
         QString quien = s->model().trimmed();
         if (quien.isEmpty()) quien = s->manufacturer().trimmed();
         if (quien.isEmpty() || quien == s->name()) quien = s->name().startsWith("\\\\.\\") ? QString() : s->name();
-        p.etiqueta = "Pantalla " + std::to_string(++n) + (quien.isEmpty() ? std::string() : ": " + quien.toStdString()) + " — " +
-                     std::to_string(p.pxAncho) + "×" + std::to_string(p.pxAlto) + (p.principal ? " (principal)" : "");
+        const std::string num = std::to_string(++n), tam = std::to_string(p.pxAncho) + "×" + std::to_string(p.pxAlto);
+        if (quien.isEmpty())
+            p.etiqueta = ba::i18n::llenar(p.principal ? ba::i18n::traducir("captura", "Pantalla %1 — %2 (principal)")
+                                                      : ba::i18n::traducir("captura", "Pantalla %1 — %2"),
+                                          {num, tam});
+        else
+            p.etiqueta = ba::i18n::llenar(p.principal ? ba::i18n::traducir("captura", "Pantalla %1: %2 — %3 (principal)")
+                                                      : ba::i18n::traducir("captura", "Pantalla %1: %2 — %3"),
+                                          {num, quien.toStdString(), tam});
         out.push_back(p);
     }
 #endif
@@ -99,10 +107,10 @@ void registrarTiposCaptura() {
     {
         Tipo t;
         t.id = kTipoPantalla;
-        t.nombre = "Captura de pantalla";
+        t.nombre = ba::i18n::traducir("captura", "Captura de pantalla");
         t.defectos = {{"show_cursor", true}};
         t.props = [](const json& a) {
-            Prop m{"monitor", "Pantalla", "list"};
+            Prop m{"monitor", ba::i18n::traducir("captura", "Pantalla"), "list"};
             const auto ps = pantallasDelEquipo();
             const std::string elegido = a.value("monitor", json()).is_string() ? a.value("monitor", std::string()) : std::string();
             bool esta = elegido.empty();
@@ -110,27 +118,34 @@ void registrarTiposCaptura() {
                 m.opciones.push_back({{"value", p.nombre}, {"label", p.etiqueta}});
                 esta = esta || p.nombre == elegido;
             }
-            if (!esta) m.opciones.push_back({{"value", elegido}, {"label", elegido + " (no está conectada: se usa la principal)"}});
-            m.ayuda = ps.size() > 1 ? "Cuál de las " + std::to_string(ps.size()) + " pantallas conectadas capturar."
-                                    : "La pantalla de esta máquina.";
-            return std::vector<Prop>{m, {"show_cursor", "Mostrar el puntero", "bool"}};
+            if (!esta)
+                m.opciones.push_back(
+                    {{"value", elegido},
+                     {"label", ba::i18n::llenar(ba::i18n::traducir("captura", "%1 (no está conectada: se usa la principal)"),
+                                                {elegido})}});
+            m.ayuda = ps.size() > 1 ? ba::i18n::llenar(ba::i18n::traducir("captura",
+                                                                          "Cuál de las %1 pantallas conectadas capturar."),
+                                                       {std::to_string(ps.size())})
+                                    : ba::i18n::traducir("captura", "La pantalla de esta máquina.");
+            return std::vector<Prop>{m, {"show_cursor", ba::i18n::traducir("captura", "Mostrar el puntero"), "bool"}};
         };
         fuentes::registrar(t);
     }
     {
         Tipo t;
         t.id = kTipoVentana;
-        t.nombre = "Captura de una aplicación";
+        t.nombre = ba::i18n::traducir("captura", "Captura de una aplicación");
         t.defectos = {{"show_cursor", true}};
         t.props = [](const json& a) {
             std::vector<Prop> out;
             std::string porque;
             if (!ba::motor::hayCapturaDeVentana(&porque)) {
-                Prop i{"aviso", "No disponible", "info"};
-                i.ayuda = "En este sistema no se puede capturar una ventana sola: " + porque + ".";
+                Prop i{"aviso", ba::i18n::traducir("captura", "No disponible"), "info"};
+                i.ayuda = ba::i18n::llenar(
+                    ba::i18n::traducir("captura", "En este sistema no se puede capturar una ventana sola: %1."), {porque});
                 out.push_back(i);
             }
-            Prop v{"ventana", "Aplicación", "list"};
+            Prop v{"ventana", ba::i18n::traducir("captura", "Aplicación"), "list"};
             const std::string elegido = a.value("ventana", std::string());
             bool esta = elegido.empty();
             for (const auto& w : ventanasParaElegir()) {
@@ -140,12 +155,15 @@ void registrarTiposCaptura() {
             if (!esta) {
                 const auto corte = elegido.find('\n');
                 const std::string app = elegido.substr(0, corte);
-                v.opciones.push_back({{"value", elegido}, {"label", app + " (no está abierta: se espera a que se abra)"}});
+                v.opciones.push_back(
+                    {{"value", elegido},
+                     {"label", ba::i18n::llenar(ba::i18n::traducir("captura", "%1 (no está abierta: se espera a que se abra)"),
+                                                {app})}});
             }
-            v.ayuda = "La ventana a capturar (aunque esté tapada). Se recuerda la aplicación: si se cierra y se vuelve a "
-                      "abrir, la captura sigue sola.";
+            v.ayuda = ba::i18n::traducir("captura", "La ventana a capturar (aunque esté tapada). Se recuerda la "
+                                                    "aplicación: si se cierra y se vuelve a abrir, la captura sigue sola.");
             out.push_back(v);
-            out.push_back({"show_cursor", "Mostrar el puntero", "bool"});
+            out.push_back({"show_cursor", ba::i18n::traducir("captura", "Mostrar el puntero"), "bool"});
             return out;
         };
         fuentes::registrar(t);

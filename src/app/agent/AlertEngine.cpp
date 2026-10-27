@@ -4,6 +4,8 @@
 
 #include "agent/AlertEngine.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <QDateTime>
 #include <QRegularExpression>
 
@@ -57,128 +59,130 @@ std::int64_t nextAt(const std::string& hhmm, std::int64_t now) {
 
 } // namespace
 
+// Las descripciones se traducen al mostrarlas (AgentViewModel::alertTypesUi): el MCP las lee
+// de acá tal cual.
 json AlertEngine::types() {
     return json::array({
         {{"type", "audio_peak"},
-         {"summary", "Un canal de audio satura (pico sobre el umbral)."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Un canal de audio satura (pico sobre el umbral).")},
          {"params",
-          {{"source", "\"*\" (todos, por defecto) o el nombre de la fuente"},
-           {"thresholdDb", "umbral en dBFS (por defecto -1)"},
-           {"holdMs", "cuanto tiene que durar sobre el umbral (por defecto 300)"}}},
+          {{"source", QT_TRANSLATE_NOOP("alertas", "\"*\" (todos, por defecto) o el nombre de la fuente")},
+           {"thresholdDb", QT_TRANSLATE_NOOP("alertas", "umbral en dBFS (por defecto -1)")},
+           {"holdMs", QT_TRANSLATE_NOOP("alertas", "cuanto tiene que durar sobre el umbral (por defecto 300)")}}},
          {"cooldownSec", 20}},
         {{"type", "audio_silence"},
          {"summary",
-          "Silencio (aire muerto) en un canal: nivel bajo el umbral un rato. Ignora canales silenciados."},
+          QT_TRANSLATE_NOOP("alertas", "Silencio (aire muerto) en un canal: nivel bajo el umbral un rato. Ignora canales silenciados.")},
          {"params",
-          {{"source", "\"*\" o nombre"},
-           {"belowDb", "umbral (por defecto -55)"},
-           {"forSec", "segundos seguidos (por defecto 15)"},
-           {"onlyWhenLive", "solo transmitiendo o grabando (por defecto true)"}}},
+          {{"source", QT_TRANSLATE_NOOP("alertas", "\"*\" o nombre")},
+           {"belowDb", QT_TRANSLATE_NOOP("alertas", "umbral (por defecto -55)")},
+           {"forSec", QT_TRANSLATE_NOOP("alertas", "segundos seguidos (por defecto 15)")},
+           {"onlyWhenLive", QT_TRANSLATE_NOOP("alertas", "solo transmitiendo o grabando (por defecto true)")}}},
          {"cooldownSec", 60}},
         {{"type", "media_end"},
-         {"summary", "Un video/musica termina (o le quedan pocos segundos)."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Un video/musica termina (o le quedan pocos segundos).")},
          {"params",
-          {{"source", "\"*\" o nombre"}, {"beforeSec", "0 = al terminar; N = cuando falten N segundos"}}},
+          {{"source", QT_TRANSLATE_NOOP("alertas", "\"*\" o nombre")}, {"beforeSec", QT_TRANSLATE_NOOP("alertas", "0 = al terminar; N = cuando falten N segundos")}}},
          {"cooldownSec", 0}},
         {{"type", "speaker_time"},
-         {"summary", "Al orador al aire le queda poco tiempo (o se paso)."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Al orador al aire le queda poco tiempo (o se paso).")},
          {"params",
-          {{"remainingSec", "segundos restantes (0 = cuando se cumple; negativo = pasado)"},
-           {"participant", "opcional: nombre o id"}}},
+          {{"remainingSec", QT_TRANSLATE_NOOP("alertas", "segundos restantes (0 = cuando se cumple; negativo = pasado)")},
+           {"participant", QT_TRANSLATE_NOOP("alertas", "opcional: nombre o id")}}},
          {"cooldownSec", 0}},
         {{"type", "lobby"},
-         {"summary", "Alguien entra al lobby (espera que lo admitan)."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Alguien entra al lobby (espera que lo admitan).")},
          {"params", json::object()}},
-        {{"type", "hand"}, {"summary", "Alguien levanta la mano."}, {"params", json::object()}},
+        {{"type", "hand"}, {"summary", QT_TRANSLATE_NOOP("alertas", "Alguien levanta la mano.")}, {"params", json::object()}},
         {{"type", "guest_drop"},
-         {"summary", "Un invitado admitido pierde la conexion."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Un invitado admitido pierde la conexion.")},
          {"params", json::object()}},
         {{"type", "chat"},
-         {"summary", "Llega un mensaje de chat (de las plataformas o de la conferencia) que coincide."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Llega un mensaje de chat (de las plataformas o de la conferencia) que coincide.")},
          {"params",
-          {{"platform", "all | youtube | twitch | facebook | room (por defecto all)"},
-           {"contains", "texto a buscar (sin distinguir mayusculas); vacio = cualquier mensaje"},
-           {"regex", "alternativa: expresion regular"}}},
+          {{"platform", QT_TRANSLATE_NOOP("alertas", "all | youtube | twitch | facebook | room (por defecto all)")},
+           {"contains", QT_TRANSLATE_NOOP("alertas", "texto a buscar (sin distinguir mayusculas); vacio = cualquier mensaje")},
+           {"regex", QT_TRANSLATE_NOOP("alertas", "alternativa: expresion regular")}}},
          {"cooldownSec", 0}},
         {{"type", "texto"},
-         {"summary", "Alguien dice algo en una salida de texto (una «Voz a texto» con nombre) que coincide: "
-                     "una palabra, una frase o un patrón."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Alguien dice algo en una salida de texto (una «Voz a texto» con nombre) que coincide: "
+                     "una palabra, una frase o un patrón.")},
          {"params",
-          {{"flujo", "\"*\" (todas, por defecto) o el nombre de la salida de texto (texto_flujos)"},
-           {"contains", "frase a buscar (sin distinguir mayúsculas ni tildes); vacío = cualquier frase"},
-           {"palabras", "alternativa: lista de palabras o frases; alcanza con que aparezca una"},
-           {"regex", "alternativa: expresión regular"}}},
+          {{"flujo", QT_TRANSLATE_NOOP("alertas", "\"*\" (todas, por defecto) o el nombre de la salida de texto (texto_flujos)")},
+           {"contains", QT_TRANSLATE_NOOP("alertas", "frase a buscar (sin distinguir mayúsculas ni tildes); vacío = cualquier frase")},
+           {"palabras", QT_TRANSLATE_NOOP("alertas", "alternativa: lista de palabras o frases; alcanza con que aparezca una")},
+           {"regex", QT_TRANSLATE_NOOP("alertas", "alternativa: expresión regular")}}},
          {"cooldownSec", 0}},
         {{"type", "guest_message"},
-         {"summary", "Un invitado escribe en el chat de la conferencia (a vos en privado o a todos)."},
-         {"params", {{"privateOnly", "solo los mensajes privados al operador (por defecto false)"}}},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Un invitado escribe en el chat de la conferencia (a vos en privado o a todos).")},
+         {"params", {{"privateOnly", QT_TRANSLATE_NOOP("alertas", "solo los mensajes privados al operador (por defecto false)")}}},
          {"cooldownSec", 0}},
         {{"type", "stream_health"},
-         {"summary", "La transmision pierde cuadros (o se corta)."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "La transmision pierde cuadros (o se corta).")},
          {"params",
-          {{"droppedPct", "porcentaje de cuadros perdidos (por defecto 2)"}, {"windowSec", "ventana (30)"}}},
+          {{"droppedPct", QT_TRANSLATE_NOOP("alertas", "porcentaje de cuadros perdidos (por defecto 2)")}, {"windowSec", QT_TRANSLATE_NOOP("alertas", "ventana (30)")}}},
          {"cooldownSec", 60}},
         {{"type", "stream_down"},
-         {"summary", "La transmision se cayo y no vuelve: lleva N segundos reintentando, o el "
-                     "reintento se dio por vencido."},
-         {"params", {{"forSec", "segundos reintentando antes de avisar (por defecto 20)"}}},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "La transmision se cayo y no vuelve: lleva N segundos reintentando, o el "
+                     "reintento se dio por vencido.")},
+         {"params", {{"forSec", QT_TRANSLATE_NOOP("alertas", "segundos reintentando antes de avisar (por defecto 20)")}}},
          {"cooldownSec", 60}},
         {{"type", "disk"},
-         {"summary", "Queda poco disco (mientras se graba, o siempre con `siempre`)."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Queda poco disco (mientras se graba, o siempre con `siempre`).")},
          {"params",
-          {{"minGb", "GB libres minimos (por defecto 5)"},
-           {"minMinutos", "o: minutos de grabacion que quedan al bitrate configurado (p. ej. 30)"},
-           {"siempre", "avisar aunque no se este grabando (por defecto false)"}}},
+          {{"minGb", QT_TRANSLATE_NOOP("alertas", "GB libres minimos (por defecto 5)")},
+           {"minMinutos", QT_TRANSLATE_NOOP("alertas", "o: minutos de grabacion que quedan al bitrate configurado (p. ej. 30)")},
+           {"siempre", QT_TRANSLATE_NOOP("alertas", "avisar aunque no se este grabando (por defecto false)")}}},
          {"cooldownSec", 600}},
         {{"type", "loudness"},
-         {"summary", "El loudness del programa se va del objetivo (integrado) o el true peak pasa el techo."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "El loudness del programa se va del objetivo (integrado) o el true peak pasa el techo.")},
          {"params",
-          {{"toleranciaLU", "cuanto se puede alejar el integrado del objetivo (por defecto 2)"},
-           {"forSec", "segundos seguidos afuera antes de avisar (por defecto 30)"},
-           {"soloAlAire", "solo transmitiendo o grabando (por defecto true)"}}},
+          {{"toleranciaLU", QT_TRANSLATE_NOOP("alertas", "cuanto se puede alejar el integrado del objetivo (por defecto 2)")},
+           {"forSec", QT_TRANSLATE_NOOP("alertas", "segundos seguidos afuera antes de avisar (por defecto 30)")},
+           {"soloAlAire", QT_TRANSLATE_NOOP("alertas", "solo transmitiendo o grabando (por defecto true)")}}},
          {"cooldownSec", 120}},
         {{"type", "guest_quality"},
-         {"summary", "La conexión de un invitado se pone mala (semáforo ámbar o rojo: pérdida, jitter, RTT)."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "La conexión de un invitado se pone mala (semáforo ámbar o rojo: pérdida, jitter, RTT).")},
          {"params",
-          {{"nivel", "rojo (por defecto) o ambar"},
-           {"forSec", "segundos seguidos así (por defecto 5)"},
-           {"soloAlAire", "solo los que están al aire (con slot) (por defecto true)"}}},
+          {{"nivel", QT_TRANSLATE_NOOP("alertas", "rojo (por defecto) o ambar")},
+           {"forSec", QT_TRANSLATE_NOOP("alertas", "segundos seguidos así (por defecto 5)")},
+           {"soloAlAire", QT_TRANSLATE_NOOP("alertas", "solo los que están al aire (con slot) (por defecto true)")}}},
          {"cooldownSec", 60}},
         {{"type", "input_signal"},
-         {"summary", "Una entrada de video se queda sin señal (no llegan cuadros) un rato."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Una entrada de video se queda sin señal (no llegan cuadros) un rato.")},
          {"params",
-          {{"entrada", "\"*\" (todas, por defecto) o el nombre de la entrada"},
-           {"forSec", "segundos sin señal (por defecto 3)"}}},
+          {{"entrada", QT_TRANSLATE_NOOP("alertas", "\"*\" (todas, por defecto) o el nombre de la entrada")},
+           {"forSec", QT_TRANSLATE_NOOP("alertas", "segundos sin señal (por defecto 3)")}}},
          {"cooldownSec", 30}},
         {{"type", "program_black"},
-         {"summary", "El programa está en negro (la imagen que sale) un rato."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "El programa está en negro (la imagen que sale) un rato.")},
          {"params",
-          {{"forSec", "segundos seguidos en negro (por defecto 3)"},
-           {"umbral", "brillo medio por debajo del cual es negro, de 0 a 255 (por defecto 16)"},
-           {"onlyWhenLive", "solo transmitiendo o grabando (por defecto true)"}}},
+          {{"forSec", QT_TRANSLATE_NOOP("alertas", "segundos seguidos en negro (por defecto 3)")},
+           {"umbral", QT_TRANSLATE_NOOP("alertas", "brillo medio por debajo del cual es negro, de 0 a 255 (por defecto 16)")},
+           {"onlyWhenLive", QT_TRANSLATE_NOOP("alertas", "solo transmitiendo o grabando (por defecto true)")}}},
          {"cooldownSec", 60}},
         {{"type", "program_frozen"},
-         {"summary", "El programa está congelado: la imagen no cambia nada en N segundos (ojo con una placa fija "
-                     "o una diapositiva: subí forSec)."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "El programa está congelado: la imagen no cambia nada en N segundos (ojo con una placa fija "
+                     "o una diapositiva: subí forSec).")},
          {"params",
-          {{"forSec", "segundos sin cambiar (por defecto 30)"},
-           {"onlyWhenLive", "solo transmitiendo o grabando (por defecto true)"}}},
+          {{"forSec", QT_TRANSLATE_NOOP("alertas", "segundos sin cambiar (por defecto 30)")},
+           {"onlyWhenLive", QT_TRANSLATE_NOOP("alertas", "solo transmitiendo o grabando (por defecto true)")}}},
          {"cooldownSec", 120}},
         {{"type", "record_down"},
-         {"summary", "La grabación se cortó sola (estaba pedida y no graba)."},
-         {"params", {{"forSec", "segundos sin grabar antes de avisar (por defecto 5)"}}},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "La grabación se cortó sola (estaba pedida y no graba).")},
+         {"params", {{"forSec", QT_TRANSLATE_NOOP("alertas", "segundos sin grabar antes de avisar (por defecto 5)")}}},
          {"cooldownSec", 60}},
         {{"type", "superres_tarde"},
-         {"summary", "La superresolución de una entrada no llega a tiempo (tarda más que el umbral del cuadro); con el "
-                     "bypass automático, pasó sola al modo barato."},
-         {"params", {{"entrada", "\"*\" (todas, por defecto) o el nombre de la entrada"}}},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "La superresolución de una entrada no llega a tiempo (tarda más que el umbral del cuadro); con el "
+                     "bypass automático, pasó sola al modo barato.")},
+         {"params", {{"entrada", QT_TRANSLATE_NOOP("alertas", "\"*\" (todas, por defecto) o el nombre de la entrada")}}},
          {"cooldownSec", 60}},
         {{"type", "timer"},
-         {"summary", "Temporizador del servidor: en N segundos, a una hora, o cada N segundos."},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Temporizador del servidor: en N segundos, a una hora, o cada N segundos.")},
          {"params",
-          {{"in", "segundos desde ahora"},
-           {"at", "\"HH:MM\" (hora local)"},
-           {"every", "repetir cada N segundos"}}},
+          {{"in", QT_TRANSLATE_NOOP("alertas", "segundos desde ahora")},
+           {"at", QT_TRANSLATE_NOOP("alertas", "\"HH:MM\" (hora local)")},
+           {"every", QT_TRANSLATE_NOOP("alertas", "repetir cada N segundos")}}},
          {"cooldownSec", 0}},
     });
 }
@@ -195,14 +199,14 @@ void AlertEngine::start(int intervalMs) { timer_.start(intervalMs); }
 std::string AlertEngine::newId() { return "a" + std::to_string(++ruleSeq_); }
 
 json AlertEngine::create(const json& spec) {
-    if (!spec.is_object() || !spec.contains("type")) return {{"error", "falta `type` (ver alert_types)"}};
+    if (!spec.is_object() || !spec.contains("type")) return {{"error", ba::i18n::traducir("alertas", "falta `type` (ver alert_types)")}};
     const std::string type = spec.value("type", "");
     json typeInfo;
     for (const auto& t : types())
         if (t["type"] == type) typeInfo = t;
-    if (typeInfo.is_null()) return {{"error", "tipo desconocido: " + type + " (ver alert_types)"}};
+    if (typeInfo.is_null()) return {{"error", ba::i18n::llenar(ba::i18n::traducir("alertas", "tipo desconocido: %1 (ver alert_types)"), {type})}};
     json params = spec.value("params", json::object());
-    if (!params.is_object()) return {{"error", "`params` tiene que ser un objeto"}};
+    if (!params.is_object()) return {{"error", ba::i18n::traducir("alertas", "`params` tiene que ser un objeto")}};
     const std::int64_t now = in_.nowMs();
     bool defaultOnce = false;
     if (type == "timer") {
@@ -211,20 +215,20 @@ json AlertEngine::create(const json& spec) {
             defaultOnce = true;
         } else if (params.contains("at")) {
             const std::int64_t due = nextAt(params.value("at", ""), now);
-            if (due < 0) return {{"error", "`at` tiene que ser \"HH:MM\""}};
+            if (due < 0) return {{"error", ba::i18n::traducir("alertas", "`at` tiene que ser \"HH:MM\"")}};
             params["dueMs"] = due;
             defaultOnce = true;
         } else if (params.contains("every")) {
             const double every = params.value("every", 0.0);
-            if (every < 5) return {{"error", "`every` tiene que ser de al menos 5 segundos"}};
+            if (every < 5) return {{"error", ba::i18n::traducir("alertas", "`every` tiene que ser de al menos 5 segundos")}};
             params["dueMs"] = now + static_cast<std::int64_t>(every * 1000);
         } else {
-            return {{"error", "timer necesita `in`, `at` o `every`"}};
+            return {{"error", ba::i18n::traducir("alertas", "timer necesita `in`, `at` o `every`")}};
         }
     }
     if ((type == "chat" || type == "texto") && params.contains("regex")) {
         const QRegularExpression re(QString::fromStdString(params.value("regex", "")));
-        if (!re.isValid()) return {{"error", "regex invalida: " + re.errorString().toStdString()}};
+        if (!re.isValid()) return {{"error", ba::i18n::llenar(ba::i18n::traducir("alertas", "regex invalida: %1"), {re.errorString().toStdString()})}};
     }
     json rule{{"id", newId()},
               {"type", type},
@@ -271,7 +275,7 @@ json AlertEngine::update(const std::string& id, const json& changes) {
         emit reglasCambio();
         return r;
     }
-    return {{"error", "no existe el disparador " + id}};
+    return {{"error", ba::i18n::llenar(ba::i18n::traducir("alertas", "no existe el disparador %1"), {id})}};
 }
 
 bool AlertEngine::remove(const std::string& id) {
@@ -426,8 +430,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                 if (now - st.since[k] >= hold && cooled(a.name)) {
                     mark(a.name);
                     fire(rule, st,
-                         "El audio de '" + a.name + "' esta saturando: pico " + fmt1(a.peakDb) +
-                             " dBFS (umbral " + fmt1(thr) + " dB).",
+                         ba::i18n::llenar(ba::i18n::traducir("alertas", "El audio de '%1' esta saturando: pico %2 dBFS (umbral %3 dB)."), {a.name, fmt1(a.peakDb), fmt1(thr)}),
                          {{"source", a.name}, {"peakDb", a.peakDb}}, now);
                 }
             } else {
@@ -450,8 +453,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                     st.seen[k] = "1";
                     mark(a.name);
                     fire(rule, st,
-                         "Silencio en '" + a.name + "' hace " + std::to_string((now - st.since[k]) / 1000) +
-                             " s (bajo " + fmt1(thr) + " dBFS).",
+                         ba::i18n::llenar(ba::i18n::traducir("alertas", "Silencio en '%1' hace %2 s (bajo %3 dBFS)."), {a.name, std::to_string((now - st.since[k]) / 1000), fmt1(thr)}),
                          {{"source", a.name}, {"peakDb", a.peakDb}}, now);
                 }
             } else {
@@ -468,15 +470,14 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             st.seen[prevKey] = m.state;
             if (before <= 0) {
                 if (m.state == "ended" && !prev.empty() && prev != "ended")
-                    fire(rule, st, "Termino '" + m.name + "'.", {{"source", m.name}}, now);
+                    fire(rule, st, ba::i18n::llenar(ba::i18n::traducir("alertas", "Termino '%1'."), {m.name}), {{"source", m.name}}, now);
             } else if (m.state == "playing" && m.durationMs > 0) {
                 const double left = static_cast<double>(m.durationMs - m.timeMs) / 1000.0;
                 const std::string k = "warned:" + m.name;
                 if (left <= before && left >= 0 && st.seen[k] != "1") {
                     st.seen[k] = "1";
                     fire(rule, st,
-                         "A '" + m.name + "' le quedan " + std::to_string(static_cast<int>(std::ceil(left))) +
-                             " s.",
+                         ba::i18n::llenar(ba::i18n::traducir("alertas", "A '%1' le quedan %2 s."), {m.name, std::to_string(static_cast<int>(std::ceil(left)))}),
                          {{"source", m.name}, {"remainingSec", left}}, now);
                 } else if (left > before + 1) {
                     st.seen.erase(k);
@@ -503,14 +504,9 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                 if (remaining <= thr && !st.seen.count(k)) {
                     st.seen[k] = "1";
                     const std::string text =
-                        thr <= 0
-                            ? name + " cumplio su tiempo" +
-                                  (remaining < -1
-                                       ? " (va " + std::to_string(static_cast<int>(-remaining)) + " s pasado)"
-                                       : std::string()) +
-                                  "."
-                            : "A " + name + " le quedan " +
-                                  std::to_string(static_cast<int>(std::max(0.0, remaining))) + " s.";
+                        thr <= 0 ? (remaining < -1 ? ba::i18n::llenar(ba::i18n::traducir("alertas", "%1 cumplio su tiempo (va %2 s pasado)."), {name, std::to_string(static_cast<int>(-remaining))})
+                                                   : ba::i18n::llenar(ba::i18n::traducir("alertas", "%1 cumplio su tiempo."), {name}))
+                                 : ba::i18n::llenar(ba::i18n::traducir("alertas", "A %1 le quedan %2 s."), {name, std::to_string(static_cast<int>(std::max(0.0, remaining)))});
                     fire(rule, st, text, {{"participant", id}, {"name", name}, {"remainingSec", remaining}},
                          now);
                 }
@@ -520,7 +516,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                 if (waiting && !st.seen.count(k)) {
                     st.seen[k] = "1";
                     if (!priming)
-                        fire(rule, st, name + " entro al lobby y espera que lo admitan.",
+                        fire(rule, st, ba::i18n::llenar(ba::i18n::traducir("alertas", "%1 entro al lobby y espera que lo admitan."), {name}),
                              {{"participant", id}, {"name", name}}, now);
                 } else if (!waiting) {
                     st.seen.erase(k);
@@ -531,7 +527,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                 if (up && !st.seen.count(k)) {
                     st.seen[k] = "1";
                     if (!priming)
-                        fire(rule, st, name + " levanto la mano.", {{"participant", id}, {"name", name}},
+                        fire(rule, st, ba::i18n::llenar(ba::i18n::traducir("alertas", "%1 levanto la mano."), {name}), {{"participant", id}, {"name", name}},
                              now);
                 } else if (!up) {
                     st.seen.erase(k);
@@ -543,7 +539,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                 const std::string prev = st.seen[k];
                 st.seen[k] = conn ? "1" : "0";
                 if (!priming && prev == "1" && !conn)
-                    fire(rule, st, name + " perdio la conexion.", {{"participant", id}, {"name", name}}, now);
+                    fire(rule, st, ba::i18n::llenar(ba::i18n::traducir("alertas", "%1 perdio la conexion."), {name}), {{"participant", id}, {"name", name}}, now);
             }
         }
     } else if (type == "chat" && in_.chat) {
@@ -562,7 +558,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             const std::string text = m.value("text", "");
             if (!contains.empty() && lower(text).find(contains) == std::string::npos) continue;
             if (p.contains("regex") && !re.match(QString::fromStdString(text)).hasMatch()) continue;
-            fire(rule, st, "Chat (" + m.value("platform", "") + ") " + m.value("author", "") + ": " + text, m,
+            fire(rule, st, ba::i18n::llenar(ba::i18n::traducir("alertas", "Chat (%1) %2: %3"), {m.value("platform", ""), m.value("author", ""), text}), m,
                  now);
         }
         if (st.seen.size() > 5000) {
@@ -596,7 +592,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                              [&](const std::string& w) { return t.find(w) != std::string::npos; }))
                 continue;
             if (p.contains("regex") && !re.match(QString::fromStdString(text)).hasMatch()) continue;
-            fire(rule, st, "Dijeron en «" + fl + "»: " + text, {{"flujo", fl}, {"texto", text}}, now);
+            fire(rule, st, ba::i18n::llenar(ba::i18n::traducir("alertas", "Dijeron en «%1»: %2"), {fl, text}), {{"flujo", fl}, {"texto", text}}, now);
         }
         if (st.seen.size() > 5000) {
             st.seen.clear();
@@ -614,9 +610,9 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             const bool priv = m.value("to", std::string("all")) != "all";
             if (privateOnly && !priv) continue;
             fire(rule, st,
-                 m.value("fromName", std::string("Un invitado")) +
-                     (priv ? " te escribio en privado: " : " escribio a todos: ") + "\"" +
-                     m.value("text", "") + "\"",
+                 ba::i18n::llenar(priv ? ba::i18n::traducir("alertas", "%1 te escribio en privado: \"%2\"")
+                                       : ba::i18n::traducir("alertas", "%1 escribio a todos: \"%2\""),
+                                  {m.value("fromName", ba::i18n::traducir("alertas", "Un invitado")), m.value("text", "")}),
                  {{"participant", m.value("fromId", "")},
                   {"name", m.value("fromName", "")},
                   {"private", priv},
@@ -626,7 +622,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
     } else if (type == "stream_health" && in_.status) {
         const auto s = in_.status();
         if (st.seen["streaming"] == "1" && !s.streaming)
-            fire(rule, st, "La transmision se detuvo (si no la cortaste vos, revisar la conexion).",
+            fire(rule, st, ba::i18n::traducir("alertas", "La transmision se detuvo (si no la cortaste vos, revisar la conexion)."),
                  json::object(), now);
         st.seen["streaming"] = s.streaming ? "1" : "0";
         if (!s.streaming) {
@@ -647,8 +643,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         if (pct >= p.value("droppedPct", 2.0) && cooled("drops")) {
             mark("drops");
             fire(rule, st,
-                 "La transmision pierde cuadros: " + fmt1(pct) +
-                     "% en los ultimos segundos (red o codificador al limite).",
+                 ba::i18n::llenar(ba::i18n::traducir("alertas", "La transmision pierde cuadros: %1% en los ultimos segundos (red o codificador al limite)."), {fmt1(pct)}),
                  {{"droppedPct", pct}}, now);
         }
     } else if (type == "stream_down" && in_.status) {
@@ -670,8 +665,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             if (now - st.since["r0"] >= espera && cooled("down")) {
                 mark("down");
                 fire(rule, st,
-                     "La transmision se corto y lleva " + fmt1((now - st.since["r0"]) / 1000.0) +
-                         " s sin poder volver.",
+                     ba::i18n::llenar(ba::i18n::traducir("alertas", "La transmision se corto y lleva %1 s sin poder volver."), {fmt1((now - st.since["r0"]) / 1000.0)}),
                      {{"reintentandoSeg", (now - st.since["r0"]) / 1000}}, now);
             }
             return;
@@ -679,7 +673,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         st.since.erase("r0");
         if (reintentabaAntes && !s.streaming && cooled("down")) {
             mark("down");
-            fire(rule, st, "La transmision se dio por vencida: dejo de reintentar y esta fuera del aire.",
+            fire(rule, st, ba::i18n::traducir("alertas", "La transmision se dio por vencida: dejo de reintentar y esta fuera del aire."),
                  json::object(), now);
         }
     } else if ((type == "program_black" || type == "program_frozen") && in_.programaVideo) {
@@ -709,9 +703,8 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             st.seen["mal"] = "1";
             mark(type);
             fire(rule, st,
-                 negro ? "El programa está en negro hace " + fmt1((now - st.since["mal"]) / 1000.0) +
-                             " s (brillo " + fmt1(luma) + " de 255)."
-                       : "El programa está congelado: la imagen no cambia hace " + fmt1(quieto) + " s.",
+                 negro ? ba::i18n::llenar(ba::i18n::traducir("alertas", "El programa está en negro hace %1 s (brillo %2 de 255)."), {fmt1((now - st.since["mal"]) / 1000.0), fmt1(luma)})
+                       : ba::i18n::llenar(ba::i18n::traducir("alertas", "El programa está congelado: la imagen no cambia hace %1 s."), {fmt1(quieto)}),
                  {{"luma", luma}, {"quietoSeg", quieto}}, now);
         }
     } else if (type == "record_down" && in_.status) {
@@ -723,8 +716,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                 st.seen["r0"] = "1";
                 mark("rec");
                 fire(rule, st,
-                     "La grabación se cortó sola y lleva " + fmt1((now - st.since["r0"]) / 1000.0) +
-                         " s sin grabar (disco, codificador o la carpeta).",
+                     ba::i18n::llenar(ba::i18n::traducir("alertas", "La grabación se cortó sola y lleva %1 s sin grabar (disco, codificador o la carpeta)."), {fmt1((now - st.since["r0"]) / 1000.0)}),
                      json::object(), now);
             }
         } else {
@@ -743,8 +735,12 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         if (free >= 0 && (pocoGb || pocosMin) && cooled("disk")) {
             mark("disk");
             fire(rule, st,
-                 "Queda poco disco" + std::string(s.recording ? " para la grabacion" : "") + ": " + fmt1(free) +
-                     " GB libres" + (minutos >= 0 ? " (~" + std::to_string(static_cast<int>(minutos)) + " min al bitrate actual)" : "") + ".",
+                 ba::i18n::llenar(
+                     s.recording ? (minutos >= 0 ? ba::i18n::traducir("alertas", "Queda poco disco para la grabacion: %1 GB libres (~%2 min al bitrate actual).")
+                                                 : ba::i18n::traducir("alertas", "Queda poco disco para la grabacion: %1 GB libres."))
+                                 : (minutos >= 0 ? ba::i18n::traducir("alertas", "Queda poco disco: %1 GB libres (~%2 min al bitrate actual).")
+                                                 : ba::i18n::traducir("alertas", "Queda poco disco: %1 GB libres.")),
+                     {fmt1(free), std::to_string(static_cast<int>(minutos))}),
                  {{"freeGb", free}, {"minutos", minutos}}, now);
         }
     } else if (type == "loudness" && in_.loudness) {
@@ -760,7 +756,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 30.0) * 1000);
         if (tp > objTp && cooled("tp")) {
             mark("tp");
-            fire(rule, st, "El true peak del programa llegó a " + fmt1(tp) + " dBTP (techo " + fmt1(objTp) + ").",
+            fire(rule, st, ba::i18n::llenar(ba::i18n::traducir("alertas", "El true peak del programa llegó a %1 dBTP (techo %2)."), {fmt1(tp), fmt1(objTp)}),
                  {{"tp", tp}}, now);
         }
         const bool afuera = i > -70 && std::abs(i - objLufs) > tol;
@@ -769,8 +765,9 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             if (now - st.since["afuera"] >= forMs && cooled("lufs")) {
                 mark("lufs");
                 fire(rule, st,
-                     "El loudness integrado del programa está en " + fmt1(i) + " LUFS (objetivo " + fmt1(objLufs) +
-                         "): " + (i > objLufs ? "bajá" : "subí") + " el nivel general.",
+                     ba::i18n::llenar(i > objLufs ? ba::i18n::traducir("alertas", "El loudness integrado del programa está en %1 LUFS (objetivo %2): bajá el nivel general.")
+                                                  : ba::i18n::traducir("alertas", "El loudness integrado del programa está en %1 LUFS (objetivo %2): subí el nivel general."),
+                                      {fmt1(i), fmt1(objLufs)}),
                      {{"i", i}}, now);
             }
         } else {
@@ -794,10 +791,11 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                     st.seen[k] = "1";
                     mark(id);
                     fire(rule, st,
-                         "La conexión de " + pa.value("name", id) + " está en " + sem + ": pérdida " +
-                             fmt1(red.value("perdida_pct", 0.0)) + " %, RTT " + std::to_string(red.value("rtt_ms", 0)) +
-                             " ms, jitter " + std::to_string(red.value("jitter_ms", 0)) +
-                             " ms. Se puede bajar su calidad (participant_calidad).",
+                         ba::i18n::llenar(
+                             sem == "rojo" ? ba::i18n::traducir("alertas", "La conexión de %1 está en rojo: pérdida %2 %, RTT %3 ms, jitter %4 ms. Se puede bajar su calidad (participant_calidad).")
+                                           : ba::i18n::traducir("alertas", "La conexión de %1 está en ambar: pérdida %2 %, RTT %3 ms, jitter %4 ms. Se puede bajar su calidad (participant_calidad)."),
+                             {pa.value("name", id), fmt1(red.value("perdida_pct", 0.0)),
+                              std::to_string(red.value("rtt_ms", 0)), std::to_string(red.value("jitter_ms", 0))}),
                          {{"participant", id}, {"red", red}}, now);
                 }
             } else {
@@ -816,8 +814,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                     st.seen[k] = "1";
                     mark(nombre);
                     fire(rule, st,
-                         "La entrada '" + nombre + "' no tiene señal hace " +
-                             std::to_string((now - st.since[k]) / 1000) + " s.",
+                         ba::i18n::llenar(ba::i18n::traducir("alertas", "La entrada '%1' no tiene señal hace %2 s."), {nombre, std::to_string((now - st.since[k]) / 1000)}),
                          {{"entrada", nombre}}, now);
                 }
             } else {
@@ -837,8 +834,9 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                     mark(nombre);
                     const int bp = it.value().value("bypass_s", 0);
                     fire(rule, st,
-                         "La superresolución de '" + nombre + "' no llega a tiempo (" + fmt1(it.value().value("ms", 0.0)) +
-                             " ms por cuadro)" + (bp > 0 ? ": pasada a barato " + std::to_string(bp) + " s." : "."),
+                         ba::i18n::llenar(bp > 0 ? ba::i18n::traducir("alertas", "La superresolución de '%1' no llega a tiempo (%2 ms por cuadro): pasada a barato %3 s.")
+                                                 : ba::i18n::traducir("alertas", "La superresolución de '%1' no llega a tiempo (%2 ms por cuadro)."),
+                                          {nombre, fmt1(it.value().value("ms", 0.0)), std::to_string(bp)}),
                          {{"entrada", nombre}}, now);
                 }
             } else {
@@ -859,7 +857,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             } else {
                 rule["params"]["dueMs"] = 0;
             }
-            fire(rule, st, "Temporizador: " + rule.value("name", std::string("sin nombre")) + ".",
+            fire(rule, st, ba::i18n::llenar(ba::i18n::traducir("alertas", "Temporizador: %1."), {rule.value("name", ba::i18n::traducir("alertas", "sin nombre"))}),
                  json::object(), now);
             save();
         }
@@ -993,31 +991,31 @@ void AlertEngine::anotarResultado(std::uint64_t id, const std::string& herramien
 
 void AlertEngine::sembrar(bool faltantes) {
     const json reglas = json::array({
-        {{"type", "audio_silence"}, {"name", "Silencio al aire (programa)"},
+        {{"type", "audio_silence"}, {"name", ba::i18n::traducir("alertas", "Silencio al aire (programa)")},
          {"params", {{"source", "Programa"}, {"belowDb", -50}, {"forSec", 8}, {"onlyWhenLive", true}}},
          {"sonido", "critico"}, {"reconocer", true}},
-        {{"type", "audio_peak"}, {"name", "Saturación del programa"},
+        {{"type", "audio_peak"}, {"name", ba::i18n::traducir("alertas", "Saturación del programa")},
          {"params", {{"source", "Programa"}, {"thresholdDb", -1}, {"holdMs", 500}}}, {"sonido", "aviso"}},
-        {{"type", "stream_health"}, {"name", "La transmisión pierde cuadros"},
+        {{"type", "stream_health"}, {"name", ba::i18n::traducir("alertas", "La transmisión pierde cuadros")},
          {"params", {{"droppedPct", 2}, {"windowSec", 30}}}, {"sonido", "aviso"}},
-        {{"type", "stream_down"}, {"name", "La transmisión se cayó"}, {"params", {{"forSec", 10}}},
+        {{"type", "stream_down"}, {"name", ba::i18n::traducir("alertas", "La transmisión se cayó")}, {"params", {{"forSec", 10}}},
          {"sonido", "critico"}, {"reconocer", true}},
-        {{"type", "disk"}, {"name", "Poco disco (menos de 30 min)"},
+        {{"type", "disk"}, {"name", ba::i18n::traducir("alertas", "Poco disco (menos de 30 min)")},
          {"params", {{"minMinutos", 30}, {"minGb", 5}, {"siempre", true}}}, {"sonido", "aviso"}},
-        {{"type", "input_signal"}, {"name", "Entrada sin señal"}, {"params", {{"entrada", "*"}, {"forSec", 3}}},
+        {{"type", "input_signal"}, {"name", ba::i18n::traducir("alertas", "Entrada sin señal")}, {"params", {{"entrada", "*"}, {"forSec", 3}}},
          {"sonido", "critico"}, {"reconocer", true}},
-        {{"type", "guest_drop"}, {"name", "Un invitado se cayó"}, {"params", json::object()}, {"sonido", "aviso"}},
-        {{"type", "guest_quality"}, {"name", "Invitado con mala conexión"},
+        {{"type", "guest_drop"}, {"name", ba::i18n::traducir("alertas", "Un invitado se cayó")}, {"params", json::object()}, {"sonido", "aviso"}},
+        {{"type", "guest_quality"}, {"name", ba::i18n::traducir("alertas", "Invitado con mala conexión")},
          {"params", {{"nivel", "rojo"}, {"forSec", 5}, {"soloAlAire", true}}}, {"sonido", "aviso"}},
-        {{"type", "superres_tarde"}, {"name", "La superresolución no llega"}, {"params", {{"entrada", "*"}}},
+        {{"type", "superres_tarde"}, {"name", ba::i18n::traducir("alertas", "La superresolución no llega")}, {"params", {{"entrada", "*"}}},
          {"sonido", "aviso"}},
-        {{"type", "loudness"}, {"name", "Loudness fuera de objetivo"},
+        {{"type", "loudness"}, {"name", ba::i18n::traducir("alertas", "Loudness fuera de objetivo")},
          {"params", {{"toleranciaLU", 2}, {"forSec", 30}, {"soloAlAire", true}}}, {"sonido", "ninguno"}},
-        {{"type", "program_black"}, {"name", "Programa en negro"},
+        {{"type", "program_black"}, {"name", ba::i18n::traducir("alertas", "Programa en negro")},
          {"params", {{"forSec", 3}, {"umbral", 16}, {"onlyWhenLive", true}}}, {"sonido", "critico"}, {"reconocer", true}},
-        {{"type", "program_frozen"}, {"name", "Programa congelado"},
+        {{"type", "program_frozen"}, {"name", ba::i18n::traducir("alertas", "Programa congelado")},
          {"params", {{"forSec", 30}, {"onlyWhenLive", true}}}, {"sonido", "aviso"}},
-        {{"type", "record_down"}, {"name", "La grabación se cortó"}, {"params", {{"forSec", 5}}},
+        {{"type", "record_down"}, {"name", ba::i18n::traducir("alertas", "La grabación se cortó")}, {"params", {{"forSec", 5}}},
          {"sonido", "critico"}, {"reconocer", true}},
     });
     for (json r : reglas) {

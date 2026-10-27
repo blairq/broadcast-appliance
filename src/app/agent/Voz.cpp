@@ -123,7 +123,7 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     revisarModelos();
     revisarVoz();
 #else
-    estado_ = "Esta compilación no trae el motor de voz (make deps-sherpa-onnx).";
+    estado_ = tr("Esta compilación no trae el motor de voz (make deps-sherpa-onnx).");
 #endif
 }
 
@@ -183,8 +183,8 @@ QString Voz::claveModelos(MotorOido m) {
     const QString voz = modelos_.instaladoDeTipo(tipoModelo(m));
     const QString vad = modelos_.instaladoDeTipo("vad");
     const QString titulo = QString::fromStdString(Reconocedores::titulo(m));
-    faltan_[m] = voz.isEmpty()   ? "Falta bajar el reconocedor de voz " + titulo + " (Configuración → Modelos locales)."
-            : vad.isEmpty() ? QString("Falta bajar el detector de voz (Silero VAD).")
+    faltan_[m] = voz.isEmpty()   ? tr("Falta bajar el reconocedor de voz %1 (Configuración → Modelos locales).").arg(titulo)
+            : vad.isEmpty() ? tr("Falta bajar el detector de voz (Silero VAD).")
                             : QString();
     if (voz.isEmpty() || vad.isEmpty()) return {};
     return voz + "|" + vad;
@@ -206,9 +206,10 @@ void Voz::cargarMotor(MotorOido m) {
     const QString vad = modelos_.instaladoDeTipo("vad");
     if (voz.isEmpty() || vad.isEmpty()) {
         reconocedores_->informarCarga(m, false,
-                                      voz.isEmpty() ? "falta bajar " + Reconocedores::titulo(m) +
-                                                          " (Configuración → Modelos locales)"
-                                                    : std::string("falta bajar el detector de voz (Silero VAD)"));
+                                      (voz.isEmpty() ? tr("falta bajar %1 (Configuración → Modelos locales)")
+                                                           .arg(QString::fromStdString(Reconocedores::titulo(m)))
+                                                     : tr("falta bajar el detector de voz (Silero VAD)"))
+                                          .toStdString());
         return;
     }
     const std::filesystem::path d = modelos_.carpetaInstalada(voz);
@@ -324,7 +325,7 @@ QString Voz::elegirReconocedor(const QString& consumidor, const QString& motor) 
 #else
     Q_UNUSED(consumidor);
     Q_UNUSED(motor);
-    return "Esta compilación no trae el motor de voz.";
+    return tr("Esta compilación no trae el motor de voz.");
 #endif
 }
 
@@ -340,7 +341,7 @@ QString Voz::setInterrumpir(const QString& consumidor, bool on) {
 #else
     Q_UNUSED(consumidor);
     Q_UNUSED(on);
-    return "Esta compilación no trae el motor de voz.";
+    return tr("Esta compilación no trae el motor de voz.");
 #endif
 }
 
@@ -406,13 +407,13 @@ void Voz::actualizarReconocedores() {
     const QString titulo = QString::fromStdString(Reconocedores::titulo(m));
     QString estado;
     if (lista)
-        estado = "Lista: mantené " + tecla() + " (o el micrófono) y hablá.";
+        estado = tr("Lista: mantené %1 (o el micrófono) y hablá.").arg(tecla());
     else if (reconocedores_->cargando(m))
-        estado = "Cargando el reconocedor de voz (" + titulo + ")…";
+        estado = tr("Cargando el reconocedor de voz (%1)…").arg(titulo);
     else if (const auto f = faltan_.find(m); f != faltan_.end() && !f->second.isEmpty())
         estado = f->second;
     else if (!reconocedores_->error(m).empty())
-        estado = "No cargó el reconocedor: " + QString::fromStdString(reconocedores_->error(m));
+        estado = tr("No cargó el reconocedor: %1").arg(QString::fromStdString(reconocedores_->error(m)));
     // El estado del dictado lo pisan también sus resultados («Lista · 3 s de
     // habla…»): acá solo se cambia cuando cambia si está lista o por qué no.
     if (lista != lista_ || (!lista && !estado.isEmpty() && estado != estado_)) {
@@ -469,7 +470,7 @@ void Voz::apretar() {
             porRack = true;
     }
     if (!porRack && !feed.hayMicrofono()) {
-        emit notify("No hay micrófono del operador: elegilo en Configuración → Voz del sistema.", "warn");
+        emit notify(tr("No hay micrófono del operador: elegilo en Configuración → Voz del sistema."), "warn");
         return;
     }
     callar(); // el operador habla: el asistente se calla
@@ -485,7 +486,7 @@ void Voz::apretar() {
     tomando_ = true;
     feed.setPushToTalk(true); // desde acá el lobby ya no oye al operador
     grabando_ = true;
-    setEstado("Escuchando… (soltá para mandar)");
+    setEstado(tr("Escuchando… (soltá para mandar)"));
     prepararTc(); // mientras habla, el modelo v2 ya lee el estado
 #endif
 }
@@ -512,12 +513,12 @@ void Voz::soltar() {
         tomas_.clear();
     }
     if (elegida.audio.empty()) {
-        setEstado("Lista · no llegó audio (¿el micrófono está muteado o sin señal?)");
-        emit notify("Voz: no llegó audio del micrófono.", "warn");
+        setEstado(tr("Lista · no llegó audio (¿el micrófono está muteado o sin señal?)"));
+        emit notify(tr("Voz: no llegó audio del micrófono."), "warn");
         return;
     }
     transcribiendo_ = true;
-    setEstado("Transcribiendo…");
+    setEstado(tr("Transcribiendo…"));
     const MotorOido motorDictado =
         reconocedores_->motorDeUso("dictado").value_or(reconocedores_->motorDe("dictado"));
     motorOido(motorDictado)->transcribir(
@@ -525,12 +526,12 @@ void Voz::soltar() {
             QMetaObject::invokeMethod(this, [this, r, de]() {
                 transcribiendo_ = false;
                 if (!r.error.empty()) {
-                    setEstado("Lista · " + QString::fromStdString(r.error));
-                    emit notify("Voz: " + QString::fromStdString(r.error), "warn");
+                    setEstado(tr("Lista · %1").arg(QString::fromStdString(r.error)));
+                    emit notify(tr("Voz: %1").arg(QString::fromStdString(r.error)), "warn");
                     return;
                 }
                 ultimo_ = QString::fromStdString(r.texto);
-                setEstado(QString("Lista · %1 s de habla (%2) en %3 ms")
+                setEstado(tr("Lista · %1 s de habla (%2) en %3 ms")
                               .arg(r.segundosDeAudio, 0, 'f', 1)
                               .arg(QString::fromStdString(de))
                               .arg(r.ms, 0, 'f', 0));
@@ -553,7 +554,7 @@ void Voz::cancelar() {
         tomas_.clear();
     }
     grabando_ = false;
-    setEstado("Lista · cancelado");
+    setEstado(tr("Lista · cancelado"));
 #endif
 }
 
@@ -671,7 +672,7 @@ bool Voz::dictadoConMicrofono() const {
 
 QString Voz::setMicrofono(const QString& fuente) {
     if (!rt_.setOperatorFeed(rt_.config().operatorVideo, fuente.toStdString()))
-        return "No existe la fuente «" + fuente + "».";
+        return tr("No existe la fuente «%1».").arg(fuente);
     emit cambio();
     return {};
 }
@@ -690,17 +691,17 @@ QVariantList Voz::fuentesTexto() const {
 
 QString Voz::setTexto(const QString& fuente, const QString& modo) {
 #if defined(BA_HAVE_CLAP)
-    if (racks_ == nullptr) return "Esta compilación no tiene racks de audio.";
+    if (racks_ == nullptr) return tr("Esta compilación no tiene racks de audio.");
     if (modo.isEmpty()) {
         racks_->quitarTextos(fuente.toStdString());
         return {};
     }
-    if (modo != "dictado" && modo != "continuo") return "El modo es «dictado» o «continuo».";
+    if (modo != "dictado" && modo != "continuo") return tr("El modo es «dictado» o «continuo».");
     return QString::fromStdString(racks_->setTexto(fuente.toStdString(), modo.toStdString()));
 #else
     Q_UNUSED(fuente);
     Q_UNUSED(modo);
-    return "Esta compilación no tiene racks de audio.";
+    return tr("Esta compilación no tiene racks de audio.");
 #endif
 }
 
@@ -809,8 +810,8 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
         // Vino del asistente «Modelo local» (o es él quien lo recibiría):
         // devolvérselo sería un bucle.
         if (origen.startsWith("asistente:") || (asistenteLocal_ && asistenteLocal_())) {
-            responder(id, !modelos_.listo() ? "El modelo local no está listo todavía."
-                                            : "El modelo local está apagado para lo dictado.");
+            responder(id, !modelos_.listo() ? tr("El modelo local no está listo todavía.")
+                                            : tr("El modelo local está apagado para lo dictado."));
             return;
         }
         emit dictado(f);
@@ -898,7 +899,7 @@ void Voz::derivarA(int id, const QString& f, const QString& origen, const std::s
     // una charla del mismo modelo sin herramientas: medido, a «escribile a
     // Juan…» contesta «le escribo a Juan» sin haber hecho nada.
     bitacora(id, "sin_asistente", {{"motivo", motivo}, {"texto", f.toStdString()}});
-    responder(id, "Eso es para el asistente grande, y no está andando.");
+    responder(id, tr("Eso es para el asistente grande, y no está andando."));
     // Queda escrito en la barra, para no perderlo (salvo que la barra se lo
     // vaya a mandar al mismo modelo local).
     if (!delAsistente && !(asistenteLocal_ && asistenteLocal_())) emit dictado(f);
@@ -949,7 +950,7 @@ void Voz::atenderTc(int id, const QString& f, const QString& origen) {
                     QString pregunta;
                     for (const auto& [k, v] : l.parametros)
                         if (k == "pregunta") pregunta = QString::fromStdString(v).trimmed();
-                    if (pregunta.isEmpty()) pregunta = "Me falta un dato: ¿cuál?";
+                    if (pregunta.isEmpty()) pregunta = tr("Me falta un dato: ¿cuál?");
                     bitacora(id, "falta_dato", {{"pregunta", pregunta.toStdString()}});
                     emit notify("❓ " + pregunta, "ok");
                     responder(id, pregunta);
@@ -985,7 +986,7 @@ void Voz::atenderTc(int id, const QString& f, const QString& origen) {
 void Voz::completar(int id, const QString& frase, const QString& h, const FichaHerramienta& ficha) {
     if (!contexto_) {
         decidir(id, frase, h, ficha, nlohmann::json::object(), {},
-                {"no hay estado del aparato para completar los datos"});
+                {tr("no hay estado del aparato para completar los datos")});
         return;
     }
     contexto_([this, id, frase, h, ficha](const nlohmann::json& estado) {
@@ -1012,10 +1013,9 @@ void Voz::completar(int id, const QString& frase, const QString& h, const FichaH
                     QStringList notas, bloqueos;
                     nlohmann::json args = nlohmann::json::object();
                     if (j.contains("error"))
-                        bloqueos << "el modelo no contestó: " +
-                                        QString::fromStdString(j.value("error", std::string()));
+                        bloqueos << tr("el modelo no contestó: %1").arg(QString::fromStdString(j.value("error", std::string())));
                     else if (!leidos.is_object())
-                        bloqueos << "el modelo no escribió un JSON";
+                        bloqueos << tr("el modelo no escribió un JSON");
                     else {
                         const auto r = argumentos::validar(h.toStdString(), ficha.ficha, leidos, estado);
                         args = r.args;
@@ -1059,7 +1059,7 @@ void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHer
                              {"notas", notas.join(" · ")},
                              {"bloqueos", bloqueos.join(" · ")},
                              {"puedeHacer", bloqueos.isEmpty()}};
-    if (!bloqueos.isEmpty()) responder(id, "No me quedó claro: " + bloqueos.first());
+    if (!bloqueos.isEmpty()) responder(id, tr("No me quedó claro: %1").arg(bloqueos.first()));
     bitacora(
         id, "propuesta",
         {{"herramienta", h.toStdString()}, {"args", args}, {"bloqueos", bloqueos.join(" | ").toStdString()}});
@@ -1078,14 +1078,16 @@ void Voz::hacer(int id, const QString& frase, const QString& herramienta, const 
                       {"ok", ok},
                       {"texto", texto.left(2000).toStdString()}});
             const QString corto = texto.size() > 160 ? texto.left(157) + "..." : texto;
-            emit notify((ok ? "Hecho: " : "No se pudo: ") + titulo + (corto.isEmpty() ? "" : " — " + corto),
-                        ok ? "ok" : "warn");
+            const QString aviso = corto.isEmpty()
+                                      ? (ok ? tr("Hecho: %1") : tr("No se pudo: %1")).arg(titulo)
+                                      : (ok ? tr("Hecho: %1 — %2") : tr("No se pudo: %1 — %2")).arg(titulo, corto);
+            emit notify(aviso, ok ? "ok" : "warn");
             if (!ok)
-                responder(id, "No pude. " + texto.left(140));
+                responder(id, tr("No pude. %1").arg(texto.left(140)));
             else if (lectura)
                 contestarLectura(id, frase, herramienta, texto);
             else
-                responder(id, "Listo.");
+                responder(id, tr("Listo."));
         });
 }
 
@@ -1115,7 +1117,7 @@ void Voz::contestarLectura(int id, const QString& frase, const QString& herramie
                       {"para", "contestar"},
                       {"texto", r.toStdString()},
                       {"ms_ida_y_vuelta", ms}});
-            responder(id, r.isEmpty() ? QString("Listo.") : r);
+            responder(id, r.isEmpty() ? tr("Listo.") : r);
         });
     });
 }
@@ -1141,17 +1143,17 @@ QVariantList Voz::salidasAudio() const {
 }
 
 QString Voz::setAuriculares(const QString& id) {
-    if (racks_ == nullptr) return "el audio no está disponible";
+    if (racks_ == nullptr) return tr("el audio no está disponible");
     const std::string e = racks_->setAuriculares(id.toStdString());
     emit cambio();
-    if (e.empty() && contestarConVoz_ && vozLista_) decir("Te escucho por acá.");
+    if (e.empty() && contestarConVoz_ && vozLista_) decir(tr("Te escucho por acá."));
     return QString::fromStdString(e);
 }
 
 #else
 QString Voz::auriculares() const { return {}; }
 QVariantList Voz::salidasAudio() const { return {}; }
-QString Voz::setAuriculares(const QString&) { return "el audio no está disponible"; }
+QString Voz::setAuriculares(const QString&) { return tr("el audio no está disponible"); }
 #endif
 
 void Voz::setContestarConVoz(bool on) {
@@ -1170,7 +1172,7 @@ void Voz::confirmar(bool noVolverAPreguntar) {
     const int id = p.value("id").toInt();
     bitacora(id, "decision", {{"decision", noVolverAPreguntar ? "hacer_y_no_volver_a_preguntar" : "hacer"}});
     if (!p.value("puedeHacer").toBool()) {
-        emit notify("No se puede hacer así: " + p.value("bloqueos").toString(), "warn");
+        emit notify(tr("No se puede hacer así: %1").arg(p.value("bloqueos").toString()), "warn");
         return;
     }
     if (noVolverAPreguntar) setAutomatica(h, true);
@@ -1257,9 +1259,9 @@ QVariantMap Voz::cortes() const {
 }
 
 QString Voz::setCortes(double pausa, double maximo, double umbral) {
-    if (pausa < 0.1 || pausa > 3) return "La pausa va de 0,1 a 3 s.";
-    if (maximo < 2 || maximo > 30) return "El largo máximo va de 2 a 30 s.";
-    if (umbral < 0.1 || umbral > 0.95) return "El umbral va de 0,1 a 0,95.";
+    if (pausa < 0.1 || pausa > 3) return tr("La pausa va de 0,1 a 3 s.");
+    if (maximo < 2 || maximo > 30) return tr("El largo máximo va de 2 a 30 s.");
+    if (umbral < 0.1 || umbral > 0.95) return tr("El umbral va de 0,1 a 0,95.");
     cortePausa_ = pausa;
     corteMaximo_ = maximo;
     corteUmbral_ = umbral;
@@ -1326,7 +1328,7 @@ void Voz::revisarVoz() {
                                       : QVariantMap{};
             hablantes_ = habla_->hablantes();
             if (hablante_ >= hablantes_) hablante_ = 0;
-            if (!error.empty()) emit notify("La voz no cargó: " + QString::fromStdString(error), "warn");
+            if (!error.empty()) emit notify(tr("La voz no cargó: %1").arg(QString::fromStdString(error)), "warn");
             emit cambio();
         });
     });
@@ -1336,7 +1338,7 @@ void Voz::revisarVoz() {
 void Voz::elegirVoz(const QString& repo) {
     if (repo == vozElegida_) return;
     if (modelos_.carpetaInstalada(repo).empty()) {
-        emit notify("Primero hay que bajar esa voz.", "warn");
+        emit notify(tr("Primero hay que bajar esa voz."), "warn");
         return;
     }
     callar();
@@ -1366,7 +1368,7 @@ void Voz::decir(const QString& texto) {
     const QString t = texto.trimmed();
     if (t.isEmpty()) return;
     if (!vozLista_) {
-        emit notify("No hay una voz cargada: bajá una en Configuración → Modelos locales.", "warn");
+        emit notify(tr("No hay una voz cargada: bajá una en Configuración → Modelos locales."), "warn");
         return;
     }
     audio::MonitorVoz* m = monitor_.get();
@@ -1389,7 +1391,7 @@ void Voz::decir(const QString& texto) {
 }
 
 void Voz::probarVoz() {
-    decir("Hola, soy la voz del asistente. Esto solo lo escuchás vos, por los auriculares.");
+    decir(tr("Hola, soy la voz del asistente. Esto solo lo escuchás vos, por los auriculares."));
 }
 
 void Voz::callar() {

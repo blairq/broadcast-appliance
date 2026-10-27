@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "emision/NdiSource.hpp"
+#include "i18n/I18n.hpp"
 
 #include <cstdint> // los encabezados de libNoIDea usan uint16_t sin incluirlo
 
@@ -139,7 +140,10 @@ void receiveLoop(Receptor* c) {
                 }
         }
         if (host.empty() || port <= 0) {
-            setError(c, name.empty() ? "sin fuente elegida" : "no se encuentra '" + name + "' en la red (esperando)", false);
+            setError(c,
+                     name.empty() ? ba::i18n::traducir("ndi", "sin fuente elegida")
+                                  : ba::i18n::llenar(ba::i18n::traducir("ndi", "no se encuentra '%1' en la red (esperando)"), {name}),
+                     false);
             for (int i = 0; i < 20 && !c->stop && !c->restart; ++i)
                 std::this_thread::sleep_for(std::chrono::milliseconds(250));
             continue;
@@ -184,7 +188,9 @@ void receiveLoop(Receptor* c) {
         }
         if (r != nullptr) noidea_recv_close(r);
         if (!c->stop) {
-            setError(c, ok ? "se cortó la señal (reintentando)" : "no se pudo conectar a " + host + ":" + std::to_string(port),
+            setError(c,
+                     ok ? ba::i18n::traducir("ndi", "se cortó la señal (reintentando)")
+                        : ba::i18n::llenar(ba::i18n::traducir("ndi", "no se pudo conectar a %1:%2"), {host, std::to_string(port)}),
                      false);
             if (c->alCortarse) c->alCortarse();
             for (int i = 0; i < 8 && !c->stop && !c->restart; ++i)

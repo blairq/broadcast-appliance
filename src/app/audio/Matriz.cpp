@@ -2,6 +2,7 @@
 // src/app/audio/Matriz.cpp — ver Matriz.hpp
 // ============================================================================
 #include "audio/Matriz.hpp"
+#include <QCoreApplication>
 #include "audio/AnilloAudio.hpp"
 #include "audio/EquipoAudio.hpp"
 
@@ -119,7 +120,7 @@ struct Matriz::Plan {
 
 Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std::move(dataRoot)) {
     for (int i = 0; i < kPistas; ++i)
-        pistas_[i] = i == 0 ? "Programa" : "Pista " + std::to_string(i + 1);
+        pistas_[i] = (i == 0 ? tr("Programa") : tr("Pista %1").arg(i + 1)).toStdString();
     equipo_ = std::make_unique<EquipoAudio>();
     // Se enchufó o desenchufó algo (o se ocultó): columnas, filas y plan de nuevo.
     connect(equipo_.get(), &EquipoAudio::cambio, this, [this]() {
@@ -245,7 +246,7 @@ QString nombreEscucha() {
     const nlohmann::json st = foto ? *foto : nlohmann::json();
     const nlohmann::json es = st.is_object() ? st.value("escucha", nlohmann::json::object()) : nlohmann::json::object();
     const std::string d = es.is_object() ? es.value("dispositivo", std::string()) : std::string();
-    return d.empty() || d == "default" ? QStringLiteral("la salida del sistema") : QString::fromStdString(d);
+    return d.empty() || d == "default" ? QCoreApplication::translate("matriz", "la salida del sistema") : QString::fromStdString(d);
 }
 } // namespace
 
@@ -257,10 +258,10 @@ QVariantList Matriz::columnas() const {
             {"nombre", QString::fromStdString(pistas_[i])},
             {"tipo", "pista"},
             {"indice", i},
-            {"uso", QString::fromStdString(i == 0 ? std::string("emisión y grabación") : usoPista_[i])}});
+            {"uso", i == 0 ? tr("emisión y grabación") : QString::fromStdString(usoPista_[i])}});
     // Los auriculares del operador (Configuración → Voz del sistema → salida de auriculares).
     out.push_back(QVariantMap{{"id", "escucha"},
-                              {"nombre", "Escucha"},
+                              {"nombre", tr("Escucha")},
                               {"tipo", "escucha"},
                               {"dispositivoNombre", nombreEscucha()}});
     // Las salidas físicas del equipo: una columna por par de canales.
@@ -368,9 +369,9 @@ bool Matriz::haceLazo(const std::string& fuente, const std::string& bus) const {
 
 QString Matriz::ponerPfl(const QString& fuenteQ) {
     BroadcastEngine* e = motor();
-    if (e == nullptr) return "el motor no está listo";
+    if (e == nullptr) return tr("el motor no está listo");
     const std::string pedida = fuenteQ.toStdString();
-    if (!pedida.empty() && !e->sourceExists(pedida)) return "No existe la fuente de audio «" + fuenteQ + "».";
+    if (!pedida.empty() && !e->sourceExists(pedida)) return tr("No existe la fuente de audio «%1».").arg(fuenteQ);
     if (!e->setPfl(pedida)) return QString::fromStdString(e->lastError());
     // Una entrada de placa en PFL tiene que estar abierta (y la que salió, quizás no).
     // El cambio() lo trae el aviso del motor (avisarFuente). No se guarda: el PFL es de un rato.
@@ -447,8 +448,8 @@ QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activ
     const std::string fuente = fuenteQ.toStdString(), bus = busQ.toStdString();
     if (bus.rfind("pista", 0) == 0) {
         const int i = std::atoi(bus.c_str() + 5) - 1;
-        if (i < 0 || i >= kPistas) return "No existe esa pista.";
-        if (motor() == nullptr || !motor()->sourceExists(fuente)) return "No existe la fuente «" + fuenteQ + "».";
+        if (i < 0 || i >= kPistas) return tr("No existe esa pista.");
+        if (motor() == nullptr || !motor()->sourceExists(fuente)) return tr("No existe la fuente «%1».").arg(fuenteQ);
         std::uint32_t mx = mascara(fuente);
         mx = activo ? (mx | (1u << i)) : (mx & ~(1u << i));
         ponerMascara(fuente, mx);
@@ -458,17 +459,17 @@ QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activ
         return {};
     }
     if (bus == "escucha") {
-        if (motor() == nullptr || !motor()->sourceExists(fuente)) return "No existe la fuente «" + fuenteQ + "».";
+        if (motor() == nullptr || !motor()->sourceExists(fuente)) return tr("No existe la fuente «%1».").arg(fuenteQ);
         setEscucha(fuente, activo);
         usarEquipo();
         guardar();
         emit cambio();
         return {};
     }
-    if (buscar(bus) == nullptr && !equipo_->anilloDe(bus)) return "No existe el bus.";
+    if (buscar(bus) == nullptr && !equipo_->anilloDe(bus)) return tr("No existe el bus.");
     const auto k = std::make_pair(fuente, bus);
     if (activo) {
-        if (haceLazo(fuente, bus)) return "Eso arma un lazo: la entrada virtual volvería a su propio bus.";
+        if (haceLazo(fuente, bus)) return tr("Eso arma un lazo: la entrada virtual volvería a su propio bus.");
         envios_.try_emplace(k);
     } else {
         envios_.erase(k);
@@ -515,14 +516,14 @@ void Matriz::ajustar(const QString& fuente, const QString& bus, double nivelDb, 
 // --- Buses virtuales --------------------------------------------------------------------
 
 QString Matriz::agregarSalidaVirtual(const QString& nombre, const QString& dispositivo) {
-    if (buses_.size() >= kMaxVirtuales) return "No entran más buses virtuales.";
+    if (buses_.size() >= kMaxVirtuales) return tr("No entran más buses virtuales.");
     auto b = std::make_unique<Bus>();
     int n = 1;
     while (buscar("salida" + std::to_string(n)) != nullptr)
         ++n;
     b->id = "salida" + std::to_string(n);
     b->nombre =
-        nombre.trimmed().isEmpty() ? "Salida virtual " + std::to_string(n) : nombre.trimmed().toStdString();
+        nombre.trimmed().isEmpty() ? tr("Salida virtual %1").arg(n).toStdString() : nombre.trimmed().toStdString();
     b->tipo = "salida";
     buses_.push_back(std::move(b));
     // Con un dispositivo que no anda, no queda un bus mudo guardado como si estuviera bien.
@@ -539,19 +540,19 @@ QString Matriz::agregarSalidaVirtual(const QString& nombre, const QString& dispo
 }
 
 QString Matriz::agregarEntradaVirtual(const QString& nombre) {
-    if (buses_.size() >= kMaxVirtuales) return "No entran más buses virtuales.";
-    if (motor() == nullptr) return "El motor de audio no está arriba.";
+    if (buses_.size() >= kMaxVirtuales) return tr("No entran más buses virtuales.");
+    if (motor() == nullptr) return tr("El motor de audio no está arriba.");
     int n = 1;
     while (buscar("entrada" + std::to_string(n)) != nullptr)
         ++n;
     std::string nom =
-        nombre.trimmed().isEmpty() ? "Entrada virtual " + std::to_string(n) : nombre.trimmed().toStdString();
-    if (motor()->sourceExists(nom)) return "Ya hay una fuente con ese nombre.";
+        nombre.trimmed().isEmpty() ? tr("Entrada virtual %1").arg(n).toStdString() : nombre.trimmed().toStdString();
+    if (motor()->sourceExists(nom)) return tr("Ya hay una fuente con ese nombre.");
     auto b = std::make_unique<Bus>();
     b->id = "entrada" + std::to_string(n);
     b->nombre = nom;
     b->tipo = "entrada";
-    if (!crearEntradaVirtual(nom)) return "No se pudo crear la fuente.";
+    if (!crearEntradaVirtual(nom)) return tr("No se pudo crear la fuente.");
     b->entradaCreada = true;
     buses_.push_back(std::move(b));
     refrescar();
@@ -600,21 +601,21 @@ QString Matriz::quitarBus(const QString& idQ) {
         guardar();
         return {};
     }
-    return "No existe el bus.";
+    return tr("No existe el bus.");
 }
 
 QString Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
     const std::string id = idQ.toStdString(), nombre = nombreQ.trimmed().toStdString();
-    if (nombre.empty()) return "Falta el nombre.";
+    if (nombre.empty()) return tr("Falta el nombre.");
     if (id.rfind("pista", 0) == 0) {
         const int i = std::atoi(id.c_str() + 5) - 1;
-        if (i < 0 || i >= kPistas) return "No existe esa pista.";
+        if (i < 0 || i >= kPistas) return tr("No existe esa pista.");
         pistas_[i] = nombre;
     } else {
         Bus* b = buscar(id);
-        if (b == nullptr) return "No existe el bus.";
+        if (b == nullptr) return tr("No existe el bus.");
         if (b->tipo == "entrada") {
-            if (motor() != nullptr && motor()->sourceExists(nombre)) return "Ya hay una fuente con ese nombre.";
+            if (motor() != nullptr && motor()->sourceExists(nombre)) return tr("Ya hay una fuente con ese nombre.");
             // Los envíos que salen de esta entrada cambian de nombre con ella.
             std::map<std::pair<std::string, std::string>, Envio> nuevos;
             for (auto& [k, e] : envios_)
@@ -634,7 +635,7 @@ QString Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
 
 QString Matriz::setDispositivo(const QString& idQ, const QString& dispositivo) {
     Bus* b = buscar(idQ.toStdString());
-    if (b == nullptr || b->tipo != "salida") return "No es una salida virtual.";
+    if (b == nullptr || b->tipo != "salida") return tr("No es una salida virtual.");
     if (b->sink) b->sink->stop();
     b->sink.reset();
     b->io.reset();
@@ -646,13 +647,13 @@ QString Matriz::setDispositivo(const QString& idQ, const QString& dispositivo) {
         b->aDispositivo.reset();
         armarPlan();
         emit cambio();
-        return dispositivo.isEmpty() ? QString() : "Ese dispositivo ya no está.";
+        return dispositivo.isEmpty() ? QString() : tr("Ese dispositivo ya no está.");
     }
     QAudioFormat f;
     f.setSampleRate(48000);
     f.setChannelCount(2);
     f.setSampleFormat(QAudioFormat::Float);
-    if (!dev.isFormatSupported(f)) return "El dispositivo no acepta audio estéreo a 48 kHz.";
+    if (!dev.isFormatSupported(f)) return tr("El dispositivo no acepta audio estéreo a 48 kHz.");
     b->aDispositivo = std::make_shared<Ring>();
     b->io = std::make_unique<AlDispositivo>(b->aDispositivo);
     b->sink = std::make_unique<QAudioSink>(dev, f);
