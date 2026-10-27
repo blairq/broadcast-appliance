@@ -359,7 +359,9 @@ void Presidencia::aplicarVistas(bool forzar) {
     // ellos (los dos del debate pasan solos a ese canal).
     if (p_.debate && p_.debate->activo()) {
         const std::string esc = p_.debate->estadoJson().value("escena", std::string());
-        if (!esc.empty()) vistas.push_back({{"id", "debate"}, {"nombre", "Debate"}, {"fuente", esc}});
+        // El nombre del canal lo ven los integrantes: en el idioma del evento.
+        if (!esc.empty())
+            vistas.push_back({{"id", "debate"}, {"nombre", ba::i18n::traducirEvento("asamblea", "Debate")}, {"fuente", esc}});
     }
     const std::string firma = (alguien ? "1" : "0") + vistas.dump(-1, ' ', false, json::error_handler_t::replace);
     if (!forzar && firma == firmaVistas_) return;

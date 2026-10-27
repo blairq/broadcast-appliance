@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/Quorum.hpp"
+#include "asamblea/Votos.hpp"
 #include "i18n/I18n.hpp"
 
 #include <QDateTime>
@@ -39,11 +40,12 @@ std::string minus(std::string s) {
     return o;
 }
 
+// Va al acta: en el idioma del evento.
 std::string nombreMayoria(const std::string& m) {
-    if (m == "absoluta") return "mayoría absoluta";
-    if (m == "dos_tercios_presentes") return "dos tercios de los presentes";
-    if (m == "dos_tercios_miembros") return "dos tercios de los miembros";
-    return "mayoría simple";
+    if (m == "absoluta") return ba::i18n::traducirEvento("asamblea", "mayoría absoluta");
+    if (m == "dos_tercios_presentes") return ba::i18n::traducirEvento("asamblea", "dos tercios de los presentes");
+    if (m == "dos_tercios_miembros") return ba::i18n::traducirEvento("asamblea", "dos tercios de los miembros");
+    return ba::i18n::traducirEvento("asamblea", "mayoría simple");
 }
 } // namespace
 
@@ -184,28 +186,42 @@ void Quorum::limpiarOficiales() {
 }
 
 std::string Quorum::anexoActa() const {
+    // El acta es del evento: va en su idioma (se arma cada vez que se pide).
+    using ba::i18n::llenar;
+    using ba::i18n::traducirEvento;
     std::string t;
     const json e = estado();
     if (e.value("configurado", false)) {
-        t += "## Quórum\n\n- Miembros: " + std::to_string(miembros_) + "\n- Necesarios para sesionar: " +
-             std::to_string(e.value("necesarios", 0)) + "\n- Presentes al cerrar el acta: " +
-             std::to_string(e.value("presentes", 0)) + (e.value("hay_quorum", false) ? " (hay quórum)" : " (SIN quórum)") + "\n\n";
+        const std::string pres = std::to_string(e.value("presentes", 0));
+        t += "## " + traducirEvento("asamblea", "Quórum") + "\n\n- " +
+             llenar(traducirEvento("asamblea", "Miembros: %1"), {std::to_string(miembros_)}) + "\n- " +
+             llenar(traducirEvento("asamblea", "Necesarios para sesionar: %1"), {std::to_string(e.value("necesarios", 0))}) +
+             "\n- " +
+             (e.value("hay_quorum", false) ? llenar(traducirEvento("asamblea", "Presentes al cerrar el acta: %1 (hay quórum)"), {pres})
+                                           : llenar(traducirEvento("asamblea", "Presentes al cerrar el acta: %1 (SIN quórum)"), {pres})) +
+             "\n\n";
     }
     if (!oficiales_.empty()) {
-        t += "## Votaciones oficiales\n\n";
+        t += "## " + traducirEvento("asamblea", "Votaciones oficiales") + "\n\n";
         int n = 0;
         for (const auto& v : oficiales_) {
             ++n;
-            t += "### " + std::to_string(n) + ". " + v.value("asunto", std::string("(sin asunto)")) + "\n\n";
-            t += "Afirmativos **" + std::to_string(v.value("afirmativos", 0)) + "**, negativos **" +
-                 std::to_string(v.value("negativos", 0)) + "**, abstenciones **" + std::to_string(v.value("abstenciones", 0)) +
-                 "** (presentes " + std::to_string(v.value("presentes", 0)) + "). Requería " +
-                 nombreMayoria(v.value("mayoria", std::string())) + " (" + std::to_string(v.value("necesarios", 0)) +
-                 " votos): **" + (v.value("aprobado", false) ? "APROBADO" : "RECHAZADO") + "**.\n\n";
+            const std::string asunto = v.value("asunto", std::string());
+            t += "### " + std::to_string(n) + ". " + (asunto.empty() ? traducirEvento("asamblea", "(sin asunto)") : asunto) + "\n\n";
+            t += llenar(traducirEvento("asamblea", "Afirmativos **%1**, negativos **%2**, abstenciones **%3** (presentes %4). "
+                                                   "Requería %5 (%6 votos): **%7**."),
+                        {std::to_string(v.value("afirmativos", 0)), std::to_string(v.value("negativos", 0)),
+                         std::to_string(v.value("abstenciones", 0)), std::to_string(v.value("presentes", 0)),
+                         nombreMayoria(v.value("mayoria", std::string())), std::to_string(v.value("necesarios", 0)),
+                         v.value("aprobado", false) ? traducirEvento("asamblea", "APROBADO")
+                                                    : traducirEvento("asamblea", "RECHAZADO")}) +
+                 "\n\n";
             const json nom = v.value("nominal", json::array());
             if (!nom.empty()) {
-                t += "| Integrante | Voto |\n|---|---|\n";
-                for (const auto& x : nom) t += "| " + x.value("nombre", std::string()) + " | " + x.value("voto", std::string()) + " |\n";
+                t += "| " + traducirEvento("asamblea", "Integrante") + " | " + traducirEvento("asamblea", "Voto") +
+                     " |\n|---|---|\n";
+                for (const auto& x : nom)
+                    t += "| " + x.value("nombre", std::string()) + " | " + etiquetaDeVoto(x.value("voto", std::string())) + " |\n";
                 t += "\n";
             }
         }

@@ -128,12 +128,6 @@ constexpr CampoDeTipo kTipos[] = {
     {"nota", QT_TRANSLATE_NOOP("evento", "Nota"), QT_TRANSLATE_NOOP("evento", "No hace nada: es una indicación para vos."), ""},
 };
 
-/// El idioma del evento para lo que leen el público y los invitados (la invitación,
-/// el acta): el elegido en el evento o, si no eligió ("" = el del operador), el del operador.
-ba::i18n::En idiomaDelEvento(const evento::Evento& e) {
-    return ba::i18n::En(e.idioma.empty() ? ba::i18n::actual().codigo : e.idioma);
-}
-
 QString qs(const std::string& s) { return QString::fromStdString(s); }
 
 } // namespace
@@ -1258,10 +1252,13 @@ void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
     const QString codigo = quien.value("codigo").toString();
     // El nombre y la fecha salen del evento; el enlace, del gateway.
     const QString nombreEvento = e_.nombre.empty() ? abierto_ : QString::fromStdString(e_.nombre);
-    const ba::i18n::En ev = idiomaDelEvento(e_);
+    // La invitación la lee el invitado: en el idioma del evento abierto (el que fijó
+    // abrir() / setIdioma() con ba::i18n::usarEnEvento). Se arma cada vez que se pide.
+    // El idioma se toma ahora: la respuesta del gateway llega después.
+    const ba::i18n::En ev(ba::i18n::idiomaDelEvento());
     QString cuandoTexto = QString::fromStdString(e_.fecha);
     if (!e_.inicio.empty())
-        cuandoTexto = qs(ba::i18n::llenar(ev.traducir("evento", "%1 a las %2"), {e_.fecha, e_.inicio}));
+        cuandoTexto = qs(ba::i18n::llenar(ba::i18n::traducirEvento("evento", "%1 a las %2"), {e_.fecha, e_.inicio}));
     if (!e_.huso.empty()) cuandoTexto += " (" + QString::fromStdString(e_.huso) + ")";
     const QString instante = cuando();
 
@@ -1304,9 +1301,9 @@ QString EventoViewModel::acta(const QJsonArray& votaciones) const {
     const evento::Resumen r = padron_.resumen();
     QString t;
     const QString titulo = e_.nombre.empty() ? abierto_ : QString::fromStdString(e_.nombre);
-    // El acta es del evento: va en su idioma.
-    const ba::i18n::En ev = idiomaDelEvento(e_);
-    const auto T = [&ev](const char* texto) { return qs(ev.traducir("evento", texto)); };
+    // El acta es del evento: va en su idioma (el que fijó abrir() / setIdioma() con
+    // ba::i18n::usarEnEvento; los anexos de la asamblea usan el mismo). Se arma cada vez.
+    const auto T = [](const char* texto) { return qs(ba::i18n::traducirEvento("evento", texto)); };
     t += "# " + T(QT_TRANSLATE_NOOP("evento", "Acta — %1")).arg(titulo) + "\n\n";
 
     QString cuandoTexto = QString::fromStdString(e_.fecha);
@@ -1346,9 +1343,9 @@ QString EventoViewModel::acta(const QJsonArray& votaciones) const {
         t += QString("| %1 | %2 | %3 | %4 | %5 |\n")
                  .arg(QString::fromStdString(a.nombre).isEmpty() ? T(QT_TRANSLATE_NOOP("evento", "(sin nombre)"))
                                                                  : QString::fromStdString(a.nombre))
-                 .arg(QString::fromUtf8(evento::nombreDePapel(a.papel)))
+                 .arg(QString::fromStdString(evento::etiquetaDePapel(a.papel)))
                  .arg(llego && !a.porDonde.empty() ? QString::fromStdString(a.porDonde)
-                                                   : QString::fromUtf8(evento::nombreDeCanal(a.canal)))
+                                                   : QString::fromStdString(evento::etiquetaDeCanal(a.canal)))
                  .arg(hora)
                  .arg(a.vota ? T(QT_TRANSLATE_NOOP("evento", "sí")) : QString("—"));
     }

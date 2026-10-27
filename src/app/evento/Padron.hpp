@@ -67,6 +67,10 @@ const char* nombreDeEstado(Estado e);
 bool papelDeNombre(const std::string& s, Papel& out);
 bool canalDeNombre(const std::string& s, Canal& out);
 bool estadoDeNombre(const std::string& s, Estado& out);
+/// Las etiquetas para el acta (lo que lee el público), en el idioma del evento. Los
+/// nombreDe… son claves (se guardan y se comparan): no se traducen.
+std::string etiquetaDePapel(Papel p);
+std::string etiquetaDeCanal(Canal c);
 
 /// Una persona en ESTE evento.
 struct Asistente {
