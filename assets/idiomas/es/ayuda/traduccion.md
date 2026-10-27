@@ -1,4 +1,4 @@
-La traducción toma una **salida de texto** (la de una tarjeta «Voz a texto»: «Orador») y publica otra con lo mismo en otro idioma («Orador · en»). Corre en la máquina, sin red, con modelos OPUS-MT (0,1 a 0,6 s por frase). Castellano <-> inglés y castellano <-> portugués son directos; francés, alemán, ruso y chino pasan por el inglés.
+La traducción toma una **salida de texto** (la de una tarjeta «Voz a texto»: «Orador») y publica otra con lo mismo en otro idioma («Orador · en»). Corre en la máquina, sin red, con modelos OPUS-MT (0,1 a 0,6 s por frase). Traduce desde el idioma del evento (`traducciones` dice el origen y los destinos posibles). Con los paquetes de hoy, castellano <-> inglés y castellano <-> portugués son directos; los demás pasan por el inglés.
 
 ## Receta: subtítulos en inglés y voz en inglés por la pista 2
 1. Voz a texto del orador (help {"topic": "audio_rack"}): una salida «Orador», modo continuo.

@@ -892,7 +892,7 @@ void TotemsViewModel::mirarCara(Conexion& c) {
         if (it == yo->conns_.end()) return;
         it->second->identificando = false;
         if (!error.isEmpty()) return;
-        yo->alCara(conn, jpeg, q.personaId, q.nombre, q.hayCara, q.sirve, q.sugerencia);
+        yo->alCara(conn, jpeg, q.personaId, q.nombre, q.hayCara, q.sirve, q.sugerenciaEvento);
     });
 }
 

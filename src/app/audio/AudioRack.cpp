@@ -616,7 +616,7 @@ std::string AudioRack::addTraduccion(const json& opciones) {
     auto n = std::make_unique<Node>();
     n->kind = "traducir";
     n->id = newId("traducir");
-    n->traduccion = json{{"desde", ""},    {"idioma_desde", "es"}, {"a", "en"},
+    n->traduccion = json{{"desde", ""},    {"idioma_desde", ""}, {"a", "en"},
                          {"nombre", ""},   {"rotulo", ""},         {"archivo", false},
                          {"activa", true}, {"espera_ms", 600},     {"maximo_ms", 8000}};
     if (opciones.is_object())

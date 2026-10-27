@@ -132,6 +132,7 @@ class PersonasViewModel : public QObject {
         bool hayCara = false;
         bool sirve = false;
         QString sugerencia; ///< si no sirve, qué pedirle («acercate un poco», «mirá a la cámara»)
+        QString sugerenciaEvento; ///< la misma en el idioma del evento (la que oye o lee la persona)
     };
     /// `luego(quien, error)` en el hilo de la interfaz. El trabajo pesado va al
     /// hilo del reconocimiento (Reconocedor), como compararFoto.

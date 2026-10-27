@@ -630,10 +630,9 @@ void AtencionViewModel::encargarAsamblea(const QString& id, const QString& queSe
 // --- La voz del atendedor ---------------------------------------------------------------
 
 QString AtencionViewModel::vozElegida() const {
-    // La elegida si está bajada; si no, la primera bajada (como la del operador).
-    const QString r = QString::fromStdString(aj_.vozRepo);
-    if (!r.isEmpty() && !modelos_.carpetaInstalada(r).empty()) return r;
-    return modelos_.instaladoDeTipo("tts");
+    // La elegida si habla el idioma del evento (le habla al público); si no, la del perfil
+    // de ese idioma (ModelosLocales::vozPara).
+    return modelos_.vozPara(ba::i18n::idiomaDelEvento(), QString::fromStdString(aj_.vozRepo));
 }
 
 QVariantList AtencionViewModel::voces() const {

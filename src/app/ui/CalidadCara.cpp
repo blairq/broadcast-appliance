@@ -58,30 +58,38 @@ Calidad calidadDe(const QImage& img, const ba::rostros::Cara& c) {
 
     // El orden importa: se pide UNA cosa por vez, la más gruesa primero. Una
     // lista de cinco correcciones no la sigue nadie.
+    // Cada caso, dicho de dos formas: al operador («Pedile que…», en su idioma) y a la persona
+    // misma (en segunda persona, en el idioma del evento: el tótem, el invitado).
     const char* k;
-    if (q.cortada)
+    const char* p;
+    if (q.cortada) {
         k = QT_TRANSLATE_NOOP("caras", "Pedile que se ponga entero en el cuadro: la cara sale cortada por el borde.");
-    else if (q.altoPx < kAltoMinimo())
+        p = QT_TRANSLATE_NOOP("caras-publico", "Ponete entero en el cuadro: la cara sale cortada.");
+    } else if (q.altoPx < kAltoMinimo()) {
         k = QT_TRANSLATE_NOOP("caras", "Pedile que se acerque a la camara: la cara se ve demasiado chica.");
-    else if (q.luz < kLuzMinima())
+        p = QT_TRANSLATE_NOOP("caras-publico", "Acercate un poco a la cámara.");
+    } else if (q.luz < kLuzMinima()) {
         k = QT_TRANSLATE_NOOP("caras", "Hay poca luz sobre la cara. Pedile que se ponga de frente a una "
                                        "ventana o que prenda una luz.");
-    else if (q.luz > kLuzMaxima())
+        p = QT_TRANSLATE_NOOP("caras-publico", "Hay poca luz: ponete de frente a una ventana o a una luz.");
+    } else if (q.luz > kLuzMaxima()) {
         k = QT_TRANSLATE_NOOP("caras", "La cara esta quemada de luz (contraluz). Pedile que se corra de "
                                        "la ventana o que la deje a su espalda.");
-    else if (std::abs(q.giro) > kGiroMaximo())
+        p = QT_TRANSLATE_NOOP("caras-publico", "Hay mucha luz atrás: corrite un poco de la ventana.");
+    } else if (std::abs(q.giro) > kGiroMaximo()) {
         k = QT_TRANSLATE_NOOP("caras", "Pedile que mire de frente a la camara: la cara esta girada.");
-    else if (q.nitidez < kNitidezMinima())
+        p = QT_TRANSLATE_NOOP("caras-publico", "Mirá de frente a la cámara.");
+    } else if (q.nitidez < kNitidezMinima()) {
         k = QT_TRANSLATE_NOOP("caras", "La imagen sale borrosa. Pedile que se quede quieto un momento o "
                                        "que revise el enfoque.");
-    else {
+        p = QT_TRANSLATE_NOOP("caras-publico", "Quedate quieto un momento.");
+    } else {
         q.sirve = true;
         k = QT_TRANSLATE_NOOP("caras", "Asi sirve.");
+        p = QT_TRANSLATE_NOOP("caras-publico", "Así está bien.");
     }
-    // La misma, en dos idiomas: la del operador (la ve en la interfaz y el asistente) y la
-    // del evento (la que llega a la persona: el tótem, el invitado).
     q.sugerencia = ba::i18n::traducir("caras", k);
-    q.sugerenciaEvento = ba::i18n::traducirEvento("caras", k);
+    q.sugerenciaEvento = ba::i18n::traducirEvento("caras-publico", p);
     return q;
 }
 
