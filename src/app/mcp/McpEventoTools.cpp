@@ -52,19 +52,22 @@ namespace {
 /// El idioma pedido para un evento: "" (el del programa) o uno que exista. Si no, el error.
 std::string errorDeIdioma(const json& a) {
     if (!a.contains("idioma")) return {};
-    if (!a["idioma"].is_string()) return "El idioma va como texto: un código (es, en, pt-BR).";
+    if (!a["idioma"].is_string()) return ba::i18n::traducir("mcp", "El idioma va como texto: un código (es, en, pt-BR).");
     const std::string c = a["idioma"].get<std::string>();
     if (c.empty() || !ba::i18n::perfil(c).codigo.empty()) return {};
     std::string hay;
     for (const auto& p : ba::i18n::idiomas())
         if (!p.pseudo) hay += (hay.empty() ? "" : ", ") + p.codigo + " (" + p.nombre + ")";
-    return "No conozco el idioma «" + c + "». Hay: " + hay + ".";
+    return ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco el idioma «%1». Hay: %2."), {c, hay});
 }
 
-const json kIdiomaEsquema = {
-    {"type", "string"},
+/// Una función y no una constante: la descripción se traduce cuando se registran las
+/// herramientas (con el idioma del operador ya puesto), no al cargar el programa.
+json idiomaEsquema() {
+    return {{"type", "string"},
     {"description", ba::i18n::traducir("mcp", "idioma del evento: lo que ven y escuchan el público y los invitados (gráficos, tótems, voz, "
                     "la web). Un código (es, en, pt-BR); vacío = el del programa")}};
+}
 
 /// El guion completo tal como lo ve la interfaz, para que el asistente vea lo
 /// mismo que el operador (incluido lo que le falta a cada cue).
@@ -236,7 +239,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (acc == "aviso") {
                 ev.setAvisoWeb(QString::fromStdString(a.value("texto", std::string())),
                                QString::fromStdString(a.value("nivel", std::string("info"))));
-                return done(ToolResult::ok(a.value("texto", std::string()).empty() ? "Aviso sacado." : "Aviso publicado: se ve ya en la página."));
+                return done(ToolResult::ok(a.value("texto", std::string()).empty() ? ba::i18n::traducir("mcp", "Aviso sacado.") : ba::i18n::traducir("mcp", "Aviso publicado: se ve ya en la página.")));
             }
             if (acc == "direccion") {
                 AccesoRemoto* ar = vm.accesoRemoto();
@@ -248,8 +251,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 if (sub.isEmpty()) sub = ev.web().value("sitio").toMap().value("subdominio").toString();
                 if (sub.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "El evento no tiene subdominio: evento_web sitio {subdominio}.")));
                 ar->configurarConApiKey(sub);
-                return done(ToolResult::ok(("Pidiendo " + sub + ".a.pinggy.link a pinggy (la conferencia se reinicia). Mirá el "
-                                            "resultado con acceso_remoto_estado.").toStdString()));
+                return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Pidiendo %1.a.pinggy.link a pinggy (la conferencia se reinicia). Mirá el "
+                                              "resultado con acceso_remoto_estado."),
+                                            {sub.toStdString()})));
             }
             done(ToolResult::error(ba::i18n::traducir("mcp", "accion: ver, generar, leer, escribir, sitio o direccion")));
         };
@@ -311,20 +315,20 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 if (const Configuraciones* cf = vm.configuraciones())
                     for (const json& e : cf->listar())
                         if (e.value("nombre", std::string()) == n)
-                            return done(ToolResult::error(
-                                "«" + n + "» es un evento, no un guion: para pasar a él, evento_cambiar (reinicia la "
-                                "app). Para un guion con ese título acá adentro, ponele otro nombre."));
+                            return done(ToolResult::error(ba::i18n::llenar(
+                                ba::i18n::traducir("mcp", "«%1» es un evento, no un guion: para pasar a él, evento_cambiar (reinicia la "
+                                "app). Para un guion con ese título acá adentro, ponele otro nombre."), {n})));
                 const QString c = ev.crear(QString::fromStdString(n), QString::fromStdString(a.value("en_carpeta", std::string())));
                 if (c.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo crear el guion.")));
-                return done(ToolResult::ok("Guion creado y abierto (en este mismo evento): " + c.toStdString()));
+                return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guion creado y abierto (en este mismo evento): %1"), {c.toStdString()})));
             }
             const std::string c = a.value("carpeta", std::string());
             if (c.empty())
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "Pasa `carpeta` (uno que exista) o `nombre` (uno nuevo).")));
             if (!ev.abrir(QString::fromStdString(c)))
                 return done(
-                    ToolResult::error("No se pudo abrir '" + c + "' (guion_listar muestra los que hay)."));
-            done(ToolResult::ok("Guion abierto: " + c));
+                    ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo abrir '%1' (guion_listar muestra los que hay)."), {c})));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guion abierto: %1"), {c})));
         };
         core.addTool(std::move(t));
     }
@@ -390,7 +394,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             const std::string carpeta = a.value("evento", std::string());
             const auto archivo = ev.archivoBitacoraDe(carpeta);
             if (archivo.empty())
-                return done(ToolResult::error(carpeta.empty() ? "no hay un evento en curso" : "no hay un evento «" + carpeta + "»"));
+                return done(ToolResult::error(carpeta.empty() ? ba::i18n::traducir("mcp", "no hay un evento en curso") : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta})));
             // «HH:MM» es del día de la bitácora: se toma la fecha de la primera línea.
             const json primera = evento::Bitacora::leer(archivo, 0, 0, {}, {}, 0);
             const auto ms = [&](const char* k) -> std::int64_t {
@@ -448,11 +452,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             const auto cargarFoto = [&](const std::string& carpeta, const std::string& cual, std::string& err) -> json {
                 const auto dir = ev.carpetaEvento(carpeta);
                 if (dir.empty()) {
-                    err = carpeta.empty() ? "no hay un evento en curso" : "no hay un evento «" + carpeta + "»";
+                    err = carpeta.empty() ? ba::i18n::traducir("mcp", "no hay un evento en curso") : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta});
                     return nullptr;
                 }
                 json f = evento::FotosConfig::cargar(dir / "config" / ((cual.empty() ? "ultima" : cual) + ".json"));
-                if (f.is_null()) err = "ese evento no tiene foto «" + (cual.empty() ? "ultima" : cual) + "»";
+                if (f.is_null()) err = ba::i18n::llenar(ba::i18n::traducir("mcp", "ese evento no tiene foto «%1»"), {cual.empty() ? std::string("ultima") : cual});
                 return f;
             };
             std::string err;
@@ -476,7 +480,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             const std::string archivo = a.value("archivo", std::string());
             const json archivos = f.value("archivos", json::object());
             if (!archivo.empty()) {
-                if (!archivos.contains(archivo)) return done(ToolResult::error("la foto no tiene «" + archivo + "»"));
+                if (!archivos.contains(archivo)) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "la foto no tiene «%1»"), {archivo})));
                 return done(ToolResult().data(
                     json{{"archivo", archivo}, {"contenido", fotos.leer(archivos[archivo].value("sha", std::string()))}}));
             }
@@ -510,7 +514,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             const std::string carpeta = a.value("evento", std::string());
             const auto dir = ev.carpetaEvento(carpeta);
             if (dir.empty())
-                return done(ToolResult::error(carpeta.empty() ? "no hay un evento en curso" : "no hay un evento «" + carpeta + "»"));
+                return done(ToolResult::error(carpeta.empty() ? ba::i18n::traducir("mcp", "no hay un evento en curso") : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta})));
             const auto lista = [](const std::filesystem::path& p) {
                 std::ifstream f(p);
                 json j = f ? json::parse(f, nullptr, false) : json();
@@ -577,14 +581,16 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                          {"properties", {{"evento", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La carpeta (guion_listar).")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
-            if (dir.empty()) return done(ToolResult::error("no hay un evento «" + a.value("evento", std::string()) + "»"));
+            if (dir.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {a.value("evento", std::string())})));
             // Fuera del hilo de la interfaz: puede leer gigas.
             const bool enCurso = dir == ev.carpetaEvento();
-            QThreadPool::globalInstance()->start([dir, done, enCurso]() {
+            const std::string avisoEnCurso =
+                ba::i18n::traducir("mcp", "está en curso: se sigue escribiendo (bitácora, ficha…), así que lo que cambió desde "
+                  "su último cierre es normal; los sellos valen cuando deje de estar en curso.");
+            QThreadPool::globalInstance()->start([dir, done, enCurso, avisoEnCurso]() {
                 json r = evento::CierreEvento::verificar(dir);
                 if (enCurso)
-                    r["aviso"] = "está en curso: se sigue escribiendo (bitácora, ficha…), así que lo que cambió desde "
-                                 "su último cierre es normal; los sellos valen cuando deje de estar en curso.";
+                    r["aviso"] = avisoEnCurso;
                 QMetaObject::invokeMethod(qApp, [r, done]() { done(ToolResult().data(r)); }, Qt::QueuedConnection);
             });
         };
@@ -745,7 +751,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                            {"grabaciones", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Incluir Grabaciones/ (de fábrica, sí).")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
-            if (dir.empty()) return done(ToolResult::error("no hay un evento «" + a.value("evento", std::string()) + "»"));
+            if (dir.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {a.value("evento", std::string())})));
             const std::string d = a.value("destino", std::string());
             const std::filesystem::path destino = d.empty() ? ev.raizEventos().parent_path() / "Exportados" : std::filesystem::path(d);
             const auto objetos = ev.raizEventos() / ".objetos";
@@ -755,7 +761,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 const std::string e = evento::Historico::exportar(dir, objetos, destino, con, &copia);
                 QMetaObject::invokeMethod(qApp, [e, copia, done]() {
                     if (!e.empty()) return done(ToolResult::error(e));
-                    done(ToolResult().text("Copiado en " + copia.string()).data(json{{"copia", copia.string()}}));
+                    done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Copiado en %1"), {copia.string()})).data(json{{"copia", copia.string()}}));
                 }, Qt::QueuedConnection);
             });
         };
@@ -804,8 +810,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.run = [&ev](const json& a, Done done) {
             const std::string c = a.value("carpeta", std::string());
             if (!ev.iniciarEvento(QString::fromStdString(c)))
-                return done(ToolResult::error("No se pudo poner en curso '" + c + "' (guion_listar muestra los que hay)."));
-            done(ToolResult::ok("En curso: " + c));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo poner en curso '%1' (guion_listar muestra los que hay)."), {c})));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "En curso: %1"), {c})));
         };
         core.addTool(std::move(t));
     }
@@ -827,16 +833,18 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("automatico") && a["automatico"].is_boolean()) ev.setEventoAutomatico(a["automatico"].get<bool>());
             if (a.value("solo_ajuste", false))
-                return done(ToolResult::ok(std::string("Evento automático del día: ") +
-                                           (ev.eventoAutomatico() ? "prendido" : "apagado")));
+                return done(ToolResult::ok(ev.eventoAutomatico() ? ba::i18n::traducir("mcp", "Evento automático del día: prendido")
+                                                                 : ba::i18n::traducir("mcp", "Evento automático del día: apagado")));
             const std::string antes = ev.enCurso().value("carpeta").toString().toStdString();
             if (antes.empty() || !ev.terminarEvento()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No había ningún evento en curso.")));
             const std::string ahora = ev.enCurso().value("carpeta").toString().toStdString();
             if (ahora == antes)
-                return done(ToolResult::ok("Se cerró " + antes + " y el evento automático lo volvió a abrir (es la "
-                                           "jornada de hoy). Para cerrarla del todo: evento_terminar con "
-                                           "`automatico`: false."));
-            done(ToolResult::ok("Terminado: " + antes + (ahora.empty() ? std::string() : ". En curso ahora: " + ahora)));
+                return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Se cerró %1 y el evento automático lo volvió a abrir (es la "
+                                             "jornada de hoy). Para cerrarla del todo: evento_terminar con "
+                                             "`automatico`: false."),
+                                           {antes})));
+            done(ToolResult::ok(ahora.empty() ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Terminado: %1"), {antes})
+                                               : ba::i18n::llenar(ba::i18n::traducir("mcp", "Terminado: %1. En curso ahora: %2"), {antes, ahora})));
         };
         core.addTool(std::move(t));
     }
@@ -861,14 +869,14 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("crear")) {
                 const QString c = ev.crearCarpeta(QString::fromStdString(a.value("crear", std::string())));
                 if (c.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo crear la carpeta.")));
-                return done(ToolResult::ok("Carpeta: " + c.toStdString()));
+                return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Carpeta: %1"), {c.toStdString()})));
             }
             // `evento` es el nombre de antes del parametro (evento_carpeta): sigue andando
             const std::string e = a.value("guion", a.value("evento", std::string()));
             if (e.empty() || !a.contains("a")) return done(ToolResult::error(ba::i18n::traducir("mcp", "Pasá `crear`, o `guion` y `a`.")));
             const QString n = ev.moverEvento(QString::fromStdString(e), QString::fromStdString(a.value("a", std::string())));
-            if (n.isEmpty()) return done(ToolResult::error("No se pudo mover '" + e + "'."));
-            done(ToolResult::ok("Movido: " + n.toStdString()));
+            if (n.isEmpty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo mover '%1'."), {e})));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Movido: %1"), {n.toStdString()})));
         };
         core.addTool(std::move(t));
     }
@@ -903,7 +911,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 campos["etiquetas"] = l;
             }
             if (!campos.isEmpty() && !ev.cambiarDatos(QString::fromStdString(c), campos))
-                return done(ToolResult::error("No se pudo guardar la ficha de '" + c + "'."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo guardar la ficha de '%1'."), {c})));
             const QVariantMap m = ev.datosDe(QString::fromStdString(c));
             json et = json::array();
             for (const QString& e : m["etiquetas"].toStringList()) et.push_back(e.toStdString());
@@ -941,7 +949,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"quitar", {{"type", "boolean"}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (!a.contains("indice")) {
-                ev.agregarBloque(QString::fromStdString(a.value("nombre", std::string("Bloque nuevo"))));
+                ev.agregarBloque(QString::fromStdString(a.value("nombre", ba::i18n::traducir("mcp", "Bloque nuevo"))));
                 return done(ToolResult::ok(ba::i18n::traducir("mcp", "Bloque agregado al final.")));
             }
             const int i = a["indice"].get<int>();
@@ -1068,13 +1076,17 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 }
                 std::string aviso;
                 if (!corregidos.empty())
-                    aviso += " Ojo: en un cue de " + tipo + " se tomó" + corregidos +
-                             " (los campos del gráfico van en `valores`, no como en grafico_mostrar).";
+                    aviso += " " + ba::i18n::llenar(ba::i18n::traducir("mcp", "Ojo: en un cue de %1 se tomó%2 (los campos del gráfico van en `valores`, no "
+                                       "como en grafico_mostrar)."),
+                                     {tipo, corregidos});
                 if (!fuera.empty()) {
                     std::string acepta;
                     for (const auto& k : it->second) acepta += (acepta.empty() ? "" : ", ") + k;
-                    aviso += " Ojo: un cue de " + tipo + " no usa " + fuera + " (se guardó igual, pero no hace nada). " +
-                             "Usa: " + (acepta.empty() ? std::string("nada en datos") : acepta) + ".";
+                    aviso += " " + ba::i18n::llenar(acepta.empty() ? ba::i18n::traducir("mcp", "Ojo: un cue de %1 no usa %2 (se guardó igual, pero no hace "
+                                                        "nada). Usa: nada en datos.")
+                                                    : ba::i18n::traducir("mcp", "Ojo: un cue de %1 no usa %2 (se guardó igual, pero no hace "
+                                                        "nada). Usa: %3."),
+                                     {tipo, fuera, acepta});
                 }
                 return aviso;
             };
@@ -1083,7 +1095,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 const QString id =
                     ev.agregarCue(b, QString::fromStdString(a.value("tipo", std::string("nota"))));
                 if (id.isEmpty())
-                    return done(ToolResult::error("No existe el bloque " + std::to_string(b) + "."));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe el bloque %1."), {std::to_string(b)})));
                 // Recien creado: es el ultimo del bloque.
                 const QVariantMap g = ev.guion();
                 const QVariantList bs = g["bloques"].toList();
@@ -1094,7 +1106,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 if (a.contains("duracionSeg")) campos["duracionSeg"] = a["duracionSeg"].get<int>();
                 if (a.contains("automatico")) campos["automatico"] = a["automatico"].get<bool>();
                 if (!campos.isEmpty()) ev.editarCue(b, ultimo, campos);
-                return done(ToolResult::ok("Cue agregado en el bloque " + std::to_string(b) + "." + aviso));
+                return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Cue agregado en el bloque %1."), {std::to_string(b)}) + aviso));
             }
             const int c = a["cue"].get<int>();
             if (a.value("quitar", false)) {
@@ -1112,7 +1124,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("duracionSeg")) campos["duracionSeg"] = a["duracionSeg"].get<int>();
             if (a.contains("automatico")) campos["automatico"] = a["automatico"].get<bool>();
             ev.editarCue(b, c, campos);
-            done(ToolResult::ok("Cue actualizado." + aviso));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Cue actualizado.") + aviso));
         };
         core.addTool(std::move(t));
     }
@@ -1145,7 +1157,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"huso",
                {{"type", "string"},
                 {"description", ba::i18n::traducir("mcp", "Nombre IANA del huso, p. ej. America/Argentina/Buenos_Aires.")}}},
-              {"idioma", kIdiomaEsquema},
+              {"idioma", idiomaEsquema()},
               {"invitados", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "el evento usa invitados en la conferencia (la página ofrece entrar)")}}},
               {"preguntas", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "el público puede preguntar y votar (/publico/)")}}},
               {"asamblea", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "es una sesión de asamblea: la página muestra integrantes, quórum, orden del día y votaciones")}}}}}};
@@ -1156,16 +1168,17 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("fecha") && a["fecha"].is_string() && !a["fecha"].get<std::string>().empty() &&
                 !evento::fechaValida(a["fecha"].get<std::string>()))
                 return done(ToolResult::error(
-                    "La fecha tiene que ser un dia que exista, en formato YYYY-MM-DD (llego: " +
-                    a["fecha"].get<std::string>() + ")."));
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "La fecha tiene que ser un dia que exista, en formato YYYY-MM-DD (llego: %1)."),
+                      {a["fecha"].get<std::string>()})));
             if (a.contains("inicio") && a["inicio"].is_string() && !a["inicio"].get<std::string>().empty() &&
                 !evento::horaValida(a["inicio"].get<std::string>()))
-                return done(ToolResult::error("La hora tiene que estar en formato HH:MM (llego: " +
-                                              a["inicio"].get<std::string>() + ")."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La hora tiene que estar en formato HH:MM (llego: %1)."),
+                                                {a["inicio"].get<std::string>()})));
             if (a.contains("huso") && a["huso"].is_string() && !a["huso"].get<std::string>().empty() &&
                 !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
-                return done(ToolResult::error("No conozco ese huso horario: " + a["huso"].get<std::string>() +
-                                              ". Va el nombre IANA, como America/Argentina/Buenos_Aires."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco ese huso horario: %1. Va el nombre IANA, como "
+                                                  "America/Argentina/Buenos_Aires."),
+                                                {a["huso"].get<std::string>()})));
             if (const std::string e = errorDeIdioma(a); !e.empty()) return done(ToolResult::error(e));
             if (a.contains("nombre")) ev.setNombre(QString::fromStdString(a["nombre"]));
             if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
@@ -1386,9 +1399,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (accion == "arrancar") {
                 // La misma revisión previa que la GUI: con problemas graves no arranca sin `forzar`.
                 if (const int graves = ev.arrancarRevisando(a.value("forzar", false)); graves > 0)
-                    return done(ToolResult::error("La revisión encontró " + std::to_string(graves) +
-                                                  " problema(s) grave(s): mirá evento_revisar (o evento_verificar) "
-                                                  "y corregilos, o repetí con `forzar`: true."));
+                    return done(ToolResult::error(ba::i18n::traducir(
+                        "mcp",
+                        "La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) "
+                        "y corregilo, o repetí con `forzar`: true.",
+                        nullptr, graves)));
             }
             else if (accion == "siguiente")
                 ev.avanzar();
@@ -1403,7 +1418,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             else if (accion == "parar")
                 ev.parar();
             else
-                return done(ToolResult::error("Accion desconocida: " + accion));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Accion desconocida: %1"), {accion})));
 
             const auto mapa = [](const QVariantMap& m) {
                 json o = json::object();
@@ -1467,9 +1482,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (!id.empty()) {
                 // Solo letras, números y guiones: es un nombre de archivo.
                 if (id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-") != std::string::npos)
-                    return done(ToolResult::error("id inválido: " + id));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "id inválido: %1"), {id})));
                 guia = leer(":/escenarios/" + QString::fromStdString(id) + ".md");
-                if (guia.isEmpty()) return done(ToolResult::error("no hay una guía «" + id + "» (evento_escenarios)"));
+                if (guia.isEmpty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una guía «%1» (evento_escenarios)"), {id})));
             }
             done(ToolResult::ok((comun + (guia.isEmpty() ? QString() : "\n\n---\n\n" + guia)).toStdString()));
         };
@@ -1515,7 +1530,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"fecha", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "YYYY-MM-DD")}}},
               {"inicio", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "HH:MM")}}},
               {"huso", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "nombre IANA")}}},
-              {"idioma", kIdiomaEsquema},
+              {"idioma", idiomaEsquema()},
               {"nota", {{"type", "string"}}},
               {"invitados", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "usa invitados en la conferencia (videoconferencia por WebRTC)")}}},
               {"preguntas", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "el público puede preguntar y votar")}}},
@@ -1565,7 +1580,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "La hora tiene que estar en HH:MM.")));
             if (a.contains("huso") && !a["huso"].get<std::string>().empty() &&
                 !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
-                return done(ToolResult::error("No conozco ese huso: " + a["huso"].get<std::string>() + "."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco ese huso: %1."), {a["huso"].get<std::string>()})));
             if (const std::string e = errorDeIdioma(a); !e.empty()) return done(ToolResult::error(e));
 
             const QString carpeta = ev.crear(QString::fromStdString(nombre));
@@ -1616,10 +1631,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 }
 
             ToolResult r;
-            r.text("Evento «" + nombre + "» armado: " + std::to_string(nBloques) + " bloque(s), " +
-                   std::to_string(nCues) + " cue(s) y " + std::to_string(nGente) +
-                   " persona(s) en el padron. NO esta al aire: revisalo con `evento_revisar` y "
-                   "contale al operador lo que salga.");
+            //: %1 es el nombre del evento; %2, %3 y %4, «N bloques», «N cues» y «N personas» (ver abajo)
+            r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Evento «%1» armado: %2, %3 y %4 en el padron. NO esta al aire: revisalo con "
+                       "`evento_revisar` y contale al operador lo que salga."),
+                     {nombre, ba::i18n::traducir("mcp", "%n bloque", nullptr, nBloques),
+                      ba::i18n::traducir("mcp", "%n cue", nullptr, nCues),
+                      ba::i18n::traducir("mcp", "%n persona", nullptr, nGente)}));
             r.structured = json{{"carpeta", carpeta.toStdString()},
                                 {"bloques", nBloques},
                                 {"cues", nCues},
@@ -1630,10 +1647,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 const json asam = revisarAsamblea(vm, vm.runtime());
                 r.structured["asamblea"] = asam;
                 if (!asam.value("listo", true)) {
-                    std::string t = "\n\nPara sesionar todavía falta (asamblea_revisar):";
+                    std::string t = "\n\n" + ba::i18n::traducir("mcp", "Para sesionar todavía falta (asamblea_revisar):");
                     for (const auto& f : asam["faltas"])
                         t += "\n- " + f.value("detalle", std::string()) + " → " + f.value("como", std::string());
-                    t += "\nDecíselo al operador y ofrecé arreglarlo (asamblea_escenas_base arma las escenas).";
+                    t += "\n" + ba::i18n::traducir("mcp", "Decíselo al operador y ofrecé arreglarlo (asamblea_escenas_base arma las escenas).");
                     r.text(t);
                 }
             }
@@ -1744,16 +1761,16 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         if (!a.value("dejarPasarSolo", false)) return false;
         const std::string id = a.value("personaId", std::string());
         if (id.empty()) {
-            motivo = "Para que alguien entre solo hace falta su ficha de rostro (`personaId`): sin cara no "
+            motivo = ba::i18n::traducir("mcp", "Para que alguien entre solo hace falta su ficha de rostro (`personaId`): sin cara no "
                      "hay con que reconocerlo, y entraria por haber ESCRITO un nombre, que es lo que no se "
-                     "quiere. `rostro_listar` da las fichas.";
+                     "quiere. `rostro_listar` da las fichas.");
             return true;
         }
         const auto [existe, nombre] = fichaDe ? fichaDe(id) : std::pair{true, std::string()};
         if (!existe) {
-            motivo = "No hay ninguna ficha con id '" + id +
-                     "' en la libreta de rostros. `rostro_listar` los da; si esa persona todavia no "
-                     "esta, dale de alta con `rostro_guardar` primero.";
+            motivo = ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ninguna ficha con id '%1' en la libreta de rostros. `rostro_listar` los da; si "
+                         "esa persona todavia no esta, dale de alta con `rostro_guardar` primero."),
+                       {id});
             return true;
         }
         return false;
@@ -1866,7 +1883,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             if (id.isEmpty())
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo anotar (hace falta al menos el nombre).")));
             ToolResult r;
-            r.text("Anotado: " + a.value("nombre", std::string()) + ".");
+            r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Anotado: %1."), {a.value("nombre", std::string())}));
             r.structured = json{{"id", id.toStdString()}, {"resumen", resumenDe(ev)}};
             done(r);
         };
@@ -1963,7 +1980,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
                     : ev.acreditar(id, QString::fromStdString(a.value("porDonde", std::string("mostrador"))));
             if (!hecho) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo: esa persona ya no esta en el padron.")));
             ToolResult r;
-            r.text(seFue ? "Marcado que se fue." : "Acreditado.");
+            r.text(seFue ? ba::i18n::traducir("mcp", "Marcado que se fue.") : ba::i18n::traducir("mcp", "Acreditado."));
             r.structured = json{{"id", id.toStdString()}, {"resumen", resumenDe(ev)}};
             done(r);
         };

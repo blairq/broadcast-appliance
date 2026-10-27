@@ -49,6 +49,7 @@ using socket_t = SOCKET;
 using socket_t = int;
 #endif
 
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
 
@@ -236,10 +237,13 @@ HttpReply post(const Target& t, const std::string& session, const std::string& r
 } // namespace
 
 int main(int argc, char** argv) {
+    // Lo que dice el puente (a la persona o al modelo) va en el idioma del operador, como la app.
+    ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(ba::platform::dataRoot()));
     if (argc > 1 && std::string(argv[1]) == "--token") {
         const std::string token = storedToken();
         if (token.empty()) {
-            std::fprintf(stderr, "ba-mcp: todavia no hay token (abri la app una vez con el MCP activado)\n");
+            std::fprintf(stderr, "ba-mcp: %s\n",
+                         ba::i18n::traducir("mcp", "todavia no hay token (abri la app una vez con el MCP activado)").c_str());
             return 1;
         }
         std::printf("%s\n", token.c_str());
@@ -273,9 +277,9 @@ int main(int argc, char** argv) {
             Target t;
             if (!findTarget(t)) {
                 writeError(
-                    id, "Broadcast Appliance no esta abierto (no encuentro Runtime/mcp.json dentro del "
+                    id, ba::i18n::traducir("mcp", "Broadcast Appliance no esta abierto (no encuentro Runtime/mcp.json dentro del "
                         "bundle). Abri la app (con el servidor MCP activado en Configuracion -> Asistente) "
-                        "y reintenta.");
+                        "y reintenta."));
             } else {
                 std::string sid;
                 {
@@ -293,10 +297,10 @@ int main(int argc, char** argv) {
                 } else if (r.status == 202) {
                     // notificacion aceptada
                 } else if (r.status == 401) {
-                    writeError(id, "Token rechazado por la app (cambio Credenciales/mcp-token.cred?).");
+                    writeError(id, ba::i18n::traducir("mcp", "Token rechazado por la app (cambio Credenciales/mcp-token.cred?)."));
                 } else {
-                    writeError(id, "La app no respondio (" +
-                                       (r.status == 0 ? r.error : "HTTP " + std::to_string(r.status)) + ").");
+                    writeError(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "La app no respondio (%1)."),
+                                     {r.status == 0 ? r.error : "HTTP " + std::to_string(r.status)}));
                 }
             }
             std::lock_guard<std::mutex> lk(pendingLock);
