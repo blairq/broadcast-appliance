@@ -56,6 +56,9 @@ class Calibracion : public QObject {
     Q_PROPERTY(QString estado READ estado NOTIFY estadoCambio)
     /// Qué está pasando o qué pasó (el último error también).
     Q_PROPERTY(QString mensaje READ mensaje NOTIFY estadoCambio)
+    /// El mensaje es un aviso (no se pudo medir, señal/ruido baja): la vista lo pinta
+    /// distinto. Una marca y no el texto, que sale traducido.
+    Q_PROPERTY(bool mensajeAviso READ mensajeAviso NOTIFY estadoCambio)
     /// El análisis, la propuesta y la verificación (se rehacen con cada medición).
     Q_PROPERTY(QVariantMap analisis READ analisis NOTIFY analisisCambio)
     Q_PROPERTY(QVariantMap propuesta READ propuesta NOTIFY analisisCambio)
@@ -84,6 +87,7 @@ class Calibracion : public QObject {
     QVariantList sesiones() const;
     QString estado() const { return estado_; }
     QString mensaje() const { return mensaje_; }
+    bool mensajeAviso() const { return mensajeAviso_; }
     QVariantMap analisis() const;
     QVariantMap propuesta() const;
     QVariantMap verificacion() const;
@@ -170,7 +174,7 @@ class Calibracion : public QObject {
     std::filesystem::path carpeta() const;
     void guardar();
     void rehacerAnalisis();
-    void setEstado(const QString& e, const QString& m);
+    void setEstado(const QString& e, const QString& m, bool aviso = false);
     void terminarMedicion(json med, std::vector<float> ir, QString error);
 
     std::filesystem::path root_;
@@ -180,6 +184,7 @@ class Calibracion : public QObject {
     json ultima_;
     std::string ultimoId_;
     QString estado_, mensaje_;
+    bool mensajeAviso_ = false;
     QString vista_ = "respuesta";
     QVariantList salidas_, entradas_;
     RackManager* racks_ = nullptr;

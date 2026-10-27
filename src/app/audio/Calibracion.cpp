@@ -209,9 +209,10 @@ std::string Calibracion::idNuevo(const std::string& prefijo) const {
     return prefijo + std::to_string(max + 1);
 }
 
-void Calibracion::setEstado(const QString& e, const QString& m) {
+void Calibracion::setEstado(const QString& e, const QString& m, bool aviso) {
     estado_ = e;
     mensaje_ = m;
+    mensajeAviso_ = aviso;
     emit estadoCambio();
 }
 
@@ -491,7 +492,7 @@ void Calibracion::cancelar() {
 void Calibracion::terminarMedicion(json med, std::vector<float> ir, QString error) {
     lazo_.reset();
     if (!error.isEmpty() || !s_.is_object()) {
-        setEstado("", tr("No se pudo medir: %1").arg(error));
+        setEstado("", tr("No se pudo medir: %1").arg(error), true);
         emit medicionTerminada({}, error);
         return;
     }
@@ -514,7 +515,8 @@ void Calibracion::terminarMedicion(json med, std::vector<float> ir, QString erro
     if (snr < 40)
         setEstado("", tr("Medido: directo a %1 ms, RT60 %2 s — relación señal/ruido baja (%3 dB): subí el nivel o "
                          "bajá el ruido y repetí")
-                          .arg(directo, rt60, QString::number(snr, 'f', 0)));
+                          .arg(directo, rt60, QString::number(snr, 'f', 0)),
+                  true);
     else
         setEstado("", tr("Medido: directo a %1 ms, RT60 %2 s").arg(directo, rt60));
     emit sesionCambio();
