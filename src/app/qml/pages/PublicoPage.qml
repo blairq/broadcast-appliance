@@ -40,13 +40,13 @@ Rectangle {
                 ColumnLayout {
                     spacing: 0
                     Text {
-                        text: "Público"
+                        text: qsTr("Público")
                         color: Theme.text
                         font { pixelSize: 17; weight: Font.DemiBold }
                     }
                     Text {
-                        text: "El que está en la butaca, con su teléfono. No entra a la conferencia: no " +
-                              "pide cámara ni micrófono."
+                        text: qsTr("El que está en la butaca, con su teléfono. No entra a la conferencia: no " +
+                              "pide cámara ni micrófono.")
                         color: Theme.textDim
                         font.pixelSize: 12
                     }
@@ -54,17 +54,17 @@ Rectangle {
                 Item { Layout.fillWidth: true }
                 Text {
                     visible: !page.pub.enLinea
-                    text: "Sin conexión con el servidor"
+                    text: qsTr("Sin conexión con el servidor")
                     color: Theme.live
                     font.pixelSize: 12
                 }
                 GlassButton {
-                    text: "QR para proyectar"
+                    text: qsTr("QR para proyectar")
                     icon: "⊞"
                     onClicked: { page.pub.pedirEnlace(false); qrDlg.open() }
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "El enlace con la clave adentro, para proyectar o imprimir en el programa"
+                    ToolTip.text: qsTr("El enlace con la clave adentro, para proyectar o imprimir en el programa")
                 }
             }
         }
@@ -79,13 +79,13 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: 380
-                title: "Preguntas"
+                title: qsTr("Preguntas")
                 PanelPreguntas { anchors.fill: parent }
             }
             Panel {
                 Layout.preferredWidth: 480
                 Layout.fillHeight: true
-                title: "Votación"
+                title: qsTr("Votación")
                 PanelVotacion { anchors.fill: parent }
             }
         }
@@ -97,7 +97,7 @@ Rectangle {
         id: qrDlg
         anchors.centerIn: Overlay.overlay
         modal: true
-        title: "Para que el público pregunte y vote"
+        title: qsTr("Para que el público pregunte y vote")
         standardButtons: Dialog.Close
         // Sin `anchors.fill: parent`: el Dialog se mide por su contenido, y
         // atar el contenido al tamaño del Dialog es un bucle de bindings.
@@ -138,7 +138,7 @@ Rectangle {
                 Layout.preferredWidth: 300
                 wrapMode: Text.WordWrap
                 color: Theme.warn; font.pixelSize: 12
-                text: (page.pub.enlace && page.pub.enlace.mensaje) || "No hay enlace."
+                text: (page.pub.enlace && page.pub.enlace.mensaje) || qsTr("No hay enlace.")
             }
             RowLayout {
                 Layout.preferredWidth: 300
@@ -152,7 +152,7 @@ Rectangle {
                     text: (page.pub.enlace && page.pub.enlace.url) || "…"
                 }
                 GlassButton {
-                    text: "Copiar"
+                    text: qsTr("Copiar")
                     compact: true
                     onClicked: { campoUrl.selectAll(); Studio.copiar(campoUrl.text) }
                 }
@@ -160,9 +160,9 @@ Rectangle {
             Text {
                 Layout.preferredWidth: 300
                 wrapMode: Text.WordWrap
-                text: "Lleva la clave adentro a propósito: pedirle a doscientas personas que tipeen " +
+                text: qsTr("Lleva la clave adentro a propósito: pedirle a doscientas personas que tipeen " +
                       "una clave es perder a la mitad. Este QR NO acredita a nadie — el que acredita " +
-                      "es el personal de cada invitación."
+                      "es el personal de cada invitación.")
                 color: Theme.textDim
                 font.pixelSize: 11
             }

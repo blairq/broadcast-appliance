@@ -49,22 +49,22 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Teleprompter"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: qsTr("Teleprompter"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             StatusPill {
-                text: page.p.enLinea ? (page.est.corriendo ? "corriendo" : "listo") : "sin servidor"
+                text: page.p.enLinea ? (page.est.corriendo ? qsTr("corriendo") : qsTr("listo")) : qsTr("sin servidor")
                 dot: page.p.enLinea ? (page.est.corriendo ? Theme.live : Theme.ok) : Theme.textFaint
                 pulse: page.est.corriendo === true
-                medidaDe: "corriendo"
+                medidaDe: qsTr("corriendo")
             }
             StatusPill {
-                text: page.p.oradores + " en el atril"
+                text: qsTr("%n en el atril", "", page.p.oradores)
                 dot: page.p.oradores > 0 ? Theme.ok : Theme.textFaint
-                medidaDe: "0 en el atril"
+                medidaDe: qsTr("%n en el atril", "", 0)
             }
             StatusPill {
-                text: page.p.controles + " con el control"
+                text: qsTr("%n con el control", "", page.p.controles)
                 dot: page.p.controles > 0 ? Theme.ok : Theme.textFaint
-                medidaDe: "0 con el control"
+                medidaDe: qsTr("%n con el control", "", 0)
             }
             // «Voz del teleprompter»: el guion en voz alta, al ritmo del teleprompter.
             // Es una fuente de audio (Audio, Matriz): de fábrica, solo en los auriculares.
@@ -72,14 +72,14 @@ Rectangle {
                 visible: !!Studio.vozPrompter
                 compact: true
                 icon: "🗣"
-                text: Studio.vozPrompter && Studio.vozPrompter.activa ? "Leyendo en voz alta" : "Leer en voz alta"
+                text: Studio.vozPrompter && Studio.vozPrompter.activa ? qsTr("Leyendo en voz alta") : qsTr("Leer en voz alta")
                 active: !!Studio.vozPrompter && Studio.vozPrompter.activa
                 onClicked: Studio.vozPrompter.activa = !Studio.vozPrompter.activa
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: (Studio.vozPrompter ? Studio.vozPrompter.estado + ". " : "") +
-                              "Dice el texto siguiendo los controles del teleprompter (velocidad, pausa, saltos). " +
+                              qsTr("Dice el texto siguiendo los controles del teleprompter (velocidad, pausa, saltos). " +
                               "Suena por la fuente «Voz del teleprompter»: en Audio se le ponen filtros y en la " +
-                              "Matriz se rutea; de fábrica, solo en tus auriculares."
+                              "Matriz se rutea; de fábrica, solo en tus auriculares.")
             }
             Item { Layout.fillWidth: true }
             Text {
@@ -107,16 +107,16 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "Discursos"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text { text: qsTr("Discursos"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                         Item { Layout.fillWidth: true }
                         GlassButton {
-                            compact: true; icon: "🗀"; text: "Carpeta"
+                            compact: true; icon: "🗀"; text: qsTr("Carpeta")
                             enabled: page.p.sinEvento === ""
                             onClicked: nuevaCarpeta.open()
-                            ToolTip.visible: hovered; ToolTip.text: "Crear una carpeta acá"
+                            ToolTip.visible: hovered; ToolTip.text: qsTr("Crear una carpeta acá")
                         }
                         GlassButton {
-                            compact: true; icon: "+"; text: "Nuevo"
+                            compact: true; icon: "+"; text: qsTr("Nuevo")
                             enabled: page.p.sinEvento === ""
                             active: true
                             onClicked: nuevoDoc.open()
@@ -129,7 +129,7 @@ Rectangle {
                         Layout.fillWidth: true
                         model: page.p.carpetas
                         visible: page.p.carpetas.length > 1
-                        displayText: currentIndex <= 0 ? "Discursos/ (todo lo de la raíz)" : currentText
+                        displayText: currentIndex <= 0 ? qsTr("%1 (todo lo de la raíz)").arg("Discursos/") : currentText
                         currentIndex: page.p.carpetas.indexOf(page.p.carpeta)
                         onActivated: (i) => page.p.carpeta = page.p.carpetas[i]
                     }
@@ -180,42 +180,42 @@ Rectangle {
                                         elide: Text.ElideRight
                                     }
                                     Text {
-                                        text: doc.modelData.palabras + " palabras · " + page.mmss(doc.modelData.duracionSeg) +
+                                        text: qsTr("%n palabra · %1", "", doc.modelData.palabras).arg(page.mmss(doc.modelData.duracionSeg)) +
                                               " · " + doc.modelData.modificado
                                         color: Theme.textFaint; font.pixelSize: 10
                                     }
                                 }
                                 GlassButton {
-                                    compact: true; text: "Cargar"
+                                    compact: true; text: qsTr("Cargar")
                                     visible: raton.containsMouse || doc.modelData.cargado
                                     onClicked: page.chequear(page.p.cargar(doc.modelData.rel),
-                                                             "«" + doc.modelData.nombre + "» está en el teleprompter")
+                                                             qsTr("«%1» está en el teleprompter").arg(doc.modelData.nombre))
                                     ToolTip.visible: hovered
-                                    ToolTip.text: "Lo manda al teleprompter. Queda listo, pero parado."
+                                    ToolTip.text: qsTr("Lo manda al teleprompter. Queda listo, pero parado.")
                                 }
                             }
                             Menu {
                                 id: menu
                                 MenuItem {
-                                    text: "Renombrar…"
+                                    text: qsTr("Renombrar…")
                                     onTriggered: { renombrar.rel = doc.modelData.rel; renombrar.open() }
                                 }
                                 Menu {
                                     id: menuMover
-                                    title: "Mover a…"
+                                    title: qsTr("Mover a…")
                                     enabled: page.p.carpetas.length > 1
                                     ItemsDeMenu {
                                         menu: menuMover
                                         model: page.p.carpetas
                                         delegate: MenuItem {
                                             required property string modelData
-                                            text: modelData === "" ? "Discursos/ (raíz)" : modelData
+                                            text: modelData === "" ? qsTr("%1 (raíz)").arg("Discursos/") : modelData
                                             onTriggered: page.chequear(page.p.mover(doc.modelData.rel, modelData))
                                         }
                                     }
                                 }
                                 MenuItem {
-                                    text: "Borrar"
+                                    text: qsTr("Borrar")
                                     onTriggered: { borrar.rel = doc.modelData.rel; borrar.open() }
                                 }
                             }
@@ -227,8 +227,8 @@ Rectangle {
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                             color: Theme.textFaint; font.pixelSize: 11
-                            text: page.p.sinEvento !== "" ? "Sin evento abierto."
-                                : "No hay discursos en esta carpeta. «Nuevo» crea uno."
+                            text: page.p.sinEvento !== "" ? qsTr("Sin evento abierto.")
+                                : qsTr("No hay discursos en esta carpeta. «Nuevo» crea uno.")
                         }
                     }
                 }
@@ -247,7 +247,7 @@ Rectangle {
                         spacing: 8
                         Text {
                             Layout.fillWidth: true
-                            text: page.p.abierto === "" ? "Ningún documento abierto"
+                            text: page.p.abierto === "" ? qsTr("Ningún documento abierto")
                                 : page.p.abierto + (page.p.sucio ? " •" : "")
                             color: page.p.sucio ? Theme.warn : Theme.text
                             font { pixelSize: 13; weight: Font.DemiBold }
@@ -255,21 +255,21 @@ Rectangle {
                         }
                         Text {
                             visible: page.p.abierto !== ""
-                            text: page.p.palabras + " palabras · " + page.mmss(page.p.duracionSeg) + " leyendo"
+                            text: qsTr("%n palabra · %1 leyendo", "", page.p.palabras).arg(page.mmss(page.p.duracionSeg))
                             color: Theme.textDim; font.pixelSize: 11
                         }
                         GlassButton {
-                            compact: true; text: "Guardar"; icon: "↓"
+                            compact: true; text: qsTr("Guardar"); icon: "↓"
                             enabled: page.p.sucio
-                            onClicked: page.chequear(page.p.guardar(), "Guardado")
+                            onClicked: page.chequear(page.p.guardar(), qsTr("Guardado"))
                         }
                         GlassButton {
-                            compact: true; text: "Mandar al prompter"; icon: "▤"
+                            compact: true; text: qsTr("Mandar al prompter"); icon: "▤"
                             active: true
                             enabled: page.p.abierto !== ""
-                            onClicked: page.chequear(page.p.cargarDelEditor(), "Mandado, y parado")
+                            onClicked: page.chequear(page.p.cargarDelEditor(), qsTr("Mandado, y parado"))
                             ToolTip.visible: hovered
-                            ToolTip.text: "Manda lo que ves acá, sin guardarlo primero. Queda listo, pero parado."
+                            ToolTip.text: qsTr("Manda lo que ves acá, sin guardarlo primero. Queda listo, pero parado.")
                         }
                     }
 
@@ -289,9 +289,9 @@ Rectangle {
                             color: Theme.text
                             font { family: Theme.font; pixelSize: 15 }
                             placeholderText: page.p.abierto === ""
-                                ? "Abrí un discurso de la izquierda, o creá uno nuevo."
-                                : "Escribí el discurso. Un renglón vacío separa párrafos, y el control " +
-                                  "puede saltar de uno a otro."
+                                ? qsTr("Abrí un discurso de la izquierda, o creá uno nuevo.")
+                                : qsTr("Escribí el discurso. Un renglón vacío separa párrafos, y el control " +
+                                  "puede saltar de uno a otro.")
                             onTextChanged: if (text !== page.p.texto) page.p.editar(text)
                             background: Rectangle { color: "transparent" }
                         }
@@ -321,7 +321,7 @@ Rectangle {
 
                         Text {
                             Layout.fillWidth: true
-                            text: page.est.titulo ? page.est.titulo : "Sin discurso cargado"
+                            text: page.est.titulo ? page.est.titulo : qsTr("Sin discurso cargado")
                             color: page.est.titulo ? Theme.text : Theme.textFaint
                             font { pixelSize: 13; weight: Font.DemiBold }
                             elide: Text.ElideMiddle
@@ -344,7 +344,7 @@ Rectangle {
                             }
                             Item { Layout.fillWidth: true }
                             Text {
-                                text: page.est.palabras > 0 ? "faltan " + page.mmss(page.p.faltaSeg) : ""
+                                text: page.est.palabras > 0 ? qsTr("faltan %1").arg(page.mmss(page.p.faltaSeg)) : ""
                                 color: Theme.textDim; font.pixelSize: 11
                             }
                         }
@@ -354,25 +354,25 @@ Rectangle {
                             spacing: 8
                             GlassButton {
                                 Layout.fillWidth: true
-                                text: page.est.corriendo ? "Parar" : "Arrancar"
+                                text: page.est.corriendo ? qsTr("Parar") : qsTr("Arrancar")
                                 icon: page.est.corriendo ? "⏸" : "▶"
                                 active: !page.est.corriendo
                                 enabled: page.p.enLinea && page.est.palabras > 0
                                 onClicked: page.p.arrancar(!page.est.corriendo)
                             }
                             GlassButton {
-                                text: "PARÁ AHÍ"
+                                text: qsTr("PARÁ AHÍ")
                                 enabled: page.p.enLinea
                                 onClicked: page.p.panico()
                                 ToolTip.visible: hovered
-                                ToolTip.text: "Para en seco sin mover la posición: se retoma justo ahí"
+                                ToolTip.text: qsTr("Para en seco sin mover la posición: se retoma justo ahí")
                             }
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 6
-                            Text { text: "Velocidad"; color: Theme.textDim; font.pixelSize: 11 }
+                            Text { text: qsTr("Velocidad"); color: Theme.textDim; font.pixelSize: 11 }
                             Item { Layout.fillWidth: true }
                             GlassButton {
                                 compact: true; text: "−"
@@ -394,26 +394,26 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 6
                             GlassButton {
-                                compact: true; text: "⏮ Principio"
+                                compact: true; text: qsTr("⏮ Principio")
                                 enabled: page.p.enLinea
                                 onClicked: page.p.irA(0)
                             }
                             GlassButton {
-                                compact: true; text: "⇄ Espejo"
+                                compact: true; text: qsTr("⇄ Espejo")
                                 active: page.est.espejo === true
                                 enabled: page.p.enLinea
                                 onClicked: page.p.setEspejo(!page.est.espejo)
                                 ToolTip.visible: hovered
-                                ToolTip.text: "Para el vidrio del teleprompter"
+                                ToolTip.text: qsTr("Para el vidrio del teleprompter")
                             }
                         }
 
-                        Text { text: "Avisarle al orador"; color: Theme.textDim; font.pixelSize: 11 }
+                        Text { text: qsTr("Avisarle al orador"); color: Theme.textDim; font.pixelSize: 11 }
                         Flow {
                             Layout.fillWidth: true
                             spacing: 5
                             Repeater {
-                                model: ["Redondeá", "Más despacio", "Se escucha bajo", "Mirá a cámara"]
+                                model: [qsTr("Redondeá"), qsTr("Más despacio"), qsTr("Se escucha bajo"), qsTr("Mirá a cámara")]
                                 delegate: GlassButton {
                                     required property string modelData
                                     compact: true
@@ -436,20 +436,20 @@ Rectangle {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Conectados"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                            Text { text: qsTr("Conectados"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
                             Item { Layout.fillWidth: true }
                             GlassButton {
-                                compact: true; icon: "▦"; text: "Atril"
+                                compact: true; icon: "▦"; text: qsTr("Atril")
                                 onClicked: { qr.vista = "orador"; qr.ofreceClave = false; qr.mostrar("local", false) }
                                 ToolTip.visible: hovered
-                                ToolTip.text: "QR de la pantalla del orador (solo lee: no lleva clave)"
+                                ToolTip.text: qsTr("QR de la pantalla del orador (solo lee: no lleva clave)")
                             }
                             GlassButton {
-                                compact: true; icon: "▦"; text: "Control"
+                                compact: true; icon: "▦"; text: qsTr("Control")
                                 active: true
                                 onClicked: { qr.vista = "control"; qr.ofreceClave = true; qr.mostrar("local", true) }
                                 ToolTip.visible: hovered
-                                ToolTip.text: "QR del control, con su clave"
+                                ToolTip.text: qsTr("QR del control, con su clave")
                             }
                         }
 
@@ -473,11 +473,11 @@ Rectangle {
                                     spacing: 0
                                     Text {
                                         text: modelData.nombre !== "" ? modelData.nombre
-                                            : (modelData.vista === "orador" ? "Pantalla del orador" : "Control")
+                                            : (modelData.vista === "orador" ? qsTr("Pantalla del orador") : qsTr("Control"))
                                         color: Theme.text; font.pixelSize: 12
                                     }
                                     Text {
-                                        text: modelData.ip + " · " + (modelData.vista === "orador" ? "atril" : "control")
+                                        text: modelData.ip + " · " + (modelData.vista === "orador" ? qsTr("atril") : qsTr("control"))
                                         color: Theme.textFaint; font.pixelSize: 10
                                     }
                                 }
@@ -490,15 +490,15 @@ Rectangle {
                                 wrapMode: Text.WordWrap
                                 color: Theme.textFaint; font.pixelSize: 11
                                 text: page.p.enLinea
-                                    ? "Nadie conectado. Los QR de arriba abren la pantalla del atril y el control."
-                                    : "El servidor no está corriendo: sin él no hay teleprompter."
+                                    ? qsTr("Nadie conectado. Los QR de arriba abren la pantalla del atril y el control.")
+                                    : qsTr("El servidor no está corriendo: sin él no hay teleprompter.")
                             }
                         }
 
                         Text {
                             Layout.fillWidth: true
                             visible: page.p.clave !== ""
-                            text: "Clave del control: " + page.p.clave
+                            text: qsTr("Clave del control: %1").arg(page.p.clave)
                             color: Theme.textFaint
                             font { pixelSize: 10; family: "JetBrains Mono" }
                             wrapMode: Text.WrapAnywhere
@@ -513,15 +513,15 @@ Rectangle {
     QrDialog {
         id: qr
         fuente: page.p
-        title: vista === "orador" ? "Pantalla del orador" : "Control del teleprompter"
-        avisoSinClave: "Sin la clave adentro, el QR abre el control y la pide. Decísela vos:"
+        title: vista === "orador" ? qsTr("Pantalla del orador") : qsTr("Control del teleprompter")
+        avisoSinClave: qsTr("Sin la clave adentro, el QR abre el control y la pide. Decísela vos:")
     }
 
     Dialog {
         id: nuevoDoc
         anchors.centerIn: parent
         modal: true
-        title: "Discurso nuevo"
+        title: qsTr("Discurso nuevo")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { nombreDoc.text = ""; nombreDoc.forceActiveFocus() }
         onAccepted: page.chequear(page.p.crear(nombreDoc.text))
@@ -529,12 +529,12 @@ Rectangle {
             TextField {
                 id: nombreDoc
                 Layout.preferredWidth: 320
-                placeholderText: "Palabras de apertura"
+                placeholderText: qsTr("Palabras de apertura")
                 color: Theme.text
                 onAccepted: nuevoDoc.accept()
             }
             Text {
-                text: "Se crea en " + (page.p.carpeta === "" ? "Discursos/" : "Discursos/" + page.p.carpeta)
+                text: qsTr("Se crea en %1").arg(page.p.carpeta === "" ? "Discursos/" : "Discursos/" + page.p.carpeta)
                 color: Theme.textFaint; font.pixelSize: 11
             }
         }
@@ -544,14 +544,14 @@ Rectangle {
         id: nuevaCarpeta
         anchors.centerIn: parent
         modal: true
-        title: "Carpeta nueva"
+        title: qsTr("Carpeta nueva")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { nombreCarpeta.text = ""; nombreCarpeta.forceActiveFocus() }
         onAccepted: page.chequear(page.p.crearCarpeta(nombreCarpeta.text))
         TextField {
             id: nombreCarpeta
             width: 320
-            placeholderText: "Apertura"
+            placeholderText: qsTr("Apertura")
             color: Theme.text
             onAccepted: nuevaCarpeta.accept()
         }
@@ -561,7 +561,7 @@ Rectangle {
         id: renombrar
         anchors.centerIn: parent
         modal: true
-        title: "Renombrar"
+        title: qsTr("Renombrar")
         standardButtons: Dialog.Ok | Dialog.Cancel
         property string rel: ""
         onOpened: { nombreNuevo.text = rel.split("/").pop(); nombreNuevo.forceActiveFocus() }
@@ -578,7 +578,7 @@ Rectangle {
         id: borrar
         anchors.centerIn: parent
         modal: true
-        title: "¿Borrar el discurso?"
+        title: qsTr("¿Borrar el discurso?")
         standardButtons: Dialog.Yes | Dialog.No
         property string rel: ""
         onAccepted: page.chequear(page.p.borrar(rel))
@@ -586,8 +586,8 @@ Rectangle {
             width: 320
             wrapMode: Text.WordWrap
             color: Theme.text
-            text: "Se borra «" + borrar.rel + "» de la carpeta del evento. Si algún cue del guion lo " +
-                  "usaba, va a quedar señalado en la revisión previa."
+            text: qsTr("Se borra «%1» de la carpeta del evento. Si algún cue del guion lo " +
+                  "usaba, va a quedar señalado en la revisión previa.").arg(borrar.rel)
         }
     }
 
@@ -597,7 +597,7 @@ Rectangle {
         id: confirmarCambio
         anchors.centerIn: parent
         modal: true
-        title: "Hay cambios sin guardar"
+        title: qsTr("Hay cambios sin guardar")
         standardButtons: Dialog.Save | Dialog.Discard | Dialog.Cancel
         property string proximo: ""
         function abrirOtro(rel) { proximo = rel; open() }
@@ -607,7 +607,7 @@ Rectangle {
             width: 340
             wrapMode: Text.WordWrap
             color: Theme.text
-            text: "«" + page.p.abierto + "» tiene cambios que no están en el disco."
+            text: qsTr("«%1» tiene cambios que no están en el disco.").arg(page.p.abierto)
         }
     }
 }

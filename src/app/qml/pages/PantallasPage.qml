@@ -70,12 +70,12 @@ Rectangle {
     function textoDeEstado(d) {
         if (d.trabajando) return "…"
         switch (d.estado) {
-        case "mostrando": return "mostrando"
-        case "libre": return "libre"
-        case "ocupada": return "ocupada: " + d.que
-        case "apagada": return "no contesta"
-        case "error": return "error"
-        default: return "sin consultar"
+        case "mostrando": return qsTr("mostrando")
+        case "libre": return qsTr("libre")
+        case "ocupada": return qsTr("ocupada: %1").arg(d.que)
+        case "apagada": return qsTr("no contesta")
+        case "error": return qsTr("error")
+        default: return qsTr("sin consultar")
         }
     }
     function avisar(t, tipo) { Studio.notify(t, tipo || "error") }
@@ -85,13 +85,13 @@ Rectangle {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
         spacing: 12
 
-        Text { text: "Pantallas"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+        Text { text: qsTr("Pantallas"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
 
         TabBar {
             id: tabs
             Layout.fillWidth: true
-            TabButton { text: "Pantallas locales" }
-            TabButton { text: "Pantallas de red" + (page.p.mostrando > 0 ? " ●" : "") }
+            TabButton { text: qsTr("Pantallas locales") }
+            TabButton { text: qsTr("Pantallas de red") + (page.p.mostrando > 0 ? " ●" : "") }
         }
 
         StackLayout {
@@ -109,18 +109,18 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 10
                     StatusPill {
-                        text: page.p.mostrando > 0 ? page.p.mostrando + " mostrando" : page.p.pantallas.length + " conocidas"
+                        text: page.p.mostrando > 0 ? qsTr("%n mostrando", "", page.p.mostrando) : qsTr("%n conocida", "", page.p.pantallas.length)
                         dot: page.p.mostrando > 0 ? Theme.live : Theme.textFaint
                         pulse: page.p.mostrando > 0
                     }
                     Item { Layout.fillWidth: true }
                     GlassButton {
-                        text: page.p.buscando ? "Buscando…" : "Buscar en la red"
+                        text: page.p.buscando ? qsTr("Buscando…") : qsTr("Buscar en la red")
                         icon: "⟳"
                         enabled: !page.p.buscando
                         onClicked: page.p.buscar()
                     }
-                    GlassButton { text: "Agregar a mano"; icon: "+"; onClicked: aMano.open() }
+                    GlassButton { text: qsTr("Agregar a mano"); icon: "+"; onClicked: aMano.open() }
                 }
 
                 Text {
@@ -142,7 +142,7 @@ Rectangle {
                         ColumnLayout {
                             anchors { fill: parent; margins: 12 }
                             spacing: 8
-                            Text { text: "Dónde"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                            Text { text: qsTr("Dónde"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
 
                             ListView {
                                 id: lista
@@ -184,7 +184,7 @@ Rectangle {
                                                 }
                                                 Text {
                                                     visible: fila.modelData.fija
-                                                    text: "a mano"; color: Theme.textFaint; font.pixelSize: 9
+                                                    text: qsTr("a mano"); color: Theme.textFaint; font.pixelSize: 9
                                                 }
                                             }
                                             Text {
@@ -207,14 +207,14 @@ Rectangle {
                                             // hace falta saberlo.
                                             Text {
                                                 visible: fila.modelData.fijadoTipo !== ""
-                                                text: "📌 fijo: " + page.tituloDe(fila.modelData.fijadoTipo)
+                                                text: qsTr("📌 fijo: %1").arg(page.tituloDe(fila.modelData.fijadoTipo))
                                                 color: Theme.accentSoft; font.pixelSize: 10
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                             }
                                             Text {
                                                 visible: fila.modelData.puedeMostrar === 0
-                                                text: "no sabe mostrar páginas (¿es un parlante?)"
+                                                text: qsTr("no sabe mostrar páginas (¿es un parlante?)")
                                                 color: Theme.warn; font.pixelSize: 10
                                             }
                                             Text {
@@ -226,56 +226,56 @@ Rectangle {
                                             }
                                         }
                                         GlassButton {
-                                            compact: true; text: "Parar"
+                                            compact: true; text: qsTr("Parar")
                                             visible: fila.modelData.estado === "mostrando"
                                             onClicked: page.p.parar(fila.modelData.id)
                                         }
                                         GlassButton {
                                             compact: true; icon: "⋯"
                                             onClicked: menu.popup()
-                                            ToolTip.visible: hovered; ToolTip.text: "Más cosas para esta pantalla"
+                                            ToolTip.visible: hovered; ToolTip.text: qsTr("Más cosas para esta pantalla")
                                         }
                                         Menu {
                                             id: menu
                                             MenuItem {
-                                                text: "Ver cómo está"
+                                                text: qsTr("Ver cómo está")
                                                 enabled: !fila.modelData.trabajando
                                                 onTriggered: page.p.refrescar(fila.modelData.id)
                                             }
                                             MenuItem {
-                                                text: "Renombrar…"
+                                                text: qsTr("Renombrar…")
                                                 onTriggered: { renombrar.id = fila.modelData.id
                                                                renombrar.actual = fila.modelData.nombre
                                                                renombrar.open() }
                                             }
                                             MenuSeparator {}
                                             MenuItem {
-                                                text: "Que muestre siempre este carrusel"
+                                                text: qsTr("Que muestre siempre este carrusel")
                                                 enabled: page.modoCarrusel && page.elegida === fila.modelData.id &&
                                                          page.carruselActual() && page.carruselActual().pasos.length > 0
                                                 onTriggered: page.chequear(
                                                     page.p.fijar(fila.modelData.id, "carrusel:" + page.carrusel, ({})))
                                             }
                                             MenuItem {
-                                                text: "Que muestre siempre esto"
+                                                text: qsTr("Que muestre siempre esto")
                                                 enabled: page.elegida === fila.modelData.id &&
                                                          page.contenidoActual() && page.contenidoActual().disponible
                                                 onTriggered: page.chequear(
                                                     page.p.fijar(fila.modelData.id, page.tipo, page.datos))
                                             }
                                             MenuItem {
-                                                text: "Dejar fijo lo que está mostrando"
+                                                text: qsTr("Dejar fijo lo que está mostrando")
                                                 enabled: fila.modelData.estado === "mostrando"
                                                 onTriggered: page.chequear(page.p.fijarLoQueMuestra(fila.modelData.id))
                                             }
                                             MenuItem {
-                                                text: "No dejar nada fijo"
+                                                text: qsTr("No dejar nada fijo")
                                                 enabled: fila.modelData.fijadoTipo !== ""
                                                 onTriggered: page.chequear(page.p.desfijar(fila.modelData.id))
                                             }
                                             MenuSeparator {}
                                             MenuItem {
-                                                text: "Olvidar esta pantalla"
+                                                text: qsTr("Olvidar esta pantalla")
                                                 onTriggered: page.chequear(page.p.olvidar(fila.modelData.id))
                                             }
                                         }
@@ -288,9 +288,9 @@ Rectangle {
                                     horizontalAlignment: Text.AlignHCenter
                                     wrapMode: Text.WordWrap
                                     color: Theme.textFaint; font.pixelSize: 12
-                                    text: page.p.buscando ? "Buscando en la red…"
-                                        : "Ninguna todavía. «Buscar en la red» encuentra los Chromecast que estén " +
-                                          "prendidos; si el televisor está en otra red, agregalo a mano con su IP."
+                                    text: page.p.buscando ? qsTr("Buscando en la red…")
+                                        : qsTr("Ninguna todavía. «Buscar en la red» encuentra los Chromecast que estén " +
+                                          "prendidos; si el televisor está en otra red, agregalo a mano con su IP.")
                                 }
                             }
                         }
@@ -306,19 +306,19 @@ Rectangle {
                             spacing: 8
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Qué mostrar"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                                Text { text: qsTr("Qué mostrar"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                                 Item { Layout.fillWidth: true }
                                 GlassButton {
-                                    compact: true; text: "Una cosa"
+                                    compact: true; text: qsTr("Una cosa")
                                     active: !page.modoCarrusel
                                     onClicked: page.modoCarrusel = false
                                 }
                                 GlassButton {
-                                    compact: true; text: "Carrusel"
+                                    compact: true; text: qsTr("Carrusel")
                                     active: page.modoCarrusel
                                     onClicked: page.modoCarrusel = true
                                     ToolTip.visible: hovered
-                                    ToolTip.text: "Varias cosas rotando en la misma pantalla"
+                                    ToolTip.text: qsTr("Varias cosas rotando en la misma pantalla")
                                 }
                             }
 
@@ -336,7 +336,7 @@ Rectangle {
                                         model: page.p.carruseles
                                         textRole: "nombre"
                                         enabled: page.p.carruseles.length > 0
-                                        displayText: page.p.carruseles.length === 0 ? "Ninguno todavía" : currentText
+                                        displayText: page.p.carruseles.length === 0 ? qsTr("Ninguno todavía") : currentText
                                         currentIndex: { for (let i = 0; i < page.p.carruseles.length; ++i) if (page.p.carruseles[i].id === page.carrusel) return i; return 0 }
                                         onActivated: (i) => page.carrusel = page.p.carruseles[i].id
                                     }
@@ -346,9 +346,9 @@ Rectangle {
                                     Layout.fillWidth: true
                                     visible: page.carruselActual() !== null
                                     text: page.carruselActual()
-                                        ? page.carruselActual().pasos.length + " pasos · la vuelta entera dura " +
-                                          Math.floor(page.carruselActual().vueltaSeg / 60) + ":" +
-                                          String(page.carruselActual().vueltaSeg % 60).padStart(2, "0")
+                                        ? qsTr("%n paso · la vuelta entera dura %1", "", page.carruselActual().pasos.length)
+                                          .arg(Math.floor(page.carruselActual().vueltaSeg / 60) + ":" +
+                                               String(page.carruselActual().vueltaSeg % 60).padStart(2, "0"))
                                         : ""
                                     color: Theme.textDim; font.pixelSize: 11
                                 }
@@ -408,29 +408,29 @@ Rectangle {
                                         wrapMode: Text.WordWrap
                                         color: Theme.textFaint; font.pixelSize: 11
                                         text: page.carrusel === ""
-                                            ? "Creá un carrusel con el +"
-                                            : "Sin pasos. Elegí «Una cosa», armala, y usá «Agregar al carrusel»."
+                                            ? qsTr("Creá un carrusel con el +")
+                                            : qsTr("Sin pasos. Elegí «Una cosa», armala, y usá «Agregar al carrusel».")
                                     }
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     visible: page.carruselActual() !== null
-                                    Text { text: "Transición"; color: Theme.textDim; font.pixelSize: 10 }
+                                    Text { text: qsTr("Transición"); color: Theme.textDim; font.pixelSize: 10 }
                                     Item { Layout.fillWidth: true }
                                     GlassButton {
-                                        compact: true; text: "Fundido"
+                                        compact: true; text: qsTr("Fundido")
                                         active: page.carruselActual() && page.carruselActual().transicion === "fundido"
                                         onClicked: page.p.carruselTransicion(page.carrusel, "fundido")
                                     }
                                     GlassButton {
-                                        compact: true; text: "Corte"
+                                        compact: true; text: qsTr("Corte")
                                         active: page.carruselActual() && page.carruselActual().transicion === "corte"
                                         onClicked: page.p.carruselTransicion(page.carrusel, "corte")
                                     }
                                 }
                                 GlassButton {
                                     Layout.fillWidth: true
-                                    text: "Mostrar el carrusel"; icon: "▶"; active: true
+                                    text: qsTr("Mostrar el carrusel"); icon: "▶"; active: true
                                     enabled: page.elegida !== "" && page.carruselActual() &&
                                              page.carruselActual().pasos.length > 0
                                     onClicked: page.chequear(page.p.mostrarCarrusel(page.elegida, page.carrusel))
@@ -498,7 +498,7 @@ Rectangle {
                                         id: listaQr
                                         visible: modelData.opciones === "qrs"
                                         Layout.fillWidth: true
-                                        property var opciones: visible ? [{ value: "", label: "Escribirlo a mano (abajo)" }].concat(Studio.qr.paraElegir()) : []
+                                        property var opciones: visible ? [{ value: "", label: qsTr("Escribirlo a mano (abajo)") }].concat(Studio.qr.paraElegir()) : []
                                         model: opciones
                                         textRole: "label"
                                         valueRole: "value"
@@ -508,7 +508,7 @@ Rectangle {
                                             if (currentValue === "") { delete d.estilo; page.datos = d; return }
                                             const q = Studio.qr.paraProyectarElegido(currentValue)
                                             if (q.pendiente) {
-                                                Studio.notify("El servidor todavía no dio ese enlace: probá de nuevo en un momento (¿está andando el servidor?).", "warning")
+                                                Studio.notify(qsTr("El servidor todavía no dio ese enlace: probá de nuevo en un momento (¿está andando el servidor?)."), "warning")
                                                 return
                                             }
                                             d.texto = q.texto; d.estilo = q.estilo
@@ -541,7 +541,7 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true
                                 visible: !page.modoCarrusel && page.elegida === ""
-                                text: "Elegí una pantalla de la izquierda."
+                                text: qsTr("Elegí una pantalla de la izquierda.")
                                 color: Theme.textFaint; font.pixelSize: 11
                             }
                             // La dirección exacta que se le va a mandar: se puede
@@ -561,18 +561,18 @@ Rectangle {
                                 spacing: 6
                                 GlassButton {
                                     Layout.fillWidth: true
-                                    text: "Mostrar"; icon: "▶"; active: true
+                                    text: qsTr("Mostrar"); icon: "▶"; active: true
                                     enabled: page.elegida !== "" && page.contenidoActual() && page.contenidoActual().disponible
                                     onClicked: page.chequear(page.p.mostrar(page.elegida, page.tipo, page.datos))
                                 }
                                 GlassButton {
-                                    text: "Al carrusel"; icon: "+"
+                                    text: qsTr("Al carrusel"); icon: "+"
                                     enabled: page.carrusel !== "" && page.contenidoActual() && page.contenidoActual().disponible
                                     onClicked: page.chequear(page.p.pasoAgregar(page.carrusel, page.tipo, page.datos, 15),
-                                                             "Agregado al carrusel")
+                                                             qsTr("Agregado al carrusel"))
                                     ToolTip.visible: hovered
-                                    ToolTip.text: page.carrusel === "" ? "Creá un carrusel primero (pestaña Carrusel)"
-                                                                       : "Suma esto como un paso más"
+                                    ToolTip.text: page.carrusel === "" ? qsTr("Creá un carrusel primero (pestaña Carrusel)")
+                                                                       : qsTr("Suma esto como un paso más")
                                 }
                             }
                         }
@@ -596,7 +596,7 @@ Rectangle {
         id: renombrar
         anchors.centerIn: parent
         modal: true
-        title: "Renombrar la pantalla"
+        title: qsTr("Renombrar la pantalla")
         standardButtons: Dialog.Ok | Dialog.Cancel
         property string id: ""
         property string actual: ""
@@ -608,8 +608,8 @@ Rectangle {
                 Layout.preferredWidth: 360
                 wrapMode: Text.WordWrap
                 color: Theme.textDim; font.pixelSize: 11
-                text: "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice " +
-                      "más que «Percee TV»."
+                text: qsTr("El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice " +
+                      "más que «Percee TV».")
             }
             TextField { id: nuevoNombre; Layout.preferredWidth: 360; color: Theme.text
                         onAccepted: renombrar.accept() }
@@ -620,7 +620,7 @@ Rectangle {
         id: nuevoCarrusel
         anchors.centerIn: parent
         modal: true
-        title: "Carrusel nuevo"
+        title: qsTr("Carrusel nuevo")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { nombreCar.text = ""; nombreCar.forceActiveFocus() }
         onAccepted: page.carrusel = page.p.carruselNuevo(nombreCar.text)
@@ -630,10 +630,10 @@ Rectangle {
                 Layout.preferredWidth: 340
                 wrapMode: Text.WordWrap
                 color: Theme.textDim; font.pixelSize: 11
-                text: "Un carrusel rota varias cosas en la misma pantalla. Se le agregan pasos desde " +
-                      "«Una cosa», con el botón «Al carrusel»."
+                text: qsTr("Un carrusel rota varias cosas en la misma pantalla. Se le agregan pasos desde " +
+                      "«Una cosa», con el botón «Al carrusel».")
             }
-            TextField { id: nombreCar; Layout.preferredWidth: 340; placeholderText: "Hall"; color: Theme.text
+            TextField { id: nombreCar; Layout.preferredWidth: 340; placeholderText: qsTr("Hall"); color: Theme.text
                         onAccepted: nuevoCarrusel.accept() }
         }
     }
@@ -642,7 +642,7 @@ Rectangle {
         id: aMano
         anchors.centerIn: parent
         modal: true
-        title: "Agregar una pantalla"
+        title: qsTr("Agregar una pantalla")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { nom.text = ""; ip.text = ""; ip.forceActiveFocus() }
         onAccepted: page.chequear(page.p.agregar(nom.text, ip.text, 0))
@@ -652,10 +652,10 @@ Rectangle {
                 Layout.preferredWidth: 360
                 wrapMode: Text.WordWrap
                 color: Theme.textDim; font.pixelSize: 11
-                text: "Para cuando la búsqueda no llega (otra red, otra VLAN, el firewall). Tiene que ser " +
-                      "un aparato que hable Google Cast."
+                text: qsTr("Para cuando la búsqueda no llega (otra red, otra VLAN, el firewall). Tiene que ser " +
+                      "un aparato que hable Google Cast.")
             }
-            TextField { id: nom; Layout.preferredWidth: 360; placeholderText: "Nombre (TV del hall)"; color: Theme.text }
+            TextField { id: nom; Layout.preferredWidth: 360; placeholderText: qsTr("Nombre (TV del hall)"); color: Theme.text }
             TextField { id: ip; Layout.preferredWidth: 360; placeholderText: "192.168.1.50"; color: Theme.text; onAccepted: aMano.accept() }
         }
     }
