@@ -13,7 +13,9 @@
 #include "arranque/ArranqueAviso.hpp"
 #include "platform/Paths.hpp"
 
+#include <QDesktopServices>
 #include <QDir>
+#include <QMouseEvent>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QIcon>
@@ -78,6 +80,14 @@ constexpr int kPreviewWidth = 1280; // vista previa/fondo: 720p alcanza y es bar
 // arranca en este mismo hilo, así que el cartel se repinta solo cuando una
 // etapa avisa (ArranqueAviso.hpp); se va cuando la ventana principal dibujó.
 class CartelDeCarga : public QRasterWindow {
+    static constexpr const char* kRepo = "github.com/blairq/broadcast-appliance";
+    static constexpr int kMargen = 36;
+    /// El motor arranca en este hilo: mientras el cartel es la única ventana, sus clics se
+    /// atienden (el enlace); con la principal ya creándose, no (que no se meta en la carga).
+    static QEventLoop::ProcessEventsFlags sinUsuarioSiHayOtras() {
+        return QGuiApplication::topLevelWindows().size() <= 1 ? QEventLoop::AllEvents : QEventLoop::ExcludeUserInputEvents;
+    }
+
    public:
     CartelDeCarga() {
         setFlags(Qt::SplashScreen | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -94,7 +104,7 @@ class CartelDeCarga : public QRasterWindow {
         parte_ = parte;
         update();
         // El hilo está ocupado arrancando el motor: se pinta ya, sin esperar al lazo.
-        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+        QCoreApplication::processEvents(sinUsuarioSiHayOtras());
     }
 
     /// Lo muestra y espera (como mucho 300 ms) a que esté de verdad en pantalla.
@@ -102,10 +112,22 @@ class CartelDeCarga : public QRasterWindow {
         show();
         QElapsedTimer t;
         t.start();
-        while (!pintado_ && t.elapsed() < 300) QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+        while (!pintado_ && t.elapsed() < 300) QCoreApplication::processEvents(sinUsuarioSiHayOtras(), 20);
     }
 
    protected:
+    void mouseMoveEvent(QMouseEvent* e) override {
+        const bool sobre = enlace_.contains(e->position().toPoint());
+        if (sobre != sobreEnlace_) {
+            sobreEnlace_ = sobre;
+            setCursor(sobre ? Qt::PointingHandCursor : Qt::ArrowCursor);
+            update();
+        }
+    }
+    void mousePressEvent(QMouseEvent* e) override {
+        if (e->button() == Qt::LeftButton && enlace_.contains(e->position().toPoint()))
+            QDesktopServices::openUrl(QUrl(QStringLiteral("https://") + kRepo));
+    }
     void paintEvent(QPaintEvent*) override {
         QPainter p(this);
         pintar(p);
@@ -135,7 +157,7 @@ class CartelDeCarga : public QRasterWindow {
         // Una franja del color de la marca arriba, como la píldora de AIRE.
         p.fillRect(QRect(0, 0, width(), 3), acento);
 
-        const int m = 36;
+        const int m = kMargen;
         if (!logo_.isNull()) p.drawImage(QRect(m, 44, 88, 88), logo_);
         QFont f = p.font();
         f.setPixelSize(30);
@@ -190,8 +212,13 @@ class CartelDeCarga : public QRasterWindow {
         p.drawText(QRect(m, 244, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
                    "Hecho por Jorge Ortega");
         p.setPen(acento);
-        p.drawText(QRect(m, 264, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
-                   "github.com/blairq/broadcast-appliance");
+        QFont fe = p.font();
+        fe.setUnderline(sobreEnlace_); // es un enlace: subrayado con el mouse encima
+        p.setFont(fe);
+        p.drawText(QRect(m, 264, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter, kRepo);
+        enlace_ = QRect(m, 264, p.fontMetrics().horizontalAdvance(kRepo), 18);
+        fe.setUnderline(false);
+        p.setFont(fe);
         p.setPen(apagado);
         p.drawText(QRect(m, 284, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
                    "Software libre (GPL-3.0) · GStreamer, Qt y ONNX Runtime");
@@ -206,6 +233,8 @@ class CartelDeCarga : public QRasterWindow {
     QString detalle_;
     double parte_ = -1;
     bool pintado_ = false;
+    bool sobreEnlace_ = false;
+    QRect enlace_; ///< donde quedó pintada la dirección del repositorio (un clic la abre)
 };
 
 } // namespace
