@@ -127,6 +127,28 @@ const char* nombreDeEstado(Estado e) {
     return "invitado";
 }
 
+std::string etiquetaDePapel(Papel p) {
+    switch (p) {
+        case Papel::Orador: return ba::i18n::traducirEvento("evento", "orador");
+        case Papel::Panelista: return ba::i18n::traducirEvento("evento", "panelista");
+        case Papel::Publico: return ba::i18n::traducirEvento("evento", "público");
+        case Papel::Prensa: return ba::i18n::traducirEvento("evento", "prensa");
+        case Papel::Staff: return ba::i18n::traducirEvento("evento", "staff");
+    }
+    return ba::i18n::traducirEvento("evento", "público");
+}
+
+std::string etiquetaDeCanal(Canal c) {
+    switch (c) {
+        //: por dónde asiste: todavía no se sabe
+        case Canal::SinDefinir: return ba::i18n::traducirEvento("evento", "sin definir");
+        case Canal::Presencial: return ba::i18n::traducirEvento("evento", "presencial");
+        //: por dónde asiste: por internet
+        case Canal::Online: return ba::i18n::traducirEvento("evento", "en línea");
+    }
+    return ba::i18n::traducirEvento("evento", "sin definir");
+}
+
 bool papelDeNombre(const std::string& s, Papel& out) {
     for (Papel p : {Papel::Orador, Papel::Panelista, Papel::Publico, Papel::Prensa, Papel::Staff})
         if (s == nombreDePapel(p)) {

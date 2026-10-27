@@ -3,6 +3,7 @@
 #include "i18n/I18n.hpp"
 
 #include "asamblea/Cuerpo.hpp"
+#include "asamblea/Votos.hpp"
 #include "security/CredentialStore.hpp"
 
 #include "qrcodegen.hpp"
@@ -409,9 +410,11 @@ void SesionRemota::evento(const json& ev) {
             const bool vencida = vot_.hastaMs > 0 && ahoraMs() > vot_.hastaMs + 1500;
             if (vot_.estado != "abierta" || !valida || vencida || m.value("votacion", 0) != vot_.numero) {
                 emit enviar(QString::fromStdString(id), json{{"type", "voto"}, {"ok", false},
-                                                             {"error", vot_.estado != "abierta" ? "La votación no está abierta."
-                                                                       : vencida ? "Se terminó el tiempo para votar."
-                                                                                 : "Opción inválida."}});
+                                                             // Lo lee el integrante en el celular: en el idioma del evento.
+                                                             {"error", vot_.estado != "abierta"
+                                                                           ? ba::i18n::traducirEvento("asamblea", "La votación no está abierta.")
+                                                                       : vencida ? ba::i18n::traducirEvento("asamblea", "Se terminó el tiempo para votar.")
+                                                                                 : ba::i18n::traducirEvento("asamblea", "Opción inválida.")}});
                 return;
             }
             vot_.votos[id] = {op, ahoraMs()};
@@ -442,7 +445,7 @@ std::string SesionRemota::expulsar(const std::string& id, const std::string& qui
     it->second.habilitado = false;
     it->second.cayoMs = 0; // sin gracia: si vuelve, hay que habilitarlo de nuevo
     anotar("expulsado", id, {{"por", quien}, {"motivo", motivo}});
-    emit cortar(QString::fromStdString(id), QString::fromStdString(motivo.empty() ? "La presidencia te desconectó." : motivo));
+    emit cortar(QString::fromStdString(id), QString::fromStdString(motivo.empty() ? ba::i18n::traducirEvento("asamblea", "La presidencia te desconectó.") : motivo));
     emit cambio();
     return {};
 }
@@ -582,9 +585,12 @@ void SesionRemota::fila(const std::vector<std::string>& cola, const std::string&
     std::string hablando;
     if (!alAire.empty()) {
         const json i = integrante(alAire);
+        // Lo ven los integrantes: en el idioma del evento.
         if (i.is_object())
-            hablando = i.value("nombre", std::string()) +
-                       (i.value("banca", std::string()).empty() ? "" : " · Banca " + i.value("banca", std::string()));
+            hablando = i.value("banca", std::string()).empty()
+                           ? i.value("nombre", std::string())
+                           : ba::i18n::llenar(ba::i18n::traducirEvento("asamblea", "%1 · Banca %2"),
+                                              {i.value("nombre", std::string()), i.value("banca", std::string())});
     }
     info({{"hablando", hablando}});
 }
@@ -599,8 +605,8 @@ std::string SesionRemota::setVistas(const json& vistas) {
         const std::string fuente = v.is_object() ? v.value("fuente", std::string()) : std::string();
         if (fuente.empty())
             return ba::i18n::traducir("asamblea", "a cada canal le falta la fuente: «programa» o el nombre de una escena");
+        // Sin nombre se guarda vacío: vistas() le pone uno al darlas, en el idioma del evento.
         std::string nombre = v.value("nombre", std::string());
-        if (nombre.empty()) nombre = fuente == "programa" ? "Salida principal" : fuente;
         if (nombre.size() > 40) nombre.resize(40);
         limpio.push_back({{"id", ids[i]}, {"nombre", nombre}, {"fuente", fuente}});
     }
@@ -619,8 +625,19 @@ QString SesionRemota::setVistasUi(const QVariantList& vistas) {
 }
 
 json SesionRemota::vistas() const {
-    if (!vistas_.empty()) return vistas_;
-    return json::array({{{"id", "a"}, {"nombre", "Salida principal"}, {"fuente", "programa"}}});
+    // Los nombres que ven los integrantes, en el idioma del evento: se rearman cada vez
+    // (si cambia el idioma, la presidencia ve otra firma y se las vuelve a mandar).
+    if (vistas_.empty())
+        return json::array({{{"id", "a"}, {"nombre", ba::i18n::traducirEvento("asamblea", "Salida principal")}, {"fuente", "programa"}}});
+    json out = vistas_;
+    for (auto& v : out) {
+        const std::string fuente = v.value("fuente", std::string());
+        // «Salida principal» guardado = el nombre por omisión de antes (se guardaba).
+        const std::string nombre = v.value("nombre", std::string());
+        if (!nombre.empty() && !(fuente == "programa" && nombre == "Salida principal")) continue;
+        v["nombre"] = fuente == "programa" ? ba::i18n::traducirEvento("asamblea", "Salida principal") : fuente;
+    }
+    return out;
 }
 
 void SesionRemota::ptt(const std::string& id, bool activo, const std::string& consola) {
@@ -788,8 +805,10 @@ json SesionRemota::resultadoCombinado(const json& nominalCentral) const {
         json nuevo{{"banca", b}, {"nombre", nombreDe(id, id)}, {"voto", v.first}, {"origen", "remoto"}};
         auto it = porBanca.find(b);
         if (it != porBanca.end() && it->second.value("voto", std::string()) != v.first)
-            observaciones.push_back("Banca " + b + ": votó «" + it->second.value("voto", std::string()) +
-                                    "» en la central y «" + v.first + "» por el celular; vale el del celular (el último)");
+            observaciones.push_back(ba::i18n::llenar(
+                ba::i18n::traducirEvento("asamblea", "Banca %1: votó «%2» en la central y «%3» por el celular; vale el del "
+                                                     "celular (el último)"),
+                {b, etiquetaDeVoto(it->second.value("voto", std::string())), etiquetaDeVoto(v.first)}));
         porBanca[b.empty() ? "id:" + id : b] = nuevo;
     }
     json nominal = json::array();
@@ -819,13 +838,17 @@ void SesionRemota::setVotoSegundos(int s) {
 }
 
 json SesionRemota::opcionesDeMenu(const std::string& menu) {
-    static const std::map<std::string, std::string> texto{
-        {"afirmativo", "Afirmativo"}, {"negativo", "Negativo"}, {"abstencion", "Abstención"}, {"no_participa", "No participa"}};
+    // Las opciones que ven los integrantes en el celular: la clave (id) se guarda y se
+    // compara; el texto va en el idioma del evento y se arma al abrir cada votación.
+    static const std::map<std::string, const char*> texto{{"afirmativo", QT_TRANSLATE_NOOP("asamblea", "Afirmativo")},
+                                                          {"negativo", QT_TRANSLATE_NOOP("asamblea", "Negativo")},
+                                                          {"abstencion", QT_TRANSLATE_NOOP("asamblea", "Abstención")},
+                                                          {"no_participa", QT_TRANSLATE_NOOP("asamblea", "No participa")}};
     std::vector<std::string> ids{"afirmativo", "negativo"};
     if (menu == "si_no_abstencion" || menu.empty()) ids.push_back("abstencion");
     if (menu == "si_no_abstencion_nppv") ids = {"afirmativo", "negativo", "abstencion", "no_participa"};
     json out = json::array();
-    for (const auto& id : ids) out.push_back({{"id", id}, {"texto", texto.at(id)}});
+    for (const auto& id : ids) out.push_back({{"id", id}, {"texto", ba::i18n::traducirEvento("asamblea", texto.at(id))}});
     return out;
 }
 
@@ -834,32 +857,60 @@ QVariantMap SesionRemota::votacionUi() const { return aQv(votacion()).toMap(); }
 // --- Registro ---------------------------------------------------------------------------
 
 std::string SesionRemota::anexoActa() const {
+    // El acta es del evento: va en su idioma (se arma cada vez que se pide). Lo que
+    // pasó se guarda como clave («entro», «voto»…) y al acta va su etiqueta.
+    using ba::i18n::llenar;
+    using ba::i18n::traducirEvento;
     if (registro_.empty()) return {};
-    std::string s = "Sesión por la banca virtual (link personal y PIN)\n";
-    static const std::map<std::string, std::string> que{
-        {"entro", "entró"},           {"salio", "salió"},         {"habilitado", "habilitado"},
-        {"deshabilitado", "deshabilitado"}, {"expulsado", "desconectado por la presidencia"},
-        {"intento_fallido", "intento fallido"}, {"bloqueado", "bloqueado por PIN errado"},
-        {"credencial", "link generado"}, {"revocada", "link revocado"}, {"clave", "contraseña generada"},
-        {"pidio_palabra", "pidió la palabra"}, {"cancelo_pedido", "canceló su pedido"},
-        {"palabra", "tuvo la palabra"}, {"fin_palabra", "terminó de hablar"}, {"voto", "votó"},
-        {"votacion_abierta", "se abrió la votación"}, {"votacion_cerrada", "se cerró la votación"}};
+    std::string s = traducirEvento("asamblea", "Sesión por la banca virtual (link personal y PIN)") + "\n";
+    static const std::map<std::string, const char*> que{
+        {"entro", QT_TRANSLATE_NOOP("asamblea", "entró")},
+        {"salio", QT_TRANSLATE_NOOP("asamblea", "salió")},
+        {"habilitado", QT_TRANSLATE_NOOP("asamblea", "habilitado")},
+        {"deshabilitado", QT_TRANSLATE_NOOP("asamblea", "deshabilitado")},
+        {"expulsado", QT_TRANSLATE_NOOP("asamblea", "desconectado por la presidencia")},
+        {"intento_fallido", QT_TRANSLATE_NOOP("asamblea", "intento fallido")},
+        {"bloqueado", QT_TRANSLATE_NOOP("asamblea", "bloqueado por PIN errado")},
+        {"credencial", QT_TRANSLATE_NOOP("asamblea", "link generado")},
+        {"revocada", QT_TRANSLATE_NOOP("asamblea", "link revocado")},
+        {"clave", QT_TRANSLATE_NOOP("asamblea", "contraseña generada")},
+        {"pidio_palabra", QT_TRANSLATE_NOOP("asamblea", "pidió la palabra")},
+        {"cancelo_pedido", QT_TRANSLATE_NOOP("asamblea", "canceló su pedido")},
+        {"palabra", QT_TRANSLATE_NOOP("asamblea", "tuvo la palabra")},
+        {"fin_palabra", QT_TRANSLATE_NOOP("asamblea", "terminó de hablar")},
+        {"voto", QT_TRANSLATE_NOOP("asamblea", "votó")},
+        {"votacion_abierta", QT_TRANSLATE_NOOP("asamblea", "se abrió la votación")},
+        {"votacion_cerrada", QT_TRANSLATE_NOOP("asamblea", "se cerró la votación")}};
     for (const auto& e : registro_) {
         const std::string q = e.value("que", std::string());
         if (q.rfind("votacion_", 0) == 0) {
-            s += "  " + hora(e.value("ms", std::int64_t(0))) + "  Votación " + std::to_string(e.value("votacion", 0)) +
-                 (e.value("tema", std::string()).empty() ? "" : " «" + e.value("tema", std::string()) + "»") +
-                 (q == "votacion_abierta" ? ": se abrió en los celulares" : ": se cerró (" +
-                  std::to_string(e.value("votos_remotos", 0)) + " votos remotos)") + "\n";
+            const std::string num = std::to_string(e.value("votacion", 0));
+            const std::string tema = e.value("tema", std::string());
+            const int remotos = e.value("votos_remotos", 0);
+            std::string linea;
+            if (q == "votacion_abierta")
+                linea = tema.empty() ? llenar(traducirEvento("asamblea", "Votación %1: se abrió en los celulares"), {num})
+                                     : llenar(traducirEvento("asamblea", "Votación %1 «%2»: se abrió en los celulares"), {num, tema});
+            else
+                linea = tema.empty()
+                            ? llenar(traducirEvento("asamblea", "Votación %1: se cerró (%n voto remoto)", nullptr, remotos), {num})
+                            : llenar(traducirEvento("asamblea", "Votación %1 «%2»: se cerró (%n voto remoto)", nullptr, remotos),
+                                     {num, tema});
+            s += "  " + hora(e.value("ms", std::int64_t(0))) + "  " + linea + "\n";
             continue;
         }
         auto it = que.find(q);
         s += "  " + hora(e.value("ms", std::int64_t(0))) + "  " + e.value("nombre", e.value("id", std::string()));
-        if (!e.value("banca", std::string()).empty()) s += " (banca " + e.value("banca", std::string()) + ")";
-        s += ": " + (it != que.end() ? it->second : q);
-        if (!e.value("por", std::string()).empty()) s += " por " + e.value("por", std::string());
-        if (q == "entro") s += std::string(" desde ") + (e.value("lugar", std::string()) == "sala" ? "la sala" : "afuera");
-        if (q == "voto") s += " «" + e.value("opcion", std::string()) + "» (votación " + std::to_string(e.value("votacion", 0)) + ")";
+        if (!e.value("banca", std::string()).empty())
+            s += llenar(traducirEvento("asamblea", " (banca %1)"), {e.value("banca", std::string())});
+        s += ": " + (it != que.end() ? traducirEvento("asamblea", it->second) : q);
+        if (!e.value("por", std::string()).empty()) s += llenar(traducirEvento("asamblea", " por %1"), {e.value("por", std::string())});
+        if (q == "entro")
+            s += e.value("lugar", std::string()) == "sala" ? traducirEvento("asamblea", " desde la sala")
+                                                           : traducirEvento("asamblea", " desde afuera");
+        if (q == "voto")
+            s += llenar(traducirEvento("asamblea", " «%1» (votación %2)"),
+                        {etiquetaDeVoto(e.value("opcion", std::string())), std::to_string(e.value("votacion", 0))});
         s += "\n";
     }
     return s;

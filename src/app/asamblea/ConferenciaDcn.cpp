@@ -97,8 +97,11 @@ json ConferenciaDcn::pasarAQuorum(const std::string& asunto) {
     json nominal = json::array();
     for (const auto& n : v.value("nominal", json::array())) {
         std::string quien = n.value("nombre", std::string());
-        if (quien.empty()) quien = n.value("banca", std::string()).empty() ? "unidad " + std::to_string(n.value("unidad", 0))
-                                                                              : "Banca " + n.value("banca", std::string());
+        // Va a la tabla nominal del acta: en el idioma del evento.
+        if (quien.empty())
+            quien = n.value("banca", std::string()).empty()
+                        ? ba::i18n::llenar(ba::i18n::traducirEvento("asamblea", "unidad %1"), {std::to_string(n.value("unidad", 0))})
+                        : ba::i18n::llenar(ba::i18n::traducirEvento("asamblea", "Banca %1"), {n.value("banca", std::string())});
         nominal.push_back({{"nombre", quien}, {"banca", n.value("banca", std::string())}, {"voto", n.value("voto", std::string())}});
     }
     json r{{"asunto", asunto.empty() ? v.value("tema", std::string()) : asunto},

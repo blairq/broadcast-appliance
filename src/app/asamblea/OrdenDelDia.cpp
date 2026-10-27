@@ -237,7 +237,9 @@ json OrdenDelDia::capitulos(std::int64_t recInicioMs) const {
         if (ini <= 0 || ini < recInicioMs) continue;
         const std::int64_t seg = (ini - recInicioMs) / 1000;
         out.push_back({{"seg", seg}, {"marca", mmss(seg)},
-                       {"titulo", "Punto " + std::to_string(p.value("n", 0)) + ": " + p.value("titulo", std::string())}});
+                       // Los capítulos van a la descripción del video: en el idioma del evento.
+                       {"titulo", ba::i18n::llenar(ba::i18n::traducirEvento("asamblea", "Punto %1: %2"),
+                                                   {std::to_string(p.value("n", 0)), p.value("titulo", std::string())})}});
     }
     return out;
 }
@@ -251,9 +253,14 @@ std::string OrdenDelDia::capitulosTexto(std::int64_t recInicioMs) const {
 }
 
 std::string OrdenDelDia::anexoActa(const json& remotos) const {
+    // El acta es del evento: va en su idioma (se arma cada vez que se pide).
+    using ba::i18n::traducirEvento;
     std::string t;
     if (!puntos_.empty()) {
-        t += "## Orden del día\n\n| N.º | Expediente | Punto | Estado | Tratamiento | Resultado |\n|---|---|---|---|---|---|\n";
+        t += "## " + traducirEvento("asamblea", "Orden del día") + "\n\n| " + traducirEvento("asamblea", "N.º") + " | " +
+             traducirEvento("asamblea", "Expediente") + " | " + traducirEvento("asamblea", "Punto") + " | " +
+             traducirEvento("asamblea", "Estado") + " | " + traducirEvento("asamblea", "Tratamiento") + " | " +
+             traducirEvento("asamblea", "Resultado") + " |\n|---|---|---|---|---|---|\n";
         for (const auto& p : puntos_) {
             std::string dur = "—";
             const std::int64_t ini = p.value("inicio_ms", 0LL), fin = p.value("fin_ms", 0LL);
@@ -261,9 +268,13 @@ std::string OrdenDelDia::anexoActa(const json& remotos) const {
                 const std::int64_t hasta = fin > 0 ? fin : ahoraMs();
                 dur = QDateTime::fromMSecsSinceEpoch(ini).toString("HH:mm").toStdString() + " (" + mmss((hasta - ini) / 1000) + ")";
             }
+            // El estado se guarda como clave; al acta va su etiqueta.
             std::string est = p.value("estado", std::string());
-            if (est == "en_tratamiento") est = "en tratamiento";
-            if (est == "comision") est = "a comisión";
+            if (est == "pendiente") est = traducirEvento("asamblea", "pendiente");
+            else if (est == "en_tratamiento") est = traducirEvento("asamblea", "en tratamiento");
+            else if (est == "votado") est = traducirEvento("asamblea", "votado");
+            else if (est == "comision") est = traducirEvento("asamblea", "a comisión");
+            else if (est == "retirado") est = traducirEvento("asamblea", "retirado");
             t += "| " + std::to_string(p.value("n", 0)) + " | " + p.value("expediente", std::string()) + " | " +
                  p.value("titulo", std::string()) + " | " + est + " | " + dur + " | " + p.value("resultado", std::string()) + " |\n";
         }
@@ -271,12 +282,15 @@ std::string OrdenDelDia::anexoActa(const json& remotos) const {
     }
     const json tp = tiemposPalabra(remotos);
     if (!tp.empty()) {
-        t += "## Uso de la palabra\n\n| Orador | Banca | Tiempo | Por punto |\n|---|---|---|---|\n";
+        t += "## " + traducirEvento("asamblea", "Uso de la palabra") + "\n\n| " + traducirEvento("asamblea", "Orador") + " | " +
+             traducirEvento("asamblea", "Banca") + " | " + traducirEvento("asamblea", "Tiempo") + " | " +
+             traducirEvento("asamblea", "Por punto") + " |\n|---|---|---|---|\n";
         for (const auto& o : tp) {
             std::string pp;
             const json porPunto = o.value("por_punto", json::object()); // en una variable: items() no alarga el temporal
             for (const auto& [k, v] : porPunto.items())
-                pp += (pp.empty() ? "" : ", ") + std::string("P") + k + " " + mmss(v.get<std::int64_t>());
+                //: el tiempo que habló en un punto del orden del día: «P2 3:15» (P de punto)
+                pp += (pp.empty() ? "" : ", ") + ba::i18n::llenar(traducirEvento("asamblea", "P%1 %2"), {k, mmss(v.get<std::int64_t>())});
             t += "| " + o.value("nombre", std::string()) + " | " + o.value("banca", std::string()) + " | " +
                  mmss(o.value("segundos", 0LL)) + " | " + pp + " |\n";
         }
