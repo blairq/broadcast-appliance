@@ -73,6 +73,10 @@ class AgenteTotem : public QObject {
     /// Corta el turno en curso sin contestar nada (la atiende una persona, se canceló, se fue).
     void cancelar();
 
+    /// Mientras el tótem saluda: que el servidor lea el sistema y las herramientas antes del
+    /// primer turno (AgenteRegistro::precalentar). Sin respuesta que esperar.
+    void precalentar();
+
    private:
     void empezar(const std::string& dicho);
     void mandar(const nlohmann::json& cuerpo);
@@ -88,6 +92,7 @@ class AgenteTotem : public QObject {
     AgenteRegistro agente_;
     Tiempos tiempos_;
     std::shared_ptr<ba::app::agent::ChatEnVivo::Pedido> pedido_; ///< la vuelta en curso
+    std::shared_ptr<ba::app::agent::ChatEnVivo::Pedido> calentando_; ///< el precalentamiento
     QTimer primera_, tope_;
     TrozadorFrases frases_;
     std::string dicho_;     ///< lo oído de este turno

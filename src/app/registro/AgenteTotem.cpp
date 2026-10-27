@@ -34,6 +34,16 @@ AgenteTotem::AgenteTotem(ba::app::agent::FuenteMirada fuente, std::string prompt
 
 AgenteTotem::~AgenteTotem() {
     if (pedido_) pedido_->cancelar();
+    if (calentando_) calentando_->cancelar();
+}
+
+void AgenteTotem::precalentar() {
+    if (caido_ || calentando_) return;
+    QPointer<AgenteTotem> yo(this);
+    calentando_ = ba::app::agent::ChatEnVivo::el().pedir(fuente_, agente_.precalentar(conv_), this, nullptr,
+                                                        [yo](TurnoModelo, std::string) {
+                                                            if (yo) yo->calentando_.reset();
+                                                        });
 }
 
 bool AgenteTotem::oido(const std::string& dicho) {
@@ -109,6 +119,8 @@ void AgenteTotem::alTerminarVuelta(const TurnoModelo& t, const std::string& erro
     for (const LlamadaHerramienta& ll : t.llamadas)
         ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
                                    "modelo: " + ll.nombre + " " + ll.argumentos);
+    if (!t.texto.empty())
+        ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0, "modelo (texto): «" + t.texto + "»");
     const AgenteRegistro::Vuelta v = agente_.alTerminarVuelta(conv_, t);
     dijoAlgo_ = v.dijoAlgo;
     rechazos_ = v.rechazos;
@@ -133,6 +145,8 @@ void AgenteTotem::alTerminarVuelta(const TurnoModelo& t, const std::string& erro
 
 void AgenteTotem::falla(const std::string& motivo) {
     if (!ocupado_) return;
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
+                               "el modelo no contestó a tiempo, sigue el guion en este turno: " + motivo);
     if (pedido_) pedido_->cancelar();
     pedido_.reset();
     primera_.stop();

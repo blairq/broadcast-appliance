@@ -359,6 +359,14 @@ void AgenteRegistro::conHerramientas(json& cuerpo, const Totem& t) {
     cuerpo["tool_choice"] = "required";
 }
 
+json AgenteRegistro::precalentar(const Conversacion& conv) {
+    if (sistema_.empty()) sistema_ = sistemaRegistro(prompt_, conv.totem(), conv.evento());
+    json b = cuerpo(json::array({{{"role", "user"}, {"content", "Hola"}}}));
+    conHerramientas(b, conv.totem());
+    b["max_tokens"] = 1;
+    return b;
+}
+
 json AgenteRegistro::empezarTurno(Conversacion& conv, const std::string& dicho) {
     if (sistema_.empty()) sistema_ = sistemaRegistro(prompt_, conv.totem(), conv.evento());
     conv.empezarTurnoModelo();

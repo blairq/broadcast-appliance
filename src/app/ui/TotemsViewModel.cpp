@@ -2001,6 +2001,9 @@ void TotemsViewModel::crearAgente(Conexion& c, bool avisar) {
         emit yo->vivoCambio();
     };
     c.agente = std::move(a);
+    // Al empezar la conversación (mientras saluda): el primer turno ya encuentra el sistema y
+    // las herramientas leídos. Creado en un turno (el modelo recién cargó), no hay tiempo.
+    if (avisar) c.agente->precalentar();
 }
 
 bool TotemsViewModel::alOidoAgente(Conexion& c, const std::string& texto) {

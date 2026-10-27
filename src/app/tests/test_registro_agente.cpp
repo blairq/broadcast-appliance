@@ -278,7 +278,11 @@ void turnos() {
             c2.usarModelo(true);
             c2.empezar({});
             AgenteRegistro a2("{campos}", "local");
+            // El precalentamiento: el mismo sistema y las mismas herramientas, un token.
+            const json pc = a2.precalentar(c2);
+            CHECK(pc.value("max_tokens", 0) == 1 && pc["tools"].size() == 3, "precalentar: un token, con las herramientas");
             const json b2 = a2.empezarTurno(c2, "¿hay café?");
+            CHECK(b2["messages"][0] == pc["messages"][0] && b2["tools"] == pc["tools"], "el turno empieza igual que el precalentamiento (lo encuentra en caché)");
             CHECK(b2.value("tool_choice", "") == "required" && b2["tools"].size() == 3, "siempre con herramientas, también para hablar");
             auto v2 = a2.alTerminarVuelta(c2, turno("", {{"d1", "registro_decir", R"({"texto":"Sí, hay café en la entrada."})"}}));
             CHECK(v2.decir == "Sí, hay café en la entrada." && v2.dijoAlgo && !v2.otraVuelta && !v2.rechazos, "registro_decir es lo que se dice");

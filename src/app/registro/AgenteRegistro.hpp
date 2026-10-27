@@ -114,6 +114,10 @@ class AgenteRegistro {
     /// El cuerpo del pedido de un turno nuevo: `dicho` es lo que dijo la persona (o un aviso
     /// de la pantalla). Marca en la conversación el comienzo del turno.
     nlohmann::json empezarTurno(Conversacion& conv, const std::string& dicho);
+    /// Un pedido de un token con el mismo sistema y las mismas herramientas que los turnos: el
+    /// servidor deja ese principio en su caché y el primer turno de verdad no lo tiene que leer
+    /// de cero (con un 9B eso solo pasaba los 5 s de la primera palabra).
+    nlohmann::json precalentar(const Conversacion& conv);
 
     struct Vuelta {
         bool otraVuelta = false;  ///< mandar `cuerpo` (con los resultados de las herramientas)
