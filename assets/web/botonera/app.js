@@ -1,7 +1,7 @@
 // La botonera de la tablet (ver el comentario de index.html).
 "use strict";
 
-(function () {
+(async function () {
   const CLAVE_TOKEN = "ba-botonera-token";
   const CLAVE_DISP = "ba-botonera-dispositivo";
   const CLAVE_NOMBRE = "ba-botonera-nombre";
@@ -60,22 +60,22 @@
       });
     } catch (e) {
       $("pedir").disabled = false;
-      return aviso("No hay conexión con el aparato.", true);
+      return aviso(t("No hay conexión con el aparato."), true);
     }
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.solicitud) {
       $("pedir").disabled = false;
-      return aviso(j.error || "No se pudo pedir el emparejamiento.", true);
+      return aviso(j.error || t("No se pudo pedir el emparejamiento."), true);
     }
     // El código ya se usó: fuera de la barra de direcciones.
     history.replaceState(null, "", location.pathname);
     $("emparejar").classList.add("oculto");
-    mensaje("Esperando la aprobación", "El operador tiene que aprobar «" + nombre + "» en la app (página Botonera).");
+    mensaje(t("Esperando la aprobación"), BAi18n.llenar(t("El operador tiene que aprobar «%1» en la app (página Botonera)."), nombre));
     esperarAprobacion(j.solicitud, Date.now());
   }
 
   async function esperarAprobacion(solicitud, desde) {
-    if (Date.now() - desde > 5 * 60 * 1000) return mensaje("Venció", "Nadie aprobó el emparejamiento. Escaneá un QR nuevo.");
+    if (Date.now() - desde > 5 * 60 * 1000) return mensaje(t("Venció"), t("Nadie aprobó el emparejamiento. Escaneá un QR nuevo."));
     let j = {};
     try {
       const r = await fetch("/api/botonera/emparejar?solicitud=" + encodeURIComponent(solicitud), { cache: "no-store" });
@@ -87,16 +87,16 @@
       sinMensaje();
       return conectar();
     }
-    if (j.estado === "rechazada") return mensaje("Rechazado", "El operador no aprobó esta tablet.");
-    if (j.estado === "invalido") return mensaje("Código inválido", (j.error || "El código venció o ya se usó.") + " Escaneá un QR nuevo.");
-    if (j.estado === "desconocida") return mensaje("Se perdió el pedido", "Escaneá un QR nuevo.");
+    if (j.estado === "rechazada") return mensaje(t("Rechazado"), t("El operador no aprobó esta tablet."));
+    if (j.estado === "invalido") return mensaje(t("Código inválido"), (j.error || t("El código venció o ya se usó.")) + " " + t("Escaneá un QR nuevo."));
+    if (j.estado === "desconocida") return mensaje(t("Se perdió el pedido"), t("Escaneá un QR nuevo."));
     setTimeout(() => esperarAprobacion(solicitud, desde), 1000);
   }
 
   // --- Conexión ------------------------------------------------------------------
   function conectar() {
     const token = leer(CLAVE_TOKEN);
-    if (!token) return mensaje("Tablet sin emparejar", "Escaneá el QR que muestra la app en la página Botonera → Emparejar tablet.");
+    if (!token) return mensaje(t("Tablet sin emparejar"), t("Escaneá el QR que muestra la app en la página Botonera → Emparejar tablet."));
     const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?botonera=1";
     try { ws = new WebSocket(url); } catch (e) { return reconectar(); }
     ws.onopen = () => {
@@ -128,7 +128,7 @@
     if (m.type === "auth") {
       if (!m.ok) {
         guardar(CLAVE_TOKEN, null);
-        mensaje("Tablet sin emparejar", m.error || "El token no vale.", false);
+        mensaje(t("Tablet sin emparejar"), m.error || t("El token no vale."), false);
         if (ws) ws.close();
         return;
       }
@@ -140,7 +140,7 @@
       return;
     }
     if (m.type === "estado") {
-      if (m.error) return mensaje("Sin perfil", m.error, true);
+      if (m.error) return mensaje(t("Sin perfil"), m.error, true);
       sinMensaje();
       dibujar(m);
       return;
@@ -155,7 +155,7 @@
       estado.pagina.columnas === e.pagina.columnas && estado.pagina.filas === e.pagina.filas &&
       estado.perfil.id === e.perfil.id && JSON.stringify(estructura(estado)) === JSON.stringify(estructura(e));
     estado = e;
-    $("perfil").textContent = e.perfil ? e.perfil.nombre : "Botonera";
+    $("perfil").textContent = e.perfil ? e.perfil.nombre : t("Botonera");
     $("pagina").textContent = e.pagina ? e.pagina.nombre : "";
     dibujarPaginas(e);
     if (!mismaPagina) armarGrilla(e);
@@ -543,7 +543,7 @@
   function pedirConfirmacion(m) {
     const [x, y] = String(m.celda || "").split(",").map(Number);
     confirmacion = { x: x, y: y, vence: Date.now() + (m.vence_ms || 5000) };
-    $("confirmarTexto").textContent = m.texto || "Cambia el aire: confirmá";
+    $("confirmarTexto").textContent = m.texto || t("Cambia el aire: confirmá");
     $("confirmar").classList.remove("oculto");
     const barra = $("confirmarBarra").firstElementChild;
     barra.style.width = "0";
@@ -583,7 +583,7 @@
     guardar(CLAVE_TOKEN, null);
     guardar(CLAVE_DISP, null);
     if (ws) ws.close();
-    mensaje("Tablet sin emparejar", "Escaneá el QR que muestra la app en la página Botonera → Emparejar tablet.");
+    mensaje(t("Tablet sin emparejar"), t("Escaneá el QR que muestra la app en la página Botonera → Emparejar tablet."));
   };
   // Que la pantalla no se apague (si el navegador lo permite).
   if (navigator.wakeLock) {
@@ -592,6 +592,9 @@
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pedir(); });
   }
 
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/botonera", preferir: "evento" });
+  BA.traducir();
   const codigo = codigoDelFragmento();
   if (codigo) mostrarEmparejar(codigo);
   else conectar();

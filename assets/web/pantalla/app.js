@@ -42,6 +42,10 @@
   else $("pie").remove();
 
   document.title = texto ? texto.slice(0, 60) : "Pantalla";
+  // El título de una pantalla sin texto, en el idioma del evento. Lo que muestra no
+  // espera al idioma: viene en la URL y tiene que verse aunque la red no ande.
+  BAi18n.iniciar({ contexto: "web/pantalla", preferir: "evento" })
+    .then(() => { if (!texto) document.title = t("Pantalla"); });
 
   // El canal: avisa que está viva y acepta que le cambien lo que muestra.
   if (window.BACanal) {

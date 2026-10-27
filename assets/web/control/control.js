@@ -1,7 +1,7 @@
 /* El dashboard web: la conexión con la app (/ws?control), el emparejamiento, llamar
    herramientas (con confirmación de lo que corta el aire), mirar temas y armar el
    tablero con las tarjetas de tarjetas.js. Sin estilos en línea (la CSP no los deja). */
-(() => {
+(async () => {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const CLAVE_TOKEN = "ba-control-token";
@@ -36,15 +36,15 @@
   function emparejar(codigo) {
     $("emparejar").classList.remove("oculto");
     $("pedir").addEventListener("accion", async () => {
-      const nombre = $("nombre").value.trim() || "Aparato sin nombre";
+      const nombre = $("nombre").value.trim() || t("Aparato sin nombre");
       try {
         const r = await fetch("/api/control/emparejar", { method: "POST", headers: { "Content-Type": "application/json" },
                                                           body: JSON.stringify({ codigo, nombre }) });
         const d = await r.json();
-        if (!r.ok || !d.solicitud) throw new Error(d.error || "no se pudo pedir");
-        $("emparejarTexto").textContent = "Pedido. Aprobalo en la app (aparece un aviso) …";
+        if (!r.ok || !d.solicitud) throw new Error(d.error || t("no se pudo pedir"));
+        $("emparejarTexto").textContent = t("Pedido. Aprobalo en la app (aparece un aviso) …");
         esperarAprobacion(d.solicitud);
-      } catch (e) { avisar("No se pudo pedir el emparejamiento: " + e.message, true); }
+      } catch (e) { avisar(BAi18n.llenar(t("No se pudo pedir el emparejamiento: %1"), e.message), true); }
     });
   }
   async function esperarAprobacion(solicitud) {
@@ -62,7 +62,7 @@
         }
         if (d.estado === "rechazada" || d.estado === "vencida" || d.error) {
           $("emparejar").classList.add("oculto");
-          mensaje("No se aprobó", d.error || "La app rechazó el pedido (o se venció). Pedí otro QR.", false);
+          mensaje(t("No se aprobó"), d.error || t("La app rechazó el pedido (o se venció). Pedí otro QR."), false);
           return;
         }
       } catch (_) { /* sigue esperando */ }
@@ -78,7 +78,7 @@
   function conectar() {
     const token = leer(CLAVE_TOKEN);
     if (!token) {
-      mensaje("Este aparato no está emparejado", "Abrí la página desde el QR de la app (Servicios → Control) para emparejarlo.", false);
+      mensaje(t("Este aparato no está emparejado"), t("Abrí la página desde el QR de la app (Servicios → Control) para emparejarlo."), false);
       return;
     }
     const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?control";
@@ -95,7 +95,7 @@
       clearInterval(latido);
       autenticado = false;
       estadoConexion(false);
-      for (const [, p] of pendientes) p.rechazar(new Error("se cortó la conexión"));
+      for (const [, p] of pendientes) p.rechazar(new Error(t("se cortó la conexión")));
       pendientes.clear();
       setTimeout(conectar, espera);
       espera = Math.min(15000, espera * 1.6);
@@ -104,7 +104,7 @@
   function estadoConexion(viva) {
     const c = $("conexion");
     c.setAttribute("estado", viva ? "ok" : "apagado");
-    c.textContent = viva ? "Conectado" : "Reconectando…";
+    c.textContent = viva ? t("Conectado") : t("Reconectando…");
   }
 
   function recibir(m) {
@@ -112,7 +112,7 @@
       case "auth":
         if (!m.ok) {
           guardar(CLAVE_TOKEN, null);
-          mensaje("Este aparato ya no está habilitado", m.error || "Lo quitaron en la app. Emparejalo de nuevo desde el QR.", true);
+          mensaje(t("Este aparato ya no está habilitado"), m.error || t("Lo quitaron en la app. Emparejalo de nuevo desde el QR."), true);
           ws.onclose = null;
           ws.close();
           return;
@@ -146,20 +146,20 @@
         if (!p) return;
         pendientes.delete(m.id);
         if (m.ok) p.resolver(m.datos);
-        else p.rechazar(new Error(m.error || "no se pudo"));
+        else p.rechazar(new Error(m.error || t("no se pudo")));
         break;
       }
       case "confirmar": {
         const p = pendientes.get(m.id);
         if (!p) return;
-        pedirConfirmacion(m.texto || "Esto cambia lo que está al aire.").then((si) => {
+        pedirConfirmacion(m.texto || t("Esto cambia lo que está al aire.")).then((si) => {
           if (!si) { pendientes.delete(m.id); p.rechazar(new Error("cancelado")); return; }
           ws.send(JSON.stringify({ type: "llamar", id: m.id, herramienta: p.herramienta, args: p.args, confirmado: true }));
         });
         break;
       }
       case "error":
-        avisar(m.error || "error", true);
+        avisar(m.error || t("error"), true);
         break;
     }
   }
@@ -175,7 +175,7 @@
 
   // Llamar una herramienta de la app: una promesa con lo que devuelve.
   BA.control.llamar = (herramienta, args = {}) => new Promise((resolver, rechazar) => {
-    if (!ws || ws.readyState !== WebSocket.OPEN || !autenticado) { rechazar(new Error("sin conexión con la app")); return; }
+    if (!ws || ws.readyState !== WebSocket.OPEN || !autenticado) { rechazar(new Error(t("sin conexión con la app"))); return; }
     const id = siguienteId++;
     pendientes.set(id, { resolver, rechazar, herramienta, args });
     ws.send(JSON.stringify({ type: "llamar", id, herramienta, args }));
@@ -256,16 +256,16 @@
     m.replaceChildren();
     const fuera = ocultas();
     const h = document.createElement("h3");
-    h.textContent = "Tarjetas en este aparato";
+    h.textContent = t("Tarjetas en este aparato");
     m.append(h);
     const lista = document.createElement("div");
     lista.className = "lista-tarjetas";
     m.append(lista);
     for (const def of BA.tarjetas) {
-      const t = document.createElement("ba-toggle");
-      t.setAttribute("etiqueta", def.titulo);
-      if (!fuera.has(def.id)) t.setAttribute("encendido", "");
-      t.addEventListener("cambio", (e) => {
+      const tg = document.createElement("ba-toggle");
+      tg.setAttribute("etiqueta", def.titulo);
+      if (!fuera.has(def.id)) tg.setAttribute("encendido", "");
+      tg.addEventListener("cambio", (e) => {
         const f = ocultas();
         if (e.detail.valor) f.delete(def.id); else f.add(def.id);
         guardar(CLAVE_OCULTAS, JSON.stringify([...f]));
@@ -273,16 +273,16 @@
           ws.send(JSON.stringify({ type: "preferencias", datos: { ocultas: [...f] } }));
         armarTablero();
       });
-      lista.append(t);
+      lista.append(tg);
     }
   }
 
   // El tally de la barra (y el borde de la pantalla): ¿hay algo al aire?
   function tallyGeneral(escenas) {
-    const t = $("tally");
+    const tl = $("tally");
     const alAire = escenas && escenas.current;
-    t.setAttribute("estado", alAire ? "aire" : "nada");
-    t.setAttribute("etiqueta", alAire ? "Al aire · " + escenas.current : "Fuera del aire");
+    tl.setAttribute("estado", alAire ? "aire" : "nada");
+    tl.setAttribute("etiqueta", alAire ? BAi18n.llenar(t("Al aire · %1"), escenas.current) : t("Fuera del aire"));
   }
 
   // --- Arranque -------------------------------------------------------------------------------
@@ -293,6 +293,10 @@
   $("olvidar").addEventListener("accion", () => { guardar(CLAVE_TOKEN, null); location.reload(); });
   addEventListener("hashchange", () => { if (autenticado) armarTablero(); });
 
+  // Los textos, en el idioma del evento (también los de las tarjetas, que se arman después).
+  await BAi18n.iniciar({ contexto: "web/control", preferir: "evento" });
+  $("tally").setAttribute("etiqueta", t("Fuera del aire"));
+  BA.traducir();
   const codigo = codigoDelFragmento();
   if (codigo && !leer(CLAVE_TOKEN)) emparejar(codigo);
   else conectar();

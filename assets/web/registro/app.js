@@ -29,10 +29,11 @@ let pedido = null;       // el campo que se está pidiendo {clave, etiqueta, tip
 let titulo = "";
 let estadoActual = "esperando";
 
-const kTextoEspera = "Mirá a la cámara para empezar.";
-const kEstados = { esperando: "Esperando", escuchando: "Te escucho", hablando: "Hablando", pensando: "Pensando",
-                   foto: "Mirá a la cámara", documento: "Mostrá tu documento",
-                   dorso: "Mostrá la parte de atrás: los renglones de abajo", listo: "Listo", error: "Problema" };
+// Los textos se piden al usarlos (después de cargar el idioma).
+const kTextoEspera = () => t("Mirá a la cámara para empezar.");
+const kEstados = () => ({ esperando: t("Esperando"), escuchando: t("Te escucho"), hablando: t("Hablando"), pensando: t("Pensando"),
+                          foto: t("Mirá a la cámara"), documento: t("Mostrá tu documento"),
+                          dorso: t("Mostrá la parte de atrás: los renglones de abajo"), listo: t("Listo"), error: t("Problema") });
 
 function mostrar(id) {
   for (const s of ["inicio", "registro", "gracias", "qr", "cortado"]) $(s).classList.toggle("oculto", s !== id);
@@ -101,7 +102,7 @@ async function empezar() {
   if (!medios || !medios.getAudioTracks().length || !medios.getVideoTracks().length) {
     pararMedios();
     if (falla && (falla.name === "NotAllowedError" || falla.name === "SecurityError")) {
-      $("inicioTexto").textContent = "Sin permiso para la cámara y el micrófono no te puedo registrar. Revisá los permisos del navegador y tocá de nuevo.";
+      $("inicioTexto").textContent = t("Sin permiso para la cámara y el micrófono no te puedo registrar. Revisá los permisos del navegador y tocá de nuevo.");
       mostrar("inicio");
       return;
     }
@@ -273,11 +274,11 @@ function mandarCuadro() {
 
 // --- Lo que se muestra --------------------------------------------------------------------
 function ponerEstado(e) {
-  if (!kEstados[e]) return;
+  if (!kEstados()[e]) return;
   estadoActual = e;
   const el = $("estado");
   el.className = "estado " + e;
-  $("estadoTexto").textContent = kEstados[e];
+  $("estadoTexto").textContent = kEstados()[e];
   const charlando = e === "escuchando" || e === "hablando" || e === "pensando" || e === "foto" || mostrandoDocumento(e);
   document.body.classList.toggle("foto", e === "foto");
   // Mostrando el documento: la cámara enmarcada, como en la foto (la app busca el código).
@@ -312,14 +313,16 @@ const kTipoInput = { correo: "email", telefono: "tel", numero: "number" };
 function ponerPedido(m) {
   pedido = m && m.clave ? m : null;
   if (!pedido) { $("caja").classList.add("oculto"); return; }
-  $("cajaEtiqueta").textContent = (pedido.etiqueta || pedido.clave) +
-    (pedido.tipo === "sino" ? "" : pedido.tipo === "documento" ? " — si no lo lee, escribí el número acá" : " — si preferís, escribilo acá");
+  const etiqueta = pedido.etiqueta || pedido.clave;
+  $("cajaEtiqueta").textContent = pedido.tipo === "sino" ? etiqueta
+    : pedido.tipo === "documento" ? BAi18n.llenar(t("%1 — si no lo lee, escribí el número acá"), etiqueta)
+    : BAi18n.llenar(t("%1 — si preferís, escribilo acá"), etiqueta);
   const sino = pedido.tipo === "sino";
   // Confirmando un dato: los mismos botones, con la respuesta entera (y la caja para corregirlo).
   const confirma = !!pedido.confirmando && !sino;
   $("sino").classList.toggle("oculto", !sino && !confirma);
-  $("si").textContent = confirma ? "Sí, es correcto" : "Sí";
-  $("no").textContent = confirma ? "No, corregir" : "No";
+  $("si").textContent = confirma ? t("Sí, es correcto") : t("Sí");
+  $("no").textContent = confirma ? t("No, corregir") : t("No");
   $("cajaValor").parentElement.classList.toggle("oculto", sino);
   const input = $("cajaValor");
   input.type = kTipoInput[pedido.tipo] || "text";
@@ -342,7 +345,7 @@ function mandarEscrito(valor) {
 function limpiar() {
   clearTimeout(timerGracias);
   ponerAtiende(false);
-  $("dice").textContent = kTextoEspera;
+  $("dice").textContent = kTextoEspera();
   $("oido").textContent = "";
   $("oido").classList.add("oculto");
   ponerPedido(null);
@@ -352,7 +355,7 @@ function limpiar() {
 
 function gracias(texto) {
   ponerPedido(null);
-  $("graciasTexto").textContent = texto || "¡Listo! Ya quedaste registrado.";
+  $("graciasTexto").textContent = texto || t("¡Listo! Ya quedaste registrado.");
   // En el celular de cada uno, la conversación terminó: el canal queda para otro. El tótem se
   // lo queda para la persona que sigue.
   if (!kiosco) soltarCanal();
@@ -365,7 +368,7 @@ function gracias(texto) {
 function volverAEsperar() {
   if (soloPantalla || terminado || !empezado) return;
   limpiar();
-  if (!canal) $("dice").textContent = kiosco ? kTextoEspera : "Si querés registrar a otra persona, tocá Empezar.";
+  if (!canal) $("dice").textContent = kiosco ? kTextoEspera() : t("Si querés registrar a otra persona, tocá Empezar.");
   mostrar("registro");
 }
 
@@ -404,10 +407,10 @@ function recibir(m) {
       else { mostrar("inicio"); if (kiosco) empezar(); }
       break;
     case "error":
-      cortar(m.error || "Este enlace de registro no es válido.");
+      cortar(m.error || t("Este enlace de registro no es válido."));
       break;
     case "cortado":
-      cortar(m.motivo || "Se cerró esta pantalla de registro.");
+      cortar(m.motivo || t("Se cerró esta pantalla de registro."));
       break;
     case "canal":
       tomarCanal(m.canal || 0);
@@ -425,8 +428,8 @@ function recibir(m) {
       break;
     case "pantalla":
       titulo = m.titulo || titulo;
-      $("titulo").textContent = titulo || "Registro";
-      document.title = titulo || "Registro";
+      $("titulo").textContent = titulo || t("Registro");
+      document.title = titulo || t("Registro");
       $("subtitulo").textContent = m.subtitulo || "";
       $("subtitulo").classList.toggle("oculto", !m.subtitulo);
       $("qrTitulo").textContent = titulo;
@@ -467,11 +470,11 @@ function recibir(m) {
 // parlante es esa persona. Se dice en grande, para que nadie piense que se colgó.
 function ponerAtiende(activo, quien) {
   const el = $("atiende");
-  el.textContent = activo ? "Te atiende " + (quien || "una persona del equipo") : "";
+  el.textContent = activo ? (quien ? BAi18n.llenar(t("Te atiende %1"), quien) : t("Te atiende una persona del equipo")) : "";
   el.classList.toggle("oculto", !activo);
   if (activo) {
     $("estado").className = "estado atendida";
-    $("estadoTexto").textContent = "Te atiende una persona";
+    $("estadoTexto").textContent = t("Te atiende una persona");
     $("cancelar").classList.remove("oculto");
     $("arrancar").classList.add("oculto");
     oir(); // su voz llega por la misma pista que la del asistente
@@ -505,8 +508,11 @@ document.addEventListener("click", () => { if ($("voz").srcObject) $("voz").play
 
 // --- Arranque -------------------------------------------------------------------------------
 (async function () {
+  // Los textos: el idioma del teléfono de la persona (también se registra desde el celular).
+  await BAi18n.iniciar({ contexto: "web/registro", preferir: "navegador" });
+  $("qrImagen").alt = t("Código QR para registrarse");
   if (!totem || !token) {
-    cortar("Este enlace de registro no está completo. Escaneá de nuevo el código o pedí el enlace.");
+    cortar(t("Este enlace de registro no está completo. Escaneá de nuevo el código o pedí el enlace."));
     return;
   }
   if (!soloPantalla && !(await puedeRegistrar())) soloPantalla = true;

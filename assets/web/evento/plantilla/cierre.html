@@ -10,6 +10,9 @@
   <meta property="og:title" content="{{titulo}}" />
   <link rel="stylesheet" href="/evento/_/sitio.css" />
   <link rel="stylesheet" href="estilo.css" />
+  <!-- Los textos de la plantilla salen en el idioma del evento (/comun/i18n.js): cada uno lleva
+       data-i18n con el original. Si reescribís uno a mano, sacale el data-i18n. -->
+  <script src="/comun/i18n.js" defer></script>
   <script src="/evento/_/vivo.js" defer></script>
 </head>
 <!--
@@ -17,64 +20,64 @@
   (assets/web/evento/plantilla/cierre.html): los datos los completa /evento/_/vivo.js.
 -->
 <body>
-  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <a class="saltar" href="#contenido" data-i18n="Saltar al contenido">Saltar al contenido</a>
 
   <header class="nav">
     <div class="contenedor">
       <a class="marca" href="portada.html" data-vivo="nombre">{{titulo}}</a>
-      <nav class="nav-links" aria-label="Secciones del sitio">
-        <a href="#vivo">La grabación</a>
-        <a href="#programa">Lo que pasó</a>
-        <a href="portada.html">Portada</a>
+      <nav class="nav-links" aria-label="Secciones del sitio" data-i18n-aria-label="Secciones del sitio">
+        <a href="#vivo" data-i18n="La grabación">La grabación</a>
+        <a href="#programa" data-i18n="Lo que pasó">Lo que pasó</a>
+        <a href="portada.html" data-i18n="Portada">Portada</a>
       </nav>
       <div class="nav-acciones">
         <span class="estado" data-vivo="estado">Terminó</span>
-        <button class="hamburguesa" type="button" data-menu aria-controls="menu-movil" aria-expanded="false" aria-label="Abrir el menú"><span></span></button>
+        <button class="hamburguesa" type="button" data-menu aria-controls="menu-movil" aria-expanded="false" aria-label="Abrir el menú" data-i18n-aria-label="Abrir el menú"><span></span></button>
       </div>
     </div>
   </header>
-  <nav class="menu-movil" id="menu-movil" hidden aria-label="Menú">
-    <a href="#vivo">La grabación</a>
-    <a href="#programa">Lo que pasó</a>
-    <a href="portada.html">Portada</a>
+  <nav class="menu-movil" id="menu-movil" hidden aria-label="Menú" data-i18n-aria-label="Menú">
+    <a href="#vivo" data-i18n="La grabación">La grabación</a>
+    <a href="#programa" data-i18n="Lo que pasó">Lo que pasó</a>
+    <a href="portada.html" data-i18n="Portada">Portada</a>
   </nav>
 
   <div class="aviso" data-vivo-si="aviso" hidden><div class="contenedor" data-vivo="aviso"></div></div>
 
   <main id="contenido">
     <section class="hero">
-      <div class="hero-marca" aria-hidden="true">Gracias</div>
+      <div class="hero-marca" aria-hidden="true" data-i18n="Gracias">Gracias</div>
       <div class="contenedor">
         <p class="ceja"><span data-vivo="fecha-corta"></span> · <span data-vivo="estado">Terminó</span></p>
-        <h1 class="h1">Gracias por estar.</h1>
+        <h1 class="h1" data-i18n="Gracias por estar.">Gracias por estar.</h1>
         <p class="bajada"><span data-vivo="nombre">{{titulo}}</span> terminó. Acá queda la grabación y todo lo que pasó.</p>
         <div class="hero-acciones">
-          <a class="boton primario" href="#vivo">Volver a verlo</a>
-          <a class="boton secundario" href="#programa" data-vivo-si="secciones">Lo que pasó</a>
+          <a class="boton primario" href="#vivo" data-i18n="Volver a verlo">Volver a verlo</a>
+          <a class="boton secundario" href="#programa" data-vivo-si="secciones" data-i18n="Lo que pasó">Lo que pasó</a>
         </div>
       </div>
     </section>
 
     <div class="contenedor">
       <div class="numeros">
-        <div><b data-vivo="n-secciones">—</b><span>Secciones</span></div>
-        <div><b data-vivo="minutos">—</b><span>Minutos</span></div>
-        <div><b><span data-vivo="dia"></span> <span data-vivo="mes"></span></b><span>Fecha</span></div>
-        <div><b data-vivo="hora-inicio">—</b><span>Empezó</span></div>
+        <div><b data-vivo="n-secciones">—</b><span data-i18n="Secciones">Secciones</span></div>
+        <div><b data-vivo="minutos">—</b><span data-i18n="Minutos">Minutos</span></div>
+        <div><b><span data-vivo="dia"></span> <span data-vivo="mes"></span></b><span data-i18n="Fecha">Fecha</span></div>
+        <div><b data-vivo="hora-inicio">—</b><span data-i18n="Empezó">Empezó</span></div>
         <div data-vivo-si="quorum" hidden><b><span data-vivo="quorum-presentes"></span>/<span data-vivo="quorum-necesarios"></span></b><span data-vivo="quorum-estado">Quórum</span></div>
-        <div data-vivo-si="asistencia" hidden><b><span data-vivo="asistencia-presentes"></span>/<span data-vivo="asistencia-total"></span></b><span>Llegaron / anotados</span></div>
+        <div data-vivo-si="asistencia" hidden><b><span data-vivo="asistencia-presentes"></span>/<span data-vivo="asistencia-total"></span></b><span data-i18n="Llegaron / anotados">Llegaron / anotados</span></div>
       </div>
     </div>
 
     <section class="seccion" id="vivo" style="margin-top:64px">
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / La grabación</p>
-          <h2 class="h2">Volvé a verlo.</h2>
+          <p class="ceja"><span data-num></span> / <span data-i18n="La grabación">La grabación</span></p>
+          <h2 class="h2" data-i18n="Volvé a verlo.">Volvé a verlo.</h2>
         </div>
         <div class="reproductor-caja">
           <div data-vivo="reproductor" data-plataforma="youtube" data-vacio="La grabación va a estar acá."></div>
-          <nav class="plataformas" data-vivo="vivos" data-vivo-si="vivos" hidden aria-label="Verlo en cada plataforma"></nav>
+          <nav class="plataformas" data-vivo="vivos" data-vivo-si="vivos" hidden aria-label="Verlo en cada plataforma" data-i18n-aria-label="Verlo en cada plataforma"></nav>
         </div>
       </div>
     </section>
@@ -84,24 +87,24 @@
     <section class="seccion" id="asamblea" data-vivo-si="asamblea" hidden>
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / La asamblea</p>
+          <p class="ceja"><span data-num></span> / <span data-i18n="La asamblea">La asamblea</span></p>
           <h2 class="h2" data-vivo="asamblea-cuerpo">La asamblea</h2>
           <p class="bajada"><b data-vivo="asamblea-presentes">0</b> de <span data-vivo="asamblea-total">0</span> integrantes presentes
             <span data-vivo-si="asamblea-quorum" hidden> · <span class="estado" data-vivo="asamblea-quorum"></span></span></p>
         </div>
         <div class="tarjeta" data-vivo-si="punto" hidden style="margin-bottom:24px">
-          <p class="ceja" style="margin:0 0 6px;color:var(--vivo)">En tratamiento</p>
+          <p class="ceja" style="margin:0 0 6px;color:var(--vivo)" data-i18n="En tratamiento">En tratamiento</p>
           <b class="h3" data-vivo="punto-titulo"></b>
           <p class="tenue mono" data-vivo="punto-expediente"></p>
         </div>
         <div class="recinto-caja" data-vivo-si="recinto" hidden>
           <div class="recinto" data-vivo="recinto"></div>
           <ul class="bloques" data-vivo="bloques" data-vivo-si="bloques" hidden></ul>
-          <p class="tenue recinto-nota">Visto desde el fondo del recinto. Llena: presente · vacía: ausente · con aro: en el uso de la palabra.</p>
+          <p class="tenue recinto-nota" data-i18n="Visto desde el fondo del recinto. Llena: presente · vacía: ausente · con aro: en el uso de la palabra.">Visto desde el fondo del recinto. Llena: presente · vacía: ausente · con aro: en el uso de la palabra.</p>
         </div>
         <ul class="integrantes" data-vivo="integrantes"></ul>
         <div data-vivo-si="votaciones" hidden style="margin-top:40px">
-          <p class="ceja">Votaciones oficiales</p>
+          <p class="ceja" data-i18n="Votaciones oficiales">Votaciones oficiales</p>
           <ul class="votaciones" data-vivo="votaciones"></ul>
         </div>
       </div>
@@ -111,7 +114,7 @@
     <section class="seccion" id="votacion" data-vivo-si="votacion-info" hidden>
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / Votación</p>
+          <p class="ceja"><span data-num></span> / <span data-i18n="Votación">Votación</span></p>
           <h2 class="h2" data-vivo="votacion-pregunta"></h2>
           <p class="bajada"><span class="estado" data-vivo="votacion-estado"></span> <span class="mono tenue" data-vivo="votacion-votaron"></span></p>
         </div>
@@ -122,8 +125,8 @@
     <section class="seccion" id="programa" data-vivo-si="secciones">
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / Lo que pasó</p>
-          <h2 class="h2">Parte por parte.</h2>
+          <p class="ceja"><span data-num></span> / <span data-i18n="Lo que pasó">Lo que pasó</span></p>
+          <h2 class="h2" data-i18n="Parte por parte.">Parte por parte.</h2>
         </div>
         <ol class="programa" data-vivo="agenda"></ol>
       </div>
@@ -133,8 +136,8 @@
     <section class="seccion" id="orden" data-vivo-si="orden" hidden>
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / Orden del día</p>
-          <h2 class="h2">Qué se resolvió.</h2>
+          <p class="ceja"><span data-num></span> / <span data-i18n="Orden del día">Orden del día</span></p>
+          <h2 class="h2" data-i18n="Qué se resolvió.">Qué se resolvió.</h2>
         </div>
         <ol class="orden" data-vivo="orden"></ol>
       </div>
@@ -148,14 +151,14 @@
           <p class="h3" style="margin:0 0 10px" data-vivo="nombre">{{titulo}}</p>
           <p data-vivo="fecha-larga"></p>
         </div>
-        <div><h4>El evento</h4><ul>
-          <li><a href="#vivo">La grabación</a></li><li><a href="#programa">Lo que pasó</a></li>
-          <li><a href="portada.html">Portada</a></li></ul></div>
-        <div data-vivo-si="secciones"><h4>Secciones</h4><ul data-vivo="lista-secciones"></ul></div>
-        <div><h4>Seguí</h4><ul><li><a data-vivo-href="publico" data-vivo-si="participar" hidden>Preguntar y votar</a></li>
-          <li data-vivo-si="invitados" hidden><a href="/invitados/">La conferencia</a></li></ul></div>
+        <div><h4 data-i18n="El evento">El evento</h4><ul>
+          <li><a href="#vivo" data-i18n="La grabación">La grabación</a></li><li><a href="#programa" data-i18n="Lo que pasó">Lo que pasó</a></li>
+          <li><a href="portada.html" data-i18n="Portada">Portada</a></li></ul></div>
+        <div data-vivo-si="secciones"><h4 data-i18n="Secciones">Secciones</h4><ul data-vivo="lista-secciones"></ul></div>
+        <div><h4 data-i18n="Seguí">Seguí</h4><ul><li><a data-vivo-href="publico" data-vivo-si="participar" hidden data-i18n="Preguntar y votar">Preguntar y votar</a></li>
+          <li data-vivo-si="invitados" hidden><a href="/invitados/" data-i18n="La conferencia">La conferencia</a></li></ul></div>
       </div>
-      <div class="pie-final"><span><span data-vivo="nombre">{{titulo}}</span> · <span data-vivo="anio"></span></span><span>Gracias por estar.</span></div>
+      <div class="pie-final"><span><span data-vivo="nombre">{{titulo}}</span> · <span data-vivo="anio"></span></span><span data-i18n="Gracias por estar.">Gracias por estar.</span></div>
     </div>
   </footer>
 </body>

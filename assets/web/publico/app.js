@@ -3,8 +3,11 @@
 // No entra a la sala, no pide cámara ni micrófono y no abre WebRTC. En un salón
 // con doscientas personas eso sería un acople garantizado y el ancho de banda
 // tirado; acá alcanza con HTTP.
-(() => {
+(async () => {
   'use strict';
+  const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
+  // Los textos: el idioma del teléfono (o el que elija arriba); si no hay, el del evento.
+  await BAi18n.iniciar({ contexto: 'web/publico', preferir: 'navegador' });
 
   // --- La clave, del fragmento ---------------------------------------------
   // En el fragmento y no en la consulta: así no viaja en la petición ni queda
@@ -59,19 +62,19 @@
     pie.className = 'quien';
     if (esMia) {
       // Saber que la eligieron es la mitad de la gracia de haber preguntado.
-      const m = { nueva: 'Esperando', elegida: 'En la cola', al_aire: 'Al aire ahora',
-                  respondida: 'Respondida', descartada: 'No se va a preguntar' };
+      const m = { nueva: t('Esperando'), elegida: t('En la cola'), al_aire: t('Al aire ahora'),
+                  respondida: t('Respondida'), descartada: t('No se va a preguntar') };
       const marca = document.createElement('span');
       marca.className = 'marca' + (q.estado === 'al_aire' ? ' aire'
                                  : q.estado === 'elegida' ? ' elegida' : '');
       marca.textContent = m[q.estado] || q.estado;
       pie.appendChild(marca);
     } else {
-      pie.textContent = q.nombre || 'Anónimo';
+      pie.textContent = q.nombre || t('Anónimo');
       if (q.alAire) {
         const marca = document.createElement('span');
         marca.className = 'marca aire';
-        marca.textContent = ' · Al aire ahora';
+        marca.textContent = ' · ' + t('Al aire ahora');
         pie.appendChild(marca);
       }
     }
@@ -94,7 +97,9 @@
     return div;
   }
 
+  let ultimas = null; // las últimas preguntas (para volver a pintar si cambia el idioma)
   function pintar(p) {
+    ultimas = p;
     const mias = $('mias'), otras = $('otras');
     mias.textContent = '';
     otras.textContent = '';
@@ -109,7 +114,7 @@
     try {
       const r = await fetch('/api/preguntas?k=' + encodeURIComponent(clave) +
                             '&yo=' + encodeURIComponent(yo), { cache: 'no-store' });
-      if (r.status === 403) { estado.textContent = 'Clave rechazada'; return; }
+      if (r.status === 403) { estado.textContent = t('Clave rechazada'); return; }
       const j = await r.json();
       if (j.preguntas) pintar(j.preguntas);
       estado.textContent = '';
@@ -117,7 +122,7 @@
       // Sin conexión no se borra lo que ya está en pantalla: el que está
       // leyendo una pregunta no tiene por qué perderla porque se cayó el wifi
       // un segundo.
-      estado.textContent = 'Sin conexión';
+      estado.textContent = t('Sin conexión');
     }
   }
 
@@ -142,18 +147,18 @@
 
   $('mandar').addEventListener('click', async () => {
     const texto = $('texto').value.trim();
-    if (!texto) { decir('Escribí la pregunta primero.', 'mal'); return; }
+    if (!texto) { decir(t('Escribí la pregunta primero.'), 'mal'); return; }
     const b = $('mandar');
     b.disabled = true;
-    decir('Mandando…');
+    decir(t('Mandando…'));
     try {
       const j = await mandar({ texto, nombre: $('nombre').value.trim() });
-      if (!j.ok) { decir(j.error || 'No se pudo mandar.', 'mal'); return; }
+      if (!j.ok) { decir(j.error || t('No se pudo mandar.'), 'mal'); return; }
       $('texto').value = '';
-      decir('Mandada. Vas a ver acá si la eligen.', 'bien');
+      decir(t('Mandada. Vas a ver acá si la eligen.'), 'bien');
       if (j.preguntas) pintar(j.preguntas);
     } catch (_) {
-      decir('No se pudo mandar: revisá la conexión.', 'mal');
+      decir(t('No se pudo mandar: revisá la conexión.'), 'mal');
     } finally {
       b.disabled = false;
     }
@@ -172,8 +177,10 @@
   // funciona igual, que es lo que importa.
   fetch('/api/publico-info?k=' + encodeURIComponent(clave), { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
-    .then((j) => {
+    .then(async (j) => {
       if (!j) return;
+      // El idioma del evento, si la app lo manda: vale cuando el del teléfono no está.
+      if (j.idioma) { await BAi18n.iniciar({ evento: j.idioma }); repintar(); }
       if (j.evento) $('evento').textContent = j.evento;
       if (j.cuando) $('cuando').textContent = j.cuando;
       if (j.fondo) $('fondo').style.backgroundImage = 'url("' + j.fondo + '")';
@@ -198,7 +205,7 @@
         body: JSON.stringify({ clave, codigo: codigoDelQr }),
       }).then(() => {
         try { localStorage.setItem('ba-publico-acreditado', codigoDelQr); } catch (_) {}
-        estado.textContent = 'Llegada registrada';
+        estado.textContent = t('Llegada registrada');
       }).catch(() => {});
     }
   }
@@ -231,9 +238,9 @@
     // Lo que vota el público es una CONSULTA: no reemplaza la votación del
     // cuerpo, y tiene que decirlo siempre (salvo que el cuerpo la adopte).
     $('urnaModo').textContent = (formal
-      ? (v.abierta ? 'Votación · abierta' : 'Votación · cerrada')
-      : (v.abierta ? 'Encuesta · abierta' : 'Encuesta · cerrada')) +
-      (v.vinculante ? '' : ' · consulta, no vinculante');
+      ? (v.abierta ? t('Votación · abierta') : t('Votación · cerrada'))
+      : (v.abierta ? t('Encuesta · abierta') : t('Encuesta · cerrada'))) +
+      (v.vinculante ? '' : ' · ' + t('consulta, no vinculante'));
     $('urnaModo').className = 'marca' + (v.abierta ? ' aire' : '');
     $('urnaPregunta').textContent = v.pregunta;
     // El codigo solo se pide donde hace falta.
@@ -252,11 +259,11 @@
     });
 
     if (formal && v.abierta && !codigo)
-      decirUrna('Escribí tu código para poder votar.');
+      decirUrna(t('Escribí tu código para poder votar.'));
     else if (formal && codigo && v.puedeVotar === false)
-      decirUrna('Ese código no figura entre los que pueden votar.', 'mal');
-    else if (!v.abierta) decirUrna('La votación está cerrada.');
-    else if (v.miVoto >= 0) decirUrna('Tu voto quedó registrado. Podés cambiarlo hasta que cierre.', 'bien');
+      decirUrna(t('Ese código no figura entre los que pueden votar.'), 'mal');
+    else if (!v.abierta) decirUrna(t('La votación está cerrada.'));
+    else if (v.miVoto >= 0) decirUrna(t('Tu voto quedó registrado. Podés cambiarlo hasta que cierre.'), 'bien');
     else decirUrna('');
 
     // El resultado solo si el gateway lo mandó: mientras está abierta, verlo
@@ -274,7 +281,7 @@
       const n = document.createElement('span');
       n.textContent = o.opcion;
       const c = document.createElement('span');
-      c.textContent = o.votos + (o.votos === 1 ? ' voto' : ' votos');
+      c.textContent = t('%n voto', { n: o.votos });
       arriba.append(n, c);
       const riel = document.createElement('div');
       riel.className = 'riel';
@@ -303,7 +310,7 @@
       if (j.votacion) pintarUrna(j.votacion);
       if (!j.ok && j.error) decirUrna(j.error, 'mal');
     } catch (_) {
-      decirUrna('No se pudo votar: revisá la conexión.', 'mal');
+      decirUrna(t('No se pudo votar: revisá la conexión.'), 'mal');
     }
   }
 
@@ -316,6 +323,32 @@
       if (j.votacion) pintarUrna(j.votacion);
     } catch (_) { /* se deja lo que ya está en pantalla */ }
   }
+
+  // --- El idioma ---------------------------------------------------------------
+  // Un selector chico arriba: los idiomas que hay; al cambiar, se vuelve a pintar.
+  function armarIdiomas() {
+    const sel = $('idioma');
+    const lista = BAi18n.idiomas;
+    sel.classList.toggle('hidden', lista.length < 2);
+    sel.textContent = '';
+    for (const p of lista) {
+      const o = document.createElement('option');
+      o.value = p.codigo;
+      o.textContent = p.nombre;
+      sel.appendChild(o);
+    }
+    sel.value = BAi18n.idioma;
+  }
+  function repintar() {
+    armarIdiomas();
+    if (ultimas) pintar(ultimas);
+    pintarUrna(ultimaUrna);
+  }
+  $('idioma').addEventListener('change', async (e) => {
+    await BAi18n.elegir(e.target.value);
+    repintar();
+  });
+  armarIdiomas();
 
   traerUrna();
   traer();

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0d1014" />
-  <title>Sesión remota</title>
+  <title data-i18n="Sesión remota">Sesión remota</title>
   <link rel="apple-touch-icon" href="/comun/icono-180.png" />
   <link rel="stylesheet" href="sesion.css" />
 </head>
@@ -18,85 +18,86 @@
     usuario y contraseña (también los da la secretaría).
   -->
   <header class="barra">
-    <span class="titulo">Sesión remota</span>
+    <span class="titulo" data-i18n="Sesión remota">Sesión remota</span>
     <span id="quien" class="quien"></span>
     <span class="espacio"></span>
-    <span id="conexion" class="conexion apagada" title="Conexión">●</span>
+    <select id="idioma" class="idioma oculto" aria-label="Idioma" data-i18n-aria-label="Idioma"></select>
+    <span id="conexion" class="conexion apagada" title="Conexión" data-i18n-title="Conexión">●</span>
   </header>
 
   <section id="entrar" class="panel">
-    <h1>Entrar a la sesión</h1>
-    <p id="entrarTexto" class="tenue">Escribí el PIN que te dio la secretaría.</p>
+    <h1 data-i18n="Entrar a la sesión">Entrar a la sesión</h1>
+    <p id="entrarTexto" class="tenue" data-i18n="Escribí el PIN que te dio la secretaría.">Escribí el PIN que te dio la secretaría.</p>
     <form id="formPin" autocomplete="off">
       <input id="usuario" class="oculto" type="text" autocapitalize="none" autocorrect="off" spellcheck="false"
-             maxlength="40" placeholder="Usuario" aria-label="Usuario" />
+             maxlength="40" placeholder="Usuario" data-i18n-placeholder="Usuario" aria-label="Usuario" data-i18n-aria-label="Usuario" />
       <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="64"
              placeholder="PIN" aria-label="PIN" autofocus />
-      <button id="botonEntrar" type="submit">Entrar</button>
+      <button id="botonEntrar" type="submit" data-i18n="Entrar">Entrar</button>
     </form>
     <p id="error" class="error oculto"></p>
   </section>
 
   <main id="sala" class="sala oculto">
     <div id="estado" class="estado esperando">
-      <strong id="estadoTitulo">Esperando que te habiliten</strong>
-      <span id="estadoTexto">La presidencia te va a ver por la cámara y te habilita. Hasta entonces no contás para el quórum.</span>
+      <strong id="estadoTitulo" data-i18n="Esperando que te habiliten">Esperando que te habiliten</strong>
+      <span id="estadoTexto" data-i18n="La presidencia te va a ver por la cámara y te habilita. Hasta entonces no contás para el quórum.">La presidencia te va a ver por la cámara y te habilita. Hasta entonces no contás para el quórum.</span>
     </div>
-    <div id="aSala" class="ptt oculto">● Se te escucha en la sala</div>
+    <div id="aSala" class="ptt oculto" data-i18n="● Se te escucha en la sala">● Se te escucha en la sala</div>
     <div id="pttAviso" class="ptt oculto">
-      <strong id="pttTitulo">La presidencia te está hablando</strong>
-      <span class="tenue">Tu micrófono está abierto para ella.</span>
+      <strong id="pttTitulo" data-i18n="La presidencia te está hablando">La presidencia te está hablando</strong>
+      <span class="tenue" data-i18n="Tu micrófono está abierto para ella.">Tu micrófono está abierto para ella.</span>
     </div>
     <audio id="presidencia" autoplay></audio>
     <!-- Mientras espera, lo atiende el asistente HABLANDO (docs/funciones/ATENCION.md): su micrófono
          va solo al asistente y la respuesta le llega con voz, solo a él. -->
     <div id="atiende" class="ptt atiende oculto" aria-live="polite">
-      <strong>Te atiende el asistente: hablale, te escucha</strong>
-      <span id="atiendeTexto" class="tenue">Tu micrófono está abierto solo para el asistente (no para la sala ni la
+      <strong data-i18n="Te atiende el asistente: hablale, te escucha">Te atiende el asistente: hablale, te escucha</strong>
+      <span id="atiendeTexto" class="tenue" data-i18n="Tu micrófono está abierto solo para el asistente (no para la sala ni la transmisión) hasta que te habiliten.">Tu micrófono está abierto solo para el asistente (no para la sala ni la
         transmisión) hasta que te habiliten.</span>
       <span id="atiendeDice" class="atiende-dice oculto"></span>
-      <button id="atiendeOir" type="button" class="oculto">🔊 Tocá para oírlo</button>
+      <button id="atiendeOir" type="button" class="oculto" data-i18n="🔊 Tocá para oírlo">🔊 Tocá para oírlo</button>
     </div>
     <audio id="vozAtiende" autoplay></audio>
     <div id="palabra" class="palabra oculto">
-      <strong id="palabraTitulo">Tenés la palabra</strong>
+      <strong id="palabraTitulo" data-i18n="Tenés la palabra">Tenés la palabra</strong>
       <span id="reloj" class="reloj">3:00</span>
       <span id="palabraTexto" class="tenue"></span>
       <!-- Mostrar algo mientras habla: su pantalla (en una compu) o la otra cámara del celular. -->
       <div id="compartir" class="compartir oculto">
-        <button id="compartirPantalla" type="button" class="oculto">🖥 Compartir pantalla</button>
-        <button id="compartirCamara" type="button" class="oculto">📷 Mostrar con la otra cámara</button>
-        <button id="dejarDeCompartir" type="button" class="oculto">■ Dejar de mostrar</button>
+        <button id="compartirPantalla" type="button" class="oculto" data-i18n="🖥 Compartir pantalla">🖥 Compartir pantalla</button>
+        <button id="compartirCamara" type="button" class="oculto" data-i18n="📷 Mostrar con la otra cámara">📷 Mostrar con la otra cámara</button>
+        <button id="dejarDeCompartir" type="button" class="oculto" data-i18n="■ Dejar de mostrar">■ Dejar de mostrar</button>
       </div>
     </div>
     <div class="acciones">
-      <button id="pedir" type="button" disabled>Pedir la palabra</button>
+      <button id="pedir" type="button" disabled data-i18n="Pedir la palabra">Pedir la palabra</button>
       <span id="turno" class="turno"></span>
     </div>
     <!-- Qué mira: su cámara, la salida principal u otra escena (lo arma la secretaría).
          Mirando un canal, su propia imagen queda en un recuadro: siempre sabe qué muestra. -->
     <div id="vistas" class="vistas oculto">
       <div id="botonesVista" class="botones-vista"></div>
-      <button id="sonido" type="button" class="sonido">🔇 Sonido de la sala</button>
+      <button id="sonido" type="button" class="sonido" data-i18n="🔇 Sonido de la sala">🔇 Sonido de la sala</button>
     </div>
     <div class="medio">
       <video id="canal" class="canal oculto" autoplay muted playsinline></video>
       <video id="propia" class="propia" autoplay muted playsinline></video>
-      <p id="sinCanal" class="aviso oculto">Conectando…</p>
-      <p id="sinCamara" class="aviso oculto">No hay cámara: sin ella no te pueden habilitar. Revisá los permisos del navegador.</p>
+      <p id="sinCanal" class="aviso oculto" data-i18n="Conectando…">Conectando…</p>
+      <p id="sinCamara" class="aviso oculto" data-i18n="No hay cámara: sin ella no te pueden habilitar. Revisá los permisos del navegador.">No hay cámara: sin ella no te pueden habilitar. Revisá los permisos del navegador.</p>
     </div>
     <audio id="sonidoSala" autoplay></audio>
     <div class="info">
-      <div><span class="tenue">Punto del orden del día</span><div id="punto">—</div></div>
-      <div><span class="tenue">Tiene la palabra</span><div id="hablando">—</div></div>
-      <div class="ancho"><span class="tenue">Próximos temas</span><ol id="proximos" class="proximos"></ol></div>
+      <div><span class="tenue" data-i18n="Punto del orden del día">Punto del orden del día</span><div id="punto">—</div></div>
+      <div><span class="tenue" data-i18n="Tiene la palabra">Tiene la palabra</span><div id="hablando">—</div></div>
+      <div class="ancho"><span class="tenue" data-i18n="Próximos temas">Próximos temas</span><ol id="proximos" class="proximos"></ol></div>
     </div>
   </main>
 
   <!-- La votación: el cartel rojo, a pantalla completa. -->
   <section id="votacion" class="votacion oculto" aria-live="assertive">
     <div class="vot-cabeza">
-      <span class="vot-etiqueta">VOTACIÓN</span>
+      <span class="vot-etiqueta" data-i18n="VOTACIÓN">VOTACIÓN</span>
       <span id="votNumero" class="vot-numero"></span>
       <span class="espacio"></span>
       <span id="votReloj" class="vot-reloj"></span>
@@ -107,19 +108,20 @@
     <p id="votMio" class="vot-mio"></p>
   </section>
   <section id="resultado" class="resultado oculto">
-    <div class="vot-cabeza"><span class="vot-etiqueta">RESULTADO</span><span class="espacio"></span>
-      <button id="cerrarResultado" type="button">Cerrar</button></div>
+    <div class="vot-cabeza"><span class="vot-etiqueta" data-i18n="RESULTADO">RESULTADO</span><span class="espacio"></span>
+      <button id="cerrarResultado" type="button" data-i18n="Cerrar">Cerrar</button></div>
     <h2 id="resTema" class="vot-tema"></h2>
     <div id="resTotales" class="res-totales"></div>
   </section>
 
   <section id="cortado" class="panel oculto">
-    <h1>Sesión cerrada</h1>
+    <h1 data-i18n="Sesión cerrada">Sesión cerrada</h1>
     <p id="cortadoTexto"></p>
-    <button id="reintentar" type="button">Volver a entrar</button>
+    <button id="reintentar" type="button" data-i18n="Volver a entrar">Volver a entrar</button>
   </section>
 
   <canvas id="lienzo" class="oculto" width="320" height="240"></canvas>
+  <script src="/comun/i18n.js"></script>
   <script src="../comun/ice.js"></script>
   <script src="app.js"></script>
 </body>

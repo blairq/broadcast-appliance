@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Votación</title>
+  <title data-i18n="Votación">Votación</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -29,16 +29,17 @@
       <div class="opciones" id="opciones"></div>
       <div class="como" id="como">
         <img id="qr" alt="" />
-        <p class="pie">Escaneá para votar</p>
+        <p class="pie" data-i18n="Escaneá para votar">Escaneá para votar</p>
         <p class="cuenta" id="cuenta"></p>
       </div>
     </div>
   </main>
 
   <div id="nada" class="nada">
-    <p>No hay ninguna votación abierta.</p>
+    <p data-i18n="No hay ninguna votación abierta.">No hay ninguna votación abierta.</p>
   </div>
 
+  <script src="/comun/i18n.js"></script>
   <script src="../latido.js"></script>
   <script src="app.js"></script>
 </body>

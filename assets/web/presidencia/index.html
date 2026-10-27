@@ -4,11 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#22252c" />
-  <title>Presidencia</title>
+  <title data-i18n="Presidencia">Presidencia</title>
   <link rel="apple-touch-icon" href="/comun/icono-180.png" />
   <link rel="stylesheet" href="/comun/neuro/temas.css" />
   <link rel="stylesheet" href="/comun/neuro/neuro.css" />
   <link rel="stylesheet" href="consola.css" />
+  <script src="/comun/i18n.js"></script>
   <script src="/comun/neuro/neuro.js"></script>
 </head>
 <body>
@@ -35,41 +36,41 @@
   <!-- Entrar: el PIN de la consola. -->
   <section id="entrar" class="vidrio entrar">
     <div class="escudo"><div class="sol-chico"></div></div>
-    <h1>Presidencia</h1>
-    <p id="entrarTexto" class="tenue">Escribí el PIN de la consola.</p>
+    <h1 data-i18n="Presidencia">Presidencia</h1>
+    <p id="entrarTexto" class="tenue" data-i18n="Escribí el PIN de la consola.">Escribí el PIN de la consola.</p>
     <form id="formPin" autocomplete="off">
       <input id="pin" type="password" inputmode="numeric" maxlength="12" placeholder="PIN" aria-label="PIN" autofocus />
-      <button class="boton celeste" type="submit" id="botonEntrar">Entrar</button>
+      <button class="boton celeste" type="submit" id="botonEntrar" data-i18n="Entrar">Entrar</button>
     </form>
     <p id="error" class="error oculto"></p>
   </section>
 
   <main id="consola" class="consola oculto">
     <header class="barra vidrio">
-      <div class="marca"><div class="sol-chico"></div><div><strong>Presidencia</strong><span id="cuerpo" class="tenue"></span></div></div>
+      <div class="marca"><div class="sol-chico"></div><div><strong data-i18n="Presidencia">Presidencia</strong><span id="cuerpo" class="tenue"></span></div></div>
       <div id="punto" class="punto"></div>
       <div class="espacio"></div>
-      <div id="quorum" class="chip">Quórum —</div>
-      <div id="remotos" class="chip">Remotos —</div>
-      <div id="central" class="chip">Central —</div>
+      <div id="quorum" class="chip" data-i18n="Quórum —">Quórum —</div>
+      <div id="remotos" class="chip" data-i18n="Remotos —">Remotos —</div>
+      <div id="central" class="chip" data-i18n="Central —">Central —</div>
       <div id="reloj" class="chip reloj">--:--</div>
-      <button id="pantallaCompleta" class="boton chico" type="button" title="Pantalla completa">⤢</button>
-      <span id="conexion" class="punto-con apagado" title="Conexión con la app"></span>
+      <button id="pantallaCompleta" class="boton chico" type="button" title="Pantalla completa" data-i18n-title="Pantalla completa">⤢</button>
+      <span id="conexion" class="punto-con apagado" title="Conexión con la app" data-i18n-title="Conexión con la app"></span>
     </header>
 
     <section class="col col-izq">
       <article class="tarjeta vidrio inclinable">
-        <h2>Salida principal</h2>
-        <div class="pantalla"><iframe id="programa" title="Programa en vivo" allow="autoplay"></iframe>
-          <div id="sinPrograma" class="pantalla-vacia">Esperando el programa…</div></div>
+        <h2 data-i18n="Salida principal">Salida principal</h2>
+        <div class="pantalla"><iframe id="programa" title="Programa en vivo" data-i18n-title="Programa en vivo" allow="autoplay"></iframe>
+          <div id="sinPrograma" class="pantalla-vacia" data-i18n="Esperando el programa…">Esperando el programa…</div></div>
       </article>
       <article class="tarjeta vidrio inclinable palabra" id="tarjetaPalabra">
-        <h2>En uso de la palabra</h2>
+        <h2 data-i18n="En uso de la palabra">En uso de la palabra</h2>
         <div class="pantalla">
           <video id="videoOrador" autoplay playsinline muted></video>
           <img id="fotoOrador" class="foto-orador oculto" alt="" />
-          <div id="sinOrador" class="pantalla-vacia">Nadie tiene la palabra</div>
-          <div id="etiquetaPtt" class="etiqueta-ptt oculto">● Hablando con la presidencia</div>
+          <div id="sinOrador" class="pantalla-vacia" data-i18n="Nadie tiene la palabra">Nadie tiene la palabra</div>
+          <div id="etiquetaPtt" class="etiqueta-ptt oculto" data-i18n="● Hablando con la presidencia">● Hablando con la presidencia</div>
         </div>
         <div class="orador">
           <div class="anillo"><svg viewBox="0 0 120 120"><circle class="pista" cx="60" cy="60" r="52" />
@@ -77,71 +78,71 @@
           <div class="orador-datos"><strong id="nombreOrador">—</strong><span id="detalleOrador" class="tenue"></span></div>
         </div>
         <div class="acciones">
-          <button class="boton" data-accion="sumar" data-s="60">+1 min</button>
+          <button class="boton" data-accion="sumar" data-s="60" data-i18n="+1 min">+1 min</button>
           <button class="boton" data-accion="sumar" data-s="-30">−30 s</button>
-          <button class="boton rojo" data-accion="terminar">Terminar</button>
-          <button class="boton celeste" data-accion="siguiente">Siguiente ▶</button>
+          <button class="boton rojo" data-accion="terminar" data-i18n="Terminar">Terminar</button>
+          <button class="boton celeste" data-accion="siguiente" data-i18n="Siguiente ▶">Siguiente ▶</button>
         </div>
-        <label class="tiempo">Tiempo para cada orador <input id="asignado" type="number" min="10" step="30" /> segundos</label>
+        <label class="tiempo"><span data-i18n="Tiempo para cada orador">Tiempo para cada orador</span> <input id="asignado" type="number" min="10" step="30" /> <span data-i18n="segundos">segundos</span></label>
         <!-- Lo que hace la presidencia sobre todos: callarlos (también a los remotos) y hablar ella. -->
         <div class="acciones">
-          <button class="boton rojo" data-accion="silenciar">🔇 Silenciar a todos</button>
-          <button id="hablaYo" class="boton" data-accion="hablo">🎙 Hablo yo</button>
+          <button class="boton rojo" data-accion="silenciar" data-i18n="🔇 Silenciar a todos">🔇 Silenciar a todos</button>
+          <button id="hablaYo" class="boton" data-accion="hablo" data-i18n="🎙 Hablo yo">🎙 Hablo yo</button>
         </div>
       </article>
       <!-- El debate entre dos (de la sala o remotos): se eligen tocando las bancas. -->
       <article class="tarjeta vidrio" id="tarjetaDebate">
-        <h2>Debate <span id="debateTipo" class="tenue"></span></h2>
+        <h2><span data-i18n="Debate">Debate</span> <span id="debateTipo" class="tenue"></span></h2>
         <div class="debate-lados">
-          <div id="debateA" class="debate-lado"><span class="tenue">A</span><strong id="debateNombreA">tocá una banca → «Debate: A»</strong></div>
-          <div id="debateB" class="debate-lado"><span class="tenue">B</span><strong id="debateNombreB">tocá una banca → «Debate: B»</strong></div>
+          <div id="debateA" class="debate-lado"><span class="tenue">A</span><strong id="debateNombreA" data-i18n="tocá una banca → «Debate: A»">tocá una banca → «Debate: A»</strong></div>
+          <div id="debateB" class="debate-lado"><span class="tenue">B</span><strong id="debateNombreB" data-i18n="tocá una banca → «Debate: B»">tocá una banca → «Debate: B»</strong></div>
         </div>
         <div id="debateReloj" class="debate-reloj tenue"></div>
         <div class="acciones">
-          <button id="debateIniciar" class="boton celeste" data-accion="debate-iniciar">Empezar el debate</button>
-          <button class="boton debate-en" data-accion="debate-turno" data-t="a">Turno de A</button>
-          <button class="boton debate-en" data-accion="debate-turno" data-t="b">Turno de B</button>
-          <button class="boton debate-en" data-accion="debate-turno" data-t="ambos">Ambos</button>
+          <button id="debateIniciar" class="boton celeste" data-accion="debate-iniciar" data-i18n="Empezar el debate">Empezar el debate</button>
+          <button class="boton debate-en" data-accion="debate-turno" data-t="a" data-i18n="Turno de A">Turno de A</button>
+          <button class="boton debate-en" data-accion="debate-turno" data-t="b" data-i18n="Turno de B">Turno de B</button>
+          <button class="boton debate-en" data-accion="debate-turno" data-t="ambos" data-i18n="Ambos">Ambos</button>
           <button class="boton debate-en" data-accion="debate-sumar">+30 s</button>
-          <button class="boton rojo debate-en" data-accion="debate-terminar">Terminar el debate</button>
+          <button class="boton rojo debate-en" data-accion="debate-terminar" data-i18n="Terminar el debate">Terminar el debate</button>
         </div>
       </article>
     </section>
 
     <section class="col col-centro">
       <article class="tarjeta vidrio recinto-tarjeta">
-        <h2>Recinto <span id="resumenRecinto" class="tenue"></span></h2>
+        <h2><span data-i18n="Recinto">Recinto</span> <span id="resumenRecinto" class="tenue"></span></h2>
         <div id="recinto" class="recinto"></div>
         <div class="leyenda">
-          <span><i class="pt sala"></i>en la sala</span><span><i class="pt remoto"></i>remoto</span>
-          <span><i class="pt espera"></i>espera habilitación</span><span><i class="pt palabra"></i>con la palabra</span>
-          <span><i class="pt pidio"></i>pidió la palabra</span>
+          <span><i class="pt sala"></i><span data-i18n="en la sala">en la sala</span></span><span><i class="pt remoto"></i><span data-i18n="remoto">remoto</span></span>
+          <span><i class="pt espera"></i><span data-i18n="espera habilitación">espera habilitación</span></span><span><i class="pt palabra"></i><span data-i18n="con la palabra">con la palabra</span></span>
+          <span><i class="pt pidio"></i><span data-i18n="pidió la palabra">pidió la palabra</span></span>
         </div>
       </article>
     </section>
 
     <section class="col col-der">
       <article class="tarjeta vidrio inclinable" id="tarjetaEsperan">
-        <h2>Esperan que los habiliten</h2>
+        <h2 data-i18n="Esperan que los habiliten">Esperan que los habiliten</h2>
         <div id="esperan" class="lista"></div>
       </article>
       <article class="tarjeta vidrio inclinable">
-        <h2>Pidieron la palabra <span id="cuantosPidieron" class="tenue"></span></h2>
+        <h2><span data-i18n="Pidieron la palabra">Pidieron la palabra</span> <span id="cuantosPidieron" class="tenue"></span></h2>
         <div id="fila" class="lista"></div>
-        <p class="tenue chico">«Dar» le da la palabra. Con los remotos, mantené apretado 🎙 para hablarle antes: lo ves en «En uso de la palabra».</p>
+        <p class="tenue chico" data-i18n="«Dar» le da la palabra. Con los remotos, mantené apretado 🎙 para hablarle antes: lo ves en «En uso de la palabra».">«Dar» le da la palabra. Con los remotos, mantené apretado 🎙 para hablarle antes: lo ves en «En uso de la palabra».</p>
       </article>
       <article class="tarjeta vidrio inclinable votacion" id="tarjetaVotacion">
-        <h2>Votación <span id="estadoVot" class="tenue"></span></h2>
+        <h2><span data-i18n="Votación">Votación</span> <span id="estadoVot" class="tenue"></span></h2>
         <div id="votAbrir" class="vot-abrir">
-          <input id="votTema" type="text" placeholder="Tema a votar" />
+          <input id="votTema" type="text" placeholder="Tema a votar" data-i18n-placeholder="Tema a votar" />
           <div class="fila-campos">
             <select id="votMenu">
-              <option value="si_no_abstencion">Sí · No · Abstención</option>
-              <option value="si_no">Sí · No</option>
-              <option value="si_no_abstencion_nppv">Sí · No · Abst. · No participa</option>
+              <option value="si_no_abstencion" data-i18n="Sí · No · Abstención">Sí · No · Abstención</option>
+              <option value="si_no" data-i18n="Sí · No">Sí · No</option>
+              <option value="si_no_abstencion_nppv" data-i18n="Sí · No · Abst. · No participa">Sí · No · Abst. · No participa</option>
             </select>
-            <label class="seg" title="Segundos para votar (0 = sin límite)"><input id="votSegundos" type="number" min="0" step="10" /> s</label>
-            <button class="boton rojo" id="votAbrirBoton">Abrir votación</button>
+            <label class="seg" title="Segundos para votar (0 = sin límite)" data-i18n-title="Segundos para votar (0 = sin límite)"><input id="votSegundos" type="number" min="0" step="10" /> s</label>
+            <button class="boton rojo" id="votAbrirBoton" data-i18n="Abrir votación">Abrir votación</button>
           </div>
           <div id="proximos" class="proximos"></div>
         </div>
@@ -149,9 +150,9 @@
           <div class="vot-tema"><strong id="votTemaActual"></strong><span id="votReloj" class="vot-reloj"></span></div>
           <div id="votBarras" class="barras"></div>
           <div class="acciones">
-            <button class="boton" id="votPausar">Pausar</button>
-            <button class="boton rojo" id="votCerrar">Cerrar</button>
-            <button class="boton celeste oculto" id="votQuorum">Llevar a Quórum</button>
+            <button class="boton" id="votPausar" data-i18n="Pausar">Pausar</button>
+            <button class="boton rojo" id="votCerrar" data-i18n="Cerrar">Cerrar</button>
+            <button class="boton celeste oculto" id="votQuorum" data-i18n="Llevar a Quórum">Llevar a Quórum</button>
           </div>
         </div>
       </article>
@@ -161,7 +162,7 @@
   <!-- El menú de una banca. -->
   <div id="menuBanca" class="menu vidrio oculto" role="menu"></div>
   <div id="aviso" class="aviso oculto"></div>
-  <div id="sinConexion" class="sin-conexion oculto" role="status">Sin conexión con la app: reconectando…</div>
+  <div id="sinConexion" class="sin-conexion oculto" role="status" data-i18n="Sin conexión con la app: reconectando…">Sin conexión con la app: reconectando…</div>
   <audio id="audioRemoto" autoplay></audio>
   <script src="../comun/ice.js"></script>
   <script src="consola.js"></script>

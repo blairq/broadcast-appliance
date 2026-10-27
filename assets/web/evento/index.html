@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Evento en vivo</title>
+  <title data-i18n="Evento en vivo">Evento en vivo</title>
   <link rel="stylesheet" href="/evento/_/marco.css" />
   <!--
     El marco de la página del evento en vivo (src/app/evento/EventoWeb.hpp): la raíz
@@ -11,21 +11,22 @@
     trata ahora, qué sigue, cuánto lleva); abajo, la página de la sección actual
     (Web/<pagina> del evento), que cambia sola cuando el guion avanza.
   -->
+  <script src="/comun/i18n.js" defer></script>
   <script src="/evento/_/marco.js" defer></script>
 </head>
 <body>
   <header id="barra" class="barra oculto">
-    <span id="estado" class="vivo">Próximamente</span>
+    <span id="estado" class="vivo" data-i18n="Próximamente">Próximamente</span>
     <strong id="nombre"></strong>
     <span id="ahora" class="ahora"></span>
     <span class="espacio"></span>
     <span id="sigue" class="sigue"></span>
     <span id="reloj" class="reloj"></span>
   </header>
-  <iframe id="pagina" title="El evento" class="pagina"></iframe>
+  <iframe id="pagina" title="El evento" data-i18n-title="El evento" class="pagina"></iframe>
   <div id="sinEvento" class="sin-evento oculto">
-    <h1>No hay ningún evento en este momento</h1>
-    <p>Volvé a entrar más tarde.</p>
+    <h1 data-i18n="No hay ningún evento en este momento">No hay ningún evento en este momento</h1>
+    <p data-i18n="Volvé a entrar más tarde.">Volvé a entrar más tarde.</p>
   </div>
 </body>
 </html>

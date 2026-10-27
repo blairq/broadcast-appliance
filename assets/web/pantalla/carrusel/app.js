@@ -10,7 +10,7 @@
 // última lista que se tenga. Una pantalla de sala que se pone en negro porque
 // el servidor tosió es peor que una que muestra algo de hace un minuto.
 // ============================================================================
-(() => {
+(async () => {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
@@ -31,8 +31,8 @@
     duracionPaso: 0,
   };
 
-  function avisar(t) {
-    $("aviso").textContent = t;
+  function avisar(texto) {
+    $("aviso").textContent = texto;
     $("aviso").classList.remove("oculto");
   }
   function alAire() { $("aviso").classList.add("oculto"); }
@@ -43,7 +43,7 @@
     try {
       const r = await fetch("../carrusel.json?id=" + encodeURIComponent(id), { cache: "no-store" });
       if (!r.ok) {
-        if (st.pasos.length === 0) avisar("No encuentro ese carrusel");
+        if (st.pasos.length === 0) avisar(t("No encuentro ese carrusel"));
         return;
       }
       const c = await r.json();
@@ -53,7 +53,7 @@
       const primeraVez = st.pasos.length === 0;
       st.pasos = c.pasos;
       st.version = c.version;
-      document.title = c.nombre || "Carrusel";
+      document.title = c.nombre || t("Carrusel");
       if (primeraVez) {
         st.i = -1;
         siguiente();
@@ -116,8 +116,10 @@
     requestAnimationFrame(pintarBarra);
   }
 
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/pantalla", preferir: "evento" });
   if (!id) {
-    avisar("Falta el carrusel. Esta pantalla se abre desde la app.");
+    avisar(t("Falta el carrusel. Esta pantalla se abre desde la app."));
     return;
   }
   // El canal: dice cómo está y recibe órdenes. Lo que convierte «le mandamos

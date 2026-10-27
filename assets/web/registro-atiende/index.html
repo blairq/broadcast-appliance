@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0d1014" />
-  <title>Atención del registro</title>
+  <title data-i18n="Atención del registro">Atención del registro</title>
   <link rel="apple-touch-icon" href="/comun/icono-180.png" />
   <link rel="stylesheet" href="atiende.css" />
 </head>
@@ -19,34 +19,34 @@
   -->
   <header class="barra">
     <div class="encabezado">
-      <h1 class="titulo">Atención del registro</h1>
+      <h1 class="titulo" data-i18n="Atención del registro">Atención del registro</h1>
       <p id="evento" class="subtitulo"></p>
     </div>
-    <button id="quien" type="button" class="chip" title="Cambiar tu nombre"></button>
-    <span id="conexion" class="conexion apagada" title="Conexión">●</span>
+    <button id="quien" type="button" class="chip" title="Cambiar tu nombre" data-i18n-title="Cambiar tu nombre"></button>
+    <span id="conexion" class="conexion apagada" title="Conexión" data-i18n-title="Conexión">●</span>
   </header>
 
   <!-- Entrar: tu nombre es lo que ve la persona del tótem («Te atiende Laura»). -->
   <section id="entrar" class="panel oculto">
-    <h2>¿Cómo te llamás?</h2>
-    <p class="tenue">Es lo que ve la persona del tótem cuando la atendés: «Te atiende …».</p>
+    <h2 data-i18n="¿Cómo te llamás?">¿Cómo te llamás?</h2>
+    <p class="tenue" data-i18n="Es lo que ve la persona del tótem cuando la atendés: «Te atiende …».">Es lo que ve la persona del tótem cuando la atendés: «Te atiende …».</p>
     <form id="formNombre" class="fila" autocomplete="off">
-      <input id="nombre" type="text" maxlength="40" placeholder="Tu nombre" autocapitalize="words" />
-      <button type="submit">Entrar</button>
+      <input id="nombre" type="text" maxlength="40" placeholder="Tu nombre" data-i18n-placeholder="Tu nombre" autocapitalize="words" />
+      <button type="submit" data-i18n="Entrar">Entrar</button>
     </form>
   </section>
 
   <main id="atencion" class="atencion oculto">
     <!-- Todas las conversaciones, en vivo. -->
     <section class="lista">
-      <h2>Conversaciones <span id="cuantas" class="tenue"></span></h2>
-      <p id="vacia" class="tenue">Nadie se está registrando ahora.</p>
+      <h2><span data-i18n="Conversaciones">Conversaciones</span> <span id="cuantas" class="tenue"></span></h2>
+      <p id="vacia" class="tenue" data-i18n="Nadie se está registrando ahora.">Nadie se está registrando ahora.</p>
       <ul id="conversaciones" class="conversaciones"></ul>
     </section>
 
     <!-- La elegida: mirarla, escucharla, atenderla, completar datos. -->
     <section id="detalle" class="detalle">
-      <p id="elegi" class="tenue grande">Elegí una conversación para mirarla y escucharla.</p>
+      <p id="elegi" class="tenue grande" data-i18n="Elegí una conversación para mirarla y escucharla.">Elegí una conversación para mirarla y escucharla.</p>
       <div id="elegida" class="oculto">
         <div class="cabeza">
           <div>
@@ -57,34 +57,35 @@
         </div>
         <div class="video">
           <video id="video" autoplay playsinline muted></video>
-          <p id="sinVideo" class="aviso">Esperando la cámara del tótem…</p>
-          <button id="oir" type="button" class="flotante oculto">🔊 Tocá para escuchar</button>
-          <span id="microfono" class="mic oculto">● Te escucha</span>
+          <p id="sinVideo" class="aviso" data-i18n="Esperando la cámara del tótem…">Esperando la cámara del tótem…</p>
+          <button id="oir" type="button" class="flotante oculto" data-i18n="🔊 Tocá para escuchar">🔊 Tocá para escuchar</button>
+          <span id="microfono" class="mic oculto" data-i18n="● Te escucha">● Te escucha</span>
         </div>
         <div class="charla">
-          <p><span class="tenue">Se oyó:</span> <span id="dOido"></span></p>
-          <p><span class="tenue">El asistente dijo:</span> <span id="dDice"></span></p>
+          <p><span class="tenue" data-i18n="Se oyó:">Se oyó:</span> <span id="dOido"></span></p>
+          <p><span class="tenue" data-i18n="El asistente dijo:">El asistente dijo:</span> <span id="dDice"></span></p>
         </div>
         <div class="acciones">
-          <button id="atender" type="button">Atender yo</button>
-          <button id="devolver" type="button" class="secundario oculto">Devolver al asistente</button>
-          <button id="guardar" type="button" class="ok oculto">Guardar registro</button>
-          <button id="cancelar" type="button" class="peligro oculto">Cancelar</button>
-          <button id="silenciar" type="button" class="secundario oculto">Silenciar mi micrófono</button>
+          <button id="atender" type="button" data-i18n="Atender yo">Atender yo</button>
+          <button id="devolver" type="button" class="secundario oculto" data-i18n="Devolver al asistente">Devolver al asistente</button>
+          <button id="guardar" type="button" class="ok oculto" data-i18n="Guardar registro">Guardar registro</button>
+          <button id="cancelar" type="button" class="peligro oculto" data-i18n="Cancelar">Cancelar</button>
+          <button id="silenciar" type="button" class="secundario oculto" data-i18n="Silenciar mi micrófono">Silenciar mi micrófono</button>
         </div>
-        <h3>Datos <span class="tenue">— lo que pongas se ve en el tótem; vacío lo borra</span></h3>
+        <h3><span data-i18n="Datos">Datos</span> <span class="tenue" data-i18n="— lo que pongas se ve en el tótem; vacío lo borra">— lo que pongas se ve en el tótem; vacío lo borra</span></h3>
         <form id="campos" class="campos" autocomplete="off"></form>
       </div>
     </section>
   </main>
 
   <section id="cortado" class="panel oculto">
-    <h2>Atención cerrada</h2>
+    <h2 data-i18n="Atención cerrada">Atención cerrada</h2>
     <p id="cortadoTexto"></p>
   </section>
 
   <div id="aviso" class="toast oculto" role="status" aria-live="polite"></div>
   <audio id="sonido" autoplay></audio>
+  <script src="/comun/i18n.js"></script>
   <script src="../comun/ice.js"></script>
   <script src="atiende.js"></script>
 </body>

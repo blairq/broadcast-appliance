@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0c0c0e" />
-  <title>Oradores — Tablero</title>
+  <title data-i18n="Oradores — Tablero">Oradores — Tablero</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' width='1024' height='1024'%3E %3Cdefs%3E %3ClinearGradient id='f' x1='0' y1='0' x2='0' y2='1024' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23202025'/%3E%3Cstop offset='1' stop-color='%230a0a0c'/%3E%3C/linearGradient%3E %3ClinearGradient id='b' x1='0' y1='0' x2='0' y2='1024' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23ffa45e'/%3E%3Cstop offset='1' stop-color='%23ff6a2b'/%3E%3C/linearGradient%3E %3Cfilter id='g' x='-50%25' y='-50%25' width='200%25' height='200%25'%3E%3CfeGaussianBlur stdDeviation='16'/%3E%3C/filter%3E %3C/defs%3E %3Crect x='32' y='32' width='960' height='960' rx='220' fill='url%28%23f%29' stroke='%23ffffff' stroke-opacity='0.12' stroke-width='6'/%3E %3Cline x1='340' y1='258' x2='340' y2='766' fill='none' stroke='url%28%23b%29' stroke-width='88' stroke-linecap='round'/%3E %3Cpath d='M340 258H490A134 134 0 0 1 490 526H340' fill='none' stroke='url%28%23b%29' stroke-width='88'/%3E %3Cpath d='M340 526H525A120 120 0 0 1 525 766H340' fill='none' stroke='url%28%23b%29' stroke-width='88'/%3E %3Ccircle cx='482' cy='392' r='75' fill='%23ff3b30' opacity='0.47' filter='url%28%23g%29'/%3E %3Ccircle cx='482' cy='392' r='60' fill='%23ff3b30'/%3E %3C/svg%3E">
   <link rel="apple-touch-icon" href="/comun/icono-180.png">
   <link rel="stylesheet" href="board.css" />
@@ -18,7 +18,7 @@
        enlace o QR que muestra la consola del operador).
        ================================================================ -->
   <header class="top">
-    <div class="brand"><span class="dot" id="dot"></span> Oradores · <strong id="room">—</strong></div>
+    <div class="brand"><span class="dot" id="dot"></span> <span data-i18n="Oradores">Oradores</span> · <strong id="room">—</strong></div>
     <div class="meta" id="meta"></div>
     <div class="now" id="now"></div>
   </header>
@@ -26,23 +26,24 @@
   <main id="main">
     <section class="onair" id="onair"></section>
     <section class="queue">
-      <h2>En la fila <span class="count" id="qcount">0</span> <span class="total" id="qtotal"></span></h2>
+      <h2><span data-i18n="En la fila">En la fila</span> <span class="count" id="qcount">0</span> <span class="total" id="qtotal"></span></h2>
       <div class="cards" id="queue"></div>
-      <p class="empty hidden" id="qempty">Nadie esperando turno.</p>
+      <p class="empty hidden" id="qempty" data-i18n="Nadie esperando turno.">Nadie esperando turno.</p>
     </section>
     <section class="done">
-      <h2>Ya hablaron <span class="count" id="dcount">0</span></h2>
+      <h2><span data-i18n="Ya hablaron">Ya hablaron</span> <span class="count" id="dcount">0</span></h2>
       <div class="rows" id="done"></div>
     </section>
   </main>
 
   <div class="blocked hidden" id="blocked">
     <div>
-      <h1>Sin acceso al tablero</h1>
-      <p id="blocked-text">Escaneá de nuevo el QR del tablero desde la consola del operador.</p>
+      <h1 data-i18n="Sin acceso al tablero">Sin acceso al tablero</h1>
+      <p id="blocked-text" data-i18n="Escaneá de nuevo el QR del tablero desde la consola del operador.">Escaneá de nuevo el QR del tablero desde la consola del operador.</p>
     </div>
   </div>
 
+  <script src="/comun/i18n.js"></script>
   <script src="../comun/ice.js"></script>
   <script src="live.js"></script>
   <script src="board.js"></script>

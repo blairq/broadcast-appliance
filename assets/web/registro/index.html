@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0d1014" />
-  <title>Registro</title>
+  <title data-i18n="Registro">Registro</title>
   <link rel="apple-touch-icon" href="/comun/icono-180.png" />
   <link rel="stylesheet" href="estilo.css" />
 </head>
@@ -21,48 +21,48 @@
   -->
   <header class="barra">
     <div class="encabezado">
-      <h1 id="titulo" class="titulo">Registro</h1>
+      <h1 id="titulo" class="titulo" data-i18n="Registro">Registro</h1>
       <p id="subtitulo" class="subtitulo oculto"></p>
     </div>
     <span id="estado" class="estado esperando" aria-live="polite">
-      <span class="punto"></span><span id="estadoTexto">Esperando</span>
+      <span class="punto"></span><span id="estadoTexto" data-i18n="Esperando">Esperando</span>
     </span>
-    <span id="conexion" class="conexion apagada" title="Conexión">●</span>
+    <span id="conexion" class="conexion apagada" title="Conexión" data-i18n-title="Conexión">●</span>
   </header>
 
   <!-- Antes de empezar: el navegador exige un toque para la cámara, el micrófono y el sonido. -->
   <section id="inicio" class="inicio oculto">
-    <button id="empezar" type="button" class="enorme">Tocá para empezar</button>
-    <p id="inicioTexto" class="tenue">Vamos a usar la cámara y el micrófono para registrarte. Hablale al asistente: te escucha.</p>
+    <button id="empezar" type="button" class="enorme" data-i18n="Tocá para empezar">Tocá para empezar</button>
+    <p id="inicioTexto" class="tenue" data-i18n="Vamos a usar la cámara y el micrófono para registrarte. Hablale al asistente: te escucha.">Vamos a usar la cámara y el micrófono para registrarte. Hablale al asistente: te escucha.</p>
   </section>
 
   <!-- La conversación. -->
   <main id="registro" class="registro oculto">
     <div class="camara">
       <video id="propia" class="propia" autoplay muted playsinline></video>
-      <p id="espera" class="aviso oculto">Hay mucha gente registrándose, esperá un momento…</p>
+      <p id="espera" class="aviso oculto" data-i18n="Hay mucha gente registrándose, esperá un momento…">Hay mucha gente registrándose, esperá un momento…</p>
     </div>
     <div class="charla">
       <!-- Una persona del equipo la está atendiendo (la atención remota): su voz sale por acá. -->
       <p id="atiende" class="atiende oculto" aria-live="polite"></p>
-      <p id="dice" class="dice">Mirá a la cámara para empezar.</p>
+      <p id="dice" class="dice" data-i18n="Mirá a la cámara para empezar.">Mirá a la cámara para empezar.</p>
       <p id="oido" class="oido oculto"></p>
-      <button id="oir" type="button" class="oculto">🔊 Tocá para oír al asistente</button>
+      <button id="oir" type="button" class="oculto" data-i18n="🔊 Tocá para oír al asistente">🔊 Tocá para oír al asistente</button>
       <form id="caja" class="caja oculto" autocomplete="off">
-        <label id="cajaEtiqueta" for="cajaValor">Escribilo acá</label>
+        <label id="cajaEtiqueta" for="cajaValor" data-i18n="Escribilo acá">Escribilo acá</label>
         <div class="fila">
           <input id="cajaValor" type="text" maxlength="200" />
-          <button id="cajaMandar" type="submit">Listo</button>
+          <button id="cajaMandar" type="submit" data-i18n="Listo">Listo</button>
         </div>
         <div id="sino" class="fila oculto">
-          <button id="si" type="button" class="grande">Sí</button>
-          <button id="no" type="button" class="grande secundario">No</button>
+          <button id="si" type="button" class="grande" data-i18n="Sí">Sí</button>
+          <button id="no" type="button" class="grande secundario" data-i18n="No">No</button>
         </div>
       </form>
       <ul id="campos" class="campos"></ul>
       <div class="acciones">
-        <button id="arrancar" type="button" class="secundario">Empezar</button>
-        <button id="cancelar" type="button" class="secundario oculto">Cancelar</button>
+        <button id="arrancar" type="button" class="secundario" data-i18n="Empezar">Empezar</button>
+        <button id="cancelar" type="button" class="secundario oculto" data-i18n="Cancelar">Cancelar</button>
       </div>
     </div>
   </main>
@@ -70,23 +70,24 @@
   <!-- Gracias: a los segundos vuelve a esperar a la próxima persona. -->
   <section id="gracias" class="gracias oculto" aria-live="polite">
     <div class="tilde">✓</div>
-    <p id="graciasTexto" class="grande-texto">¡Listo! Ya quedaste registrado.</p>
-    <button id="otra" type="button" class="secundario oculto">Registrar a otra persona</button>
+    <p id="graciasTexto" class="grande-texto" data-i18n="¡Listo! Ya quedaste registrado.">¡Listo! Ya quedaste registrado.</p>
+    <button id="otra" type="button" class="secundario oculto" data-i18n="Registrar a otra persona">Registrar a otra persona</button>
   </section>
 
   <!-- Una pantalla que solo muestra (una TV, un Chromecast) o sin cámara ni micrófono: el QR. -->
   <section id="qr" class="qr oculto">
     <img id="qrImagen" class="qr-imagen" alt="Código QR para registrarse" />
-    <p class="grande-texto">Escaneá para registrarte</p>
+    <p class="grande-texto" data-i18n="Escaneá para registrarte">Escaneá para registrarte</p>
     <p id="qrTitulo" class="tenue"></p>
   </section>
 
   <section id="cortado" class="panel oculto">
-    <h2>Registro cerrado</h2>
+    <h2 data-i18n="Registro cerrado">Registro cerrado</h2>
     <p id="cortadoTexto"></p>
   </section>
 
   <audio id="voz" autoplay></audio>
+  <script src="/comun/i18n.js"></script>
   <script src="../comun/ice.js"></script>
   <script src="app.js"></script>
 </body>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0c0c0e" />
-  <title>Conferencia — Invitado</title>
+  <title data-i18n="Conferencia — Invitado">Conferencia — Invitado</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' width='1024' height='1024'%3E %3Cdefs%3E %3ClinearGradient id='f' x1='0' y1='0' x2='0' y2='1024' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23202025'/%3E%3Cstop offset='1' stop-color='%230a0a0c'/%3E%3C/linearGradient%3E %3ClinearGradient id='b' x1='0' y1='0' x2='0' y2='1024' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23ffa45e'/%3E%3Cstop offset='1' stop-color='%23ff6a2b'/%3E%3C/linearGradient%3E %3Cfilter id='g' x='-50%25' y='-50%25' width='200%25' height='200%25'%3E%3CfeGaussianBlur stdDeviation='16'/%3E%3C/filter%3E %3C/defs%3E %3Crect x='32' y='32' width='960' height='960' rx='220' fill='url%28%23f%29' stroke='%23ffffff' stroke-opacity='0.12' stroke-width='6'/%3E %3Cline x1='340' y1='258' x2='340' y2='766' fill='none' stroke='url%28%23b%29' stroke-width='88' stroke-linecap='round'/%3E %3Cpath d='M340 258H490A134 134 0 0 1 490 526H340' fill='none' stroke='url%28%23b%29' stroke-width='88'/%3E %3Cpath d='M340 526H525A120 120 0 0 1 525 766H340' fill='none' stroke='url%28%23b%29' stroke-width='88'/%3E %3Ccircle cx='482' cy='392' r='75' fill='%23ff3b30' opacity='0.47' filter='url%28%23g%29'/%3E %3Ccircle cx='482' cy='392' r='60' fill='%23ff3b30'/%3E %3C/svg%3E">
   <link rel="apple-touch-icon" href="/comun/icono-180.png">
   <link rel="stylesheet" href="style.css" />
@@ -25,14 +25,15 @@
   <!-- 1) Entrada -->
   <section id="screen-join" class="screen">
     <div class="card">
-      <div class="brand"><span class="dot"></span> Conferencia</div>
-      <h1>Hola 👋</h1>
-      <p class="sub">Ingresá con los datos que te pasó el operador.</p>
-      <label for="name">Tu nombre</label>
-      <input id="name" type="text" maxlength="40" autocomplete="name" placeholder="Cómo te van a ver" />
+      <div class="brand"><span class="dot"></span> <span data-i18n="Conferencia">Conferencia</span>
+        <span class="idioma hidden"><select id="idioma" aria-label="Idioma" data-i18n-aria-label="Idioma"></select></span></div>
+      <h1 data-i18n="Hola 👋">Hola 👋</h1>
+      <p class="sub" data-i18n="Ingresá con los datos que te pasó el operador.">Ingresá con los datos que te pasó el operador.</p>
+      <label for="name" data-i18n="Tu nombre">Tu nombre</label>
+      <input id="name" type="text" maxlength="40" autocomplete="name" placeholder="Cómo te van a ver" data-i18n-placeholder="Cómo te van a ver" />
       <div class="row2">
         <div>
-          <label for="room">Conferencia</label>
+          <label for="room" data-i18n="Conferencia">Conferencia</label>
           <input id="room" type="text" autocomplete="off" placeholder="sala1" />
         </div>
         <div>
@@ -43,35 +44,35 @@
       <!-- Se esconde entero cuando el asistente atiende el lobby: los datos
            se los pregunta el asistente por chat, no este formulario. -->
       <div id="datos">
-        <label for="info">Sobre vos <span class="opt">(opcional)</span></label>
-        <input id="info" type="text" maxlength="200" autocomplete="off" placeholder="De dónde sos, de qué querés hablar…" />
-        <label for="contact">Contacto <span class="opt">(opcional)</span></label>
-        <input id="contact" type="text" maxlength="120" autocomplete="tel" placeholder="Teléfono o e-mail, por si se corta" />
-        <p class="hint">Solo lo ve la producción, para ubicarte si se corta la conexión.</p>
+        <label for="info"><span data-i18n="Sobre vos">Sobre vos</span> <span class="opt" data-i18n="(opcional)">(opcional)</span></label>
+        <input id="info" type="text" maxlength="200" autocomplete="off" placeholder="De dónde sos, de qué querés hablar…" data-i18n-placeholder="De dónde sos, de qué querés hablar…" />
+        <label for="contact"><span data-i18n="Contacto">Contacto</span> <span class="opt" data-i18n="(opcional)">(opcional)</span></label>
+        <input id="contact" type="text" maxlength="120" autocomplete="tel" placeholder="Teléfono o e-mail, por si se corta" data-i18n-placeholder="Teléfono o e-mail, por si se corta" />
+        <p class="hint" data-i18n="Solo lo ve la producción, para ubicarte si se corta la conexión.">Solo lo ve la producción, para ubicarte si se corta la conexión.</p>
       </div>
-      <button id="btn-join" class="primary">Continuar</button>
+      <button id="btn-join" class="primary" data-i18n="Continuar">Continuar</button>
       <p id="join-error" class="error" role="alert"></p>
-      <p class="hint"><a href="ayuda.html">¿Problemas para entrar? Mirá la ayuda</a></p>
+      <p class="hint"><a href="ayuda.html" data-i18n="¿Problemas para entrar? Mirá la ayuda">¿Problemas para entrar? Mirá la ayuda</a></p>
     </div>
   </section>
 
   <!-- 2) Dispositivos -->
   <section id="screen-check" class="screen hidden">
     <div class="card">
-      <h2>Prepará tus dispositivos</h2>
-      <p class="sub">Recomendado: auriculares, para evitar el eco.</p>
+      <h2 data-i18n="Prepará tus dispositivos">Prepará tus dispositivos</h2>
+      <p class="sub" data-i18n="Recomendado: auriculares, para evitar el eco.">Recomendado: auriculares, para evitar el eco.</p>
       <div class="preview-box">
         <video id="local-preview" class="preview" autoplay muted playsinline></video>
         <div class="meter"><div id="level" class="level"></div></div>
         <div class="badges">
-          <span class="badge" id="cam-state">Cámara</span>
-          <span class="badge" id="mic-state">Micrófono</span>
+          <span class="badge" id="cam-state" data-i18n="Cámara">Cámara</span>
+          <span class="badge" id="mic-state" data-i18n="Micrófono">Micrófono</span>
         </div>
       </div>
       <p id="check-error" class="error" role="alert"></p>
-      <p class="hint"><a href="ayuda.html" target="_blank" rel="noopener">Cómo dar permiso a la cámara y al micrófono</a></p>
-      <button id="btn-start" class="primary">Pedir entrar</button>
-      <button id="btn-nodevices" class="ghost wide">Entrar sin cámara ni micrófono</button>
+      <p class="hint"><a href="ayuda.html" target="_blank" rel="noopener" data-i18n="Cómo dar permiso a la cámara y al micrófono">Cómo dar permiso a la cámara y al micrófono</a></p>
+      <button id="btn-start" class="primary" data-i18n="Pedir entrar">Pedir entrar</button>
+      <button id="btn-nodevices" class="ghost wide" data-i18n="Entrar sin cámara ni micrófono">Entrar sin cámara ni micrófono</button>
     </div>
   </section>
 
@@ -81,22 +82,22 @@
       <div class="lobby-stage">
         <video id="lobby-video" class="lobby-operator" autoplay playsinline></video>
         <div class="pulse" id="lobby-pulse"></div>
-        <span class="tile-label">Operador</span>
-        <span class="talk hidden" id="talk-badge">● Te está hablando</span>
+        <span class="tile-label" data-i18n="Operador">Operador</span>
+        <span class="talk hidden" id="talk-badge" data-i18n="● Te está hablando">● Te está hablando</span>
       </div>
-      <h2 id="lobby-title">Esperando al operador</h2>
-      <p class="sub" id="lobby-text">Ya avisamos que llegaste. El operador te ve y en un momento te hace pasar.</p>
+      <h2 id="lobby-title" data-i18n="Esperando al operador">Esperando al operador</h2>
+      <p class="sub" id="lobby-text" data-i18n="Ya avisamos que llegaste. El operador te ve y en un momento te hace pasar.">Ya avisamos que llegaste. El operador te ve y en un momento te hace pasar.</p>
       <p class="position" id="lobby-pos"></p>
-      <button class="ghost" id="btn-lobby-chat">💬 Escribirle al operador</button>
-      <button class="ghost danger" id="btn-lobby-leave">Salir</button>
+      <button class="ghost" id="btn-lobby-chat" data-i18n="💬 Escribirle al operador">💬 Escribirle al operador</button>
+      <button class="ghost danger" id="btn-lobby-leave" data-i18n="Salir">Salir</button>
     </div>
   </section>
 
   <!-- 4) Sala -->
   <section id="screen-room" class="screen wide hidden">
     <header class="room-head">
-      <div class="status" id="conn-state">Conectando…</div>
-      <div class="onair hidden" id="onair">● Estás en la conferencia</div>
+      <div class="status" id="conn-state" data-i18n="Conectando…">Conectando…</div>
+      <div class="onair hidden" id="onair" data-i18n="● Estás en la conferencia">● Estás en la conferencia</div>
     </header>
     <!-- Modo oradores: turno en la fila y reloj de tu intervención -->
     <div class="speaker-bar hidden" id="speaker-bar">
@@ -114,27 +115,27 @@
     <div class="stage">
       <div class="tile program-tile">
         <video id="remote-video" class="remote" autoplay playsinline></video>
-        <span class="tile-label">Programa</span>
+        <span class="tile-label" data-i18n="Programa">Programa</span>
       </div>
       <div class="tile self-tile">
         <video id="self-video" autoplay muted playsinline></video>
-        <span class="tile-label" id="self-label">Vos</span>
+        <span class="tile-label" id="self-label" data-i18n="Vos">Vos</span>
       </div>
       <div class="tile share-tile hidden" id="share-tile">
         <video id="share-video" autoplay muted playsinline></video>
-        <span class="tile-label">Tu pantalla</span>
+        <span class="tile-label" data-i18n="Tu pantalla">Tu pantalla</span>
       </div>
       <audio id="remote-audio" autoplay></audio>
     </div>
     <div class="uploads" id="uploads"></div>
     <footer class="dock">
-      <button id="btn-mic" class="round" title="Micrófono">🎙️</button>
-      <button id="btn-cam" class="round" title="Cámara">📷</button>
-      <button id="btn-screen" class="round" title="Compartir pantalla o ventana">🖥️</button>
-      <button id="btn-file" class="round" title="Compartir un archivo (imagen, video o audio)">📎</button>
-      <button id="btn-hand" class="round" title="Levantar la mano">✋</button>
-      <button id="btn-chat" class="round" title="Chat">💬<span class="unread hidden" id="unread"></span></button>
-      <button id="btn-leave" class="round danger" title="Salir">⏻</button>
+      <button id="btn-mic" class="round" title="Micrófono" data-i18n-title="Micrófono">🎙️</button>
+      <button id="btn-cam" class="round" title="Cámara" data-i18n-title="Cámara">📷</button>
+      <button id="btn-screen" class="round" title="Compartir pantalla o ventana" data-i18n-title="Compartir pantalla o ventana">🖥️</button>
+      <button id="btn-file" class="round" title="Compartir un archivo (imagen, video o audio)" data-i18n-title="Compartir un archivo (imagen, video o audio)">📎</button>
+      <button id="btn-hand" class="round" title="Levantar la mano" data-i18n-title="Levantar la mano">✋</button>
+      <button id="btn-chat" class="round" title="Chat" data-i18n-title="Chat">💬<span class="unread hidden" id="unread"></span></button>
+      <button id="btn-leave" class="round danger" title="Salir" data-i18n-title="Salir">⏻</button>
       <input id="file-input" type="file" class="hidden"
              accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/quicktime,video/webm,video/x-matroska,audio/mpeg,audio/wav,audio/ogg,audio/flac,audio/mp4" />
     </footer>
@@ -143,24 +144,25 @@
   <!-- Fin (rechazado / expulsado / salio) -->
   <section id="screen-end" class="screen hidden">
     <div class="card center">
-      <h2 id="end-title">Saliste de la conferencia</h2>
+      <h2 id="end-title" data-i18n="Saliste de la conferencia">Saliste de la conferencia</h2>
       <p class="sub" id="end-text"></p>
-      <button id="btn-again" class="primary">Volver a entrar</button>
+      <button id="btn-again" class="primary" data-i18n="Volver a entrar">Volver a entrar</button>
     </div>
   </section>
 
   <!-- Chat (panel lateral, sirve en lobby y sala) -->
-  <aside id="chat" class="chat hidden" aria-label="Chat">
-    <header><strong>Chat</strong><button id="btn-chat-close" class="icon">✕</button></header>
+  <aside id="chat" class="chat hidden" aria-label="Chat" data-i18n-aria-label="Chat">
+    <header><strong data-i18n="Chat">Chat</strong><button id="btn-chat-close" class="icon">✕</button></header>
     <div id="chat-log" class="chat-log"></div>
     <form id="chat-form" class="chat-form">
-      <input id="chat-input" type="text" maxlength="1000" autocomplete="off" placeholder="Escribí un mensaje…" />
-      <button class="primary small">Enviar</button>
+      <input id="chat-input" type="text" maxlength="1000" autocomplete="off" placeholder="Escribí un mensaje…" data-i18n-placeholder="Escribí un mensaje…" />
+      <button class="primary small" data-i18n="Enviar">Enviar</button>
     </form>
   </aside>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
 
+  <script src="/comun/i18n.js"></script>
   <script src="../comun/retardo.js"></script>
   <script src="../comun/ice.js"></script>
   <script src="app.js"></script>

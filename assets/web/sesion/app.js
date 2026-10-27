@@ -6,6 +6,7 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
 const frag = new URLSearchParams(location.hash.slice(1));
 const integrante = frag.get("i") || "";
 const token = frag.get("t") || "";
@@ -42,14 +43,21 @@ function conexion(viva) {
   $("conexion").className = "conexion " + (viva ? "viva" : "apagada");
 }
 
+let textoEstado = "";   // el texto del estado que mandó la app (si mandó)
+function pintarEstado() {
+  const hab = estado === "habilitado";
+  $("estadoTitulo").textContent = hab ? t("Estás habilitado: contás como presente") : t("Esperando que te habiliten");
+  $("estadoTexto").textContent = textoEstado || (hab
+    ? t("La presidencia te habilitó. Dejá la cámara prendida durante la sesión.")
+    : t("La presidencia te va a ver por la cámara y te habilita. Hasta entonces no contás para el quórum."));
+}
+
 function ponerEstado(nuevo, texto) {
   estado = nuevo;
+  textoEstado = texto || "";
   const hab = nuevo === "habilitado";
   $("estado").className = "estado " + (hab ? "habilitado" : "esperando");
-  $("estadoTitulo").textContent = hab ? "Estás habilitado: contás como presente" : "Esperando que te habiliten";
-  $("estadoTexto").textContent = texto || (hab
-    ? "La presidencia te habilitó. Dejá la cámara prendida durante la sesión."
-    : "La presidencia te va a ver por la cámara y te habilita. Hasta entonces no contás para el quórum.");
+  pintarEstado();
   programarFotos();
   if (hab) cerrarAtencion(); // la atención es de la espera: habilitado, termina (la app también la apaga)
   $("pedir").disabled = !hab;
@@ -58,11 +66,13 @@ function ponerEstado(nuevo, texto) {
 }
 
 // --- La palabra ---------------------------------------------------------------------
+let turnoActual = 0;
 function ponerPedido(turno) {
   pidio = turno > 0;
-  $("pedir").textContent = pidio ? "Cancelar mi pedido" : "Pedir la palabra";
+  turnoActual = turno;
+  $("pedir").textContent = pidio ? t("Cancelar mi pedido") : t("Pedir la palabra");
   $("pedir").classList.toggle("pedido", pidio);
-  $("turno").textContent = turno > 0 ? (turno === 1 ? "Sos el próximo" : "Tu turno: " + turno) : "";
+  $("turno").textContent = turno > 0 ? (turno === 1 ? t("Sos el próximo") : llenar(t("Tu turno: %1"), turno)) : "";
 }
 
 let debate = null;  // {activo, habla, segundos}: en un debate la palabra la maneja el turno
@@ -77,7 +87,7 @@ function ponerPalabra(activa, segundos, titulo) {
   const habla = !debate || debate.habla;
   microfono(habla || pttActivo);
   $("palabra").classList.toggle("espera", !habla);
-  $("palabraTitulo").textContent = titulo || "Tenés la palabra";
+  $("palabraTitulo").textContent = titulo || t("Tenés la palabra");
   $("palabraTexto").textContent = "";
   // Sin límite (0): sin cuenta regresiva.
   $("reloj").classList.toggle("oculto", !(segundos > 0));
@@ -99,19 +109,19 @@ function ponerDebate(m) {
   if (empieza && vistas.some((v) => v.id === "debate") && vista !== "debate") { vistaAntesDebate = vista; elegirVista("debate"); }
   if (!debate) { ponerPalabra(palabraHasta > 0, 0); return; }
   ponerPalabra(true, debate.habla ? debate.segundos : 0,
-               debate.habla ? "Debate: es tu turno" : "Debate: habla el otro, esperá tu turno");
+               debate.habla ? t("Debate: es tu turno") : t("Debate: habla el otro, esperá tu turno"));
 }
 
 function avisoTiempo(aviso) {
   if (aviso === "ultimo_minuto") {
     $("palabra").classList.add("minuto");
-    $("palabraTexto").textContent = "Queda 1 minuto";
+    $("palabraTexto").textContent = t("Queda 1 minuto");
     if (navigator.vibrate) navigator.vibrate(300);
   } else if (aviso === "terminado") {
     $("palabra").classList.remove("minuto");
     $("palabra").classList.add("terminado");
-    $("palabraTitulo").textContent = "Se terminó tu tiempo";
-    $("palabraTexto").textContent = "Redondeá, por favor";
+    $("palabraTitulo").textContent = t("Se terminó tu tiempo");
+    $("palabraTexto").textContent = t("Redondeá, por favor");
     if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
   }
 }
@@ -138,10 +148,10 @@ function ponerVotacion(m) {
 
 function pintarVotacion() {
   if (!vot) return;
-  $("votNumero").textContent = vot.numero ? "N.º " + vot.numero : "";
-  $("votTema").textContent = vot.tema || "Votación";
+  $("votNumero").textContent = vot.numero ? llenar(t("N.º %1"), vot.numero) : "";
+  $("votTema").textContent = vot.tema || t("Votación");
   const pausada = vot.estado === "pausada";
-  $("votEstado").textContent = pausada ? "En pausa: esperá." : "Tocá tu voto. Lo podés cambiar mientras esté abierta.";
+  $("votEstado").textContent = pausada ? t("En pausa: esperá.") : t("Tocá tu voto. Lo podés cambiar mientras esté abierta.");
   const caja = $("votOpciones");
   caja.textContent = "";
   for (const o of (vot.opciones || [])) {
@@ -156,7 +166,7 @@ function pintarVotacion() {
     caja.appendChild(b);
   }
   const elegida = (vot.opciones || []).find((o) => o.id === vot.mi_voto);
-  $("votMio").textContent = elegida ? "Tu voto: " + elegida.texto : "Todavía no votaste.";
+  $("votMio").textContent = elegida ? llenar(t("Tu voto: %1"), elegida.texto) : t("Todavía no votaste.");
 }
 
 function vencida() {
@@ -175,7 +185,7 @@ function pintarReloj() {
 function mostrarResultado(m) {
   $("votacion").classList.add("oculto");
   $("resultado").classList.remove("oculto");
-  $("resTema").textContent = m.tema || "Votación";
+  $("resTema").textContent = m.tema || t("Votación");
   const caja = $("resTotales");
   caja.textContent = "";
   for (const o of (m.opciones || [])) {
@@ -297,7 +307,7 @@ async function iniciarAtencion() {
   cerrarAtencion();
   $("atiende").classList.remove("oculto");
   $("atiendeDice").classList.add("oculto");
-  $("atiendeTexto").textContent = "Tu micrófono está abierto solo para el asistente (no para la sala ni la transmisión) hasta que te habiliten.";
+  $("atiendeTexto").textContent = t("Tu micrófono está abierto solo para el asistente (no para la sala ni la transmisión) hasta que te habiliten.");
   if (navigator.vibrate) navigator.vibrate(120);
   try {
     // Con el permiso que ya dio al entrar alcanza; si no lo dio, el navegador lo pide ahora.
@@ -313,7 +323,7 @@ async function iniciarAtencion() {
     microAtiende = null;
   }
   if (!microAtiende) {
-    $("atiendeTexto").textContent = "Sin permiso para el micrófono el asistente no te puede escuchar. La presidencia te ve por la cámara igual.";
+    $("atiendeTexto").textContent = t("Sin permiso para el micrófono el asistente no te puede escuchar. La presidencia te ve por la cámara igual.");
     if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "atiende-error", error: "no dio permiso para el micrófono" }));
     return;
   }
@@ -391,7 +401,7 @@ async function compartir(cual) {
     if (cual !== "pantalla") {
       try { flujo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); } catch (e2) {}
     }
-    if (!flujo) { error(cual === "pantalla" ? "No se pudo compartir la pantalla." : "No se pudo abrir la otra cámara."); return; }
+    if (!flujo) { error(cual === "pantalla" ? t("No se pudo compartir la pantalla.") : t("No se pudo abrir la otra cámara.")); return; }
   }
   const track = flujo.getVideoTracks()[0];
   if (!track || !pcSala) { for (const t of flujo.getTracks()) t.stop(); return; }
@@ -437,7 +447,7 @@ function ponerVistas(lista) {
   if (vista !== "yo" && !vistas.some((v) => v.id === vista)) vista = vistas.length ? vistas[0].id : "yo";
   const caja = $("botonesVista");
   caja.textContent = "";
-  for (const v of [{ id: "yo", nombre: "Yo" }].concat(vistas)) {
+  for (const v of [{ id: "yo", nombre: t("Yo") }].concat(vistas)) {
     const b = document.createElement("button");
     b.type = "button";
     b.textContent = v.nombre || v.id;
@@ -508,7 +518,7 @@ function ponerSonido(on) {
   sonidoPrendido = on;
   $("sonidoSala").muted = !on;
   if (on) $("sonidoSala").play().catch(() => {});
-  $("sonido").textContent = on ? "🔊 Sonido de la sala" : "🔇 Sonido de la sala";
+  $("sonido").textContent = on ? t("🔊 Sonido de la sala") : t("🔇 Sonido de la sala");
   $("sonido").classList.toggle("prendido", on);
 }
 // El navegador no deja sonar nada hasta que la persona toca la página: el primer toque lo destraba.
@@ -560,12 +570,12 @@ function recibir(m) {
         cortadoAProposito = true;
         mostrar("entrar");
         $("botonEntrar").disabled = false;
-        error(m.error || "No se pudo entrar.");
+        error(m.error || t("No se pudo entrar."));
         return;
       }
       reintento = 1000;
       conexion(true);
-      $("quien").textContent = (m.nombre || "") + (m.banca ? " · Banca " + m.banca : "");
+      $("quien").textContent = (m.nombre || "") + (m.banca ? " · " + llenar(t("Banca %1"), m.banca) : "");
       lugar = m.lugar || "afuera";
       cerrarVista(); // la de la conexión anterior no sigue
       ponerSonido(lugar !== "sala"); // en la sala, el sonido apagado: el celular acoplaría
@@ -610,14 +620,14 @@ function recibir(m) {
       break;
     case "atiende-dice":
       // Lo que le dijo el asistente, también escrito (por si no lo oyó bien).
-      $("atiendeDice").textContent = "Asistente: " + (m.texto || "");
+      $("atiendeDice").textContent = llenar(t("Asistente: %1"), m.texto || "");
       $("atiendeDice").classList.toggle("oculto", !m.texto);
       break;
     case "atiende-fallo":
       if (pcAtiende) { try { pcAtiende.close(); } catch (e) {} }
       pcAtiende = null;
-      $("atiendeTexto").textContent = (m.error || "No se pudo abrir el micrófono hacia el asistente.") +
-        " La presidencia te ve por la cámara igual.";
+      $("atiendeTexto").textContent = (m.error || t("No se pudo abrir el micrófono hacia el asistente.")) +
+        " " + t("La presidencia te ve por la cámara igual.");
       break;
     case "medios-respuesta":
       if (pcSala) pcSala.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
@@ -631,7 +641,7 @@ function recibir(m) {
       // El operador desde la app le habla por el sonido de su vista (sin abrirle el micrófono);
       // la presidencia, por la conexión directa (y él le contesta).
       const delOperador = m.consola === "operador";
-      $("pttTitulo").textContent = delOperador ? "Te están hablando desde la cabina" : "La presidencia te está hablando";
+      $("pttTitulo").textContent = delOperador ? t("Te están hablando desde la cabina") : t("La presidencia te está hablando");
       if (!delOperador) microfono(pttActivo || (palabraHasta > 0 && (!debate || debate.habla)));
       if (delOperador) {
         if (pttActivo) { sonidoAntesPtt = sonidoPrendido; ponerSonido(true); }
@@ -650,14 +660,14 @@ function recibir(m) {
       if (pcVista && m.candidate) pcVista.addIceCandidate(m.candidate).catch(() => {});
       break;
     case "vista-error":
-      $("sinCanal").textContent = m.error || "No llega la imagen.";
+      $("sinCanal").textContent = m.error || t("No llega la imagen.");
       break;
     case "votacion":
       ponerVotacion(m);
       break;
     case "voto":
       if (m.ok) { if (vot) vot.mi_voto = m.opcion; pintarVotacion(); if (navigator.vibrate) navigator.vibrate(120); }
-      else { $("votMio").textContent = m.error || "No se pudo votar."; }
+      else { $("votMio").textContent = m.error || t("No se pudo votar."); }
       break;
     case "resultado":
       mostrarResultado(m);
@@ -675,7 +685,7 @@ function recibir(m) {
     case "cortado":
       cortadoAProposito = true;
       pin = "";
-      $("cortadoTexto").textContent = m.motivo || "Se cerró la sesión.";
+      $("cortadoTexto").textContent = m.motivo || t("Se cerró la sesión.");
       mostrar("cortado");
       break;
   }
@@ -693,17 +703,12 @@ $("formPin").addEventListener("submit", (e) => {
   cortadoAProposito = false;
   conectar();
 });
-if (pinDelLink) {
-  pin = pinDelLink;
-  $("botonEntrar").disabled = true;
-  conectar();
-}
 $("pedir").addEventListener("click", () => {
   if (!ws || ws.readyState !== 1) return;
   ws.send(JSON.stringify({ type: "palabra", accion: pidio ? "cancelar" : "pedir" }));
   // Se ve enseguida; la fila de verdad la confirma la app (mensaje «fila»).
   ponerPedido(pidio ? 0 : 99);
-  if (pidio) $("turno").textContent = "Pedido enviado";
+  if (pidio) $("turno").textContent = t("Pedido enviado");
 });
 $("cerrarResultado").addEventListener("click", () => $("resultado").classList.add("oculto"));
 $("sonido").addEventListener("click", () => ponerSonido(!sonidoPrendido));
@@ -717,16 +722,58 @@ $("reintentar").addEventListener("click", () => {
   $("botonEntrar").disabled = false;
 });
 
-if (!conLink) {
-  // Sin link: usuario y contraseña.
+// Los textos de la entrada sin link (usuario y contraseña).
+function textosSinLink() {
   $("entrarTexto").textContent = integrante || token
-    ? "Este link está incompleto. Abrí el link personal que te mandó la secretaría, o entrá con tu usuario y contraseña."
-    : "Entrá con el usuario y la contraseña que te dio la secretaría (o abrí tu link personal).";
-  $("usuario").classList.remove("oculto");
-  $("formPin").classList.add("dos");
-  $("pin").placeholder = "Contraseña";
-  $("pin").setAttribute("inputmode", "text");
-  $("pin").removeAttribute("pattern");
-  $("usuario").focus();
+    ? t("Este link está incompleto. Abrí el link personal que te mandó la secretaría, o entrá con tu usuario y contraseña.")
+    : t("Entrá con el usuario y la contraseña que te dio la secretaría (o abrí tu link personal).");
+  $("pin").placeholder = t("Contraseña");
 }
-mostrar("entrar");
+
+// --- El idioma -------------------------------------------------------------------------
+// Un selector chico arriba: los idiomas que hay; al cambiar, se vuelve a pintar.
+function armarIdiomas() {
+  const sel = $("idioma");
+  const lista = BAi18n.idiomas;
+  sel.classList.toggle("oculto", lista.length < 2);
+  sel.textContent = "";
+  for (const p of lista) {
+    const o = document.createElement("option");
+    o.value = p.codigo;
+    o.textContent = p.nombre;
+    sel.appendChild(o);
+  }
+  sel.value = BAi18n.idioma;
+}
+$("idioma").addEventListener("change", async (e) => {
+  await BAi18n.elegir(e.target.value);
+  armarIdiomas();
+  if (!conLink) textosSinLink();
+  pintarEstado();
+  ponerPedido(turnoActual);
+  ponerSonido(sonidoPrendido);
+  pintarVotacion();
+  const yo = $("botonesVista").querySelector('[data-vista="yo"]');
+  if (yo) yo.textContent = t("Yo");
+});
+
+(async () => {
+  // Los textos: el idioma del navegador del integrante (o el que elija arriba).
+  await BAi18n.iniciar({ contexto: "web/sesion", preferir: "navegador" });
+  armarIdiomas();
+  if (pinDelLink) {
+    pin = pinDelLink;
+    $("botonEntrar").disabled = true;
+    conectar();
+  }
+  if (!conLink) {
+    // Sin link: usuario y contraseña.
+    textosSinLink();
+    $("usuario").classList.remove("oculto");
+    $("formPin").classList.add("dos");
+    $("pin").setAttribute("inputmode", "text");
+    $("pin").removeAttribute("pattern");
+    $("usuario").focus();
+  }
+  mostrar("entrar");
+})();

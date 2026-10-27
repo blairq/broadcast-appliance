@@ -145,7 +145,7 @@ function soltarMic() {
 
 // --- La lista ------------------------------------------------------------------------------------
 function textoPaso(c) {
-  if (c.atendida) return c.atiendeConn === aconn ? "La atendés vos" : c.paso || "atendida";
+  if (c.atendida) return c.atiendeConn === aconn ? t("La atendés vos") : c.paso || t("atendida");
   return c.paso || c.estado || "";
 }
 
@@ -168,9 +168,9 @@ function pintarLista() {
     li.querySelector(".totem").textContent = (c.totem || c.id || "") + (c.quien ? " · " + c.quien : "");
     // Con cámara no quiere decir conversando: el tótem sigue conectado entre una persona y otra.
     const charla = c.estado !== "esperando" && c.estado !== "listo";
-    li.querySelector(".lugar").textContent = c.canal === 0 ? "sin cámara" : charla ? "conversando" : "esperando a alguien";
+    li.querySelector(".lugar").textContent = c.canal === 0 ? t("sin cámara") : charla ? t("conversando") : t("esperando a alguien");
     li.querySelector(".paso").textContent = textoPaso(c);
-    li.querySelector(".ultimo").textContent = c.oido ? "«" + c.oido + "»" : c.dice ? "Asistente: «" + c.dice + "»" : "";
+    li.querySelector(".ultimo").textContent = c.oido ? "«" + c.oido + "»" : c.dice ? BAi18n.llenar(t("Asistente: «%1»"), c.dice) : "";
     li.classList.toggle("elegida", c.conn === elegida);
     li.classList.toggle("atendida", !!c.atendida && c.atiendeConn !== aconn);
     li.classList.toggle("mia", !!c.atendida && c.atiendeConn === aconn);
@@ -217,8 +217,10 @@ function armarCampos(c) {
     if (f.tipo === "sino" || (f.tipo === "opcion" && Array.isArray(f.opciones) && f.opciones.length)) {
       control = document.createElement("select");
       const opciones = f.tipo === "sino" ? ["Sí", "No"] : f.opciones;
+      // El valor que viaja queda en el original; lo que se ve, traducido.
+      const etiquetas = f.tipo === "sino" ? { "Sí": t("Sí"), "No": t("No") } : {};
       control.appendChild(new Option("—", ""));
-      for (const o of opciones) control.appendChild(new Option(o, o));
+      for (const o of opciones) control.appendChild(new Option(etiquetas[o] || o, o));
     } else {
       control = document.createElement("input");
       control.type = kTipoInput[f.tipo] || "text";
@@ -271,18 +273,18 @@ function pintarDetalle() {
   $("dDice").textContent = c.dice || "—";
   $("dAtiende").classList.toggle("oculto", !c.atendida);
   $("dAtiende").classList.toggle("otra", otra);
-  $("dAtiende").textContent = mia ? "La atendés vos" : "La atiende " + (c.atiende || "alguien del equipo");
+  $("dAtiende").textContent = mia ? t("La atendés vos") : c.atiende ? BAi18n.llenar(t("La atiende %1"), c.atiende) : t("La atiende alguien del equipo");
   $("atender").classList.toggle("oculto", !!c.atendida);
   $("atender").disabled = !(c.canal > 0);
-  $("atender").title = c.canal > 0 ? "" : "No está frente al tótem (sin cámara ni micrófono)";
+  $("atender").title = c.canal > 0 ? "" : t("No está frente al tótem (sin cámara ni micrófono)");
   for (const b of ["devolver", "guardar", "cancelar"]) $(b).classList.toggle("oculto", !mia);
   $("silenciar").classList.toggle("oculto", !(mia && mic));
-  $("silenciar").textContent = micMudo ? "Activar mi micrófono" : "Silenciar mi micrófono";
+  $("silenciar").textContent = micMudo ? t("Activar mi micrófono") : t("Silenciar mi micrófono");
   $("microfono").classList.toggle("oculto", !(mia && mic));
   $("microfono").classList.toggle("mudo", micMudo);
-  $("microfono").textContent = micMudo ? "● Micrófono silenciado" : "● Te escucha";
+  $("microfono").textContent = micMudo ? t("● Micrófono silenciado") : t("● Te escucha");
   $("sinVideo").classList.toggle("oculto", canal > 0 && !!remoto && remoto.getVideoTracks().length > 0);
-  $("sinVideo").textContent = canal > 0 ? "Esperando la cámara del tótem…" : "Esta conversación no tiene la cámara conectada.";
+  $("sinVideo").textContent = canal > 0 ? t("Esperando la cámara del tótem…") : t("Esta conversación no tiene la cámara conectada.");
   const firma = c.conn + "|" + (c.editables || []).map((f) => f.clave + ":" + f.tipo).join(",");
   if (firma !== camposDe) {
     camposDe = firma;
@@ -332,10 +334,10 @@ function recibir(m) {
       if (elegida) { mandar({ type: "mirar", conn: elegida }); iniciarMedios(); } // volvió la conexión
       break;
     case "error":
-      cortar(m.error || "Este enlace de atención no es válido.");
+      cortar(m.error || t("Este enlace de atención no es válido."));
       break;
     case "cortado":
-      cortar(m.motivo || "Se cerró la atención.");
+      cortar(m.motivo || t("Se cerró la atención."));
       break;
     case "conversaciones":
       $("evento").textContent = m.evento || "";
@@ -359,7 +361,7 @@ function recibir(m) {
       break;
     case "medios-error":
       cerrarMedios(false);
-      aviso(m.error || "No se pudo ver ni oír el tótem ahora; reintento en un rato.");
+      aviso(m.error || t("No se pudo ver ni oír el tótem ahora; reintento en un rato."));
       setTimeout(() => { if (elegida && !pc) iniciarMedios(); }, 4000);
       break;
     case "aviso":
@@ -382,7 +384,7 @@ $("atender").addEventListener("click", async () => {
   // El micrófono se pide acá, con el toque (algunos navegadores lo exigen).
   pidoAtender = Date.now();
   const conMic = await pedirMic();
-  if (!conMic) aviso("Sin micrófono: la persona no te va a oír, pero podés completar los datos.");
+  if (!conMic) aviso(t("Sin micrófono: la persona no te va a oír, pero podés completar los datos."));
   mandar({ type: "atender", conn: c.conn });
 });
 $("devolver").addEventListener("click", () => mandar({ type: "devolver", conn: elegida }));
@@ -419,13 +421,15 @@ $("formNombre").addEventListener("submit", (ev) => {
 document.addEventListener("click", () => { if ($("sonido").srcObject) $("sonido").play().catch(() => {}); });
 
 // --- Arranque ---------------------------------------------------------------------------------------------
-(function () {
+(async function () {
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/registro-atiende", preferir: "evento" });
   if (!token) {
-    cortar("Este enlace de atención no está completo. Pedí el enlace de nuevo.");
+    cortar(t("Este enlace de atención no está completo. Pedí el enlace de nuevo."));
     return;
   }
   nombre = leerNombre();
-  $("quien").textContent = nombre || "Tu nombre";
+  $("quien").textContent = nombre || t("Tu nombre");
   if (!nombre) { mostrar("entrar"); $("nombre").focus(); return; }
   conectar();
 })();

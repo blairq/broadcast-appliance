@@ -6,12 +6,13 @@
   <meta name="theme-color" content="#22252c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <title>Botonera</title>
+  <title data-i18n="Botonera">Botonera</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/comun/icono-180.png" />
   <link rel="stylesheet" href="/comun/neuro/temas.css" />
   <link rel="stylesheet" href="/comun/neuro/neuro.css" />
   <link rel="stylesheet" href="botonera.css" />
+  <script src="/comun/i18n.js"></script>
   <script src="/comun/neuro/neuro.js"></script>
 </head>
 <body>
@@ -29,11 +30,11 @@
     colores, tally) se lo manda la app.
   -->
   <header class="barra">
-    <span id="perfil" class="perfil">Botonera</span>
+    <span id="perfil" class="perfil" data-i18n="Botonera">Botonera</span>
     <span id="pagina" class="pagina"></span>
     <span class="espacio"></span>
-    <span id="conexion" class="conexion apagada" title="Conexión">●</span>
-    <button id="pantallaCompleta" class="icono" title="Pantalla completa" type="button">⛶</button>
+    <span id="conexion" class="conexion apagada" title="Conexión" data-i18n-title="Conexión">●</span>
+    <button id="pantallaCompleta" class="icono" title="Pantalla completa" data-i18n-title="Pantalla completa" type="button">⛶</button>
   </header>
 
   <main id="grilla" class="grilla"></main>
@@ -41,24 +42,24 @@
   <nav id="paginas" class="paginas"></nav>
 
   <section id="emparejar" class="panel oculto">
-    <h1>Emparejar esta tablet</h1>
-    <p id="emparejarTexto">Poné un nombre para reconocerla y pedí el emparejamiento.</p>
-    <input id="nombre" type="text" maxlength="60" placeholder="Ej.: iPad Dirección" />
-    <button id="pedir" type="button" class="grande">Pedir emparejamiento</button>
+    <h1 data-i18n="Emparejar esta tablet">Emparejar esta tablet</h1>
+    <p id="emparejarTexto" data-i18n="Poné un nombre para reconocerla y pedí el emparejamiento.">Poné un nombre para reconocerla y pedí el emparejamiento.</p>
+    <input id="nombre" type="text" maxlength="60" placeholder="Ej.: iPad Dirección" data-i18n-placeholder="Ej.: iPad Dirección" />
+    <button id="pedir" type="button" class="grande" data-i18n="Pedir emparejamiento">Pedir emparejamiento</button>
   </section>
 
   <section id="mensaje" class="panel oculto">
     <h1 id="mensajeTitulo"></h1>
     <p id="mensajeTexto"></p>
-    <button id="olvidar" type="button" class="oculto">Olvidar esta tablet</button>
+    <button id="olvidar" type="button" class="oculto" data-i18n="Olvidar esta tablet">Olvidar esta tablet</button>
   </section>
 
   <section id="confirmar" class="confirmar oculto">
     <div class="caja">
-      <h2 id="confirmarTexto">Cambia el aire</h2>
-      <button id="confirmarSi" type="button" class="si">Mantené apretado para confirmar</button>
+      <h2 id="confirmarTexto" data-i18n="Cambia el aire">Cambia el aire</h2>
+      <button id="confirmarSi" type="button" class="si" data-i18n="Mantené apretado para confirmar">Mantené apretado para confirmar</button>
       <div id="confirmarBarra" class="barra-progreso"><div></div></div>
-      <button id="confirmarNo" type="button" class="no">Cancelar</button>
+      <button id="confirmarNo" type="button" class="no" data-i18n="Cancelar">Cancelar</button>
     </div>
   </section>
 

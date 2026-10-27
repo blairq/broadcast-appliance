@@ -4,7 +4,7 @@
   const { el, boton, maxDb, ms, vacio, texto, attr, sincronizar } = BA.tj;
   BA.tarjetas.push(
   {
-    id: "ptz", titulo: "Cámara PTZ", temas: ["ptz"],
+    id: "ptz", get titulo() { return t("Cámara PTZ"); }, temas: ["ptz"],
     herramientas: ["ptz_mover", "ptz_parar", "ptz_ir_posicion"],
     crear(c, api) {
       this.api = api;
@@ -24,7 +24,7 @@
       this.joy.addEventListener("soltar", () => this.camara && api.llamar("ptz_parar", { entrada: this.camara }).catch(() => {}));
       const zoom = el("div", "columna zoom");
       const z = (dir) => {
-        const b = boton(dir > 0 ? "Zoom +" : "Zoom −", null, { mantener: true });
+        const b = boton(dir > 0 ? t("Zoom +") : t("Zoom −"), null, { mantener: true });
         b.addEventListener("presionar", () => this.camara && api.llamar("ptz_mover", { entrada: this.camara, pan: 0, tilt: 0, zoom: dir, duracion_ms: 400 }).catch(() => {}));
         b.addEventListener("soltar", () => this.camara && api.llamar("ptz_parar", { entrada: this.camara }).catch(() => {}));
         return b;
@@ -32,14 +32,14 @@
       zoom.append(z(1), z(-1));
       cuerpo.append(this.joy, zoom);
       this.posiciones = el("div", "posiciones");
-      c.append(cab, cuerpo, el("h3", "", "Posiciones"), this.posiciones);
+      c.append(cab, cuerpo, el("h3", "", t("Posiciones")), this.posiciones);
     },
     pintarPosiciones() {
       const cam = (this.camaras || []).find((x) => x.entrada === this.camara);
       this.tallyCam.setAttribute("estado", cam && cam.al_aire ? "aire" : "apagado");
-      this.tallyCam.textContent = cam ? (cam.al_aire ? "al aire" : cam.estado || "lista") : "—";
+      this.tallyCam.textContent = cam ? (cam.al_aire ? t("al aire") : cam.estado || t("lista")) : "—";
       const pos = (cam && cam.posiciones ? cam.posiciones : []).filter((p) => !p.interna);
-      if (!pos.length) { vacio(this.posiciones, "Sin posiciones guardadas."); return; }
+      if (!pos.length) { vacio(this.posiciones, t("Sin posiciones guardadas.")); return; }
       sincronizar(this.posiciones, pos.map((p) => p.nombre), (nombre) =>
         boton(nombre, () => this.api.hacer("ptz_ir_posicion", { entrada: this.camara, posicion: nombre }), { compacto: true }),
         (b, nombre) => { const p = pos.find((x) => x.nombre === nombre); b.title = p.comentario || ""; });

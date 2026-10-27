@@ -4,20 +4,20 @@
   const { el, boton, maxDb, ms, vacio, texto, attr, sincronizar } = BA.tj;
   BA.tarjetas.push(
   {
-    id: "latencias", titulo: "Latencias", temas: ["latencias"],
+    id: "latencias", get titulo() { return t("Latencias"); }, temas: ["latencias"],
     herramientas: [],
     crear(c) {
       this.salidas = el("div", "columna");
       const est = el("div", "fila"); this.estudio = el("span", "numero");
-      est.append(el("span", "suave", "Estudio"), el("span", "espacio"), this.estudio);
+      est.append(el("span", "suave", t("Estudio")), el("span", "espacio"), this.estudio);
       this.lista = el("div", "columna");
       this.salidas.append(est, this.lista);
       this.lentos = el("div", "columna");
-      c.append(this.salidas, el("h3", "", "Lo que más tarda"), this.lentos);
+      c.append(this.salidas, el("h3", "", t("Lo que más tarda")), this.lentos);
     },
     actualizar(_, d) {
       const es = d.estudio || {};
-      texto(this.estudio, ms(es.latencia_ms) + " (tope " + ms(es.tope_ms) + ")");
+      texto(this.estudio, BAi18n.llenar(t("%1 (tope %2)"), ms(es.latencia_ms), ms(es.tope_ms)));
       const salidas = d.salidas || [];
       sincronizar(this.lista, salidas.map((x) => x.titulo), () => {
         const f = el("div", "fila"); f.t = el("strong"); f.v = el("span", "numero grande-num");

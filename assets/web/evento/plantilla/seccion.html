@@ -10,6 +10,9 @@
   <meta property="og:title" content="{{titulo}}" />
   <link rel="stylesheet" href="/evento/_/sitio.css" />
   <link rel="stylesheet" href="estilo.css" />
+  <!-- Los textos de la plantilla salen en el idioma del evento (/comun/i18n.js): cada uno lleva
+       data-i18n con el original. Si reescribís uno a mano, sacale el data-i18n. -->
+  <script src="/comun/i18n.js" defer></script>
   <script src="/evento/_/vivo.js" defer></script>
 </head>
 <!--
@@ -19,29 +22,29 @@
   el guion de ahora. Para contar de qué se trata, escribí en «de-que-se-trata».
 -->
 <body data-seccion="{{seccion}}">
-  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <a class="saltar" href="#contenido" data-i18n="Saltar al contenido">Saltar al contenido</a>
 
   <header class="nav">
     <div class="contenedor">
       <a class="marca" href="portada.html" data-vivo="nombre">{{evento}}</a>
-      <nav class="nav-links" aria-label="Secciones del sitio">
-        <a href="#vivo">En vivo</a>
-        <a href="portada.html#programa">Programa</a>
-        <a href="portada.html#como">Cómo seguirlo</a>
-        <a href="portada.html#preguntas">Preguntas</a>
+      <nav class="nav-links" aria-label="Secciones del sitio" data-i18n-aria-label="Secciones del sitio">
+        <a href="#vivo" data-i18n="En vivo">En vivo</a>
+        <a href="portada.html#programa" data-i18n="Programa">Programa</a>
+        <a href="portada.html#como" data-i18n="Cómo seguirlo">Cómo seguirlo</a>
+        <a href="portada.html#preguntas" data-i18n="Preguntas">Preguntas</a>
       </nav>
       <div class="nav-acciones">
         <span class="estado" data-vivo="estado">Próximamente</span>
-        <a class="boton primario chico" href="#vivo">Ver en vivo</a>
-        <button class="hamburguesa" type="button" data-menu aria-controls="menu-movil" aria-expanded="false" aria-label="Abrir el menú"><span></span></button>
+        <a class="boton primario chico" href="#vivo" data-i18n="Ver en vivo">Ver en vivo</a>
+        <button class="hamburguesa" type="button" data-menu aria-controls="menu-movil" aria-expanded="false" aria-label="Abrir el menú" data-i18n-aria-label="Abrir el menú"><span></span></button>
       </div>
     </div>
   </header>
-  <nav class="menu-movil" id="menu-movil" hidden aria-label="Menú">
-    <a href="#vivo">En vivo</a>
-    <a href="portada.html#programa">Programa</a>
-    <a href="portada.html">Portada</a>
-    <a href="/invitados/" data-vivo-si="invitados" hidden>Entrar a la conferencia</a>
+  <nav class="menu-movil" id="menu-movil" hidden aria-label="Menú" data-i18n-aria-label="Menú">
+    <a href="#vivo" data-i18n="En vivo">En vivo</a>
+    <a href="portada.html#programa" data-i18n="Programa">Programa</a>
+    <a href="portada.html" data-i18n="Portada">Portada</a>
+    <a href="/invitados/" data-vivo-si="invitados" hidden data-i18n="Entrar a la conferencia">Entrar a la conferencia</a>
   </nav>
 
   <div class="aviso" data-vivo-si="aviso" hidden><div class="contenedor" data-vivo="aviso"></div></div>
@@ -50,9 +53,9 @@
     <!-- Si la sección se sacó del guion, la página lo dice (y manda a la portada). -->
     <section class="hero" data-vivo-quitada hidden>
       <div class="contenedor">
-        <p class="ceja">Sección</p>
-        <h1 class="h2">Esta parte ya no está en el programa.</h1>
-        <div class="hero-acciones"><a class="boton primario" href="portada.html">Ver el programa</a></div>
+        <p class="ceja" data-i18n="Sección">Sección</p>
+        <h1 class="h2" data-i18n="Esta parte ya no está en el programa.">Esta parte ya no está en el programa.</h1>
+        <div class="hero-acciones"><a class="boton primario" href="portada.html" data-i18n="Ver el programa">Ver el programa</a></div>
       </div>
     </section>
 
@@ -64,10 +67,10 @@
         <h1 class="h1" data-vivo="seccion-nombre">{{titulo}}</h1>
         <!-- de-que-se-trata: una o dos líneas concretas (quién habla, qué se decide). -->
         <p class="bajada">Parte de <span data-vivo="nombre">{{evento}}</span>.</p>
-        <p class="habla" data-vivo-si="habla" hidden><span class="ceja">Habla ahora</span> <b data-vivo="habla"></b></p>
+        <p class="habla" data-vivo-si="habla" hidden><span class="ceja" data-i18n="Habla ahora">Habla ahora</span> <b data-vivo="habla"></b></p>
         <div class="hero-acciones">
-          <a class="boton primario" href="#vivo">Ver en vivo</a>
-          <a class="boton secundario" href="portada.html#programa">Todo el programa</a>
+          <a class="boton primario" href="#vivo" data-i18n="Ver en vivo">Ver en vivo</a>
+          <a class="boton secundario" href="portada.html#programa" data-i18n="Todo el programa">Todo el programa</a>
         </div>
       </div>
     </section>
@@ -75,23 +78,23 @@
     <!-- Ahora / Sigue / Lleva: lo que pasa en el evento en este momento. -->
     <div class="contenedor">
       <div class="ahora">
-        <div class="tarjeta"><p class="ceja" style="margin:0">Ahora</p><b data-vivo="seccion">—</b>
+        <div class="tarjeta"><p class="ceja" style="margin:0" data-i18n="Ahora">Ahora</p><b data-vivo="seccion">—</b>
           <div class="progreso"><div data-vivo="progreso"></div></div>
           <p class="tenue mono" style="font-size:12px;margin:8px 0 0" data-vivo="progreso-texto"></p></div>
-        <div class="tarjeta"><p class="ceja" style="margin:0">Sigue</p><b data-vivo="siguiente">—</b></div>
-        <div class="tarjeta"><p class="ceja" style="margin:0">Lleva</p><b class="mono" data-vivo="transcurrido">—</b></div>
+        <div class="tarjeta"><p class="ceja" style="margin:0" data-i18n="Sigue">Sigue</p><b data-vivo="siguiente">—</b></div>
+        <div class="tarjeta"><p class="ceja" style="margin:0" data-i18n="Lleva">Lleva</p><b class="mono" data-vivo="transcurrido">—</b></div>
       </div>
     </div>
 
     <section class="seccion" id="vivo" style="margin-top:64px">
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / En vivo</p>
-          <h2 class="h2">Está pasando ahora.</h2>
+          <p class="ceja"><span data-num></span> / <span data-i18n="En vivo">En vivo</span></p>
+          <h2 class="h2" data-i18n="Está pasando ahora.">Está pasando ahora.</h2>
         </div>
         <div class="reproductor-caja">
           <div data-vivo="reproductor" data-plataforma="youtube" data-vacio="El vivo aparece acá cuando empiece la transmisión."></div>
-          <nav class="plataformas" data-vivo="vivos" data-vivo-si="vivos" hidden aria-label="Verlo en cada plataforma"></nav>
+          <nav class="plataformas" data-vivo="vivos" data-vivo-si="vivos" hidden aria-label="Verlo en cada plataforma" data-i18n-aria-label="Verlo en cada plataforma"></nav>
         </div>
       </div>
     </section>
@@ -100,8 +103,8 @@
     <section class="seccion" id="documentos" data-vivo-si="documentos-seccion" hidden>
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / Documentación</p>
-          <h2 class="h2">Para leer en esta parte.</h2>
+          <p class="ceja"><span data-num></span> / <span data-i18n="Documentación">Documentación</span></p>
+          <h2 class="h2" data-i18n="Para leer en esta parte.">Para leer en esta parte.</h2>
         </div>
         <div class="documentos" data-vivo="documentos-seccion"></div>
       </div>
@@ -111,18 +114,18 @@
     <section class="seccion" id="oradores" data-vivo-si="oradores" hidden>
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / En el uso de la palabra</p>
-          <h2 class="h2">Quién habla.</h2>
+          <p class="ceja"><span data-num></span> / <span data-i18n="En el uso de la palabra">En el uso de la palabra</span></p>
+          <h2 class="h2" data-i18n="Quién habla.">Quién habla.</h2>
         </div>
         <div class="oradores">
           <div class="tarjeta" data-vivo-si="orador-habla" hidden>
-            <p class="ceja" style="margin:0 0 6px;color:var(--vivo)">Habla ahora</p>
+            <p class="ceja" style="margin:0 0 6px;color:var(--vivo)" data-i18n="Habla ahora">Habla ahora</p>
             <b class="h3" data-vivo="oradores-habla"></b>
             <p class="tenue" data-vivo="oradores-detalle"></p>
             <p class="mono" data-vivo="oradores-restante"></p>
           </div>
           <div class="tarjeta" data-vivo-si="fila" hidden>
-            <p class="ceja" style="margin:0 0 10px">Después</p>
+            <p class="ceja" style="margin:0 0 10px" data-i18n="Después">Después</p>
             <ol class="fila" data-vivo="oradores-fila"></ol>
           </div>
         </div>
@@ -134,24 +137,24 @@
     <section class="seccion" id="asamblea" data-vivo-si="asamblea" hidden>
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / La asamblea</p>
+          <p class="ceja"><span data-num></span> / <span data-i18n="La asamblea">La asamblea</span></p>
           <h2 class="h2" data-vivo="asamblea-cuerpo">La asamblea</h2>
           <p class="bajada"><b data-vivo="asamblea-presentes">0</b> de <span data-vivo="asamblea-total">0</span> integrantes presentes
             <span data-vivo-si="asamblea-quorum" hidden> · <span class="estado" data-vivo="asamblea-quorum"></span></span></p>
         </div>
         <div class="tarjeta" data-vivo-si="punto" hidden style="margin-bottom:24px">
-          <p class="ceja" style="margin:0 0 6px;color:var(--vivo)">En tratamiento</p>
+          <p class="ceja" style="margin:0 0 6px;color:var(--vivo)" data-i18n="En tratamiento">En tratamiento</p>
           <b class="h3" data-vivo="punto-titulo"></b>
           <p class="tenue mono" data-vivo="punto-expediente"></p>
         </div>
         <div class="recinto-caja" data-vivo-si="recinto" hidden>
           <div class="recinto" data-vivo="recinto"></div>
           <ul class="bloques" data-vivo="bloques" data-vivo-si="bloques" hidden></ul>
-          <p class="tenue recinto-nota">Visto desde el fondo del recinto. Llena: presente · vacía: ausente · con aro: en el uso de la palabra.</p>
+          <p class="tenue recinto-nota" data-i18n="Visto desde el fondo del recinto. Llena: presente · vacía: ausente · con aro: en el uso de la palabra.">Visto desde el fondo del recinto. Llena: presente · vacía: ausente · con aro: en el uso de la palabra.</p>
         </div>
         <ul class="integrantes" data-vivo="integrantes"></ul>
         <div data-vivo-si="votaciones" hidden style="margin-top:40px">
-          <p class="ceja">Votaciones oficiales</p>
+          <p class="ceja" data-i18n="Votaciones oficiales">Votaciones oficiales</p>
           <ul class="votaciones" data-vivo="votaciones"></ul>
         </div>
       </div>
@@ -161,14 +164,14 @@
     <section class="seccion" id="preguntas-publico" data-vivo-si="preguntas-o-participar" hidden>
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / Preguntas del público</p>
-          <h2 class="h2">Lo que pregunta la gente.</h2>
+          <p class="ceja"><span data-num></span> / <span data-i18n="Preguntas del público">Preguntas del público</span></p>
+          <h2 class="h2" data-i18n="Lo que pregunta la gente.">Lo que pregunta la gente.</h2>
         </div>
         <ul class="preguntas" data-vivo="preguntas" data-vivo-si="preguntas" hidden></ul>
         <a class="tarjeta participar" data-vivo-si="participar" data-vivo-href="publico" hidden>
-          <span class="letra">Participá</span>
-          <b>Mandá tu pregunta y votá desde el celular.</b>
-          <span class="estado en_vivo" data-vivo-si="votacion" hidden>Votación abierta</span>
+          <span class="letra" data-i18n="Participá">Participá</span>
+          <b data-i18n="Mandá tu pregunta y votá desde el celular.">Mandá tu pregunta y votá desde el celular.</b>
+          <span class="estado en_vivo" data-vivo-si="votacion" hidden data-i18n="Votación abierta">Votación abierta</span>
         </a>
       </div>
     </section>
@@ -177,30 +180,30 @@
     <section class="seccion" id="votacion" data-vivo-si="votacion-info" hidden>
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / Votación</p>
+          <p class="ceja"><span data-num></span> / <span data-i18n="Votación">Votación</span></p>
           <h2 class="h2" data-vivo="votacion-pregunta"></h2>
           <p class="bajada"><span class="estado" data-vivo="votacion-estado"></span> <span class="mono tenue" data-vivo="votacion-votaron"></span></p>
         </div>
         <div class="resultado" data-vivo="votacion-resultado" data-vivo-si="resultado" hidden></div>
         <a class="tarjeta participar" data-vivo-si="participar" data-vivo-href="publico" hidden style="margin-top:16px">
-          <span class="letra">Votá</span><b>Desde el celular, en la página del público.</b></a>
+          <span class="letra" data-i18n="Votá">Votá</span><b data-i18n="Desde el celular, en la página del público.">Desde el celular, en la página del público.</b></a>
       </div>
     </section>
 
     <section class="seccion" id="programa" data-vivo-si="secciones">
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja"><span data-num></span> / Programa</p>
-          <h2 class="h2">Dónde estamos.</h2>
+          <p class="ceja"><span data-num></span> / <span data-i18n="Programa">Programa</span></p>
+          <h2 class="h2" data-i18n="Dónde estamos.">Dónde estamos.</h2>
         </div>
         <ol class="programa" data-vivo="agenda"></ol>
       </div>
     </section>
 
     <div class="contenedor" style="padding-bottom:96px">
-      <nav class="pasos" aria-label="Secciones">
-        <a class="paso" href="portada.html" data-vivo-href="anterior"><p class="ceja">← Anterior</p><b data-vivo="anterior-nombre">Portada</b></a>
-        <a class="paso siguiente" href="cierre.html" data-vivo-href="proxima"><p class="ceja">Siguiente →</p><b data-vivo="proxima-nombre">El cierre</b></a>
+      <nav class="pasos" aria-label="Secciones" data-i18n-aria-label="Secciones">
+        <a class="paso" href="portada.html" data-vivo-href="anterior"><p class="ceja" data-i18n="← Anterior">← Anterior</p><b data-vivo="anterior-nombre">Portada</b></a>
+        <a class="paso siguiente" href="cierre.html" data-vivo-href="proxima"><p class="ceja" data-i18n="Siguiente →">Siguiente →</p><b data-vivo="proxima-nombre">El cierre</b></a>
       </nav>
     </div>
   </main>
@@ -211,17 +214,17 @@
         <div>
           <p class="h3" style="margin:0 0 10px" data-vivo="nombre">{{evento}}</p>
           <p><span data-vivo="fecha-larga"></span><span data-vivo-si="huso" hidden> (hora de <span data-vivo="huso"></span>)</span></p>
-          <p>Esta página se actualiza sola mientras el evento pasa.</p>
+          <p data-i18n="Esta página se actualiza sola mientras el evento pasa.">Esta página se actualiza sola mientras el evento pasa.</p>
         </div>
-        <div><h4>El evento</h4><ul>
-          <li><a href="portada.html#vivo">En vivo</a></li><li><a href="portada.html#programa">Programa</a></li>
-          <li><a href="portada.html#preguntas">Preguntas</a></li><li><a href="cierre.html">Cierre</a></li></ul></div>
-        <div data-vivo-si="secciones"><h4>Secciones</h4><ul data-vivo="lista-secciones"></ul></div>
-        <div><h4>Participar</h4><ul>
-          <li data-vivo-si="invitados" hidden><a href="/invitados/">Entrar a la conferencia</a></li>
-          <li data-vivo-si="participar" hidden><a data-vivo-href="publico">Preguntar y votar</a></li></ul></div>
+        <div><h4 data-i18n="El evento">El evento</h4><ul>
+          <li><a href="portada.html#vivo" data-i18n="En vivo">En vivo</a></li><li><a href="portada.html#programa" data-i18n="Programa">Programa</a></li>
+          <li><a href="portada.html#preguntas" data-i18n="Preguntas">Preguntas</a></li><li><a href="cierre.html" data-i18n="Cierre">Cierre</a></li></ul></div>
+        <div data-vivo-si="secciones"><h4 data-i18n="Secciones">Secciones</h4><ul data-vivo="lista-secciones"></ul></div>
+        <div><h4 data-i18n="Participar">Participar</h4><ul>
+          <li data-vivo-si="invitados" hidden><a href="/invitados/" data-i18n="Entrar a la conferencia">Entrar a la conferencia</a></li>
+          <li data-vivo-si="participar" hidden><a data-vivo-href="publico" data-i18n="Preguntar y votar">Preguntar y votar</a></li></ul></div>
       </div>
-      <div class="pie-final"><span><span data-vivo="nombre">{{evento}}</span> · <span data-vivo="anio"></span></span><span>En vivo. Sin vueltas.</span></div>
+      <div class="pie-final"><span><span data-vivo="nombre">{{evento}}</span> · <span data-vivo="anio"></span></span><span data-i18n="En vivo. Sin vueltas.">En vivo. Sin vueltas.</span></div>
     </div>
   </footer>
 </body>
