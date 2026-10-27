@@ -19,6 +19,7 @@
 #include "sala/EnlacesSala.hpp"
 #include "sala/PaginaPublico.hpp"
 #include "mcp/McpPreguntaTools.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -53,8 +54,9 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     const auto contestarSala = [](Done done, std::string texto) {
         return [done, texto](const std::string& err, const json& r) {
             if (!err.empty())
-                return done(ToolResult::error("No pude hablar con el servidor (gateway): " + err +
-                                              ". Fijate `room_status`: si esta caida, las preguntas del publico no llegan a ningun lado."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No pude hablar con el servidor (gateway): %1. Fijate `room_status`: si esta "
+                                                "caida, las preguntas del publico no llegan a ningun lado."),
+                                              {err})));
             ToolResult res;
             res.structured = r;
             res.text(texto.empty() ? r.dump(2, ' ', false, json::error_handler_t::replace) : texto);
@@ -121,8 +123,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
               {"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el id que da preguntas_ver")}}}}}};
         t.run = [&vm, contestarSala](const json& a, Done done) {
             const std::string e = vm.preguntas().moderar(a.value("accion", std::string()), a.value("id", std::string()),
-                                                         contestarSala(done, "Hecho."));
-            if (!e.empty()) done(ToolResult::error(e + " Los ids los da `preguntas_ver`."));
+                                                         contestarSala(done, ba::i18n::traducir("mcp", "Hecho.")));
+            if (!e.empty()) done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 Los ids los da `preguntas_ver`."), {e})));
         };
         core.addTool(std::move(t));
     }
@@ -153,7 +155,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.run = [&vm, contestarSala](const json& a, Done done) {
             const std::string e = vm.preguntas().sumar(a.value("texto", std::string()), a.value("nombre", std::string()),
                                                        a.value("deDonde", std::string("sala")),
-                                                       contestarSala(done, "Sumada a la cola."));
+                                                       contestarSala(done, ba::i18n::traducir("mcp", "Sumada a la cola.")));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
@@ -214,8 +216,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             if (vm.votaciones() == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "Las votaciones de la asamblea no están disponibles.")));
             const json r = vm.votaciones()->cargarOficial(a);
             if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
-            done(ToolResult().text(std::string(r.value("aprobado", false) ? "APROBADO" : "RECHAZADO") + ": " +
-                                   std::to_string(r.value("afirmativos", 0)) + " a " + std::to_string(r.value("negativos", 0)))
+            done(ToolResult().text(ba::i18n::llenar(r.value("aprobado", false) ? ba::i18n::traducir("mcp", "APROBADO: %1 a %2") : ba::i18n::traducir("mcp", "RECHAZADO: %1 a %2"),
+                                     {std::to_string(r.value("afirmativos", 0)), std::to_string(r.value("negativos", 0))}))
                      .data(r));
         };
         core.addTool(std::move(t));
@@ -230,7 +232,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.run = [&vm, contestarSala](const json& a, Done done) {
             // Por el modelo, esperando lo que diga la sala (antes contestaba «ok» antes de saberlo).
             const std::string e = vm.preguntas().sumarDesdeChat(a.value("mensaje_id", std::string()),
-                                                                contestarSala(done, "Sumada a la cola de preguntas."));
+                                                                contestarSala(done, ba::i18n::traducir("mcp", "Sumada a la cola de preguntas.")));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
@@ -283,7 +285,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             const std::string e = vm.votacion().abrir(
                 a.value("pregunta", std::string()), opciones, a.value("modo", std::string("encuesta")),
                 a.value("secreta", false), a.value("enVivo", false), [done](const std::string& err, const json& r) {
-                    if (!err.empty()) return done(ToolResult::error("La conferencia respondio: " + err));
+                    if (!err.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La conferencia respondio: %1"), {err})));
                     ToolResult res;
                     res.structured = r;
                     res.text(ba::i18n::traducir("mcp", "Votacion abierta."));
@@ -322,8 +324,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             const auto contestar = [done](const std::string& texto) {
                 return [done, texto](const std::string& err, const json& r) {
                     if (!err.empty())
-                        return done(ToolResult::error("No pude hablar con el servidor (gateway): " + err +
-                                                      ". Fijate `room_status`."));
+                        return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No pude hablar con el servidor (gateway): %1. Fijate `room_status`."), {err})));
                     ToolResult res;
                     res.structured = r;
                     res.text(texto.empty() ? r.dump(2, ' ', false, json::error_handler_t::replace) : texto);
@@ -331,8 +332,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 };
             };
             auto& v = vm.votacion();
-            if (a.value("cerrar", false)) return v.cerrar(contestar("Votacion cerrada."));
-            if (a.contains("enVivo")) return v.setEnVivo(a["enVivo"].get<bool>(), contestar("Hecho."));
+            if (a.value("cerrar", false)) return v.cerrar(contestar(ba::i18n::traducir("mcp", "Votacion cerrada.")));
+            if (a.contains("enVivo")) return v.setEnVivo(a["enVivo"].get<bool>(), contestar(ba::i18n::traducir("mcp", "Hecho.")));
             v.ver(a.value("historial", false), contestar({}));
         };
         core.addTool(std::move(t));
@@ -393,14 +394,14 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 if (!caraOk && !sugerencia.isEmpty()) decirle = sugerencia.toStdString();
                 if (!hayAudio) {
                     if (!decirle.empty()) decirle += " ";
-                    decirle += "Todavia no te escucho: fijate que el navegador tenga permiso para usar el "
-                               "microfono.";
+                    decirle += ba::i18n::traducir("mcp", "Todavia no te escucho: fijate que el navegador tenga permiso para usar el "
+                               "microfono.");
                 } else if (silenciado) {
                     if (!decirle.empty()) decirle += " ";
-                    decirle += "Tenes el microfono silenciado.";
+                    decirle += ba::i18n::traducir("mcp", "Tenes el microfono silenciado.");
                 } else if (!audioOk) {
                     if (!decirle.empty()) decirle += " ";
-                    decirle += "Se te escucha muy bajito: acercate un poco al microfono o subile el volumen.";
+                    decirle += ba::i18n::traducir("mcp", "Se te escucha muy bajito: acercate un poco al microfono o subile el volumen.");
                 }
 
                 gente.push_back(json{{"uid", it.key().toStdString()},
@@ -473,8 +474,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     // la que le faltan las votaciones y no lo aclara es peor que
                     // ninguna.
                     if (!err.empty())
-                        out["aviso"] = "No pude hablar con el servidor: el acta va SIN las votaciones. Fijate "
-                                       "`room_status` y volve a pedirla.";
+                        out["aviso"] = ba::i18n::traducir("mcp", "No pude hablar con el servidor: el acta va SIN las votaciones. Fijate "
+                                       "`room_status` y volve a pedirla.");
                     res.structured = out;
                     done(res);
                 });
@@ -539,8 +540,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             const std::string e = conf->paginaPublico().cambiar(
                 texto("titulo"), texto("cuando"), texto("fondo"), [darEnlace, done](const std::string& err, const json&) {
                     if (!err.empty())
-                        return done(ToolResult::error("No pude hablar con el servidor (gateway): " + err +
-                                                      ". Fijate `room_status`."));
+                        return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No pude hablar con el servidor (gateway): %1. Fijate `room_status`."), {err})));
                     // Despues de cambiarla, se devuelve el enlace: quien la
                     // configura casi siempre quiere el QR a continuacion.
                     darEnlace(done);

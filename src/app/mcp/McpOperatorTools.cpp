@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <map>
 
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -50,7 +51,7 @@ json pendingGuestChat(StudioViewModel& vm) {
         if (c.is_null())
             c = {{"private", to != "all"},
                  {"participant", to != "all" ? m.value("fromId", "") : ""},
-                 {"name", to != "all" ? m.value("fromName", "") : "Chat general"},
+                 {"name", to != "all" ? m.value("fromName", "") : ba::i18n::traducir("mcp", "Chat general")},
                  {"messages", json::array()}};
         c["messages"].push_back({{"from", m.value("fromName", "")},
                                  {"fromId", m.value("fromId", "")},
@@ -106,7 +107,7 @@ void McpService::registerOperatorTools() {
             json spec = a;
             spec["kind"] = "message";
             const int id = msgs->post(spec);
-            done(ToolResult::ok("Mostrado en la barra (id " + std::to_string(id) + ")."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Mostrado en la barra (id %1)."), {std::to_string(id)})));
         };
         core_.addTool(std::move(t));
     }
@@ -150,16 +151,19 @@ void McpService::registerOperatorTools() {
             const int timeout = a.value("timeoutSec", 60);
             if (timeout <= 0)
                 return done(
-                    ToolResult::ok("Pregunta en la barra (id " + std::to_string(id) +
-                                   "): la respuesta te llega a tu chat como [RESPUESTA DEL OPERADOR]."));
+                    //: [RESPUESTA DEL OPERADOR] queda igual: es la marca con la que llega la respuesta
+                    ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Pregunta en la barra (id %1): la respuesta te llega a tu chat como "
+                                       "[RESPUESTA DEL OPERADOR]."),
+                                     {std::to_string(id)})));
             msgs->waitAnswer(id, timeout * 1000, [done, id](json item) {
                 if (item.is_null())
-                    return done(ToolResult::ok("Todavia no contesto (la pregunta " + std::to_string(id) +
-                                               " sigue en la barra; la respuesta te llega a tu chat)."));
+                    return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Todavia no contesto (la pregunta %1 sigue en la barra; la respuesta te "
+                                                 "llega a tu chat)."),
+                                               {std::to_string(id)})));
                 if (item.value("status", "") == "dismissed")
                     return done(ToolResult::ok(ba::i18n::traducir("mcp", "El operador cerro la pregunta sin contestar.")));
                 done(ToolResult()
-                         .text("Respuesta del operador: " + item.value("answer", ""))
+                         .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Respuesta del operador: %1"), {item.value("answer", "")}))
                          .data(json{{"id", id}, {"answer", item.value("answer", "")}}));
             });
         };
@@ -250,7 +254,7 @@ void McpService::registerOperatorTools() {
             }
             const bool pub = a.value("public", !wasPrivate);
             json spec{{"kind", "reply"},
-                      {"text", p.value("name", "") + " escribio"},
+                      {"text", ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 escribio"), {p.value("name", "")})},
                       {"priority", a.value("priority", std::string("info"))},
                       {"participantId", pid},
                       {"participantName", p.value("name", "")},
@@ -258,8 +262,9 @@ void McpService::registerOperatorTools() {
                       {"guestText", guestText},
                       {"suggestions", a["suggestions"]}};
             const int id = msgs->post(spec);
-            done(ToolResult::ok("Sugerencias en la barra del operador (id " + std::to_string(id) +
-                                "). Lo que mande (o si lo ignora) te llega a tu chat."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Sugerencias en la barra del operador (id %1). Lo que mande (o si lo ignora) te "
+                                  "llega a tu chat."),
+                                {std::to_string(id)})));
         };
         core_.addTool(std::move(t));
     }
