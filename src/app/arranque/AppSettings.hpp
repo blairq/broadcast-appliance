@@ -219,6 +219,9 @@ struct LauncherSettings {
     int maxCaidas = 5;             ///< más caídas que esto en la ventana: modo seguro
     int ventanaCaidasMin = 2;
     int reiniciosSinPreguntar = 2; ///< fallas seguidas que se reinician sin preguntar
+    /// El idioma del operador (ba::i18n; "" = el del sistema). Es de la máquina: lo
+    /// lee cada proceso al arrancar (ba::i18n::idiomaDeLaMaquina).
+    std::string idioma;
     nlohmann::json ajustes = nlohmann::json::object(); ///< los avanzados del arranque (ba::ajustes)
 };
 

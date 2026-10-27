@@ -1,0 +1,9 @@
+{
+  "_comentario": "El pseudo-idioma, para pruebas: cada texto que pasa por la traducción sale con acentos, un 40 % más largo y entre ⟦ ⟧. Lo que se ve sin ⟦ ⟧ se escapó; lo que se corta no aguanta un idioma más largo.",
+  "codigo": "xx",
+  "nombre": "⟦Pseudo-idioma (pruebas de traducción)⟧",
+  "locale": "es_AR",
+  "direccion": "ltr",
+  "plural": "uno-otro",
+  "pseudo": true
+}

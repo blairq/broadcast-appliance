@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // src/app/evento/EventoWeb.cpp — ver EventoWeb.hpp
+#include "i18n/I18n.hpp"
 #include "evento/EventoWeb.hpp"
 
 #include <algorithm>
@@ -393,6 +394,8 @@ json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado
             {"fecha", e.fecha},
             {"inicio", e.inicio},
             {"huso", e.huso},
+            // El idioma de la página (el del evento; si no tiene, el del programa).
+            {"idioma", e.idioma.empty() ? ba::i18n::actual().codigo : e.idioma},
             {"inicioMs", inicioMs},
             {"arrancoMs", arrancoMs},
             {"ahoraMs", ahoraMs},

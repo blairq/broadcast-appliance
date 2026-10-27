@@ -16,6 +16,14 @@
 
 namespace ba::platform {
 
+std::filesystem::path launcherJsonFor(const std::filesystem::path& datos) {
+    std::error_code ec;
+    if (!std::filesystem::exists(datos / "launcher.json", ec) &&
+        std::filesystem::exists(datos / "Config" / "launcher.json", ec))
+        return datos / "Config" / "launcher.json";
+    return datos / "launcher.json";
+}
+
 std::filesystem::path executableDir() {
     const std::filesystem::path exe = executablePath();
     return exe.empty() ? std::filesystem::path{} : exe.parent_path();

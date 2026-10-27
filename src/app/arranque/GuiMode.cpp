@@ -39,6 +39,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "arranque/TraductorQt.hpp"
 #include "mcp/McpService.hpp"
 #include "control/Botonera.hpp"
 #include "control/Acciones.hpp"
@@ -265,6 +266,8 @@ int runGui(int argc, char** argv) {
         QGuiApplication::setWindowIcon(icono);
     }
     QQuickStyle::setStyle("Basic"); // controles propios encima; nada nativo que desentone
+    // El idioma, antes del cartel de carga: ya sale traducido.
+    instalarIdioma();
 
     // El cartel de carga, ANTES que todo lo demás (ver CartelDeCarga).
     auto cartel = std::make_unique<CartelDeCarga>();

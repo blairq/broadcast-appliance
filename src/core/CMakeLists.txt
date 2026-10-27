@@ -140,6 +140,38 @@ elseif(UNIX)
     target_link_libraries(ba_core PUBLIC ${CMAKE_DL_LIBS})
 endif()
 
+
+# --- Idiomas (ba::i18n, docs/planes/PLAN-I18N.md) -----------------------------
+# Un idioma son archivos: su perfil (assets/idiomas/<código>.json) y su catálogo,
+# que sale de i18n/ba_<código>.ts con tools/i18n/ts-a-json.py (un JSON que leen el
+# núcleo, la interfaz y la web). Sin lrelease: solo hace falta un Python en la máquina
+# que compila (también en Docker). Al bundle: data/idiomas y data/i18n.
+find_program(BA_PYTHON_HOST NAMES python3 python)
+file(GLOB BA_I18N_TS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/i18n/ba_*.ts")
+set(BA_I18N_CATALOGOS "${CMAKE_BINARY_DIR}/i18n")
+if(NOT BA_PYTHON_HOST)
+    ba_falta("Idiomas (catálogos de traducción)" "no hay python3 para tools/i18n/ts-a-json.py")
+elseif(BA_I18N_TS)
+    set(_ba_i18n_json "")
+    foreach(_ts ${BA_I18N_TS})
+        get_filename_component(_n "${_ts}" NAME_WE)
+        string(SUBSTRING "${_n}" 3 -1 _codigo)
+        list(APPEND _ba_i18n_json "${BA_I18N_CATALOGOS}/${_codigo}.json")
+    endforeach()
+    add_custom_command(OUTPUT ${_ba_i18n_json}
+        COMMAND "${BA_PYTHON_HOST}" -I "${CMAKE_SOURCE_DIR}/tools/i18n/ts-a-json.py" "${BA_I18N_CATALOGOS}" ${BA_I18N_TS}
+        DEPENDS ${BA_I18N_TS} "${CMAKE_SOURCE_DIR}/tools/i18n/ts-a-json.py"
+        COMMENT "Catálogos de idiomas (i18n/*.ts)" VERBATIM)
+    add_custom_target(ba_i18n_catalogos ALL DEPENDS ${_ba_i18n_json})
+    add_dependencies(ba_core ba_i18n_catalogos)
+    install(FILES ${_ba_i18n_json} DESTINATION data/i18n COMPONENT bundle)
+endif()
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/idiomas/" DESTINATION data/idiomas COMPONENT bundle
+        FILES_MATCHING PATTERN "*.json")
+# Corriendo desde la compilación (tests, ba-app del build): los de acá.
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/i18n/I18n.cpp" PROPERTIES COMPILE_DEFINITIONS
+    "BA_I18N_DEV_PERFILES=\"${CMAKE_SOURCE_DIR}/assets/idiomas\";BA_I18N_DEV_CATALOGOS=\"${BA_I18N_CATALOGOS}\"")
+
 # --- Unit tests de ba_core (CTest) ------------------------------------------
 # Cada test_*.cpp en src/core/tests/ se convierte en un ejecutable que enlaza
 # ba_core y se registra con add_test. No hay framework externo: cada test es

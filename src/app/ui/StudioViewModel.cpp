@@ -698,21 +698,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     system_ = std::make_unique<SystemViewModel>();
     // Cambiar de configuración = anotarla y reiniciar por el launcher (como una actualización).
     configuraciones_ = std::make_unique<Configuraciones>([this]() {
-        // Los modos de esta corrida (--test / --debug) siguen después del reinicio.
-        QStringList args{"--reiniciar"};
-        for (const QString& a : QCoreApplication::arguments())
-            if (a == "--test" || a == "--debug") args << a;
-        // La conversación del asistente sigue después del reinicio (la retoma al abrir y le
-        // avisa en qué evento quedó, para que siga con lo que estaba haciendo).
         const QString evento = configuraciones_->activaUi();
-        if (agent_)
-            if (const QString s = agent_->sesionParaReanudar(); !s.isEmpty())
-                args << "--app-arg=--reanudar-asistente=" + s + "|" + agent_->provider() + "|" + agent_->model()
-                     << "--app-arg=--asistente-evento=" + evento;
         const QString aviso = eventoNuevo_ ? "Evento «" + evento + "» creado: reiniciando para abrirlo"
                                            : "Abriendo el evento «" + evento + "»: la app se reinicia";
         eventoNuevo_ = false;
-        return system_->launch(args, aviso);
+        return reiniciarPrograma(aviso);
     });
     // Terminó un evento nuevo hecho aparte (una copia puede tardar): un solo aviso.
     connect(configuraciones_.get(), &Configuraciones::nuevoEventoListo, this,
@@ -4638,6 +4628,20 @@ void StudioViewModel::restablecerMultiview() {
     QVariantMap fab = multiviewDeFabrica();
     fab["nombre"] = v.value("nombre");
     setMultiview(fab);
+}
+
+QString StudioViewModel::reiniciarPrograma(const QString& aviso) {
+    // Los modos de esta corrida (--test / --debug) siguen después del reinicio.
+    QStringList args{"--reiniciar"};
+    for (const QString& a : QCoreApplication::arguments())
+        if (a == "--test" || a == "--debug") args << a;
+    // La conversación del asistente sigue después del reinicio (la retoma al abrir y le
+    // avisa en qué evento quedó, para que siga con lo que estaba haciendo).
+    if (agent_)
+        if (const QString s = agent_->sesionParaReanudar(); !s.isEmpty())
+            args << "--app-arg=--reanudar-asistente=" + s + "|" + agent_->provider() + "|" + agent_->model()
+                 << "--app-arg=--asistente-evento=" + configuraciones_->activaUi();
+    return system_->launch(args, aviso);
 }
 
 } // namespace ba::app

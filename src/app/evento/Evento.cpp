@@ -216,7 +216,7 @@ json Evento::aJson() const {
     for (const Invitado& i : autoAceptar)
         inv.push_back(json{{"personaId", i.personaId}, {"nombre", i.nombre}, {"nota", i.nota}});
     return json{{"nombre", nombre}, {"fecha", fecha}, {"inicio", inicio},  {"huso", huso},
-                {"nota", nota},     {"bloques", bs},  {"autoAceptar", inv},
+                {"idioma", idioma}, {"nota", nota},     {"bloques", bs},  {"autoAceptar", inv},
                 {"invitados", invitados}, {"preguntas", preguntas}, {"asamblea", asamblea}};
 }
 
@@ -227,6 +227,7 @@ Evento Evento::deJson(const json& j) {
     e.fecha = textoDe(j, "fecha");
     e.inicio = textoDe(j, "inicio");
     e.huso = textoDe(j, "huso");
+    e.idioma = textoDe(j, "idioma");
     e.nota = textoDe(j, "nota");
     if (j.contains("invitados") && j["invitados"].is_boolean()) e.invitados = j["invitados"].get<bool>();
     if (j.contains("preguntas") && j["preguntas"].is_boolean()) e.preguntas = j["preguntas"].get<bool>();

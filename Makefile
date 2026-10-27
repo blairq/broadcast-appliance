@@ -155,6 +155,14 @@ prod:
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	@echo "Bundle portable: release/"
 
+# --- Idiomas (docs/desarrollo/I18N.md) ---------------------------------------
+# Pone i18n/ba_*.ts al día con el código (lupdate de extern/qt6-host): los textos
+# nuevos quedan sin traducir, los que ya no están se van. Las compilaciones no lo
+# necesitan: leen los .ts con tools/i18n/ts-a-json.py.
+.PHONY: i18n-actualizar
+i18n-actualizar:
+	python3 -I tools/i18n/actualizar.py
+
 # --- Documentación (Sphinx / ReadTheDocs) -----------------------------------
 # Usa un venv local (.venv) para no instalar nada global. Instala sphinx +
 # sphinx-rtd-theme desde docs/requirements.txt y genera el sitio HTML.

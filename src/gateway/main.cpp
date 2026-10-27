@@ -41,6 +41,7 @@
 // #ifdef _WIN32. No depende de Qt ni de libobs.
 // ============================================================================
 
+#include "i18n/I18n.hpp"
 #include <algorithm>
 #include "ajustes/Ajustes.hpp"
 #include <atomic>
@@ -424,6 +425,7 @@ int main(int argc, char** argv) {
     ba::diag::desacoplarSalidaEstandar();
     std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
     ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
+    ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(ba::platform::dataRoot())); // el del operador
     ba::platform::sinAhorroDeEnergia(); // los medios en vivo, fuera del modo eficiencia (platform/Energia)
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
     ba::security::CredentialStore::bundle().importLegacy(ba::platform::configRoot());

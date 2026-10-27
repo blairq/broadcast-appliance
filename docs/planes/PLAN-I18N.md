@@ -157,7 +157,7 @@ días y monedas. Lo que se pasa entre programas (herramientas, archivos, JSON) s
 ### 9. Pseudo-idioma para encontrar lo que se escapó
 
 `xx` es un idioma de mentira que transforma cada cadena traducible, por ejemplo
-«Conferencia» → «⟦Çönfërëñçïä·····⟧»: con acentos y un 40 % más largo. Con la app en `xx`:
+«Conferencia» → «⟦Çöñfërëñçïä·····⟧»: con acentos y un 40 % más largo. Con la app en `xx`:
 
 - lo que se ve sin `⟦ ⟧` es texto que se escapó;
 - lo que se corta o se superpone es un diseño que no aguanta un idioma más largo
@@ -203,6 +203,35 @@ fases mecánicas se reparten entre agentes en paralelo por carpeta (contrato de
 Orden: I0 primero. I1 a I4 son independientes y van en paralelo. I5 a I8 necesitan la
 infraestructura, no las fases anteriores. I9 empieza cuando I1 e I2 estén cerradas, para no
 traducir dos veces. Recién ahí `test_i18n.py` pasa de avisar a frenar.
+
+## Estado
+
+**I0 hecha (2026-10-27).** Cómo se usa: [`docs/desarrollo/I18N.md`](../desarrollo/I18N.md).
+- **Núcleo:** `src/core/i18n/I18n.{hpp,cpp}` (`traducir`, `En(idioma).traducir`, `llenar`,
+  plurales, respaldos, pseudo) y el idioma del sistema por plataforma
+  (`platform/IdiomaSistema_*`). El idioma se aplica en los tres procesos.
+- **Catálogo único:** `.ts` → `tools/i18n/ts-a-json.py` → `data/i18n/`. Lo leen igual el núcleo, la
+  interfaz (`arranque/TraductorQt`, sin `.qm` ni `lrelease`) y la web (`/comun/i18n/` y
+  `/comun/i18n.js`).
+- **Perfiles:** `assets/idiomas/` con es (el original), en y xx (el pseudo-idioma).
+- **Herramientas:** `make i18n-actualizar` (lupdate más `tools/i18n/extraer.py` para la web).
+- **Selector:** *Configuración → Sistema y datos → Idioma*, guardado en `launcher.json`
+  (también por `settings_set`), con el aviso «Reiniciar ahora».
+- **Idioma del evento:** en `Evento` y en la página (diálogo «Cuándo»), en `guion_guardar` y
+  `evento_armar` (con validación), en `guion_ver` y en el estado de la web del evento.
+- **Tests:** `tests/test_i18n.py` y `src/core/tests/test_i18n.cpp`.
+
+Cambios respecto de lo escrito arriba:
+- **El selector muestra también los idiomas incompletos**, con el porcentaje traducido
+  («English · 40 % traducido»), para poder probarlos mientras se traducen.
+- **Quedan para las fases que siguen:**
+  - el espejado derecha a izquierda en QML (`LayoutMirroring`): con el primer idioma de
+    derecha a izquierda, en I9;
+  - una herramienta MCP para reiniciar el programa: hoy el asistente cambia el idioma con
+    `settings_set` y reinicia el operador;
+  - `tools/i18n/idioma-nuevo.py`, en I11.
+- **Excepción registrada en el test (`PENDIENTES`):** la traducción en vivo parte del
+  castellano (`PanelTraduccion.qml`), y eso se arregla en I7.
 
 ## Riesgos
 

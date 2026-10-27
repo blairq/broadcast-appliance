@@ -16,6 +16,8 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
+#include "platform/IdiomaSistema.hpp"
 #include "ui/AjustesAvanzados.hpp"
 #include "control/TemasWeb.hpp"
 #include "ipc/LugaresSala.hpp"
@@ -34,6 +36,32 @@ QVariantList choices(std::initializer_list<std::pair<const char*, const char*>> 
         out << QVariantMap{{"value", QString(v)}, {"label", QString(l)}};
     }
     return out;
+}
+
+/// Los idiomas que hay (ba::i18n), cada uno con su nombre en su idioma y, si le falta
+/// traducción, cuánto tiene. "" = el del sistema.
+QVariantList opcionesIdioma() {
+    namespace i18n = ba::i18n;
+    const std::string sistema = i18n::elegirDelSistema(ba::platform::idiomasDelSistema());
+    QVariantList out{QVariantMap{
+        {"value", QString()},
+        {"label", qs(i18n::llenar(i18n::traducir("ajustes", "Automático (el del sistema: %1)"),
+                                  {i18n::perfil(sistema).nombre}))}}};
+    for (const auto& p : i18n::idiomas()) {
+        std::string label = p.nombre;
+        if (const double f = i18n::cobertura(p.codigo).fraccion(); f < 1.0)
+            label += i18n::llenar(i18n::traducir("ajustes", " · %1 % traducido"),
+                                  {std::to_string(static_cast<int>(f * 100))});
+        out << QVariantMap{{"value", qs(p.codigo)}, {"label", qs(label)}};
+    }
+    return out;
+}
+
+/// «Idioma», y también en inglés si no es el inglés: quien lo cambió sin querer a uno
+/// que no lee lo encuentra igual.
+QString etiquetaIdioma() {
+    const QString t = qs(ba::i18n::traducir("ajustes", "Idioma"));
+    return t == "Language" ? t : t + " · Language";
 }
 
 /// Dónde escucha el gateway: esta máquina, toda la red local, o UNA interfaz
@@ -82,7 +110,8 @@ QVariantList opcionesUrlHost(const std::string& actual) {
 
 } // namespace
 
-SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListModel(parent), rt_(rt) {
+SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
+    : QAbstractListModel(parent), rt_(rt), idiomaAlArrancar_(rt.launcher().idioma) {
     // Codificadores: los que esta libobs tiene de verdad + los alias.
     QVariantList encoders = choices({{"auto", "Automatico (hardware si hay)"},
                                      {"vaapi", "VAAPI (AMD / Intel, Linux)"},
@@ -211,6 +240,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"ui.theme", "Apariencia", "Tema", "choice", choices({{"dark","Oscuro"},{"light","Claro"}}), 0, 0, "", "", "live", "dark"},
         {"web.tema", "Apariencia", "Tema de las interfaces web", "choice", opcionesTemaWeb(), 0, 0, "", "El de todas las páginas de control (dashboard, botonera, presidencia, rótulos, corrección): cambia en todos los aparatos sin recargar. También en Servicios → Templates.", "live", "neuro-oscuro"},
         // --- Sistema y datos -------------------------------------------------------
+        {"launcher.idioma", "Sistema y datos", etiquetaIdioma(), "choice", opcionesIdioma(), 0, 0, "", qs(ba::i18n::traducir("ajustes", "El del programa: la interfaz, los avisos, el registro y el asistente. El de cada evento (lo que ven y escuchan el público y los invitados) se elige en el evento. Cambia al reiniciar el programa.")), "restart", QString()},
         {"launcher.shadow", "Sistema y datos", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).", "restart", false},
         {"launcher.cuelgue", "Sistema y datos", "Colgado si no responde", "int", {}, 2, 120, "s", "Si el programa (o la conferencia) deja de latir este tiempo, se guarda un volcado y se reinicia solo. Más corto, vuelve antes; más largo, aguanta trabas largas sin reiniciar. Rige al volver a abrir el programa.", "restart", 5},
         {"launcher.graciaArranque", "Sistema y datos", "Gracia al arrancar", "int", {}, 5, 600, "s", "Recién abierto, el programa todavía no late: no se lo vigila durante este tiempo.", "restart", 20},
@@ -260,6 +290,11 @@ QVariantMap SettingsModel::current() const {
         else m[f.key] = f.def;
     }
     return m;
+}
+
+bool SettingsModel::idiomaPendiente() const {
+    // Cambió desde que arrancó (no «es otro que el que se usa»: BA_IDIOMA puede pisarlo).
+    return const_cast<AppRuntime&>(rt_).launcher().idioma != idiomaAlArrancar_;
 }
 
 QVariantMap SettingsModel::currentBasicos() const {
@@ -374,6 +409,7 @@ QVariantMap SettingsModel::currentBasicos() const {
         {"pinggy.puertoTunel", g.pinggyPuertoTunel},
         {"launcher.shadow", l.shadowCopy},
         {"launcher.recoveryUi", l.recoveryUi},
+        {"launcher.idioma", qs(l.idioma)},
         {"ui.theme", qs(c.theme)},
         {"web.tema", qs(c.temaWeb)},
         {"ui.previewWidth", c.previewWidth},
@@ -742,6 +778,8 @@ QString SettingsModel::apply() {
     l.maxCaidas = i("launcher.maxCaidas");
     l.ventanaCaidasMin = i("launcher.ventanaCaidas");
     l.reiniciosSinPreguntar = i("launcher.reiniciosSinPreguntar");
+    const bool idiomaCambio = l.idioma != s("launcher.idioma");
+    l.idioma = s("launcher.idioma");
     if (changed("launcher.") || changed("guests.video") || changed("guests.audio") ||
         changed("guests.audioPreset")) {
         notes << "Algunos cambios rigen desde el proximo arranque.";
@@ -769,6 +807,7 @@ QString SettingsModel::apply() {
     aplicando_ = true;
     rt_.ajustesAplicados(); // los otros formularios se recargan
     aplicando_ = false;
+    if (idiomaCambio) emit idiomaPendienteChanged();
     const QString summary = notes.join(" ");
     emit applied(summary);
     return summary;

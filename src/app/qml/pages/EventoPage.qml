@@ -1298,11 +1298,14 @@ Rectangle {
             fechaCampo.text = page.ev.guion.fecha || ""
             horaCampo.text = page.ev.guion.inicio || ""
             husoCampo.text = page.ev.guion.huso || ""
+            idiomaCampo.model = page.ev.idiomas()
+            idiomaCampo.currentIndex = Math.max(0, idiomaCampo.indexOfValue(page.ev.guion.idioma || ""))
         }
         onAccepted: {
             page.ev.setFecha(fechaCampo.text.trim())
             page.ev.setInicio(horaCampo.text.trim())
             page.ev.setHuso(husoCampo.text.trim())
+            page.ev.setIdioma(idiomaCampo.currentValue || "")
         }
         ColumnLayout {
             anchors.fill: parent
@@ -1350,6 +1353,21 @@ Rectangle {
                     compact: true
                     text: "El de acá"
                     onClicked: husoCampo.text = page.ev.husoDelAparato()
+                }
+            }
+            // El idioma del evento: el de lo que ven y escuchan el público y los invitados
+            // (gráficos, tótems, voz, la web); puede no ser el del programa.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Text { text: qsTr("Idioma del evento"); color: Theme.textDim; font.pixelSize: 12 }
+                ComboBox {
+                    id: idiomaCampo
+                    Layout.fillWidth: true
+                    textRole: "label"
+                    valueRole: "value"
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: qsTr("Lo que ven y escuchan el público y los invitados: gráficos, tótems, voz y la página web")
                 }
             }
         }

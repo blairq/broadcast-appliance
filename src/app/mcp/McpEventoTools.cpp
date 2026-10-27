@@ -14,6 +14,7 @@
 // Cada herramienta trae en `details` para que sirve y como se usa, porque el
 // asistente las descubre sin nadie que se las explique.
 // ============================================================================
+#include "i18n/I18n.hpp"
 #include "mcp/McpEventoTools.hpp"
 #include "arranque/Configuraciones.hpp"
 #include "mcp/McpAsamblea.hpp"
@@ -47,6 +48,23 @@
 
 namespace ba::app::mcp {
 namespace {
+
+/// El idioma pedido para un evento: "" (el del programa) o uno que exista. Si no, el error.
+std::string errorDeIdioma(const json& a) {
+    if (!a.contains("idioma")) return {};
+    if (!a["idioma"].is_string()) return "El idioma va como texto: un código (es, en, pt-BR).";
+    const std::string c = a["idioma"].get<std::string>();
+    if (c.empty() || !ba::i18n::perfil(c).codigo.empty()) return {};
+    std::string hay;
+    for (const auto& p : ba::i18n::idiomas())
+        if (!p.pseudo) hay += (hay.empty() ? "" : ", ") + p.codigo + " (" + p.nombre + ")";
+    return "No conozco el idioma «" + c + "». Hay: " + hay + ".";
+}
+
+const json kIdiomaEsquema = {
+    {"type", "string"},
+    {"description", "idioma del evento: lo que ven y escuchan el público y los invitados (gráficos, tótems, voz, "
+                    "la web). Un código (es, en, pt-BR); vacío = el del programa"}};
 
 /// El guion completo tal como lo ve la interfaz, para que el asistente vea lo
 /// mismo que el operador (incluido lo que le falta a cada cue).
@@ -260,6 +278,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             done(ToolResult().data(json{{"abierto", ev.abierto().toStdString()},
                                         {"sinGuardar", ev.sucio()},
                                         {"husoDelAparato", EventoViewModel::husoDelAparato().toStdString()},
+                                        {"idiomaDelPrograma", ba::i18n::actual().codigo},
                                         {"guion", guionDe(ev)}}));
         };
         core.addTool(std::move(t));
@@ -1126,6 +1145,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"huso",
                {{"type", "string"},
                 {"description", "Nombre IANA del huso, p. ej. America/Argentina/Buenos_Aires."}}},
+              {"idioma", kIdiomaEsquema},
               {"invitados", {{"type", "boolean"}, {"description", "el evento usa invitados en la conferencia (la página ofrece entrar)"}}},
               {"preguntas", {{"type", "boolean"}, {"description", "el público puede preguntar y votar (/publico/)"}}},
               {"asamblea", {{"type", "boolean"}, {"description", "es una sesión de asamblea: la página muestra integrantes, quórum, orden del día y votaciones"}}}}}};
@@ -1146,10 +1166,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
                 return done(ToolResult::error("No conozco ese huso horario: " + a["huso"].get<std::string>() +
                                               ". Va el nombre IANA, como America/Argentina/Buenos_Aires."));
+            if (const std::string e = errorDeIdioma(a); !e.empty()) return done(ToolResult::error(e));
             if (a.contains("nombre")) ev.setNombre(QString::fromStdString(a["nombre"]));
             if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
             if (a.contains("inicio")) ev.setInicio(QString::fromStdString(a["inicio"]));
             if (a.contains("huso")) ev.setHuso(QString::fromStdString(a["huso"]));
+            if (a.contains("idioma")) ev.setIdioma(QString::fromStdString(a["idioma"]));
             if (a.contains("invitados") && a["invitados"].is_boolean()) ev.setInvitados(a["invitados"].get<bool>());
             if (a.contains("preguntas") && a["preguntas"].is_boolean()) ev.setPreguntas(a["preguntas"].get<bool>());
             if (a.contains("asamblea") && a["asamblea"].is_boolean()) ev.setAsamblea(a["asamblea"].get<bool>());
@@ -1493,6 +1515,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"fecha", {{"type", "string"}, {"description", "YYYY-MM-DD"}}},
               {"inicio", {{"type", "string"}, {"description", "HH:MM"}}},
               {"huso", {{"type", "string"}, {"description", "nombre IANA"}}},
+              {"idioma", kIdiomaEsquema},
               {"nota", {{"type", "string"}}},
               {"invitados", {{"type", "boolean"}, {"description", "usa invitados en la conferencia (videoconferencia por WebRTC)"}}},
               {"preguntas", {{"type", "boolean"}, {"description", "el público puede preguntar y votar"}}},
@@ -1543,6 +1566,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("huso") && !a["huso"].get<std::string>().empty() &&
                 !QTimeZone(QByteArray::fromStdString(a["huso"].get<std::string>())).isValid())
                 return done(ToolResult::error("No conozco ese huso: " + a["huso"].get<std::string>() + "."));
+            if (const std::string e = errorDeIdioma(a); !e.empty()) return done(ToolResult::error(e));
 
             const QString carpeta = ev.crear(QString::fromStdString(nombre));
             if (carpeta.isEmpty()) return done(ToolResult::error("No se pudo crear el evento."));
@@ -1550,6 +1574,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
             if (a.contains("inicio")) ev.setInicio(QString::fromStdString(a["inicio"]));
             if (a.contains("huso")) ev.setHuso(QString::fromStdString(a["huso"]));
+            if (a.contains("idioma")) ev.setIdioma(QString::fromStdString(a["idioma"]));
             if (a.contains("invitados") && a["invitados"].is_boolean()) ev.setInvitados(a["invitados"].get<bool>());
             if (a.contains("preguntas") && a["preguntas"].is_boolean()) ev.setPreguntas(a["preguntas"].get<bool>());
             if (a.contains("asamblea") && a["asamblea"].is_boolean()) ev.setAsamblea(a["asamblea"].get<bool>());

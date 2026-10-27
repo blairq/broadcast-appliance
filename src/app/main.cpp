@@ -22,6 +22,7 @@
 #include "platform/Herramientas.hpp"
 #include "platform/Paths.hpp"
 #include "arranque/Registrar.hpp"
+#include "i18n/I18n.hpp"
 #include "dispositivos/SondaReal.hpp"
 #include "security/CredentialStore.hpp"
 
@@ -205,6 +206,8 @@ int dispatch(int argc, char** argv) {
     // El registro, ANTES que nada: lo primero que puede fallar es el arranque,
     // y si el registro se abre despues, eso no queda escrito en ningun lado.
     ba::app::registrarTodo(ba::platform::dataRoot());
+    // El idioma del operador (de la máquina): lo que escribe el programa, en ese idioma.
+    ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(ba::platform::dataRoot()));
     // El diario de arranque: anota que se esta cargando para que, si algo se
     // lleva puesto el arranque, la proxima vez se saltee en vez de volver a
     // morir en el mismo lugar. Ver diag/DiarioDeArranque.hpp.

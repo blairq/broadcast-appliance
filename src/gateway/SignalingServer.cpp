@@ -10,6 +10,7 @@
 // La API de control del operador esta en AdminApi.cpp.
 // ============================================================================
 
+#include "i18n/I18n.hpp"
 #include "SignalingServer.hpp"
 #include "ajustes/Ajustes.hpp"
 
@@ -1148,6 +1149,35 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     // El canal de control (canal.js). Publico y estatico: es codigo, no datos.
     if (method == "GET" && path.rfind("/comun/", 0) == 0) {
         const std::string rel = path.substr(7);
+        // Los idiomas (ba::i18n, los mismos catálogos que la app): la lista de perfiles y
+        // el catálogo de cada uno. Los usa comun/i18n.js.
+        if (rel == "i18n/idiomas.json") {
+            nlohmann::json l = nlohmann::json::array();
+            for (const auto& p : ba::i18n::idiomas())
+                l.push_back({{"codigo", p.codigo},
+                             {"nombre", p.nombre},
+                             {"rtl", p.derechaAIzquierda},
+                             {"plural", p.plural},
+                             {"respaldo", p.respaldo},
+                             {"fuente", p.fuente},
+                             {"pseudo", p.pseudo},
+                             {"cobertura", ba::i18n::cobertura(p.codigo).fraccion()}});
+            http::sendResponse(fd, 200, "application/json", l.dump());
+            return;
+        }
+        if (rel.rfind("i18n/", 0) == 0) {
+            const std::filesystem::path dir = ba::i18n::carpetaCatalogos();
+            std::error_code ec;
+            // Un idioma que existe pero no tiene catálogo (el pseudo): vacío, no un error.
+            const std::string archivo = rel.substr(5);
+            const std::string codigo = archivo.size() > 5 ? archivo.substr(0, archivo.size() - 5) : "";
+            if (!std::filesystem::exists(dir / archivo, ec) && !ba::i18n::perfil(codigo).codigo.empty()) {
+                http::sendResponse(fd, 200, "application/json", R"({"mensajes":{}})");
+                return;
+            }
+            serveStatic(fd, dir.string(), archivo);
+            return;
+        }
         if (!rel.empty() && !cfg_.comunWebroot.empty() && serveStatic(fd, cfg_.comunWebroot, rel)) return;
         http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
         return;

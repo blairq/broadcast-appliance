@@ -1,0 +1,9 @@
+{
+  "_comentario": "El idioma en que está escrito el código (rioplatense, con voseo): no tiene traducción, salvo los plurales (i18n/ba_es.ts). Ver docs/planes/PLAN-I18N.md.",
+  "codigo": "es",
+  "nombre": "Español",
+  "locale": "es_AR",
+  "direccion": "ltr",
+  "plural": "uno-otro",
+  "fuente": true
+}

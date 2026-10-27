@@ -2095,6 +2095,32 @@ Rectangle {
         }
     }
 
+    // --- El idioma cambia al reiniciar --------------------------------------------
+    Rectangle {
+        id: avisoIdioma
+        property bool masTarde: false
+        property string error: ""
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: page.leftInset + 20; rightMargin: 20
+                  bottomMargin: Studio.settings.dirty ? 16 + 56 + 10 : 16 }
+        height: 56
+        radius: 18
+        visible: Studio.settings.idiomaPendiente && !masTarde
+        color: Qt.rgba(0.25, 0.5, 1, 0.16)
+        border.color: Qt.rgba(0.45, 0.65, 1, 0.6)
+        RowLayout {
+            anchors { fill: parent; leftMargin: 18; rightMargin: 12 }
+            Text {
+                text: avisoIdioma.error !== "" ? avisoIdioma.error : qsTr("El idioma cambia al reiniciar el programa")
+                color: Theme.text; font.pixelSize: 13; Layout.fillWidth: true; elide: Text.ElideRight
+            }
+            GlassButton { text: qsTr("Más tarde"); onClicked: avisoIdioma.masTarde = true }
+            GlassButton {
+                text: qsTr("Reiniciar ahora"); active: true
+                onClicked: avisoIdioma.error = Studio.reiniciarPrograma(qsTr("Cambiando el idioma: la app se reinicia"))
+            }
+        }
+    }
+
     // --- Barra de cambios pendientes ---------------------------------------------
     Rectangle {
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: page.leftInset + 20; rightMargin: 20; bottomMargin: 16 }

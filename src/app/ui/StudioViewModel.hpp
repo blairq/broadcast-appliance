@@ -430,6 +430,9 @@ class StudioViewModel : public QObject {
     ~StudioViewModel() override;
 
     bool recording() const { return recording_; }
+    /// Cierra la app y la vuelve a abrir por el launcher (con los mismos --test/--debug y
+    /// la conversación del asistente): cambiar de evento, de idioma. "" o el error.
+    Q_INVOKABLE QString reiniciarPrograma(const QString& aviso);
     /// Cuando arranco la grabacion, en ms desde la epoca. 0 = no esta grabando
     /// (o arranco antes de que la app supiera mirarlo).
     Q_INVOKABLE qint64 recordStartMs() const { return recording_ ? recSinceMs_ : 0; }

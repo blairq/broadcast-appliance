@@ -141,6 +141,10 @@ struct Evento {
     /// cambia con el horario de verano, así que uno escrito hoy miente para un
     /// evento de dentro de tres meses.
     std::string huso;
+    /// El idioma del evento (ba::i18n, «es», «en», «pt-BR»): lo que ven y escuchan el
+    /// público y los invitados (gráficos, tótems, voz, la web). Vacío = el del operador.
+    /// Se guarda con el evento por lo mismo que el huso: el aparato viaja.
+    std::string idioma;
     /// Lo que usa este evento (lo leen la página web, el asistente y la interfaz):
     /// `invitados` = hay invitados en la sala de videoconferencia (la página ofrece «Entrar
     /// a la sala»); `preguntas` = el público puede preguntar y votar (/publico/).

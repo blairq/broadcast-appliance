@@ -34,6 +34,8 @@ class SettingsModel : public QAbstractListModel {
     /// El borrador entero (clave -> valor): para que la vista muestre u oculte campos
     /// según otro (p. ej. el dominio de pinggy según «Dirección pública»).
     Q_PROPERTY(QVariantMap draft READ draft NOTIFY draftChanged)
+    /// El idioma guardado no es el que se está usando: cambia al reiniciar el programa.
+    Q_PROPERTY(bool idiomaPendiente READ idiomaPendiente NOTIFY idiomaPendienteChanged)
    public:
     enum Roles {
         KeyRole = Qt::UserRole + 1,
@@ -58,6 +60,7 @@ class SettingsModel : public QAbstractListModel {
     QHash<int, QByteArray> roleNames() const override;
 
     bool dirty() const;
+    bool idiomaPendiente() const;
     QStringList sections() const;
     QVariantMap draft() const { return draft_; }
 
@@ -82,6 +85,7 @@ class SettingsModel : public QAbstractListModel {
     void dirtyChanged();
     void draftChanged();
     void applied(const QString& summary);
+    void idiomaPendienteChanged();
     /// El reinicio de la sala que pidió apply() terminó (corre aparte: no traba la
     /// interfaz). `error` vacío = hecho.
     void salaReiniciada(const QString& error);
@@ -112,6 +116,7 @@ class SettingsModel : public QAbstractListModel {
 
     AppRuntime& rt_;
     std::function<bool()> enVivo_;
+    std::string idiomaAlArrancar_; ///< el guardado al abrir el programa (idiomaPendiente)
     std::vector<Field> fields_;
     QVariantMap saved_; // valores aplicados
     QVariantMap draft_; // valores en edicion

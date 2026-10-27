@@ -22,6 +22,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "Log.hpp"
 #include "platform/Energia.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
 #include "Supervisor.hpp"
@@ -131,10 +132,10 @@ int runLauncher(const std::vector<std::string>& args) {
     // launcher.json (lo escribe la interfaz de A): copia sombra,
     // dialogo de recuperacion y argumentos extra de A y B. La linea de
     // comandos, mas abajo, lo pisa.
+    // El idioma del operador (de la máquina): el diálogo de recuperación y el registro.
+    ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(datos));
     {
-        // Es de la máquina: <datos>/launcher.json (antes, Config/launcher.json).
-        std::ifstream in(std::filesystem::exists(datos / "launcher.json") ? datos / "launcher.json"
-                                                                          : datos / "Config" / "launcher.json");
+        std::ifstream in(ba::platform::launcherJsonFor(datos)); // es de la máquina
         const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
         if (in && j.is_object()) {
             cfg.shadowCopy = j.value("shadowCopy", cfg.shadowCopy);

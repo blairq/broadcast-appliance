@@ -176,6 +176,10 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void setInicio(const QString& hhmm);
     Q_INVOKABLE void setFecha(const QString& aaaammdd);
     Q_INVOKABLE void setHuso(const QString& iana);
+    /// El idioma del evento ("" = el del operador) y los que se pueden elegir
+    /// ([{value, label}], el primero "").
+    Q_INVOKABLE void setIdioma(const QString& codigo);
+    Q_INVOKABLE QVariantList idiomas() const;
     /// Lo que usa el evento: invitados en la sala; preguntas y votos del público.
     Q_INVOKABLE void setInvitados(bool si);
     Q_INVOKABLE void setPreguntas(bool si);

@@ -1,6 +1,7 @@
 // ============================================================================
 // src/app/ui/EventoViewModel.cpp — ver EventoViewModel.hpp
 // ============================================================================
+#include "i18n/I18n.hpp"
 #include "ui/EventoViewModel.hpp"
 
 #include "evento/Documentos.hpp"
@@ -724,6 +725,7 @@ QVariantMap EventoViewModel::guion() const {
                        {"fecha", QString::fromStdString(e_.fecha)},
                        {"inicio", QString::fromStdString(e_.inicio)},
                        {"huso", QString::fromStdString(e_.huso)},
+                       {"idioma", QString::fromStdString(e_.idioma)},
                        {"cuando", cuando()},
                        {"nota", QString::fromStdString(e_.nota)},
                        {"invitados", e_.invitados},
@@ -921,6 +923,22 @@ void EventoViewModel::setFecha(const QString& aaaammdd) {
 void EventoViewModel::setHuso(const QString& iana) {
     e_.huso = iana.toStdString();
     marcarSucio();
+}
+
+void EventoViewModel::setIdioma(const QString& codigo) {
+    e_.idioma = codigo.toStdString();
+    marcarSucio();
+}
+
+QVariantList EventoViewModel::idiomas() const {
+    // "" = el del operador; después los que hay, con su nombre en su idioma.
+    QVariantList out{QVariantMap{
+        {"value", QString()},
+        {"label", QString::fromStdString(ba::i18n::llenar(ba::i18n::traducir("evento", "El del programa (%1)"),
+                                                          {ba::i18n::actual().nombre}))}}};
+    for (const auto& p : ba::i18n::idiomas())
+        out << QVariantMap{{"value", QString::fromStdString(p.codigo)}, {"label", QString::fromStdString(p.nombre)}};
+    return out;
 }
 
 void EventoViewModel::setInvitados(bool si) {

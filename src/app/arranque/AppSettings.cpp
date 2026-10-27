@@ -171,13 +171,8 @@ std::string relativeToRoot(const fs::path& p, const fs::path& root) {
 fs::path appConfigPath(const fs::path& dataRoot) { return dataRoot / "Config" / "app.json"; }
 fs::path gatewayConfigPath(const fs::path& dataRoot) { return dataRoot / "Config" / "gateway.json"; }
 fs::path launcherConfigPath(const fs::path&) {
-    // Es de la MÁQUINA (no de la configuración): <datos>/launcher.json; una instalación
-    // vieja todavía sin mudar lo tiene en Config/.
-    const fs::path maquina = ba::platform::dataRoot();
-    std::error_code ec;
-    if (!fs::exists(maquina / "launcher.json", ec) && fs::exists(maquina / "Config" / "launcher.json", ec))
-        return maquina / "Config" / "launcher.json";
-    return maquina / "launcher.json";
+    // Es de la MÁQUINA (no de la configuración).
+    return ba::platform::launcherJsonFor(ba::platform::dataRoot());
 }
 
 AppConfig defaultAppConfig(const fs::path& dataRoot) {
@@ -600,6 +595,7 @@ LauncherSettings loadLauncherSettings(const fs::path& path) {
     s.maxCaidas = get(j, "maxCaidas", s.maxCaidas);
     s.ventanaCaidasMin = get(j, "ventanaCaidasMin", s.ventanaCaidasMin);
     s.reiniciosSinPreguntar = get(j, "reiniciosSinPreguntar", s.reiniciosSinPreguntar);
+    s.idioma = get(j, "idioma", s.idioma);
     if (j.contains("ajustes") && j["ajustes"].is_object()) s.ajustes = j["ajustes"];
     return s;
 }
@@ -615,6 +611,7 @@ bool saveLauncherSettings(const fs::path& path, const LauncherSettings& s, std::
     j["maxCaidas"] = s.maxCaidas;
     j["ventanaCaidasMin"] = s.ventanaCaidasMin;
     j["reiniciosSinPreguntar"] = s.reiniciosSinPreguntar;
+    j["idioma"] = s.idioma;
     j["ajustes"] = s.ajustes;
     return writeJson(path, j, err);
 }

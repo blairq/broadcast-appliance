@@ -87,6 +87,11 @@ inline constexpr const char* kConfigRootEnv = "BA_CONFIG_ROOT";
 inline constexpr const char* kCarpetasDeConfiguracion[] = {"Config",  "Media",      "Graficos",  "Plugins",
                                                            "Fotos",   "Miniaturas", "Eventos",   "Recordings",
                                                            "Shares",  "Exportado",  "Extensiones"};
+/// launcher.json, los ajustes de la MÁQUINA (los escribe la interfaz, los leen el launcher y
+/// cada proceso al arrancar: el idioma, la copia sombra…): `<datos>/launcher.json`; una
+/// instalación vieja todavía sin mudar lo tiene en `Config/`.
+std::filesystem::path launcherJsonFor(const std::filesystem::path& datos);
+
 /// La carpeta de la configuración activa para esa carpeta de datos (función pura de lo que hay en disco).
 std::filesystem::path configRootFor(const std::filesystem::path& datos);
 /// La configuración activa: BA_CONFIG_ROOT si está; si no, configRootFor(dataRoot()).
