@@ -16,7 +16,10 @@
 #include <algorithm>
 #include <cmath>
 
+#include "agent/ModelosLocales.hpp"
 #include "agent/Voz.hpp"
+#include "agent/VozIdioma.hpp"
+#include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -35,6 +38,9 @@ constexpr int kTickMs = 100;
 inline int kConsultaMs() { return ba::ajustes::entero("vozPrompter.consultaMs", 250); } ///< cada cuánto se mira el estado del gateway
 inline double kAnticipoMs() { return ba::ajustes::numero("vozPrompter.anticipoMs", 6000); } ///< cuánto antes se sintetiza una frase (con 3 s llegaba tarde)
 constexpr double kSaltoPalabras = 1.5; ///< más de esto entre lo previsto y lo informado: saltó
+/// Palabras por segundo para arrancar con una voz cuyo perfil no dice su ritmo (se
+/// corrige solo al hablar: ver agendar).
+constexpr double kRitmoSinDatos = 3.0;
 
 QString archivo(const std::filesystem::path& raiz) {
     return QString::fromStdString((raiz / "Config" / "voz-teleprompter.json").string());
@@ -62,7 +68,7 @@ std::string cadena(const nlohmann::json& r, const char* k) {
 VozPrompter::VozPrompter(AppRuntime& rt, Voz& voz, ConferenceViewModel* sala, QObject* parent)
     : QObject(parent), rt_(rt), voz_(voz), sala_(sala),
       monitor_(std::make_unique<audio::MonitorVoz>("Voz del teleprompter", 62)),
-      naturalPps_(std::make_shared<std::atomic<double>>(3.7)) { // 3,7 palabras/s: piper es_AR, medido
+      naturalPps_(std::make_shared<std::atomic<double>>(kRitmoSinDatos)) { // el de la voz, al cargarla
 #if defined(BA_HAVE_VOZ)
     habla_ = std::make_unique<audio::Habla>();
 #endif
@@ -72,10 +78,14 @@ VozPrompter::VozPrompter(AppRuntime& rt, Voz& voz, ConferenceViewModel* sala, QO
         const auto j = nlohmann::json::parse(f.readAll().toStdString(), nullptr, false);
         if (j.is_object()) activa_ = j.value("activa", false);
     }
-    connect(&voz_, &Voz::cambio, this, [this]() { revisarVoz(); });
+    // Voz::cambio sale seguido: solo se mira el catálogo si cambió la voz del sistema;
+    // el idioma del evento y los modelos bajados, siempre.
+    connect(&voz_, &Voz::cambio, this, [this]() { revisarVoz(false); });
+    connect(&voz_, &Voz::idiomaEventoCambio, this, [this]() { revisarVoz(true); });
+    connect(&voz_.modelos(), &ModelosLocales::cambio, this, [this]() { revisarVoz(true); });
     reloj_.setInterval(kTickMs);
     connect(&reloj_, &QTimer::timeout, this, [this]() { tick(); });
-    revisarVoz();
+    revisarVoz(true);
     if (activa_) reloj_.start();
     setEstado(activa_ ? tr("Esperando el teleprompter") : tr("Apagada"));
 }
@@ -117,18 +127,33 @@ void VozPrompter::setEstado(const QString& e, bool noPuedeLeer) {
     emit cambio();
 }
 
-void VozPrompter::revisarVoz() {
+void VozPrompter::revisarVoz(bool siempre) {
 #if defined(BA_HAVE_VOZ)
-    // La misma voz que la del sistema (Configuración → Voz del sistema).
-    const QVariantMap v = voz_.vozParaOtros();
-    const QString repo = v.value("repo").toString();
+    if (!siempre && voz_.vozElegida() == vozSistema_) return;
+    vozSistema_ = voz_.vozElegida();
+    // El guion se lee en el idioma del evento: la voz de ese idioma (la del sistema si
+    // habla esa lengua; si no, la del perfil del idioma: agent/VozIdioma). Si no hay
+    // ninguna bajada de esa lengua, la del sistema (Configuración → Voz del sistema).
+    const std::string idioma = ba::i18n::idiomaDelEvento();
+    ModelosLocales& modelos = voz_.modelos();
+    const QString repo = modelos.vozPara(idioma, vozSistema_);
     if (repo.isEmpty() || repo == vozCargada_) return;
+    const std::filesystem::path d = modelos.carpetaInstalada(repo);
+    if (d.empty()) return;
+    QString archivo;
+    for (const QVariant& v : modelos.catalogo())
+        if (v.toMap().value("repo").toString() == repo) archivo = v.toMap().value("modelo").toString();
     vozCargada_ = repo;
     audio::Habla::Voz cfg;
-    cfg.modelo = v.value("modelo").toString().toStdString();
-    cfg.tokens = v.value("tokens").toString().toStdString();
-    cfg.datos = v.value("datos").toString().toStdString();
+    cfg.modelo = (d / archivo.toStdString()).string();
+    cfg.tokens = (d / "tokens.txt").string();
+    cfg.datos = (d / "espeak-ng-data").string();
+    // El ritmo de esa voz para arrancar (el perfil; después se aprende al hablar).
+    naturalPps_->store(voz_idioma::palabrasPorSegundo(repo.toStdString(), idioma, kRitmoSinDatos));
+    reiniciar("otra voz");
     habla_->cargar(cfg, [](const std::string&) {});
+#else
+    Q_UNUSED(siempre);
 #endif
 }
 

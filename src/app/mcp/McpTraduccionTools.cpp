@@ -41,7 +41,9 @@ void McpService::registerTraduccionTools() {
         x.readOnly = true;
         x.description = ba::i18n::traducir("mcp", "Las traducciones configuradas (de qué salida de texto, a qué idioma, en qué salida "
                         "publican, la última frase y su "
-                        "demora), si falta bajar algún paquete, el estado del motor y los idiomas. Receta "
+                        "demora), si falta bajar algún paquete, el estado del motor y los idiomas: `origen` "
+                        "(el del evento, de donde se traduce si no se dice otro) y `destinos` (a cuáles hay "
+                        "paquete desde ahí). Receta "
                         "completa: help {\"topic\": "
                         "\"traduccion\"}.");
         x.inputSchema = {{"type", "object"}, {"properties", json::object()}};
@@ -50,8 +52,12 @@ void McpService::registerTraduccionTools() {
             json idiomas = json::object();
             for (const auto& [k, v] : agent::Traductor::nombresIdiomas())
                 idiomas[k] = ba::i18n::traducir("idiomas", v.c_str()); // vienen con QT_TRANSLATE_NOOP
-            done(ToolResult().data(
-                {{"traducciones", t->lista()}, {"motor", t->motor().toStdString()}, {"idiomas", idiomas}}));
+            const std::string origen = agent::Traductor::origen();
+            done(ToolResult().data({{"traducciones", t->lista()},
+                                    {"motor", t->motor().toStdString()},
+                                    {"idiomas", idiomas},
+                                    {"origen", origen},
+                                    {"destinos", t->destinos(origen)}}));
         };
         core_.addTool(std::move(x));
     }
@@ -61,7 +67,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Traducir una frase ahora");
         x.category = "traduccion";
         x.readOnly = true;
-        x.description = ba::i18n::traducir("mcp", "Traduce `texto` (en `de`, castellano si no se dice) a `a`, con el glosario. Para "
+        x.description = ba::i18n::traducir("mcp", "Traduce `texto` (en `de`, el idioma del evento si no se dice) a `a`, con el glosario. Para "
                         "probar cómo sale "
                         "un término antes del evento.");
         x.inputSchema = {{"type", "object"},
@@ -70,7 +76,7 @@ void McpService::registerTraduccionTools() {
         x.run = [t](const json& a, Done done) {
             if (!t) return done(ToolResult::error(ba::i18n::traducir("mcp", "el traductor no está")));
             t->traducir(QString::fromStdString(a.value("texto", std::string())),
-                        a.value("de", std::string("es")), a.value("a", std::string()), [done](json r) {
+                        a.value("de", std::string()), a.value("a", std::string()), [done](json r) {
                             if (r.contains("error"))
                                 return done(ToolResult::error(r["error"].get<std::string>()));
                             done(ToolResult().data(r));
@@ -114,11 +120,11 @@ void McpService::registerTraduccionTools() {
             if (!t) return done(ToolResult::error(ba::i18n::traducir("mcp", "el traductor no está")));
             json hecha;
             const std::string e =
-                t->agregar(a.value("desde", std::string()), a.value("idioma_desde", std::string("es")),
+                t->agregar(a.value("desde", std::string()), a.value("idioma_desde", std::string()),
                            a.value("a", std::string()), a.value("nombre", std::string()), a, &hecha);
             if (!e.empty()) return done(ToolResult::error(e));
             hecha["faltan"] =
-                t->faltan(hecha.value("idioma_desde", std::string("es")), hecha.value("a", std::string()));
+                t->faltan(hecha.value("idioma_desde", std::string()), hecha.value("a", std::string()));
             done(ToolResult().data(hecha));
         };
         core_.addTool(std::move(x));
@@ -160,16 +166,16 @@ void McpService::registerTraduccionTools() {
         x.name = "traduccion_bajar";
         x.title = ba::i18n::traducir("mcp", "Bajar los paquetes de un idioma");
         x.category = "traduccion";
-        x.description = ba::i18n::traducir("mcp", "Baja los paquetes que hacen falta para traducir de `de` (castellano si no se dice) "
-                        "a `a` (uno o dos: "
-                        "lo que no es castellano<->inglés ni castellano<->portugués pasa por el inglés). "
+        x.description = ba::i18n::traducir("mcp", "Baja los paquetes que hacen falta para traducir de `de` (el idioma del evento si no se "
+                        "dice) a `a` (uno o dos: "
+                        "sin paquete directo, pasa por otro idioma, casi siempre el inglés). "
                         "Entre 70 y 300 MB "
                         "cada uno; se ve el avance en modelo_local_estado.");
         x.inputSchema = {
             {"type", "object"}, {"required", {"a"}}, {"properties", {{"a", idioma}, {"de", idioma}}}};
         x.run = [t](const json& a, Done done) {
             if (!t) return done(ToolResult::error(ba::i18n::traducir("mcp", "el traductor no está")));
-            const std::string de = a.value("de", std::string("es")), para = a.value("a", std::string());
+            const std::string de = a.value("de", std::string()), para = a.value("a", std::string()); // "" = el del evento
             const json faltaban = t->faltan(de, para);
             if (const std::string e = t->bajar(de, para); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data({{"bajando", faltaban},

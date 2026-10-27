@@ -57,6 +57,12 @@ class EscuchaStreaming : public Reconocedor {
        public:
         virtual ~Modelo() = default;
         virtual int nuevoStream() = 0;
+        /// Un stream para la corriente `clave` (la del dictado: "dictado"). El modelo
+        /// que sabe de idiomas (Nemotron) le fija el de quien habla en esa corriente.
+        virtual int nuevoStreamDe(const std::string& clave) {
+            (void)clave;
+            return nuevoStream();
+        }
         virtual void soltarStream(int s) = 0;
         /// Muestras a 16 kHz.
         virtual void aceptar(int s, const float* m, std::size_t n) = 0;

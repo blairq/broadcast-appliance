@@ -4,6 +4,7 @@
 
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "i18n/I18n.hpp"
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/RackManager.hpp"
@@ -38,6 +39,12 @@ VocesRack::VocesRack(ModelosLocales& modelos, QObject* parent) : QObject(parent)
 }
 
 VocesRack::~VocesRack() = default;
+
+QString VocesRack::vozDeFabrica() const {
+    // Lo que dice una tarjeta es para el público: en el idioma del evento. La del sistema
+    // si habla esa lengua; si no, la del perfil del idioma (o la del sistema si no hay otra).
+    return modelos_.vozPara(ba::i18n::idiomaDelEvento(), vozSistema_ ? vozSistema_() : QString());
+}
 
 void VocesRack::setFlujos(FlujosTexto* flujos) {
     flujos_ = flujos;
@@ -134,7 +141,7 @@ QString VocesRack::estado(const QString& fuente, const QString& nodo) const {
             QString::fromStdString(h.value("nodo", "")) != nodo)
             continue;
         QString repo = QString::fromStdString(h.value("voz", ""));
-        if (repo.isEmpty() && vozSistema_) repo = vozSistema_();
+        if (repo.isEmpty()) repo = vozDeFabrica();
         if (repo.isEmpty()) return tr("Sin voz: elegí una (o bajá una en Modelos locales)");
         if (modelos_.carpetaInstalada(repo).empty()) return tr("Falta bajar la voz");
         auto it = cargadas_.find(repo);
@@ -185,7 +192,7 @@ void VocesRack::alFrase(const QString& flujo, const QString& texto) {
 void VocesRack::decirCon(const nlohmann::json& tarjeta, const QString& texto) {
 #if defined(BA_HAVE_CLAP) && defined(BA_HAVE_VOZ)
     QString repo = QString::fromStdString(tarjeta.value("voz", ""));
-    if (repo.isEmpty() && vozSistema_) repo = vozSistema_();
+    if (repo.isEmpty()) repo = vozDeFabrica();
     Cargada* c = voz(repo);
     if (c == nullptr) return; // no está bajada: estado() lo dice
     if (!c->lista) {

@@ -7,7 +7,13 @@
 // CONSUMIDOR elige el suyo en la pestaña Agentes —el dictado del operador, la
 // transcripción continua (subtítulos y traducción en tiempo real), la recepción
 // que atiende hablando y el tótem de registro—. De fábrica, todos Parakeet: nadie
-// cambia de comportamiento sin pedirlo.
+// cambia de comportamiento sin pedirlo, salvo que Parakeet no entienda el idioma.
+//
+// EL IDIOMA. El dictado oye al operador (su idioma); los demás, al público y a los
+// invitados (el idioma del evento, ba::i18n::idiomaDelEvento). Qué motor entiende
+// cada idioma lo dice su perfil (agent/VozIdioma, «reconocimiento»). Sin elegir a
+// mano, cada consumidor usa Parakeet si entiende su idioma y si no Nemotron; lo
+// elegido a mano manda, y si no entiende el idioma, `avisoIdioma` lo dice.
 //
 // UNA COPIA DE CADA MODELO EN MEMORIA. Cada uso abierto (una corriente con su
 // clave: «registro:<conn>», «atencion:<id>», el nombre de una salida de texto,
@@ -71,6 +77,14 @@ class Reconocedores {
     /// De quién es una clave de corriente: «registro:…» el tótem, «atencion:…» la
     /// recepción, «dictado» el dictado y lo demás (salidas de texto) la transcripción.
     static std::string consumidorDeClave(const std::string& clave);
+    /// El idioma que oye un consumidor: el del operador para el dictado, el del evento
+    /// para los demás (códigos de ba::i18n).
+    static std::string idiomaDe(const std::string& consumidor);
+    /// Si el motor entiende ese idioma (según su perfil; sin datos, sí).
+    static bool reconoce(MotorOido m, const std::string& idioma);
+    /// El motor de un consumidor que no eligió: Parakeet si entiende su idioma, si no
+    /// Nemotron si lo entiende, si no Parakeet.
+    static MotorOido deFabrica(const std::string& consumidor);
 
     // --- Lo elegido -------------------------------------------------------------------
     MotorOido motorDe(const std::string& consumidor) const;
@@ -108,10 +122,12 @@ class Reconocedores {
 
     /// "" o el aviso de los dos motores en uso a la vez (quién usa cada uno y la memoria).
     std::string alerta() const;
+    /// "" o el aviso de los consumidores cuyo motor no entiende el idioma que oyen.
+    std::string avisoIdioma() const;
     /// Todo junto, para la interfaz y el MCP:
     /// {motores: [{id, titulo, cargado, cargando, error, usos, consumidores, memoria_mb}],
-    ///  consumidores: [{id, titulo, descripcion, motor, usos, interrumpible, interrumpir}],
-    ///  alerta, mezcla, memoria_mb, margen_s}.
+    ///  consumidores: [{id, titulo, descripcion, motor, elegido, idioma, reconoce, usos,
+    ///  interrumpible, interrumpir}], alerta, aviso_idioma, mezcla, memoria_mb, margen_s}.
     nlohmann::json estado() const;
 
    private:
@@ -132,7 +148,7 @@ class Reconocedores {
     void guardar() const;
 
     std::filesystem::path archivo_;
-    std::map<std::string, MotorOido> elegidos_;  ///< solo los que no son de fábrica
+    std::map<std::string, MotorOido> elegidos_;  ///< solo los elegidos a mano (distintos del de fábrica)
     std::map<std::string, bool> interrumpir_;    ///< solo los que no son de fábrica
     std::map<std::string, Uso> usos_;            ///< clave -> uso
     std::map<MotorOido, EstadoMotor> motores_;

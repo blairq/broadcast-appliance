@@ -7,6 +7,12 @@
 // disparadores. Idiomas: castellano, inglés, portugués (Brasil), francés,
 // alemán, ruso y chino mandarín.
 //
+// EL ORIGEN es el idioma del EVENTO (ba::i18n::idiomaDelEvento: lo que se dice en
+// la sala), salvo que una traducción diga otro (`idioma_desde`). Los destinos son
+// los que tienen paquete desde ese idioma, directo o pasando por el inglés. Los
+// códigos de los paquetes («pt») y los de ba::i18n («pt-BR») se corresponden en un
+// solo lugar: codigoDe.
+//
 // EL MOTOR. Modelos OPUS-MT empaquetados por Argos Translate (CTranslate2), sin
 // red, en el procesador: 0,1 a 0,6 s por frase. Corren en un proceso aparte (el
 // Python del programa, assets/traductor/traductor.py): si se cae, la emisión
@@ -67,6 +73,9 @@ class Traductor : public QObject {
     Q_PROPERTY(QVariantList traducciones READ traduccionesQml NOTIFY cambio)
     /// [{codigo, nombre}]
     Q_PROPERTY(QVariantList idiomas READ idiomasQml CONSTANT)
+    /// Las columnas del glosario además de la clave (la forma en castellano, `es`, con la
+    /// que se guarda cada término): [{codigo, nombre}].
+    Q_PROPERTY(QVariantList idiomasGlosario READ idiomasGlosarioQml CONSTANT)
     /// [{es: [...], en, pt, fr, de, ru, zh, grupo, origen: fabrica|operador, activo}]
     Q_PROPERTY(QVariantList glosario READ glosarioQml NOTIFY glosarioCambio)
     /// [{grupo, nombre, activo, cuantos}]
@@ -84,6 +93,14 @@ class Traductor : public QObject {
     ~Traductor() override;
 
     static const std::map<std::string, std::string>& nombresIdiomas();
+    /// El código de los paquetes para un idioma de ba::i18n ("pt-BR" → "pt"); "" si no hay
+    /// paquetes de esa lengua. La única correspondencia entre los dos.
+    static std::string codigoDe(const std::string& idioma);
+    /// El idioma de origen de fábrica: el del evento abierto ("" si no se puede traducir).
+    static std::string origen();
+    /// A qué idiomas se puede traducir desde `de` (con paquete directo o por el inglés,
+    /// bajado o no): [{codigo, nombre, pasos}].
+    json destinos(const std::string& de) const;
 
     /// Dónde viven las traducciones: las tarjetas «Traducir» de los racks. Los
     /// ids son los de las tarjetas («<fuente>#<nodo>»).
@@ -112,9 +129,9 @@ class Traductor : public QObject {
     json salidaDe(const std::string& flujo) const;
 
     // --- Traducir una frase ---------------------------------------------------------------
-    /// {texto, ms, pasos} o {error}. `de` vacío = castellano.
+    /// {texto, ms, pasos} o {error}. `de` vacío = el idioma del evento.
     void traducir(const QString& texto, const std::string& de, const std::string& a, Listo listo);
-    /// Los paquetes que faltan bajar para ir de `de` a `a` (repos del catálogo).
+    /// Los paquetes que faltan bajar para ir de `de` (vacío = el del evento) a `a` (repos del catálogo).
     json faltan(const std::string& de, const std::string& a) const;
     /// Baja lo que falte (de a uno; sigue solo). "" o el error.
     std::string bajar(const std::string& de, const std::string& a);
@@ -137,13 +154,22 @@ class Traductor : public QObject {
     // --- Para la interfaz -----------------------------------------------------------------
     QVariantList traduccionesQml() const;
     QVariantList idiomasQml() const;
+    QVariantList idiomasGlosarioQml() const;
     QVariantList glosarioQml() const;
     QVariantList gruposQml() const;
     QString motor() const { return motor_; }
     QString archivoGlosarioTexto() const;
     /// Las salidas de texto que se pueden traducir (las de las tarjetas y las ya traducidas).
     Q_INVOKABLE QStringList salidasDisponibles() const;
-    Q_INVOKABLE QString agregarUi(const QString& desde, const QString& a, const QString& nombre);
+    /// Desde y hacia qué idiomas se traduce en un evento de `idiomaEvento` (el código de
+    /// ba::i18n del evento, "" = el del operador): {evento, origen, nombre, destinos:
+    /// [{codigo, nombre, pasos}], ejemplo (una frase para probar, en ese idioma), error si
+    /// no hay}. La interfaz le pasa el idioma del
+    /// guion para que se rehaga cuando cambia.
+    Q_INVOKABLE QVariantMap idiomasDelEvento(const QString& idiomaEvento) const;
+    /// `de` vacío = el idioma del evento.
+    Q_INVOKABLE QString agregarUi(const QString& desde, const QString& a, const QString& nombre,
+                                  const QString& de = QString());
     Q_INVOKABLE QString ajustarUi(const QString& id, const QVariantMap& cambios);
     Q_INVOKABLE QString quitarUi(const QString& id);
     Q_INVOKABLE QString bajarUi(const QString& de, const QString& a);
@@ -167,7 +193,10 @@ class Traductor : public QObject {
         json mensaje;
         Listo listo;
     };
-    json pasos(const std::string& de, const std::string& a, std::string* error) const;
+    /// Los paquetes para ir de `desde` (vacío = el idioma del evento) a `a`.
+    json pasos(const std::string& desde, const std::string& a, std::string* error) const;
+    /// El error de un evento cuyo idioma no se puede traducir.
+    static std::string sinOrigen();
     json glosarioActivo() const;
     void leer();
     void guardar() const;

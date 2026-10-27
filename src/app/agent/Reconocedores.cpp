@@ -7,6 +7,7 @@
 #include <fstream>
 #include <system_error>
 
+#include "agent/VozIdioma.hpp"
 #include "i18n/I18n.hpp"
 
 // Sin Qt (test_reconocedores): la marca para lupdate, que deja el texto como está.
@@ -19,7 +20,7 @@ namespace ba::app::agent {
 using json = nlohmann::json;
 
 namespace {
-constexpr MotorOido kDeFabrica = MotorOido::Parakeet; // nadie cambia sin pedirlo
+constexpr MotorOido kDeFabrica = MotorOido::Parakeet; // nadie cambia sin pedirlo (si entiende el idioma)
 /// El título o la descripción de un consumidor (marcados con QT_TRANSLATE_NOOP), traducido.
 std::string etiqueta(const std::string& s) { return ba::i18n::traducir("reconocedores", s.c_str()); }
 } // namespace
@@ -77,6 +78,22 @@ std::string Reconocedores::consumidorDeClave(const std::string& clave) {
     return "transcripcion";
 }
 
+std::string Reconocedores::idiomaDe(const std::string& consumidor) {
+    return consumidor == "dictado" ? ba::i18n::actual().codigo : ba::i18n::idiomaDelEvento();
+}
+
+bool Reconocedores::reconoce(MotorOido m, const std::string& idioma) {
+    return voz_idioma::reconoce(nombre(m), idioma);
+}
+
+MotorOido Reconocedores::deFabrica(const std::string& consumidor) {
+    const std::string idioma = idiomaDe(consumidor);
+    if (reconoce(kDeFabrica, idioma)) return kDeFabrica;
+    for (MotorOido m : motores())
+        if (reconoce(m, idioma)) return m;
+    return kDeFabrica;
+}
+
 Reconocedores::Reconocedores(std::filesystem::path archivo) : archivo_(std::move(archivo)) {
     for (MotorOido m : motores()) motores_[m] = {};
     leer();
@@ -84,7 +101,7 @@ Reconocedores::Reconocedores(std::filesystem::path archivo) : archivo_(std::move
 
 MotorOido Reconocedores::motorDe(const std::string& consumidor) const {
     const auto it = elegidos_.find(consumidor);
-    return it == elegidos_.end() ? kDeFabrica : it->second;
+    return it == elegidos_.end() ? deFabrica(consumidor) : it->second;
 }
 
 std::string Reconocedores::elegir(const std::string& consumidor, const std::string& motor) {
@@ -93,7 +110,7 @@ std::string Reconocedores::elegir(const std::string& consumidor, const std::stri
     const auto m = deNombre(motor);
     if (!m) return ba::i18n::traducir("reconocedores", "el motor es «parakeet» o «nemotron»");
     if (motorDe(consumidor) == *m) return {};
-    if (*m == kDeFabrica)
+    if (*m == deFabrica(consumidor))
         elegidos_.erase(consumidor);
     else
         elegidos_[consumidor] = *m;
@@ -263,6 +280,28 @@ std::string Reconocedores::alerta() const {
                             {lista(p), lista(n), std::to_string(total)});
 }
 
+std::string Reconocedores::avisoIdioma() const {
+    std::string s;
+    for (const Consumidor& c : consumidores()) {
+        const MotorOido m = motorDe(c.id);
+        const std::string idioma = idiomaDe(c.id);
+        if (reconoce(m, idioma)) continue;
+        const ba::i18n::Perfil p = ba::i18n::perfil(idioma);
+        std::string otro;
+        for (MotorOido x : motores())
+            if (x != m && reconoce(x, idioma)) otro = titulo(x);
+        if (!s.empty()) s += " ";
+        s += otro.empty()
+                 ? ba::i18n::llenar(ba::i18n::traducir("reconocedores",
+                                                       "%1: %2 no entiende %3, y ningún otro reconocedor lo entiende."),
+                                    {etiqueta(c.titulo), titulo(m), p.nombre.empty() ? idioma : p.nombre})
+                 : ba::i18n::llenar(ba::i18n::traducir("reconocedores",
+                                                       "%1: %2 no entiende %3; %4 sí (elegilo en la pestaña Agentes)."),
+                                    {etiqueta(c.titulo), titulo(m), p.nombre.empty() ? idioma : p.nombre, otro});
+    }
+    return s;
+}
+
 json Reconocedores::estado() const {
     json ms = json::array();
     int memoria = 0;
@@ -288,6 +327,9 @@ json Reconocedores::estado() const {
                       {"titulo", etiqueta(c.titulo)},
                       {"descripcion", etiqueta(c.descripcion)},
                       {"motor", nombre(motorDe(c.id))},
+                      {"elegido", elegidos_.count(c.id) > 0},
+                      {"idioma", idiomaDe(c.id)},
+                      {"reconoce", reconoce(motorDe(c.id), idiomaDe(c.id))},
                       {"usos", usosDe(c.id).size()},
                       {"interrumpible", c.interrumpible},
                       {"interrumpir", interrumpirElegido(c.id)}});
@@ -295,6 +337,7 @@ json Reconocedores::estado() const {
     return {{"motores", ms},
             {"consumidores", cs},
             {"alerta", alerta()},
+            {"aviso_idioma", avisoIdioma()},
             // Elegidos distintos: si llegan a usarse a la vez, se cargan los dos.
             {"mezcla", elegidos.size() > 1},
             {"memoria_mb", memoria},
@@ -312,7 +355,7 @@ void Reconocedores::leer() {
     const json interrumpir = o.value("interrumpir", json::object());
     for (const auto& [k, v] : motores.items())
         if (v.is_string() && consumidor(k) != nullptr)
-            if (const auto m = deNombre(v.get<std::string>()); m && *m != kDeFabrica) elegidos_[k] = *m;
+            if (const auto m = deNombre(v.get<std::string>())) elegidos_[k] = *m; // elegido a mano: manda
     for (const auto& [k, v] : interrumpir.items())
         if (v.is_boolean() && !v.get<bool>() && consumidor(k) != nullptr) interrumpir_[k] = false;
 }

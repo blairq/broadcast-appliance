@@ -249,6 +249,12 @@ class ModelosLocales : public QObject {
     /// El primer modelo instalado de un tipo del catálogo para esta plataforma
     /// ("voz", "vad"...; los de lenguaje son "reactivo"). Vacío si no hay.
     QString instaladoDeTipo(const QString& tipo) const;
+    /// La voz de síntesis (tipo "tts") para hablar en `idioma` (un código de ba::i18n):
+    /// `preferida` si está bajada y habla esa lengua; si no, la primera bajada de las del
+    /// perfil del idioma (agent/VozIdioma); si no, cualquier bajada de esa lengua; si
+    /// tampoco, `preferida` si está bajada (aunque sea de otra lengua) o la primera bajada.
+    /// Vacío si no hay ninguna.
+    QString vozPara(const std::string& idioma, const QString& preferida = {}) const;
 
     /// Arranca el activo si así se configuró. Lo llama la app al abrir.
     void arrancarSiCorresponde();

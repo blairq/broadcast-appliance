@@ -53,7 +53,8 @@ class VocesRack : public QObject {
 
     void setRacks(audio::RackManager* racks) { racks_ = racks; }
     void setFlujos(FlujosTexto* flujos);
-    /// La voz del sistema (para las tarjetas sin voz elegida).
+    /// La voz del sistema. Una tarjeta sin voz elegida usa la del idioma del evento: esta
+    /// si habla esa lengua; si no, la del perfil del idioma (agent/VozIdioma).
     void setVozSistema(std::function<QString()> f) { vozSistema_ = std::move(f); }
 
     QVariantList voces() const;
@@ -73,6 +74,8 @@ class VocesRack : public QObject {
 
    private:
     struct Cargada;
+    /// La voz de una tarjeta sin voz elegida (se resuelve en cada frase: sigue al idioma del evento).
+    QString vozDeFabrica() const;
     /// La voz cargada (la carga si hace falta). Nulo si no está instalada.
     Cargada* voz(const QString& repo);
     void decirCon(const nlohmann::json& tarjeta, const QString& texto);

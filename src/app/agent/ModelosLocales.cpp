@@ -9,6 +9,7 @@
 #include "platform/Paths.hpp"
 
 #include "agent/ArgumentosLocales.hpp"
+#include "agent/VozIdioma.hpp"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -333,6 +334,29 @@ QString ModelosLocales::instaladoDeTipo(const QString& tipo) const {
             return m.value("repo").toString();
     }
     return {};
+}
+
+QString ModelosLocales::vozPara(const std::string& idioma, const QString& preferida) const {
+    const QString lengua = QString::fromStdString(voz_idioma::lengua(idioma));
+    std::vector<std::pair<QString, QString>> bajadas; // {repo, lengua}, en el orden del catálogo
+    for (const QVariant& v : catalogo()) {
+        const QVariantMap m = v.toMap();
+        if (m.value("tipo").toString() == "tts" && m.value("instalado").toBool())
+            bajadas.emplace_back(m.value("repo").toString(), m.value("idioma").toString());
+    }
+    const auto lenguaDe = [&](const QString& r) -> std::optional<QString> {
+        for (const auto& [repo, l] : bajadas)
+            if (repo == r) return l;
+        return std::nullopt;
+    };
+    const std::optional<QString> pref = preferida.isEmpty() ? std::nullopt : lenguaDe(preferida);
+    if (pref && (lengua.isEmpty() || *pref == lengua)) return preferida;
+    for (const std::string& r : voz_idioma::voces(idioma))
+        if (lenguaDe(QString::fromStdString(r))) return QString::fromStdString(r);
+    for (const auto& [repo, l] : bajadas)
+        if (l == lengua) return repo;
+    if (pref) return preferida;
+    return bajadas.empty() ? QString() : bajadas.front().first;
 }
 
 QVariantList ModelosLocales::catalogo() const {
