@@ -1,6 +1,7 @@
 // ============================================================================
 // src/app/ui/PrompterViewModel.cpp — ver PrompterViewModel.hpp
 // ============================================================================
+#include "i18n/I18n.hpp"
 #include "ui/PrompterViewModel.hpp"
 
 #include <algorithm>
@@ -328,8 +329,22 @@ void PrompterViewModel::setTamano(int t) {
 void PrompterViewModel::setEspejo(bool si) {
     if (d_->sala != nullptr) d_->sala->teleprompter().setEspejo(si);
 }
+namespace {
+// Los avisos rápidos al orador (los botones de PrompterPage): la clave es el texto en español y
+// al orador le llega en el idioma del evento. Un aviso escrito a mano no está en el catálogo y
+// sale tal cual.
+[[maybe_unused]] const char* const kAvisosRapidos[] = {
+    QT_TRANSLATE_NOOP("prompter", "Redondeá"), QT_TRANSLATE_NOOP("prompter", "Más despacio"),
+    QT_TRANSLATE_NOOP("prompter", "Se escucha bajo"), QT_TRANSLATE_NOOP("prompter", "Mirá a cámara")};
+} // namespace
+
+QString PrompterViewModel::avisoParaOrador(const QString& clave) const {
+    const QByteArray c = clave.toUtf8();
+    return QString::fromStdString(ba::i18n::traducirEvento("prompter", c.constData()));
+}
+
 void PrompterViewModel::avisar(const QString& texto) {
-    if (d_->sala != nullptr) d_->sala->teleprompter().avisar(texto.toStdString());
+    if (d_->sala != nullptr) d_->sala->teleprompter().avisar(avisoParaOrador(texto).toStdString());
 }
 void PrompterViewModel::panico() {
     if (d_->sala != nullptr) d_->sala->teleprompter().panico();
