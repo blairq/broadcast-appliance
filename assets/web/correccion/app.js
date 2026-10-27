@@ -1,6 +1,6 @@
 // El puesto del corrector de subtítulos (T44). Ver index.html.
 "use strict";
-(() => {
+(async () => {
   const clave = new URLSearchParams(location.hash.slice(1)).get("k") || "";
   const lista = document.getElementById("lista");
   const vacio = document.getElementById("vacio");
@@ -9,16 +9,16 @@
   let activa = null;            // id de la frase con el foco
   let desfase = 0;              // (edad del dato en el servidor) para la cuenta regresiva
 
-  function mostrarEstado(t, cls) { estado.textContent = t; estado.className = "estado " + (cls || ""); }
+  function mostrarEstado(tj, cls) { estado.textContent = tj; estado.className = "estado " + (cls || ""); }
 
   async function mandar(id, texto, descartar) {
     try {
       const r = await fetch("/api/correccion", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ k: clave, id, texto, descartar: !!descartar }) });
-      if (!r.ok) mostrarEstado("no se pudo mandar (" + r.status + ")", "mal");
-    } catch (e) { mostrarEstado("sin conexión", "mal"); }
-    const t = tarjetas.get(id);
-    if (t) { t.el.remove(); tarjetas.delete(id); }
+      if (!r.ok) mostrarEstado(BAi18n.llenar(t("no se pudo mandar (%1)"), r.status), "mal");
+    } catch (e) { mostrarEstado(t("sin conexión"), "mal"); }
+    const tj = tarjetas.get(id);
+    if (tj) { tj.el.remove(); tarjetas.delete(id); }
     enfocarSiguiente();
   }
 
@@ -29,9 +29,9 @@
     marcar();
   }
   function marcar() {
-    for (const [id, t] of tarjetas) t.el.classList.toggle("activa", id === activa);
-    const t = tarjetas.get(activa);
-    if (t && document.activeElement !== t.ta) t.ta.focus();
+    for (const [id, tj] of tarjetas) tj.el.classList.toggle("activa", id === activa);
+    const tj = tarjetas.get(activa);
+    if (tj && document.activeElement !== tj.ta) tj.ta.focus();
   }
 
   function crear(p) {
@@ -39,24 +39,26 @@
     el.className = "frase";
     el.innerHTML = '<div class="cabecera"><span class="flujo"></span><span class="resta"></span></div>' +
       '<textarea rows="2"></textarea><div class="barra"><div></div></div>' +
-      '<div class="botones"><button class="si">Aprobar ⏎</button><button class="no">Descartar</button></div>';
+      '<div class="botones"><button class="si"></button><button class="no"></button></div>';
+    el.querySelector(".si").textContent = t("Aprobar ⏎");
+    el.querySelector(".no").textContent = t("Descartar");
     el.querySelector(".flujo").textContent = p.flujo + (p.origen ? " · " + p.origen : "");
     const ta = el.querySelector("textarea");
     ta.value = p.texto;
-    const t = { el, ta, resta: el.querySelector(".resta"), barra: el.querySelector(".barra > div"),
+    const tj = { el, ta, resta: el.querySelector(".resta"), barra: el.querySelector(".barra > div"),
                 vence: Date.now() + (p.resta_ms || 0), total: Math.max(1, p.resta_ms || 1), editado: false, original: p.texto };
-    ta.addEventListener("input", () => { t.editado = ta.value !== t.original; });
+    ta.addEventListener("input", () => { tj.editado = ta.value !== tj.original; });
     ta.addEventListener("focus", () => { activa = p.id; marcar(); });
     ta.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mandar(p.id, t.editado ? ta.value : undefined, false); }
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mandar(p.id, tj.editado ? ta.value : undefined, false); }
       else if (e.key === "Escape") { e.preventDefault(); mandar(p.id, undefined, true); }
       else if (e.key === "ArrowDown" && e.altKey === false && ta.selectionStart === ta.value.length) mover(1);
       else if (e.key === "ArrowUp" && ta.selectionStart === 0) mover(-1);
     });
-    el.querySelector(".si").addEventListener("click", () => mandar(p.id, t.editado ? ta.value : undefined, false));
+    el.querySelector(".si").addEventListener("click", () => mandar(p.id, tj.editado ? ta.value : undefined, false));
     el.querySelector(".no").addEventListener("click", () => mandar(p.id, undefined, true));
     lista.appendChild(el);
-    tarjetas.set(p.id, t);
+    tarjetas.set(p.id, tj);
   }
 
   function mover(d) {
@@ -70,34 +72,36 @@
   async function pedir() {
     try {
       const r = await fetch("/api/correccion?k=" + encodeURIComponent(clave), { cache: "no-store" });
-      if (r.status === 403) { mostrarEstado("la clave no sirve (pedile el enlace nuevo al operador)", "mal"); return; }
+      if (r.status === 403) { mostrarEstado(t("la clave no sirve (pedile el enlace nuevo al operador)"), "mal"); return; }
       const d = await r.json();
-      mostrarEstado("conectado", "ok");
+      mostrarEstado(t("conectado"), "ok");
       desfase = d.edad_ms || 0;
       const vistos = new Set();
       for (const p of d.pendientes || []) {
         vistos.add(p.id);
         if (!tarjetas.has(p.id)) crear(p);
-        const t = tarjetas.get(p.id);
-        t.vence = Date.now() + Math.max(0, (p.resta_ms || 0) - desfase);
+        const tj = tarjetas.get(p.id);
+        tj.vence = Date.now() + Math.max(0, (p.resta_ms || 0) - desfase);
       }
       // Las que ya salieron (solas o por otro corrector): fuera.
-      for (const [id, t] of tarjetas) if (!vistos.has(id)) { t.el.remove(); tarjetas.delete(id); }
+      for (const [id, tj] of tarjetas) if (!vistos.has(id)) { tj.el.remove(); tarjetas.delete(id); }
       vacio.classList.toggle("oculto", tarjetas.size > 0);
       enfocarSiguiente();
-    } catch (e) { mostrarEstado("sin conexión", "mal"); }
+    } catch (e) { mostrarEstado(t("sin conexión"), "mal"); }
   }
 
   function tic() {
     const ahora = Date.now();
-    for (const [, t] of tarjetas) {
-      const s = Math.max(0, (t.vence - ahora) / 1000);
-      t.resta.textContent = "sale en " + s.toFixed(1) + " s";
-      t.resta.classList.toggle("poco", s < 2);
-      t.barra.style.width = Math.max(0, Math.min(100, 100 * (t.vence - ahora) / t.total)) + "%";
+    for (const [, tj] of tarjetas) {
+      const s = Math.max(0, (tj.vence - ahora) / 1000);
+      tj.resta.textContent = BAi18n.llenar(t("sale en %1 s"), s.toFixed(1));
+      tj.resta.classList.toggle("poco", s < 2);
+      tj.barra.style.width = Math.max(0, Math.min(100, 100 * (tj.vence - ahora) / tj.total)) + "%";
     }
   }
 
-  if (!clave) mostrarEstado("falta la clave en el enlace (#k=…)", "mal");
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/correccion", preferir: "evento" });
+  if (!clave) mostrarEstado(t("falta la clave en el enlace (#k=…)"), "mal");
   else { pedir(); setInterval(pedir, 500); setInterval(tic, 100); }
 })();

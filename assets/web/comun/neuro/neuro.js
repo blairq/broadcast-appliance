@@ -26,6 +26,10 @@
 (() => {
   "use strict";
   const BA = (window.BA = window.BA || {});
+  // Los textos propios de los componentes, en el idioma de la página (/comun/i18n.js).
+  // Los componentes se arman antes de que cargue el idioma: la página llama a
+  // BA.traducir() después de BAi18n.iniciar() (y de BAi18n.elegir()).
+  const t = (s, op) => (window.BAi18n ? window.BAi18n.t(s, op) : s);
 
   // --- Temas ---------------------------------------------------------------------------
   const CLAVE_TEMA = "ba-tema";
@@ -340,7 +344,7 @@
     static get observedAttributes() { return ["titulo", "ampliar"]; }
     constructor() {
       super(`<section class="tarjeta relieve"><header><h2></h2><slot name="acciones"></slot>
-            <button class="ampliar relieve" title="A pantalla completa, en una pestaña nueva" hidden>⤢</button></header>
+            <button class="ampliar relieve" hidden>⤢</button></header>
             <div class="contenido"><slot></slot></div></section>`);
       this.$(".ampliar").addEventListener("click", () => {
         const url = this.getAttribute("ampliar");
@@ -351,7 +355,9 @@
     attributeChangedCallback() {
       this.$("h2").textContent = this.getAttribute("titulo") || "";
       this.$(".ampliar").hidden = !this.getAttribute("ampliar");
+      this.traducir();
     }
+    traducir() { this.$(".ampliar").title = t("A pantalla completa, en una pestaña nueva"); }
   }
 
   // --- Chip y tally --------------------------------------------------------------------------
@@ -366,11 +372,17 @@
     constructor() {
       super(`<span class="hundido-suave"></span>`);
     }
-    attributeChangedCallback() {
+    attributeChangedCallback() { this.traducir(); }
+    traducir() {
       const e = this.getAttribute("estado") || "nada";
-      this.$("span").textContent = this.getAttribute("etiqueta") || (e === "aire" ? "Al aire" : e === "armado" ? "Armado" : "—");
+      this.$("span").textContent = this.getAttribute("etiqueta") || (e === "aire" ? t("Al aire") : e === "armado" ? t("Armado") : "—");
     }
   }
+
+  // Vuelve a poner los textos propios de los componentes que ya están en la página.
+  BA.traducir = () => {
+    for (const el of document.querySelectorAll("ba-tarjeta, ba-tally")) if (el.traducir) el.traducir();
+  };
 
   const definir = (n, c) => { if (!customElements.get(n)) customElements.define(n, c); };
   definir("ba-boton", BaBoton);

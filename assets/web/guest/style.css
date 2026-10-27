@@ -56,6 +56,10 @@ body.in-room { align-items: stretch; }
 .card.center { text-align: center; }
 
 .brand { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+/* El idioma: chico, a la derecha de la marca. */
+.brand .idioma { margin-left: auto; }
+.brand .idioma select { background: transparent; color: var(--muted); border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px; padding: 3px 6px; font: inherit; font-size: 12px; text-transform: none; letter-spacing: 0; }
 .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
 
 h1 { font-size: 28px; margin: 12px 0 4px; }

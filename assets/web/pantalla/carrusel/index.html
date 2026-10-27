@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Carrusel</title>
+<title data-i18n="Carrusel">Carrusel</title>
 <!--
   Varias páginas rotando en una pantalla.
 
@@ -22,8 +22,9 @@
 <body>
   <iframe id="a" class="hoja visible" frameborder="0" scrolling="no"></iframe>
   <iframe id="b" class="hoja" frameborder="0" scrolling="no"></iframe>
-  <div id="aviso" class="aviso">Buscando qué mostrar…</div>
+  <div id="aviso" class="aviso" data-i18n="Buscando qué mostrar…">Buscando qué mostrar…</div>
   <div id="barra" class="barra"><div id="progreso"></div></div>
+  <script src="/comun/i18n.js"></script>
   <script src="../../comun/trama.js"></script>
   <script src="../../comun/canal.js"></script>
   <script src="app.js"></script>

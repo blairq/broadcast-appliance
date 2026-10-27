@@ -21,6 +21,9 @@ body { display: flex; flex-direction: column;
 .quien { color: var(--tenue); }
 .espacio { flex: 1; }
 .conexion { font-size: 18px; }
+/* El idioma: chico, al lado de la conexión. */
+.idioma { background: transparent; color: var(--tenue); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px;
+  padding: 2px 6px; font: inherit; font-size: 12px; }
 .conexion.viva { color: var(--ok); }
 .conexion.apagada { color: var(--mal); }
 

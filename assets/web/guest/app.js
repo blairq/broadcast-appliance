@@ -17,8 +17,9 @@
    del proyecto (4 bytes LE + JSON, spec §4.1).
    ========================================================================== */
 
-(function () {
+(async function () {
   "use strict";
+  const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
 
   const MAX_W = 1280, MAX_H = 720, FPS = 30;
   const RECONNECT_BASE_MS = 1000, RECONNECT_MAX_MS = 15000;
@@ -96,7 +97,7 @@
     state.id = state.key = null;
   }
 
-  const LOBBY_TEXT = $("lobby-text").textContent;
+  const LOBBY_TEXT = () => t("Ya avisamos que llegaste. El operador te ve y en un momento te hace pasar.");
 
   // --- 1) Entrada ---------------------------------------------------------
   async function join() {
@@ -105,11 +106,11 @@
     const pin = $("pin").value.trim();
     const err = $("join-error");
     err.textContent = "";
-    if (!name) { err.textContent = "Contanos tu nombre."; return; }
-    if (!pin) { err.textContent = "Ingresá el PIN que te pasó el operador."; return; }
+    if (!name) { err.textContent = t("Contanos tu nombre."); return; }
+    if (!pin) { err.textContent = t("Ingresá el PIN que te pasó el operador."); return; }
     const btn = $("btn-join"), btnText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = "Conectando…";
+    btn.textContent = t("Conectando…");
     // Con mala red el pedido puede colgarse: se corta a los 10 s.
     const ctl = new AbortController();
     const timeout = setTimeout(() => ctl.abort(), 10000);
@@ -124,12 +125,12 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
         err.textContent = {
-          pin: room ? "PIN o conferencia incorrectos. Revisá los datos que te pasó el operador." : "PIN incorrecto.",
-          rate: "Demasiados intentos desde este equipo. Esperá un minuto.",
-          locked: "La conferencia está cerrada en este momento.",
+          pin: room ? t("PIN o conferencia incorrectos. Revisá los datos que te pasó el operador.") : t("PIN incorrecto."),
+          rate: t("Demasiados intentos desde este equipo. Esperá un minuto."),
+          locked: t("La conferencia está cerrada en este momento."),
         }[data.error] || (res.status === 503
-          ? "El servidor está muy ocupado. Probá de nuevo en un momento."
-          : "No se pudo entrar. Revisá los datos que te pasó el operador.");
+          ? t("El servidor está muy ocupado. Probá de nuevo en un momento.")
+          : t("No se pudo entrar. Revisá los datos que te pasó el operador."));
         return;
       }
       resetControls();
@@ -147,7 +148,7 @@
       show("check");
       await checkDevices();
     } catch (e) {
-      err.textContent = "Sin conexión con el servidor. Revisá tu internet y probá de nuevo.";
+      err.textContent = t("Sin conexión con el servidor. Revisá tu internet y probá de nuevo.");
     } finally {
       clearTimeout(timeout);
       btn.disabled = false;
@@ -171,8 +172,8 @@
       b.title = on ? onText : offText;
       b.setAttribute("aria-label", b.title);
     };
-    paint("btn-mic", state.mic, "Silenciar el micrófono", "Micrófono silenciado: tocá para activarlo");
-    paint("btn-cam", state.cam, "Apagar la cámara", "Cámara apagada: tocá para encenderla");
+    paint("btn-mic", state.mic, t("Silenciar el micrófono"), t("Micrófono silenciado: tocá para activarlo"));
+    paint("btn-cam", state.cam, t("Apagar la cámara"), t("Cámara apagada: tocá para encenderla"));
     $("btn-hand").classList.toggle("active", state.hand);
   }
 
@@ -198,16 +199,17 @@
   }
 
   function mediaErrorText(error, stream) {
-    if (!window.isSecureContext) return "Este enlace no es seguro (http) y el navegador no deja usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.";
-    if (error === "unsupported") return "Este navegador no permite usar la cámara ni el micrófono. Probá con Chrome, Edge, Firefox o Safari actualizados.";
-    const have = stream ? (stream.getAudioTracks().length ? "Entrás solo con micrófono. " : "Entrás solo con cámara, sin micrófono. ") : "";
+    if (!window.isSecureContext) return t("Este enlace no es seguro (http) y el navegador no deja usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.");
+    if (error === "unsupported") return t("Este navegador no permite usar la cámara ni el micrófono. Probá con Chrome, Edge, Firefox o Safari actualizados.");
+    const have = stream ? (stream.getAudioTracks().length ? t("Entrás solo con micrófono.") + " " : t("Entrás solo con cámara, sin micrófono.") + " ") : "";
     if (error === "NotAllowedError" || error === "SecurityError")
-      return "El navegador tiene bloqueado el permiso. Tocá el candado de la barra de direcciones, permití la cámara y el micrófono, y recargá la página. También podés entrar sin ellos.";
+      return t("El navegador tiene bloqueado el permiso. Tocá el candado de la barra de direcciones, permití la cámara y el micrófono, y recargá la página. También podés entrar sin ellos.");
     if (error === "NotFoundError" || error === "OverconstrainedError")
-      return have + (stream ? "No encontramos el otro dispositivo." : "No encontramos ni cámara ni micrófono en este equipo. Podés entrar sin ellos.");
+      return have + (stream ? t("No encontramos el otro dispositivo.") : t("No encontramos ni cámara ni micrófono en este equipo. Podés entrar sin ellos."));
     if (error === "NotReadableError" || error === "AbortError")
-      return have + "Otra aplicación está usando la cámara o el micrófono (Zoom, Meet, Teams…): cerrala y recargá la página" + (stream ? "." : ", o entrá sin ellos.");
-    return have + (stream ? "" : "No se pudo usar la cámara ni el micrófono. Revisá los permisos, o entrá sin ellos.");
+      return have + (stream ? t("Otra aplicación está usando la cámara o el micrófono (Zoom, Meet, Teams…): cerrala y recargá la página.")
+                            : t("Otra aplicación está usando la cámara o el micrófono (Zoom, Meet, Teams…): cerrala y recargá la página, o entrá sin ellos."));
+    return have + (stream ? "" : t("No se pudo usar la cámara ni el micrófono. Revisá los permisos, o entrá sin ellos."));
   }
 
   async function checkDevices() {
@@ -217,7 +219,7 @@
     // Hasta que el navegador conteste no se puede pedir entrar: si no, se
     // entraria sin mandar audio ni video y sin darse cuenta.
     start.disabled = true;
-    start.textContent = "Aceptá el permiso de cámara y micrófono…";
+    start.textContent = t("Aceptá el permiso de cámara y micrófono…");
     const { stream, error } = await acquireMedia();
     start.disabled = false;
     start.textContent = startText;
@@ -227,8 +229,8 @@
         $(id).textContent = label + (ok ? " ✓" : " ✕");
         $(id).classList.toggle("ok", ok);
       };
-      mark("cam-state", stream.getVideoTracks().length > 0, "Cámara");
-      mark("mic-state", stream.getAudioTracks().length > 0, "Micrófono");
+      mark("cam-state", stream.getVideoTracks().length > 0, t("Cámara"));
+      mark("mic-state", stream.getAudioTracks().length > 0, t("Micrófono"));
     }
     if (error || !stream) err.textContent = mediaErrorText(error, stream);
   }
@@ -284,7 +286,7 @@
       state.wsOpened = true;
       state.resumeFailures = 0;
       state.reconnectDelay = RECONNECT_BASE_MS;
-      setConn("ok", "Conectado");
+      setConn("ok", t("Conectado"));
       startPing(ws);
       keepAwake();
     };
@@ -304,10 +306,10 @@
       if (state.left) return;
       const opened = state.wsOpened;
       if (!state.id) {
-        end("No se pudo entrar", "El ingreso venció. Volvé a intentarlo.");
+        end(t("No se pudo entrar"), t("El ingreso venció. Volvé a intentarlo."));
         return;
       }
-      setConn("bad", "Reconectando…");
+      setConn("bad", t("Reconectando…"));
       if (!opened) {
         // El navegador no distingue "el servidor rechazo el reenganche" de "no
         // hay red". Solo cuenta como rechazo si el servidor SI responde: sin
@@ -316,7 +318,7 @@
           if (state.ws !== ws || state.left) return;
           if (++state.resumeFailures >= 2) {
             clearSession();
-            end("Tu lugar en la conferencia venció", "Pasó demasiado tiempo desconectado. Volvé a entrar.");
+            end(t("Tu lugar en la conferencia venció"), t("Pasó demasiado tiempo desconectado. Volvé a entrar."));
             return;
           }
         }
@@ -404,25 +406,25 @@
         if (!state.pc) startPeer();
         break;
       case "busy":
-        toast("La conferencia no tiene lugar para tu video en este momento", "bad");
+        toast(t("La conferencia no tiene lugar para tu video en este momento"), "bad");
         break;
       case "talk":
-        $("talk-badge").textContent = "● Te está hablando";
+        $("talk-badge").textContent = t("● Te está hablando");
         $("talk-badge").classList.toggle("hidden", !msg.on);
-        $("lobby-title").textContent = msg.on ? "Estás hablando con el operador" : "Esperando al operador";
-        if (msg.on) toast("El operador te está hablando", "ok");
+        $("lobby-title").textContent = msg.on ? t("Estás hablando con el operador") : t("Esperando al operador");
+        if (msg.on) toast(t("El operador te está hablando"), "ok");
         break;
       case "atiende":
         // Lo atiende el asistente hablando: lo que diga se escucha y se le
         // contesta con voz. Que lo sepa, así no se queda callado esperando.
         $("talk-badge").classList.toggle("hidden", !msg.on);
-        $("talk-badge").textContent = msg.on ? "● Te está atendiendo el asistente" : "● Te está hablando";
-        $("lobby-title").textContent = msg.on ? "Te atiende el asistente: hablale, te escucha" : "Esperando al operador";
+        $("talk-badge").textContent = msg.on ? t("● Te está atendiendo el asistente") : t("● Te está hablando");
+        $("lobby-title").textContent = msg.on ? t("Te atiende el asistente: hablale, te escucha") : t("Esperando al operador");
         break;
       case "lobby":
         state.admitted = false;
         show("lobby");
-        $("lobby-pos").textContent = msg.position > 1 ? `Hay ${msg.position - 1} persona(s) antes que vos.` : "Sos el próximo.";
+        $("lobby-pos").textContent = msg.position > 1 ? t("Hay %n persona antes que vos.", { n: msg.position - 1 }) : t("Sos el próximo.");
         break;
       case "admitted":
         state.admitted = true;
@@ -435,7 +437,7 @@
           toggleChat(false);
         }
         show("room");
-        toast(msg.backstage ? "Estás en la fila de oradores" : "¡Estás adentro!", "ok");
+        toast(msg.backstage ? t("Estás en la fila de oradores") : t("¡Estás adentro!"), "ok");
         // La MISMA conexion sigue: B solo cambia a donde van tus medios (del
         // operador al programa). Sin PC todavia (reenganche), se arma.
         if (!state.pc) startPeer();
@@ -454,17 +456,17 @@
         state.left = true;
         clearSession();
         const why = {
-          locked: ["La conferencia está cerrada", "El operador cerró la conferencia a nuevos ingresos."],
-          lobby_full: ["Hay mucha gente esperando", "La sala de espera está llena. Probá de nuevo en un minuto."],
-          error: ["No se pudo entrar", "El servidor tuvo un problema. Probá de nuevo en un momento."],
-        }[msg.reason] || ["No pudiste entrar", "El operador no te hizo pasar esta vez."];
+          locked: [t("La conferencia está cerrada"), t("El operador cerró la conferencia a nuevos ingresos.")],
+          lobby_full: [t("Hay mucha gente esperando"), t("La sala de espera está llena. Probá de nuevo en un minuto.")],
+          error: [t("No se pudo entrar"), t("El servidor tuvo un problema. Probá de nuevo en un momento.")],
+        }[msg.reason] || [t("No pudiste entrar"), t("El operador no te hizo pasar esta vez.")];
         end(why[0], why[1]);
         break;
       }
       case "kicked":
         state.left = true;
         clearSession();
-        end("Saliste de la conferencia", "El operador te sacó de la conferencia.");
+        end(t("Saliste de la conferencia"), t("El operador te sacó de la conferencia."));
         break;
       case "request":
         onRequest(msg.what);
@@ -473,7 +475,7 @@
         addChat(msg.msg);
         break;
       case "shared":
-        toast(`Compartiste «${msg.name}»`, "ok");
+        toast(llenar(t("Compartiste «%1»"), msg.name), "ok");
         break;
       case "answer":
         if (state.pc) state.pc.setRemoteDescription({ type: "answer", sdp: msg.sdp }).catch(() => {});
@@ -488,12 +490,12 @@
   }
 
   function onRequest(what) {
-    if (what === "mute-mic" && state.mic) { setMic(false); toast("El operador te silenció el micrófono. Tocá 🎙️ para volver a activarlo."); }
-    else if (what === "unmute-mic" && !state.mic) { setMic(true); toast("El operador activó tu micrófono", "ok"); }
-    else if (what === "unmute-cam" && !state.cam) { setCam(true); toast("El operador encendió tu cámara", "ok"); }
-    else if (what === "mute-cam" && state.cam) { setCam(false); toast("El operador te pidió apagar la cámara"); }
-    else if (what === "stop-screen" && state.screenStream) { stopScreen(); toast("El operador dejó de mostrar tu pantalla"); }
-    else if (what === "lower-hand" && state.hand) { setHand(false); toast("El operador bajó tu mano"); }
+    if (what === "mute-mic" && state.mic) { setMic(false); toast(t("El operador te silenció el micrófono. Tocá 🎙️ para volver a activarlo.")); }
+    else if (what === "unmute-mic" && !state.mic) { setMic(true); toast(t("El operador activó tu micrófono"), "ok"); }
+    else if (what === "unmute-cam" && !state.cam) { setCam(true); toast(t("El operador encendió tu cámara"), "ok"); }
+    else if (what === "mute-cam" && state.cam) { setCam(false); toast(t("El operador te pidió apagar la cámara")); }
+    else if (what === "stop-screen" && state.screenStream) { stopScreen(); toast(t("El operador dejó de mostrar tu pantalla")); }
+    else if (what === "lower-hand" && state.hand) { setHand(false); toast(t("El operador bajó tu mano")); }
     else if (what.startsWith("calidad-grilla-")) { state.calidadGrilla = what.slice(15); aplicarCalidad(false); }
     else if (what.startsWith("calidad-")) { state.calidadOperador = what.slice(8); aplicarCalidad(true); }
   }
@@ -537,7 +539,7 @@
     try {
       await sender.setParameters(p);
       if (avisar && NIVELES[state.calidadOperador])
-        toast("Tu conexión está justa: el operador bajó la calidad de tu cámara a " + state.calidadOperador + ".");
+        toast(llenar(t("Tu conexión está justa: el operador bajó la calidad de tu cámara a %1."), state.calidadOperador));
     } catch (e) { /* el navegador no lo admite (o todavía no negoció): sigue como estaba */ }
   }
 
@@ -591,13 +593,13 @@
       $("onair").classList.toggle("hidden", cs !== "connected");
       clearTimeout(state.mediaTimer);
       if (cs === "connected") {
-        setConn("ok", "Conectado");
+        setConn("ok", t("Conectado"));
         // Conexión nueva: el codificador arranca de fábrica; lo pedido se vuelve a poner.
         if (state.calidadGrilla || state.calidadOperador) aplicarCalidad(false);
         return;
       }
       if (cs !== "failed" && cs !== "disconnected") return;
-      setConn("bad", "Recuperando audio y video…");
+      setConn("bad", t("Recuperando audio y video…"));
       // Un corte corto se arregla solo; si no vuelve, se arma una conexion
       // nueva (el servidor acepta una oferta fresca del mismo participante).
       state.mediaTimer = setTimeout(() => {
@@ -626,7 +628,7 @@
       const b = document.createElement("button");
       b.id = "btn-unmute-remote";
       b.className = "primary";
-      b.textContent = "🔊 Tocá para escuchar";
+      b.textContent = t("🔊 Tocá para escuchar");
       b.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:50";
       b.addEventListener("click", () => {
         a.play().catch(() => {});
@@ -659,7 +661,7 @@
     const got = stream && (kind === "audio" ? stream.getAudioTracks() : stream.getVideoTracks()).length > 0;
     if (!got) {
       if (stream) stream.getTracks().forEach((t) => t.stop());
-      toast(error ? mediaErrorText(error, null) : (kind === "audio" ? "No encontramos un micrófono en este equipo." : "No encontramos una cámara en este equipo."), "bad");
+      toast(error ? mediaErrorText(error, null) : (kind === "audio" ? t("No encontramos un micrófono en este equipo.") : t("No encontramos una cámara en este equipo.")), "bad");
       return false;
     }
     if (state.localStream) state.localStream.getTracks().forEach((t) => t.stop());
@@ -689,7 +691,7 @@
 
   async function startScreen() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-      toast("Este navegador no permite compartir pantalla", "bad");
+      toast(t("Este navegador no permite compartir pantalla"), "bad");
       return;
     }
     try {
@@ -720,7 +722,7 @@
   // --- Archivos -----------------------------------------------------------
   function uploadFile(file) {
     if (state.maxUploadBytes && file.size > state.maxUploadBytes) {
-      toast(`«${file.name}» es muy grande (máx. ${Math.round(state.maxUploadBytes / 1048576)} MB)`, "bad");
+      toast(llenar(t("«%1» es muy grande (máx. %2 MB)"), file.name, Math.round(state.maxUploadBytes / 1048576)), "bad");
       return;
     }
     const row = document.createElement("div");
@@ -746,9 +748,9 @@
     };
     xhr.onload = () => {
       if (xhr.status === 201) return done(true, "✓");
-      done(false, { 413: "muy grande", 415: "tipo no soportado", 429: "límite de archivos", 401: "sin permiso" }[xhr.status] || "error");
+      done(false, { 413: t("muy grande"), 415: t("tipo no soportado"), 429: t("límite de archivos"), 401: t("sin permiso") }[xhr.status] || t("error"));
     };
-    xhr.onerror = () => done(false, "sin conexión");
+    xhr.onerror = () => done(false, t("sin conexión"));
     xhr.send(file);
   }
 
@@ -760,7 +762,7 @@
     el.className = "msg" + (mine ? " mine" : "") + (m.fromId === "host" ? " host" : "");
     const who = document.createElement("span");
     who.className = "who";
-    who.textContent = mine ? "Vos" : m.fromName + (m.to !== "all" && !mine ? " (a vos)" : "");
+    who.textContent = mine ? t("Vos") : (m.to !== "all" && !mine ? llenar(t("%1 (a vos)"), m.fromName) : m.fromName);
     const txt = document.createElement("span");
     txt.className = "txt";
     txt.textContent = m.text;
@@ -779,7 +781,7 @@
       state.unread++;
       $("unread").textContent = state.unread;
       $("unread").classList.remove("hidden");
-      if (m.fromId === "host") toast("Operador: " + m.text);
+      if (m.fromId === "host") toast(llenar(t("Operador: %1"), m.text));
     }
   }
   function toggleChat(open) {
@@ -845,8 +847,8 @@
     }
     const faltan = Math.max(0, prompter.palabras.length - prompterPos());
     $("orador-pie").textContent = prompter.corriendo
-      ? "Quedan " + fmtClock((faltan / prompter.ppm) * 60000) + " de lectura"
-      : "El texto está parado: lo arranca el operador";
+      ? llenar(t("Quedan %1 de lectura"), fmtClock((faltan / prompter.ppm) * 60000))
+      : t("El texto está parado: lo arranca el operador");
   }
 
   async function leerPrompter() {
@@ -885,7 +887,7 @@
     if (msg.serverNowMs) state.clockOffset = msg.serverNowMs - state.speakerAt;
     const prev = state.speakerState;
     state.speakerState = msg.state;
-    if (msg.state === "onair" && prev !== "onair") toast("¡Estás al aire!", "ok");
+    if (msg.state === "onair" && prev !== "onair") toast(t("¡Estás al aire!"), "ok");
     clearInterval(state.speakerTimer);
     state.speakerTimer = setInterval(renderSpeaker, 200);
     renderSpeaker();
@@ -913,29 +915,29 @@
       // Al entrar al aire la cuenta arranca; se pasa de cero, sigue en negativo.
       const left = m.allottedSec * 1000 - (now - m.startedMs);
       bar.classList.add("onair");
-      $("sp-state").textContent = left < 0 ? "Te pasaste" : "Estás al aire";
+      $("sp-state").textContent = left < 0 ? t("Te pasaste") : t("Estás al aire");
       // Redondeo hacia arriba mientras queda tiempo: "0:01" hasta el ultimo instante.
       $("sp-clock").textContent = left >= 0 ? fmtClock(Math.ceil(left / 1000) * 1000) : fmtClock(left);
       if (left < 0) {
         bar.classList.add("over");
-        $("sp-note").textContent = "Se terminó tu tiempo. Redondeá, por favor.";
+        $("sp-note").textContent = t("Se terminó tu tiempo. Redondeá, por favor.");
       } else if (left <= 10000) {
         bar.classList.add("warn");
-        $("sp-note").textContent = "Últimos segundos.";
+        $("sp-note").textContent = t("Últimos segundos.");
       } else {
-        $("sp-note").textContent = "Tiempo que te queda.";
+        $("sp-note").textContent = t("Tiempo que te queda.");
       }
     } else if (m.state === "queued") {
       bar.classList.add("queued");
       const eta = Math.max(0, (m.etaSec || 0) * 1000 - (Date.now() - state.speakerAt));
-      $("sp-state").textContent = m.position === 1 ? "Sos el próximo" : `Tu turno: ${m.position}º en la fila`;
-      $("sp-clock").textContent = eta > 0 ? "~" + fmtClock(eta) : "ya";
-      $("sp-note").textContent = `Mirás el programa en vivo. Vas a tener ${fmtClock(m.allottedSec * 1000)} para hablar.`;
+      $("sp-state").textContent = m.position === 1 ? t("Sos el próximo") : llenar(t("Tu turno: %1º en la fila"), m.position);
+      $("sp-clock").textContent = eta > 0 ? "~" + fmtClock(eta) : t("ya");
+      $("sp-note").textContent = llenar(t("Mirás el programa en vivo. Vas a tener %1 para hablar."), fmtClock(m.allottedSec * 1000));
     } else {
       bar.classList.add("done");
-      $("sp-state").textContent = "Ya hablaste";
+      $("sp-state").textContent = t("Ya hablaste");
       $("sp-clock").textContent = fmtClock(m.usedMs || 0);
-      $("sp-note").textContent = "¡Gracias! Podés seguir mirando el programa.";
+      $("sp-note").textContent = t("¡Gracias! Podés seguir mirando el programa.");
       clearInterval(state.speakerTimer);
     }
   }
@@ -968,13 +970,36 @@
     state.avatarTimer = setInterval(snap, 5000);
   }
 
+  // --- Idioma -------------------------------------------------------------
+  // El selector de la entrada: los idiomas que hay; al cambiar, se vuelve a pintar.
+  function armarIdiomas() {
+    const sel = $("idioma");
+    const lista = BAi18n.idiomas;
+    sel.parentElement.classList.toggle("hidden", lista.length < 2);
+    sel.textContent = "";
+    for (const p of lista) {
+      const o = document.createElement("option");
+      o.value = p.codigo;
+      o.textContent = p.nombre;
+      sel.appendChild(o);
+    }
+    sel.value = BAi18n.idioma;
+  }
+  $("idioma").addEventListener("change", async (e) => {
+    await BAi18n.elegir(e.target.value);
+    armarIdiomas();
+    paintControls();
+    if (!window.isSecureContext) $("join-error").textContent = t("Este enlace no es seguro (http): el navegador no va a dejar usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.");
+    if (state.speaker) renderSpeaker();
+  });
+
   // --- Estado / salida ----------------------------------------------------
   function setConn(cls, text) {
     const el = $("conn-state");
     el.className = "status " + cls;
     el.textContent = text;
     // El lobby no tiene ese cartel: alli el estado va en el texto de espera.
-    if (!state.admitted) $("lobby-text").textContent = cls === "ok" ? LOBBY_TEXT : "Se cortó la conexión. Reconectando con la conferencia…";
+    if (!state.admitted) $("lobby-text").textContent = cls === "ok" ? LOBBY_TEXT() : t("Se cortó la conexión. Reconectando con la conferencia…");
   }
 
   function leave() {
@@ -983,7 +1008,7 @@
     try { if (state.ws) state.ws.close(); } catch (e) {}
     teardownPeer();
     clearSession();
-    end("Saliste de la conferencia", "Gracias por participar.");
+    end(t("Saliste de la conferencia"), t("Gracias por participar."));
   }
 
   function end(title, text) {
@@ -1006,6 +1031,9 @@
   }
 
   // --- Bootstrap ----------------------------------------------------------
+  // Los textos: el idioma del navegador del invitado (o el que elija abajo).
+  await BAi18n.iniciar({ contexto: "web/guest", preferir: "navegador" });
+  armarIdiomas();
   $("btn-join").addEventListener("click", join);
   $("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") join(); });
   $("btn-start").addEventListener("click", () => { state.left = false; show("lobby"); connect(); });
@@ -1032,7 +1060,7 @@
   $("btn-chat-close").addEventListener("click", () => toggleChat(false));
   // Dentro de la sala, salir pide confirmacion: un toque sin querer obliga a
   // volver a pasar por el lobby en pleno vivo.
-  $("btn-leave").addEventListener("click", () => { if (window.confirm("¿Salir de la conferencia?")) leave(); });
+  $("btn-leave").addEventListener("click", () => { if (window.confirm(t("¿Salir de la conferencia?"))) leave(); });
   window.addEventListener("online", reconnectNow);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") return;
@@ -1049,7 +1077,7 @@
   });
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
     $("btn-screen").disabled = true;
-    $("btn-screen").title = "Tu navegador no permite compartir pantalla";
+    $("btn-screen").title = t("Tu navegador no permite compartir pantalla");
   }
 
   // Precarga: sala por URL (?room=) y nombre recordado. Un enlace de
@@ -1072,7 +1100,7 @@
     $("room").parentElement.classList.add("hidden");
     $("room").parentElement.parentElement.style.gridTemplateColumns = "1fr";
   }
-  if (!window.isSecureContext) $("join-error").textContent = "Este enlace no es seguro (http): el navegador no va a dejar usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.";
+  if (!window.isSecureContext) $("join-error").textContent = t("Este enlace no es seguro (http): el navegador no va a dejar usar la cámara ni el micrófono. Pedile al operador el enlace que empieza con https.");
   // Con el asistente atendiendo el lobby, entrar es solo el nombre: los demas
   // datos se los pregunta el asistente por chat. No se espera la respuesta:
   // si el servidor tarda o no contesta, el formulario queda como estaba.
@@ -1093,7 +1121,7 @@
   if (saved && saved.id && saved.key) {
     Object.assign(state, { id: saved.id, key: saved.key, room: saved.room, name: saved.name || "" });
     show("lobby");
-    $("lobby-text").textContent = "Reconectando con la conferencia…";
+    $("lobby-text").textContent = t("Reconectando con la conferencia…");
     const resume = () => connect();
     navigator.mediaDevices && navigator.mediaDevices.getUserMedia
       ? navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(setLocalStream, () => {}).finally(resume)

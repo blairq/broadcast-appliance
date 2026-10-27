@@ -15,8 +15,10 @@
 // LA POSICION VA EN PALABRAS, no en pixeles: la tablet y el celular tienen
 // pantallas distintas y tienen que hablar del mismo lugar del texto.
 // ============================================================================
-(() => {
+(async () => {
   "use strict";
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/prompter", preferir: "evento" });
 
   const $ = (id) => document.getElementById(id);
   const esControl = location.hash.includes("control");
@@ -92,7 +94,7 @@
     });
     if (r.status === 403) {
       if ($("c-error")) $("c-error").textContent =
-        "Este enlace no tiene la clave del control. Pedile al operador el enlace o el QR de nuevo.";
+        t("Este enlace no tiene la clave del control. Pedile al operador el enlace o el QR de nuevo.");
       return null;
     }
     const d = await r.json();
@@ -198,14 +200,14 @@
   let arrastrando = false;
 
   function pintarControl() {
-    $("c-titulo").textContent = estado.titulo || "Sin discurso";
+    $("c-titulo").textContent = estado.titulo || t("Sin discurso");
     $("c-estado").textContent = estado.palabras === 0
-      ? "sin texto"
-      : (estado.corriendo ? "corriendo" : "parado");
+      ? t("sin texto")
+      : (estado.corriendo ? t("corriendo") : t("parado"));
     $("c-ppm").textContent = estado.ppm;
-    $("c-dura").textContent = estado.duracionSeg ? "el discurso entero dura " + mmss(estado.duracionSeg) : "";
+    $("c-dura").textContent = estado.duracionSeg ? BAi18n.llenar(t("el discurso entero dura %1"), mmss(estado.duracionSeg)) : "";
     const play = $("c-play");
-    play.textContent = estado.corriendo ? "❚❚ Pausar" : "▶ Arrancar";
+    play.textContent = estado.corriendo ? t("❚❚ Pausar") : t("▶ Arrancar");
     play.classList.toggle("corriendo", estado.corriendo);
   }
 
@@ -213,9 +215,9 @@
     if (arrastrando || estado.palabras === 0) return;
     const pos = posicionAhora();
     $("c-barra").value = Math.round((pos / estado.palabras) * 1000);
-    $("c-pos").textContent = "palabra " + Math.floor(pos) + " de " + estado.palabras;
+    $("c-pos").textContent = BAi18n.llenar(t("palabra %1 de %2"), Math.floor(pos), estado.palabras);
     const faltan = Math.max(0, estado.palabras - pos);
-    $("c-falta").textContent = estado.ppm > 0 ? "faltan " + mmss((faltan / estado.ppm) * 60) : "";
+    $("c-falta").textContent = estado.ppm > 0 ? BAi18n.llenar(t("faltan %1"), mmss((faltan / estado.ppm) * 60)) : "";
   }
 
   function pintar() {
@@ -241,8 +243,12 @@
     $("c-inicio").addEventListener("click", () => mandar({ posicion: 0 }));
     $("c-atras").addEventListener("click", () => mandar({ parrafo: Math.max(0, parrafoActual() - 1) }));
     $("c-adelante").addEventListener("click", () => mandar({ parrafo: parrafoActual() + 1 }));
+    // El aviso viaja tal cual lo lee el orador: en el idioma de esta página. La clave
+    // (data-aviso) queda en el original.
+    const AVISOS = { "Redondeá": t("Redondeá"), "Te escuchamos bajo": t("Te escuchamos bajo"),
+                     "Más despacio": t("Más despacio"), "Mirá a cámara": t("Mirá a cámara") };
     for (const b of document.querySelectorAll(".aviso-btn"))
-      b.addEventListener("click", () => mandar({ aviso: b.dataset.aviso }));
+      b.addEventListener("click", () => mandar({ aviso: AVISOS[b.dataset.aviso] ?? b.dataset.aviso }));
 
     const barra = $("c-barra");
     // Mientras se arrastra no se pisa el valor con lo que dice el servidor.
@@ -256,8 +262,7 @@
     barra.addEventListener("change", soltar);
     barra.addEventListener("input", () => {
       arrastrando = true;
-      $("c-pos").textContent = "palabra " + Math.round((barra.value / 1000) * estado.palabras) +
-                               " de " + estado.palabras;
+      $("c-pos").textContent = BAi18n.llenar(t("palabra %1 de %2"), Math.round((barra.value / 1000) * estado.palabras), estado.palabras);
     });
   }
 
@@ -293,7 +298,7 @@
   if (esControl) {
     $("orador").classList.add("hidden");
     $("control").classList.remove("hidden");
-    document.title = "Control del teleprompter";
+    document.title = t("Control del teleprompter");
     conectarControl();
     conectarNombre($("c-nombre"));
   } else {

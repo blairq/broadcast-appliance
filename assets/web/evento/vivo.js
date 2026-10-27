@@ -62,7 +62,53 @@
 // BAEvento.hora(ms) («21:00» en el huso del evento). Y el evento «evento» de window.
 "use strict";
 (function () {
-  const ESTADOS = { proximo: "Próximamente", en_vivo: "En vivo", pausa: "En pausa", terminado: "Terminó" };
+  // Los textos, en el idioma del evento (/comun/i18n.js; el estado trae «idioma»). Un sitio
+  // hecho con una plantilla vieja no carga i18n.js: se lo pide acá, y mientras tanto (o si
+  // no está) sale el original.
+  const t = (s, op) => {
+    if (window.BAi18n) return window.BAi18n.t(s, op);
+    return op && typeof op.n === "number" ? s.replace(/%L?n/g, String(op.n)) : s;
+  };
+  const llenar = (s, ...v) => s.replace(/%([1-9])/g, (m, k) => (k - 1 < v.length ? String(v[k - 1]) : m));
+  let idiomaCargado = null;
+  function cargarI18n() {
+    if (window.BAi18n) return Promise.resolve();
+    return new Promise((listo) => {
+      const sc = document.createElement("script");
+      sc.src = "/comun/i18n.js";
+      sc.onload = sc.onerror = () => listo();
+      document.head.appendChild(sc);
+    });
+  }
+  async function idioma(e) {
+    const codigo = (e && e.idioma) || "";
+    if (codigo === idiomaCargado) return;
+    await cargarI18n();
+    if (!window.BAi18n) return;
+    const primera = idiomaCargado === null;
+    idiomaCargado = codigo;
+    await window.BAi18n.iniciar({ contexto: "web/evento", evento: codigo, preferir: "evento" });
+    // Lo que ya se armó con el idioma de antes se vuelve a armar.
+    if (!primera) {
+      for (const el of $$("[data-firma]")) delete el.dataset.firma;
+      for (const caja of $$('[data-vivo="cuenta-bloques"]')) caja.textContent = "";
+      ultimaFirma = "";
+    }
+  }
+  // El original es el español de abajo; en otro idioma, los nombres de meses y días los da
+  // el navegador (Intl) en ese idioma.
+  const enOriginal = () => !window.BAi18n || !window.BAi18n.perfil || !!window.BAi18n.perfil.fuente;
+  function nombreFecha(f, op, original) {
+    if (enOriginal()) return original;
+    try {
+      return new Intl.DateTimeFormat(window.BAi18n.idioma, Object.assign({ timeZone: "UTC" }, op))
+        .format(new Date(Date.UTC(f.anio, f.mes - 1, f.dia)));
+    } catch (e) { return original; }
+  }
+  const sinPunto = (x) => x.replace(/\.$/, "").toUpperCase();
+  const mesCorto = (f) => (enOriginal() ? MESES[f.mes - 1] : sinPunto(nombreFecha(f, { month: "short" }, MESES[f.mes - 1])));
+  const diaCorto = (f) => (enOriginal() ? DIAS[f.diaSemana] : sinPunto(nombreFecha(f, { weekday: "short" }, DIAS[f.diaSemana])));
+  const ESTADOS = () => ({ proximo: t("Próximamente"), en_vivo: t("En vivo"), pausa: t("En pausa"), terminado: t("Terminó") });
   const NOMBRES = { youtube: "YouTube", twitch: "Twitch", facebook: "Facebook" };
   const MESES = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
   const MESES_L = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -85,7 +131,7 @@
   function mmss(seg) {
     seg = Math.max(0, Math.round(seg));
     const d = Math.floor(seg / 86400), h = Math.floor((seg % 86400) / 3600), m = Math.floor((seg % 3600) / 60), s = seg % 60;
-    if (d) return d + (d === 1 ? " día " : " días ") + h + " h";
+    if (d) return t("%n día", { n: d }) + " " + h + " h";
     return (h ? h + ":" + dos(m) : String(m)) + ":" + dos(s);
   }
   function duracionCorta(seg) {
@@ -96,7 +142,7 @@
   function hora(ms) {
     if (!ms) return "";
     try {
-      return new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: (ultimo && ultimo.huso) || undefined })
+      return new Intl.DateTimeFormat(enOriginal() ? "es-AR" : window.BAi18n.idioma, { hour: "2-digit", minute: "2-digit", timeZone: (ultimo && ultimo.huso) || undefined })
         .format(new Date(ms));
     } catch (e) { return new Date(ms).toTimeString().slice(0, 5); }
   }
@@ -118,20 +164,20 @@
     const ahora = Date.now() + desfase;
     const proximo = ultimo.estado === "proximo";
     const falta = proximo && ultimo.inicioMs > ahora ? (ultimo.inicioMs - ahora) / 1000 : 0;
-    poner("cuenta", falta ? "Empieza en " + mmss(falta) : proximo && ultimo.inicioMs ? "Empieza en breve" : "");
+    poner("cuenta", falta ? llenar(t("Empieza en %1"), mmss(falta)) : proximo && ultimo.inicioMs ? t("Empieza en breve") : "");
     poner("transcurrido", ultimo.arrancoMs && (ultimo.estado === "en_vivo" || ultimo.estado === "pausa")
       ? mmss((ahora - ultimo.arrancoMs) / 1000) : "—");
     const o = ultimo.oradores;
     if (o && o.habla && o.hastaMs && o.asignadoSeg) {
       const rest = (o.hastaMs - ahora) / 1000;
-      poner("oradores-restante", rest > 0 ? "Le quedan " + mmss(rest) : "Se le terminó el tiempo");
+      poner("oradores-restante", rest > 0 ? llenar(t("Le quedan %1"), mmss(rest)) : t("Se le terminó el tiempo"));
     }
     for (const caja of $$('[data-vivo="cuenta-bloques"]')) {
       caja.hidden = !falta;
       if (!falta) continue;
       const s = Math.floor(falta);
-      const partes = [[Math.floor(s / 86400), "Días"], [Math.floor((s % 86400) / 3600), "Horas"],
-                      [Math.floor((s % 3600) / 60), "Min"], [s % 60, "Seg"]];
+      const partes = [[Math.floor(s / 86400), t("Días")], [Math.floor((s % 86400) / 3600), t("Horas")],
+                      [Math.floor((s % 3600) / 60), t("Min")], [s % 60, t("Seg")]];
       if (caja.children.length !== 4) {
         caja.textContent = "";
         for (const [, et] of partes) {
@@ -150,17 +196,19 @@
   function datosDelEvento(e) {
     const secciones = e.secciones || [];
     const f = fechaDe(e.fecha);
-    const corta = [f ? DIAS[f.diaSemana] + " " + f.dia + " " + MESES[f.mes - 1] : "", e.inicio || ""].filter(Boolean).join(" · ");
-    const larga = f ? DIAS_L[f.diaSemana] + " " + f.dia + " de " + MESES_L[f.mes - 1] + (e.inicio ? ", " + e.inicio + " h" : "") : (e.inicio ? e.inicio + " h" : "");
+    const corta = [f ? llenar(t("%1 %2 %3"), diaCorto(f), f.dia, mesCorto(f)) : "", e.inicio || ""].filter(Boolean).join(" · ");
+    const fechaL = f ? llenar(t("%1 %2 de %3"), nombreFecha(f, { weekday: "long" }, DIAS_L[f.diaSemana]), f.dia,
+                              nombreFecha(f, { month: "long" }, MESES_L[f.mes - 1])) : "";
+    const larga = f ? (e.inicio ? llenar(t("%1, %2 h"), fechaL, e.inicio) : fechaL) : (e.inicio ? llenar(t("%1 h"), e.inicio) : "");
     const total = secciones.reduce((a, s) => a + (s.duracionSeg || 0), 0);
-    const nombre = e.nombre || "El evento";
+    const nombre = e.nombre || t("El evento");
     poner("nombre", nombre);
-    poner("bajada", e.bajada || (secciones.length ? secciones.length + (secciones.length === 1 ? " sección" : " secciones") +
-      (total ? " · " + duracionCorta(total) : "") + " · en vivo por internet." : "En vivo por internet."));
+    poner("bajada", e.bajada || (secciones.length ? t("%n sección", { n: secciones.length }) +
+      (total ? " · " + duracionCorta(total) : "") + " · " + t("en vivo por internet.") : t("En vivo por internet.")));
     poner("marca", (nombre.split(/\s+/)[0] || "").replace(/[:.,;]$/, "") || nombre);
-    poner("fecha-corta", corta || "En vivo");
+    poner("fecha-corta", corta || t("En vivo"));
     poner("fecha-larga", larga);
-    poner("mes", f ? MESES[f.mes - 1] : "");
+    poner("mes", f ? mesCorto(f) : "");
     poner("dia", f ? String(f.dia) : "");
     poner("anio", f ? String(f.anio) : String(new Date().getFullYear()));
     poner("hora-inicio", e.inicio || "—");
@@ -210,18 +258,18 @@
         poner("seccion-total", dos(secciones.length));
         poner("seccion-duracion", duracionCorta(s.duracionSeg));
         poner("seccion-hora", hora(s.inicioEstimadoMs || s.inicioPrevistoMs));
-        poner("seccion-estado", s.estado === "actual" ? (e.estado === "pausa" ? "En pausa" : "En vivo ahora")
-          : s.estado === "hecha" ? "Ya pasó" : (s.inicioEstimadoMs || s.inicioPrevistoMs ? "Más tarde · " + hora(s.inicioEstimadoMs || s.inicioPrevistoMs) : "Más tarde"));
+        poner("seccion-estado", s.estado === "actual" ? (e.estado === "pausa" ? t("En pausa") : t("En vivo ahora"))
+          : s.estado === "hecha" ? t("Ya pasó") : (s.inicioEstimadoMs || s.inicioPrevistoMs ? llenar(t("Más tarde · %1"), hora(s.inicioEstimadoMs || s.inicioPrevistoMs)) : t("Más tarde")));
         for (const el of $$('[data-vivo="seccion-estado"]')) el.classList.toggle("en_vivo", s.estado === "actual");
         const ant = secciones[i - 1], prox = secciones[i + 1];
-        poner("anterior-nombre", ant ? ant.nombre : "Portada");
-        poner("proxima-nombre", prox ? prox.nombre : "El cierre");
+        poner("anterior-nombre", ant ? ant.nombre : t("Portada"));
+        poner("proxima-nombre", prox ? prox.nombre : t("El cierre"));
         href("anterior", ant ? ant.pagina : "portada.html");
         href("proxima", prox ? prox.pagina : "cierre.html");
         document.title = s.nombre + " — " + nombre;
       }
     } else {
-      document.title = nombre + (e.estado === "terminado" && /cierre/.test(location.pathname) ? " — Gracias" : "");
+      document.title = nombre + (e.estado === "terminado" && /cierre/.test(location.pathname) ? " — " + t("Gracias") : "");
     }
   }
 
@@ -240,8 +288,8 @@
         const n = document.createElement("span"); n.className = "nombre"; n.textContent = s.nombre;
         const m = document.createElement("span"); m.className = "meta";
         // Ya empezó: a qué hora y en qué minuto de la grabación (capítulo). Si no, cuándo se espera.
-        const cap = s.inicioRealMs && ultimo && ultimo.arrancoMs ? "min " + mmss((s.inicioRealMs - ultimo.arrancoMs) / 1000) : "";
-        m.textContent = (s.inicioRealMs ? ["Empezó " + hora(s.inicioRealMs), cap]
+        const cap = s.inicioRealMs && ultimo && ultimo.arrancoMs ? llenar(t("min %1"), mmss((s.inicioRealMs - ultimo.arrancoMs) / 1000)) : "";
+        m.textContent = (s.inicioRealMs ? [llenar(t("Empezó %1"), hora(s.inicioRealMs)), cap]
                                         : [hora(s.inicioEstimadoMs || s.inicioPrevistoMs), duracionCorta(s.duracionSeg)])
           .filter(Boolean).join(" · ");
         a.append(n, m);
@@ -276,7 +324,7 @@
         const a = document.createElement("a");
         a.href = v.url; a.target = "_blank"; a.rel = "noopener";
         a.className = "plataforma " + v.plataforma + (v.enVivo ? " al-aire" : "");
-        a.textContent = "Ver en " + (v.nombre || NOMBRES[v.plataforma] || v.plataforma);
+        a.textContent = llenar(t("Ver en %1"), v.nombre || NOMBRES[v.plataforma] || v.plataforma);
         nav.appendChild(a);
       }
     }
@@ -292,7 +340,7 @@
     if (!v) {
       const vacio = document.createElement("div");
       vacio.className = "reproductor-vacio";
-      vacio.textContent = caja.dataset.vacio || "El vivo aparece acá cuando empiece la transmisión.";
+      vacio.textContent = caja.dataset.vacio ? t(caja.dataset.vacio) : t("El vivo aparece acá cuando empiece la transmisión.");
       caja.appendChild(vacio);
       return;
     }
@@ -300,7 +348,7 @@
       const tabs = document.createElement("div");
       tabs.className = "pestanas";
       tabs.setAttribute("role", "tablist");
-      tabs.setAttribute("aria-label", "Plataforma");
+      tabs.setAttribute("aria-label", t("Plataforma"));
       for (const x of vivos) {
         const b = document.createElement("button");
         b.type = "button";
@@ -317,7 +365,7 @@
     marco.className = "reproductor";
     const f = document.createElement("iframe");
     f.src = embedDe(v);
-    f.title = "En vivo por " + (v.nombre || v.plataforma);
+    f.title = llenar(t("En vivo por %1"), v.nombre || v.plataforma);
     f.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
     f.allowFullscreen = true;
     marco.appendChild(f);
@@ -343,11 +391,11 @@
     if (d.miniatura) { const img = document.createElement("img"); img.src = d.miniatura; img.alt = ""; img.loading = "lazy"; tapa.appendChild(img); }
     else tapa.textContent = "PDF";
     const cuerpo = document.createElement("span"); cuerpo.className = "doc-cuerpo";
-    const t = document.createElement("b"); t.textContent = d.titulo;
-    cuerpo.appendChild(t);
+    const tit = document.createElement("b"); tit.textContent = d.titulo;
+    cuerpo.appendChild(tit);
     if (d.descripcion) { const p = document.createElement("span"); p.className = "doc-desc"; p.textContent = d.descripcion; cuerpo.appendChild(p); }
     const m = document.createElement("span"); m.className = "ceja";
-    m.textContent = ["PDF", d.paginas ? d.paginas + (d.paginas === 1 ? " página" : " páginas") : "", kb(d.bytes), "Descargar"].filter(Boolean).join(" · ");
+    m.textContent = ["PDF", d.paginas ? t("%n página", { n: d.paginas }) : "", kb(d.bytes), t("Descargar")].filter(Boolean).join(" · ");
     cuerpo.appendChild(m);
     a.append(tapa, cuerpo);
     return a;
@@ -372,7 +420,7 @@
     lista('[data-vivo="documentos-punto"]', delPunto, tarjetaDoc);
   }
 
-  const ESTADO_PUNTO = { pendiente: "Pendiente", en_tratamiento: "En tratamiento", votado: "Votado", comision: "A comisión", retirado: "Retirado" };
+  const ESTADO_PUNTO = () => ({ pendiente: t("Pendiente"), en_tratamiento: t("En tratamiento"), votado: t("Votado"), comision: t("A comisión"), retirado: t("Retirado") });
   function datosDelSistema(e) {
     si("invitados", !!e.invitados);
     const aire = e.aire || {};
@@ -399,11 +447,11 @@
       const li = document.createElement("li");
       li.className = "punto " + (p.estado || "");
       const n = document.createElement("span"); n.className = "mono tenue"; n.textContent = dos(p.n);
-      const t = document.createElement("div");
+      const tx = document.createElement("div");
       const b = document.createElement("b"); b.textContent = p.titulo;
       const m = document.createElement("span"); m.className = "ceja";
-      m.textContent = [p.expediente ? "Expte. " + p.expediente : "", ESTADO_PUNTO[p.estado] || p.estado, p.resultado].filter(Boolean).join(" · ");
-      t.append(b, m);
+      m.textContent = [p.expediente ? llenar(t("Expte. %1"), p.expediente) : "", ESTADO_PUNTO()[p.estado] || p.estado, p.resultado].filter(Boolean).join(" · ");
+      tx.append(b, m);
       // Los documentos del punto (si los hay).
       const docs = (e.documentos || []).filter((d) => (d.puntos || []).includes(p.n));
       if (docs.length) {
@@ -412,16 +460,16 @@
           const a = document.createElement("a"); a.href = d.pdf; a.target = "_blank"; a.rel = "noopener";
           a.textContent = "📄 " + d.titulo; dl.appendChild(a);
         }
-        t.appendChild(dl);
+        tx.appendChild(dl);
       }
-      li.append(n, t);
+      li.append(n, tx);
       return li;
     });
     // Quórum y asistencia.
     const q = e.quorum || null;
     si("quorum", !!q);
     poner("quorum-presentes", q ? String(q.presentes) : ""); poner("quorum-necesarios", q ? String(q.necesarios) : "");
-    poner("quorum-estado", q ? (q.hay ? "Hay quórum" : "Sin quórum") : "");
+    poner("quorum-estado", q ? (q.hay ? t("Hay quórum") : t("Sin quórum")) : "");
     const as = e.asistencia || null;
     si("asistencia", !!as);
     poner("asistencia-presentes", as ? String(as.presentes) : ""); poner("asistencia-total", as ? String(as.total) : "");
@@ -429,9 +477,9 @@
     const v = e.votacion || null;
     si("votacion-info", !!(v && v.pregunta));
     poner("votacion-pregunta", v ? v.pregunta : "");
-    poner("votacion-estado", v ? (v.abierta ? "Votación abierta" : "Votación cerrada") : "");
+    poner("votacion-estado", v ? (v.abierta ? t("Votación abierta") : t("Votación cerrada")) : "");
     for (const el of $$('[data-vivo="votacion-estado"]')) el.classList.toggle("en_vivo", !!(v && v.abierta));
-    poner("votacion-votaron", v ? (v.podian ? v.votaron + " de " + v.podian + " votaron" : v.votaron + " votaron") : "");
+    poner("votacion-votaron", v ? (v.podian ? llenar(t("%1 de %2 votaron"), v.votaron, v.podian) : llenar(t("%1 votaron"), v.votaron)) : "");
     const res = (v && v.resultado) || [];
     si("resultado", res.length > 0);
     const total = res.reduce((a, r) => a + r.votos, 0) || 1;
@@ -486,11 +534,11 @@
         pres = { x: -0.5, y: 0, w: (C - 1) * paso + 1 };
       }
       const s = svg("svg", { viewBox: vb.map((n) => n.toFixed(2)).join(" "), role: "img",
-                             "aria-label": "Plano de bancas: " + (a.presentes || 0) + " de " + (a.total || 0) + " presentes" });
+                             "aria-label": llenar(t("Plano de bancas: %1 de %2 presentes"), a.presentes || 0, a.total || 0) });
       s.append(svg("rect", { x: pres.x, y: pres.y, width: pres.w, height: 0.8, rx: 0.15, class: "presidencia" }));
-      const t = svg("text", { x: pres.x + pres.w / 2, y: pres.y + 0.52, "text-anchor": "middle", class: "presidencia-texto" });
-      t.textContent = "PRESIDENCIA";
-      s.append(t);
+      const tx = svg("text", { x: pres.x + pres.w / 2, y: pres.y + 0.52, "text-anchor": "middle", class: "presidencia-texto" });
+      tx.textContent = t("PRESIDENCIA");
+      s.append(tx);
       for (const [b, x, y] of lugar) {
         const g = svg("g", { class: "banca" + (b.presente ? " presente" : "") + (b.habla ? " habla" : "") + (b.nombre ? "" : " vacia") });
         const c = color(b.bloque);
@@ -499,8 +547,8 @@
         const n = svg("text", { x: x, y: y + 0.13, "text-anchor": "middle", class: "numero" + (b.presente ? " sobre" : "") });
         n.textContent = b.banca;
         const tt = svg("title", {});
-        tt.textContent = (b.nombre || "Banca sin ocupar") + (b.bloque ? " · " + b.bloque : "") + " · Banca " + b.banca
-          + (b.nombre ? (b.habla ? " · Habla" : b.presente ? (b.lugar === "remoto" ? " · Presente (remoto)" : " · Presente") : " · Ausente") : "");
+        tt.textContent = (b.nombre || t("Banca sin ocupar")) + (b.bloque ? " · " + b.bloque : "") + " · " + llenar(t("Banca %1"), b.banca)
+          + (b.nombre ? " · " + (b.habla ? t("Habla") : b.presente ? (b.lugar === "remoto" ? t("Presente (remoto)") : t("Presente")) : t("Ausente")) : "");
         g.append(n, tt);
         s.append(g);
       }
@@ -522,12 +570,12 @@
     const a = e.asamblea || null;
     si("asamblea", !!a);
     if (!a) return;
-    poner("asamblea-cuerpo", a.cuerpo || "La asamblea");
+    poner("asamblea-cuerpo", a.cuerpo || t("La asamblea"));
     poner("asamblea-presentes", String(a.presentes || 0));
     poner("asamblea-total", String(a.total || 0));
     const q = a.quorum || null;
     si("asamblea-quorum", !!q);
-    poner("asamblea-quorum", q ? (q.hay ? "Hay quórum" : "Sin quórum") + " · se necesitan " + q.necesarios : "");
+    poner("asamblea-quorum", q ? (q.hay ? t("Hay quórum") : t("Sin quórum")) + " · " + llenar(t("se necesitan %1"), q.necesarios) : "");
     for (const el of $$('[data-vivo="asamblea-quorum"]')) el.classList.toggle("en_vivo", !!(q && q.hay));
     plano(a);
     const colorI = colorDeBloque(a);
@@ -537,27 +585,27 @@
       if (p.bloque) li.style.borderLeft = "3px solid " + colorI(p.bloque);
       const n = document.createElement("b"); n.textContent = p.nombre;
       const d = document.createElement("span"); d.className = "tenue";
-      d.textContent = [p.banca ? "Banca " + p.banca : "", p.bloque].filter(Boolean).join(" · ");
+      d.textContent = [p.banca ? llenar(t("Banca %1"), p.banca) : "", p.bloque].filter(Boolean).join(" · ");
       const est = document.createElement("span"); est.className = "ceja";
-      est.textContent = p.habla ? "Habla" : p.presente ? (p.lugar === "remoto" ? "Presente · remoto" : "Presente") : "Ausente";
+      est.textContent = p.habla ? t("Habla") : p.presente ? (p.lugar === "remoto" ? t("Presente · remoto") : t("Presente")) : t("Ausente");
       li.append(n, d, est);
       return li;
     });
     const pt = a.punto || null;
     si("punto", !!pt);
-    poner("punto-titulo", pt ? (pt.n ? "Punto " + pt.n + " · " : "") + pt.titulo : "");
-    poner("punto-expediente", pt && pt.expediente ? "Expte. " + pt.expediente : "");
+    poner("punto-titulo", pt ? (pt.n ? llenar(t("Punto %1"), pt.n) + " · " : "") + pt.titulo : "");
+    poner("punto-expediente", pt && pt.expediente ? llenar(t("Expte. %1"), pt.expediente) : "");
     const vs = a.votaciones || [];
     si("votaciones", vs.length > 0);
     lista('[data-vivo="votaciones"]', vs, (v) => {
       const li = document.createElement("li");
       li.className = "votacion-oficial " + (v.aprobado ? "aprobado" : "rechazado");
-      const t = document.createElement("b"); t.textContent = v.asunto;
+      const tit = document.createElement("b"); tit.textContent = v.asunto;
       const r = document.createElement("span"); r.className = "mono";
-      r.textContent = v.afirmativos + " a favor · " + v.negativos + " en contra · " + v.abstenciones + " abstenciones";
+      r.textContent = llenar(t("%1 a favor · %2 en contra · %3 abstenciones"), v.afirmativos, v.negativos, v.abstenciones);
       const est = document.createElement("span"); est.className = "estado" + (v.aprobado ? " en_vivo" : "");
-      est.textContent = v.aprobado ? "Aprobado" : "Rechazado";
-      li.append(t, r, est);
+      est.textContent = v.aprobado ? t("Aprobado") : t("Rechazado");
+      li.append(tit, r, est);
       return li;
     });
   }
@@ -573,8 +621,8 @@
     for (const grupo of $$(".columnas")) {
       let i = 0;
       for (const el of grupo.querySelectorAll("[data-letra]")) {
-        const t = el.closest(".tarjeta");
-        if (!t || !t.hidden) el.textContent = String.fromCharCode(65 + i++);
+        const tj = el.closest(".tarjeta");
+        if (!tj || !tj.hidden) el.textContent = String.fromCharCode(65 + i++);
       }
     }
   }
@@ -586,19 +634,19 @@
     if (e.ahoraMs) desfase = e.ahoraMs - Date.now();
     const secciones = e.secciones || [];
     for (const el of $$('[data-vivo="estado"]')) {
-      el.textContent = ESTADOS[e.estado] || "";
+      el.textContent = ESTADOS()[e.estado] || "";
       el.classList.remove("proximo", "en_vivo", "pausa", "terminado");
       if (e.estado) el.classList.add(e.estado);
     }
     si("proximo", e.estado === "proximo"); si("terminado", e.estado === "terminado");
     si("en_vivo", e.estado === "en_vivo" || e.estado === "pausa"); si("no-proximo", e.estado !== "proximo");
-    poner("seccion", e.seccion ? e.seccion.nombre : e.estado === "terminado" ? "Terminó" : "Todavía no empezó");
-    poner("siguiente", e.siguiente ? e.siguiente.nombre : e.estado === "terminado" ? "—" : e.seccion ? "El cierre" : (secciones[0] ? secciones[0].nombre : "—"));
+    poner("seccion", e.seccion ? e.seccion.nombre : e.estado === "terminado" ? t("Terminó") : t("Todavía no empezó"));
+    poner("siguiente", e.siguiente ? e.siguiente.nombre : e.estado === "terminado" ? "—" : e.seccion ? t("El cierre") : (secciones[0] ? secciones[0].nombre : "—"));
     datosDelEvento(e);
     rehacerAgendas(secciones);
     const n = secciones.length, i = secciones.findIndex((s) => s.estado === "actual");
     for (const b of $$('[data-vivo="progreso"]')) b.style.width = (n && i >= 0 ? (100 * (i + 1)) / n : 0) + "%";
-    poner("progreso-texto", i >= 0 ? "Sección " + dos(i + 1) + " de " + dos(n) : "");
+    poner("progreso-texto", i >= 0 ? llenar(t("Sección %1 de %2"), dos(i + 1), dos(n)) : "");
     poner("habla", e.habla || ""); si("habla", !!e.habla);
     const aviso = e.aviso && e.aviso.texto ? e.aviso : null;
     poner("aviso", aviso ? aviso.texto : "");
@@ -607,9 +655,9 @@
     // Cuánta gente: en la sala (invitados e integrantes conectados) y mirando la página.
     const enSala = e.enLaSala || 0, mirando = e.mirando || 0;
     poner("en-la-sala", String(enSala));
-    poner("en-la-sala-texto", enSala === 1 ? "persona en la sala" : "personas en la sala");
+    poner("en-la-sala-texto", enSala === 1 ? t("persona en la sala") : t("personas en la sala"));
     poner("mirando", String(mirando));
-    poner("mirando-texto", mirando === 1 ? "mirando esta página" : "mirando esta página");
+    poner("mirando-texto", t("mirando esta página"));
     si("en-la-sala", enSala > 0); si("mirando", mirando > 1); si("conectados", enSala > 0 || mirando > 1);
     // Las preguntas del público (solo las moderadas: la que se responde, las elegidas y las
     // respondidas). Sin preguntas, el bloque no aparece.
@@ -627,10 +675,10 @@
         li.className = "pregunta " + p.estado;
         const et = document.createElement("span");
         et.className = "ceja";
-        et.textContent = p.estado === "al_aire" ? "Respondiendo ahora" : p.estado === "respondida" ? "Respondida" : "En la cola";
-        const t = document.createElement("p");
-        t.textContent = p.texto;
-        li.append(et, t);
+        et.textContent = p.estado === "al_aire" ? t("Respondiendo ahora") : p.estado === "respondida" ? t("Respondida") : t("En la cola");
+        const tx = document.createElement("p");
+        tx.textContent = p.texto;
+        li.append(et, tx);
         if (p.nombre) { const n = document.createElement("span"); n.className = "tenue"; n.textContent = "— " + p.nombre; li.appendChild(n); }
         ul.appendChild(li);
       }
@@ -676,13 +724,16 @@
   }
 
   const enMarco = window.parent !== window;
+  // Cada estado pasa por acá: primero el idioma (si cambió), después se aplica. En orden.
+  let cola = Promise.resolve();
+  const recibir = (e) => { cola = cola.then(() => idioma(e)).catch(() => {}).then(() => aplicar(e)); };
   window.addEventListener("message", (ev) => {
-    if (ev.origin === location.origin && ev.data && ev.data.tipo === "evento") aplicar(ev.data.estado);
+    if (ev.origin === location.origin && ev.data && ev.data.tipo === "evento") recibir(ev.data.estado);
   });
   async function traer() {
     try {
       const r = await fetch("/api/v1/evento?v=" + idMirada, { cache: "no-store" });
-      if (r.ok) aplicar(await r.json());
+      if (r.ok) recibir(await r.json());
     } catch (err) { /* se reintenta */ }
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", componentes);

@@ -25,13 +25,13 @@
 // solo. Con ?audio=0 ni se intenta, que es lo que conviene cuando el sonido de
 // la sala sale por los parlantes y no por el televisor.
 // ============================================================================
-(() => {
+(async () => {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
   const q = new URLSearchParams(location.search);
   const token = q.get("token") || "";
-  const nombre = q.get("nombre") || "Pantalla";
+  const nombre = q.get("nombre") || "";
   // Una escena que no es el programa: el canal que le dio la app (vacío: el
   // programa). Va también al reengancharse, para seguir en la misma escena.
   const canal = /^\d{1,2}$/.test(q.get("canal") || "") ? q.get("canal") : "";
@@ -113,7 +113,7 @@
       if (!m) return;
       if (m.type === "hello") {
         if (m.id) { st.id = m.id; st.key = m.key || ""; guardarSesion(); }
-        avisar("Esperando el programa…", nombre);
+        avisar(t("Esperando el programa…"), nombre || t("Pantalla"));
         armarPeer();
       } else if (m.type === "answer" && st.pc) {
         st.pc.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
@@ -125,12 +125,12 @@
         if (m.reason === "solo_mirar") {
           // No debería pasar nunca desde acá: es el servidor diciendo que el
           // offer ofrecía subir algo. Si aparece, es que esta página cambió.
-          avisar("El servidor me cortó", "Esta pantalla solo puede mirar");
+          avisar(t("El servidor me cortó"), t("Esta pantalla solo puede mirar"));
         } else {
-          avisar("La conferencia no me dejó entrar", m.reason === "locked" ? "Está cerrada" : "No hay lugar");
+          avisar(t("La conferencia no me dejó entrar"), m.reason === "locked" ? t("Está cerrada") : t("No hay lugar"));
         }
       } else if (m.type === "busy") {
-        avisar("No hay lugar para otra pantalla", "Probá cerrando alguna");
+        avisar(t("No hay lugar para otra pantalla"), t("Probá cerrando alguna"));
       }
     };
 
@@ -148,7 +148,7 @@
       // días prendido y no tiene sentido que martille la red.
       st.reintento = Math.min(st.reintento + 1, 6);
       const espera = Math.min(1000 * 2 ** st.reintento, 30000);
-      avisar("Reconectando…", `En ${Math.round(espera / 1000)} s`);
+      avisar(t("Reconectando…"), BAi18n.llenar(t("En %1 s"), Math.round(espera / 1000)));
       setTimeout(conectar, espera);
     };
   }
@@ -192,7 +192,7 @@
       if (st.pc !== pc) return;
       if (pc.connectionState === "connected") return; // el aviso lo saca el primer cuadro
       if (pc.connectionState === "failed") {
-        avisar("Se cortó el video", "Reconectando…");
+        avisar(t("Se cortó el video"), t("Reconectando…"));
         setTimeout(() => { if (st.pc === pc && !st.cerrado) armarPeer(); }, 1500);
       }
     };
@@ -256,7 +256,7 @@
       // Diez segundos sin un cuadro nuevo con la conexión "sana": se rearma.
       if (++st.quieto >= 10) {
         st.quieto = 0;
-        avisar("Sin imagen", "Reintentando…");
+        avisar(t("Sin imagen"), t("Reintentando…"));
         armarPeer();
       }
     }
@@ -310,8 +310,10 @@
     } catch (e) { /* getStats puede no estar en un televisor viejo */ }
   }, 1000);
 
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/cast", preferir: "evento" });
   if (!token) {
-    avisar("Falta el token", "Esta pantalla se abre desde la app, no a mano");
+    avisar(t("Falta el token"), t("Esta pantalla se abre desde la app, no a mano"));
     return;
   }
   // El canal de control: dice en qué estado está (conectando, sin imagen, al
@@ -350,6 +352,6 @@
     });
   }
 
-  avisar("Conectando…");
+  avisar(t("Conectando…"));
   conectar();
 })();

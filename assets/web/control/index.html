@@ -6,11 +6,12 @@
   <meta name="theme-color" content="#22252c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <title>Control</title>
+  <title data-i18n="Control">Control</title>
   <link rel="apple-touch-icon" href="/comun/icono-180.png" />
   <link rel="stylesheet" href="/comun/neuro/temas.css" />
   <link rel="stylesheet" href="/comun/neuro/neuro.css" />
   <link rel="stylesheet" href="control.css" />
+  <script src="/comun/i18n.js"></script>
   <script src="/comun/neuro/neuro.js"></script>
 </head>
 <body>
@@ -28,13 +29,13 @@
     pestaña nueva).
   -->
   <header class="barra">
-    <span class="marca"><span class="punto-marca"></span><strong>Control</strong></span>
+    <span class="marca"><span class="punto-marca"></span><strong data-i18n="Control">Control</strong></span>
     <span id="aparato" class="suave"></span>
     <ba-tally id="tally" estado="nada" etiqueta="Fuera del aire"></ba-tally>
     <span class="espacio"></span>
-    <ba-chip id="conexion" estado="apagado">Desconectado</ba-chip>
-    <ba-boton id="botonTarjetas" compacto title="Qué tarjetas mostrar">▦ Tarjetas</ba-boton>
-    <ba-boton id="botonCompleta" compacto redondo title="Pantalla completa">⤢</ba-boton>
+    <ba-chip id="conexion" estado="apagado" data-i18n="Desconectado">Desconectado</ba-chip>
+    <ba-boton id="botonTarjetas" compacto title="Qué tarjetas mostrar" data-i18n-title="Qué tarjetas mostrar" data-i18n="▦ Tarjetas">▦ Tarjetas</ba-boton>
+    <ba-boton id="botonCompleta" compacto redondo title="Pantalla completa" data-i18n-title="Pantalla completa">⤢</ba-boton>
   </header>
 
   <main id="tablero" class="tablero"></main>
@@ -45,10 +46,10 @@
   <!-- Emparejar este aparato. -->
   <section id="emparejar" class="cubre oculto">
     <div class="caja panel">
-      <h1>Emparejar este aparato</h1>
-      <p id="emparejarTexto" class="suave">Poné un nombre para reconocerlo y pedí el emparejamiento. Una persona lo aprueba en la app.</p>
-      <input id="nombre" type="text" maxlength="60" placeholder="Ej.: iPad de dirección" />
-      <ba-boton id="pedir" variante="acento" grande>Pedir emparejamiento</ba-boton>
+      <h1 data-i18n="Emparejar este aparato">Emparejar este aparato</h1>
+      <p id="emparejarTexto" class="suave" data-i18n="Poné un nombre para reconocerlo y pedí el emparejamiento. Una persona lo aprueba en la app.">Poné un nombre para reconocerlo y pedí el emparejamiento. Una persona lo aprueba en la app.</p>
+      <input id="nombre" type="text" maxlength="60" placeholder="Ej.: iPad de dirección" data-i18n-placeholder="Ej.: iPad de dirección" />
+      <ba-boton id="pedir" variante="acento" grande data-i18n="Pedir emparejamiento">Pedir emparejamiento</ba-boton>
     </div>
   </section>
 
@@ -57,17 +58,17 @@
     <div class="caja panel">
       <h1 id="mensajeTitulo"></h1>
       <p id="mensajeTexto" class="suave"></p>
-      <ba-boton id="olvidar" class="oculto">Olvidar este aparato</ba-boton>
+      <ba-boton id="olvidar" class="oculto" data-i18n="Olvidar este aparato">Olvidar este aparato</ba-boton>
     </div>
   </section>
 
   <!-- Confirmar lo que corta el aire. -->
   <section id="confirmar" class="cubre oculto">
     <div class="caja panel confirmar">
-      <h2 id="confirmarTexto">Cambia el aire</h2>
+      <h2 id="confirmarTexto" data-i18n="Cambia el aire">Cambia el aire</h2>
       <div class="fila">
-        <ba-boton id="confirmarNo" class="lleno">Cancelar</ba-boton>
-        <ba-boton id="confirmarSi" variante="aire" class="lleno">Sí, hacelo</ba-boton>
+        <ba-boton id="confirmarNo" class="lleno" data-i18n="Cancelar">Cancelar</ba-boton>
+        <ba-boton id="confirmarSi" variante="aire" class="lleno" data-i18n="Sí, hacelo">Sí, hacelo</ba-boton>
       </div>
     </div>
   </section>

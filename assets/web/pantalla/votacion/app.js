@@ -1,6 +1,8 @@
 // La votación proyectada. Consulta al gateway y dibuja lo que le manda.
-(() => {
+(async () => {
   "use strict";
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/pantalla", preferir: "evento" });
   const q = new URLSearchParams(location.search);
   const clave = q.get("k") || "";
   // La dirección que va adentro del QR: la arma quien manda a mostrar esto,
@@ -17,15 +19,15 @@
     const hay = v && v.hay === true;
     $("hay").classList.toggle("hidden", !hay);
     $("nada").classList.toggle("hidden", hay);
-    if (!hay) { document.title = "Votación"; return; }
+    if (!hay) { document.title = t("Votación"); return; }
 
-    $("estado").textContent = (v.modo === "formal" ? "Votación" : "Encuesta") +
-                              (v.abierta ? " · abierta" : " · cerrada") +
-                              (v.vinculante ? "" : " · consulta, no vinculante");
+    $("estado").textContent = [v.modo === "formal" ? t("Votación") : t("Encuesta"),
+                               v.abierta ? t("abierta") : t("cerrada"),
+                               v.vinculante ? "" : t("consulta, no vinculante")].filter(Boolean).join(" · ");
     $("estado").className = "estado" + (v.abierta ? " abierta" : "");
     // textContent y nunca innerHTML: la pregunta la escribió una persona.
     $("pregunta").textContent = v.pregunta || "";
-    document.title = v.pregunta || "Votación";
+    document.title = v.pregunta || t("Votación");
 
     // `resultado` viene SOLO cuando el gateway considera que corresponde. Sin
     // él se muestran las opciones sin números: la gente tiene que saber qué
@@ -59,8 +61,8 @@
 
     // El quórum con sus dos números, que es como se lee desde la sala.
     $("cuenta").textContent = v.podian > 0
-      ? "votaron " + v.votaron + " de " + v.podian
-      : "votaron " + v.votaron;
+      ? BAi18n.llenar(t("votaron %1 de %2"), v.votaron, v.podian)
+      : BAi18n.llenar(t("votaron %1"), v.votaron);
     // El QR no hace falta una vez cerrada: ya no se puede votar.
     $("como").classList.toggle("oculto", !entrada || !v.abierta);
   }

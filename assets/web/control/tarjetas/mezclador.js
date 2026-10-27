@@ -4,7 +4,7 @@
   const { el, boton, maxDb, ms, vacio, texto, attr, sincronizar } = BA.tj;
   BA.tarjetas.push(
   {
-    id: "audio", titulo: "Mezclador", temas: ["audio"], ancha: true,
+    id: "audio", get titulo() { return t("Mezclador"); }, temas: ["audio"], ancha: true,
     herramientas: ["audio_set"],
     crear(c, api) {
       this.api = api;
@@ -23,7 +23,7 @@
         attr(ch, "estado", l.fuera_de_objetivo ? "aviso" : "ok");
         texto(ch, ch.dataset.k + " " + (v > -100 ? v.toFixed(1) : "—"));
       }
-      texto(this.objetivo, l.objetivo ? "objetivo " + l.objetivo.lufs + " LUFS" : "");
+      texto(this.objetivo, l.objetivo ? BAi18n.llenar(t("objetivo %1 LUFS"), l.objetivo.lufs) : "");
       const entradas = d.entradas || [];
       sincronizar(this.canales, entradas.map((e) => e.nombre), (nombre) => {
         const canal = el("div", "canal");

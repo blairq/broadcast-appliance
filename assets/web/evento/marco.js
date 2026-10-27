@@ -26,7 +26,8 @@ let ultimo = null;      // el último estado
 let paginaActual = "";  // lo que muestra el iframe
 let desfase = 0;        // reloj de la sala - reloj de acá
 
-const ESTADOS = { proximo: "Próximamente", en_vivo: "En vivo", pausa: "En pausa", terminado: "Terminó" };
+let idiomaEvento = null; // el idioma del evento con el que se cargaron los textos
+const ESTADOS = () => ({ proximo: t("Próximamente"), en_vivo: t("En vivo"), pausa: t("En pausa"), terminado: t("Terminó") });
 
 function mmss(seg) {
   seg = Math.max(0, Math.round(seg));
@@ -37,13 +38,13 @@ function mmss(seg) {
 function pintarReloj() {
   if (!ultimo) return;
   const ahora = Date.now() + desfase;
-  let t = "";
+  let texto = "";
   if (ultimo.estado === "en_vivo" || ultimo.estado === "pausa") {
-    if (ultimo.arrancoMs) t = "lleva " + mmss((ahora - ultimo.arrancoMs) / 1000);
+    if (ultimo.arrancoMs) texto = BAi18n.llenar(t("lleva %1"), mmss((ahora - ultimo.arrancoMs) / 1000));
   } else if (ultimo.estado === "proximo" && ultimo.inicioMs && ultimo.inicioMs > ahora) {
-    t = "empieza en " + mmss((ultimo.inicioMs - ahora) / 1000);
+    texto = BAi18n.llenar(t("empieza en %1"), mmss((ultimo.inicioMs - ahora) / 1000));
   }
-  $("reloj").textContent = t;
+  $("reloj").textContent = texto;
 }
 
 function aplicar(e) {
@@ -59,18 +60,18 @@ function aplicar(e) {
   $("sinEvento").classList.add("oculto");
   $("pagina").classList.remove("oculto");
   if (e.color) document.documentElement.style.setProperty("--color", e.color);
-  document.title = e.nombre || "Evento en vivo";
+  document.title = e.nombre || t("Evento en vivo");
   $("barra").classList.toggle("oculto", e.barra === false);
-  $("estado").textContent = ESTADOS[e.estado] || e.estado || "";
+  $("estado").textContent = ESTADOS()[e.estado] || e.estado || "";
   $("estado").className = "vivo " + (e.estado || "");
   $("nombre").textContent = e.nombre || "";
   $("ahora").innerHTML = "";
   if (e.seccion) {
     const b = document.createElement("b");
-    b.textContent = "Ahora: ";
+    b.textContent = t("Ahora:") + " ";
     $("ahora").append(b, document.createTextNode(e.seccion.nombre));
   }
-  $("sigue").textContent = e.siguiente ? "Sigue: " + e.siguiente.nombre : "";
+  $("sigue").textContent = e.siguiente ? BAi18n.llenar(t("Sigue: %1"), e.siguiente.nombre) : "";
   pintarReloj();
   // La página: cambia cuando cambia la sección (o cuando se regeneró el sitio).
   const p = (e.pagina || "portada.html") + (e.version ? "?v=" + e.version : "");
@@ -84,7 +85,14 @@ function aplicar(e) {
 async function traer() {
   try {
     const r = await fetch("/api/v1/evento?v=" + idMirada, { cache: "no-store" });
-    if (r.ok) aplicar(await r.json());
+    if (!r.ok) return;
+    const e = await r.json();
+    // Los textos, en el idioma del evento (lo dice el estado; cambia si lo cambian).
+    if ((e.idioma || "") !== idiomaEvento) {
+      idiomaEvento = e.idioma || "";
+      await BAi18n.iniciar({ contexto: "web/evento", evento: idiomaEvento, preferir: "evento" });
+    }
+    aplicar(e);
   } catch (err) { /* sin conexión: se reintenta en la próxima vuelta */ }
 }
 
@@ -94,6 +102,9 @@ window.addEventListener("message", (ev) => {
     ev.source.postMessage({ tipo: "evento", estado: ultimo }, location.origin);
 });
 
-traer();
-setInterval(traer, 2000);
-setInterval(pintarReloj, 1000);
+(async () => {
+  await BAi18n.iniciar({ contexto: "web/evento", preferir: "evento" });
+  traer();
+  setInterval(traer, 2000);
+  setInterval(pintarReloj, 1000);
+})();

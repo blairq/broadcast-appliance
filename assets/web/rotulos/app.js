@@ -45,11 +45,11 @@ async function mirar() {
   try {
     r = await fetch(API + "?k=" + encodeURIComponent(clave), { cache: "no-store" });
   } catch (e) {
-    $("estado").textContent = "sin conexión";
+    $("estado").textContent = t("sin conexión");
     return;
   }
-  if (r.status === 403) { mostrarPin("La clave no sirve. Pedile el QR al operador."); return; }
-  if (!r.ok) { $("estado").textContent = "error " + r.status; return; }
+  if (r.status === 403) { mostrarPin(t("La clave no sirve. Pedile el QR al operador.")); return; }
+  if (!r.ok) { $("estado").textContent = BAi18n.llenar(t("error %1"), r.status); return; }
   dibujar(await r.json());
 }
 
@@ -63,10 +63,10 @@ async function encargar(id, accion, valores, grafico) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(cuerpo)
     });
-    if (r.status === 403) { mostrarPin("La clave no sirve."); return; }
-    avisar(id, accion === "sacar" ? "sacado" : "mandado");
+    if (r.status === 403) { mostrarPin(t("La clave no sirve.")); return; }
+    avisar(id, accion === "sacar" ? t("sacado") : t("mandado"));
   } catch (e) {
-    avisar(id, "no salió");
+    avisar(id, t("no salió"));
   }
 }
 
@@ -79,8 +79,8 @@ function avisar(id, texto) {
 }
 
 function dibujar(est) {
-  $("escena").textContent = est.escena ? est.escena : "sin escena al aire";
-  $("estado").textContent = est.viva ? "" : "la app no responde";
+  $("escena").textContent = est.escena ? est.escena : t("sin escena al aire");
+  $("estado").textContent = est.viva ? "" : t("la app no responde");
   $("estado").className = "estado" + (est.viva ? "" : " mal");
 
   const fuentes = Array.isArray(est.fuentes) ? est.fuentes : [];
@@ -95,8 +95,7 @@ function dibujar(est) {
   if (fuentes.length === 0) {
     const p = document.createElement("p");
     p.className = "vacio";
-    p.textContent = "La escena que está al aire no tiene ningún gráfico. " +
-                    "Cuando el operador cambie de escena, esto se llena solo.";
+    p.textContent = t("La escena que está al aire no tiene ningún gráfico. Cuando el operador cambie de escena, esto se llena solo.");
     lista.appendChild(p);
     return;
   }
@@ -143,17 +142,17 @@ function dibujar(est) {
 
     const aire = document.createElement("button");
     aire.className = "primario";
-    aire.textContent = "Al aire";
+    aire.textContent = t("Al aire");
     aire.addEventListener("click", () => encargar(f.id, "aire", juntar(), f.grafico));
     fila.appendChild(aire);
 
     const bucle = document.createElement("button");
-    bucle.textContent = "En bucle";
+    bucle.textContent = t("En bucle");
     bucle.addEventListener("click", () => encargar(f.id, "bucle", juntar(), f.grafico));
     fila.appendChild(bucle);
 
     const sacar = document.createElement("button");
-    sacar.textContent = "Sacar";
+    sacar.textContent = t("Sacar");
     sacar.addEventListener("click", () => encargar(f.id, "sacar", null, null));
     fila.appendChild(sacar);
 
@@ -167,6 +166,10 @@ function dibujar(est) {
   }
 }
 
-mirar();
-setInterval(mirar, 1500);
+// Los textos, en el idioma del evento; después, a mirar.
+BAi18n.iniciar({ contexto: "web/rotulos", preferir: "evento" }).then(() => {
+  if (window.BA && BA.traducir) BA.traducir();
+  mirar();
+  setInterval(mirar, 1500);
+});
 window.addEventListener("hashchange", () => { clave = claveDelEnlace(); ultimo = ""; mirar(); });

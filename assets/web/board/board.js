@@ -7,10 +7,11 @@
    guarda en el navegador y se borra de la barra de direcciones.
    ========================================================================== */
 
-(function () {
+(async function () {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
+  const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
   const KEY = "ba.board.key";
   const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
   let key = hash.get("k") || "";
@@ -56,10 +57,10 @@
   }
 
   async function poll() {
-    if (!key) return blocked("Este enlace no trae la clave del tablero. Escaneá el QR desde la consola del operador.");
+    if (!key) return blocked(t("Este enlace no trae la clave del tablero. Escaneá el QR desde la consola del operador."));
     try {
       const r = await fetch("/api/v1/board", { headers: { "X-BA-Board": key }, cache: "no-store" });
-      if (r.status === 401) return blocked("La clave del tablero cambió (se reinició la sala). Escaneá el QR de nuevo.");
+      if (r.status === 401) return blocked(t("La clave del tablero cambió (se reinició la sala). Escaneá el QR de nuevo."));
       if (!r.ok) throw new Error(String(r.status));
       board = await r.json();
       offset = board.serverNowMs - Date.now();
@@ -73,7 +74,7 @@
     $("blocked").classList.remove("hidden");
   }
 
-  const carouselName = { manual: "carrusel manual", chain: "entra el siguiente al sacar", time: "rotación por tiempo" };
+  const carouselName = () => ({ manual: t("carrusel manual"), chain: t("entra el siguiente al sacar"), time: t("rotación por tiempo") });
 
   // Estructura: se rearma en cada lectura (1 s). Los relojes, cada 250 ms.
   function render() {
@@ -82,9 +83,9 @@
     liveIds = new Set();
     $("room").textContent = b.room || "—";
     $("meta").textContent = cfg.enabled
-      ? `${carouselName[cfg.carousel] || cfg.carousel}${cfg.carousel === "time" ? " (+" + cfg.graceSec + " s)" : ""} · ${cfg.multi ? "varios al aire" : "uno a la vez"} · ${fmt(cfg.defaultSec * 1000)} por orador` +
-        (b.lobby.length ? ` · ${b.lobby.length} en el lobby` : "")
-      : "Modo oradores apagado";
+      ? `${carouselName()[cfg.carousel] || cfg.carousel}${cfg.carousel === "time" ? " (+" + cfg.graceSec + " s)" : ""} · ${cfg.multi ? t("varios al aire") : t("uno a la vez")} · ${llenar(t("%1 por orador"), fmt(cfg.defaultSec * 1000))}` +
+        (b.lobby.length ? " · " + t("%n en el lobby", { n: b.lobby.length }) : "")
+      : t("Modo oradores apagado");
 
     const onair = b.order.filter((p) => p.speaker === "onair");
     const queued = b.order.filter((p) => p.speaker === "queued");
@@ -96,9 +97,9 @@
       const h = el("div", "hero");
       h.dataset.id = p.id;
       const body = el("div", "body");
-      body.append(el("div", "tag", "AL AIRE"), el("div", "name", p.name));
+      body.append(el("div", "tag", t("AL AIRE")), el("div", "name", p.name));
       if (p.info) body.append(el("div", "info", p.info));
-      body.append(el("div", "clock"), el("div", "sub", `de ${fmt(p.allottedSec * 1000)}`));
+      body.append(el("div", "clock"), el("div", "sub", llenar(t("de %1"), fmt(p.allottedSec * 1000))));
       h.append(face(p, "hero", true), body);
       oa.append(h);
     }
@@ -111,21 +112,21 @@
     queued.forEach((p, i) => {
       const c = el("div", "card" + (i === 0 ? " next" : "") + (p.connected ? "" : " away"));
       c.append(face(p, "card", true), el("span", "ord", String(i + 1)),
-               el("span", "badge", !p.connected ? "desconectado" : i === 0 ? "PRÓXIMO" : "en fila"),
+               el("span", "badge", !p.connected ? t("desconectado") : i === 0 ? t("PRÓXIMO") : t("en fila")),
                el("div", "name", p.name));
       if (p.info) c.append(el("div", "info", p.info));
       if (p.contact) c.append(el("div", "contact", "☎ " + p.contact));
-      const t = el("div", "times");
-      const a = el("span", "", "tiempo ");
+      const tm = el("div", "times");
+      const a = el("span", "", t("tiempo") + " ");
       a.append(el("strong", "", fmt(p.allottedSec * 1000)));
-      t.append(a, el("span", "", "entra en ~" + fmt(eta)));
-      c.append(t);
+      tm.append(a, el("span", "", llenar(t("entra en ~%1"), fmt(eta))));
+      c.append(tm);
       q.append(c);
       eta += p.allottedSec * 1000;
       total += p.allottedSec * 1000;
     });
     $("qcount").textContent = queued.length;
-    $("qtotal").textContent = queued.length ? "· total " + fmt(total) : "";
+    $("qtotal").textContent = queued.length ? "· " + llenar(t("total %1"), fmt(total)) : "";
     $("qempty").classList.toggle("hidden", queued.length > 0);
 
     const d = $("done");
@@ -135,7 +136,7 @@
       const over = p.usedMs - p.allottedSec * 1000;
       r.append(face(p), el("span", "name", p.name));
       if (p.contact) r.append(el("span", "contact", "☎ " + p.contact));
-      r.append(el("span", "used" + (over > 0 ? " over" : ""), fmt(p.usedMs) + (over > 999 ? ` (se pasó ${fmt(over).replace("+", "")})` : "")));
+      r.append(el("span", "used" + (over > 0 ? " over" : ""), fmt(p.usedMs) + (over > 999 ? " " + llenar(t("(se pasó %1)"), fmt(over).replace("+", "")) : "")));
       d.append(r);
     }
     $("dcount").textContent = done.length;
@@ -154,10 +155,12 @@
       h.classList.toggle("over", left < 0);
       h.classList.toggle("warn", left >= 0 && left <= 10000);
       h.querySelector(".clock").textContent = left >= 0 ? fmt(Math.ceil(left / 1000) * 1000) : fmt(left);
-      h.querySelector(".tag").textContent = left < 0 ? "AL AIRE · SE PASÓ" : "AL AIRE";
+      h.querySelector(".tag").textContent = left < 0 ? t("AL AIRE · SE PASÓ") : t("AL AIRE");
     }
   }
 
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/board", preferir: "evento" });
   setInterval(poll, 1000);
   setInterval(tick, 250);
   poll();

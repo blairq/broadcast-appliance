@@ -14,8 +14,10 @@
 // SI SE CAE LA CONEXION NO DICE «LISTO»: dice que no sabe. Un tally apagado
 // se lee como «no estoy al aire», y esa es justo la mentira que no se puede
 // permitir.
-(() => {
+(async () => {
   "use strict";
+  // Los textos, en el idioma del evento.
+  await BAi18n.iniciar({ contexto: "web/pantalla", preferir: "evento" });
 
   const $ = (id) => document.getElementById(id);
   const q = new URLSearchParams(location.search);
@@ -41,24 +43,24 @@
   async function leer() {
     try {
       const r = await fetch("../tally.json", { cache: "no-store" });
-      const t = await r.json();
+      const tl = await r.json();
       ultimo = Date.now();
       supoAlgunaVez = true;
       if (!fuente) {
         // Sin fuente asignada muestra el estado general, que sirve para una
         // pantalla de control en la cabina.
-        pintar(t.aire ? "aire" : "listo", t.aire ? "AL AIRE" : "FUERA",
-               (t.aire || "") + (t.armada ? "   →   " + t.armada : ""));
+        pintar(tl.aire ? "aire" : "listo", tl.aire ? t("AL AIRE") : t("FUERA"),
+               (tl.aire || "") + (tl.armada ? "   →   " + tl.armada : ""));
         return;
       }
-      if (coincide(t.fuentesAire, t.aire)) pintar("aire", "AL AIRE", fuente);
-      else if (coincide(t.fuentesArmadas, t.armada)) pintar("armada", "PREPARADA", fuente);
-      else pintar("listo", "listo", fuente);
+      if (coincide(tl.fuentesAire, tl.aire)) pintar("aire", t("AL AIRE"), fuente);
+      else if (coincide(tl.fuentesArmadas, tl.armada)) pintar("armada", t("PREPARADA"), fuente);
+      else pintar("listo", t("listo"), fuente);
     } catch (e) {
       // Hasta que se sepa una vez, se dice que no se sabe. Después se aguanta
       // un rato antes de avisar: un hipo de red no tiene que apagar la sala.
       if (!supoAlgunaVez || Date.now() - ultimo > 12000)
-        pintar("caido", "SIN SEÑAL", "no sé si estás al aire");
+        pintar("caido", t("SIN SEÑAL"), t("no sé si estás al aire"));
     }
   }
 

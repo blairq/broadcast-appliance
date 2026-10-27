@@ -6,6 +6,9 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+// Los textos, en el idioma del evento. Lo que se pinta espera a que estén.
+const listo = BAi18n.iniciar({ contexto: "web/presidencia", preferir: "evento" }).then(() => { if (window.BA && BA.traducir) BA.traducir(); });
+const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
 const frag = new URLSearchParams(location.hash.slice(1));
 const consola = frag.get("c") || "";
 const token = frag.get("t") || "";
@@ -54,8 +57,9 @@ function cara(id, nombre, cls) {
 }
 
 // --- Entrar ---------------------------------------------------------------------------
-$("formPin").addEventListener("submit", (e) => {
+$("formPin").addEventListener("submit", async (e) => {
   e.preventDefault();
+  await listo;
   pin = $("pin").value.trim();
   $("pin").value = "";
   if (!pin) return;
@@ -64,10 +68,12 @@ $("formPin").addEventListener("submit", (e) => {
   cortado = false;
   conectar();
 });
-if (!consola || token.length !== 64) {
-  $("entrarTexto").textContent = "Este link está incompleto: abrí el acceso de la consola que te dio la secretaría.";
-  $("formPin").classList.add("oculto");
-}
+listo.then(() => {
+  if (!consola || token.length !== 64) {
+    $("entrarTexto").textContent = t("Este link está incompleto: abrí el acceso de la consola que te dio la secretaría.");
+    $("formPin").classList.add("oculto");
+  }
+});
 
 function conectar() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -89,7 +95,7 @@ function recibir(m) {
       if (!m.ok) {
         pin = ""; cortado = true;
         $("botonEntrar").disabled = false;
-        $("error").textContent = m.error || "No se pudo entrar.";
+        $("error").textContent = m.error || t("No se pudo entrar.");
         $("error").classList.remove("oculto");
         return;
       }
@@ -124,13 +130,13 @@ function recibir(m) {
       rtcMensaje(m);
       break;
     case "error":
-      avisar(m.texto || "No se pudo.", true);
+      avisar(m.texto || t("No se pudo."), true);
       break;
     case "cortado":
       cortado = true;
-      $("sinConexion").textContent = m.motivo || "Se cerró la consola.";
+      $("sinConexion").textContent = m.motivo || t("Se cerró la consola.");
       $("sinConexion").classList.remove("oculto");
-      avisar(m.motivo || "Se cerró la consola.", true);
+      avisar(m.motivo || t("Se cerró la consola."), true);
       break;
   }
 }
@@ -139,20 +145,20 @@ function recibir(m) {
 function pintar() {
   if (!est) return;
   $("cuerpo").textContent = est.cuerpo || "";
-  $("punto").textContent = est.punto ? "En tratamiento: " + est.punto : "";
+  $("punto").textContent = est.punto ? llenar(t("En tratamiento: %1"), est.punto) : "";
   const q = est.quorum || {};
-  $("quorum").textContent = "Quórum " + (q.presentes ?? "—") + (q.necesarios ? " / " + q.necesarios : "");
+  $("quorum").textContent = llenar(t("Quórum %1"), (q.presentes ?? "—") + (q.necesarios ? " / " + q.necesarios : ""));
   $("quorum").className = "chip " + (q.configurado ? (q.hay_quorum ? "bien" : "mal") : "");
   const rem = est.remotos || [];
-  $("remotos").textContent = "Remotos " + rem.filter((r) => r.estado === "habilitado").length + " / " + rem.filter((r) => r.conectado).length;
-  $("central").textContent = est.central && est.central.conectada ? "Central conectada" : "Sin central";
+  $("remotos").textContent = llenar(t("Remotos %1 / %2"), rem.filter((r) => r.estado === "habilitado").length, rem.filter((r) => r.conectado).length);
+  $("central").textContent = est.central && est.central.conectada ? t("Central conectada") : t("Sin central");
   $("central").className = "chip " + (est.central && est.central.conectada ? "bien" : "");
   if (document.activeElement !== $("asignado")) $("asignado").value = (est.fila || {}).asignado_fabrica_s || 180;
   pintarDebate();
-  $("hablaYo").textContent = est.presidencia_habla ? "🎙 Hablando (soltar)" : "🎙 Hablo yo";
+  $("hablaYo").textContent = est.presidencia_habla ? t("🎙 Hablando (soltar)") : t("🎙 Hablo yo");
   $("hablaYo").classList.toggle("rojo", !!est.presidencia_habla);
   $("hablaYo").disabled = !est.con_central;
-  $("hablaYo").title = est.con_central ? "Calla a todos y abre el micrófono de la presidencia" : "Hace falta la central";
+  $("hablaYo").title = est.con_central ? t("Calla a todos y abre el micrófono de la presidencia") : t("Hace falta la central");
   if (document.activeElement !== $("votSegundos")) $("votSegundos").value = est.voto_s ?? 60;
   // Lo que no se puede hacer, apagado (antes todo parecía andar y contestaba un error).
   const conPalabra = !!(est.fila || {}).al_aire;
@@ -180,8 +186,8 @@ function pintarRecinto() {
   const ocupadas = (r.bancas || []).filter((b) => b.integrante);
   if (!ocupadas.length) {
     const v = el("div", "recinto-vacio");
-    v.appendChild(el("strong", "", "Todavía no hay bancas"));
-    v.appendChild(el("span", "", "La secretaría carga los integrantes con su banca en la app (Asamblea → Integrantes) y aparecen acá."));
+    v.appendChild(el("strong", "", t("Todavía no hay bancas")));
+    v.appendChild(el("span", "", t("La secretaría carga los integrantes con su banca en la app (Asamblea → Integrantes) y aparecen acá.")));
     caja.appendChild(v);
     $("resumenRecinto").textContent = "";
     return;
@@ -235,14 +241,14 @@ function pintarRecinto() {
     if (pedidos.has(i.id) || centralPide.has(b.banca)) d.classList.add("pidio");
     if (palabra === i.id || abiertos.has(b.banca)) d.classList.add("palabra");
     d.dataset.id = i.id;
-    d.title = i.nombre + " · Banca " + b.banca;
+    d.title = i.nombre + " · " + llenar(t("Banca %1"), b.banca);
     d.appendChild(cara(i.id, i.nombre));
     d.appendChild(el("span", "num", b.banca));
     d.addEventListener("click", (ev) => menuBanca(ev, b, i, remoto));
     caja.appendChild(d);
   }
-  caja.appendChild(el("div", "presidencia-mesa", "PRESIDENCIA"));
-  $("resumenRecinto").textContent = total ? "· " + presentes + " de " + total : "";
+  caja.appendChild(el("div", "presidencia-mesa", t("PRESIDENCIA")));
+  $("resumenRecinto").textContent = total ? "· " + llenar(t("%1 de %2"), presentes, total) : "";
 }
 
 function pintarCaras(id) {
@@ -269,9 +275,9 @@ function pintarEsperan() {
     it.appendChild(cara(r.id, r.nombre));
     const d = el("div", "datos");
     d.appendChild(el("strong", "", r.nombre));
-    d.appendChild(el("span", "", "Banca " + (r.banca || "—") + " · " + (r.lugar === "sala" ? "desde la sala" : "desde afuera")));
+    d.appendChild(el("span", "", llenar(t("Banca %1"), r.banca || "—") + " · " + (r.lugar === "sala" ? t("desde la sala") : t("desde afuera"))));
     it.appendChild(d);
-    const b = el("button", "boton celeste chico", "Habilitar");
+    const b = el("button", "boton celeste chico", t("Habilitar"));
     b.addEventListener("click", () => mandar({ type: "habilitar", id: r.id }));
     it.appendChild(b);
     caja.appendChild(it);
@@ -283,7 +289,7 @@ function pintarFila() {
   caja.textContent = "";
   const cola = (est.fila || {}).cola || [];
   $("cuantosPidieron").textContent = cola.length ? "· " + cola.length : "";
-  if (!cola.length) caja.appendChild(el("div", "vacia", "Nadie pidió la palabra."));
+  if (!cola.length) caja.appendChild(el("div", "vacia", t("Nadie pidió la palabra.")));
   cola.forEach((c, k) => {
     const it = el("div", "item");
     it.dataset.id = c.id;
@@ -291,17 +297,17 @@ function pintarFila() {
     it.appendChild(cara(c.id, c.nombre));
     const d = el("div", "datos");
     d.appendChild(el("strong", "", c.nombre));
-    const sub = el("span", "", "Banca " + (c.banca || "—") + (c.bloque ? " · " + c.bloque : ""));
-    if (c.remoto) sub.appendChild(el("span", "etiqueta", "REMOTO"));
+    const sub = el("span", "", llenar(t("Banca %1"), c.banca || "—") + (c.bloque ? " · " + c.bloque : ""));
+    if (c.remoto) sub.appendChild(el("span", "etiqueta", t("REMOTO")));
     d.appendChild(sub);
     it.appendChild(d);
     if (c.remoto) it.appendChild(botonPtt(c.id, c.nombre));
-    const dar = el("button", "boton celeste chico", "Dar");
-    dar.title = "Darle la palabra";
+    const dar = el("button", "boton celeste chico", t("Dar"));
+    dar.title = t("Darle la palabra");
     dar.addEventListener("click", () => mandar({ type: "dar_palabra", id: c.id }));
     it.appendChild(dar);
     const q = el("button", "boton chico", "✕");
-    q.title = "Sacarlo de la fila";
+    q.title = t("Sacarlo de la fila");
     q.addEventListener("click", () => mandar({ type: "quitar_fila", id: c.id }));
     it.appendChild(q);
     caja.appendChild(it);
@@ -323,7 +329,7 @@ function pintarOrador() {
     return;
   }
   $("nombreOrador").textContent = a.nombre;
-  $("detalleOrador").textContent = "Banca " + (a.banca || "—") + (a.remoto ? " · desde el navegador" : " · en la sala");
+  $("detalleOrador").textContent = llenar(t("Banca %1"), a.banca || "—") + " · " + (a.remoto ? t("desde el navegador") : t("en la sala"));
   const pintarReloj = () => {
     const usado = ((Date.now() + desfase) - f.desde_ms) / 1000;
     const rest = (f.asignado_s || 0) - usado;
@@ -354,7 +360,7 @@ function mostrarEnOrador(id, remoto) {
   }
   v.classList.add("oculto");
   if (caras.get(id)) { f.src = caras.get(id); f.classList.remove("oculto"); }
-  else { f.classList.add("oculto"); $("sinOrador").classList.remove("oculto"); $("sinOrador").textContent = "En la sala"; }
+  else { f.classList.add("oculto"); $("sinOrador").classList.remove("oculto"); $("sinOrador").textContent = t("En la sala"); }
 }
 
 for (const b of document.querySelectorAll("[data-accion]")) {
@@ -365,7 +371,7 @@ for (const b of document.querySelectorAll("[data-accion]")) {
     else if (a === "siguiente") mandar({ type: "siguiente" });
     else if (a === "silenciar") mandar({ type: "silenciar_todos" });
     else if (a === "debate-iniciar") {
-      if (!debateA || !debateB) return avisar("Elegí A y B tocando sus bancas.", true);
+      if (!debateA || !debateB) return avisar(t("Elegí A y B tocando sus bancas."), true);
       mandar({ type: "debate", accion: "iniciar", a: debateA.id, b: debateB.id, turno: "a" });
     }
     else if (a === "debate-turno") mandar({ type: "debate", accion: "turno", turno: b.dataset.t });
@@ -390,15 +396,17 @@ function pintarVotacion() {
   $("tarjetaVotacion").classList.toggle("abierta", abierta);
   $("votAbrir").classList.toggle("oculto", abierta);
   $("votEnCurso").classList.toggle("oculto", !abierta && estado !== "cerrada");
-  $("estadoVot").textContent = estado === "abierta" ? "· ABIERTA" : estado === "pausada" ? "· en pausa" : estado === "cerrada" ? "· cerrada" : "";
+  $("estadoVot").textContent = estado === "abierta" ? "· " + t("ABIERTA") : estado === "pausada" ? "· " + t("en pausa") : estado === "cerrada" ? "· " + t("cerrada") : "";
   $("votQuorum").classList.toggle("oculto", estado !== "cerrada");
   $("votPausar").classList.toggle("oculto", !abierta);
   $("votCerrar").classList.toggle("oculto", !abierta);
-  $("votPausar").textContent = estado === "pausada" ? "Reanudar" : "Pausar";
+  // Lo que hace el botón va en un dato aparte: el texto se traduce.
+  $("votPausar").dataset.pausada = estado === "pausada" ? "1" : "";
+  $("votPausar").textContent = estado === "pausada" ? t("Reanudar") : t("Pausar");
   $("votTemaActual").textContent = v.tema || central.tema || "";
   // Totales: los de la central (si hay) más los de los celulares.
   const opciones = v.opciones && v.opciones.length ? v.opciones
-    : [{ id: "afirmativo", texto: "Afirmativo" }, { id: "negativo", texto: "Negativo" }, { id: "abstencion", texto: "Abstención" }];
+    : [{ id: "afirmativo", texto: t("Afirmativo") }, { id: "negativo", texto: t("Negativo") }, { id: "abstencion", texto: t("Abstención") }];
   const tot = {};
   for (const o of opciones) tot[o.id] = ((central.totales || {})[o.id] || 0) + ((v.totales || {})[o.id] || 0);
   const max = Math.max(1, ...Object.values(tot));
@@ -423,7 +431,7 @@ function pintarVotacion() {
   // Los próximos temas: un toque los pone como tema.
   const pr = $("proximos");
   pr.textContent = "";
-  if ((est.proximos || []).length) pr.appendChild(el("span", "tenue chico", "Próximos puntos (un toque lo pone como tema):"));
+  if ((est.proximos || []).length) pr.appendChild(el("span", "tenue chico", t("Próximos puntos (un toque lo pone como tema):")));
   for (const p of (est.proximos || []).slice(0, 4)) {
     const b = el("button", "boton chico", p.n + ". " + p.titulo);
     b.addEventListener("click", () => { $("votTema").value = p.titulo; });
@@ -432,33 +440,33 @@ function pintarVotacion() {
 }
 $("votAbrirBoton").addEventListener("click", () => {
   const tema = $("votTema").value.trim();
-  if (!tema) return avisar("Escribí el tema a votar.", true);
+  if (!tema) return avisar(t("Escribí el tema a votar."), true);
   mandar({ type: "votacion", accion: "abrir", tema, menu: $("votMenu").value, segundos: Number($("votSegundos").value) || 0 });
 });
 $("votPausar").addEventListener("click", () => {
-  const pausada = $("votPausar").textContent === "Reanudar";
+  const pausada = $("votPausar").dataset.pausada === "1";
   mandar({ type: "votacion", accion: pausada ? "reanudar" : "pausar" });
 });
 $("votCerrar").addEventListener("click", () => mandar({ type: "votacion", accion: "cerrar" }));
 $("votQuorum").addEventListener("click", () => {
-  if (confirm("¿Llevar el resultado a Quórum como resultado oficial?")) mandar({ type: "votacion", accion: "a_quorum" });
+  if (confirm(t("¿Llevar el resultado a Quórum como resultado oficial?"))) mandar({ type: "votacion", accion: "a_quorum" });
 });
 
 // --- El debate ---------------------------------------------------------------------------------
-const TIPOS_DEBATE = { sala_sala: "· dos de la sala", sala_remoto: "· sala y remoto", remoto_remoto: "· dos remotos" };
+const TIPOS_DEBATE = () => ({ sala_sala: "· " + t("dos de la sala"), sala_remoto: "· " + t("sala y remoto"), remoto_remoto: "· " + t("dos remotos") });
 function pintarDebate() {
   const d = (est && est.debate) || {};
   const activo = !!d.activo;
-  const nombre = (l, elegido) => activo && l ? l.nombre + (l.remoto ? " (remoto)" : "") : elegido ? elegido.nombre : null;
-  $("debateNombreA").textContent = nombre(d.a, debateA) || "tocá una banca → «Debate: A»";
-  $("debateNombreB").textContent = nombre(d.b, debateB) || "tocá una banca → «Debate: B»";
+  const nombre = (l, elegido) => activo && l ? (l.remoto ? llenar(t("%1 (remoto)"), l.nombre) : l.nombre) : elegido ? elegido.nombre : null;
+  $("debateNombreA").textContent = nombre(d.a, debateA) || t("tocá una banca → «Debate: A»");
+  $("debateNombreB").textContent = nombre(d.b, debateB) || t("tocá una banca → «Debate: B»");
   $("debateA").classList.toggle("habla", activo && (d.turno === "a" || d.turno === "ambos"));
   $("debateB").classList.toggle("habla", activo && (d.turno === "b" || d.turno === "ambos"));
-  $("debateTipo").textContent = activo ? (TIPOS_DEBATE[d.tipo] || "") : "";
+  $("debateTipo").textContent = activo ? (TIPOS_DEBATE()[d.tipo] || "") : "";
   const r = d.restante_s || 0;
-  $("debateReloj").textContent = !activo ? "" : d.turno === "nadie" ? "Nadie tiene el turno"
-    : d.turno === "ambos" ? "Hablan los dos"
-    : (d.turno === "a" ? "Turno de A" : "Turno de B") + (d.turno_s > 0 ? " · " + mmss(r) : "");
+  $("debateReloj").textContent = !activo ? "" : d.turno === "nadie" ? t("Nadie tiene el turno")
+    : d.turno === "ambos" ? t("Hablan los dos")
+    : (d.turno === "a" ? t("Turno de A") : t("Turno de B")) + (d.turno_s > 0 ? " · " + mmss(r) : "");
   $("debateReloj").classList.toggle("oculto", !activo);
   $("debateIniciar").classList.toggle("oculto", activo);
   for (const x of document.querySelectorAll(".debate-en")) x.classList.toggle("oculto", !activo);
@@ -470,25 +478,25 @@ function menuBanca(ev, b, i, remoto) {
   ev.stopPropagation();
   const m = $("menuBanca");
   m.textContent = "";
-  m.appendChild(el("div", "titulo", i.nombre + " · Banca " + b.banca));
+  m.appendChild(el("div", "titulo", i.nombre + " · " + llenar(t("Banca %1"), b.banca)));
   const op = (texto, cls, fn) => { const x = el("button", "boton " + cls, texto); x.addEventListener("click", () => { fn(); cerrarMenu(); }); m.appendChild(x); };
-  if (remoto && remoto.estado === "esperando") op("Habilitar (lo vi en cámara)", "celeste", () => mandar({ type: "habilitar", id: i.id }));
-  op("Darle la palabra", "celeste", () => mandar({ type: "dar_palabra", id: i.id }));
-  op("Debate: A", "", () => { debateA = { id: i.id, nombre: i.nombre }; pintarDebate(); });
-  op("Debate: B", "", () => { debateB = { id: i.id, nombre: i.nombre }; pintarDebate(); });
+  if (remoto && remoto.estado === "esperando") op(t("Habilitar (lo vi en cámara)"), "celeste", () => mandar({ type: "habilitar", id: i.id }));
+  op(t("Darle la palabra"), "celeste", () => mandar({ type: "dar_palabra", id: i.id }));
+  op(t("Debate: A"), "", () => { debateA = { id: i.id, nombre: i.nombre }; pintarDebate(); });
+  op(t("Debate: B"), "", () => { debateB = { id: i.id, nombre: i.nombre }; pintarDebate(); });
   if (remoto && remoto.estado === "habilitado") {
-    op("Deshabilitar", "", () => mandar({ type: "deshabilitar", id: i.id }));
+    op(t("Deshabilitar"), "", () => mandar({ type: "deshabilitar", id: i.id }));
   }
   if (remoto && remoto.conectado) {
     // Apretar para hablar desde la banca (no solo desde la fila): el menú queda abierto
     // mientras se usa, así se puede hablar más de una vez.
     const p = botonPtt(i.id, i.nombre);
-    p.textContent = "🎙 Mantené apretado para hablarle";
+    p.textContent = t("🎙 Mantené apretado para hablarle");
     p.classList.remove("chico");
     p.addEventListener("click", (e) => e.stopPropagation());
     m.appendChild(p);
   }
-  if (remoto && remoto.conectado) op("Sacar de la sesión", "rojo", () => { if (confirm("¿Sacar a " + i.nombre + " de la sesión?")) mandar({ type: "expulsar", id: i.id }); });
+  if (remoto && remoto.conectado) op(t("Sacar de la sesión"), "rojo", () => { if (confirm(llenar(t("¿Sacar a %1 de la sesión?"), i.nombre))) mandar({ type: "expulsar", id: i.id }); });
   const r = ev.currentTarget.getBoundingClientRect();
   m.style.left = Math.min(window.innerWidth - 230, r.right + 6) + "px";
   m.style.top = Math.min(window.innerHeight - 220, r.top) + "px";
@@ -537,7 +545,7 @@ function abrirConexion(id) {
   };
   pc.onicecandidate = (ev) => { if (ev.candidate) mandar({ type: "rtc", a: id, candidato: ev.candidate }); };
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "failed") { conexiones.delete(id); avisar("No se pudo conectar directo con el integrante (¿está en otra red? hace falta TURN).", true); }
+    if (pc.connectionState === "failed") { conexiones.delete(id); avisar(t("No se pudo conectar directo con el integrante (¿está en otra red? hace falta TURN)."), true); }
   };
   (async () => {
     const offer = await pc.createOffer();
@@ -572,7 +580,7 @@ function mostrarPtt(id) {
 // 🎙 «Apretar para hablar»: lo pone en pantalla y se escuchan los dos mientras se mantiene.
 function botonPtt(id, nombre) {
   const b = el("button", "boton chico ptt" + (pttCon === id ? " apretado" : ""), "🎙");
-  b.title = "Mantené apretado para hablar con " + nombre;
+  b.title = llenar(t("Mantené apretado para hablar con %1"), nombre);
   const empezar = (ev) => {
     ev.preventDefault();
     if (pttCon) return;
@@ -587,7 +595,7 @@ function botonPtt(id, nombre) {
       if (pttCon !== id) return;
       if (c.audio) c.audio.replaceTrack(m.getAudioTracks()[0]);
       for (const t of m.getAudioTracks()) t.enabled = true;
-    }).catch(() => avisar("Sin micrófono: revisá el permiso del navegador.", true));
+    }).catch(() => avisar(t("Sin micrófono: revisá el permiso del navegador."), true));
   };
   const terminar = () => {
     if (pttCon !== id) return;
@@ -642,5 +650,5 @@ botonCompleta.addEventListener("click", () => {
 });
 document.addEventListener("fullscreenchange", () => {
   botonCompleta.textContent = document.fullscreenElement ? "⤡" : "⤢";
-  botonCompleta.title = document.fullscreenElement ? "Salir de pantalla completa" : "Pantalla completa";
+  botonCompleta.title = document.fullscreenElement ? t("Salir de pantalla completa") : t("Pantalla completa");
 });

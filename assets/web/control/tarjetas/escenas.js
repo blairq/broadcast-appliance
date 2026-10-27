@@ -4,7 +4,7 @@
   const { el, boton, maxDb, ms, vacio, texto, attr, sincronizar } = BA.tj;
   BA.tarjetas.push(
   {
-    id: "escenas", titulo: "Escenas", temas: ["escenas"], ancha: true,
+    id: "escenas", get titulo() { return t("Escenas"); }, temas: ["escenas"], ancha: true,
     herramientas: ["scene_preview", "scene_cut", "scene_take", "scene_switch"],
     crear(c, api) {
       this.estado = el("div", "fila estado-escenas");
@@ -14,8 +14,8 @@
       this.grilla = el("div", "grilla-escenas");
       const acciones = el("div", "fila acciones-escenas");
       acciones.append(
-        boton("CORTE", () => api.hacer("scene_cut", {}), { grande: true, variante: "aire", clase: "lleno" }),
-        boton("AUTO", () => api.hacer("scene_take", {}), { grande: true, variante: "acento", clase: "lleno" }));
+        boton(t("CORTE"), () => api.hacer("scene_cut", {}), { grande: true, variante: "aire", clase: "lleno" }),
+        boton(t("AUTO"), () => api.hacer("scene_take", {}), { grande: true, variante: "acento", clase: "lleno" }));
       this.tbar = el("ba-slider", "tbar");
       for (const [k, v] of [["etiqueta", "T-bar"], ["min", "0"], ["max", "1"], ["paso", "0.01"], ["valor", "0"]]) this.tbar.setAttribute(k, v);
       this.tbar.addEventListener("cambio", (e) => api.llamar("transicion_manual", { t: e.detail.valor }).catch(() => {}));
@@ -24,8 +24,8 @@
       this.api = api;
     },
     actualizar(_, d) {
-      this.prog.setAttribute("etiqueta", "Programa · " + (d.current || "—"));
-      this.prev.setAttribute("etiqueta", "Armada · " + (d.armada || "—"));
+      this.prog.setAttribute("etiqueta", BAi18n.llenar(t("Programa · %1"), d.current || "—"));
+      this.prev.setAttribute("etiqueta", BAi18n.llenar(t("Armada · %1"), d.armada || "—"));
       const escenas = (d.scenes || []).filter((s) => !s.name.startsWith("__"));
       sincronizar(this.grilla, escenas.map((s) => s.name), (nombre) => {
         // Un toque arma (preview); mantener apretado la pone al aire directo.
