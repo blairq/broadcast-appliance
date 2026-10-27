@@ -23,6 +23,7 @@
 #include <map>
 #include <thread>
 
+#include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"
 #include "arranque/InicioConElSistema.hpp"
@@ -235,22 +236,22 @@ std::string cpuModel() {
 
 void McpService::registerSystemTools() {
     core_.addCategory(
-        "equipo", "El equipo",
-        "Monitores (para repartir ventanas de salida), placas de audio, cámaras y capturadoras con sus "
-        "formatos, GPU y codificadores, CPU, memoria y disco.");
+        "equipo", ba::i18n::traducir("mcp", "El equipo"),
+        ba::i18n::traducir("mcp", "Monitores (para repartir ventanas de salida), placas de audio, cámaras y "
+                                  "capturadoras con sus formatos, GPU y codificadores, CPU, memoria y disco."));
     AppRuntime& rt = rt_;
     {
         Tool t;
         t.name = "system_hardware";
-        t.title = "El equipo: monitores, audio, video, GPU";
+        t.title = ba::i18n::traducir("mcp", "El equipo: monitores, audio, video, GPU");
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "El hardware y cuanto queda: espacio en DISCO, memoria, procesador, temperatura. Todo el "
+            ba::i18n::traducir("mcp", "El hardware y cuanto queda: espacio en DISCO, memoria, procesador, temperatura. Todo el "
             "hardware de una vez: monitores (nombre, resolucion, posicion, escala, Hz, principal), "
             "placas de audio de entrada y de salida, camaras y capturadoras, GPU y con que dibuja la app, "
             "codificadores de video (los de hardware marcados), CPU, memoria, disco y sistema operativo. "
-            "Para los formatos de una camara: video_devices.";
+            "Para los formatos de una camara: video_devices.");
         dispositivos::Dispositivos* reg = vm_.equipos();
         MonitoresModel* mon = vm_.monitoresModelo();
         t.run = [&rt, reg, mon](const json&, Done done) {
@@ -282,35 +283,36 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "monitors";
-        t.title = "Monitores";
+        t.title = ba::i18n::traducir("mcp", "Monitores");
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Monitores conectados en su ORDEN FISICO (de izquierda a derecha y de arriba abajo, el numero que "
+            ba::i18n::traducir("mcp", "Monitores conectados en su ORDEN FISICO (de izquierda a derecha y de arriba abajo, el numero que "
             "se ve al identificarlos), con su `id` estable (fabricante|modelo|serie: no cambia con el cable ni "
             "con el orden en que prenden), resolucion en pixeles, posicion, escala, Hz y si es el principal. "
-            "Es la misma lista de Salidas -> Pantallas y monitor_listar.";
+            "Es la misma lista de Salidas -> Pantallas y monitor_listar.");
         MonitoresModel* mon = vm_.monitoresModelo();
         t.run = [mon](const json&, Done done) {
             done(ToolResult().data(
                 json{{"monitors", screensJson(mon)},
-                     {"hint", "Para mostrar algo: monitor_asignar (fijo, se espera si no esta) u output_window "
-                              "(ventana suelta; screen = id, orden o nombre). Lo abierto: dashboard_list."}}));
+                     {"hint", ba::i18n::traducir("mcp", "Para mostrar algo: monitor_asignar (fijo, se espera si no esta) u "
+                                                        "output_window (ventana suelta; screen = id, orden o "
+                                                        "nombre). Lo abierto: dashboard_list.")}}));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_devices";
-        t.title = "Placas de audio";
+        t.title = ba::i18n::traducir("mcp", "Placas de audio");
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Que placas y conectores de audio tiene la maquina: entradas (microfonos, lineas, interfaces) y "
+            ba::i18n::traducir("mcp", "Que placas y conectores de audio tiene la maquina: entradas (microfonos, lineas, interfaces) y "
             "salidas (parlantes, auriculares, HDMI). Salen del registro de la maquina (Dispositivos y equipos): "
             "`name` es el nombre que les puso el operador (o el del sistema si no le puso), `tecnico` el del "
             "sistema, `conectado` si esta ahora (los que la maquina ya vio y no estan figuran ausentes). El "
-            "`value` de una entrada es el `device` de audio_input_add.";
+            "`value` de una entrada es el `device` de audio_input_add.");
         dispositivos::Dispositivos* reg = vm_.equipos();
         t.run = [&rt, reg](const json&, Done done) {
             if (reg == nullptr) {
@@ -322,8 +324,8 @@ void McpService::registerSystemTools() {
             reg->escanear("local", [reg, done](QVariantMap) {
                 done(ToolResult().data(json{{"inputs", delRegistro(*reg, "microfono")},
                                             {"outputs", delRegistro(*reg, "salida_audio")},
-                                            {"nota", "Para ponerles nombre: equipo_renombrar (o la pagina "
-                                                     "Dispositivos y equipos)."}}));
+                                            {"nota", ba::i18n::traducir("mcp", "Para ponerles nombre: equipo_renombrar (o la "
+                                                                               "pagina Dispositivos y equipos).")}}));
             });
         };
         core_.addTool(std::move(t));
@@ -331,25 +333,25 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "audio_input_add";
-        t.title = "Agregar un microfono o entrada de audio";
+        t.title = ba::i18n::traducir("mcp", "Agregar un microfono o entrada de audio");
         t.category = "equipo";
         t.description =
-            "QUE ES: suma a la emision una entrada de audio de esta maquina (microfono, linea, interfaz). "
+            ba::i18n::traducir("mcp", "QUE ES: suma a la emision una entrada de audio de esta maquina (microfono, linea, interfaz). "
             "PARA QUE: el audio del lugar, un microfono de mano, una consola. COMO SE USA: `device` es el "
             "`value` que informa `audio_devices` en `inputs` (\"default\" = la predeterminada del "
             "sistema). Va a un canal GLOBAL, como el audio de los invitados: suena en TODAS las escenas, "
             "no es un item de escena y no ocupa lugar en el lienzo. Queda guardada y vuelve al arrancar. "
-            "Para procesarla (gate, compresor, EQ): `audio_rack` y `audio_module_add` con su nombre.";
+            "Para procesarla (gate, compresor, EQ): `audio_rack` y `audio_module_add` con su nombre.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"device", {{"type", "string"}}}, {"name", {{"type", "string"}, {"description", "opcional"}}}}},
+             {{"device", {{"type", "string"}}}, {"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "opcional")}}}}},
             {"required", {"device"}}};
         // Por el mismo camino que la página Entradas de audio (InputsViewModel): el
         // mismo nombre por defecto (el del operador) y la misma validación.
         auto* entradas = static_cast<InputsViewModel*>(vm_.inputs());
         t.run = [entradas](const json& a, Done done) {
-            if (entradas == nullptr) return done(ToolResult::error("La interfaz no esta lista."));
+            if (entradas == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz no esta lista.")));
             const QString dev = QString::fromStdString(a.value("device", std::string()));
             QString name = QString::fromStdString(a.value("name", std::string())).trimmed();
             if (name.isEmpty()) name = entradas->audioInputName(dev);
@@ -357,20 +359,20 @@ void McpService::registerSystemTools() {
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult().data(json{{"nombre", name.toStdString()},
                                         {"dispositivo", dev.toStdString()},
-                                        {"nota", "Suena en todas las escenas (canal global)."}}));
+                                        {"nota", ba::i18n::traducir("mcp", "Suena en todas las escenas (canal global).")}}));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "gst_elementos";
-        t.title = "Elementos de GStreamer que hacen falta";
+        t.title = ba::i18n::traducir("mcp", "Elementos de GStreamer que hacen falta");
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Si están los elementos de GStreamer que usa el aparato: los imprescindibles (sin ellos algo de hoy no anda: "
+            ba::i18n::traducir("mcp", "Si están los elementos de GStreamer que usa el aparato: los imprescindibles (sin ellos algo de hoy no anda: "
             "invitados, racks, voces, NDI…) y los del motor que viene (mezcla, composición, robustez, subtítulos). "
-            "Para diagnosticar silencio o negro en una plataforma: un plugin que falta aparece acá.";
+            "Para diagnosticar silencio o negro en una plataforma: un plugin que falta aparece acá.");
         t.run = [](const json&, Done done) {
             const json l = video::revisarElementosGst();
             json faltan = json::array();
@@ -383,13 +385,13 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "inicio_con_el_equipo";
-        t.title = "Arrancar solo al encender el equipo";
+        t.title = ba::i18n::traducir("mcp", "Arrancar solo al encender el equipo");
         t.category = "equipo";
         t.description =
-            "Que el aparato vuelva solo después de un corte de luz. Sin argumentos: si arranca solo con el equipo y "
+            ba::i18n::traducir("mcp", "Que el aparato vuelva solo después de un corte de luz. Sin argumentos: si arranca solo con el equipo y "
             "qué falta del sistema (que la máquina se encienda al volver la luz y que la sesión se inicie sola: eso "
             "lo hace una persona con permisos de administrador). Con `activo`: lo prende o lo apaga. Al volver, el "
-            "programa retoma solo la transmisión y la grabación que estaban andando.";
+            "programa retoma solo la transmisión y la grabación que estaban andando.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
         t.run = [](const json& a, Done done) {
             if (a.contains("activo")) {
@@ -403,39 +405,40 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "audio_input_remove";
-        t.title = "Quitar un microfono o entrada de audio";
+        t.title = ba::i18n::traducir("mcp", "Quitar un microfono o entrada de audio");
         t.category = "equipo";
         t.destructive = true;
         t.description =
-            "Saca de la emision una entrada de audio del equipo (las que agrega audio_input_add; mixer_list "
-            "las muestra). Deja de sonar en todas las escenas y no vuelve al arrancar.";
+            ba::i18n::traducir("mcp", "Saca de la emision una entrada de audio del equipo (las que agrega audio_input_add; mixer_list "
+            "las muestra). Deja de sonar en todas las escenas y no vuelve al arrancar.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
         t.run = [&rt](const json& a, Done done) {
             const std::string name = a.value("name", "");
             const auto& l = rt.config().audioInputs;
             if (std::none_of(l.begin(), l.end(), [&](const SourceSpec& s) { return s.name == name; }))
-                return done(ToolResult::error("no hay una entrada de audio «" + name + "»"));
+                return done(ToolResult::error(
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una entrada de audio «%1»"), {name})));
             rt.removeAudioInput(name);
             rt.save();
-            done(ToolResult::ok("Quitada: " + name));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Quitada: %1"), {name})));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "video_devices";
-        t.title = "Camaras y capturadoras";
+        t.title = ba::i18n::traducir("mcp", "Camaras y capturadoras");
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Camaras USB, capturadoras y cualquier dispositivo de video (por GStreamer: V4L2 en Linux, Media "
+            ba::i18n::traducir("mcp", "Camaras USB, capturadoras y cualquier dispositivo de video (por GStreamer: V4L2 en Linux, Media "
             "Foundation en Windows, AVFoundation en macOS), del registro de la maquina: `name` es el nombre que "
             "les puso el operador, `tecnico` el del sistema, `conectado` si esta ahora. Con `device` (el value, "
             "el id o el nombre): sus `modos` "
             "(tamaño, cps, formato real: crudo, mjpeg, h264, h265; quién lo decodifica y si la GPU; "
             "`convertido_por_el_sistema`: un crudo que el sistema fabrica decodificando en la CPU) y `automatico` "
             "(el que se elige solo para el lienzo, con `porque`). Para todo lo que anuncia el dispositivo (API, "
-            "propiedades, caps crudas): dispositivos_video. Para agregarla: video_input_add (`modo` = un `valor`).";
+            "propiedades, caps crudas): dispositivos_video. Para agregarla: video_input_add (`modo` = un `valor`).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}}}};
         dispositivos::Dispositivos* reg = vm_.equipos();
         t.run = [&rt, reg](const json& a, Done done) {
@@ -468,16 +471,16 @@ void McpService::registerSystemTools() {
     {
         Tool t;
         t.name = "dispositivos_video";
-        t.title = "Todo lo que anuncia cada dispositivo de video";
+        t.title = ba::i18n::traducir("mcp", "Todo lo que anuncia cada dispositivo de video");
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Como gst-device-monitor, pero de la app: cada dispositivo de video con su API (mediafoundation, "
+            ba::i18n::traducir("mcp", "Como gst-device-monitor, pero de la app: cada dispositivo de video con su API (mediafoundation, "
             "ksvideo, avf, v4l2), propiedades, el elemento que lo abre, si la app lo usa (`usable`; en Windows la "
             "misma cámara aparece también por KS y se usa la de Media Foundation), las `caps` crudas tal cual las "
             "anuncia, los `modos` interpretados (formato real y decodificador) y el `automatico` para el lienzo con su "
-            "porqué. `device` para uno solo. Sirve para entender por qué una cámara no da lo que se espera.";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}, {"sinCaps", {{"type", "boolean"}, {"description", "sin las caps crudas (más corto)"}}}}}};
+            "porqué. `device` para uno solo. Sirve para entender por qué una cámara no da lo que se espera.");
+        t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}, {"sinCaps", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "sin las caps crudas (más corto)")}}}}}};
         t.run = [](const json& a, Done done) {
             json f = ba::app::video::fichasDeVideo(a.value("device", std::string()));
             if (a.value("sinCaps", false))

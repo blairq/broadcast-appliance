@@ -10,6 +10,7 @@
 // ============================================================================
 #include <algorithm>
 
+#include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "platform/Paths.hpp"
 #include "diag/LectorDeLogs.hpp"
@@ -25,9 +26,9 @@
 namespace ba::app::mcp {
 
 void McpService::registerRegistroTools() {
-    core_.addCategory("registro", "Registro",
-                      "Lo que pasó en los tres procesos: leerlo, filtrarlo y decidir cuánto se "
-                      "registra.");
+    core_.addCategory("registro", ba::i18n::traducir("mcp", "Registro"),
+                      ba::i18n::traducir("mcp", "Lo que pasó en los tres procesos: leerlo, filtrarlo y decidir "
+                                                "cuánto se registra."));
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
@@ -35,11 +36,11 @@ void McpService::registerRegistroTools() {
     {
         Tool t;
         t.name = "log_leer";
-        t.title = "Leer el registro";
+        t.title = ba::i18n::traducir("mcp", "Leer el registro");
         t.category = "registro";
         t.readOnly = true;
-        t.description = "Las últimas líneas del registro, de los tres procesos, con filtros.";
-        t.details = "Cada línea trae hora (UTC, en milisegundos desde la época), nivel, módulo, código y "
+        t.description = ba::i18n::traducir("mcp", "Las últimas líneas del registro, de los tres procesos, con filtros.");
+        t.details = ba::i18n::traducir("mcp", "Cada línea trae hora (UTC, en milisegundos desde la época), nivel, módulo, código y "
                     "descripción.\n\n"
                     "Los NIVELES, de menos a más grave: traza, depuracion, info, aviso, error, fatal. "
                     "`minimo` filtra de ese para arriba; el que trae por defecto es `aviso`, que es lo que "
@@ -54,18 +55,18 @@ void McpService::registerRegistroTools() {
                     "  3. Si sigue sin aparecer, `log_nivel` a depuracion o traza, hacé que el problema "
                     "pase otra vez, y volvé a leer. Acordate de dejar el nivel como estaba.\n\n"
                     "Ojo: lo que está por DEBAJO del nivel al que el proceso está registrando no se escribe "
-                    "en ningún lado, así que no alcanza con pedirlo acá.";
+                    "en ningún lado, así que no alcanza con pedirlo acá.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"minimo",
                {{"type", "string"},
                 {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
-                {"description", "Desde qué nivel. Por defecto, aviso."}}},
-              {"modulo", {{"type", "string"}, {"description", "Uno solo. Vacío = todos."}}},
-              {"busca", {{"type", "string"}, {"description", "Texto a buscar (sin distinguir mayúsculas)."}}},
+                {"description", ba::i18n::traducir("mcp", "Desde qué nivel. Por defecto, aviso.")}}},
+              {"modulo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Uno solo. Vacío = todos.")}}},
+              {"busca", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Texto a buscar (sin distinguir mayúsculas).")}}},
               {"ultimosMin",
-               {{"type", "integer"}, {"minimum", 1}, {"description", "Solo lo de los últimos N minutos."}}},
+               {{"type", "integer"}, {"minimum", 1}, {"description", ba::i18n::traducir("mcp", "Solo lo de los últimos N minutos.")}}},
               {"cuantas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 500}}}}}};
         t.run = [&rt](const json& a, Done done) {
             ba::diag::Filtro f;
@@ -110,40 +111,42 @@ void McpService::registerRegistroTools() {
     {
         Tool t;
         t.name = "log_nivel";
-        t.title = "Cuánto se registra";
+        t.title = ba::i18n::traducir("mcp", "Cuánto se registra");
         t.category = "registro";
-        t.description = "Lee o cambia, en vivo, el nivel desde el que este proceso registra.";
-        t.details = "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (GStreamer solo ya es muy "
+        t.description = ba::i18n::traducir("mcp", "Lee o cambia, en vivo, el nivel desde el que este proceso registra.");
+        t.details = ba::i18n::traducir("mcp", "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (GStreamer solo ya es muy "
                     "hablador). Sirve para reproducir un problema con detalle, pero no para dejarlo así: "
                     "llena el disco y hace que lo importante se pierda entre miles de líneas.\n\n"
                     "El cambio queda anotado en el propio registro, con quién lo hizo, para que mañana "
                     "nadie se pregunte por qué el log está lleno de trazas.\n\n"
                     "`donde` elige el proceso: `app` (por defecto) o `gateway`. El del gateway tambien se "
-                    "puede fijar al arrancar con la variable de entorno BA_LOG_NIVEL.";
+                    "puede fijar al arrancar con la variable de entorno BA_LOG_NIVEL.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"nivel",
                {{"type", "string"},
                 {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
-                {"description", "Ausente = solo informa el que hay."}}},
+                {"description", ba::i18n::traducir("mcp", "Ausente = solo informa el que hay.")}}},
               {"donde", {{"type", "string"}, {"enum", {"app", "gateway"}}, {"default", "app"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             // El gateway es otro proceso: se le pide por su API de control.
             if (a.value("donde", std::string("app")) == "gateway") {
                 auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
-                if (conf == nullptr) return done(ToolResult::error("El servidor no esta corriendo."));
+                if (conf == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "El servidor no esta corriendo.")));
                 if (!a.contains("nivel")) {
                     conf->control().nivelLog([done](const std::string& err, const json& r) {
-                        if (!err.empty()) return done(ToolResult::error("El servidor no responde."));
+                        if (!err.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "El servidor no responde.")));
                         done(ToolResult().data(json{{"nivel", r.value("nivel", std::string())}, {"donde", "gateway"}}));
                     });
                     return;
                 }
                 const std::string nivel = a["nivel"].get<std::string>();
                 conf->control().setNivelLog(nivel, [done, nivel](const std::string& err, const json&) {
-                    if (!err.empty()) return done(ToolResult::error("No se pudo cambiar el nivel del gateway: " + err));
-                    done(ToolResult::ok("El gateway ahora registra desde " + nivel + "."));
+                    if (!err.empty()) return done(ToolResult::error(ba::i18n::llenar(
+                        ba::i18n::traducir("mcp", "No se pudo cambiar el nivel del gateway: %1"), {err})));
+                    done(ToolResult::ok(
+                        ba::i18n::llenar(ba::i18n::traducir("mcp", "El gateway ahora registra desde %1."), {nivel})));
                 });
                 return;
             }
@@ -153,12 +156,13 @@ void McpService::registerRegistroTools() {
             }
             ba::diag::Nivel n{};
             if (!ba::diag::nivelDeNombre(a["nivel"].get<std::string>(), n))
-                return done(ToolResult::error("No conozco ese nivel."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "No conozco ese nivel.")));
             reg.setNivel(n);
             reg.linea(ba::diag::Nivel::Info, "registro", 0,
-                      std::string("nivel de registro cambiado a ") + ba::diag::nombreDeNivel(n) +
-                          " desde el asistente");
-            done(ToolResult::ok(std::string("Ahora se registra desde ") + ba::diag::nombreDeNivel(n) + "."));
+                      ba::i18n::llenar(ba::i18n::traducir("registro", "nivel de registro cambiado a %1 desde el asistente"),
+                                       {ba::diag::nombreDeNivel(n)}));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Ahora se registra desde %1."),
+                                                 {ba::diag::nombreDeNivel(n)})));
         };
         core_.addTool(std::move(t));
     }
@@ -169,11 +173,11 @@ void McpService::registerRegistroTools() {
     {
         Tool t;
         t.name = "ext_listar";
-        t.title = "Tarjetas de extension";
+        t.title = ba::i18n::traducir("mcp", "Tarjetas de extension");
         t.category = "registro";
         t.readOnly = true;
-        t.description = "Las tarjetas que viven en Extensiones/, con su estado.";
-        t.details = "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
+        t.description = ba::i18n::traducir("mcp", "Las tarjetas que viven en Extensiones/, con su estado.");
+        t.details = ba::i18n::traducir("mcp", "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
                     "dibuja como una tarjeta mas del dashboard. Las escribis vos: la carpeta esta en el "
                     "campo `carpeta` de la respuesta.\n\n"
                     "Como se escribe una: mira `Extensiones/reloj-de-aire/tarjeta.qml`, que es el ejemplo de "
@@ -184,10 +188,10 @@ void McpService::registerRegistroTools() {
                     "operador la agrega desde «+ Tarjeta» en el dashboard.\n\n"
                     "`apagada` en true significa que se llevo puesto el arranque dos veces y el programa "
                     "dejo de cargarla para poder abrir. Eso NO se arregla escribiendo de nuevo: hay que "
-                    "arreglar el QML y prenderla con `ext_prender`.";
+                    "arreglar el QML y prenderla con `ext_prender`.");
         t.run = [&vm](const json&, Done done) {
             auto* ex = static_cast<ExtensionesModel*>(vm.extensiones());
-            if (ex == nullptr) return done(ToolResult::error("No hay extensiones en esta corrida."));
+            if (ex == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay extensiones en esta corrida.")));
             json out = json::array();
             for (int i = 0; i < ex->rowCount(); ++i) {
                 const QVariantMap f = ex->ficha(ex->data(ex->index(i), ExtensionesModel::IdRole).toString());
@@ -204,18 +208,18 @@ void McpService::registerRegistroTools() {
     {
         Tool t;
         t.name = "ext_prender";
-        t.title = "Prender una extension apagada";
+        t.title = ba::i18n::traducir("mcp", "Prender una extension apagada");
         t.category = "registro";
-        t.description = "Vuelve a cargar una tarjeta que el arranque habia apagado.";
-        t.details = "Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola "
-                    "y vas a haber gastado dos reinicios del programa.";
+        t.description = ba::i18n::traducir("mcp", "Vuelve a cargar una tarjeta que el arranque habia apagado.");
+        t.details = ba::i18n::traducir("mcp", "Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola "
+                    "y vas a haber gastado dos reinicios del programa.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&vm](const json& a, Done done) {
             auto* ex = static_cast<ExtensionesModel*>(vm.extensiones());
-            if (ex == nullptr) return done(ToolResult::error("No hay extensiones en esta corrida."));
+            if (ex == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay extensiones en esta corrida.")));
             ex->prender(QString::fromStdString(a["id"].get<std::string>()));
-            done(ToolResult::ok("Prendida. Se carga de nuevo al reabrir la pagina o el programa."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Prendida. Se carga de nuevo al reabrir la pagina o el programa.")));
         };
         core_.addTool(std::move(t));
     }
@@ -223,17 +227,17 @@ void McpService::registerRegistroTools() {
     {
         Tool t;
         t.name = "log_marcar";
-        t.title = "Dejar una marca";
+        t.title = ba::i18n::traducir("mcp", "Dejar una marca");
         t.category = "registro";
-        t.description = "Escribe una línea propia en el registro.";
-        t.details = "Se pone ANTES de probar algo («voy a probar la camara 2»): después se busca esa marca "
+        t.description = ba::i18n::traducir("mcp", "Escribe una línea propia en el registro.");
+        t.details = ba::i18n::traducir("mcp", "Se pone ANTES de probar algo («voy a probar la camara 2»): después se busca esa marca "
                     "y todo lo que sigue es lo que pasó por eso. Es la forma barata de separar lo que "
-                    "provocaste de lo que ya estaba pasando.";
+                    "provocaste de lo que ya estaba pasando.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"texto", {{"type", "string"}}}}}, {"required", {"texto"}}};
         t.run = [](const json& a, Done done) {
             ba::diag::registro().linea(ba::diag::Nivel::Info, "marca", 0, a.value("texto", std::string()));
-            done(ToolResult::ok("Marca puesta."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Marca puesta.")));
         };
         core_.addTool(std::move(t));
     }
