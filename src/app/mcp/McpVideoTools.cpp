@@ -9,6 +9,7 @@
 // así que agregarlas no le cambia el prompt.
 // ============================================================================
 
+#include "i18n/I18n.hpp"
 #include "mcp/EsperarEntrada.hpp"
 #include "Mapa.hpp"
 #include "mcp/McpService.hpp"
@@ -48,23 +49,22 @@ void McpService::registerVideoTools() {
     video::VideoGrafos* vg = vm_.videoGrafos();
     if (vg == nullptr) return;
     core_.addCategory(
-        "video", "Grafo de video",
-        "Un grafo de video para todo el estudio, como un pipeline de GStreamer: cada entrada es un sub-grafo "
-        "(entrada -> tarjetas -> escena) y los cables pueden cruzar entre entradas (p. ej. a un compositor). "
-        "Tarjetas propias (color, croma, recorte, salida) o cualquier "
-        "módulo de "
-        "video de GStreamer (video_modulos: el catálogo documentado). Entradas virtuales (barras, negro, un "
-        "pipeline de GStreamer) con video_entrada_virtual. Las tarjetas de imagen corren en la cadena de "
-        "cada entrada.");
+        "video", ba::i18n::traducir("mcp", "Grafo de video"),
+        ba::i18n::traducir("mcp", "Un grafo de video para todo el estudio, como un pipeline de GStreamer: cada entrada "
+                                  "es un sub-grafo (entrada -> tarjetas -> escena) y los cables pueden cruzar entre "
+                                  "entradas (p. ej. a un compositor). Tarjetas propias (color, croma, recorte, salida) "
+                                  "o cualquier módulo de video de GStreamer (video_modulos: el catálogo documentado). "
+                                  "Entradas virtuales (barras, negro, un pipeline de GStreamer) con "
+                                  "video_entrada_virtual. Las tarjetas de imagen corren en la cadena de cada entrada."));
     const QPointer<video::VideoGrafos> v = vg;
     const auto deQt = [](const QVariant& x) {
         return json::parse(QJsonDocument::fromVariant(x).toJson(QJsonDocument::Compact).toStdString(),
                            nullptr, false);
     };
-    const json entrada = {{"type", "string"}, {"description", "La entrada de video (como en video_grafo)."}};
+    const json entrada = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La entrada de video (como en video_grafo).")}};
     const json idTarjeta = {
         {"type", "string"},
-        {"description", "El id de la tarjeta (como en video_grafo), p. ej. «camara-1.croma»."}};
+        {"description", ba::i18n::traducir("mcp", "El id de la tarjeta (como en video_grafo), p. ej. «camara-1.croma».")}};
     // Lo que cambió, visto desde la entrada que corresponde (o todo el estudio).
     const auto hecho = [v](const std::string& verEntrada, const std::string& error, Done done) {
         if (!error.empty()) return done(ToolResult::error(error));
@@ -74,10 +74,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_grafo";
-        t.title = "El grafo de video";
+        t.title = ba::i18n::traducir("mcp", "El grafo de video");
         t.category = "video";
         t.readOnly = true;
-        t.description = "Sin `entrada`: todo el estudio (cada entrada con su sub-grafo, los nodos del "
+        t.description = ba::i18n::traducir("mcp", "Sin `entrada`: todo el estudio (cada entrada con su sub-grafo, los nodos del "
                         "estudio y los cables "
                         "entre ellos) y las tarjetas propias. Con `entrada`: su sub-grafo, con los nodos de "
                         "afuera que se "
@@ -85,7 +85,7 @@ void McpService::registerVideoTools() {
                         "`salidas`; un compositor "
                         "tiene puertos a pedido in_0, in_1… y siempre uno libre). Una tarjeta que no puede "
                         "correr trae `error` "
-                        "con el motivo (p. ej. un módulo de GStreamer que no arrancó).";
+                        "con el motivo (p. ej. un módulo de GStreamer que no arrancó).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -93,9 +93,9 @@ void McpService::registerVideoTools() {
               {"mostrar",
                {{"type", "string"},
                 {"enum", {"racks", "estudio"}},
-                {"description", "Además, que la página Video muestre esa vista (y esa entrada)."}}}}}};
+                {"description", ba::i18n::traducir("mcp", "Además, que la página Video muestre esa vista (y esa entrada).")}}}}}};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             v->sincronizar();
             const std::string e = a.value("entrada", std::string());
             if (a.contains("mostrar")) {
@@ -118,20 +118,20 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_filtros";
-        t.title = "Los controles de una tarjeta";
+        t.title = ba::i18n::traducir("mcp", "Los controles de una tarjeta");
         t.category = "video";
         t.readOnly = true;
         t.description =
-            "Con `id` de una tarjeta (un módulo de GStreamer, o una Mezcla de GStreamer): sus controles (nombre, "
+            ba::i18n::traducir("mcp", "Con `id` de una tarjeta (un módulo de GStreamer, o una Mezcla de GStreamer): sus controles (nombre, "
             "tipo, valor, rango, opciones). Con `puerto` (una Mezcla de GStreamer): los de esa entrada (xpos, ypos, "
             "width, height, alpha, zorder…; vacío si el módulo no tiene, como smpte). Sin `id`, vacío: los "
-            "filtros de OBS se fueron con libobs; el catálogo de módulos está en video_modulos.";
+            "filtros de OBS se fueron con libobs; el catálogo de módulos está en video_modulos.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", idTarjeta},
-                           {"puerto", {{"type", "string"}, {"description", "con una mezcla: la entrada (sink_0, sink1…)"}}}}}};
+                           {"puerto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con una mezcla: la entrada (sink_0, sink1…)")}}}}}};
         t.run = [v, deQt](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const QString id = QString::fromStdString(a.value("id", std::string()));
             const QString puerto = QString::fromStdString(a.value("puerto", std::string()));
             if (!puerto.isEmpty()) return done(ToolResult().data(deQt(v->propiedadesPad(id, puerto))));
@@ -142,10 +142,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_modulos";
-        t.title = "Los módulos de video de GStreamer (catálogo documentado)";
+        t.title = ba::i18n::traducir("mcp", "Los módulos de video de GStreamer (catálogo documentado)");
         t.category = "video";
         t.readOnly = true;
-        t.description = "El catálogo de módulos de video de GStreamer que trae el programa, con su "
+        t.description = ba::i18n::traducir("mcp", "El catálogo de módulos de video de GStreamer que trae el programa, con su "
                         "documentación en castellano "
                         "(para qué sirven y cómo se usan en vivo). Sin argumentos: un resumen por categoría. "
                         "`buscar`: por "
@@ -156,27 +156,27 @@ void McpService::registerVideoTools() {
                         "como tarjeta de filtro (video_tarjeta_agregar tipo gst); `mezcla`, si junta varias "
                         "entradas (`entradas`: sus plantillas de pads, a pedido o fijas): va como Mezcla de "
                         "GStreamer del estudio (video_tarjeta_agregar tipo mezcla con `elemento`). Los demás son "
-                        "fuentes o salidas.";
+                        "fuentes o salidas.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"buscar", {{"type", "string"}}},
               {"categoria", {{"type", "string"}}},
               {"elemento", {{"type", "string"}}},
-              {"soloTarjetas", {{"type", "boolean"}, {"description", "solo los que van como tarjeta"}}},
-              {"soloMezclas", {{"type", "boolean"}, {"description", "solo los de varias entradas (van como mezcla)"}}}}}};
+              {"soloTarjetas", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "solo los que van como tarjeta")}}},
+              {"soloMezclas", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "solo los de varias entradas (van como mezcla)")}}}}}};
         t.examples = {R"({"buscar": "croma"})", R"({"elemento": "deinterlace"})",
                       R"({"categoria": "Color"})", R"({"soloMezclas": true})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const video::CatalogoGst& c = v->gst();
-            if (!c.disponible()) return done(ToolResult::error("GStreamer no está disponible: " + c.error()));
+            if (!c.disponible()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "GStreamer no está disponible: %1"), {c.error()})));
             const std::string el = a.value("elemento", std::string());
             if (!el.empty()) {
                 json m = c.modulo(el);
                 if (m.empty())
                     return done(
-                        ToolResult::error("no existe el módulo «" + el + "» (video_modulos con buscar)"));
+                        ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el módulo «%1» (video_modulos con buscar)"), {el})));
                 m["propiedades"] = c.propiedades(el, json::object());
                 return done(ToolResult().data(m));
             }
@@ -228,10 +228,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_entrada_virtual";
-        t.title = "Crear una entrada virtual (barras, negro, un pipeline de GStreamer)";
+        t.title = ba::i18n::traducir("mcp", "Crear una entrada virtual (barras, negro, un pipeline de GStreamer)");
         t.category = "video";
         t.description =
-            "Sin `nombre`: las entradas virtuales que hay (barras HD, barras 75 %, barras con la hora, "
+            ba::i18n::traducir("mcp", "Sin `nombre`: las entradas virtuales que hay (barras HD, barras 75 %, barras con la hora, "
             "negro, "
             "blanco, verde, placa de zonas, damero, pelota, ruido). Con `nombre` y `preset` (o `pipeline`, "
             "la parte "
@@ -240,7 +240,7 @@ void McpService::registerVideoTools() {
             "la crea en `escena` (obligatoria: para no tocar la que está al aire sin querer; `al_aire: true` "
             "la pone en "
             "la del aire). Queda como una entrada más: con su sub-grafo de tarjetas. Para un stream de red "
-            "(srt/rtmp/rtsp) usá video_entrada_red, que lo sincroniza.";
+            "(srt/rtmp/rtsp) usá video_entrada_red, que lo sincroniza.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"nombre", {{"type", "string"}}},
@@ -252,12 +252,12 @@ void McpService::registerVideoTools() {
             R"({"nombre": "Barras", "preset": "barras-hd"})",
             R"({"nombre": "Cámara IP", "pipeline": "rtspsrc location=rtsp://10.0.0.5/stream latency=200 ! decodebin"})"};
         t.run = [v, deQt](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const std::string nombre = a.value("nombre", std::string());
             if (nombre.empty()) return done(ToolResult().data(deQt(video::VideoGrafos::virtuales())));
             if (a.value("escena", std::string()).empty() && !a.value("al_aire", false))
                 return done(ToolResult::error(
-                    "falta `escena` (o `al_aire: true` para ponerla en la que está al aire)"));
+                    ba::i18n::traducir("mcp", "falta `escena` (o `al_aire: true` para ponerla en la que está al aire)")));
             const std::string pl = a.value("pipeline", std::string());
             const std::string err = v->crearEntradaVirtual(
                 nombre, pl.empty() ? a.value("preset", std::string("barras-hd")) : "pipeline:" + pl,
@@ -270,10 +270,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_tarjeta_agregar";
-        t.title = "Agregar una tarjeta de video";
+        t.title = ba::i18n::traducir("mcp", "Agregar una tarjeta de video");
         t.category = "video";
         t.description =
-            "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la "
+            ba::i18n::traducir("mcp", "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la "
             "`entrada` "
             "(después de `despues`; vacío = justo antes de su escena): `color`, "
             "`croma`, `recorte` y `gst` (un "
@@ -289,9 +289,9 @@ void McpService::registerVideoTools() {
             "(con `elemento`: cualquier módulo de varias entradas de video_modulos, p. ej. compositor, "
             "glvideomixer, d3d12compositor, glmosaic, smpte, shapewipe) también es del estudio: sus puertos "
             "son los del módulo (sink_0, sink_1… a pedido; sink1/sink2 en smpte; video_sink/mask_sink en "
-            "shapewipe) y se usa igual que el compositor.";
+            "shapewipe) y se usa igual que el compositor.");
         t.details =
-            "`params` con los de fábrica que quieras cambiar (video_tarjeta_ayuda explica cada uno, con "
+            ba::i18n::traducir("mcp", "`params` con los de fábrica que quieras cambiar (video_tarjeta_ayuda explica cada uno, con "
             "rangos y opciones; el texto del overlay de Rostros también). Croma: `clave` "
             "0xRRGGBB (verde "
             "0x00B140), `similitud`, `suavidad`, `derrame`. Color: `brillo`, `contraste`, `saturacion`, "
@@ -308,7 +308,7 @@ void McpService::registerVideoTools() {
             "Un módulo de GStreamer: sus propiedades en `params.propiedades`, con los nombres de "
             "GStreamer (video_modulos con `elemento` las lista; los enum, por su nick). Una mezcla: "
             "`params.propiedades` (las del módulo), `params.pads` ({\"sink_0\": {\"xpos\": 10}}: las de cada "
-            "entrada; video_filtros con `puerto` las lista), `ancho`, `alto` (0 = el estudio) y `nombre`.";
+            "entrada; video_filtros con `puerto` las lista), `ancho`, `alto` (0 = el estudio) y `nombre`.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"tipo"}},
@@ -321,14 +321,14 @@ void McpService::registerVideoTools() {
                   "seguir", "salida", "compositor", "mezcla", "superres", "vista360", "panoramica"}}}},
               {"plugin",
                {{"type", "string"},
-                {"description", "con tipo plugin: el id del plugin de Python (plugin_listar)"}}},
+                {"description", ba::i18n::traducir("mcp", "con tipo plugin: el id del plugin de Python (plugin_listar)")}}},
               {"tarjeta",
-               {{"type", "string"}, {"description", "con tipo plugin: la tarjeta de video que declaró"}}},
-              {"parametros", {{"type", "object"}, {"description", "con tipo plugin: sus ajustes"}}},
+               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con tipo plugin: la tarjeta de video que declaró")}}},
+              {"parametros", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "con tipo plugin: sus ajustes")}}},
               {"elemento",
                {{"type", "string"},
-                {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance); con tipo mezcla, uno de "
-                                "varias entradas (p. ej. smpte, glvideomixer)"}}},
+                {"description", ba::i18n::traducir("mcp", "con tipo gst: el módulo de GStreamer (p. ej. videobalance); con tipo mezcla, uno de "
+                                "varias entradas (p. ej. smpte, glvideomixer)")}}},
               {"despues", idTarjeta},
               {"params", {{"type", "object"}}}}}};
         t.examples = {
@@ -338,7 +338,7 @@ void McpService::registerVideoTools() {
             R"({"tipo": "mezcla", "elemento": "smpte", "params": {"propiedades": {"type": "bar-wipe-lr"}}})",
             R"({"entrada": "Cámara 1", "tipo": "rostros", "params": {"marcar": true, "estilo": "esquinas", "texto": "{nombre} — {cargo}"}})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const json ap = tarjetaDePlugin(json{{"tipo", a.value("tipo", std::string())},
                                                  {"plugin", a.value("plugin", std::string())},
                                                  {"tarjeta", a.value("tarjeta", std::string())},
@@ -353,7 +353,7 @@ void McpService::registerVideoTools() {
                 etiqueta = video::VideoGrafos::nombreFiltro(f);
                 if (etiqueta.empty())
                     return done(
-                        ToolResult::error("no existe el filtro «" + f + "» (video_filtros los lista)"));
+                        ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el filtro «%1» (video_filtros los lista)"), {f})));
                 params["filtro"] = f;
             }
             std::string nuevo;
@@ -390,15 +390,15 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_tarjeta_ayuda";
-        t.title = "Ayuda de un tipo de tarjeta";
+        t.title = ba::i18n::traducir("mcp", "Ayuda de un tipo de tarjeta");
         t.category = "video";
         t.readOnly = true;
         t.description =
-            "Qué hace un tipo de tarjeta de video, cada parámetro (tipo, rango, opciones, de fábrica) y qué "
+            ba::i18n::traducir("mcp", "Qué hace un tipo de tarjeta de video, cada parámetro (tipo, rango, opciones, de fábrica) y qué "
             "eventos de GStreamer manda y escucha. Con Rostros, además, cómo se arma el texto del overlay. Sin "
-            "`tipo`: todos.";
+            "`tipo`: todos.");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"tipo", {{"type", "string"}, {"description", "rostros, seguir, ptz, color…"}}}}}};
+                         {"properties", {{"tipo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "rostros, seguir, ptz, color…")}}}}}};
         t.examples = {R"({"tipo": "rostros"})", R"({"tipo": "seguir"})"};
         t.run = [](const json& a, Done done) {
             const std::string tipo = a.value("tipo", std::string());
@@ -408,33 +408,33 @@ void McpService::registerVideoTools() {
                 if (c.value("tipo", std::string()) != tipo) continue;
                 return done(ToolResult().data(c));
             }
-            done(ToolResult::error("no hay una tarjeta «" + tipo + "»; sin `tipo` se listan todas"));
+            done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una tarjeta «%1»; sin `tipo` se listan todas"), {tipo})));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "video_tarjeta_mover";
-        t.title = "Mover una tarjeta en la cadena";
+        t.title = ba::i18n::traducir("mcp", "Mover una tarjeta en la cadena");
         t.category = "video";
         t.description =
-            "Lleva la tarjeta `id` a otro lugar de la cadena de su entrada: después de `despues` (el id de otra "
+            ba::i18n::traducir("mcp", "Lleva la tarjeta `id` a otro lugar de la cadena de su entrada: después de `despues` (el id de otra "
             "tarjeta, o de la entrada para ponerla primera; vacío = justo antes de la escena), o un lugar antes "
-            "(`paso`: -1) o después (`paso`: 1).";
+            "(`paso`: -1) o después (`paso`: 1).");
         t.details =
-            "El orden importa: el PTZ antes de la superresolución le da detalle a lo que se amplía; Rostros antes "
+            ba::i18n::traducir("mcp", "El orden importa: el PTZ antes de la superresolución le da detalle a lo que se amplía; Rostros antes "
             "del PTZ ve la toma entera (y el seguimiento puede llevar al PTZ fuera de lo que se ve); después, ve "
             "lo que sale del encuadre. Todas las tarjetas dejan pasar los eventos de las otras (ba/rostros, "
-            "ba/ptz, ba/encuadre, ba/control), así que cualquier orden funciona.";
+            "ba/ptz, ba/encuadre, ba/control), así que cualquier orden funciona.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties",
                           {{"id", idTarjeta},
                            {"entrada", entrada},
-                           {"despues", {{"type", "string"}, {"description", "después de esta tarjeta"}}},
+                           {"despues", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "después de esta tarjeta")}}},
                            {"paso", {{"type", "integer"}, {"enum", {-1, 1}}}}}}};
         t.run = [v, hecho](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const QString id = QString::fromStdString(a.value("id", std::string()));
             QString e;
             if (a.contains("paso"))
@@ -449,15 +449,15 @@ void McpService::registerVideoTools() {
         Tool t;
         t.name = "video_tarjeta_quitar";
         t.destructive = true;
-        t.title = "Quitar una tarjeta de video";
+        t.title = ba::i18n::traducir("mcp", "Quitar una tarjeta de video");
         t.category = "video";
         t.description =
-            "Quita la tarjeta `id`: un filtro se puentea (lo de antes queda unido con lo de después).";
+            ba::i18n::traducir("mcp", "Quita la tarjeta `id`: un filtro se puentea (lo de antes queda unido con lo de después).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties", {{"id", idTarjeta}, {"entrada", entrada}}}};
         t.run = [v, hecho](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             hecho(a.value("entrada", std::string()), v->editar([&](video::GrafoVideo& g) {
                 std::string error;
                 g.quitar(a.value("id", std::string()), &error);
@@ -470,10 +470,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_tarjeta_ajustar";
-        t.title = "Ajustar una tarjeta de video";
+        t.title = ba::i18n::traducir("mcp", "Ajustar una tarjeta de video");
         t.category = "video";
         t.idempotent = true;
-        t.description = "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su "
+        t.description = ba::i18n::traducir("mcp", "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su "
                         "`etiqueta`. Un módulo de GStreamer: `{\"propiedades\": {…}}` (se "
                         "mezclan). Una tarjeta "
                         "manejada por un controlador: el ajuste va al controlador (cambia en todas); lo "
@@ -483,14 +483,14 @@ void McpService::registerVideoTools() {
                         "{\"xpos\": 10}}}` (las de cada entrada), se mezclan. La "
                         "tarjeta de un plugin de "
                         "Python: `{\"parametros\": {\"fuerza\": 0.5}}` (o los parámetros sueltos), se "
-                        "mezclan con los que tiene.";
+                        "mezclan con los que tiene.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"id", "params"}},
             {"properties", {{"id", idTarjeta}, {"params", {{"type", "object"}}}, {"entrada", entrada}}}};
         t.examples = {R"({"id": "camara-1.croma", "params": {"similitud": 0.5}})"};
         t.run = [v, hecho](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             hecho(a.value("entrada", std::string()), v->editar([&](video::GrafoVideo& g) {
                 return v->ajustarEn(g, a.value("id", std::string()),
                                                      a.value("params", json::object()));
@@ -502,15 +502,15 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_cable";
-        t.title = "Conectar o desconectar en el grafo de video";
+        t.title = ba::i18n::traducir("mcp", "Conectar o desconectar en el grafo de video");
         t.category = "video";
         t.description =
-            "Un cable de `desde` a `hacia` (cualquier par de tarjetas del estudio, aunque sean de entradas "
+            ba::i18n::traducir("mcp", "Un cable de `desde` a `hacia` (cualquier par de tarjetas del estudio, aunque sean de entradas "
             "distintas). `entrada`: el puerto de `hacia` (vacío = el primero; en un compositor, uno nuevo). "
             "A cada "
             "puerto le llega UNO (el nuevo reemplaza al que había); de una salida pueden salir varios. Sin "
             "ciclos. "
-            "Con `quitar`, lo saca.";
+            "Con `quitar`, lo saca.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"desde", "hacia"}},
@@ -518,17 +518,17 @@ void McpService::registerVideoTools() {
              {{"desde", idTarjeta},
               {"hacia", idTarjeta},
               {"salida", {{"type", "string"}}},
-              {"entrada", {{"type", "string"}, {"description", "puerto de `hacia` (in, in_0…)"}}},
+              {"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "puerto de `hacia` (in, in_0…)")}}},
               {"quitar", {{"type", "boolean"}}}}}};
         t.run = [v, hecho](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             hecho(std::string(), v->editar([&](video::GrafoVideo& g) {
                 std::string error;
                 const std::string d = a.value("desde", std::string()), h = a.value("hacia", std::string());
                 if (a.value("quitar", false)) {
                     if (!g.desconectar(d, a.value("salida", std::string()), h,
                                        a.value("entrada", std::string())))
-                        error = "no hay un cable de «" + d + "» a «" + h + "»";
+                        error = ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un cable de «%1» a «%2»"), {d, h});
                 } else {
                     g.conectar(d, a.value("salida", std::string()), h, a.value("entrada", std::string()),
                                &error);
@@ -542,10 +542,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_controlador";
-        t.title = "Manejar tarjetas de varias entradas con un controlador";
+        t.title = ba::i18n::traducir("mcp", "Manejar tarjetas de varias entradas con un controlador");
         t.category = "video";
         t.description =
-            "Un controlador es un nodo del estudio con el molde de una tarjeta: las tarjetas conectadas a su "
+            ba::i18n::traducir("mcp", "Un controlador es un nodo del estudio con el molde de una tarjeta: las tarjetas conectadas a su "
             "salida "
             "de control (`ctl`) corren con SUS parámetros (la misma corrección de color para las cámaras de "
             "tres "
@@ -557,7 +557,7 @@ void McpService::registerVideoTools() {
             "Con "
             "`soltar` (id de tarjeta): la desconecta y se queda con los valores que usaba. Para conectar una "
             "tarjeta que ya existe: video_cable desde el controlador (salida ctl) a la tarjeta (entrada "
-            "ctl).";
+            "ctl).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"tarjeta", idTarjeta},
@@ -569,7 +569,7 @@ void McpService::registerVideoTools() {
                       R"({"controlador": "estudio.control", "entrada": "Pelco"})",
                       R"({"soltar": "pelco.gst"})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             std::string hecho;
             const std::string err = v->editar([&](video::GrafoVideo& g) {
                 std::string e;
@@ -582,7 +582,7 @@ void McpService::registerVideoTools() {
                 } else if (a.contains("tarjeta")) {
                     hecho = g.controlarDesde(a.value("tarjeta", std::string()), &e);
                 } else {
-                    e = "falta `tarjeta`, `controlador` + `entrada`, o `soltar`";
+                    e = ba::i18n::traducir("mcp", "falta `tarjeta`, `controlador` + `entrada`, o `soltar`");
                 }
                 return e;
             });
@@ -596,24 +596,24 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_salida_a_escena";
-        t.title = "Poner una salida, un compositor o una mezcla del grafo en una escena";
+        t.title = ba::i18n::traducir("mcp", "Poner una salida, un compositor o una mezcla del grafo en una escena");
         t.category = "video";
         t.description =
-            "Pone la tarjeta salida `id` (o un compositor, una panorámica o una mezcla) como fuente en `escena` (obligatoria: nunca la "
+            ba::i18n::traducir("mcp", "Pone la tarjeta salida `id` (o un compositor, una panorámica o una mezcla) como fuente en `escena` (obligatoria: nunca la "
             "del aire sin "
             "pedirlo). La fuente se llama como el nombre de la tarjeta (se cambia con video_tarjeta_ajustar "
             "{\"params\": {\"nombre\": …}} antes de ponerla). Queda guardada como cualquier fuente de la "
             "escena. Para un "
-            "mosaico entero en una llamada: video_mosaico.";
+            "mosaico entero en una llamada: video_mosaico.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id", "escena"}},
                          {"properties", {{"id", idTarjeta}, {"escena", {{"type", "string"}}}}}};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const std::string err =
                 v->ponerEnEscena(a.value("id", std::string()), a.value("escena", std::string()));
             if (!err.empty()) return done(ToolResult::error(err));
-            done(ToolResult::ok("Salida puesta en la escena."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Salida puesta en la escena.")));
         };
         core_.addTool(std::move(t));
     }
@@ -621,14 +621,14 @@ void McpService::registerVideoTools() {
         Tool t;
         t.name = "video_grafo_limpiar";
         t.destructive = true;
-        t.title = "Volver el video de una entrada a como vino";
+        t.title = ba::i18n::traducir("mcp", "Volver el video de una entrada a como vino");
         t.category = "video";
-        t.description = "Deja la `entrada` en «entrada -> escena»: saca sus tarjetas y lo que llegaba a su "
-                        "escena desde afuera.";
+        t.description = ba::i18n::traducir("mcp", "Deja la `entrada` en «entrada -> escena»: saca sus tarjetas y lo que llegaba a su "
+                        "escena desde afuera.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
         t.run = [v, hecho](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const std::string e = a.value("entrada", std::string());
             hecho(e, v->editar([&](video::GrafoVideo& g) {
                 g.limpiar(e);
@@ -644,10 +644,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_pipeline";
-        t.title = "Armar la cadena de tarjetas de una entrada (en una llamada)";
+        t.title = ba::i18n::traducir("mcp", "Armar la cadena de tarjetas de una entrada (en una llamada)");
         t.category = "video";
         t.description =
-            "Arma, en orden, las tarjetas de la `entrada` (de la cámara hacia la escena) en UNA llamada y "
+            ba::i18n::traducir("mcp", "Arma, en orden, las tarjetas de la `entrada` (de la cámara hacia la escena) en UNA llamada y "
             "valida "
             "cada una. `modo`: «reemplazar» (de fábrica: saca las que había) o «agregar» (al final). Cada "
             "tarjeta: "
@@ -669,7 +669,7 @@ void McpService::registerVideoTools() {
             "(el caso «la "
             "misma corrección en las tres cámaras»). El controlador toma el id del nombre compartido "
             "(estudio.<nombre>). "
-            "Devuelve el sub-grafo y el diagnóstico de cada entrada.";
+            "Devuelve el sub-grafo y el diagnóstico de cada entrada.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"tarjetas"}},
                          {"properties",
@@ -677,12 +677,12 @@ void McpService::registerVideoTools() {
                            {"entradas",
                             {{"type", "array"},
                              {"items", {{"type", "string"}}},
-                             {"description", "la MISMA cadena en varias entradas a la vez (las `compartida` "
-                                             "quedan manejadas por un solo controlador)"}}},
+                             {"description", ba::i18n::traducir("mcp", "la MISMA cadena en varias entradas a la vez (las `compartida` "
+                                             "quedan manejadas por un solo controlador)")}}},
                            {"local_por_entrada",
                             {{"type", "object"},
-                             {"description", "lo propio de cada entrada sobre lo compartido: {\"Pelco\": "
-                                             "{\"propiedades\": {\"hue\": 0.04}}}"}}},
+                             {"description", ba::i18n::traducir("mcp", "lo propio de cada entrada sobre lo compartido: {\"Pelco\": "
+                                             "{\"propiedades\": {\"hue\": 0.04}}}")}}},
                            {"modo", {{"type", "string"}, {"enum", {"reemplazar", "agregar"}}}},
                            {"tarjetas",
                             {{"type", "array"},
@@ -691,8 +691,8 @@ void McpService::registerVideoTools() {
                                {"properties",
                                 {{"tipo",
                                   {{"type", "string"},
-                                   {"description", "color, croma, recorte, obs, gst, plugin (+ `plugin`, "
-                                                   "`tarjeta`, `parametros`), retardo, normalizar…"}}},
+                                   {"description", ba::i18n::traducir("mcp", "color, croma, recorte, obs, gst, plugin (+ `plugin`, "
+                                                   "`tarjeta`, `parametros`), retardo, normalizar…")}}},
                                  {"plugin", {{"type", "string"}}},
                                  {"tarjeta", {{"type", "string"}}},
                                  {"parametros", {{"type", "object"}}},
@@ -702,7 +702,7 @@ void McpService::registerVideoTools() {
                                  {"ajustes", {{"type", "object"}}},
                                  {"params",
                                   {{"type", "object"},
-                                   {"description", "los de una tarjeta propia (color, croma, retardo…)"}}},
+                                   {"description", ba::i18n::traducir("mcp", "los de una tarjeta propia (color, croma, retardo…)")}}},
                                  {"compartida", {{"type", "string"}}},
                                  {"local", {{"type", "object"}}},
                                  {"etiqueta", {{"type", "string"}}}}},
@@ -713,18 +713,18 @@ void McpService::registerVideoTools() {
             R"({"entrada": "Panasonic", "tarjetas": [{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}, {"tipo": "gst", "elemento": "videobalance", "compartida": "Corrección cámaras"}]})",
             R"({"entradas": ["Sony", "Pelco", "Panasonic"], "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.85}, "compartida": "Color cámaras"}], "local_por_entrada": {"Pelco": {"propiedades": {"hue": 0.04}}}})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             std::vector<std::string> entradas;
             for (const auto& x : a.value("entradas", json::array()))
                 entradas.push_back(x.get<std::string>());
             if (a.contains("entrada")) entradas.insert(entradas.begin(), a.value("entrada", std::string()));
-            if (entradas.empty()) return done(ToolResult::error("falta `entrada` (o `entradas`)"));
+            if (entradas.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `entrada` (o `entradas`)")));
             for (const auto& e : entradas)
                 if (!v->esEntrada(e))
                     return done(
-                        ToolResult::error("«" + e + "» no es una entrada de video (video_estado las lista)"));
+                        ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» no es una entrada de video (video_estado las lista)"), {e})));
             const json tarjetas = a.value("tarjetas", json::array());
-            if (!tarjetas.is_array() || tarjetas.empty()) return done(ToolResult::error("faltan `tarjetas`"));
+            if (!tarjetas.is_array() || tarjetas.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "faltan `tarjetas`")));
             const json localPor = a.value("local_por_entrada", json::object());
             json hechas = json::array();
             // Todo en UNA edición: si algo falla en cualquier entrada, no cambia nada.
@@ -741,7 +741,7 @@ void McpService::registerVideoTools() {
                             tj["local"] = localPor[e];
                         const std::string tipo = tj.value("tipo", std::string());
                         const std::string donde =
-                            "«" + e + "», tarjeta " + std::to_string(i) + " (" + tipo + "): ";
+                            ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1», tarjeta %2 (%3): "), {e, std::to_string(i), tipo});
                         std::string error, id;
                         const std::string comp = tj.value("compartida", std::string());
                         std::string control;
@@ -755,12 +755,12 @@ void McpService::registerVideoTools() {
                                                     tj.value("propiedades", json::object()), &error);
                         } else if (tipo == "obs") {
                             // Los filtros de OBS se fueron con libobs.
-                            error = "los filtros de OBS ya no existen (no hay libobs): usá una tarjeta `gst` "
-                                    "(video_modulos), p. ej. videobalance o gamma";
+                            error = ba::i18n::traducir("mcp", "los filtros de OBS ya no existen (no hay libobs): usá "
+                                                              "una tarjeta `gst` (video_modulos), p. ej. videobalance o gamma");
                         } else {
                             id = g.agregar(tipo, e, despues, tj.value("params", json::object()), &error);
                         }
-                        if (id.empty()) return donde + (error.empty() ? "no se pudo agregar" : error);
+                        if (id.empty()) return donde + (error.empty() ? ba::i18n::traducir("mcp", "no se pudo agregar") : error);
                         if (!comp.empty() && control.empty()) {
                             control = g.controlarDesde(id, &error);
                             if (control.empty()) return donde + error;
@@ -781,7 +781,7 @@ void McpService::registerVideoTools() {
                 }
                 return std::string();
             });
-            if (!err.empty()) return done(ToolResult::error(err + " (no se cambió nada)"));
+            if (!err.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 (no se cambió nada)"), {err})));
             json d{{"hechas", hechas}};
             json diag = json::object();
             for (const auto& e : entradas)
@@ -795,10 +795,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_mosaico";
-        t.title = "Mosaico, imagen en imagen o lado a lado de varias entradas (en una llamada)";
+        t.title = ba::i18n::traducir("mcp", "Mosaico, imagen en imagen o lado a lado de varias entradas (en una llamada)");
         t.category = "video";
         t.description =
-            "Junta `entradas` en una `escena` (si no existe, la crea) en UNA llamada: crea el compositor (o "
+            ba::i18n::traducir("mcp", "Junta `entradas` en una `escena` (si no existe, la crea) en UNA llamada: crea el compositor (o "
             "rearma el que se llame `nombre`), "
             "conecta lo que llega a la escena de cada entrada (o sea, con sus tarjetas de color, etc.), lo "
             "pone en la "
@@ -809,7 +809,7 @@ void McpService::registerVideoTools() {
             "demás chicas arriba a la derecha) o lado (una al lado de la otra). Con `compositor` (su id) y sin "
             "`entradas`, solo rearma ese compositor en la `disposicion` con lo que ya tiene conectado (lo mismo "
             "que los botones «Armado» de Video). Para retocar después: video_tarjeta_ajustar sobre el compositor "
-            "(`capas`).";
+            "(`capas`).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -818,16 +818,16 @@ void McpService::registerVideoTools() {
               {"disposicion", {{"type", "string"}, {"enum", {"mosaico", "pip", "lado"}}}},
               {"nombre",
                {{"type", "string"},
-                {"description", "el de la fuente del mosaico (de fábrica, «Estudio · compositor»)"}}},
+                {"description", ba::i18n::traducir("mcp", "el de la fuente del mosaico (de fábrica, «Estudio · compositor»)")}}},
               {"ocultar_sueltas", {{"type", "boolean"}}},
               {"compositor",
                {{"type", "string"},
-                {"description", "id de un compositor que ya está: sin `entradas`, solo lo rearma en la `disposicion`"}}}}}};
+                {"description", ba::i18n::traducir("mcp", "id de un compositor que ya está: sin `entradas`, solo lo rearma en la `disposicion`")}}}}}};
         t.examples = {
             R"({"escena": "Exterior", "entradas": ["Cámara 1", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})",
             R"({"compositor": "estudio.compositor", "disposicion": "lado"})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             std::vector<std::string> es;
             for (const auto& x : a.value("entradas", json::array()))
                 es.push_back(x.get<std::string>());
@@ -840,15 +840,16 @@ void McpService::registerVideoTools() {
                 return done(ToolResult().data(json{{"compositor", comp}, {"disposicion", disp}}));
             }
             if (!a.contains("escena") || es.empty())
-                return done(ToolResult::error("faltan `escena` y `entradas` (o `compositor` para rearmar uno)"));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "faltan `escena` y `entradas` (o `compositor` para rearmar uno)")));
             json hecho;
             const std::string err = v->armarMosaico(
                 a.value("escena", std::string()), es, a.value("disposicion", std::string("mosaico")),
                 a.value("nombre", std::string()), a.value("ocultar_sueltas", true), &hecho);
             if (!err.empty()) return done(ToolResult::error(err));
-            hecho["verificar"] = "imagen_preguntar sobre «" + hecho.value("fuente", std::string()) +
-                                 "» con una pregunta concreta (¿algo estirado o en negro?; el primer cuadro "
-                                 "puede tardar un instante)";
+            hecho["verificar"] = ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "imagen_preguntar sobre «%1» con una pregunta concreta (¿algo estirado o en "
+                                          "negro?; el primer cuadro puede tardar un instante)"),
+                {hecho.value("fuente", std::string())});
             done(ToolResult().data(hecho));
         };
         core_.addTool(std::move(t));
@@ -856,10 +857,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_panoramica";
-        t.title = "Unir varias cámaras en una imagen (panorámica o 360), en una llamada";
+        t.title = ba::i18n::traducir("mcp", "Unir varias cámaras en una imagen (panorámica o 360), en una llamada");
         t.category = "video";
         t.description =
-            "Une `camaras` (de 1 a 8 entradas, un stream cada una, en orden: la primera es la lente 1) en una "
+            ba::i18n::traducir("mcp", "Une `camaras` (de 1 a 8 entradas, un stream cada una, en orden: la primera es la lente 1) en una "
             "sola imagen, todo en la placa: la tarjeta Panorámica del estudio (o rearma la que se llame "
             "`nombre`), un cable de cada cámara (lo que llega a la escena de cada una) y, con `escena`, la "
             "fuente ahí (las cámaras sueltas se ocultan en esa escena). Las pone lado a lado en su lienzo "
@@ -872,22 +873,22 @@ void McpService::registerVideoTools() {
             "mezcla; por cámara lenteN_tipo (ojo | normal), lenteN_x, _y, _radio, _campo, _yaw, _pitch, _roll "
             "(cómo encaja), _k1, _k2 (su deformación); la guía para calibrar: guia (ninguna | rectangulo | "
             "circulo | grilla | cruz | esfera), guia_x, guia_y, guia_ancho, guia_alto, guia_grosor, guia_color. "
-            "Para retocar: video_tarjeta_ajustar sobre la tarjeta.";
+            "Para retocar: video_tarjeta_ajustar sobre la tarjeta.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"camaras"}},
             {"properties",
-             {{"camaras", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "las entradas, en orden"}}},
+             {{"camaras", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "las entradas, en orden")}}},
               {"preset", {{"type", "string"}, {"enum", {"fila", "360"}}}},
-              {"campo", {{"type", "number"}, {"description", "con preset: el campo de cada lente (grados)"}}},
-              {"nombre", {{"type", "string"}, {"description", "el de la fuente (de fábrica, «Panorámica»)"}}},
+              {"campo", {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "con preset: el campo de cada lente (grados)")}}},
+              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el de la fuente (de fábrica, «Panorámica»)")}}},
               {"escena", {{"type", "string"}}},
               {"params", {{"type", "object"}}}}}};
         t.examples = {
             R"({"camaras": ["Cám 1", "Cám 2", "Cám 3", "Cám 4"], "preset": "fila", "campo": 70, "escena": "Panorámica"})",
             R"({"camaras": ["360 adelante", "360 atrás"], "preset": "360", "escena": "Plano 360", "params": {"ver": "entrada"}})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             std::vector<std::string> cs;
             for (const auto& x : a.value("camaras", json::array()))
                 if (x.is_string()) cs.push_back(x.get<std::string>());
@@ -896,8 +897,7 @@ void McpService::registerVideoTools() {
                                                        a.value("nombre", std::string()), a.value("escena", std::string()),
                                                        a.value("params", json::object()), &hecho);
             if (!err.empty()) return done(ToolResult::error(err));
-            hecho["verificar"] = "foto_fuente sobre «" + hecho.value("fuente", std::string()) +
-                                 "» (o imagen_preguntar con una pregunta concreta)";
+            hecho["verificar"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "foto_fuente sobre «%1» (o imagen_preguntar con una pregunta concreta)"), {hecho.value("fuente", std::string())});
             done(ToolResult().data(hecho));
         };
         core_.addTool(std::move(t));
@@ -905,36 +905,36 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_ordenar";
-        t.title = "Acomodar las tarjetas del grafo de video";
+        t.title = ba::i18n::traducir("mcp", "Acomodar las tarjetas del grafo de video");
         t.category = "video";
         t.description =
-            "Acomoda las tarjetas del grafo (una franja por entrada, en columnas según la cadena; el botón "
-            "«Ordenar» de la página Video). No cambia ninguna conexión.";
+            ba::i18n::traducir("mcp", "Acomoda las tarjetas del grafo (una franja por entrada, en columnas según la cadena; el botón "
+            "«Ordenar» de la página Video). No cambia ninguna conexión.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [vg](const json&, Done done) {
             const QString e = vg->ordenar();
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult().text("Tarjetas acomodadas."));
+            done(ToolResult().text(ba::i18n::traducir("mcp", "Tarjetas acomodadas.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "motor_mapa";
-        t.title = "Dónde pasa el video (y el audio) de la GPU a la CPU, pipeline por pipeline";
+        t.title = ba::i18n::traducir("mcp", "Dónde pasa el video (y el audio) de la GPU a la CPU, pipeline por pipeline");
         t.category = "video";
         t.readOnly = true;
         t.description =
-            "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
+            ba::i18n::traducir("mcp", "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
             "salidas): cada enlace con la memoria negociada de verdad (GLMemory, D3D11Memory, VAMemory, "
             "CUDAMemory… o «sistema» = CPU), las TRANSICIONES (dónde se baja de la GPU a la CPU o se sube) y "
             "el TRABAJO EN CPU (convertir, escalar, componer, filtrar video en memoria de sistema; "
             "decodificar o codificar sin hardware). Sin `detalle`: por pipeline, qué lee y escribe, sus "
-            "trabajos en CPU y sus transiciones. Con `detalle`: también cada elemento y cada enlace.";
+            "trabajos en CPU y sus transiciones. Con `detalle`: también cada elemento y cada enlace.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"detalle", {{"type", "boolean"}, {"description", "cada elemento y cada enlace"}}},
-                           {"filtro", {{"type", "string"}, {"description", "solo los pipelines cuya etiqueta lo contiene"}}}}}};
+                          {{"detalle", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "cada elemento y cada enlace")}}},
+                           {"filtro", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "solo los pipelines cuya etiqueta lo contiene")}}}}}};
         t.run = [](const json& a, Done done) {
             json m = motor::mapa();
             const bool detalle = a.value("detalle", false);
@@ -965,11 +965,11 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_estado";
-        t.title = "Las entradas de video y cómo está cada una (y qué le pasa)";
+        t.title = ba::i18n::traducir("mcp", "Las entradas de video y cómo está cada una (y qué le pasa)");
         t.category = "video";
         t.readOnly = true;
         t.description =
-            "Sin `entrada`: LISTA todas las entradas de video (cámaras, red, virtuales) con su diagnóstico "
+            ba::i18n::traducir("mcp", "Sin `entrada`: LISTA todas las entradas de video (cámaras, red, virtuales) con su diagnóstico "
             "resumido. Con `entrada`: tamaño, cuadros por segundo "
             "(declarados y medidos), formato, colorimetría (BT.601/709, rango), si llega entrelazada y su "
             "desentrelazado, el reloj y si está sincronizado, el colchón de red (latencia, cuadros que "
@@ -977,10 +977,10 @@ void McpService::registerVideoTools() {
             "tarde), la latencia que agrega su sub-grafo, y los errores y avisos de sus tarjetas. "
             "`diagnostico`: "
             "cada problema con su gravedad y el ARREGLO (herramienta y argumentos). Usala antes y después de "
-            "armar.";
+            "armar.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             v->sincronizar();
             const std::string e = a.value("entrada", std::string());
             if (!e.empty()) {
@@ -1012,18 +1012,20 @@ void McpService::registerVideoTools() {
                     // Cómo llega (antes de normalizar), en una línea.
                     const json o = g.value("origen", json::object());
                     if (!o.empty())
-                        r["llega"] = std::to_string(o.value("ancho", 0)) + "x" +
-                                     std::to_string(o.value("alto", 0)) + " " +
-                                     o.value("formato", std::string()) + ", " +
-                                     o.value("matriz", std::string()) + " rango " +
-                                     o.value("rango", std::string()) + ", " +
-                                     (o.value("fps_variable", false)
-                                          ? std::string("fps variables")
-                                          : std::to_string(std::lround(o.value("fps", 0.0))) + " fps") +
-                                     (o.value("entrelazado", false) ? ", entrelazada" : "") +
+                        r["llega"] = ba::i18n::llenar(
+                                         ba::i18n::traducir("mcp", "%1x%2 %3, %4 rango %5, %6"),
+                                         {std::to_string(o.value("ancho", 0)), std::to_string(o.value("alto", 0)),
+                                          o.value("formato", std::string()), o.value("matriz", std::string()),
+                                          o.value("rango", std::string()),
+                                          o.value("fps_variable", false)
+                                              ? ba::i18n::traducir("mcp", "fps variables")
+                                              : std::to_string(std::lround(o.value("fps", 0.0))) + " fps"}) +
+                                     (o.value("entrelazado", false) ? ba::i18n::traducir("mcp", ", entrelazada")
+                                                                    : std::string()) +
                                      (o.value("pixel", std::string("cuadrado")) != "cuadrado"
-                                          ? ", píxel " + o.value("pixel", std::string())
-                                          : "");
+                                          ? ba::i18n::llenar(ba::i18n::traducir("mcp", ", píxel %1"),
+                                                             {o.value("pixel", std::string())})
+                                          : std::string());
                     r["entra"] =
                         g.value("formato", std::string()) + ", " + g.value("colorimetria", std::string());
                     if (!g.value("superres_motor", std::string()).empty()) {
@@ -1047,9 +1049,9 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_entrada_red";
-        t.title = "Recibir un stream de red (SRT, RTMP, RTSP, UDP, HTTP) sincronizado";
+        t.title = ba::i18n::traducir("mcp", "Recibir un stream de red (SRT, RTMP, RTSP, UDP, HTTP) sincronizado");
         t.category = "video";
-        t.description = "Crea una entrada de video (y audio) desde `uri`: srt://host:puerto (o "
+        t.description = ba::i18n::traducir("mcp", "Crea una entrada de video (y audio) desde `uri`: srt://host:puerto (o "
                         "srt://:puerto?mode=listener para "
                         "recibir), rtmp://servidor/app/clave, rtsp://camara/stream, udp://@:5000, "
                         "http(s)://…/x.m3u8 o un "
@@ -1061,50 +1063,50 @@ void McpService::registerVideoTools() {
                         "solo. SRT y RTMP no la "
                         "traen: el desfase entre ellos se mide con video_sincronia. Sobre una entrada de red "
                         "que ya existe, la "
-                        "actualiza (otra uri o latencia).";
+                        "actualiza (otra uri o latencia).");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"nombre"}},
             {"properties",
              {{"nombre", {{"type", "string"}}},
               {"uri", {{"type", "string"}}},
-              {"escena", {{"type", "string"}, {"description", "dónde ponerla (obligatoria al crear)"}}},
+              {"escena", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "dónde ponerla (obligatoria al crear)")}}},
               {"latencia_ms",
-               {{"type", "integer"}, {"description", "el colchón (de fábrica, el del estudio)"}}},
-              {"audio", {{"type", "boolean"}, {"description", "con su audio (de fábrica, sí)"}}},
+               {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "el colchón (de fábrica, el del estudio)")}}},
+              {"audio", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "con su audio (de fábrica, sí)")}}},
               {"normalizar",
                {{"type", "boolean"},
                 {"description",
-                 "de fábrica, sí: GStreamer la desentrelaza si hace falta, la lleva a los cuadros "
-                 "del estudio, a píxel cuadrado y a color BT.709 antes de entrar"}}},
+                 ba::i18n::traducir("mcp", "de fábrica, sí: GStreamer la desentrelaza si hace falta, la lleva a los cuadros "
+                 "del estudio, a píxel cuadrado y a color BT.709 antes de entrar")}}},
               {"superres",
                {{"type", "boolean"},
                 {"description",
-                 "superresolución x2 (macOS 26, cámaras chicas: hasta el tamaño máximo que acepte el sistema, "
-                 "hoy 960x960; sale al doble de lo que entra). Para cámaras viejas o de baja definición"}}},
+                 ba::i18n::traducir("mcp", "superresolución x2 (macOS 26, cámaras chicas: hasta el tamaño máximo que acepte el sistema, "
+                 "hoy 960x960; sale al doble de lo que entra). Para cámaras viejas o de baja definición")}}},
               {"ntp_sync",
                {{"type", "boolean"},
                 {"description",
-                 "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
-                 "está corrido (video_estado lo avisa), false"}}},
+                 ba::i18n::traducir("mcp", "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
+                 "está corrido (video_estado lo avisa), false")}}},
               {"sincronia",
                {{"type", "string"},
                 {"enum", {"colchon", "gstreamer"}},
                 {"description",
-                 "cómo sale a horario (de fábrica, colchon): colchon = cola propia con la hora de "
+                 ba::i18n::traducir("mcp", "cómo sale a horario (de fábrica, colchon): colchon = cola propia con la hora de "
                  "captura, el colchón y la compensación del estudio; gstreamer = appsink sincronizado "
                  "al reloj con la latencia del estudio (gst_pipeline_set_latency: lo que declaran los "
-                 "elementos o lo medido al llegar, lo mayor). Audio y video siguen juntos en los dos"}}},
+                 "elementos o lo medido al llegar, lo mayor). Audio y video siguen juntos en los dos")}}},
               {"esperar_seg",
                {{"type", "integer"},
                 {"description",
-                 "cuánto esperar a que conecte antes de devolver el estado con su diagnóstico (4 de "
-                 "fábrica; 0: no esperar)"}}}}}};
+                 ba::i18n::traducir("mcp", "cuánto esperar a que conecte antes de devolver el estado con su diagnóstico (4 de "
+                 "fábrica; 0: no esperar)")}}}}}};
         t.examples = {
             R"({"nombre": "Móvil SRT", "uri": "srt://:9000?mode=listener", "escena": "Móvil", "latencia_ms": 300})",
             R"({"nombre": "Corresponsal", "uri": "rtmp://10.0.0.20/live/corresponsal", "escena": "Móvil"})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const std::string n = a.value("nombre", std::string());
             const std::string err = v->crearEntradaRed(
                 n, a.value("uri", std::string()), a.value("latencia_ms", -1),
@@ -1122,34 +1124,34 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "entrada_control";
-        t.title = "Mandar un evento de control a la cadena de GStreamer de una entrada";
+        t.title = ba::i18n::traducir("mcp", "Mandar un evento de control a la cadena de GStreamer de una entrada");
         t.category = "video";
         t.description =
-            "El canal de control de las entradas de GStreamer: `control` (un objeto plano: texto, números, sí/no) "
+            ba::i18n::traducir("mcp", "El canal de control de las entradas de GStreamer: `control` (un objeto plano: texto, números, sí/no) "
             "viaja por la cadena de la entrada como evento estándar de GStreamer «ba/control» (personalizado, hacia "
             "abajo, fuera de banda): cada elemento que lo entiende lo usa y todos lo dejan pasar; la entrada lo "
             "recuerda y lo reenvía si la cadena se rearma. Hoy lo entiende la superresolución: {\"superres\": "
             "\"activo\"|\"reposo\"|\"barato\", \"transicion_ms\": 400} (lo usa el programador; a mano, con el "
-            "programador apagado). Se suma a lo anterior: campos nuevos para efectos o eventos futuros.";
+            "programador apagado). Se suma a lo anterior: campos nuevos para efectos o eventos futuros.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "control"}},
                          {"properties", {{"entrada", {{"type", "string"}}}, {"control", {{"type", "object"}}}}}};
         t.examples = {R"({"entrada": "Cámara 1", "control": {"superres": "activo", "transicion_ms": 300}})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const std::string e = v->controlEntrada(a.value("entrada", std::string()), a.value("control", json::object()));
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult().text("Mandado por la cadena de la entrada."));
+            done(ToolResult().text(ba::i18n::traducir("mcp", "Mandado por la cadena de la entrada.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "superres_programador";
-        t.title = "Programador de superresolución: qué cámaras usan la red según programa y preview";
+        t.title = ba::i18n::traducir("mcp", "Programador de superresolución: qué cámaras usan la red según programa y preview");
         t.category = "video";
         t.description =
-            "Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven "
+            ba::i18n::traducir("mcp", "Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven "
             "grandes: el programador mira el programa y el preview (la escena armada) y pone cada cámara en activo "
             "(hasta `max_activas`, por prioridad: programa, preview, más grande), barato (se ve grande pero no tiene "
             "turno: agrandado afilado) o reposo (no se ve o se ve chica). Se prende al pasar a preview, con una mezcla "
@@ -1163,7 +1165,7 @@ void McpService::registerVideoTools() {
             "presupuesto usado de cada acelerador; con `activo` false, todas las redes trabajan siempre. "
             "Si una red no llega (tarda más del `umbral_pct` % del cuadro, 80 de fábrica, durante 2 s) suena la "
             "alarma (disparador superres_tarde, evento superres/tarde) y, con `bypass_auto` (de fábrica, sí), pasa "
-            "sola a barato y vuelve a probar a los 15 s, 30 s, 1 min, 2 min; cada entrada dice `tarde` y `bypass_s`.";
+            "sola a barato y vuelve a probar a los 15 s, 30 s, 1 min, 2 min; cada entrada dice `tarde` y `bypass_s`.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"activo", {{"type", "boolean"}}},
@@ -1178,7 +1180,7 @@ void McpService::registerVideoTools() {
                            {"bypass_auto", {{"type", "boolean"}}},
                            {"umbral_pct", {{"type", "number"}}}}}};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             if (!a.empty()) {
                 const std::string e = v->configurarProgramador(a);
                 if (!e.empty()) return done(ToolResult::error(e));
@@ -1190,16 +1192,16 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "entrada_filtros_audio";
-        t.title = "Filtros de audio de una entrada (en su cadena de GStreamer)";
+        t.title = ba::i18n::traducir("mcp", "Filtros de audio de una entrada (en su cadena de GStreamer)");
         t.category = "video";
         t.description =
-            "Pone (o saca, con una lista vacía) los filtros de AUDIO de una entrada de GStreamer (red, pipeline, "
+            ba::i18n::traducir("mcp", "Pone (o saca, con una lista vacía) los filtros de AUDIO de una entrada de GStreamer (red, pipeline, "
             "plugin): elementos de GStreamer en la cadena de su audio, en orden. Para un plugin de Python de "
             "audio: {\"elemento\": \"baplugin\", \"propiedades\": {\"plugin\": id, \"tarjeta\": nombre, "
             "\"parametros\": \"{...}\"}}; también cualquier elemento de audio (audiodynamic, audioecho, "
             "audiocheblimit, volume…; gst-inspect los lista con video_modulos). La demora que agreguen se "
             "compensa sola: el colchón de la entrada atrasa el video lo mismo. Sin `filtros`, devuelve los "
-            "que tiene.";
+            "que tiene.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada"}},
                          {"properties",
@@ -1212,7 +1214,7 @@ void McpService::registerVideoTools() {
                                 {{"elemento", {{"type", "string"}}}, {"propiedades", {{"type", "object"}}}}}}}}}}}};
         t.examples = {R"({"entrada": "Cámara 1", "filtros": [{"elemento": "audiodynamic", "propiedades": {"mode": "compressor", "ratio": 0.5, "threshold": 0.3}}]})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const std::string e = a.value("entrada", std::string());
             if (!a.contains("filtros")) return done(ToolResult().data({{"entrada", e}, {"filtros", v->filtrosAudioDe(e)}}));
             const std::string err = v->filtrosAudio(e, a["filtros"]);
@@ -1224,10 +1226,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "estudio_latencia";
-        t.title = "Sincronía del estudio: la latencia, quién la marca y cada entrada";
+        t.title = ba::i18n::traducir("mcp", "Sincronía del estudio: la latencia, quién la marca y cada entrada");
         t.category = "video";
         t.description =
-            "El estado de la sincronía. Todas las entradas SINCRONIZADAS (clase «sala»: cámaras, capturadoras, "
+            ba::i18n::traducir("mcp", "El estado de la sincronía. Todas las entradas SINCRONIZADAS (clase «sala»: cámaras, capturadoras, "
             "micrófonos de la sala) salen alineadas entre sí y con el audio: el estudio espera a la más lenta. Devuelve:\n"
             "- `latencia_ms`: la FIJADA, la que usan todas las salidas. En vivo solo sube (si lo piden sostenido 2 s); "
             "baja sola sin nada al aire o con `bajar: true` (bajarla al aire mueve la línea de tiempo de las salidas: "
@@ -1245,19 +1247,19 @@ void McpService::registerVideoTools() {
             "entrada). Tiene que ser 0: si aparecen, esa entrada tiembla más de lo que pide (se nota como un tironcito); "
             "la latencia sube sola si lo sostiene, o subí video.margenComposicionMs.\n"
             "Para ver dónde se va el tiempo de una entrada: tiempos_pipeline. Para medir el desfase entre dos "
-            "cámaras de verdad: video_sincronia.";
+            "cámaras de verdad: video_sincronia.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"tope_ms", {{"type", "integer"}, {"minimum", -1}, {"maximum", 5000}}},
-                           {"bajar", {{"type", "boolean"}, {"description", "bajar la latencia ahora a lo que piden (si hay algo al aire, hay un salto)"}}}}}};
+                           {"bajar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "bajar la latencia ahora a lo que piden (si hay algo al aire, hay un salto)")}}}}}};
         t.examples = {R"({})", R"({"bajar": true})", R"({"tope_ms": 200})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             json r = v->estudioLatencia(a.contains("tope_ms") ? a.value("tope_ms", -1) : -2);
             if (a.value("bajar", false)) {
                 const std::string e = v->bajarLatenciaUi().toStdString();
                 r = v->estudioLatencia(-2);
-                r["bajada"] = e.empty() ? "bajó a lo que piden" : e;
+                r["bajada"] = e.empty() ? ba::i18n::traducir("mcp", "bajó a lo que piden") : e;
             }
             done(ToolResult().data(r));
         };
@@ -1266,10 +1268,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "sincronia_clase";
-        t.title = "Si una entrada se sincroniza con la sala o va con su propia demora";
+        t.title = ba::i18n::traducir("mcp", "Si una entrada se sincroniza con la sala o va con su propia demora");
         t.category = "video";
         t.description =
-            "La clase de sincronía de una `entrada`:\n"
+            ba::i18n::traducir("mcp", "La clase de sincronía de una `entrada`:\n"
             "- `sala`: sincronizada. Marca la latencia del estudio (el estudio espera a la más lenta de estas) y "
             "sale alineada con las demás y con el audio. Para todo lo que está en el lugar: dos cámaras que toman a "
             "la misma persona no pueden tener desfase entre sí.\n"
@@ -1280,7 +1282,7 @@ void McpService::registerVideoTools() {
             "- `auto`: la de su tipo (de fábrica: invitados, sesión remota, ventanas y pantallas van «propia»; el "
             "resto, «sala»).\n"
             "Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estudio_latencia muestra la "
-            "clase de cada una y quién marca la latencia.";
+            "clase de cada una y quién marca la latencia.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "clase"}},
                          {"properties",
@@ -1288,7 +1290,7 @@ void McpService::registerVideoTools() {
                            {"clase", {{"type", "string"}, {"enum", {"sala", "propia", "auto"}}}}}}};
         t.examples = {R"({"entrada": "Invitado 1", "clase": "propia"})", R"({"entrada": "Cámara 2", "clase": "sala"})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const std::string e = v->claseSincronia(a.value("entrada", std::string()), a.value("clase", std::string()));
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(v->estudioLatencia(-2)));
@@ -1298,38 +1300,38 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "automixer";
-        t.title = "Automixer de mesa redonda (micrófonos de las bancas)";
+        t.title = ba::i18n::traducir("mcp", "Automixer de mesa redonda (micrófonos de las bancas)");
         t.category = "audio";
         t.description =
-            "Automixer estilo Dugan para una mesa de micrófonos: el que habla pasa al frente, los demás bajan y "
+            ba::i18n::traducir("mcp", "Automixer estilo Dugan para una mesa de micrófonos: el que habla pasa al frente, los demás bajan y "
             "la suma queda acotada (no se suman ruido ni retorno al abrir muchos). Corre en GStreamer, en la "
             "cadena de cada micrófono (`baautomixer`). Sin argumentos: las mesas, sus ajustes y, por "
             "micrófono, la ganancia que aplica ahora y el nivel que entra. Con `microfono` y `grupo`: lo pone "
             "en esa mesa (grupo \"\" lo saca). Con `grupo` y `ajustes`: cambia los de la mesa (umbral_db: "
             "desde qué nivel cuenta como abierto; hold_ms y piso_hold_db: cuánto y a cuánto sostiene al que "
-            "acaba de hablar; max_abiertos; ataque_ms; liberacion_ms).";
+            "acaba de hablar; max_abiertos; ataque_ms; liberacion_ms).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"microfono", {{"type", "string"}, {"description", "nombre de la entrada de audio"}}},
-                           {"microfonos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "varios a la vez"}}},
-                           {"grupo", {{"type", "string"}, {"description", "la mesa (p. ej. bancas)"}}},
+                          {{"microfono", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "nombre de la entrada de audio")}}},
+                           {"microfonos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "varios a la vez")}}},
+                           {"grupo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la mesa (p. ej. bancas)")}}},
                            {"ajustes", {{"type", "object"}}}}}};
         t.examples = {R"({"microfonos": ["Banca 1", "Banca 2", "Banca 3"], "grupo": "bancas"})",
                       R"({"grupo": "bancas", "ajustes": {"umbral_db": -45, "max_abiertos": 3}})", R"({})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             std::vector<std::string> mics;
             if (a.contains("microfono") && a["microfono"].is_string()) mics.push_back(a["microfono"]);
             for (const auto& m : a.value("microfonos", json::array()))
                 if (m.is_string()) mics.push_back(m);
             const bool hayGrupo = a.contains("grupo") && a["grupo"].is_string();
             if (!mics.empty()) {
-                if (!hayGrupo) return done(ToolResult::error("falta `grupo` (\"\" para sacarlo de la mesa)"));
+                if (!hayGrupo) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `grupo` (\"\" para sacarlo de la mesa)")));
                 for (const auto& m : mics)
                     if (const std::string e = v->automixer(m, a["grupo"]); !e.empty()) return done(ToolResult::error(e));
             }
             if (a.contains("ajustes")) {
-                if (!hayGrupo) return done(ToolResult::error("falta `grupo`"));
+                if (!hayGrupo) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `grupo`")));
                 if (const std::string e = v->automixerAjustes(a["grupo"], a["ajustes"]); !e.empty())
                     return done(ToolResult::error(e));
             }
@@ -1342,20 +1344,20 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_estado";
-            t.title = "Superresolución: motores, modelos y el trabajo en curso";
+            t.title = ba::i18n::traducir("mcp", "Superresolución: motores, modelos y el trabajo en curso");
             t.category = "video";
             t.readOnly = true;
-            t.description = "Qué motores de superresolución hay en este sistema (apple: VideoToolbox macOS "
+            t.description = ba::i18n::traducir("mcp", "Qué motores de superresolución hay en este sistema (apple: VideoToolbox macOS "
                             "26, ~3 ms; fsr: FSR 1 de AMD, "
                             "cualquier GPU, sin red; onnx: una red ONNX), los modelos ONNX que hay (red "
                             "chica entrenada con una cámara, "
                             "SPAN, Real-ESRGAN: con su ganancia en dB si se midió), si el laboratorio está "
                             "listo y el trabajo en curso "
                             "(entrenando, convirtiendo…). Cada entrada de red dice su motor en video_estado. "
-                            "Ayuda: help {\"topic\": \"superres\"}.";
+                            "Ayuda: help {\"topic\": \"superres\"}.");
             t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
             t.run = [srp](const json&, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 json mot = json::array();
                 for (const QString& m : srp->motores())
                     mot.push_back(m.toStdString());
@@ -1374,10 +1376,10 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_tarjeta";
-            t.title = "Poner una tarjeta de superresolución (con un plugin) en una entrada";
+            t.title = ba::i18n::traducir("mcp", "Poner una tarjeta de superresolución (con un plugin) en una entrada");
             t.category = "video";
             t.description =
-                "Una TARJETA del grafo de video de `entrada` (cámara, red o virtual) que agranda x2; lo que la "
+                ba::i18n::traducir("mcp", "Una TARJETA del grafo de video de `entrada` (cámara, red o virtual) que agranda x2; lo que la "
                 "sigue trabaja al doble y la escena la recibe grande. Lo de fábrica: `plugin`, el id de un plugin "
                 "de superresolución instalado (superres_plugins: apple, fsr, realesr-general-x4v3, la red propia…): "
                 "la app lo corre con lo mejor de ESTA máquina (CoreML en la Mac, ONNX con DirectML o TensorRT en "
@@ -1386,12 +1388,12 @@ void McpService::registerVideoTools() {
                 "`unidades` (redes CoreML en la Mac): auto (Neural Engine), ane, gpu o cpu: con dos redes a la vez, una en "
                 "la GPU reparte la carga (la GPU también compone la imagen, así que suele ser más lenta). "
                 "`proveedor` (redes ONNX en Windows/Linux): auto, dml (DirectML), vulkan (ncnn: AMD, Intel y NVIDIA; "
-                "pasa la red a ncnn la primera vez), tensorrt, cuda, openvino, migraphx o cpu.";
+                "pasa la red a ncnn la primera vez), tensorrt, cuda, openvino, migraphx o cpu.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada"}},
                              {"properties",
                               {{"entrada", {{"type", "string"}}},
-                               {"plugin", {{"type", "string"}, {"description", "id de superres_plugins"}}},
+                               {"plugin", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de superres_plugins")}}},
                                {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx", "coreml"}}}},
                                {"modelo", {{"type", "string"}}},
                                {"unidades", {{"type", "string"}, {"enum", {"auto", "ane", "gpu", "cpu"}}}},
@@ -1400,7 +1402,7 @@ void McpService::registerVideoTools() {
                                {"despues", {{"type", "string"}}}}}};
             t.examples = {R"({"entrada": "Cámara 1", "plugin": "realesr-general-x4v3"})"};
             t.run = [srp, v = vm_.videoGrafos()](const json& a, Done done) {
-                if (!srp || v == nullptr) return done(ToolResult::error("no disponible"));
+                if (!srp || v == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string entrada = a.value("entrada", std::string());
                 if (a.contains("plugin")) {
                     json extra = json::object();
@@ -1408,11 +1410,13 @@ void McpService::registerVideoTools() {
                     if (a.contains("proveedor")) extra["proveedor"] = a.value("proveedor", std::string("auto"));
                     const std::string e = srp->tarjetaConPlugin(entrada, a.value("plugin", std::string()), extra);
                     if (!e.empty()) return done(ToolResult::error(e));
-                    return done(ToolResult().text("Tarjeta con el plugin «" + a.value("plugin", std::string()) +
-                                                  "». video_estado muestra el tamaño nuevo y su demora (el audio se "
-                                                  "atrasa solo) en unos segundos; la entrada tiene que estar a la vista."));
+                    return done(ToolResult().text(ba::i18n::llenar(
+                        ba::i18n::traducir("mcp", "Tarjeta con el plugin «%1». video_estado muestra el tamaño nuevo y "
+                                                  "su demora (el audio se atrasa solo) en unos segundos; la entrada "
+                                                  "tiene que estar a la vista."),
+                        {a.value("plugin", std::string())})));
                 }
-                if (!a.contains("motor")) return done(ToolResult::error("falta `plugin` (o `motor`)"));
+                if (!a.contains("motor")) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `plugin` (o `motor`)")));
                 std::string modelo = a.value("modelo", std::string());
                 if (!modelo.empty() && modelo.find('/') == std::string::npos &&
                     modelo.find('\\') == std::string::npos)
@@ -1420,25 +1424,25 @@ void McpService::registerVideoTools() {
                 const std::string e =
                     v->agregarSuperres(entrada, a.value("motor", std::string()), modelo, a.value("despues", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos.")));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_plugins";
-            t.title = "Plugins de superresolución: cuáles hay, cuáles están instalados y cuáles sirven acá";
+            t.title = ba::i18n::traducir("mcp", "Plugins de superresolución: cuáles hay, cuáles están instalados y cuáles sirven acá");
             t.category = "video";
             t.readOnly = true;
             t.description =
-                "Los plugins de superresolución: los del catálogo (redes como Real-ESRGAN, LSDIR, NomosUni, "
+                ba::i18n::traducir("mcp", "Los plugins de superresolución: los del catálogo (redes como Real-ESRGAN, LSDIR, NomosUni, "
                 "SPAN; shaders como FSRCNNX y Anime4K; los integrados apple y fsr) y los instalados que no están en "
                 "él (la red propia entrenada con una cámara). Cada uno: qué hace, escala, plataformas, `instalado`, "
                 "`aca` (si corre en esta máquina) y `ms_coreml` (lo que tarda medido). Se instalan con "
-                "superres_instalar y se ponen con superres_tarjeta {plugin}.";
+                "superres_instalar y se ponen con superres_tarjeta {plugin}.");
             t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
             t.run = [srp](const json&, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 done(ToolResult().data({{"plugins", srp->plugins()}}));
             };
             core_.addTool(std::move(t));
@@ -1446,16 +1450,16 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_plugin_elemento";
-            t.title = "Crear un plugin de superresolución propio con cualquier elemento de GStreamer";
+            t.title = ba::i18n::traducir("mcp", "Crear un plugin de superresolución propio con cualquier elemento de GStreamer");
             t.category = "video";
             t.description =
-                "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/funciones/SUPERRESOLUCION.md): cualquier "
+                ba::i18n::traducir("mcp", "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/funciones/SUPERRESOLUCION.md): cualquier "
                 "elemento de GStreamer —de GStreamer o propio, con su biblioteca en Datos/Modelos/superres/<id>/gst/— "
                 "que después se elige como cualquier plugin (superres_tarjeta {plugin: id}). `memoria`: vacía "
                 "(sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory: la cadena de la entrada sube a esa memoria "
                 "antes y baja después, sin pasar por la CPU si el decodificador ya entrega ahí. `memoria_salida` \"\" "
                 "si el elemento ya entrega en memoria de sistema. `propiedades`: las del elemento ({dir} = la carpeta "
-                "del plugin). `escala`: lo que agranda (2).";
+                "del plugin). `escala`: lo que agranda (2).");
             t.inputSchema = {{"type", "object"},
                              {"required", {"id", "elemento"}},
                              {"properties",
@@ -1469,10 +1473,10 @@ void McpService::registerVideoTools() {
                                {"descripcion", {{"type", "string"}}}}}};
             t.examples = {R"({"id": "fsrcnnx-gl", "nombre": "FSRCNNX en GL", "elemento": "baglsl", "memoria": "GLMemory", "propiedades": {"shader": "{dir}/shader.glsl"}})"};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e = srp->guardarPluginElemento(a);
                 if (!e.empty() && e.rfind("guardado", 0) != 0) return done(ToolResult::error(e));
-                done(ToolResult().text(e.empty() ? "Plugin guardado: se elige con superres_tarjeta {plugin}." : e));
+                done(ToolResult().text(e.empty() ? ba::i18n::traducir("mcp", "Plugin guardado: se elige con superres_tarjeta {plugin}.") : e));
             };
             core_.addTool(std::move(t));
         }
@@ -1480,16 +1484,16 @@ void McpService::registerVideoTools() {
             Tool t;
             t.name = "superres_plugin_borrar";
             t.destructive = true;
-            t.title = "Borrar un plugin de superresolución instalado";
+            t.title = ba::i18n::traducir("mcp", "Borrar un plugin de superresolución instalado");
             t.category = "video";
-            t.description = "Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un "
-                            "shader o un plugin propio. Los del catálogo se pueden volver a instalar.";
+            t.description = ba::i18n::traducir("mcp", "Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un "
+                            "shader o un plugin propio. Los del catálogo se pueden volver a instalar.");
             t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e = srp->borrarPlugin(a.value("id", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Borrado."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "Borrado.")));
             };
             core_.addTool(std::move(t));
         }
@@ -1497,19 +1501,19 @@ void McpService::registerVideoTools() {
             Tool t;
             t.name = "superres_variantes";
             t.readOnly = true;
-            t.title = "Ver las variantes de las redes (compiladas para un tamaño fijo)";
+            t.title = ba::i18n::traducir("mcp", "Ver las variantes de las redes (compiladas para un tamaño fijo)");
             t.category = "video";
             t.description =
-                "Las variantes de una red de superresolución: la misma red compilada para un tamaño de entrada fijo "
+                ba::i18n::traducir("mcp", "Las variantes de una red de superresolución: la misma red compilada para un tamaño de entrada fijo "
                 "(CoreML para el Neural Engine; ONNX fijo para TensorRT/DirectML). Cada una con su variante.json: "
                 "qué es, `para` qué cámara, `entrada`/`red`/`salida` (tamaños), `archivos`, `medido` (ms y "
                 "acelerador), cuándo y con qué se hizo. El motor usa sola la del tamaño que le llega; si no hay, la "
-                "general. `faltan`: los tamaños de las cámaras del estudio sin variante de ese plugin.";
+                "general. `faltan`: los tamaños de las cámaras del estudio sin variante de ese plugin.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
-                              {{"plugin", {{"type", "string"}, {"description", "id del plugin (vacío: todos)"}}}}}};
+                              {{"plugin", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id del plugin (vacío: todos)")}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string p = a.value("plugin", std::string());
                 json r{{"variantes", srp->variantes(p)}};
                 if (!p.empty()) r["faltan"] = srp->tamanosSinVariante(p);
@@ -1520,22 +1524,22 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_variante_crear";
-            t.title = "Compilar una red de superresolución para un tamaño de entrada";
+            t.title = ba::i18n::traducir("mcp", "Compilar una red de superresolución para un tamaño de entrada");
             t.category = "video";
             t.description =
-                "Compila la red de `plugin` para un tamaño de entrada fijo (`ancho` x `alto`, el de la cámara tal "
+                ba::i18n::traducir("mcp", "Compila la red de `plugin` para un tamaño de entrada fijo (`ancho` x `alto`, el de la cámara tal "
                 "como llega a la tarjeta), o para varios (`tamanos`: [\"1024x576\", …]), o para todas las cámaras "
                 "del estudio que todavía no tienen la suya (`faltantes`: true). Sin PyTorch (coremltools y onnx "
                 "vienen en el programa): en la Mac CoreML (el Neural Engine solo corre tamaños compilados) y en "
                 "todos un ONNX con la forma fija. Es un trabajo: superres_estado muestra cómo va. Al terminar, las "
                 "tarjetas que usan ese plugin toman la variante del tamaño que les llega. Un shader GLSL no lleva "
-                "variantes: la placa lo compila para cualquier tamaño.";
+                "variantes: la placa lo compila para cualquier tamaño.");
             t.details =
-                "`para` y `descripcion` quedan en variante.json (para qué cámara o uso es). `motores`: \"auto\" (todo "
+                ba::i18n::traducir("mcp", "`para` y `descripcion` quedan en variante.json (para qué cámara o uso es). `motores`: \"auto\" (todo "
                 "lo que tenga el plugin), o \"coreml\", \"onnx\", \"onnx_nv12\" separados por coma. Un plugin "
                 "instalado antes de esta versión no guardó el paquete CoreML: avisa, y hay que reinstalarlo "
                 "(superres_instalar) para hacer variantes CoreML; las ONNX salen igual. `reemplazar`: rehacer una "
-                "que ya existe. Un ancho o alto impar se redondea para abajo.";
+                "que ya existe. Un ancho o alto impar se redondea para abajo.");
             t.inputSchema = {
                 {"type", "object"},
                 {"required", {"plugin"}},
@@ -1544,9 +1548,9 @@ void McpService::registerVideoTools() {
                   {"ancho", {{"type", "integer"}}},
                   {"alto", {{"type", "integer"}}},
                   {"tamanos", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-                  {"faltantes", {{"type", "boolean"}, {"description", "las cámaras del estudio sin variante"}}},
-                  {"entrada", {{"type", "string"}, {"description", "el tamaño de esta entrada (como llega)"}}},
-                  {"id", {{"type", "string"}, {"description", "de fábrica, «<ancho>x<alto>»"}}},
+                  {"faltantes", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "las cámaras del estudio sin variante")}}},
+                  {"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el tamaño de esta entrada (como llega)")}}},
+                  {"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "de fábrica, «<ancho>x<alto>»")}}},
                   {"motores", {{"type", "string"}}},
                   {"para", {{"type", "string"}}},
                   {"descripcion", {{"type", "string"}}},
@@ -1554,7 +1558,7 @@ void McpService::registerVideoTools() {
             t.examples = {R"({"plugin": "lsdir-compact-x4", "faltantes": true})",
                           R"({"plugin": "nomosuni-compact-x2", "ancho": 1024, "alto": 576, "para": "cámara del patio"})"};
             t.run = [srp, v](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string p = a.value("plugin", std::string());
                 std::vector<std::string> tam;
                 const auto par = [](int w, int h) { return std::to_string(w - w % 2) + "x" + std::to_string(h - h % 2); };
@@ -1564,29 +1568,29 @@ void McpService::registerVideoTools() {
                 if (a.contains("ancho") && a.contains("alto")) tam.push_back(par(a.value("ancho", 0), a.value("alto", 0)));
                 if (const std::string e = a.value("entrada", std::string()); !e.empty() && v) {
                     const json o = v->estadoEntrada(e).value("gstreamer", json::object()).value("origen", json::object());
-                    if (o.value("ancho", 0) <= 0) return done(ToolResult::error("«" + e + "» todavía no tiene imagen"));
+                    if (o.value("ancho", 0) <= 0) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» todavía no tiene imagen"), {e})));
                     tam.push_back(par(o.value("ancho", 0), o.value("alto", 0)));
                 }
                 if (tam.empty())
                     return done(ToolResult::error(a.value("faltantes", false)
-                                                      ? "todas las cámaras del estudio ya tienen su variante"
-                                                      : "falta el tamaño: ancho y alto, tamanos, entrada o faltantes"));
+                                                      ? ba::i18n::traducir("mcp", "todas las cámaras del estudio ya tienen su variante")
+                                                      : ba::i18n::traducir("mcp", "falta el tamaño: ancho y alto, tamanos, entrada o faltantes")));
                 const std::string e = srp->crearVariantes(p, tam, a.value("id", std::string()),
                                                           a.value("motores", std::string()), a.value("para", std::string()),
                                                           a.value("descripcion", std::string()), a.value("reemplazar", false));
                 if (!e.empty()) return done(ToolResult::error(e));
                 done(ToolResult().data(json{{"trabajo", "compilando"}, {"tamanos", tam},
-                                            {"siguiente", "superres_estado para ver cómo va; después superres_variantes"}}));
+                                            {"siguiente", ba::i18n::traducir("mcp", "superres_estado para ver cómo va; después superres_variantes")}}));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_variante_editar";
-            t.title = "Cambiar para qué es una variante";
+            t.title = ba::i18n::traducir("mcp", "Cambiar para qué es una variante");
             t.category = "video";
-            t.description = "Cambia `para`, `descripcion` o `nombre` del variante.json de una variante (`plugin`, `id`). "
-                            "Lo demás (tamaños, archivos, lo medido) lo escribe la herramienta.";
+            t.description = ba::i18n::traducir("mcp", "Cambia `para`, `descripcion` o `nombre` del variante.json de una variante (`plugin`, `id`). "
+                            "Lo demás (tamaños, archivos, lo medido) lo escribe la herramienta.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"plugin", "id"}},
                              {"properties",
@@ -1596,10 +1600,10 @@ void McpService::registerVideoTools() {
                                {"descripcion", {{"type", "string"}}},
                                {"nombre", {{"type", "string"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e = srp->editarVariante(a.value("plugin", std::string()), a.value("id", std::string()), a);
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Guardado."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "Guardado.")));
             };
             core_.addTool(std::move(t));
         }
@@ -1607,32 +1611,32 @@ void McpService::registerVideoTools() {
             Tool t;
             t.name = "superres_variante_borrar";
             t.destructive = true;
-            t.title = "Borrar una variante de una red";
+            t.title = ba::i18n::traducir("mcp", "Borrar una variante de una red");
             t.category = "video";
-            t.description = "Borra una variante (`plugin`, `id`): las tarjetas vuelven a la red general para ese tamaño.";
+            t.description = ba::i18n::traducir("mcp", "Borra una variante (`plugin`, `id`): las tarjetas vuelven a la red general para ese tamaño.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"plugin", "id"}},
                              {"properties", {{"plugin", {{"type", "string"}}}, {"id", {{"type", "string"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e = srp->borrarVariante(a.value("plugin", std::string()), a.value("id", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Borrada."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "Borrada.")));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_destilar";
-            t.title = "Destilar una red grande en una propia chica, a medida de una cámara";
+            t.title = ba::i18n::traducir("mcp", "Destilar una red grande en una propia chica, a medida de una cámara");
             t.category = "video";
             t.description =
-                "Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del "
+                ba::i18n::traducir("mcp", "Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del "
                 "catálogo (`maestro`: realesr-general-x4v3 de fábrica, lsdir-compact-x4…) en lo que ve la entrada "
                 "`entrada` (de red o cámara local): graba 60 s, el maestro procesa cada cuadro y la chica aprende a llegar a eso. Para "
                 "máquinas donde el maestro no da en vivo. `minutos` de entrenamiento; `cpu` true para no usar la GPU "
                 "(más lento, no calienta); `aplicar` la pone en la entrada al terminar. Queda como plugin "
-                "«destilada-<entrada>» (superres_plugins). El avance, en superres_estado.";
+                "«destilada-<entrada>» (superres_plugins). El avance, en superres_estado.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada"}},
                              {"properties",
@@ -1642,29 +1646,29 @@ void McpService::registerVideoTools() {
                                {"cpu", {{"type", "boolean"}}},
                                {"aplicar", {{"type", "boolean"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e = srp->destilar(a.value("entrada", std::string()), a.value("maestro", std::string()),
                                                     a.value("minutos", 10.0), a.value("aplicar", false),
                                                     a.value("cpu", false));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Destilando: superres_estado muestra el avance."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "Destilando: superres_estado muestra el avance.")));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_runtime_gpu";
-            t.title = "El ONNX Runtime de GPU de esta máquina (NVIDIA, AMD, Intel)";
+            t.title = ba::i18n::traducir("mcp", "El ONNX Runtime de GPU de esta máquina (NVIDIA, AMD, Intel)");
             t.category = "video";
             t.readOnly = true;
             t.description =
-                "Qué placa de video hay, si está bajado el ONNX Runtime de GPU (NVIDIA: CUDA + TensorRT, que "
+                ba::i18n::traducir("mcp", "Qué placa de video hay, si está bajado el ONNX Runtime de GPU (NVIDIA: CUDA + TensorRT, que "
                 "compila la red para esa placa; AMD en Linux: ROCm/MIGraphX; Intel: OpenVINO) y qué conviene. "
                 "En Windows con AMD (también las integradas Ryzen) y en la Mac no hace falta: DirectML y CoreML "
-                "vienen con el programa. Se baja con superres_runtime_gpu_instalar.";
+                "vienen con el programa. Se baja con superres_runtime_gpu_instalar.");
             t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
             t.run = [srp](const json&, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 done(ToolResult().data(srp->runtimeGpu()));
             };
             core_.addTool(std::move(t));
@@ -1672,22 +1676,22 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_banco";
-            t.title = "Medir qué superresolución puede usar esta máquina";
+            t.title = ba::i18n::traducir("mcp", "Medir qué superresolución puede usar esta máquina");
             t.category = "video";
             t.description =
-                "El banco de pruebas: mide cada superresolución disponible (FSR, Apple, los shaders y cada red "
+                ba::i18n::traducir("mcp", "El banco de pruebas: mide cada superresolución disponible (FSR, Apple, los shaders y cada red "
                 "instalada con cada acelerador: Neural Engine y GPU en la Mac; DirectML, CUDA/TensorRT, ROCm, "
                 "OpenVINO, Vulkan y el procesador en Windows/Linux) a 540p, 720p, 1080p y al tamaño de cada cámara, y "
                 "dice cuál corre en vivo, cuál a menos cuadros y cuál solo sirve para lo grabado. `accion`: resultado "
-                "(lo último medido, de fábrica), correr, estado o cancelar.";
+                "(lo último medido, de fábrica), correr, estado o cancelar.");
             t.details =
-                "Mide lo que tarda de verdad la red por cuadro (lo que mide el propio elemento; FSR y shaders, con "
+                ba::i18n::traducir("mcp", "Mide lo que tarda de verdad la red por cuadro (lo que mide el propio elemento; FSR y shaders, con "
                 "sondas). Veredicto con los cuadros del lienzo: en_vivo (entra en el 85 % del cuadro, con cuántas a la "
                 "vez), reducido (hasta 2,5 cuadros), diferido, no_corre. `recomendado`: lo mejor por tamaño (entre lo "
                 "que va en vivo, una red le gana a FSR). Queda en Config/superres-banco.json y el programador lo usa "
                 "para saber cuánto va a costar una red antes de prenderla. Tarda unos minutos y calienta la máquina; "
                 "no arranca con algo al aire salvo `forzar`. Opciones: `resoluciones` [\"1280x720\"…], `metodos` "
-                "[ids de plugin], `segundos` por prueba (4).";
+                "[ids de plugin], `segundos` por prueba (4).");
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"accion", {{"type", "string"}, {"enum", {"resultado", "correr", "estado", "cancelar"}}}},
@@ -1699,22 +1703,22 @@ void McpService::registerVideoTools() {
                           R"({"accion": "estado"})"};
             t.run = [this](const json& a, Done done) {
                 auto* b = vm_.bancoSr();
-                if (b == nullptr) return done(ToolResult::error("no disponible"));
+                if (b == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string ac = a.value("accion", std::string("resultado"));
                 if (ac == "correr") {
                     const std::string e = b->correr(a);
                     if (!e.empty()) return done(ToolResult::error(e));
                     json est = b->estado();
                     est.erase("parciales");
-                    return done(ToolResult().text("Midiendo: superres_banco {accion: \"estado\"} muestra el avance.").data(est));
+                    return done(ToolResult().text(ba::i18n::traducir("mcp", "Midiendo: superres_banco {accion: \"estado\"} muestra el avance.")).data(est));
                 }
                 if (ac == "cancelar") {
                     b->cancelar();
-                    return done(ToolResult::ok("Cancelado: lo medido hasta acá queda."));
+                    return done(ToolResult::ok(ba::i18n::traducir("mcp", "Cancelado: lo medido hasta acá queda.")));
                 }
                 if (ac == "estado") return done(ToolResult().data(b->estado()));
                 const json r = b->resultado();
-                if (r.empty()) return done(ToolResult::ok("Nunca se midió esta máquina: superres_banco {accion: \"correr\"}."));
+                if (r.empty()) return done(ToolResult::ok(ba::i18n::traducir("mcp", "Nunca se midió esta máquina: superres_banco {accion: \"correr\"}.")));
                 done(ToolResult().data(r));
             };
             core_.addTool(std::move(t));
@@ -1722,49 +1726,49 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_runtime_gpu_instalar";
-            t.title = "Bajar el ONNX Runtime de GPU (NVIDIA / AMD Linux / Intel)";
+            t.title = ba::i18n::traducir("mcp", "Bajar el ONNX Runtime de GPU (NVIDIA / AMD Linux / Intel)");
             t.category = "video";
             t.description =
-                "Baja a Datos (portable) el ONNX Runtime de GPU para `tipo` (nvidia, amd o intel; vacío = el que "
+                ba::i18n::traducir("mcp", "Baja a Datos (portable) el ONNX Runtime de GPU para `tipo` (nvidia, amd o intel; vacío = el que "
                 "conviene para esta placa), con versiones fijas de PyPI verificadas por sha256. NVIDIA: varios GB "
                 "(CUDA 13, cuDNN, TensorRT; `tensorrt` false para bajar solo CUDA). Al terminar hay que "
-                "reiniciar el programa. El avance, en superres_estado (`trabajo`).";
+                "reiniciar el programa. El avance, en superres_estado (`trabajo`).");
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"tipo", {{"type", "string"}, {"enum", {"", "nvidia", "amd", "intel"}}}},
                                {"tensorrt", {{"type", "boolean"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e = srp->instalarRuntimeGpu(a.value("tipo", std::string()), a.value("tensorrt", true));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("En la cola de descargas (descargas_estado muestra el avance); al terminar, reiniciar."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "En la cola de descargas (descargas_estado muestra el avance); al terminar, reiniciar.")));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_instalar";
-            t.title = "Instalar un plugin de superresolución del catálogo";
+            t.title = ba::i18n::traducir("mcp", "Instalar un plugin de superresolución del catálogo");
             t.category = "video";
             t.description =
-                "Baja el plugin `id` (verificado por sha256) y lo prepara para esta máquina: una red se exporta a "
+                ba::i18n::traducir("mcp", "Baja el plugin `id` (verificado por sha256) y lo prepara para esta máquina: una red se exporta a "
                 "ONNX y, en la Mac, a CoreML para el Neural Engine (y se mide cuánto tarda); un shader se guarda. "
-                "Corre en el laboratorio (la primera vez baja PyTorch): el avance, en superres_estado (`trabajo`).";
+                "Corre en el laboratorio (la primera vez baja PyTorch): el avance, en superres_estado (`trabajo`).");
             t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e = srp->instalarPlugin(a.value("id", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("En la cola de descargas: descargas_estado (y superres_trabajo) muestran el avance."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "En la cola de descargas: descargas_estado (y superres_trabajo) muestran el avance.")));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_aplicar";
-            t.title = "Superresolución EN LA FUENTE de una entrada de red (alternativa a la tarjeta)";
+            t.title = ba::i18n::traducir("mcp", "Superresolución EN LA FUENTE de una entrada de red (alternativa a la tarjeta)");
             t.category = "video";
-            t.description = "(Forma vieja, en los ajustes de la fuente: para redes CoreML, shaders, plugins y la "
+            t.description = ba::i18n::traducir("mcp", "(Forma vieja, en los ajustes de la fuente: para redes CoreML, shaders, plugins y la "
                             "elección de placa usá superres_tarjeta {plugin}.) "
                             "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la "
                             "de Apple, la mejor en una Mac con "
@@ -1772,7 +1776,7 @@ void McpService::registerVideoTools() {
                             "superres_estado, p. ej. "
                             "chica-Camara_1.onnx) o vacío para sacarla. Con un motor lento la entrada "
                             "pierde cuadros: mirá superres_ms "
-                            "en video_estado (tiene que quedar bastante debajo de lo que dura un cuadro del lienzo: 1000/fps ms, 33 ms a 30 fps, 16 ms a 60).";
+                            "en video_estado (tiene que quedar bastante debajo de lo que dura un cuadro del lienzo: 1000/fps ms, 33 ms a 30 fps, 16 ms a 60).");
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada", "motor"}},
                              {"properties",
@@ -1780,66 +1784,66 @@ void McpService::registerVideoTools() {
                                {"motor", {{"type", "string"}, {"enum", {"", "apple", "fsr", "onnx"}}}},
                                {"modelo", {{"type", "string"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e =
                     srp->aplicar(a.value("entrada", std::string()), a.value("motor", std::string()),
                                  a.value("modelo", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Hecho. En unos segundos video_estado muestra el tamaño nuevo y lo "
-                                       "que tarda (superres_ms)."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "Hecho. En unos segundos video_estado muestra el tamaño nuevo y lo "
+                                       "que tarda (superres_ms).")));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_modelo";
-            t.title = "Bajar y convertir un modelo de superresolución (SPAN o Real-ESRGAN)";
+            t.title = ba::i18n::traducir("mcp", "Bajar y convertir un modelo de superresolución (SPAN o Real-ESRGAN)");
             t.category = "video";
             t.description =
-                "Baja y convierte a ONNX `cual`: span (SPAN x2, Apache-2.0: liviano y fiel) o esrgan "
+                ba::i18n::traducir("mcp", "Baja y convierte a ONNX `cual`: span (SPAN x2, Apache-2.0: liviano y fiel) o esrgan "
                 "(Real-ESRGAN compacto x4, "
                 "BSD-3: limpia ruido y compresión, pesado: en una Mac ~290 ms por cuadro, no da en vivo). La "
                 "primera vez baja el "
-                "laboratorio (PyTorch, ~800 MB). Corre en segundo plano: el avance en superres_estado.";
+                "laboratorio (PyTorch, ~800 MB). Corre en segundo plano: el avance en superres_estado.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"cual"}},
                              {"properties", {{"cual", {{"type", "string"}, {"enum", {"span", "esrgan"}}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string e = srp->convertir(a.value("cual", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("En la cola de descargas: descargas_estado (y superres_trabajo) muestran el avance."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "En la cola de descargas: descargas_estado (y superres_trabajo) muestran el avance.")));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_laboratorio";
-            t.title = "El laboratorio de superresolución (las bibliotecas de Python)";
+            t.title = ba::i18n::traducir("mcp", "El laboratorio de superresolución (las bibliotecas de Python)");
             t.category = "video";
             t.description =
-                "Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; "
+                ba::i18n::traducir("mcp", "Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; "
                 "~800 MB, una vez). `accion`: estado (si está, si usa DirectML —AMD/Intel en Windows: entrena en "
                 "la placa—, dónde y cuánto ocupa), instalar (las baja ya, sin esperar a bajar un modelo) o borrar "
                 "(libera el espacio; se vuelven a bajar cuando hagan falta). Instalar corre en segundo plano: "
-                "superres_trabajo {esperar} para seguirlo.";
+                "superres_trabajo {esperar} para seguirlo.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"accion", {{"type", "string"}, {"enum", {"estado", "instalar", "borrar"}}}}}}};
             t.examples = {R"({"accion": "estado"})", R"({"accion": "instalar"})"};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string ac = a.value("accion", std::string("estado"));
                 if (ac == "instalar") {
                     if (srp->laboratorioListo()) return done(ToolResult().data(srp->laboratorio()));
                     const std::string e = srp->prepararLaboratorio();
                     if (!e.empty()) return done(ToolResult::error(e));
-                    return done(ToolResult().text("El laboratorio, en la cola de descargas (descargas_estado y superres_trabajo muestran el avance)."));
+                    return done(ToolResult().text(ba::i18n::traducir("mcp", "El laboratorio, en la cola de descargas (descargas_estado y superres_trabajo muestran el avance).")));
                 }
                 if (ac == "borrar") {
                     const std::string e = srp->borrarLaboratorio();
                     if (!e.empty()) return done(ToolResult::error(e));
-                    return done(ToolResult().text("Laboratorio borrado."));
+                    return done(ToolResult().text(ba::i18n::traducir("mcp", "Laboratorio borrado.")));
                 }
                 done(ToolResult().data(srp->laboratorio()));
             };
@@ -1848,46 +1852,46 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_modelo_borrar";
-            t.title = "Borrar un modelo de superresolución";
+            t.title = ba::i18n::traducir("mcp", "Borrar un modelo de superresolución");
             t.category = "video";
             t.destructive = true;
-            t.description = "Borra un modelo de la carpeta de modelos (su .onnx y sus datos). `modelo`: el archivo o "
-                            "el nombre, como los lista superres_estado.";
+            t.description = ba::i18n::traducir("mcp", "Borra un modelo de la carpeta de modelos (su .onnx y sus datos). `modelo`: el archivo o "
+                            "el nombre, como los lista superres_estado.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"modelo"}},
                              {"properties", {{"modelo", {{"type", "string"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string pedido = a.value("modelo", std::string());
                 std::string archivo;
                 for (const auto& m : srp->modelos())
                     if (m.value("archivo", std::string()) == pedido || m.value("nombre", std::string()) == pedido ||
                         m.value("ruta", std::string()) == pedido)
                         archivo = m.value("archivo", std::string());
-                if (archivo.empty()) return done(ToolResult::error("no hay un modelo «" + pedido + "» (superres_estado los lista)"));
+                if (archivo.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un modelo «%1» (superres_estado los lista)"), {pedido})));
                 const QString e = srp->borrarModelo(QString::fromStdString(archivo));
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult().text("Borrado «" + archivo + "»."));
+                done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrado «%1»."), {archivo})));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "superres_trabajo";
-            t.title = "El trabajo del laboratorio: ver, cancelar o esperar";
+            t.title = ba::i18n::traducir("mcp", "El trabajo del laboratorio: ver, cancelar o esperar");
             t.category = "video";
             t.description =
-                "Lo que está haciendo el laboratorio (bajar bibliotecas o un modelo, convertir, entrenar, "
+                ba::i18n::traducir("mcp", "Lo que está haciendo el laboratorio (bajar bibliotecas o un modelo, convertir, entrenar, "
                 "destilar, instalar un plugin, variantes, runtime de GPU). `accion`: estado (de fábrica), cancelar, "
                 "o esperar (vuelve cuando termina, o a los `segundos`, de fábrica 600: para encadenar pasos sin "
-                "preguntar cada rato).";
+                "preguntar cada rato).");
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"accion", {{"type", "string"}, {"enum", {"estado", "cancelar", "esperar"}}}},
                                {"segundos", {{"type", "number"}, {"minimum", 1}, {"maximum", 3600}}}}}};
             t.examples = {R"({"accion": "esperar", "segundos": 900})"};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const auto estado = [srp]() {
                     return json::parse(QJsonDocument::fromVariant(srp->trabajo()).toJson(QJsonDocument::Compact).toStdString(),
                                        nullptr, false);
@@ -1895,7 +1899,7 @@ void McpService::registerVideoTools() {
                 const std::string ac = a.value("accion", std::string("estado"));
                 if (ac == "cancelar") {
                     srp->cancelar();
-                    return done(ToolResult().text("Cancelado."));
+                    return done(ToolResult().text(ba::i18n::traducir("mcp", "Cancelado.")));
                 }
                 if (ac != "esperar" || !srp->trabajo().value("corriendo").toBool())
                     return done(ToolResult().data(estado()));
@@ -1907,7 +1911,7 @@ void McpService::registerVideoTools() {
                     const bool corre = srp->trabajo().value("corriendo").toBool();
                     if (!corre || QDateTime::currentMSecsSinceEpoch() >= hasta) {
                         json d = estado();
-                        if (corre) d["espera"] = "se cumplió el tiempo: sigue trabajando";
+                        if (corre) d["espera"] = ba::i18n::traducir("mcp", "se cumplió el tiempo: sigue trabajando");
                         done(ToolResult().data(d));
                         *mirar = nullptr; // corta el ciclo de la captura
                         return;
@@ -1921,9 +1925,9 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_entrenar";
-            t.title = "Entrenar la red chica mirando una cámara (un botón)";
+            t.title = ba::i18n::traducir("mcp", "Entrenar la red chica mirando una cámara (un botón)");
             t.category = "video";
-            t.description = "Graba ~1 minuto de la entrada `entrada` sin tocar la imagen al aire: una de red, de su "
+            t.description = ba::i18n::traducir("mcp", "Graba ~1 minuto de la entrada `entrada` sin tocar la imagen al aire: una de red, de su "
                             "dirección; una cámara local, cuadros de lo que sale de su grafo (4 por segundo). Arma pares «la "
                             "imagen achicada y comprimida -> la original» y entrena una red chica (solo "
                             "luma, x2) `minutos` minutos (5 de "
@@ -1931,7 +1935,7 @@ void McpService::registerVideoTools() {
                             "entrada, sigue desde ella. Con "
                             "`aplicar` (de fábrica, sí) la pone en la entrada al terminar. Dice cuánto "
                             "mejora contra el agrandado común "
-                            "(dB). Corre en segundo plano: el avance en superres_estado.";
+                            "(dB). Corre en segundo plano: el avance en superres_estado.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada"}},
                              {"properties",
@@ -1940,16 +1944,16 @@ void McpService::registerVideoTools() {
                                {"aplicar", {{"type", "boolean"}}},
                                {"cancelar", {{"type", "boolean"}}}}}};
             t.run = [srp](const json& a, Done done) {
-                if (!srp) return done(ToolResult::error("no disponible"));
+                if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 if (a.value("cancelar", false)) {
                     srp->cancelar();
-                    return done(ToolResult().text("Cancelado."));
+                    return done(ToolResult().text(ba::i18n::traducir("mcp", "Cancelado.")));
                 }
                 const std::string e = srp->entrenar(a.value("entrada", std::string()),
                                                     a.value("minutos", 5.0), 60, a.value("aplicar", true));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Empezó: graba ~1 minuto y entrena. superres_estado muestra el avance "
-                                       "y la ganancia en dB."));
+                done(ToolResult().text(ba::i18n::traducir("mcp", "Empezó: graba ~1 minuto y entrena. superres_estado muestra el avance "
+                                       "y la ganancia en dB.")));
             };
             core_.addTool(std::move(t));
         }
@@ -1957,9 +1961,9 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_reloj";
-        t.title = "El reloj del estudio (sincronía de las entradas de red)";
+        t.title = ba::i18n::traducir("mcp", "El reloj del estudio (sincronía de las entradas de red)");
         t.category = "video";
-        t.description = "Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. "
+        t.description = ba::i18n::traducir("mcp", "Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. "
                         "Cambiarlo: `tipo` "
                         "sistema (el de esta máquina; de fábrica) | ntp (`servidor`, `puerto` 123: todos los "
                         "equipos del lugar "
@@ -1971,7 +1975,7 @@ void McpService::registerVideoTools() {
                         "`publicar_puerto`: publica el "
                         "reloj de ESTE aparato en ese puerto para que otros usen `red` contra él (0 = dejar "
                         "de publicar). Se "
-                        "aplica a todas las entradas de GStreamer.";
+                        "aplica a todas las entradas de GStreamer.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"tipo", {{"type", "string"}, {"enum", {"sistema", "ntp", "ptp", "red"}}}},
@@ -1984,7 +1988,7 @@ void McpService::registerVideoTools() {
             R"({})", R"({"tipo": "ntp", "servidor": "pool.ntp.org"})", R"({"publicar_puerto": 8554})",
             R"({"tipo": "red", "servidor": "10.0.0.5", "puerto": 8554})", R"({"latencia_ms": 400})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             if (!a.empty()) {
                 const std::string err = v->configurarReloj(a);
                 if (!err.empty()) return done(ToolResult::error(err));
@@ -2005,18 +2009,18 @@ void McpService::registerVideoTools() {
             done(ToolResult().data(
                 {{"reloj", v->reloj()},
                  {"entradas_gstreamer", fuentes},
-                 {"nota", "todas las entradas van con el reloj del estudio (el del motor); se alinean "
-                          "con video_desfase"}}));
+                 {"nota", ba::i18n::traducir("mcp", "todas las entradas van con el reloj del estudio (el del motor); "
+                                                    "se alinean con video_desfase")}}));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "video_sincronia";
-        t.title = "Medir (y corregir) cuánto atrasa una entrada respecto de otra";
+        t.title = ba::i18n::traducir("mcp", "Medir (y corregir) cuánto atrasa una entrada respecto de otra");
         t.category = "video";
         t.description =
-            "Mide durante `segundos` (de fábrica 8) cuánto atrasa `b` respecto de `a`, comparando cuadro a "
+            ba::i18n::traducir("mcp", "Mide durante `segundos` (de fábrica 8) cuánto atrasa `b` respecto de `a`, comparando cuadro a "
             "cuadro "
             "lo que se ve. Funciona si las dos ven algo EN COMÚN que cambie: la misma imagen por dos caminos "
             "(el "
@@ -2024,7 +2028,7 @@ void McpService::registerVideoTools() {
             "aplauso o un flash. Con imagen quieta no puede (lo dice). Con `aplicar`, lo corrige: atrasa la "
             "que "
             "va adelantada (una entrada de red, con su desfase; una cámara, con una tarjeta retardo). La "
-            "resolución es un cuadro del lienzo. Conviene volver a medir después de aplicar (debe dar ~0).";
+            "resolución es un cuadro del lienzo. Conviene volver a medir después de aplicar (debe dar ~0).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"a", "b"}},
                          {"properties",
@@ -2034,7 +2038,7 @@ void McpService::registerVideoTools() {
                            {"aplicar", {{"type", "boolean"}}}}}};
         t.examples = {R"({"a": "Móvil SRT", "b": "Corresponsal RTMP", "aplicar": true})"};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             v->medirDesfase(a.value("a", std::string()), a.value("b", std::string()), a.value("segundos", 8),
                             a.value("aplicar", false), [done](json r) {
                                 // Sin poder empezar (una entrada que no existe): error. Si midió
@@ -2049,21 +2053,21 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_desfase";
-        t.title = "Correr una entrada en el tiempo a mano";
+        t.title = ba::i18n::traducir("mcp", "Correr una entrada en el tiempo a mano");
         t.category = "video";
-        t.description = "Atrasa (o adelanta) una entrada `ms` milisegundos: una entrada de red, con el "
+        t.description = ba::i18n::traducir("mcp", "Atrasa (o adelanta) una entrada `ms` milisegundos: una entrada de red, con el "
                         "desfase de su colchón "
                         "(para los dos lados, en vivo); una cámara local, solo para atrás (una tarjeta "
                         "retardo). `relativo` "
                         "(de fábrica, sí) suma a lo que tenía; sin él, lo deja en `ms`. Para medirlo solo: "
-                        "video_sincronia.";
+                        "video_sincronia.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"entrada", "ms"}},
             {"properties",
              {{"entrada", entrada}, {"ms", {{"type", "number"}}}, {"relativo", {{"type", "boolean"}}}}}};
         t.run = [v](const json& a, Done done) {
-            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             json hecho;
             const std::string err = v->ajustarDesfase(a.value("entrada", std::string()), a.value("ms", 0.0),
                                                       a.value("relativo", true), &hecho);
