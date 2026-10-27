@@ -231,6 +231,9 @@ Item {
                         Layout.fillWidth: true; Layout.preferredHeight: 16
                         horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                         text: "VCA"; color: Theme.accentSoft; font { pixelSize: 9; weight: Font.Bold; letterSpacing: 1 }
+                        // Doble clic en el rótulo (o en los dB): a 0 dB.
+                        TapHandler { onDoubleTapped: Studio.mixer.setGananciaGrupoDb(tira.grupo, 0) }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                     Slider {
                         id: vcaV
@@ -242,7 +245,7 @@ Item {
                         onMoved: Studio.mixer.setGananciaGrupoDb(tira.grupo, value)
                         ToolTip.visible: pressed || vcaVMa.containsMouse; ToolTip.delay: pressed ? 0 : 500
                         ToolTip.text: "Volumen general de " + tira.nombreGrupo + ": " + value.toFixed(1)
-                                      + " dB (mueve a todos sin tocar el fader de cada uno; doble clic: 0 dB)"
+                                      + " dB (mueve a todos sin tocar el fader de cada uno; doble clic en «VCA»: 0 dB)"
                         MouseArea { id: vcaVMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                         TapHandler { onDoubleTapped: Studio.mixer.setGananciaGrupoDb(tira.grupo, 0) }
                     }
@@ -251,6 +254,7 @@ Item {
                         text: (tira.gananciaGrupoDb > 0 ? "+" : "") + Math.max(-60, tira.gananciaGrupoDb).toFixed(1)
                         color: Math.abs(tira.gananciaGrupoDb) > 0.05 ? Theme.accent : Theme.textFaint
                         font { pixelSize: 10; weight: Font.DemiBold }
+                        TapHandler { onDoubleTapped: Studio.mixer.setGananciaGrupoDb(tira.grupo, 0) }
                     }
                     Text {
                         Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
@@ -440,6 +444,7 @@ Item {
                             text: (tira.gananciaGrupoDb > 0 ? "+" : "") + Math.max(-60, tira.gananciaGrupoDb).toFixed(0)
                             color: Math.abs(tira.gananciaGrupoDb) > 0.05 ? Theme.accent : Theme.textFaint
                             font { pixelSize: 9; weight: Font.DemiBold }
+                            TapHandler { onDoubleTapped: Studio.mixer.setGananciaGrupoDb(tira.grupo, 0) }
                         }
                     }
                     GridView {
