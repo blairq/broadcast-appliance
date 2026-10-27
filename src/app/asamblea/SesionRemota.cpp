@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/SesionRemota.hpp"
+#include "i18n/I18n.hpp"
 
 #include "asamblea/Cuerpo.hpp"
 #include "security/CredentialStore.hpp"
@@ -149,14 +150,15 @@ json SesionRemota::armarAcceso(const json& i, const std::string& token, const st
     } catch (...) {
     }
     if (origen().empty())
-        out["aviso"] = motivoOrigen_.empty() ? std::string("El servidor todavía no dio su dirección: completá el comienzo del link.")
+        out["aviso"] = motivoOrigen_.empty()
+                           ? ba::i18n::traducir("asamblea", "El servidor todavía no dio su dirección: completá el comienzo del link.")
                                              : motivoOrigen_;
     return out;
 }
 
 json SesionRemota::generar(const std::string& id, bool forzar) {
     const json i = integrante(id);
-    if (!i.is_object()) return {{"error", "no hay ningún integrante con ese id en el Cuerpo"}};
+    if (!i.is_object()) return {{"error", ba::i18n::traducir("asamblea", "no hay ningún integrante con ese id en el Cuerpo")}};
     const auto almacen = ba::security::CredentialStore::bundle();
     // Acceso fijo: el que ya tiene, igual (mismo link, mismo PIN), salvo que se pida renovar.
     if (accesoFijo_ && !forzar && credenciales_.contains(id)) {
@@ -230,18 +232,20 @@ bool SesionRemota::tieneCredencial(const std::string& id) const { return credenc
 
 json SesionRemota::generarClave(const std::string& id, const std::string& usuarioPedido) {
     const json i = integrante(id);
-    if (!i.is_object()) return {{"error", "no hay ningún integrante con ese id en el Cuerpo"}};
-    if (!credenciales_.contains(id)) return {{"error", "primero generá su link y PIN (la contraseña va con esa credencial)"}};
+    if (!i.is_object()) return {{"error", ba::i18n::traducir("asamblea", "no hay ningún integrante con ese id en el Cuerpo")}};
+    if (!credenciales_.contains(id))
+        return {{"error", ba::i18n::traducir("asamblea", "primero generá su link y PIN (la contraseña va con esa credencial)")}};
     json& c = credenciales_[id];
     std::string usuario = usuarioPedido.empty() ? c.value("usuario", std::string()) : usuarioPedido;
     if (usuario.empty()) usuario = "banca" + i.value("banca", id);
     for (auto& ch : usuario) ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));
     if (usuario.size() < 3 || usuario.size() > 40 ||
         usuario.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789._-") != std::string::npos)
-        return {{"error", "el usuario va de 3 a 40 letras, números, punto, guion o guion bajo (sin espacios ni tildes)"}};
+        return {{"error", ba::i18n::traducir("asamblea", "el usuario va de 3 a 40 letras, números, punto, guion o guion bajo (sin "
+                                                         "espacios ni tildes)")}};
     for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it)
         if (it.key() != id && it.value().value("usuario", std::string()) == usuario)
-            return {{"error", "el usuario «" + usuario + "» ya lo tiene otro integrante"}};
+            return {{"error", ba::i18n::llenar(ba::i18n::traducir("asamblea", "el usuario «%1» ya lo tiene otro integrante"), {usuario})}};
     // 12 caracteres sin los que se confunden al dictarlos (0/o, 1/l/i).
     static const char* abc = "abcdefghjkmnpqrstuvwxyz23456789";
     std::string clave;
@@ -257,8 +261,8 @@ json SesionRemota::generarClave(const std::string& id, const std::string& usuari
 }
 
 std::string SesionRemota::setDatos(const std::string& id, const json& datos) {
-    if (!integrante(id).is_object()) return "no hay ningún integrante con ese id en el Cuerpo";
-    if (!credenciales_.contains(id)) return "primero generá su link y PIN";
+    if (!integrante(id).is_object()) return ba::i18n::traducir("asamblea", "no hay ningún integrante con ese id en el Cuerpo");
+    if (!credenciales_.contains(id)) return ba::i18n::traducir("asamblea", "primero generá su link y PIN");
     json& c = credenciales_[id];
     for (const char* k : {"email", "telefono", "nota"})
         if (datos.contains(k) && datos[k].is_string()) {
@@ -351,7 +355,7 @@ void SesionRemota::evento(const json& ev) {
             anotar("entro", id, {{"ip", e.ip}, {"lugar", e.lugar}, {"sigue_habilitado", e.habilitado}});
             mandarEstado(id);
             if (!e.habilitado) {
-                emit aviso(QString::fromStdString(nombreDe(id, id) + " entró a la sesión y espera que lo habiliten"),
+                emit aviso(tr("%1 entró a la sesión y espera que lo habiliten").arg(QString::fromStdString(nombreDe(id, id))),
                            "info");
             }
         } else {
@@ -364,8 +368,7 @@ void SesionRemota::evento(const json& ev) {
     } else if (tipo == "bloqueo") {
         e.bloqueadoHasta = ahoraMs() + ev.value("minutos", 15) * 60000LL;
         anotar("bloqueado", id, {{"minutos", ev.value("minutos", 15)}});
-        emit aviso(QString::fromStdString("Acceso de " + nombreDe(id, id) +
-                                          " bloqueado 15 minutos por PIN errado varias veces"),
+        emit aviso(tr("Acceso de %1 bloqueado 15 minutos por PIN errado varias veces").arg(QString::fromStdString(nombreDe(id, id))),
                    "warning");
     } else if (tipo == "entrada") {
         const json m = ev.value("msg", json::object());
@@ -396,7 +399,7 @@ void SesionRemota::evento(const json& ev) {
             anotar(pedir ? "pidio_palabra" : "cancelo_pedido", id);
             emit pedidoPalabra(QString::fromStdString(id), pedir);
             if (pedir) {
-                emit aviso(QString::fromStdString(nombreDe(id, id) + " (remoto) pidió la palabra"), "info");
+                emit aviso(tr("%1 (remoto) pidió la palabra").arg(QString::fromStdString(nombreDe(id, id))), "info");
             }
         }
         if (t == "voto" && e.habilitado && e.conectado) {
@@ -423,7 +426,7 @@ void SesionRemota::evento(const json& ev) {
 
 std::string SesionRemota::habilitar(const std::string& id, bool si, const std::string& quien) {
     auto it = estado_.find(id);
-    if (it == estado_.end() || !it->second.conectado) return "no está conectado a la sesión";
+    if (it == estado_.end() || !it->second.conectado) return ba::i18n::traducir("asamblea", "no está conectado a la sesión");
     if (it->second.habilitado == si) return {};
     it->second.habilitado = si;
     it->second.habilitadoPor = si ? quien : std::string();
@@ -435,7 +438,7 @@ std::string SesionRemota::habilitar(const std::string& id, bool si, const std::s
 
 std::string SesionRemota::expulsar(const std::string& id, const std::string& quien, const std::string& motivo) {
     auto it = estado_.find(id);
-    if (it == estado_.end() || !it->second.conectado) return "no está conectado a la sesión";
+    if (it == estado_.end() || !it->second.conectado) return ba::i18n::traducir("asamblea", "no está conectado a la sesión");
     it->second.habilitado = false;
     it->second.cayoMs = 0; // sin gracia: si vuelve, hay que habilitarlo de nuevo
     anotar("expulsado", id, {{"por", quien}, {"motivo", motivo}});
@@ -587,14 +590,15 @@ void SesionRemota::fila(const std::vector<std::string>& cola, const std::string&
 }
 
 std::string SesionRemota::setVistas(const json& vistas) {
-    if (!vistas.is_array()) return "las vistas van en una lista";
-    if (vistas.size() > 2) return "hasta dos canales (además de su propia cámara)";
+    if (!vistas.is_array()) return ba::i18n::traducir("asamblea", "las vistas van en una lista");
+    if (vistas.size() > 2) return ba::i18n::traducir("asamblea", "hasta dos canales (además de su propia cámara)");
     json limpio = json::array();
     const char* ids[] = {"a", "b"};
     for (size_t i = 0; i < vistas.size(); ++i) {
         const json& v = vistas[i];
         const std::string fuente = v.is_object() ? v.value("fuente", std::string()) : std::string();
-        if (fuente.empty()) return "a cada canal le falta la fuente: «programa» o el nombre de una escena";
+        if (fuente.empty())
+            return ba::i18n::traducir("asamblea", "a cada canal le falta la fuente: «programa» o el nombre de una escena");
         std::string nombre = v.value("nombre", std::string());
         if (nombre.empty()) nombre = fuente == "programa" ? "Salida principal" : fuente;
         if (nombre.size() > 40) nombre.resize(40);
@@ -644,9 +648,11 @@ json SesionRemota::generarConsola(const std::string& nombre) {
     // Sin origen el link sería «/presidencia/#…» (sin https ni dirección): un QR que no
     // abre nada. Mejor decirlo que entregar una credencial rota (y se ve una sola vez).
     if (origen().empty())
-        return {{"error", motivoOrigen_.empty() ? std::string("El servidor todavía no dio su dirección: esperá unos segundos y "
-                                                              "probá de nuevo.")
-                                                : "Todavía no hay una dirección para el link: " + motivoOrigen_}};
+        return {{"error", motivoOrigen_.empty()
+                              ? ba::i18n::traducir("asamblea", "El servidor todavía no dio su dirección: esperá unos segundos y "
+                                                               "probá de nuevo.")
+                              : ba::i18n::llenar(ba::i18n::traducir("asamblea", "Todavía no hay una dirección para el link: %1"),
+                                                 {motivoOrigen_})}};
     const std::string id = hexAleatorio(4);
     const std::string token = hexAleatorio(32);
     const quint32 n = QRandomGenerator::system()->bounded(1000000u);
@@ -720,7 +726,7 @@ void SesionRemota::mandarVotacion() {
 
 std::string SesionRemota::abrirVotacion(int numero, const std::string& tema, const json& opciones, int segundos,
                                         const std::string& origen) {
-    if (!opciones.is_array() || opciones.size() < 2) return "hacen falta al menos dos opciones";
+    if (!opciones.is_array() || opciones.size() < 2) return ba::i18n::traducir("asamblea", "hacen falta al menos dos opciones");
     if (vot_.estado == "abierta" && vot_.numero == numero && vot_.origen == origen) return {}; // ya estaba
     vot_ = Votacion{};
     vot_.estado = "abierta";

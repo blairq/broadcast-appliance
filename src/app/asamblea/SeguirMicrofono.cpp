@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/SeguirMicrofono.hpp"
+#include "i18n/I18n.hpp"
 
 #include "control/BusEventos.hpp"
 #include "asamblea/Bancas.hpp"
@@ -63,12 +64,12 @@ json SeguirMicrofono::estado() const {
 std::string SeguirMicrofono::configurar(const json& c) {
     if (c.contains("modo")) {
         const std::string m = c.value("modo", std::string());
-        if (m != "proponer" && m != "automatico") return "modo: proponer o automatico";
+        if (m != "proponer" && m != "automatico") return ba::i18n::traducir("asamblea", "modo: proponer o automatico");
         modo_ = m;
     }
     if (c.contains("fuente")) {
         const std::string f = c.value("fuente", std::string());
-        if (f != "niveles" && f != "conferencia") return "fuente: niveles o conferencia";
+        if (f != "niveles" && f != "conferencia") return ba::i18n::traducir("asamblea", "fuente: niveles o conferencia");
         fuente_ = f;
     }
     if (c.contains("umbral_db")) umbralDb_ = std::clamp(c.value("umbral_db", -30.0), -60.0, 0.0);
@@ -86,7 +87,7 @@ std::string SeguirMicrofono::configurar(const json& c) {
 }
 
 std::string SeguirMicrofono::aceptar() {
-    if (!propuesta_.is_object()) return "no hay ninguna propuesta";
+    if (!propuesta_.is_object()) return ba::i18n::traducir("asamblea", "no hay ninguna propuesta");
     const QString e = bancas_.alAire(QString::fromStdString(propuesta_.value("banca", std::string())), "armar");
     if (!e.isEmpty()) return e.toStdString();
     descartada_ = propuesta_.value("fuente", std::string());
@@ -134,7 +135,7 @@ void SeguirMicrofono::mirar() {
         if (!mejor.empty() && (!propuesta_.is_object() || propuesta_.value("banca", std::string()) != mejor)) {
             const json i = cuerpo_.buscar(mejor);
             propuesta_ = {{"banca", i.value("banca", mejor)},
-                          {"nombre", i.value("nombre", std::string("Banca ") + mejor)},
+                          {"nombre", i.value("nombre", ba::i18n::llenar(ba::i18n::traducir("asamblea", "Banca %1"), {mejor}))},
                           {"bloque", i.value("bloque", std::string())},
                           {"fuente", "conferencia:" + mejor},
                           {"desde_ms", desde}};

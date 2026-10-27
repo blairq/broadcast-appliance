@@ -1,6 +1,7 @@
 // src/app/asamblea/Votaciones.cpp — las votaciones de la asamblea (ver el .hpp)
 
 #include "asamblea/Votaciones.hpp"
+#include "i18n/I18n.hpp"
 
 #include "asamblea/ConferenciaDcn.hpp"
 #include "asamblea/Quorum.hpp"
@@ -63,7 +64,7 @@ void Votaciones::accion(const std::string& acc, const json& args, const std::str
         const json r = dcn_.conectada() ? dcn_.pasarAQuorum() : celularesAQuorum();
         avisar(r.value("error", std::string()));
     } else {
-        avisar("acción de votación desconocida: " + acc);
+        avisar(ba::i18n::llenar(ba::i18n::traducir("asamblea", "acción de votación desconocida: %1"), {acc}));
     }
 }
 
@@ -71,7 +72,7 @@ std::string Votaciones::abrirEnCelulares(const std::string& temaPedido, const st
     std::string tema = temaPedido;
     tema.erase(0, tema.find_first_not_of(" \t"));
     tema.erase(tema.find_last_not_of(" \t") + 1);
-    if (tema.empty()) return "falta el tema";
+    if (tema.empty()) return ba::i18n::traducir("asamblea", "falta el tema");
     // Una tras otra: la que sigue a la última abierta en los celulares.
     const json v = sesion_.votacion();
     const int n = v.value("origen", std::string()) == "app" ? v.value("numero", 0) + 1 : 1;
@@ -87,7 +88,7 @@ void Votaciones::pausarEnCelulares(bool pausa) { sesion_.pausarVotacion(pausa); 
 
 Votaciones::json Votaciones::celularesAQuorum(const std::string& asunto) {
     const json v = sesion_.votacion();
-    if (v.value("estado", std::string()) != "cerrada") return {{"error", "cerrala primero"}};
+    if (v.value("estado", std::string()) != "cerrada") return {{"error", ba::i18n::traducir("asamblea", "cerrala primero")}};
     const json c = sesion_.resultadoCombinado(json::array());
     const json t = c.value("totales", json::object());
     const json r = cargarOficial({{"asunto", asunto.empty() ? v.value("tema", std::string()) : asunto},

@@ -1,6 +1,7 @@
 // src/app/asamblea/Presidencia.cpp — la presidencia y la sesión remota frente a la sala (ver el .hpp)
 
 #include "asamblea/Presidencia.hpp"
+#include "i18n/I18n.hpp"
 
 #include "asamblea/Bancas.hpp"
 #include "asamblea/ConferenciaDcn.hpp"
@@ -144,9 +145,9 @@ void Presidencia::hablaPresidencia(bool activo, const std::string& quien, Listo 
     const auto avisar = [listo](const std::string& e) {
         if (listo) listo(e);
     };
-    if (!p_.dcn.conectada()) return avisar("Sin la central no hay micrófono de la presidencia que abrir.");
+    if (!p_.dcn.conectada()) return avisar(ba::i18n::traducir("asamblea", "Sin la central no hay micrófono de la presidencia que abrir."));
     const int u = unidadPresidente();
-    if (u == 0) return avisar("La central no tiene una unidad de presidente.");
+    if (u == 0) return avisar(ba::i18n::traducir("asamblea", "La central no tiene una unidad de presidente."));
     QPointer<Presidencia> yo(this);
     if (activo)
         silenciarTodos(quien, [yo](const std::string& e) {
@@ -155,7 +156,7 @@ void Presidencia::hablaPresidencia(bool activo, const std::string& quien, Listo 
     p_.dcn.control("microfono", {{"unidad", u}, {"abierto", activo}, {"confirmar", true}},
                    [yo, activo, avisar](bool ok, const json&, const std::string& e) {
                        if (!yo) return;
-                       if (!ok) return avisar("Central: " + e);
+                       if (!ok) return avisar(ba::i18n::llenar(ba::i18n::traducir("asamblea", "Central: %1"), {e}));
                        yo->presidenciaHabla_ = activo;
                        emit yo->presidenciaHablaCambio();
                        avisar({});
@@ -170,7 +171,7 @@ void Presidencia::prioridadCambio() {
     const bool prio = pr.is_object() && pr.value("activa", false);
     if (prio && !prioridadCentral_) {
         silenciarRemotos();
-        emit aviso("Prioridad del presidente: todos callados (también los remotos)", "info");
+        emit aviso(tr("Prioridad del presidente: todos callados (también los remotos)"), "info");
         p_.bus.publicar("presidencia/silencio", {{"origen", "prioridad"}}, false);
     }
     prioridadCentral_ = prio;
@@ -178,8 +179,8 @@ void Presidencia::prioridadCambio() {
 
 std::string Presidencia::hablarARemoto(const std::string& integrante, bool activo) {
     if (activo && !(p_.microfonoOperador && p_.microfonoOperador()))
-        return "Para hablarle hace falta tu micrófono: elegilo en Configuración → Voz del sistema.";
-    if (activo && !p_.sala.online()) return "El servidor (el gateway) no está andando.";
+        return ba::i18n::traducir("asamblea", "Para hablarle hace falta tu micrófono: elegilo en Configuración → Voz del sistema.");
+    if (activo && !p_.sala.online()) return ba::i18n::traducir("asamblea", "El servidor (el gateway) no está andando.");
     sala::pedir(p_.sala, "POST", "/api/v1/sesion/hablar", {{"id", integrante}, {"activo", activo}}, sinRespuesta);
     // Su celular muestra «Te están hablando» y abre el sonido aunque esté en la sala.
     p_.sesion.ptt(integrante, activo, "operador");
@@ -373,8 +374,8 @@ void Presidencia::aplicarVistas(bool forzar) {
         } else if (alguien) {
             canal = p_.motor.tomarCanalEscena(fuente, "sesion-remota");
             if (canal < 0)
-                emit aviso(QString::fromStdString("No hay canal libre para mandarles la escena «" + fuente +
-                                                  "» a los remotos (las pantallas usan los 4)"),
+                emit aviso(tr("No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)")
+                               .arg(QString::fromStdString(fuente)),
                            "warning");
         }
         out.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())}, {"canal", canal}});

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/Cuerpo.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -106,8 +107,8 @@ json Cuerpo::toma(const std::string& banca) const {
 }
 
 std::string Cuerpo::ponerToma(const std::string& banca, const std::string& camara, const std::string& posicion) {
-    if (plano(banca).empty()) return "falta la banca";
-    if (!camara.empty() && posicion.empty()) return "falta la posición de la cámara";
+    if (plano(banca).empty()) return ba::i18n::traducir("asamblea", "falta la banca");
+    if (!camara.empty() && posicion.empty()) return ba::i18n::traducir("asamblea", "falta la posición de la cámara");
     const std::string ya = claveToma(banca);
     if (!ya.empty()) datos_["tomas"].erase(ya);
     if (!camara.empty()) datos_["tomas"][ya.empty() ? banca : ya] = {{"camara", camara}, {"posicion", posicion}};
@@ -186,7 +187,7 @@ std::string Cuerpo::setRecinto(const json& c) {
     // columnas se reparten de izquierda a derecha) o una lista.
     if (c.contains("distribucion")) {
         const std::string d = c.value("distribucion", std::string());
-        if (d != "grilla" && d != "hemiciclo" && d != "lista") return "distribucion: grilla, hemiciclo o lista";
+        if (d != "grilla" && d != "hemiciclo" && d != "lista") return ba::i18n::traducir("asamblea", "distribucion: grilla, hemiciclo o lista");
         r["distribucion"] = d;
         if (!c.contains("filas") && !c.contains("columnas") && !c.contains("bancas") && !c.contains("mover") &&
             !c.value("auto", false)) {
@@ -196,9 +197,10 @@ std::string Cuerpo::setRecinto(const json& c) {
         }
     }
     const int filas = r.value("filas", 0), columnas = r.value("columnas", 0);
-    if (filas < 1 || filas > 40 || columnas < 1 || columnas > 60) return "filas entre 1 y 40 y columnas entre 1 y 60";
+    if (filas < 1 || filas > 40 || columnas < 1 || columnas > 60)
+        return ba::i18n::traducir("asamblea", "filas entre 1 y 40 y columnas entre 1 y 60");
     if (c.contains("bancas")) {
-        if (!c["bancas"].is_array()) return "bancas: una lista de {banca, fila, columna}";
+        if (!c["bancas"].is_array()) return ba::i18n::traducir("asamblea", "bancas: una lista de {banca, fila, columna}");
         r["bancas"] = json::array();
         for (const auto& b : c["bancas"])
             r["bancas"].push_back({{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}});
@@ -216,7 +218,8 @@ std::string Cuerpo::setRecinto(const json& c) {
             return a < b;
         });
         if (static_cast<int>(bancas.size()) > filas * columnas)
-            return "no entran " + std::to_string(bancas.size()) + " bancas en " + std::to_string(filas) + "×" + std::to_string(columnas);
+            return ba::i18n::llenar(ba::i18n::traducir("asamblea", "no entran %1 bancas en %2×%3"),
+                                    {std::to_string(bancas.size()), std::to_string(filas), std::to_string(columnas)});
         r["bancas"] = json::array();
         for (size_t k = 0; k < bancas.size(); ++k)
             r["bancas"].push_back({{"banca", bancas[k]}, {"fila", static_cast<int>(k) / columnas}, {"columna", static_cast<int>(k) % columnas}});
@@ -224,7 +227,7 @@ std::string Cuerpo::setRecinto(const json& c) {
     if (c.contains("mover")) {
         const json m = c["mover"];
         const std::string banca = m.value("banca", std::string());
-        if (banca.empty()) return "mover: falta la banca";
+        if (banca.empty()) return ba::i18n::traducir("asamblea", "mover: falta la banca");
         auto& lista = r["bancas"];
         for (auto it = lista.begin(); it != lista.end();)
             it = plano(it->value("banca", std::string())) == plano(banca) ? lista.erase(it) : it + 1;
@@ -235,13 +238,16 @@ std::string Cuerpo::setRecinto(const json& c) {
     for (const auto& b : r["bancas"]) {
         const std::string banca = b.value("banca", std::string());
         const int f = b.value("fila", -1), col = b.value("columna", -1);
-        if (banca.empty()) return "hay un lugar sin banca";
+        if (banca.empty()) return ba::i18n::traducir("asamblea", "hay un lugar sin banca");
         if (f < 0 || f >= filas || col < 0 || col >= columnas)
-            return "la banca «" + banca + "» queda fuera de la grilla (" + std::to_string(filas) + "×" + std::to_string(columnas) + ")";
-        if (std::find(vistas.begin(), vistas.end(), plano(banca)) != vistas.end()) return "la banca «" + banca + "» está dos veces";
+            return ba::i18n::llenar(ba::i18n::traducir("asamblea", "la banca «%1» queda fuera de la grilla (%2×%3)"),
+                                    {banca, std::to_string(filas), std::to_string(columnas)});
+        if (std::find(vistas.begin(), vistas.end(), plano(banca)) != vistas.end())
+            return ba::i18n::llenar(ba::i18n::traducir("asamblea", "la banca «%1» está dos veces"), {banca});
         const std::string lugar = std::to_string(f) + "," + std::to_string(col);
         if (std::find(lugares.begin(), lugares.end(), lugar) != lugares.end())
-            return "dos bancas en la fila " + std::to_string(f + 1) + ", columna " + std::to_string(col + 1);
+            return ba::i18n::llenar(ba::i18n::traducir("asamblea", "dos bancas en la fila %1, columna %2"),
+                                    {std::to_string(f + 1), std::to_string(col + 1)});
         vistas.push_back(plano(banca));
         lugares.push_back(lugar);
     }
@@ -275,7 +281,9 @@ std::string Cuerpo::guardar(const json& c, std::string* error) {
         const json otro = buscar(c.value("banca", std::string()));
         if (!otro.empty() && otro.value("id", std::string()) != id &&
             plano(otro.value("banca", std::string())) == plano(c.value("banca", std::string()))) {
-            if (error) *error = "la banca «" + c.value("banca", std::string()) + "» ya es de " + otro.value("nombre", std::string());
+            if (error)
+                *error = ba::i18n::llenar(ba::i18n::traducir("asamblea", "la banca «%1» ya es de %2"),
+                                          {c.value("banca", std::string()), otro.value("nombre", std::string())});
             return {};
         }
     }
@@ -284,17 +292,17 @@ std::string Cuerpo::guardar(const json& c, std::string* error) {
                                   : x != nullptr      ? (*x).value("banca", std::string())
                                                       : std::string();
         if (banca.empty()) {
-            if (error) *error = "sin banca no hay toma de cámara: poné primero su banca";
+            if (error) *error = ba::i18n::traducir("asamblea", "sin banca no hay toma de cámara: poné primero su banca");
             return {};
         }
         if (c["preset_ptz"].value("posicion", std::string()).empty()) {
-            if (error) *error = "falta la posición de la cámara";
+            if (error) *error = ba::i18n::traducir("asamblea", "falta la posición de la cámara");
             return {};
         }
     }
     if (x == nullptr) {
         if (c.value("nombre", std::string()).empty()) {
-            if (error) *error = "falta el nombre";
+            if (error) *error = ba::i18n::traducir("asamblea", "falta el nombre");
             return {};
         }
         if (id.empty()) {
@@ -368,7 +376,7 @@ json Cuerpo::importarCsv(const fs::path& archivo, bool reemplazar) {
     json res{{"importados", 0}, {"actualizados", 0}, {"errores", json::array()}};
     std::ifstream f(archivo);
     if (!f) {
-        res["errores"].push_back("no se pudo abrir " + archivo.string());
+        res["errores"].push_back(ba::i18n::llenar(ba::i18n::traducir("asamblea", "no se pudo abrir %1"), {archivo.string()}));
         return res;
     }
     std::string cab;
@@ -386,7 +394,7 @@ json Cuerpo::importarCsv(const fs::path& archivo, bool reemplazar) {
                                                             : p);
     }
     if (std::find(cols.begin(), cols.end(), "nombre") == cols.end()) {
-        res["errores"].push_back("la planilla no tiene la columna «nombre»");
+        res["errores"].push_back(ba::i18n::traducir("asamblea", "la planilla no tiene la columna «nombre»"));
         return res;
     }
     if (reemplazar) datos_["integrantes"] = json::array();
@@ -415,7 +423,7 @@ json Cuerpo::importarCsv(const fs::path& archivo, bool reemplazar) {
         if (!existe.empty()) c["id"] = existe["id"];
         std::string err;
         if (guardar(c, &err).empty())
-            res["errores"].push_back("fila " + std::to_string(nro) + ": " + err);
+            res["errores"].push_back(ba::i18n::llenar(ba::i18n::traducir("asamblea", "fila %1: %2"), {std::to_string(nro), err}));
         else
             res[existe.empty() ? "importados" : "actualizados"] = res.value(existe.empty() ? "importados" : "actualizados", 0) + 1;
     }
