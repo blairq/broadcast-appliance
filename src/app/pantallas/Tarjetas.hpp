@@ -12,21 +12,33 @@
 // ============================================================================
 #pragma once
 
+#include <QtGlobal> // QT_TRANSLATE_NOOP
+
 namespace ba::app::tarjetas {
 
 struct Tipo {
     const char* id;
+    /// Marcado para traducir: al mostrarlo, QCoreApplication::translate("tarjetas", titulo).
     const char* titulo;
     const char* icono; ///< el de la barra de tarjetas (un signo, como los del riel)
 };
 
 inline constexpr Tipo kTipos[] = {
     // Primera a proposito: es la que se mira todo el tiempo.
-    {"direccion", "Dirección", "◎"}, {"aire", "Aire", "●"},         {"outputs", "Salidas", "⇪"},
-    {"scenes", "Escenas", "▦"},      {"mixer", "Mezclador", "🎚"},  {"guests", "Invitados", "☺"},
-    {"health", "Sistema", "♥"},      {"monitor", "Monitor", "▭"},   {"sources", "Fuentes", "◉"},
-    {"lobby", "Conferencia", "☎"},   {"speakers", "Oradores", "✋"}, {"carrusel", "Carrusel", "⟳"},
-    {"ptz", "Control PTZ", "⌖"},     {"pdf", "PDF", "▤"},
+    {"direccion", QT_TRANSLATE_NOOP("tarjetas", "Dirección"), "◎"},
+    {"aire", QT_TRANSLATE_NOOP("tarjetas", "Aire"), "●"},
+    {"outputs", QT_TRANSLATE_NOOP("tarjetas", "Salidas"), "⇪"},
+    {"scenes", QT_TRANSLATE_NOOP("tarjetas", "Escenas"), "▦"},
+    {"mixer", QT_TRANSLATE_NOOP("tarjetas", "Mezclador"), "🎚"},
+    {"guests", QT_TRANSLATE_NOOP("tarjetas", "Invitados"), "☺"},
+    {"health", QT_TRANSLATE_NOOP("tarjetas", "Sistema"), "♥"},
+    {"monitor", QT_TRANSLATE_NOOP("tarjetas", "Monitor"), "▭"},
+    {"sources", QT_TRANSLATE_NOOP("tarjetas", "Fuentes"), "◉"},
+    {"lobby", QT_TRANSLATE_NOOP("tarjetas", "Conferencia"), "☎"},
+    {"speakers", QT_TRANSLATE_NOOP("tarjetas", "Oradores"), "✋"},
+    {"carrusel", QT_TRANSLATE_NOOP("tarjetas", "Carrusel"), "⟳"},
+    {"ptz", QT_TRANSLATE_NOOP("tarjetas", "Control PTZ"), "⌖"},
+    {"pdf", "PDF", "▤"},
 };
 
 } // namespace ba::app::tarjetas

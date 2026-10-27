@@ -181,7 +181,8 @@ QString SatelliteServidor::configurar(bool activo, int puerto) {
         cerrar();
         if (activo_) abrir();
     }
-    bot_.auditar("escritorio", "satellite", activo_ ? "prendido en " + std::to_string(puerto_) : "apagado");
+    bot_.auditar("escritorio", "satellite",
+                 activo_ ? tr("prendido en %1").arg(puerto_).toStdString() : tr("apagado").toStdString());
     emit cambio();
     return error_;
 }
@@ -249,7 +250,7 @@ void SatelliteServidor::nueva() {
         QTcpSocket* s = srv_->nextPendingConnection();
         const std::string ip = ipDe(s);
         if (!ipLocal(ip)) {
-            bot_.auditar(ip, "satellite_rechazado", "fuera de la red local");
+            bot_.auditar(ip, "satellite_rechazado", tr("fuera de la red local").toStdString());
             s->abort();
             s->deleteLater();
             continue;

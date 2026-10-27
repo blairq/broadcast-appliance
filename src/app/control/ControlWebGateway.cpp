@@ -113,7 +113,7 @@ void ControlWebGateway::estado(std::function<void(const json&)> listo) {
         return;
     }
     sala::pedir(gw_, "GET", "/api/v1/control/estado", {}, [listo](const std::string& error, const json& r) {
-        listo(error.empty() ? r : json("sin respuesta"));
+        listo(error.empty() ? r : json(tr("sin respuesta").toStdString()));
     });
 }
 

@@ -188,7 +188,7 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
     for (const auto& t : tarjetas::kTipos) {
         const QString kind = QString::fromUtf8(t.id);
         if (tienePanelPropio(kind)) continue;
-        out.push_back({"tarjeta:" + kind, "tarjeta", QString::fromUtf8(t.titulo), QString::fromUtf8(t.icono),
+        out.push_back({"tarjeta:" + kind, "tarjeta", QCoreApplication::translate("tarjetas", t.titulo), QString::fromUtf8(t.icono),
                        QVariantMap{{"modo", "panel"}, {"panel", "tarjeta:" + kind}}, "", {}, kind});
     }
 
