@@ -2,6 +2,9 @@
 // src/app/ui/TotemsViewModel.cpp — ver TotemsViewModel.hpp
 // ============================================================================
 #include "ui/TotemsViewModel.hpp"
+#include "i18n/I18n.hpp"
+
+#include <QCoreApplication>
 
 #include <QCryptographicHash>
 #include <QBuffer>
@@ -275,12 +278,12 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
             QString repo;
             if (ml->mmprojPara(gguf, &repo).isEmpty()) {
                 if (falta != nullptr)
-                    *falta = repo.isEmpty() ? "el modelo local no tiene un proyector de visión en el catálogo"
-                                            : "falta bajar la visión del modelo local («" + repo + "», modelo_local_bajar)";
+                    *falta = repo.isEmpty() ? QCoreApplication::translate("totems", "el modelo local no tiene un proyector de visión en el catálogo")
+                                            : QCoreApplication::translate("totems", "falta bajar la visión del modelo local («%1», modelo_local_bajar)").arg(repo);
                 return false;
             }
             if (!QFileInfo::exists(agent::ServidorModeloLocal::ejecutable())) {
-                if (falta != nullptr) *falta = "falta llama-server en el programa";
+                if (falta != nullptr) *falta = QCoreApplication::translate("totems", "falta llama-server en el programa");
                 return false;
             }
             return true;
@@ -350,7 +353,8 @@ void TotemsViewModel::recargar() {
 
 std::string TotemsViewModel::guardarYPublicar() {
     std::string err;
-    if (!registro::guardarTotems(carpeta_, totems_, &err)) return "No se pudo guardar: " + err;
+    if (!registro::guardarTotems(carpeta_, totems_, &err))
+        return tr("No se pudo guardar: %1").arg(QString::fromStdString(err)).toStdString();
     publicar();
     // Lo que muestran las pantallas de cada tótem (título, campos) cambia en el acto.
     for (auto& [k, c] : conns_) mandarPantalla(*c);
@@ -432,7 +436,7 @@ void TotemsViewModel::publicar() {
     }
     sala::pedir(*c, "POST", "/api/v1/registro/totems", {{"totems", lista}}, [](const std::string& err, const json&) {
         if (!err.empty())
-            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0, "no se pudieron publicar los tótems: " + err);
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0, ba::i18n::llenar(ba::i18n::traducir("registro", "no se pudieron publicar los tótems: %1"), {err}));
     });
     publicarAtencion();
 }
@@ -482,8 +486,8 @@ QString TotemsViewModel::dorso() const {
     if (!lector_) return {};
     QString falta;
     const QString con = lector_->dorsoCon(&falta);
-    if (!con.isEmpty()) return "Si el código no sale, pide la parte de atrás y la lee con el " + con + ".";
-    return "Sin lectura del dorso: " + falta + " (o configurá un modelo propio).";
+    if (!con.isEmpty()) return tr("Si el código no sale, pide la parte de atrás y la lee con el %1.").arg(con);
+    return tr("Sin lectura del dorso: %1 (o configurá un modelo propio).").arg(falta);
 }
 
 QVariantList TotemsViewModel::tipos() const {
@@ -596,7 +600,7 @@ QString TotemsViewModel::agregarCampo(const QString& id, const QString& tipo) {
     std::string base = registro::nombreDeTipo(c.tipo);
     c.clave = base;
     for (int n = 2; std::find(usadas.begin(), usadas.end(), c.clave) != usadas.end(); ++n) c.clave = base + "_" + std::to_string(n);
-    if (c.tipo == registro::TipoCampo::Opcion) c.opciones = {"Opción 1", "Opción 2"};
+    if (c.tipo == registro::TipoCampo::Opcion) c.opciones = {tr("Opción %1").arg(1).toStdString(), tr("Opción %1").arg(2).toStdString()};
     // De fábrica, el DNI; los demás se marcan en el editor (o por MCP).
     if (c.tipo == registro::TipoCampo::Documento) {
         c.documentos = {"dni-ar"};
@@ -702,7 +706,7 @@ void TotemsViewModel::alEvento(const json& ev) {
     const QString totem = QString::fromStdString(texto(ev, "id"));
     if (tipo == "intento") {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                   "tótem «" + texto(ev, "id") + "»: intento fallido desde " + texto(ev, "ip"));
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1»: intento fallido desde %2"), {texto(ev, "id"), texto(ev, "ip")}));
         return;
     }
     if (conn.isEmpty()) return;
@@ -890,7 +894,7 @@ void TotemsViewModel::alCara(const QString& conn, const QByteArray& jpeg, const 
             const auto r = c.conv->fotoLista();
             aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
         } else {
-            c.fotoSugerencia = hayCara ? sugerencia : QString("No te veo la cara.");
+            c.fotoSugerencia = hayCara ? sugerencia : tr("No te veo la cara.");
         }
         return;
     }
@@ -952,8 +956,9 @@ void TotemsViewModel::empezar(Conexion& c, const QString& personaId, const QStri
     c.ultimaVozMs = ahoraMs();
     const auto r = c.conv->empezar(cara);
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               "tótem «" + t->id + "» (" + c.conn.toStdString() + "): empieza" +
-                                   (cara.personaId.empty() ? std::string() : " con " + cara.personaId));
+                               cara.personaId.empty()
+                                   ? ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): empieza"), {t->id, c.conn.toStdString()})
+                                   : ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): empieza con %3"), {t->id, c.conn.toStdString(), cara.personaId}));
     aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
 }
 
@@ -973,7 +978,7 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
     c.oidoTexto = t.trimmed();
     c.ultimaVozMs = ahoraMs();
     ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
-                               "tótem (" + conn.toStdString() + "): oyó «" + c.oidoTexto.toStdString() + "»");
+                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): oyó «%2»"), {conn.toStdString(), c.oidoTexto.toStdString()}));
     enviar(conn, {{"type", "oido"}, {"texto", c.oidoTexto.toStdString()}});
     // Atendida: lo oído se muestra (a quien atiende también), pero le contesta una persona.
     if (c.conv != nullptr && c.conv->atendida()) {
@@ -1000,7 +1005,7 @@ void TotemsViewModel::cerrarTurno(Conexion& c) {
     c.turnoMs = 0;
     if (dicho.empty() || c.conv == nullptr || !c.conv->enCurso() || c.conv->atendida()) return;
     ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
-                               "tótem (" + c.conn.toStdString() + "): turno «" + dicho + "»");
+                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): turno «%2»"), {c.conn.toStdString(), dicho}));
     if (!c.buscandoFoto) enviar(c.conn, {{"type", "estado"}, {"estado", "pensando"}});
     if (alOidoAgente(c, dicho)) { // lo entiende el modelo (y el guion retoma)
         emit vivoCambio();
@@ -1161,8 +1166,7 @@ void TotemsViewModel::guardarRegistro(Conexion& c) {
             return;
         }
         ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                   "registrado por el tótem «" + totem.toStdString() + "»: «" + nombre.toStdString() +
-                                       "» (padrón " + id.toStdString() + ")");
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "registrado por el tótem «%1»: «%2» (padrón %3)"), {totem.toStdString(), nombre.toStdString(), id.toStdString()}));
         emit registradosCambio();
     };
     // Una cara que no se conocía: se la da de alta con su foto (y el nombre, si
@@ -1364,16 +1368,15 @@ void TotemsViewModel::alLeerDocumento(const QString& conn, LectorDocumentos::Res
         // En el registro, a lo sumo el tipo y los últimos tres dígitos.
         const registro::Totem* t = totems_.porId(k.totem.toStdString());
         ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                   "tótem «" + (t != nullptr ? t->id : k.totem.toStdString()) + "» (" +
-                                       conn.toStdString() + "): documento leído (" +
-                                       documentos::paraLog(documentos::Datos::deJson(r.datos)) + ")");
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): documento leído (%3)"), {t != nullptr ? t->id : k.totem.toStdString(), conn.toStdString(),
+                                                     documentos::paraLog(documentos::Datos::deJson(r.datos))}));
         const auto x = k.conv->documentoLeido(r.datos);
         aplicar(k, x.decir, x.campos, x.pedir, x.guardar, x.terminar, x.foto);
         return;
     }
     // Qué corregir, si pasa el tiempo: se vio un código pero no es de un documento aceptado.
     if (!r.codigos.empty())
-        k.docSugerencia = "Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.";
+        k.docSugerencia = tr("Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.");
 }
 
 void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resultado r) {
@@ -1383,12 +1386,11 @@ void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resulta
     k.leyendoDorso = false;
     if (!k.buscandoDocumento || k.conv == nullptr) return;
     const registro::Totem* t = totems_.porId(k.totem.toStdString());
-    const std::string quien = "tótem «" + (t != nullptr ? t->id : k.totem.toStdString()) + "» (" + conn.toStdString() + ")";
+    const std::string quien = ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2)"), {t != nullptr ? t->id : k.totem.toStdString(), conn.toStdString()});
     if (r.leido) {
         // Como el frente: a lo sumo el tipo y los últimos tres dígitos.
         ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                   quien + ": documento leído por el dorso, con el " + r.con + " (" +
-                                       documentos::paraLog(documentos::Datos::deJson(r.datos)) + ")");
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "%1: documento leído por el dorso, con el %2 (%3)"), {quien, r.con, documentos::paraLog(documentos::Datos::deJson(r.datos))}));
         // De dónde salió el dato, en el padrón: el dorso (si no, documentoLeido pone «codigo»).
         json datos = r.datos;
         if (datos.is_object()) datos["origen"] = "dorso";
@@ -1398,10 +1400,11 @@ void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resulta
     }
     // Por qué no (sin datos): el modelo no contestó, no se ven los renglones o no cierran.
     if (!r.error.isEmpty())
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0, quien + ": dorso: " + r.error.toStdString());
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "%1: dorso: %2"), {quien, r.error.toStdString()}));
     if (r.dudosa) return; // cerró casi todo: la próxima foto que coincida la confirma
-    if (r.noSeVe) k.docSugerencia = "No veo los renglones de abajo.";
-    else if (!r.detalle.empty()) k.docSugerencia = "No se leen bien los renglones de abajo.";
+    if (r.noSeVe) k.docSugerencia = tr("No veo los renglones de abajo.");
+    else if (!r.detalle.empty()) k.docSugerencia = tr("No se leen bien los renglones de abajo.");
 }
 
 void TotemsViewModel::cortar(const QString& conn) {
@@ -1427,8 +1430,8 @@ QVariantMap TotemsViewModel::filaDe(const Conexion& c) const {
                        {"dice", c.diceTexto},
                        {"atendida", c.conv != nullptr && c.conv->atendida()},
                        {"atiende", c.conv != nullptr && c.conv->atendida()
-                                       ? QString::fromStdString(c.conv->atendidaPor().empty() ? std::string("alguien del equipo")
-                                                                                              : c.conv->atendidaPor())
+                                       ? (c.conv->atendidaPor().empty() ? tr("alguien del equipo")
+                                                                        : QString::fromStdString(c.conv->atendidaPor()))
                                        : QString()},
                        {"campos", c.conv != nullptr ? aQv(c.conv->camposParaMostrar()) : QVariant(QVariantList{})},
                        // Con qué entiende esta conversación: el modelo del rol «registro» o el guion solo.
@@ -1579,7 +1582,7 @@ void TotemsViewModel::publicarAtencion() {
     sala::pedir(*c, "POST", "/api/v1/registro/atencion", cred, [](const std::string& err, const json&) {
         if (!err.empty())
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                       "no se pudo publicar el link de atención remota: " + err);
+                                       ba::i18n::llenar(ba::i18n::traducir("registro", "no se pudo publicar el link de atención remota: %1"), {err}));
     });
 }
 
@@ -1676,7 +1679,7 @@ void TotemsViewModel::interrumpido(const QString& conn) {
     c.estado = c.buscandoFoto ? "foto" : !c.buscandoDocumento ? "escuchando" : c.conv->buscandoDorso() ? "dorso" : "documento";
     enviar(c.conn, {{"type", "estado"}, {"estado", c.estado.toStdString()}});
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               "tótem (" + c.conn.toStdString() + "): la persona interrumpió al asistente");
+                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): la persona interrumpió al asistente"), {c.conn.toStdString()}));
     emit vivoCambio();
 }
 
@@ -1696,8 +1699,9 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
     if (it == conns_.end()) return tr("No hay esa conexión (ya se fue).").toStdString();
     Conexion& c = *it->second;
     if (c.conv != nullptr && c.conv->atendida() && c.atiendeConn != aconn)
-        return "Ya la atiende " +
-               (c.conv->atendidaPor().empty() ? std::string("alguien del equipo") : c.conv->atendidaPor()) + ".";
+        return tr("Ya la atiende %1.")
+            .arg(c.conv->atendidaPor().empty() ? tr("alguien del equipo") : QString::fromStdString(c.conv->atendidaPor()))
+            .toStdString();
     if (c.conv == nullptr || !c.conv->enCurso()) {
         // Todavía no conversa (o ya terminó y la persona sigue ahí): empieza una, atendida.
         const registro::Totem* t = totems_.porId(c.totem.toStdString());
@@ -1724,8 +1728,8 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
     enviar(conn, {{"type", "atiende"}, {"nombre", quien.toStdString()}, {"activo", true}});
     enviar(conn, {{"type", "campos"}, {"lista", c.conv->camposParaMostrar()}});
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               "tótem «" + c.totem.toStdString() + "» (" + conn.toStdString() + "): la atiende " +
-                                   (quien.isEmpty() ? std::string("alguien del equipo") : quien.toStdString()));
+                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): la atiende %3"), {c.totem.toStdString(), conn.toStdString(),
+                                                 quien.isEmpty() ? ba::i18n::traducir("registro", "alguien del equipo") : quien.toStdString()}));
     emit vivoCambio();
     return {};
 }
@@ -1755,8 +1759,7 @@ std::string TotemsViewModel::terminarConn(const QString& conn, const QString& co
     c.ultimaVozMs = ahoraMs();
     c.pedidoEnviado.clear(); // que la pantalla vuelva a mostrar qué se pide
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               "tótem «" + c.totem.toStdString() + "» (" + conn.toStdString() + "): atención terminada (" +
-                                   como.toStdString() + ")");
+                               ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): atención terminada (%3)"), {c.totem.toStdString(), conn.toStdString(), como.toStdString()}));
     aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     emit vivoCambio();
     return {};
@@ -1792,7 +1795,7 @@ bool TotemsViewModel::alEventoAtencion(const json& ev) {
     const std::string tipo = texto(ev, "tipo");
     if (tipo == "intento" && ev.value("atiende", false)) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                   "atención remota: intento fallido desde " + texto(ev, "ip"));
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "atención remota: intento fallido desde %1"), {texto(ev, "ip")}));
         return true;
     }
     const QString aconn = QString::fromStdString(texto(ev, "aconn"));
@@ -1802,7 +1805,7 @@ bool TotemsViewModel::alEventoAtencion(const json& ev) {
             atienden_[aconn] = {aconn, QString::fromStdString(texto(ev, "nombre")), QString::fromStdString(texto(ev, "ip")),
                                 QString::fromStdString(texto(ev, "lugar"))};
             ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                       "atención remota: entró «" + texto(ev, "nombre") + "» desde " + texto(ev, "ip"));
+                                       ba::i18n::llenar(ba::i18n::traducir("registro", "atención remota: entró «%1» desde %2"), {texto(ev, "nombre"), texto(ev, "ip")}));
             enviarAtencion(aconn); // lo que hay ahora, sin esperar al próximo cambio
         } else {
             atienden_.erase(aconn);
@@ -1870,19 +1873,20 @@ bool TotemsViewModel::agenteAfuera() const {
 QString TotemsViewModel::agente() const {
     const agent::Rol* r = rolRegistro(roles_);
     if (r == nullptr) return tr("Guion solo (sin el rol «registro»).");
-    if (!r->activo) return "Guion solo: el rol «" + QString::fromStdString(r->titulo) + "» está apagado (pestaña Agentes).";
+    if (!r->activo)
+        return tr("Guion solo: el rol «%1» está apagado (pestaña Agentes).").arg(QString::fromStdString(r->titulo));
     if (esLocal(*r)) {
         if (puertoLocal_ != 0) return tr("Entiende con el modelo local: lo que dice la gente no sale de esta máquina.");
         if (pidiendoLocal_) return tr("Cargando el modelo local…");
-        if (!faltaLocal_.isEmpty()) return "Guion solo: " + faltaLocal_;
+        if (!faltaLocal_.isEmpty()) return tr("Guion solo: %1").arg(faltaLocal_);
         return tr("Con el modelo local (se carga cuando se conecta un tótem).");
     }
     agent::FuenteMirada f;
     std::string falta;
     if (!agent::ChatEnVivo::fuenteDeProveedor(r->proveedor, r->modelo, rt_.dataRoot(), f, &falta))
-        return "Guion solo: " + QString::fromStdString(falta) + ".";
-    return "Entiende con " + QString::fromStdString(f.nombre) +
-           ": lo que dice la gente (sus datos) sale de esta máquina hacia ese servicio.";
+        return tr("Guion solo: %1.").arg(QString::fromStdString(falta));
+    return tr("Entiende con %1: lo que dice la gente (sus datos) sale de esta máquina hacia ese servicio.")
+        .arg(QString::fromStdString(f.nombre));
 }
 
 void TotemsViewModel::prepararModelo() {
@@ -1897,8 +1901,8 @@ void TotemsViewModel::prepararModelo() {
     QString falta;
     const QString gguf = modelos_->ggufParaChat(QString::fromStdString(r->modelo), &falta);
     if (gguf.isEmpty() || !QFileInfo::exists(agent::ServidorModeloLocal::ejecutable())) {
-        faltaLocal_ = gguf.isEmpty() ? (falta.isEmpty() ? QString("no hay un modelo local instalado") : falta)
-                                     : QString("falta llama-server en el programa");
+        faltaLocal_ = gguf.isEmpty() ? (falta.isEmpty() ? tr("no hay un modelo local instalado") : falta)
+                                     : tr("falta llama-server en el programa");
         emit cambio();
         return;
     }
@@ -1913,7 +1917,7 @@ void TotemsViewModel::prepararModelo() {
         yo->faltaLocal_ = puerto != 0 ? QString() : error;
         if (puerto == 0)
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                       "el modelo de los tótems no cargó (sigue el guion solo): " + error.toStdString());
+                                       ba::i18n::llenar(ba::i18n::traducir("registro", "el modelo de los tótems no cargó (sigue el guion solo): %1"), {error.toStdString()}));
         emit yo->cambio();
     });
 }
@@ -1929,13 +1933,13 @@ void TotemsViewModel::soltarModelo() {
 bool TotemsViewModel::fuenteAgente(agent::FuenteMirada& f, std::string& prompt, std::string& falta) const {
     const agent::Rol* r = rolRegistro(roles_);
     if (r == nullptr || !r->activo) {
-        falta = "el rol «registro» está apagado";
+        falta = tr("el rol «registro» está apagado").toStdString();
         return false;
     }
     prompt = r->promptPropio.empty() ? r->prompt : r->promptPropio;
     if (!esLocal(*r)) return agent::ChatEnVivo::fuenteDeProveedor(r->proveedor, r->modelo, rt_.dataRoot(), f, &falta);
     if (puertoLocal_ == 0) {
-        falta = faltaLocal_.isEmpty() ? std::string("el modelo local todavía está cargando") : faltaLocal_.toStdString();
+        falta = faltaLocal_.isEmpty() ? tr("el modelo local todavía está cargando").toStdString() : faltaLocal_.toStdString();
         return false;
     }
     f.url = "http://127.0.0.1:" + std::to_string(puertoLocal_) + "/v1";
@@ -1956,8 +1960,7 @@ void TotemsViewModel::crearAgente(Conexion& c, bool avisar) {
     if (!fuenteAgente(f, prompt, falta)) {
         if (avisar)
             ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                       "tótem «" + c.totem.toStdString() + "» (" + c.conn.toStdString() +
-                                           "): por ahora el guion solo (" + falta + ")");
+                                       ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): por ahora el guion solo (%3)"), {c.totem.toStdString(), c.conn.toStdString(), falta}));
         return;
     }
     auto a = std::make_unique<registro::AgenteTotem>(f, prompt, *c.conv, registro::AgenteTotem::tiemposDeAjustes());
@@ -1996,8 +1999,7 @@ void TotemsViewModel::crearAgente(Conexion& c, bool avisar) {
         Conexion* k = de();
         if (k == nullptr) return;
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
-                                   "tótem «" + k->totem.toStdString() + "» (" + k->conn.toStdString() +
-                                       "): el modelo no contesta, sigue el guion solo (" + motivo + ")");
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): el modelo no contesta, sigue el guion solo (%3)"), {k->totem.toStdString(), k->conn.toStdString(), motivo}));
         emit yo->vivoCambio();
     };
     c.agente = std::move(a);
