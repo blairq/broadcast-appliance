@@ -15,6 +15,7 @@
 // (catalogo_listar), el mismo que usan la página, las ventanas y el tablero.
 // ============================================================================
 
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "pantallas/Catalogo.hpp"
@@ -160,8 +161,8 @@ void McpService::registerPantallaTools() {
             const QString id = idDePantalla(*p, quien);
             if (id.isEmpty()) {
                 done(
-                    ToolResult::error("No conozco la pantalla '" + quien.toStdString() +
-                                      "'. pantalla_listar dice cuales hay; pantalla_buscar busca de nuevo."));
+                    ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pantalla '%1'. pantalla_listar dice cuales hay; pantalla_buscar busca de nuevo."),
+                                        {quien.toStdString()})));
                 return;
             }
             const QString tipo = QString::fromStdString(a["tipo"].get<std::string>());
@@ -193,8 +194,7 @@ void McpService::registerPantallaTools() {
                     return;
                 }
                 if (guardado.isEmpty()) {
-                    done(ToolResult::error("No tengo guardado un codigo QR con id '" + qid.toStdString() +
-                                           "'. qr_listar los da."));
+                    done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No tengo guardado un codigo QR con id '%1'. qr_listar los da."), {qid.toStdString()})));
                     return;
                 }
                 datos["texto"] = guardado.value("texto");
@@ -206,8 +206,8 @@ void McpService::registerPantallaTools() {
                 done(ToolResult::error(err.toStdString()));
                 return;
             }
-            done(ToolResult::ok("Mandado a «" + id.toStdString() +
-                                "». Tarda un par de segundos: pantalla_listar dice como salio."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Mandado a «%1». Tarda un par de segundos: pantalla_listar dice como salio."),
+                                  {id.toStdString()})));
         };
         core_.addTool(std::move(t));
     }
@@ -240,8 +240,8 @@ void McpService::registerPantallaTools() {
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
             if (id.isEmpty()) {
-                done(ToolResult::error("No conozco la pantalla '" + a["pantalla"].get<std::string>() +
-                                       "'. pantalla_listar dice cuales hay."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pantalla '%1'. pantalla_listar dice cuales hay."),
+                                         {a["pantalla"].get<std::string>()})));
                 return;
             }
             if (a.value("quitar", false)) {
@@ -277,7 +277,7 @@ void McpService::registerPantallaTools() {
         t.inputSchema = {{"type", "object"}, {"required", {"pantalla"}}, {"properties", {{"pantalla", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
-            if (id.isEmpty()) return done(ToolResult::error("No conozco la pantalla '" + a["pantalla"].get<std::string>() + "'."));
+            if (id.isEmpty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pantalla '%1'."), {a["pantalla"].get<std::string>()})));
             const QString err = p->olvidar(id);
             done(err.isEmpty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Olvidada.")) : ToolResult::error(err.toStdString()));
         };
@@ -299,7 +299,7 @@ void McpService::registerPantallaTools() {
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
             if (id.isEmpty()) {
-                done(ToolResult::error("No conozco la pantalla '" + a["pantalla"].get<std::string>() + "'."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pantalla '%1'."), {a["pantalla"].get<std::string>()})));
                 return;
             }
             const QString err = p->renombrar(id, QString::fromStdString(a["nombre"].get<std::string>()));
@@ -405,7 +405,7 @@ void McpService::registerPantallaTools() {
                 return;
             }
             if (id.isEmpty()) {
-                id = p->carruselNuevo(QString::fromStdString(a.value("nombre", "Carrusel")));
+                id = p->carruselNuevo(QString::fromStdString(a.value("nombre", ba::i18n::traducir("mcp", "Carrusel"))));
             } else {
                 // Se vacia: `pasos` describe el carrusel ENTERO, no lo que se
                 // le suma. Asi la misma llamada da siempre el mismo resultado.
@@ -418,7 +418,7 @@ void McpService::registerPantallaTools() {
                             p->pasoQuitar(id, i);
                     }
                 if (!hay) {
-                    done(ToolResult::error("No existe el carrusel '" + id.toStdString() + "'."));
+                    done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe el carrusel '%1'."), {id.toStdString()})));
                     return;
                 }
                 if (a.contains("nombre"))
@@ -441,7 +441,7 @@ void McpService::registerPantallaTools() {
             json r{{"id", id.toStdString()}};
             done(problemas.empty()
                      ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo. Para verlo: pantalla_mostrar con tipo `carrusel`.")).data(r)
-                     : ToolResult::error("Algunos pasos no entraron: " + problemas));
+                     : ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Algunos pasos no entraron: %1"), {problemas})));
         };
         core_.addTool(std::move(t));
     }
@@ -459,11 +459,11 @@ void McpService::registerPantallaTools() {
             const QString quien = QString::fromStdString(a["pantalla"].get<std::string>());
             const QString id = idDePantalla(*p, quien);
             if (id.isEmpty()) {
-                done(ToolResult::error("No conozco la pantalla '" + quien.toStdString() + "'."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pantalla '%1'."), {quien.toStdString()})));
                 return;
             }
             p->parar(id);
-            done(ToolResult::ok("Parando «" + quien.toStdString() + "»."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Parando «%1»."), {quien.toStdString()})));
         };
         core_.addTool(std::move(t));
     }
@@ -552,13 +552,13 @@ void McpService::registerPantallaTools() {
                                return;
                            }
                            done(ToolResult::ok(cuantas == 0
-                                                   ? std::string("Ninguna superficie viva la recibio: no "
+                                                   ? ba::i18n::traducir("mcp", "Ninguna superficie viva la recibio: no "
                                                                  "hay pagina abierta que escuche. Para "
                                                                  "que haya una, casteala con "
                                                                  "pantalla_mostrar.")
-                                                   : "Mandado a " + std::to_string(cuantas) +
-                                                         " superficie(s). Ya cambio: superficie_listar lo "
-                                                         "confirma."));
+                                                   : ba::i18n::traducir("mcp", "Mandado a %n superficie. Ya cambio: "
+                                                                               "superficie_listar lo confirma.",
+                                                                        nullptr, cuantas)));
                        });
         };
         core_.addTool(std::move(t));
@@ -687,9 +687,9 @@ void McpService::registerPantallaTools() {
             const QString err = mon->asignar(id, cosas, completa);
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             const QVariantMap m = mon->monitor(id);
-            done(ToolResult::ok("«" + m.value("nombre").toString().toStdString() + "» muestra " +
-                                m.value("titulo").toString().toStdString() +
-                                (m.value("conectado").toBool() ? "." : " cuando se lo conecte (ahora no esta).")));
+            done(ToolResult::ok(ba::i18n::llenar(m.value("conectado").toBool() ? ba::i18n::traducir("mcp", "«%1» muestra %2.")
+                                                                : ba::i18n::traducir("mcp", "«%1» muestra %2 cuando se lo conecte (ahora no esta)."),
+                                  {m.value("nombre").toString().toStdString(), m.value("titulo").toString().toStdString()})));
         };
         core_.addTool(std::move(t));
     }

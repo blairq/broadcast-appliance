@@ -21,6 +21,7 @@
 #include "agent/VocesRack.hpp"
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "net/Descargas.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -101,7 +102,7 @@ bool enCatalogo(agent::ModelosLocales& ml, const std::string& repo, std::string*
     return false;
 }
 
-json esquemaRepo(const char* que) {
+json esquemaRepo(const std::string& que) {
     return {{"type", "object"},
             {"required", {"repo"}},
             {"properties", {{"repo", {{"type", "string"}, {"description", que}}}}}};
@@ -143,14 +144,14 @@ void McpService::registerModeloTools() {
         t.details = ba::i18n::traducir("mcp", "Los modelos de lenguaje pesan 2-3 GB y los de voz ~0,6 GB: la red del estudio se usa "
                     "mientras baja. Va a la cola de descargas (descargas_estado): si ya esta en la cola, bajandose o bajado, no se repite; una cortada sigue donde quedo. Nada se usa sin verificar, y una descarga a "
                     "medias nunca pisa el modelo que andaba.");
-        t.inputSchema = esquemaRepo("el repo, tal cual aparece en el catalogo");
+        t.inputSchema = esquemaRepo(ba::i18n::traducir("mcp", "el repo, tal cual aparece en el catalogo"));
         t.run = [&ml](const json& a, Done done) {
             const std::string repo = a.value("repo", std::string());
             if (!enCatalogo(ml, repo))
-                return done(ToolResult::error("`" + repo + "` no esta en el catalogo de esta plataforma."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` no esta en el catalogo de esta plataforma."), {repo})));
             const QString r = ml.descargar(QString::fromStdString(repo));
-            done(ToolResult::ok("`" + repo + "`: " + r.toStdString() +
-                                ". El avance, en descargas_estado (o modelo_local_estado)."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1`: %2. El avance, en descargas_estado (o modelo_local_estado)."),
+                                  {repo, r.toStdString()})));
         };
         core_.addTool(std::move(t));
     }
@@ -166,7 +167,7 @@ void McpService::registerModeloTools() {
                          {"properties", {{"repo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el repo (opcional)")}}}}}};
         t.run = [&ml](const json& a, Done done) {
             ml.cancelarDescarga(QString::fromStdString(a.value("repo", std::string())));
-            done(ToolResult::ok(ml.descargando() ? "Cancelando." : "No habia ninguna descarga."));
+            done(ToolResult::ok(ml.descargando() ? ba::i18n::traducir("mcp", "Cancelando.") : ba::i18n::traducir("mcp", "No habia ninguna descarga.")));
         };
         core_.addTool(std::move(t));
     }
@@ -178,13 +179,13 @@ void McpService::registerModeloTools() {
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Borra un modelo bajado (libera gigas). Si es el activo, lo apaga. Se puede volver "
                         "a bajar.");
-        t.inputSchema = esquemaRepo("el repo a borrar");
+        t.inputSchema = esquemaRepo(ba::i18n::traducir("mcp", "el repo a borrar"));
         t.run = [&ml](const json& a, Done done) {
             const std::string repo = a.value("repo", std::string());
             if (!enCatalogo(ml, repo))
-                return done(ToolResult::error("`" + repo + "` no esta en el catalogo de esta plataforma."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` no esta en el catalogo de esta plataforma."), {repo})));
             ml.borrar(QString::fromStdString(repo));
-            done(ToolResult::ok("Borrado `" + repo + "`."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrado `%1`."), {repo})));
         };
         core_.addTool(std::move(t));
     }
@@ -219,14 +220,15 @@ void McpService::registerModeloTools() {
             };
             if (que == "viejos" || que == "restos") {
                 const QVariantMap r = que == "viejos" ? ml.limpiarViejos() : ml.limpiarRestos();
-                return done(ToolResult::ok(std::string(que == "viejos" ? "Modelos viejos" : "Descargas cortadas") +
-                                           " borrados: se liberaron " + gb(r.value("bytes").toDouble()) + "."));
+                return done(ToolResult::ok(ba::i18n::llenar(que == "viejos" ? ba::i18n::traducir("mcp", "Modelos viejos borrados: se liberaron %1.")
+                                                             : ba::i18n::traducir("mcp", "Descargas cortadas borradas: se liberaron %1."),
+                                             {gb(r.value("bytes").toDouble())})));
             }
             if (que == "carpeta") {
                 const std::string c = a.value("carpeta", std::string());
                 if (!ml.borrarCarpeta(QString::fromStdString(c)))
-                    return done(ToolResult::error("No se pudo borrar `" + c + "` (no es una carpeta de un modelo)."));
-                return done(ToolResult::ok("Borrada `" + c + "`."));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo borrar `%1` (no es una carpeta de un modelo)."), {c})));
+                return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrada `%1`."), {c})));
             }
             ml.revisarDisco();
             double total = 0;
@@ -246,19 +248,19 @@ void McpService::registerModeloTools() {
         t.description = ba::i18n::traducir("mcp", "Carga un modelo de lenguaje bajado (apaga el que hubiera). Tarda unos segundos "
                         "en leer las fichas: el estado pasa a `listo` en modelo_local_estado. Los de voz "
                         "no se activan: se usan solos apenas estan bajados.");
-        t.inputSchema = esquemaRepo("el repo del modelo de lenguaje");
+        t.inputSchema = esquemaRepo(ba::i18n::traducir("mcp", "el repo del modelo de lenguaje"));
         t.run = [&ml](const json& a, Done done) {
             const std::string repo = a.value("repo", std::string());
             std::string tipo;
             if (!enCatalogo(ml, repo, &tipo))
-                return done(ToolResult::error("`" + repo + "` no esta en el catalogo de esta plataforma."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` no esta en el catalogo de esta plataforma."), {repo})));
             if (tipo != "reactivo")
                 return done(
                     ToolResult::error(ba::i18n::traducir("mcp", "Los modelos de voz no se activan: se usan solos si estan bajados.")));
             if (!ml.hayMotor())
-                return done(ToolResult::error("Sin motor en esta plataforma: " + ml.motor().toStdString()));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Sin motor en esta plataforma: %1"), {ml.motor().toStdString()})));
             ml.activar(QString::fromStdString(repo));
-            done(ToolResult::ok("Cargando `" + repo + "`."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Cargando `%1`."), {repo})));
         };
         core_.addTool(std::move(t));
     }
@@ -322,7 +324,7 @@ void McpService::registerModeloTools() {
             if (frase.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta la frase.")));
             if (!ml.listo())
                 return done(
-                    ToolResult::error("No hay un modelo local cargado (" + ml.estado().toStdString() + ")."));
+                    ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay un modelo local cargado (%1)."), {ml.estado().toStdString()})));
             // Una sola pregunta al modelo: lo mismo se anota en la página (antes
             // se preguntaba dos veces y la segunda esperaba a la primera).
             ml.probarFrase(frase, [&ml, frase, done](const json& j) {
@@ -658,7 +660,7 @@ void McpService::registerModeloTools() {
             const std::string e = fl->corregir(a.value("id", 0ULL), QString::fromStdString(a.value("texto", std::string())),
                                                a.value("descartar", false));
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok(a.value("descartar", false) ? "Descartada." : "Salió."));
+            done(ToolResult::ok(a.value("descartar", false) ? ba::i18n::traducir("mcp", "Descartada.") : ba::i18n::traducir("mcp", "Salió.")));
         };
         core_.addTool(std::move(t));
     }
@@ -687,7 +689,7 @@ void McpService::registerModeloTools() {
             if (f.empty() || tx.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "faltan `flujo` y `texto`")));
             fl->publicar(QString::fromStdString(f), QString::fromStdString(tx),
                          a.value("como_voz", false) ? "Voz a texto (prueba)" : "Escrito a mano");
-            done(ToolResult().text("Publicado en «" + f + "»."));
+            done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Publicado en «%1»."), {f})));
         };
         core_.addTool(std::move(t));
     }
@@ -990,9 +992,9 @@ void McpService::registerModeloTools() {
         t.inputSchema = esquemaId;
         t.run = [dl](const json& a, Done done) {
             const std::string id = a.value("id", std::string());
-            if (!dl->ocupado(id)) return done(ToolResult::error("`" + id + "` no esta en la cola ni bajandose."));
+            if (!dl->ocupado(id)) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` no esta en la cola ni bajandose."), {id})));
             dl->cancelar(QString::fromStdString(id));
-            done(ToolResult::ok("Cancelando `" + id + "`."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Cancelando `%1`."), {id})));
         };
         core_.addTool(std::move(t));
     }
@@ -1007,9 +1009,10 @@ void McpService::registerModeloTools() {
         t.run = [dl](const json& a, Done done) {
             const std::string id = a.value("id", std::string());
             done(dl->reintentar(QString::fromStdString(id))
-                     ? ToolResult::ok("`" + id + "` otra vez en la cola.")
-                     : ToolResult::error("No se puede reintentar `" + id +
-                                         "` (no fallo, o es de una sesion anterior: pedila de nuevo desde su lugar)."));
+                     ? ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` otra vez en la cola."), {id}))
+                     : ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se puede reintentar `%1` (no fallo, o es de una sesion anterior: pedila "
+                                             "de nuevo desde su lugar)."),
+                                           {id})));
         };
         core_.addTool(std::move(t));
     }
@@ -1062,9 +1065,9 @@ void McpService::registerModeloTools() {
         t.run = [dl](const json& a, Done done) {
             const std::string id = a.value("id", std::string());
             done(dl->actualizar(QString::fromStdString(id))
-                     ? ToolResult::ok("`" + id + "`: actualizando. El avance, en descargas_estado.")
-                     : ToolResult::error("No hay una actualizacion `" + id +
-                                         "` (primero descargas_buscar_actualizaciones)."));
+                     ? ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1`: actualizando. El avance, en descargas_estado."), {id}))
+                     : ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay una actualizacion `%1` (primero descargas_buscar_actualizaciones)."),
+                                           {id})));
         };
         core_.addTool(std::move(t));
     }

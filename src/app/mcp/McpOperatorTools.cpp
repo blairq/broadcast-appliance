@@ -116,6 +116,7 @@ void McpService::registerOperatorTools() {
         t.name = "operator_ask";
         t.title = ba::i18n::traducir("mcp", "Preguntarle al operador");
         t.category = "operador";
+        //: no traducir [OPERADOR] ni [RESPUESTA DEL OPERADOR]
         t.description =
             ba::i18n::traducir("mcp", "Le hace una pregunta al operador en la barra de abajo: con `options` (botones) y/o texto libre "
             "(`allowText`). Espera la respuesta hasta `timeoutSec` (60 por defecto, max. 600) y la devuelve; "
@@ -151,7 +152,7 @@ void McpService::registerOperatorTools() {
             const int timeout = a.value("timeoutSec", 60);
             if (timeout <= 0)
                 return done(
-                    //: [RESPUESTA DEL OPERADOR] queda igual: es la marca con la que llega la respuesta
+                    //: no traducir [OPERADOR] ni [RESPUESTA DEL OPERADOR]
                     ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Pregunta en la barra (id %1): la respuesta te llega a tu chat como "
                                        "[RESPUESTA DEL OPERADOR]."),
                                      {std::to_string(id)})));
