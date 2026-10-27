@@ -3,6 +3,7 @@
 // ============================================================================
 #include "graficos/Catalogo.hpp"
 #include <QCoreApplication>
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
 #include <algorithm>
@@ -189,6 +190,11 @@ QString Catalogo::crear(const QString& nombre, bool declarativo, QString* creado
     if (QFileInfo::exists(c)) return QCoreApplication::translate("graficos", "ya hay un gráfico con ese nombre");
     if (!QDir().mkpath(c)) return QCoreApplication::translate("graficos", "no se pudo crear la carpeta");
 
+    // El texto de muestra sale al aire: en el idioma del evento al crearlo. Queda escrito
+    // en el gráfico (el operador lo edita): no se rehace si después cambia el idioma.
+    const QString hola = QString::fromStdString(ba::i18n::traducirEvento("graficos", "Hola"));
+    QString holaQml = hola;
+    holaQml.replace(QLatin1Char('\\'), QLatin1String("\\\\")).replace(QLatin1Char('"'), QLatin1String("\\\""));
     QJsonObject f{{"nombre", limpio},
                   {"descripcion", ""},
                   {"ancho", 900},
@@ -196,7 +202,7 @@ QString Catalogo::crear(const QString& nombre, bool declarativo, QString* creado
                   {"parametros", QJsonArray{QJsonObject{{"clave", "texto"},
                                                         {"titulo", QCoreApplication::translate("graficos", "Texto")},
                                                         {"tipo", "texto"},
-                                                        {"porDefecto", "Hola"},
+                                                        {"porDefecto", hola},
                                                         {"ayuda", QCoreApplication::translate("graficos", "Lo que dice el gráfico.")}}}}};
     if (declarativo) {
         f["declarativo"] =
@@ -217,13 +223,16 @@ QString Catalogo::crear(const QString& nombre, bool declarativo, QString* creado
                                                          {"aparece", 200}}}},
                         {"entrada", QJsonObject{{"efecto", "desliza-izquierda"}, {"duracion", 450}}}};
     } else if (!escribir(QDir(c).filePath("grafico.qml"),
-                         "import QtQuick\n\nItem {\n    id: raiz\n    width: 900\n    height: 220\n\n"
-                         "    property string texto: \"Hola\"\n\n"
-                         "    Text {\n        text: raiz.texto\n        color: \"white\"\n"
-                         "        font.pixelSize: 40\n        renderType: Text.QtRendering\n"
-                         "        y: raiz.height - 90\n        opacity: 0\n"
-                         "        NumberAnimation on opacity { to: 1; duration: 400; running: true }\n"
-                         "    }\n}\n")) {
+                         (QStringLiteral("import QtQuick\n\nItem {\n    id: raiz\n    width: 900\n    height: 220\n\n"
+                                         "    property string texto: \"")
+                          + holaQml
+                          + QStringLiteral("\"\n\n"
+                                           "    Text {\n        text: raiz.texto\n        color: \"white\"\n"
+                                           "        font.pixelSize: 40\n        renderType: Text.QtRendering\n"
+                                           "        y: raiz.height - 90\n        opacity: 0\n"
+                                           "        NumberAnimation on opacity { to: 1; duration: 400; running: true }\n"
+                                           "    }\n}\n"))
+                             .toUtf8())) {
         return QCoreApplication::translate("graficos", "no se pudo escribir el grafico.qml");
     }
     if (!escribir(QDir(c).filePath("grafico.json"), QJsonDocument(f).toJson()))

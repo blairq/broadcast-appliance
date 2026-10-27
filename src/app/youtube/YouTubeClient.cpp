@@ -4,6 +4,7 @@
 
 #include "youtube/YouTubeClient.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -731,7 +732,7 @@ void YouTubeClient::createBroadcast(const QJsonObject& p, Done done) {
         p.value("scheduledStart")
             .toString(QDateTime::currentDateTimeUtc().addSecs(60).toString(Qt::ISODateWithMs));
     const QJsonObject broadcast{
-        {"snippet", QJsonObject{{"title", p.value("title").toString("Transmision en vivo")},
+        {"snippet", QJsonObject{{"title", p.value("title").toString(QString::fromStdString(ba::i18n::traducirEvento("transmision", "Transmision en vivo")))},
                                 {"description", p.value("description").toString()},
                                 {"scheduledStartTime", start}}},
         {"status", QJsonObject{{"privacyStatus", p.value("privacy").toString("private")},

@@ -43,6 +43,7 @@ struct Calidad {
     bool cortada = false;   ///< el recuadro toca el borde del cuadro
     float confianza = 0;
     std::string sugerencia; ///< qué pedirle, en palabras que se le puedan decir
+    std::string sugerenciaEvento; ///< la misma en el idioma del evento: la que oye o lee la persona
     bool sirve = false;
 };
 

@@ -12,6 +12,7 @@
 #include <QTimer>
 
 #include "graficos/Emisor.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::app::graficos {
 namespace {
@@ -38,7 +39,11 @@ QJsonValue porCamino(const QJsonObject& raiz, const QString& camino) {
 QString aTexto(const QJsonValue& v) {
     if (v.isString()) return v.toString();
     if (v.isDouble()) return QString::number(v.toDouble());
-    if (v.isBool()) return v.toBool() ? "sí" : "no";
+    // Sale al aire: en el idioma del evento. Se resuelve cada segundo, así que un
+    // cambio de idioma del evento se ve en la vuelta siguiente.
+    if (v.isBool())
+        return QString::fromStdString(v.toBool() ? ba::i18n::traducirEvento("graficos", "sí")
+                                                 : ba::i18n::traducirEvento("graficos", "no"));
     return {};
 }
 

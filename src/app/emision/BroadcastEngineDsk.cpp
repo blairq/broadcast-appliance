@@ -92,7 +92,9 @@ bool BroadcastEngine::placa(bool activar, const std::string& texto, const std::s
         return false;
     }
     if (activar) {
-        placaTexto_ = texto.empty() ? ba::i18n::traducir("emision", "Volvemos enseguida") : texto;
+        // Sale al aire: el texto por defecto va en el idioma del evento, y se arma al
+        // activarla (una placa ya al aire no cambia si cambia el idioma: la próxima sí).
+        placaTexto_ = texto.empty() ? ba::i18n::traducirEvento("emision", "Volvemos enseguida") : texto;
         placaImagen_ = imagen;
         const int H = video_.baseHeight, W = video_.baseWidth;
         if (internasPedidas_.insert(kPlacaFondo).second)

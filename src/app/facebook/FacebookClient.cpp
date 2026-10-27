@@ -4,6 +4,7 @@
 
 #include "facebook/FacebookClient.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QDateTime>
 #include <QDesktopServices>
@@ -432,7 +433,7 @@ void FacebookClient::liveVideos(Done done) {
 void FacebookClient::createLive(const QJsonObject& p, Done done) {
     QUrlQuery q;
     q.addQueryItem("status", p.value("status").toString("LIVE_NOW"));
-    q.addQueryItem("title", p.value("title").toString("Transmision en vivo"));
+    q.addQueryItem("title", p.value("title").toString(QString::fromStdString(ba::i18n::traducirEvento("transmision", "Transmision en vivo"))));
     if (p.contains("description")) q.addQueryItem("description", p.value("description").toString());
     graph("POST", "/" + pageId_ + "/live_videos", q, [done](bool ok, const QJsonObject& d, const QString& e) {
         if (!ok) return done(false, {}, e);
