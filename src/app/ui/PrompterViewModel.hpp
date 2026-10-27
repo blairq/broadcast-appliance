@@ -148,6 +148,8 @@ class PrompterViewModel : public QObject {
     Q_INVOKABLE void irA(double fraccion);
     /// Salta al principio del párrafo `n` (0 = el primero).
     Q_INVOKABLE void irAParrafo(int n);
+    /// Cómo le llega al orador un aviso (en el idioma del evento): para marcar cuál está puesto.
+    Q_INVOKABLE QString avisoParaOrador(const QString& clave) const;
     /// Le escribe un aviso al orador ("Redondeá"); vacío lo saca.
     Q_INVOKABLE void avisar(const QString& texto);
     /// Para en seco donde esté, sin mover la posición.

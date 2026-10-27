@@ -12,7 +12,8 @@
 // gateway la carpeta nueva). CREAR una sí escribe sus archivos una vez:
 //   - "vacia": la configuración de fábrica;
 //   - "actual" u otra por su nombre: una copia (sin grabaciones, salvo que se pida);
-//   - "demo:<nombre>": una de las demos que trae el programa (Demos/<nombre>);
+//   - "demo:<nombre>": una de las demos que trae el programa (Demos/<idioma>/<nombre>, las
+//     del idioma del operador);
 //   - "evento:<carpeta>/<inicio|cierre|ultima>": la configuración con la que se hizo
 //     un evento (su foto de Config/, ver evento/FotosConfig) y los medios de la actual.
 // Cada una puede tener una descripción (configuracion.json en su carpeta).

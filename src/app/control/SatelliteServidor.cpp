@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include "i18n/I18n.hpp"
 #include "control/SatelliteServidor.hpp"
 
 #include "control/Botonera.hpp"
@@ -332,7 +333,7 @@ void SatelliteServidor::linea(Cliente& c, const std::string& l) {
                 emit cambio();
             }
             return enviar(c, "ADD-DEVICE ERROR DEVICEID=" + dev + " MESSAGE=\"" +
-                                 tr("IP no permitida: aprobala en Servicios o en Botonera (Aparatos)").toStdString() + "\"");
+                                 ba::i18n::traducirEvento("botonera", "IP no permitida: aprobala en Servicios o en Botonera (Aparatos)") + "\"");
         }
         Aparato ap;
         ap.id = dev;
@@ -363,7 +364,7 @@ void SatelliteServidor::linea(Cliente& c, const std::string& l) {
         return enviar(c, "REMOVE-DEVICE OK DEVICEID=" + dev);
     }
     if (ap == c.aparatos.end())
-        return enviar(c, cmd + " ERROR DEVICEID=" + dev + " MESSAGE=\"" + tr("aparato desconocido").toStdString() + "\"");
+        return enviar(c, cmd + " ERROR DEVICEID=" + dev + " MESSAGE=\"" + ba::i18n::traducirEvento("botonera", "aparato desconocido") + "\"");
     const int key = std::atoi(arg("KEY", "-1").c_str());
     if (key < 0 || key >= ap->second.total)
         return enviar(c, cmd + " ERROR DEVICEID=" + dev + " MESSAGE=\"" + tr("tecla fuera de rango").toStdString() + "\"");

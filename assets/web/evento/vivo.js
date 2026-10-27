@@ -20,6 +20,13 @@
 //   preguntas (las del público ya moderadas, una lista) · n-preguntas
 //   en-la-sala / en-la-sala-texto (invitados e integrantes conectados)  mirando / mirando-texto
 //   progreso-texto
+//   Frases enteras con datos (en el idioma del evento): termino («X terminó. Acá queda…»)
+//   parte-de («Parte de X.»)  hora-de («Hora de Buenos Aires»)  hora-de-entre-parentesis
+//   («(hora de Buenos Aires)»)  cuando («El lunes 12 de octubre, 20:00 h (hora de …).»)
+//   seccion-de («Sección 02 / 05», en la página de una sección).
+//   Con marcas adentro: data-vivo-frase="asamblea-presentes" («<b>3</b> de 7 integrantes
+//   presentes»): cada %1, %2… de la frase toma la etiqueta y la clase del 1.º, 2.º… elemento
+//   hijo que trae la plantilla (ver frase()).
 //   En la página de una sección (<body data-seccion="<id>">): seccion-nombre
 //   seccion-numero  seccion-total  seccion-duracion  seccion-hora  seccion-estado
 //   anterior-nombre  proxima-nombre
@@ -131,7 +138,7 @@
   function mmss(seg) {
     seg = Math.max(0, Math.round(seg));
     const d = Math.floor(seg / 86400), h = Math.floor((seg % 86400) / 3600), m = Math.floor((seg % 3600) / 60), s = seg % 60;
-    if (d) return t("%n día", { n: d }) + " " + h + " h";
+    if (d) return llenar(t("%n día %1 h", { n: d }), h);
     return (h ? h + ":" + dos(m) : String(m)) + ":" + dos(s);
   }
   function duracionCorta(seg) {
@@ -155,6 +162,25 @@
   }
   const husoCorto = (h) => (h || "").split("/").pop().replace(/_/g, " ");
   function poner(nombre, texto) { for (const el of $$('[data-vivo="' + nombre + '"]')) if (el.textContent !== texto) el.textContent = texto; }
+  // Una frase entera con datos y marcas adentro (<b>…</b>): `plantilla` ya traducida, con
+  // %1, %2…; cada %k toma la forma (etiqueta, clase) del k-ésimo elemento hijo que trae la
+  // plantilla HTML, y el texto de `valores[k-1]`. Se rehace solo si cambia el texto.
+  function frase(nombre, plantilla, ...valores) {
+    for (const el of $$('[data-vivo-frase="' + nombre + '"]')) {
+      if (!el._moldes) el._moldes = Array.from(el.children, (c) => c.cloneNode(false));
+      const firma = plantilla + "\u0001" + valores.join("\u0001");
+      if (el._firma === firma) continue;
+      el._firma = firma;
+      el.textContent = "";
+      plantilla.split(/%([1-9])/).forEach((p, i) => {
+        if (i % 2 === 0) { if (p) el.appendChild(document.createTextNode(p)); return; }
+        const k = Number(p) - 1;
+        const m = el._moldes[k] ? el._moldes[k].cloneNode(false) : document.createElement("span");
+        m.textContent = k < valores.length ? String(valores[k]) : "%" + p;
+        el.appendChild(m);
+      });
+    }
+  }
   function si(nombre, vale) { for (const el of $$('[data-vivo-si="' + nombre + '"]')) el.hidden = !vale; }
   function href(nombre, url) { for (const el of $$('[data-vivo-href="' + nombre + '"]')) { if (url) el.href = url; el.hidden = !url; } }
 
@@ -203,8 +229,12 @@
     const total = secciones.reduce((a, s) => a + (s.duracionSeg || 0), 0);
     const nombre = e.nombre || t("El evento");
     poner("nombre", nombre);
-    poner("bajada", e.bajada || (secciones.length ? t("%n sección", { n: secciones.length }) +
-      (total ? " · " + duracionCorta(total) : "") + " · " + t("en vivo por internet.") : t("En vivo por internet.")));
+    poner("termino", llenar(t("%1 terminó. Acá queda la grabación y todo lo que pasó."), nombre));
+    poner("parte-de", llenar(t("Parte de %1."), nombre));
+    const nSecciones = t("%n sección", { n: secciones.length });
+    poner("bajada", e.bajada || (!secciones.length ? t("En vivo por internet.")
+      : total ? llenar(t("%1 · %2 · en vivo por internet."), nSecciones, duracionCorta(total))
+        : llenar(t("%1 · en vivo por internet."), nSecciones)));
     poner("marca", (nombre.split(/\s+/)[0] || "").replace(/[:.,;]$/, "") || nombre);
     poner("fecha-corta", corta || t("En vivo"));
     poner("fecha-larga", larga);
@@ -213,6 +243,10 @@
     poner("anio", f ? String(f.anio) : String(new Date().getFullYear()));
     poner("hora-inicio", e.inicio || "—");
     poner("huso", husoCorto(e.huso));
+    poner("hora-de", llenar(t("Hora de %1"), husoCorto(e.huso)));
+    poner("hora-de-entre-parentesis", llenar(t("(hora de %1)"), husoCorto(e.huso)));
+    poner("cuando", !larga ? t("El día y la hora se confirman acá.")
+      : e.huso ? llenar(t("El %1 (hora de %2)."), larga, husoCorto(e.huso)) : llenar(t("El %1."), larga));
     poner("n-secciones", dos(secciones.length));
     poner("minutos", total ? String(Math.ceil(total / 60)) : "—");
     si("fecha", !!f); si("huso", !!e.huso); si("franja", !!f || e.estado !== "proximo"); si("bajada", true); si("secciones", secciones.length > 0);
@@ -256,6 +290,7 @@
         poner("seccion-nombre", s.nombre);
         poner("seccion-numero", dos(i + 1));
         poner("seccion-total", dos(secciones.length));
+        poner("seccion-de", llenar(t("Sección %1 / %2"), dos(i + 1), dos(secciones.length)));
         poner("seccion-duracion", duracionCorta(s.duracionSeg));
         poner("seccion-hora", hora(s.inicioEstimadoMs || s.inicioPrevistoMs));
         poner("seccion-estado", s.estado === "actual" ? (e.estado === "pausa" ? t("En pausa") : t("En vivo ahora"))
@@ -573,6 +608,7 @@
     poner("asamblea-cuerpo", a.cuerpo || t("La asamblea"));
     poner("asamblea-presentes", String(a.presentes || 0));
     poner("asamblea-total", String(a.total || 0));
+    frase("asamblea-presentes", t("%1 de %n integrante presente", { n: a.total || 0 }), String(a.presentes || 0));
     const q = a.quorum || null;
     si("asamblea-quorum", !!q);
     poner("asamblea-quorum", q ? (q.hay ? t("Hay quórum") : t("Sin quórum")) + " · " + llenar(t("se necesitan %1"), q.necesarios) : "");

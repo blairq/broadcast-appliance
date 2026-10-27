@@ -413,14 +413,17 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 5
                             Repeater {
-                                model: [qsTr("Redondeá"), qsTr("Más despacio"), qsTr("Se escucha bajo"), qsTr("Mirá a cámara")]
+                                // k: la clave (al orador le llega en el idioma del evento); t: lo que ve el operador.
+                                model: [{ k: "Redondeá", t: qsTr("Redondeá") }, { k: "Más despacio", t: qsTr("Más despacio") },
+                                        { k: "Se escucha bajo", t: qsTr("Se escucha bajo") }, { k: "Mirá a cámara", t: qsTr("Mirá a cámara") }]
                                 delegate: GlassButton {
-                                    required property string modelData
+                                    required property var modelData
+                                    readonly property bool puesto: page.est.aviso === page.p.avisoParaOrador(modelData.k)
                                     compact: true
-                                    text: modelData
-                                    active: page.est.aviso === modelData
+                                    text: modelData.t
+                                    active: puesto
                                     enabled: page.p.enLinea
-                                    onClicked: page.p.avisar(page.est.aviso === modelData ? "" : modelData)
+                                    onClicked: page.p.avisar(puesto ? "" : modelData.k)
                                 }
                             }
                         }

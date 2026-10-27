@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <fstream>
 #include <map>
+#include <vector>
 
 namespace ba::app {
 
@@ -52,6 +53,40 @@ std::string renombrarGuion(evento::EventoStore& store, const fs::path& raiz, con
     fs::remove_all(raiz / ruta, ec);
     store.guardar(nueva, ev, &err);
     return nueva;
+}
+
+/// Los idiomas en que se buscan las plantillas del programa: el del operador, sus respaldos
+/// y al final el original (el español, que siempre las tiene).
+std::vector<std::string> idiomasDeDemos() {
+    const ba::i18n::Perfil& op = ba::i18n::actual();
+    std::vector<std::string> v;
+    if (!op.codigo.empty() && !op.pseudo) v.push_back(op.codigo);
+    v.insert(v.end(), op.respaldo.begin(), op.respaldo.end());
+    v.push_back("es");
+    return v;
+}
+
+/// Las plantillas del programa son por idioma (Demos/<código>/<nombre>, de assets/demo,
+/// tools/generar/plantillas.py): la lista es la del idioma del operador (o la del primero de
+/// sus respaldos que las tenga). Cambiar el idioma del operador cambia la lista al reiniciar.
+fs::path carpetaDemos() {
+    const fs::path raiz = ba::platform::bundleRoot() / "Demos";
+    std::error_code ec;
+    for (const std::string& c : idiomasDeDemos())
+        if (fs::is_directory(raiz / deU8(c), ec)) return raiz / deU8(c);
+    return raiz / "es";
+}
+
+/// Una plantilla del programa por su nombre: la del idioma del operador y, si no está (una
+/// guardada con el nombre en otro idioma), la del primero que la tenga.
+fs::path demoPorNombre(const std::string& nombre) {
+    const fs::path raiz = ba::platform::bundleRoot() / "Demos";
+    std::error_code ec;
+    for (const std::string& c : idiomasDeDemos())
+        if (fs::is_directory(raiz / deU8(c) / deU8(nombre), ec)) return raiz / deU8(c) / deU8(nombre);
+    for (const auto& e : fs::directory_iterator(raiz, ec))
+        if (fs::is_directory(e.path() / deU8(nombre), ec)) return e.path() / deU8(nombre);
+    return carpetaDemos() / deU8(nombre);
 }
 
 json leerJson(const fs::path& p) {
@@ -231,7 +266,7 @@ json Configuraciones::listar() const {
 json Configuraciones::demos() const {
     json out = json::array();
     std::error_code ec;
-    for (const auto& e : fs::directory_iterator(ba::platform::bundleRoot() / "Demos", ec)) {
+    for (const auto& e : fs::directory_iterator(carpetaDemos(), ec)) {
         if (!e.is_directory()) continue;
         const json meta = leerJson(e.path() / "configuracion.json");
         out.push_back({{"nombre", aU8(e.path().filename())}, {"descripcion", meta.value("descripcion", std::string())}});
@@ -258,7 +293,7 @@ std::string Configuraciones::crearSinAvisar(const std::string& nombre, const std
         fs::create_directories(dst / "Config", ec);
         if (ec) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo crear %1: %2"), {aU8(dst), ec.message()});
     } else if (desde.rfind("demo:", 0) == 0) {
-        const fs::path de = ba::platform::bundleRoot() / "Demos" / deU8(desde.substr(5));
+        const fs::path de = demoPorNombre(desde.substr(5));
         if (!fs::is_directory(de, ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ninguna demo «%1»"), {desde.substr(5)});
         err = copiar(de, dst, true);
         if (desc.empty()) desc = leerJson(de / "configuracion.json").value("descripcion", std::string());
@@ -313,7 +348,7 @@ std::string Configuraciones::origenDe(const std::string& desde, std::filesystem:
     if (origen == "cero" || origen.rfind("evento:", 0) == 0) return {};
     if (origen.rfind("plantilla:", 0) == 0 || origen.rfind("demo:", 0) == 0) {
         const std::string n = origen.substr(origen.find(':') + 1);
-        const fs::path demo = ba::platform::bundleRoot() / "Demos" / deU8(n);
+        const fs::path demo = demoPorNombre(n);
         // La copia propia marcada como plantilla (una del programa editada) le gana a la original.
         const bool propia = fs::is_directory(carpeta(n), ec) && leerJson(carpeta(n) / "configuracion.json").value("plantilla", false);
         *de = propia ? carpeta(n) : fs::is_directory(demo, ec) ? demo : carpeta(n);
@@ -528,7 +563,7 @@ json Configuraciones::plantillasAdmin() const {
     const auto en = [](const json& arr, const std::string& v) { return std::find(arr.begin(), arr.end(), v) != arr.end(); };
     std::map<std::string, json> t; // por carpeta
     std::error_code ec;
-    for (const auto& e : fs::directory_iterator(ba::platform::bundleRoot() / "Demos", ec)) {
+    for (const auto& e : fs::directory_iterator(carpetaDemos(), ec)) {
         if (!e.is_directory()) continue;
         const json meta = leerJson(e.path() / "configuracion.json");
         const std::string id = aU8(e.path().filename());
@@ -626,7 +661,7 @@ std::string Configuraciones::plantillaParaEditar(const std::string& id) {
     std::error_code ec;
     if (!fs::is_directory(carpeta(id), ec)) {
         // Del programa: una copia propia, marcada como plantilla con sus datos (le gana a la original).
-        const fs::path demo = ba::platform::bundleRoot() / "Demos" / deU8(id);
+        const fs::path demo = demoPorNombre(id);
         if (!fs::is_directory(demo, ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay una plantilla «%1»"), {id});
         if (const std::string e = crearSinAvisar(id, "demo:" + id, "", false); !e.empty()) return e;
         const json original = leerJson(demo / "configuracion.json");

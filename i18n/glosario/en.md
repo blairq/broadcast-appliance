@@ -61,8 +61,36 @@ formalidades. Ver docs/desarrollo/I18N.md.
 | equipo / aparato | device | |
 | pantalla | screen / display | |
 | pen drive | USB drive | |
+| placa de video / «en la placa» | GPU / on the GPU | |
+| placa de audio / de sonido | audio interface | |
+| central (Bosch DCN y similares) | central unit | |
+| armar / armada (la escena en vista previa) | load / loaded | no «cue»: choca con el cue del guion |
+| bloque (bancada de la asamblea) | caucus | no «block»: choca con el bloque del guion |
+| Cuerpo (el panel de la asamblea) | Body | |
+| recinto | chamber | |
+| dar / pedir / tener la palabra | give / request / have the floor | |
+| banca virtual | virtual seat | |
+| remoto (integrante a distancia) | remote member | |
+| expediente / a comisión | file / sent to committee | |
+| aprobado / rechazado (votación) | passed / rejected | |
+| libreta (de rostros y personas) | face registry | |
+| ficha (de una persona) | profile | |
+| ficha (de una herramienta MCP) | reference card | |
+| registro (diagnóstico) | log | |
+| registro (del tótem) | check-in | |
+| bitácora (del evento) | log | |
+| superficie (web de control) | surface | |
+| plano general | wide shot | |
+| colchón (de latencia) | buffer | |
+| de fábrica | default | |
+| supervisor | watchdog | |
 
 Lo que nunca se traduce: nombres de herramientas MCP y sus parámetros (`scene_switch`),
 claves y valores de JSON, las marcas fijas entre corchetes (`[OPERADOR]`,
 `[RESPUESTA DEL OPERADOR]`), `%1`…`%9` y `%n`, marcas, siglas y unidades (NDI, SRT, dB).
 Las comillas «…» pasan a “…”. Lo que esté entre `backticks` queda igual.
+
+Nombres que el código crea y después busca por nombre (escenas «Asamblea · Orador», fuentes
+«Banca con la palabra», «Chat en vivo», «Previa»; valores de enum): si en el texto aparecen
+como valor que se pasa a una herramienta, quedan en español; si son lo que ve el operador
+como etiqueta, se traducen.

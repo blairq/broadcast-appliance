@@ -28,6 +28,9 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 using ba::i18n::llenar;
 using ba::i18n::traducir;
+// Lo que va al aparato (avisos, confirmaciones, errores de emparejamiento) y lo que lee el
+// orador sale en el idioma del EVENTO; la auditoría y lo del escritorio, en el del operador.
+using ba::i18n::traducirEvento;
 
 namespace {
 
@@ -1056,8 +1059,8 @@ json Botonera::armarPlantilla(const std::string& id) const {
                   {"valor", {{"min", 60}, {"max", 250}, {"paso", 5}, {"inicial", 130}}},
                   {"accion", herr("prompter_control", {{"ppm", "{{valor}}"}})}});
         // El aviso que se manda lo lee el orador en el prompter: va en el idioma del evento (fase I6/I7).
-        usar(boton(0, 1, traducir("botonera", "Redondeá"), herr("prompter_control", {{"aviso", "Redondeá"}})));
-        usar(boton(1, 1, traducir("botonera", "Un minuto"), herr("prompter_control", {{"aviso", "Un minuto"}})));
+        usar(boton(0, 1, traducir("botonera", "Redondeá"), herr("prompter_control", {{"aviso", traducirEvento("prompter", "Redondeá")}})));
+        usar(boton(1, 1, traducir("botonera", "Un minuto"), herr("prompter_control", {{"aviso", traducirEvento("prompter", "Un minuto")}})));
         usar(boton(0, 2, traducir("botonera", "Sacar aviso"), herr("prompter_control", {{"aviso", ""}})));
         usar(boton(3, 0, traducir("botonera", "PÁNICO"), herr("prompter_control", {{"panico", true}}), json::array(),
                    "#b71c1c"));
@@ -1189,10 +1192,10 @@ json Botonera::renderPagina(const json& perfil, const json& pagina, const std::s
 
 json Botonera::render(const std::string& dispositivo) const {
     const json* d = buscarDispositivo(dispositivo);
-    if (d == nullptr) return {{"type", "estado"}, {"error", "aparato desconocido"}};
+    if (d == nullptr) return {{"type", "estado"}, {"error", traducirEvento("botonera", "aparato desconocido")}};
     const json* p = buscarPerfil(d->value("perfil", std::string()));
     if (p == nullptr || p->value("paginas", json::array()).empty())
-        return {{"type", "estado"}, {"error", "el aparato no tiene un perfil asignado (página Botonera)"}};
+        return {{"type", "estado"}, {"error", traducirEvento("botonera", "el aparato no tiene un perfil asignado (página Botonera)")}};
     auto it = paginaDe_.find(dispositivo);
     const std::string pag = it != paginaDe_.end() ? it->second : d->value("pagina", std::string());
     const json* g = buscarPagina(p->value("id", std::string()), pag);
@@ -1443,12 +1446,12 @@ std::string Botonera::solicitud(const std::string& sol, const std::string& codig
                                 const std::string& ip) {
     auto it = codigos_.find(codigo);
     if (it == codigos_.end() || it->second.venceMs < ahoraMs()) {
-        auditar(ip, "emparejar_rechazado", "código inválido o vencido");
-        return "código inválido o vencido";
+        auditar(ip, "emparejar_rechazado", traducir("botonera", "código inválido o vencido"));
+        return traducirEvento("botonera", "código inválido o vencido");
     }
     const Codigo c = it->second;
     codigos_.erase(it); // de un solo uso
-    if (static_cast<int>(disp_.size()) >= kMaxDispositivos) return "ya hay " + std::to_string(kMaxDispositivos) + " aparatos";
+    if (static_cast<int>(disp_.size()) >= kMaxDispositivos) return llenar(traducirEvento("botonera", "ya hay %1 aparatos"), {std::to_string(kMaxDispositivos)});
     const std::string n = !nombre.empty() ? nombre.substr(0, 60) : (!c.nombre.empty() ? c.nombre : "Tablet");
     solicitudes_[sol] = {codigo, n, ip, c.perfil, c.venceDias, ahoraMs()};
     auditar(ip, "emparejar_pide", n + " → " + c.perfil);
@@ -1524,7 +1527,7 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
     }
     const json* p = buscarPerfil(d->value("perfil", std::string()));
     if (p == nullptr) {
-        avisar(dev, "Este aparato no tiene perfil: asignalo en la página Botonera.", true);
+        avisar(dev, traducirEvento("botonera", "Este aparato no tiene perfil: asignalo en la página Botonera."), true);
         return;
     }
     const json r = render(dev);
@@ -1550,7 +1553,7 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
     if (t == "editar") {
         if (!p->value("puede_editar", false)) {
             auditar(dev, "editar_rechazado", celda);
-            return avisar(dev, "Este perfil no permite editar desde el aparato.", true);
+            return avisar(dev, traducirEvento("botonera", "Este perfil no permite editar desde el aparato."), true);
         }
         json nueva = msg.value("celda", json::object());
         nueva["x"] = cx;
@@ -1564,7 +1567,7 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
         if (pe == pendientes_.end() || pe->second.celda != celda || pe->second.venceMs < ahoraMs()) {
             pendientes_.erase(dev);
             sucio_ = true;
-            return avisar(dev, "La confirmación venció: volvé a apretar.", true);
+            return avisar(dev, traducirEvento("botonera", "La confirmación venció: volvé a apretar."), true);
         }
         const json accion = pe->second.accion;
         pendientes_.erase(pe);
@@ -1696,8 +1699,8 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
     for (auto& p : pasos) {
         const std::string h = p["herramienta"];
         if (!permitidas.count("*") && !permitidas.count(h)) {
-            auditar(dev, "rechazada", h + " (no está en el perfil «" + perfil.value("nombre", std::string()) + "»)");
-            avisar(dev, "«" + h + "» no está permitida en este perfil.", true);
+            auditar(dev, "rechazada", llenar(traducir("botonera", "%1 (no está en el perfil «%2»)"), {h, perfil.value("nombre", std::string())}));
+            avisar(dev, llenar(traducirEvento("botonera", "«%1» no está permitida en este perfil."), {h}), true);
             return;
         }
         p["args"] = plantilla(p["args"], valor, delta, activo);
@@ -1709,7 +1712,7 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
         auditar(dev, "confirmar", celda);
         emit mensaje(QString::fromStdString(dev),
                      json{{"type", "confirmar"}, {"celda", celda}, {"vence_ms", kConfirmarMs()},
-                          {"texto", "Cambia el aire: confirmá"}});
+                          {"texto", traducirEvento("botonera", "Cambia el aire: confirmá")}});
         ultimoRender_.erase(dev);
         sucio_ = true;
         return;
@@ -1717,7 +1720,7 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
     const bool esFader = enCoalescer_;
     if (!esFader && !limiteOk(dev)) {
         auditar(dev, "limite", celda);
-        return avisar(dev, "Demasiadas acciones por segundo.", true);
+        return avisar(dev, traducirEvento("botonera", "Demasiadas acciones por segundo."), true);
     }
     if (!g_.ejecutar) return;
     const std::string perfilId = perfil.value("id", std::string());
@@ -1734,7 +1737,7 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
             if (!yo) return;
             if (!ok) {
                 yo->auditar(dev, "error", h + ": " + texto);
-                yo->avisar(dev, texto.empty() ? "No se pudo." : texto, true);
+                yo->avisar(dev, texto.empty() ? traducirEvento("botonera", "No se pudo.") : texto, true);
                 return; // una secuencia se corta en el primer error
             }
             if (espera > 0) QTimer::singleShot(espera, yo, [siguiente, i]() { (*siguiente)(i + 1); });

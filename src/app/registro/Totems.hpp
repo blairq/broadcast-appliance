@@ -124,7 +124,8 @@ std::string idDesdeNombre(const std::string& nombre, const std::vector<std::stri
 /// Un tótem nuevo con valores razonables: pide nombre (obligatorio) y correo. Lo que dice y
 /// muestra al público (saludo, despedida, etiquetas, el ejemplo del correo) en `idioma`, el
 /// del evento ("" = el del operador): se guarda así en registro.json, y el organizador lo
-/// cambia. Totem::deJson completa lo que falta en el idioma del operador.
+/// cambia. Totem::deJson completa lo que falta en el idioma del evento abierto
+/// (ba::i18n::idiomaDelEvento: sin uno, el del operador).
 Totem totemNuevo(const std::string& id, const std::string& nombre, const std::string& idioma = {});
 /// Revisa que el tótem se pueda usar. "" o qué está mal (en castellano, para
 /// mostrarlo tal cual).

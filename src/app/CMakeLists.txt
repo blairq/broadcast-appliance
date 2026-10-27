@@ -492,10 +492,8 @@ endif()
                      FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json"
                            "${CMAKE_SOURCE_DIR}/datos/glosario-traduccion.json")
     # Las guías para preparar cada tipo de evento (MCP evento_escenario y «Evento nuevo» con
-    # el asistente): el protocolo común y una por escenario, más su índice.
-    file(GLOB _ba_escenarios CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/datos/escenarios/*")
-    qt_add_resources(ba-app "ba_escenarios" PREFIX "/escenarios" BASE "${CMAKE_SOURCE_DIR}/datos/escenarios"
-                     FILES ${_ba_escenarios})
+    # el asistente) son archivos del idioma: assets/idiomas/<c>/guias/escenarios, que
+    # src/core/CMakeLists.txt instala con todo assets/idiomas (ba::i18n::leer).
     # El logo, para el icono de la ventana (tools/generar/icono.py los genera).
     set(_ba_iconos "")
     foreach(_lado 16 24 32 48 64 128 256 512)
@@ -1342,9 +1340,11 @@ if(BA_APP_QT_OK AND WIN32)
 endif()
 
 # --- Demos ------------------------------------------------------------------
-# Configuraciones de ejemplo completas (assets/demo/<nombre>/): se crean como una
-# configuración nueva desde Configuración → Configuraciones (o configuracion_crear
-# {desde: "demo:<nombre>"}). Ver src/app/arranque/Configuraciones.hpp.
+# Configuraciones de ejemplo completas, por idioma (assets/demo/<idioma>/<nombre>/ →
+# Demos/<idioma>/<nombre>; las genera tools/generar/plantillas.py --idioma <c>): se crean
+# como una configuración nueva desde Configuración → Configuraciones (o configuracion_crear
+# {desde: "demo:<nombre>"}); la app lista las del idioma del operador.
+# Ver src/app/arranque/Configuraciones.hpp.
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/demo")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/demo/"
         DESTINATION Demos COMPONENT bundle

@@ -4,7 +4,7 @@
 lupdate lee C++ y QML. Lo demás se marca así y sale de acá:
   - la web (assets/web/<interfaz>/): `t("texto")` en el JS y, en el HTML,
     `data-i18n="texto"` (el contenido), `data-i18n-placeholder`, `data-i18n-title`,
-    `data-i18n-aria-label`. El contexto es `web/<interfaz>` (`web/comun` lo de todas).
+    `data-i18n-aria-label`, `data-i18n-alt`. El contexto es `web/<interfaz>` (`web/comun` lo de todas).
 
 Cada texto sale como QT_TRANSLATE_NOOP("<contexto>", "<texto>") (QT_TRANSLATE_N_NOOP si
 lleva %n: es un plural), así entra al mismo .ts que el resto y la traducción se hace en un
@@ -21,7 +21,7 @@ WEB = RAIZ / "assets" / "web"
 
 # t("…") / t('…') que no sea parte de otro nombre (st(, x.t(, $t()
 JS_T = re.compile(r"""(?<![\w.$])t\(\s*(["'])((?:\\.|(?!\1).)*?)\1""", re.S)
-HTML_ATTR = re.compile(r"""data-i18n(?:-placeholder|-title|-aria-label)?\s*=\s*(["'])(.*?)\1""", re.S)
+HTML_ATTR = re.compile(r"""data-i18n(?:-placeholder|-title|-aria-label|-alt)?\s*=\s*(["'])(.*?)\1""", re.S)
 
 
 def de_js(literal: str) -> str:

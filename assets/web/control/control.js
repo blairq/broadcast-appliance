@@ -296,7 +296,6 @@
   // Los textos, en el idioma del evento (también los de las tarjetas, que se arman después).
   await BAi18n.iniciar({ contexto: "web/control", preferir: "evento" });
   $("tally").setAttribute("etiqueta", t("Fuera del aire"));
-  BA.traducir();
   const codigo = codigoDelFragmento();
   if (codigo && !leer(CLAVE_TOKEN)) emparejar(codigo);
   else conectar();

@@ -279,7 +279,8 @@ class EventoViewModel : public QObject {
     /// La vista web para ver si un cue anda (el teleprompter: la pantalla del orador,
     /// que avanza sola), en esta máquina; "" si ese tipo no tiene vista.
     Q_INVOKABLE QString enlaceDeCue(const QString& tipo) const;
-    /// Los tipos de evento con guía para prepararlos con el asistente (datos/escenarios):
+    /// Los tipos de evento con guía para prepararlos con el asistente (assets/idiomas/<c>/guias/escenarios,
+    /// en el idioma del operador):
     /// [{id, titulo, icono, resumen}].
     Q_INVOKABLE QVariantList escenarios() const;
     /// El pedido para el asistente: preparar un evento de ese tipo siguiendo su guía

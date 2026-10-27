@@ -1442,7 +1442,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         core.addTool(std::move(t));
     }
 
-    // --- Las guías de cada tipo de evento (datos/escenarios) -------------------------
+    // --- Las guías de cada tipo de evento (assets/idiomas/<c>/guias/escenarios) ---------
+    // Son para el asistente y el operador: van en el idioma del operador (ba::i18n::leer).
     {
         Tool t;
         t.name = "evento_escenarios";
@@ -1454,9 +1455,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         "título y para qué sirve. ANTES de preparar un evento nuevo, elegí el que corresponde y leelo con "
                         "evento_escenario.");
         t.run = [](const json&, Done done) {
-            QFile f(":/escenarios/indice.json");
-            if (!f.open(QIODevice::ReadOnly)) return done(ToolResult::error(ba::i18n::traducir("mcp", "no están las guías en este programa")));
-            done(ToolResult().data({{"escenarios", json::parse(f.readAll().toStdString(), nullptr, false)}}));
+            const std::string indice = ba::i18n::leer("guias/escenarios/indice.json");
+            if (indice.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no están las guías en este programa")));
+            done(ToolResult().data({{"escenarios", json::parse(indice, nullptr, false)}}));
         };
         core.addTool(std::move(t));
     }
@@ -1471,22 +1472,18 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         "(evento_escenarios): sus preguntas propias, qué armar, qué verificar. Seguilo paso a paso.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [](const json& a, Done done) {
-            const auto leer = [](const QString& r) {
-                QFile f(r);
-                return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
-            };
-            const QString comun = leer(":/escenarios/comun.md");
-            if (comun.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no están las guías en este programa")));
+            const std::string comun = ba::i18n::leer("guias/escenarios/comun.md");
+            if (comun.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no están las guías en este programa")));
             const std::string id = a.value("id", std::string());
-            QString guia;
+            std::string guia;
             if (!id.empty()) {
                 // Solo letras, números y guiones: es un nombre de archivo.
                 if (id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-") != std::string::npos)
                     return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "id inválido: %1"), {id})));
-                guia = leer(":/escenarios/" + QString::fromStdString(id) + ".md");
-                if (guia.isEmpty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una guía «%1» (evento_escenarios)"), {id})));
+                guia = ba::i18n::leer("guias/escenarios/" + id + ".md");
+                if (guia.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una guía «%1» (evento_escenarios)"), {id})));
             }
-            done(ToolResult::ok((comun + (guia.isEmpty() ? QString() : "\n\n---\n\n" + guia)).toStdString()));
+            done(ToolResult::ok(guia.empty() ? comun : comun + "\n\n---\n\n" + guia));
         };
         core.addTool(std::move(t));
     }
