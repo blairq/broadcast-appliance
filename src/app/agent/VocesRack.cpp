@@ -15,6 +15,7 @@
 
 #include "comun/HoraMonotonica.hpp"
 
+#include <QCoreApplication>
 #include <QMetaObject>
 #include <QSet>
 
@@ -44,11 +45,14 @@ void VocesRack::setFlujos(FlujosTexto* flujos) {
 }
 
 QString VocesRack::nombreIdioma(const QString& c) {
-    static const std::map<QString, QString> n{{"es", "Castellano"}, {"en", "Inglés"},     {"pt", "Portugués"},
-                                              {"fr", "Francés"},    {"it", "Italiano"},   {"de", "Alemán"},
-                                              {"ca", "Catalán"},    {"nl", "Neerlandés"}, {"pl", "Polaco"}};
+    static const std::map<QString, const char*> n{
+        {"es", QT_TRANSLATE_NOOP("idiomas", "Castellano")}, {"en", QT_TRANSLATE_NOOP("idiomas", "Inglés")},
+        {"pt", QT_TRANSLATE_NOOP("idiomas", "Portugués")},  {"fr", QT_TRANSLATE_NOOP("idiomas", "Francés")},
+        {"it", QT_TRANSLATE_NOOP("idiomas", "Italiano")},   {"de", QT_TRANSLATE_NOOP("idiomas", "Alemán")},
+        {"ca", QT_TRANSLATE_NOOP("idiomas", "Catalán")},    {"nl", QT_TRANSLATE_NOOP("idiomas", "Neerlandés")},
+        {"pl", QT_TRANSLATE_NOOP("idiomas", "Polaco")}};
     auto it = n.find(c);
-    return it == n.end() ? c : it->second;
+    return it == n.end() ? c : QCoreApplication::translate("idiomas", it->second);
 }
 
 QVariantList VocesRack::voces() const {
@@ -131,38 +135,38 @@ QString VocesRack::estado(const QString& fuente, const QString& nodo) const {
             continue;
         QString repo = QString::fromStdString(h.value("voz", ""));
         if (repo.isEmpty() && vozSistema_) repo = vozSistema_();
-        if (repo.isEmpty()) return QStringLiteral("Sin voz: elegí una (o bajá una en Modelos locales)");
-        if (modelos_.carpetaInstalada(repo).empty()) return QStringLiteral("Falta bajar la voz");
+        if (repo.isEmpty()) return tr("Sin voz: elegí una (o bajá una en Modelos locales)");
+        if (modelos_.carpetaInstalada(repo).empty()) return tr("Falta bajar la voz");
         auto it = cargadas_.find(repo);
-        if (it == cargadas_.end()) return QStringLiteral("Lista (se carga al hablar)");
-        if (!it->second->error.isEmpty()) return "No cargó: " + it->second->error;
-        return it->second->lista ? QStringLiteral("Lista") : QStringLiteral("Cargando la voz…");
+        if (it == cargadas_.end()) return tr("Lista (se carga al hablar)");
+        if (!it->second->error.isEmpty()) return tr("No cargó: %1").arg(it->second->error);
+        return it->second->lista ? tr("Lista") : tr("Cargando la voz…");
     }
-    return QStringLiteral("No existe la tarjeta");
+    return tr("No existe la tarjeta");
 #else
     Q_UNUSED(fuente);
     Q_UNUSED(nodo);
-    return QStringLiteral("Esta compilación no tiene voz");
+    return tr("Esta compilación no tiene voz");
 #endif
 }
 
 QString VocesRack::decir(const QString& fuente, const QString& nodo, const QString& texto) {
 #if defined(BA_HAVE_CLAP) && defined(BA_HAVE_VOZ)
-    if (racks_ == nullptr) return QStringLiteral("No hay racks de audio");
-    if (texto.trimmed().isEmpty()) return QStringLiteral("No hay nada que decir");
+    if (racks_ == nullptr) return tr("No hay racks de audio");
+    if (texto.trimmed().isEmpty()) return tr("No hay nada que decir");
     for (const auto& h : racks_->hablas())
         if (QString::fromStdString(h.value("fuente", "")) == fuente &&
             (nodo.isEmpty() || QString::fromStdString(h.value("nodo", "")) == nodo)) {
             decirCon(h, texto);
             return {};
         }
-    return QStringLiteral("«%1» no tiene una tarjeta de texto a voz%2")
-        .arg(fuente, nodo.isEmpty() ? "" : " «" + nodo + "»");
+    return nodo.isEmpty() ? tr("«%1» no tiene una tarjeta de texto a voz").arg(fuente)
+                          : tr("«%1» no tiene una tarjeta de texto a voz «%2»").arg(fuente, nodo);
 #else
     Q_UNUSED(fuente);
     Q_UNUSED(nodo);
     Q_UNUSED(texto);
-    return QStringLiteral("Esta compilación no tiene voz");
+    return tr("Esta compilación no tiene voz");
 #endif
 }
 

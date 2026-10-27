@@ -52,6 +52,7 @@
 #include "agent/AlertEngine.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "carrusel/Conversion.hpp"
+#include "i18n/I18n.hpp"
 #include "net/Credentials.hpp"
 #include "net/Descargas.hpp"
 #include "net/HttpsClient.hpp"
@@ -125,46 +126,46 @@ const std::vector<Provider>& providerTable() {
     static const std::vector<Provider> t = {
         {"claude-cuenta",
          "claude",
-         "Claude — suscripción Pro/Max",
+         QT_TRANSLATE_NOOP("asistente", "Claude — suscripción Pro/Max"),
          "cuenta",
          "",
          "",
          "https://claude.ai/upgrade",
-         "Sin clave de API: la primera vez escribí /login en la terminal y elegí tu cuenta de Claude (se "
+         QT_TRANSLATE_NOOP("asistente", "Sin clave de API: la primera vez escribí /login en la terminal y elegí tu cuenta de Claude (se "
          "abre el "
-         "navegador). La sesión queda guardada en la carpeta portable.",
+         "navegador). La sesión queda guardada en la carpeta portable."),
          {"opus", "sonnet", "haiku"}},
         {"claude-api",
          "claude",
-         "Claude — clave de API",
+         QT_TRANSLATE_NOOP("asistente", "Claude — clave de API"),
          "api",
          "anthropic-api-key",
          "ANTHROPIC_API_KEY",
          "https://console.anthropic.com/settings/keys",
-         "Pegá una clave de API de Anthropic (se paga por uso). La primera vez Claude Code pregunta si "
+         QT_TRANSLATE_NOOP("asistente", "Pegá una clave de API de Anthropic (se paga por uso). La primera vez Claude Code pregunta si "
          "usarla: "
-         "respondé que sí.",
+         "respondé que sí."),
          {"opus", "sonnet", "haiku"}},
         // Gemini con Antigravity CLI (el agente de Google que reemplazó al Gemini CLI).
         {"gemini-cuenta",
          "antigravity",
-         "Gemini — cuenta de Google (Antigravity)",
+         QT_TRANSLATE_NOOP("asistente", "Gemini — cuenta de Google (Antigravity)"),
          "cuenta",
          "",
          "",
          "https://antigravity.google/",
-         "Sin clave de API: la primera vez elegí «Google OAuth», abrí el enlace, entrá con tu cuenta de "
+         QT_TRANSLATE_NOOP("asistente", "Sin clave de API: la primera vez elegí «Google OAuth», abrí el enlace, entrá con tu cuenta de "
          "Google y pegá el código en la terminal. La sesión queda en la carpeta portable (nunca en el "
-         "llavero del sistema). El modelo se elige con /model.",
+         "llavero del sistema). El modelo se elige con /model."),
          {}},
         {"gemini-api",
          "antigravity",
-         "Gemini — clave de API (Antigravity)",
+         QT_TRANSLATE_NOOP("asistente", "Gemini — clave de API (Antigravity)"),
          "api",
          "gemini-api-key",
          "GEMINI_API_KEY",
          "https://aistudio.google.com/apikey",
-         "Pegá una clave de Google AI Studio: Antigravity va directo a la API de Gemini, sin iniciar sesión.",
+         QT_TRANSLATE_NOOP("asistente", "Pegá una clave de Google AI Studio: Antigravity va directo a la API de Gemini, sin iniciar sesión."),
          {}},
         {"opencode-go",
          "opencode",
@@ -173,9 +174,9 @@ const std::vector<Provider>& providerTable() {
          "",
          "",
          "https://opencode.ai/",
-         "La primera vez escribí /connect, elegí «OpenCode Go» y pegá la clave de tu suscripción; después "
+         QT_TRANSLATE_NOOP("asistente", "La primera vez escribí /connect, elegí «OpenCode Go» y pegá la clave de tu suscripción; después "
          "/models "
-         "para elegir el modelo. Queda guardado en la carpeta portable.",
+         "para elegir el modelo. Queda guardado en la carpeta portable."),
          {}},
         {"openrouter",
          "opencode",
@@ -184,7 +185,7 @@ const std::vector<Provider>& providerTable() {
          "openrouter-api-key",
          "OPENROUTER_API_KEY",
          "https://openrouter.ai/settings/keys",
-         "Pegá una clave de OpenRouter y elegí el modelo (formato openrouter/<proveedor>/<modelo>).",
+         QT_TRANSLATE_NOOP("asistente", "Pegá una clave de OpenRouter y elegí el modelo (formato openrouter/<proveedor>/<modelo>)."),
          {"openrouter/anthropic/claude-sonnet-4.5", "openrouter/google/gemini-2.5-pro",
           "openrouter/openai/gpt-5"}},
         // El de la casa: un servidor propio que habla el protocolo de OpenAI.
@@ -193,26 +194,26 @@ const std::vector<Provider>& providerTable() {
         // ModeloPropio.hpp. Aca solo queda dicho que existe y que usa clave.
         {"local",
          "pi",
-         "Modelo local (en esta máquina, sin internet)",
+         QT_TRANSLATE_NOOP("asistente", "Modelo local (en esta máquina, sin internet)"),
          "cuenta",
          "",
          "",
          "",
-         "El modelo de Configuración → Modelos locales, con chat: pi (un agente de consola, como "
+         QT_TRANSLATE_NOOP("asistente", "El modelo de Configuración → Modelos locales, con chat: pi (un agente de consola, como "
          "opencode) le habla al llama-server del programa y maneja el aparato por el MCP. Los "
          "encargos y los disparadores siguen por el camino de la voz (elige la acción y la propone en "
-         "la barra). Rápido para lo sencillo; para lo complejo, mejor un asistente grande.",
+         "la barra). Rápido para lo sencillo; para lo complejo, mejor un asistente grande."),
          {}},
         {"propio",
          "opencode",
-         "Modelo propio (API compatible con OpenAI)",
+         QT_TRANSLATE_NOOP("asistente", "Modelo propio (API compatible con OpenAI)"),
          "api",
          "modelo-propio-api-key",
          "BA_MODELO_PROPIO_KEY",
          "",
-         "Tu propio servidor. Configurale la direccion (baseURL), que modelo pedirle y los "
+         QT_TRANSLATE_NOOP("asistente", "Tu propio servidor. Configurale la direccion (baseURL), que modelo pedirle y los "
          "parametros extra que entienda, y pega su clave. Lo maneja opencode: este aparato no le "
-         "habla al modelo, le arma la configuracion.",
+         "habla al modelo, le arma la configuracion."),
          {}},
     };
     return t;
@@ -259,7 +260,7 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, const QStrin
     connect(session_.get(), &term::TerminalSession::finished, this, [this](int code) {
         const bool expected = expectedStop_;
         expectedStop_ = false;
-        if (!expected && code != 0) setError(QString("El agente termino (codigo %1).").arg(code));
+        if (!expected && code != 0) setError(tr("El agente termino (codigo %1).").arg(code));
         pararServidorLocal(); // el chat del modelo local terminó: su llama-server también
     });
     // Las alertas: solo el de automatización (el del evento ya no las recibe).
@@ -344,11 +345,11 @@ QVariantList AgentViewModel::providers() const {
     for (const auto& p : providerTable())
         out << QVariantMap{{"id", p.id},
                            {"runtime", p.runtime},
-                           {"name", p.name},
+                           {"name", QCoreApplication::translate("asistente", p.name)},
                            {"auth", p.auth},
                            {"needsKey", QString(p.keyName) != ""},
                            {"keyUrl", p.keyUrl},
-                           {"help", p.help},
+                           {"help", QCoreApplication::translate("asistente", p.help)},
                            // Por `modelosDe` y no por la tabla: el modelo
                            // propio no tiene una lista escrita, sus modelos
                            // son los canales que haya configurados.
@@ -433,7 +434,7 @@ QVariantMap AgentViewModel::modeloPropio() const {
 void AgentViewModel::probarModeloPropio() {
     const ModeloPropio mp = ModeloPropio::leer(rt_.dataRoot() / "Config" / "modelo-propio.json");
     if (mp.url.empty()) {
-        emit notify("Falta la dirección del servidor.", "aviso");
+        emit notify(tr("Falta la dirección del servidor."), "aviso");
         return;
     }
     QByteArray clave;
@@ -450,7 +451,7 @@ void AgentViewModel::probarModeloPropio() {
     const std::string modelo = mp.modelo;
     const std::string autorizacion = "Bearer " + clave.trimmed().toStdString();
 
-    emit notify("Probando " + QString::fromStdString(url) + "…", "info");
+    emit notify(tr("Probando %1…").arg(QString::fromStdString(url)), "info");
     // En un hilo suelto: ver el comentario del header.
     std::thread([this, url, modelo, autorizacion]() {
         net::HttpRequest req;
@@ -462,20 +463,20 @@ void AgentViewModel::probarModeloPropio() {
         QString texto;
         QString nivel = "error";
         if (r.status == 0) {
-            texto = "No contesta: " + QString::fromStdString(r.error);
+            texto = tr("No contesta: %1").arg(QString::fromStdString(r.error));
         } else if (r.status == 401 || r.status == 403) {
-            texto = "El servidor contesta, pero rechaza la clave (" + QString::number(r.status) + ").";
+            texto = tr("El servidor contesta, pero rechaza la clave (%1).").arg(r.status);
         } else if (r.status >= 400) {
-            texto = "El servidor contestó " + QString::number(r.status) + ".";
+            texto = tr("El servidor contestó %1.").arg(r.status);
         } else {
             // Que el modelo que vamos a pedir esté en la lista: un servidor
             // que anda pero no sirve ESE modelo falla recién al primer pedido,
             // y ahí el error no dice que el nombre estaba mal escrito.
             const bool estaEnLaLista = r.body.find("\"" + modelo + "\"") != std::string::npos;
-            texto = estaEnLaLista
-                        ? "Anda: el servidor contesta y sirve «" + QString::fromStdString(modelo) + "»."
-                        : "El servidor contesta y la clave sirve, pero no veo el modelo «" +
-                              QString::fromStdString(modelo) + "» en su lista. Revisá el nombre.";
+            texto = (estaEnLaLista ? tr("Anda: el servidor contesta y sirve «%1».")
+                                   : tr("El servidor contesta y la clave sirve, pero no veo el modelo «%1» en su "
+                                        "lista. Revisá el nombre."))
+                        .arg(QString::fromStdString(modelo));
             nivel = estaEnLaLista ? "ok" : "aviso";
         }
         QMetaObject::invokeMethod(
@@ -486,8 +487,8 @@ void AgentViewModel::probarModeloPropio() {
 QString AgentViewModel::guardarModeloPropio(const QString& url, const QString& modelo, const QString& nombre,
                                             const QString& extraJson, const QString& instrucciones,
                                             bool piensa) {
-    if (url.trimmed().isEmpty()) return "Falta la dirección del servidor (baseURL).";
-    if (modelo.trimmed().isEmpty()) return "Falta el nombre del modelo que pide tu servidor.";
+    if (url.trimmed().isEmpty()) return tr("Falta la dirección del servidor (baseURL).");
+    if (modelo.trimmed().isEmpty()) return tr("Falta el nombre del modelo que pide tu servidor.");
     json extra = json::object();
     const std::string texto = extraJson.trimmed().toStdString();
     if (!texto.empty()) {
@@ -497,9 +498,9 @@ QString AgentViewModel::guardarModeloPropio(const QString& url, const QString& m
         try {
             extra = json::parse(texto);
         } catch (const json::exception& e) {
-            return QString("Los parámetros extra no son un JSON válido: ") + e.what();
+            return tr("Los parámetros extra no son un JSON válido: %1").arg(QString::fromUtf8(e.what()));
         }
-        if (!extra.is_object()) return "Los parámetros extra tienen que ser un objeto { ... }.";
+        if (!extra.is_object()) return tr("Los parámetros extra tienen que ser un objeto { ... }.");
     }
     const std::filesystem::path archivo = rt_.dataRoot() / "Config" / "modelo-propio.json";
     ModeloPropio mp = ModeloPropio::leer(archivo);
@@ -520,19 +521,19 @@ QString AgentViewModel::guardarModeloPropio(const QString& url, const QString& m
             reemplazado = true;
         }
     if (!reemplazado) mp.canales.push_back(c);
-    if (!mp.guardar(archivo)) return "No se pudo guardar la configuración.";
+    if (!mp.guardar(archivo)) return tr("No se pudo guardar la configuración.");
     emit configChanged(); // la lista de modelos cambia con los canales
     return {};
 }
 
 QString AgentViewModel::saveKey(const QString& key) {
     const Provider* p = findProvider(provider_);
-    if (p == nullptr || QString(p->keyName).isEmpty()) return "Este proveedor no usa clave.";
+    if (p == nullptr || QString(p->keyName).isEmpty()) return tr("Este proveedor no usa clave.");
     const QString k = key.trimmed();
-    if (k.size() < 20) return "La clave parece incompleta.";
+    if (k.size() < 20) return tr("La clave parece incompleta.");
     if (!cred::write(QString::fromStdWString((ba::platform::credentialsDir()).wstring()), p->keyName,
                      k.toUtf8()))
-        return "No se pudo guardar la clave.";
+        return tr("No se pudo guardar la clave.");
     emit configChanged();
     return {};
 }
@@ -644,23 +645,23 @@ void AgentViewModel::checkUpdate() {
             checking_ = false;
             if (!err.isEmpty() || !nueva.is_object()) {
                 emit latestChanged();
-                setError("No se pudo buscar la actualizacion: " + err);
+                setError(tr("No se pudo buscar la actualizacion: %1").arg(err));
                 return;
             }
             latest_[runtime] = nueva;
             if (platformPin(nueva).empty()) {
                 latest_.erase(runtime);
                 emit latestChanged();
-                setError("La version nueva no se publico con hash para esta plataforma (" + platformKey() +
-                         "): no se ofrece.");
+                setError(tr("La version nueva no se publico con hash para esta plataforma (%1): no se ofrece.")
+                             .arg(platformKey()));
                 return;
             }
             emit latestChanged();
             const QString v = QString::fromStdString(nueva.value("version", std::string()));
             if (newerAvailable())
-                emit notify("Hay una version nueva: " + v + ".", "ok");
+                emit notify(tr("Hay una version nueva: %1.").arg(v), "ok");
             else
-                emit notify("Esta al dia (la ultima publicada es " + v + ").", "ok");
+                emit notify(tr("Esta al dia (la ultima publicada es %1).").arg(v), "ok");
         });
     });
 }
@@ -681,7 +682,7 @@ void AgentViewModel::installLatest() {
     elegidas[runtime.toStdString()] = it->second;
     QDir().mkpath(QFileInfo(chosenFile()).absolutePath());
     if (!writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)))) {
-        setError("No se pudo guardar " + chosenFile());
+        setError(tr("No se pudo guardar %1").arg(chosenFile()));
         return;
     }
     emit configChanged();
@@ -699,7 +700,7 @@ void AgentViewModel::installNewest() {
     buscandoParaInstalar_ = true;
     installing_ = true;
     installProgress_ = 0;
-    installText_ = "Buscando la última versión de " + nombre + "…";
+    installText_ = tr("Buscando la última versión de %1…").arg(nombre);
     emit installChanged();
     if (checkThread_.joinable()) checkThread_.join();
     checkThread_ = std::thread([this, runtime, base, nombre]() {
@@ -713,8 +714,10 @@ void AgentViewModel::installNewest() {
             if (!err.isEmpty() || v.empty() || platformPin(nueva).empty()) {
                 // Sin red o sin hash para esta plataforma: la que fija el sistema.
                 const QString fijada = pinnedVersion();
-                emit notify("No se pudo saber la última versión de " + nombre +
-                                (err.isEmpty() ? QString() : " (" + err + ")") + ": se instala la " + fijada + ".",
+                emit notify(err.isEmpty() ? tr("No se pudo saber la última versión de %1: se instala la %2.")
+                                                .arg(nombre, fijada)
+                                          : tr("No se pudo saber la última versión de %1 (%2): se instala la %3.")
+                                                .arg(nombre, err, fijada),
                             "warn");
                 install();
                 return;
@@ -886,7 +889,7 @@ void AgentViewModel::install() {
     const json pin = pins().value(runtime.toStdString(), json::object());
     const json plat = platformPin(pin);
     if (plat.empty()) {
-        setError("No hay una version de " + runtime + " para esta plataforma (" + platformKey() + ").");
+        setError(tr("No hay una version de %1 para esta plataforma (%2).").arg(runtime, platformKey()));
         return;
     }
     struct Item {
@@ -969,11 +972,11 @@ void AgentViewModel::install() {
                 const std::string e = ctx.bajar(it.url, tmp.toStdString(), 0, 0,
                                                 QString("%1 %2 (%3/%4)").arg(runtime, version).arg(i + 1).arg(n).toStdString());
                 if (!e.empty()) {
-                    err = ctx.cancelado() ? "Instalacion cancelada." : "No se pudo descargar: " + QString::fromStdString(e);
+                    err = ctx.cancelado() ? tr("Instalacion cancelada.") : tr("No se pudo descargar: %1").arg(QString::fromStdString(e));
                     break;
                 }
             }
-            aviso("Verificando…");
+            aviso(tr("Verificando…"));
             // SHA-256 (agentes.json, GitHub, Claude) o SHA-512 (npm). Sin
             // ninguno no se instala: nunca un archivo sin verificar.
             bool coincide = false;
@@ -986,18 +989,18 @@ void AgentViewModel::install() {
                 coincide = h.result().toBase64() == QByteArray::fromStdString(it.sha512);
             }
             if (!coincide) {
-                err = "La descarga no coincide con el hash publicado. No se instalo nada.";
+                err = tr("La descarga no coincide con el hash publicado. No se instalo nada.");
                 QFile::remove(tmp);
                 break;
             }
             if (it.kind == "binario") {
                 const QString dest = enStaging(it.dest);
                 QFile::remove(dest);
-                if (!QFile::rename(tmp, dest)) err = "No se pudo guardar " + dest;
+                if (!QFile::rename(tmp, dest)) err = tr("No se pudo guardar %1").arg(dest);
                 QFile(dest).setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner |
                                            QFile::ReadGroup | QFile::ExeGroup);
             } else {
-                aviso("Descomprimiendo…");
+                aviso(tr("Descomprimiendo…"));
                 const bool npm = it.kind == "npm";
                 const QString dest = npm ? enStaging(it.dest) + ".tmp" : enStaging(it.dest);
                 QDir().mkpath(dest);
@@ -1007,22 +1010,22 @@ void AgentViewModel::install() {
                 py.start(QString::fromStdString(pythonDelPrograma().string()),
                          {"-I", "-B", "-c", kDescomprimir, QDir::toNativeSeparators(tmp), QDir::toNativeSeparators(dest)});
                 if (!py.waitForFinished(ba::ajustes::entero("asistente.descomprimirMin", 10) * 60000) || py.exitStatus() != QProcess::NormalExit || py.exitCode() != 0)
-                    err = "No se pudo descomprimir: " +
-                          QString::fromUtf8(py.readAllStandardError()).trimmed().right(400) +
-                          (py.error() == QProcess::FailedToStart ? " (no arrancó el Python del programa)" : "");
+                    err = (py.error() == QProcess::FailedToStart
+                               ? tr("No se pudo descomprimir: %1 (no arrancó el Python del programa)")
+                               : tr("No se pudo descomprimir: %1"))
+                              .arg(QString::fromUtf8(py.readAllStandardError()).trimmed().right(400));
                 QFile::remove(tmp);
                 if (npm && err.isEmpty()) { // <dest>.tmp/package → <dest>
                     const QString final = enStaging(it.dest);
                     QDir(final).removeRecursively();
-                    if (!QDir().rename(dest + "/package", final)) err = "No se pudo dejar " + final;
+                    if (!QDir().rename(dest + "/package", final)) err = tr("No se pudo dejar %1").arg(final);
                     QDir(dest).removeRecursively();
                 }
             }
         }
         if (err.isEmpty() && !geminiScript.isEmpty() &&
             !QFileInfo::exists(staging + "/" + runtime + "/" + geminiScript))
-            err = "El paquete de " + runtime + " no trae " + geminiScript +
-                  ": no se instalo (queda la version anterior).";
+            err = tr("El paquete de %1 no trae %2: no se instalo (queda la version anterior).").arg(runtime, geminiScript);
         if (err.isEmpty()) {
             // Ejecutable en su lugar (algunos archivos lo traen en una subcarpeta).
             if (geminiScript.isEmpty() && !QFileInfo::exists(staging + "/" + exeName)) {
@@ -1040,7 +1043,7 @@ void AgentViewModel::install() {
             QDir(dir).removeRecursively();
             if (!QDir().rename(staging, dir)) {
                 QDir(staging).removeRecursively();
-                err = "No se pudo dejar la instalacion en su lugar (" + dir + ").";
+                err = tr("No se pudo dejar la instalacion en su lugar (%1).").arg(dir);
             }
         }
         if (!err.isEmpty()) {
@@ -1060,27 +1063,27 @@ void AgentViewModel::install() {
         if (!yo) return;
         yo->instalando_.erase(id);
         yo->installing_ = !yo->instalando_.empty();
-        const QString e = error == "cancelada" ? QString("Instalacion cancelada.") : QString::fromStdString(error);
+        const QString e = error == "cancelada" ? tr("Instalacion cancelada.") : QString::fromStdString(error);
         yo->installProgress_ = ok ? 1.0 : 0.0;
-        yo->installText_ = ok ? "Instalado." : e;
+        yo->installText_ = ok ? tr("Instalado.") : e;
         emit yo->installChanged();
         emit yo->latestChanged(); // newerAvailable mira la version instalada
         emit yo->configChanged();
         if (!ok)
             yo->setError(e);
         else
-            emit yo->notify("Agente instalado en la carpeta portable.", "ok");
+            emit yo->notify(tr("Agente instalado en la carpeta portable."), "ok");
     };
     const auto r = net::Descargas::la().pedir(std::move(p));
     if (r == net::Descargas::Resultado::Encolada) {
         instalando_.insert(id);
         installing_ = true;
         installProgress_ = 0;
-        installText_ = "Instalando " + QString::fromStdString(pin.value("nombre", "")) + ", versión " +
-                       QString::fromStdString(version) + "…";
+        installText_ = tr("Instalando %1, versión %2…")
+                           .arg(QString::fromStdString(pin.value("nombre", "")), QString::fromStdString(version));
         emit installChanged();
     } else if (r == net::Descargas::Resultado::YaEsta) {
-        emit notify("Esa versión ya está instalada.", "ok");
+        emit notify(tr("Esa versión ya está instalada."), "ok");
     }
 }
 
@@ -1113,7 +1116,7 @@ void AgentViewModel::registrarActualizaciones() {
         if (!hayPin) return out;
         net::Descargas::Actualizacion a;
         a.actual = usada.toStdString();
-        a.detalle = "Hay una versión nueva de " + nombre.toStdString();
+        a.detalle = tr("Hay una versión nueva de %1").arg(nombre).toStdString();
         a.pedido.id = "agente:" + runtime.toStdString() + "@" + v;
         a.pedido.tipo = "agente";
         a.pedido.titulo = nombre.toStdString() + " " + v;
@@ -1132,7 +1135,7 @@ void AgentViewModel::cancelInstall() {
     if (buscandoParaInstalar_) { // todavia preguntando cual es la ultima
         buscandoParaInstalar_ = false;
         installing_ = !instalando_.empty();
-        installText_ = "Instalacion cancelada.";
+        installText_ = tr("Instalacion cancelada.");
         emit installChanged();
     }
     for (const std::string& id : std::set<std::string>(instalando_)) net::Descargas::la().cancelar(QString::fromStdString(id));
@@ -1177,7 +1180,7 @@ QVariantMap AgentViewModel::controlSistema() const {
     QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(c.comoJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
     QVariantList caps;
     for (const auto& [k, etiqueta] : ControlSistema::capacidades())
-        caps << QVariantMap{{"clave", QString::fromStdString(k)}, {"etiqueta", QString::fromStdString(etiqueta)}};
+        caps << QVariantMap{{"clave", QString::fromStdString(k)}, {"etiqueta", QCoreApplication::translate("controlsistema", etiqueta.c_str())}};
     m["capacidades"] = caps;
     // En qué sistema está y si su motor ya está hecho (PLAN-CONTROL-SISTEMA: Windows
     // primero; macOS y Linux en camino). Las herramientas son las mismas en los tres.
@@ -1197,7 +1200,7 @@ QVariantMap AgentViewModel::controlSistema() const {
 QString AgentViewModel::setControlSistema(const QVariantMap& cambios) {
     ControlSistema c = ControlSistema::leer(ba::platform::dataRoot());
     c.aplicar(json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false));
-    if (!c.guardar(ba::platform::dataRoot())) return "No se pudo guardar la configuración.";
+    if (!c.guardar(ba::platform::dataRoot())) return tr("No se pudo guardar la configuración.");
     return {};
 }
 
@@ -1332,7 +1335,7 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
     if (!oficina.empty()) p += kOficinaPrompt;
     for (const char* f : {"CLAUDE.md", "GEMINI.md", "AGENTS.md"})
         if (!writeText(ws + "/" + f, p)) {
-            if (error != nullptr) *error = "No se pudo escribir " + ws;
+            if (error != nullptr) *error = tr("No se pudo escribir %1").arg(ws);
             return {};
         }
     const std::string bridge = bridgePath().toStdString();
@@ -1548,7 +1551,7 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
     if (prov != nullptr && !QString(prov->keyName).isEmpty()) {
         QByteArray key;
         if (!cred::read(root + "/Credenciales", prov->keyName, key)) {
-            if (error != nullptr) *error = "Falta la clave de API (pegala en el panel de la derecha).";
+            if (error != nullptr) *error = tr("Falta la clave de API (pegala en el panel de la derecha).");
             return {};
         }
         o.env[prov->envKey] = QString::fromUtf8(key).trimmed();
@@ -1659,7 +1662,7 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
         // un servidor propio que muere con él (nada del agente queda andando en el sistema).
         o.args << "--standalone";
     } else if (error != nullptr) {
-        *error = "Proveedor desconocido: " + proveedor;
+        *error = tr("Proveedor desconocido: %1").arg(proveedor);
     }
     if (!o.program.isEmpty()) aislarEnLaCarpetaDeDatos(o, runtime, profile, root);
     return o;
@@ -1809,12 +1812,13 @@ Motores AgentViewModel::motores() {
         const QString proveedor = l.proveedor.isEmpty() ? provider_ : l.proveedor;
         if (proveedor != "local") return false; // encargos y disparadores: el camino de la voz
         if (!local_) {
-            *resumen = "el modelo local no está disponible en esta versión";
+            *resumen = tr("el modelo local no está disponible en esta versión").toStdString();
             return true;
         }
         local_(l.rol, l.encargo, origen.rfind("disparador", 0) == 0);
-        *resumen = "Lo atendió el modelo local: lo dijo por los auriculares y, si había algo para hacer, "
-                   "lo propuso en la barra del asistente.";
+        *resumen = tr("Lo atendió el modelo local: lo dijo por los auriculares y, si había algo para hacer, "
+                      "lo propuso en la barra del asistente.")
+                       .toStdString();
         return true;
     };
     m.lanzar = [this](const Lanzamiento& l, QString* err) { return launchOptionsHeadless(l, err); };
@@ -1829,11 +1833,11 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
     if (runtime == "antigravity") {
         // Antigravity tiene modo no interactivo (-p, --output-format stream-json), pero no
         // está probado con el MCP ni con su salida: hasta entonces, los roles no lo usan.
-        if (error != nullptr) *error = "Los roles automaticos todavia no pueden usar Gemini (Antigravity).";
+        if (error != nullptr) *error = tr("Los roles automaticos todavia no pueden usar Gemini (Antigravity).");
         return {};
     }
     if (runtime.isEmpty()) {
-        if (error != nullptr) *error = "Proveedor desconocido: " + proveedor;
+        if (error != nullptr) *error = tr("Proveedor desconocido: %1").arg(proveedor);
         return {};
     }
     const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring()); // de la máquina
@@ -1869,12 +1873,12 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
 void AgentViewModel::start() {
     setError({});
     if (!installed()) {
-        setError("Primero instala el agente (boton Instalar).");
+        setError(tr("Primero instala el agente (boton Instalar)."));
         return;
     }
     if (!mcpReady()) {
         setError(
-            "El servidor MCP esta apagado: activalo en Configuracion -> Asistente (MCP) y reinicia la app.");
+            tr("El servidor MCP esta apagado: activalo en Configuracion -> Asistente (MCP) y reinicia la app."));
         return;
     }
     // El chat del modelo local: primero su llama-server (cargar el modelo tarda);
@@ -1890,7 +1894,7 @@ void AgentViewModel::start() {
         const QString ws = prepareWorkspace(&err);
         const term::Pty::Options base = ws.isEmpty() ? term::Pty::Options{} : baseLaunch(provider_, model_, ws, &err);
         if (base.program.isEmpty()) {
-            setError(err.isEmpty() ? "No se pudo preparar el agente." : err);
+            setError(err.isEmpty() ? tr("No se pudo preparar el agente.") : err);
             return;
         }
         QPointer<AgentViewModel> yo(this);
@@ -1919,7 +1923,7 @@ void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
     const QString gguf = ggufChat_ ? ggufChat_(model_, &falta, &repoParaBajar) : QString();
     ggufActual_ = gguf;
     if (gguf.isEmpty()) {
-        setError(falta.isEmpty() ? "No hay un modelo local para el chat." : falta);
+        setError(falta.isEmpty() ? tr("No hay un modelo local para el chat.") : falta);
         if (!repoParaBajar.isEmpty() && bajarModelo_) bajarModelo_(repoParaBajar);
         return;
     }
@@ -1942,7 +1946,7 @@ void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
                 return;
             }
             yo->puertoServidor_ = puerto;
-            yo->installText_ = "Modelo local listo.";
+            yo->installText_ = tr("Modelo local listo.");
             emit yo->installChanged();
             listo();
         },
@@ -1966,12 +1970,12 @@ void AgentViewModel::lanzarSesion() {
     QString err;
     term::Pty::Options o = launchOptions(&err);
     if (!err.isEmpty() || o.program.isEmpty()) {
-        setError(err.isEmpty() ? "No se pudo preparar el agente." : err);
+        setError(err.isEmpty() ? tr("No se pudo preparar el agente.") : err);
         pararServidorLocal();
         return;
     }
     if (!session_->start(o, &err)) {
-        setError("No se pudo iniciar el agente: " + err);
+        setError(tr("No se pudo iniciar el agente: %1").arg(err));
         pararServidorLocal();
     }
     emit runningChanged();
@@ -2060,7 +2064,7 @@ void AgentViewModel::setHayAire(std::function<bool()> fn) {
         const bool aire = hayAire_();
         // Salió al aire con la consola prendida: se relanza sin ella.
         if (aire && conConsola_) {
-            setError("Al aire: el asistente se relanzó sin consola (Bash/PowerShell) hasta que termine la emisión.");
+            setError(tr("Al aire: el asistente se relanzó sin consola (Bash/PowerShell) hasta que termine la emisión."));
             restart();
         }
     });
@@ -2070,7 +2074,7 @@ void AgentViewModel::setHayAire(std::function<bool()> fn) {
 void AgentViewModel::send(const QString& text) {
     if (text.trimmed().isEmpty()) return;
     if (!running()) {
-        setError("El agente no esta corriendo.");
+        setError(tr("El agente no esta corriendo."));
         return;
     }
     if (localActivo_) {
@@ -2104,7 +2108,7 @@ void AgentViewModel::encargar(const QString& texto) {
         });
     });
     if (installed() && mcpReady()) start();
-    else setError("El asistente no está listo (instalado y con el servidor MCP prendido): el pedido queda para cuando arranque.");
+    else setError(tr("El asistente no está listo (instalado y con el servidor MCP prendido): el pedido queda para cuando arranque."));
 }
 
 // --- Alertas ------------------------------------------------------------------------------
@@ -2137,7 +2141,17 @@ void AgentViewModel::deleteAlert(const QString& id) {
 }
 
 QVariantList AgentViewModel::alertTypesUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", AlertEngine::types()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+    // Las descripciones vienen marcadas (QT_TRANSLATE_NOOP("alertas", …)): se traducen acá.
+    json tipos = AlertEngine::types();
+    const auto traducir = [](json& v) {
+        if (v.is_string()) v = ba::i18n::traducir("alertas", v.get<std::string>().c_str());
+    };
+    for (json& t : tipos) {
+        if (t.contains("summary")) traducir(t["summary"]);
+        if (t.contains("params") && t["params"].is_object())
+            for (auto it = t["params"].begin(); it != t["params"].end(); ++it) traducir(it.value());
+    }
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", tipos}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .object()
         .value("v")
         .toArray()
@@ -2147,7 +2161,7 @@ QVariantList AgentViewModel::alertTypesUi() const {
 QString AgentViewModel::createAlertUi(const QVariantMap& spec) {
     const json j = json::parse(QJsonDocument(QJsonObject::fromVariantMap(spec)).toJson(QJsonDocument::Compact).toStdString(),
                                nullptr, false);
-    if (!j.is_object()) return "no se entiende el disparador";
+    if (!j.is_object()) return tr("no se entiende el disparador");
     const json r = alerts_.create(j);
     emit alertsChanged();
     return QString::fromStdString(r.value("error", std::string()));
@@ -2257,9 +2271,9 @@ const char* const kMotores[] = {"claude", "antigravity", "opencode", "pi"};
 } // namespace
 
 QString AgentViewModel::ocupadoParaLimpiar() const {
-    if (running()) return "Primero pará el asistente (la consola está corriendo).";
-    if (corridasEnCurso_ && corridasEnCurso_() > 0) return "Hay encargos de agentes corriendo: esperá que terminen.";
-    if (installing_) return "Hay una instalación en curso.";
+    if (running()) return tr("Primero pará el asistente (la consola está corriendo).");
+    if (corridasEnCurso_ && corridasEnCurso_() > 0) return tr("Hay encargos de agentes corriendo: esperá que terminen.");
+    if (installing_) return tr("Hay una instalación en curso.");
     return {};
 }
 
@@ -2350,7 +2364,7 @@ QString AgentViewModel::reinstalar(const QString& runtime, bool deCero) {
     if (!ocupado.isEmpty()) return ocupado;
     bool conocido = false;
     for (const char* rt : kMotores) conocido = conocido || runtime == rt;
-    if (!conocido) return "Motor desconocido: " + runtime;
+    if (!conocido) return tr("Motor desconocido: %1").arg(runtime);
     const fs::path root = ba::platform::dataRoot(); // de la máquina
     std::error_code ec;
     fs::remove_all(root / "Agentes" / runtime.toStdString(), ec);

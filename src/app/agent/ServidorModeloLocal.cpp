@@ -53,7 +53,7 @@ void ServidorModeloLocal::pedir(QObject* quien, const Pedido& pedido, std::funct
     if (proc_ != nullptr && gguf_ != p.gguf && p.noReiniciar) {
         // Anda con otro modelo (el que eligió alguien para el chat): no se le cambia.
         if (usan_.erase(quien) > 0) disconnect(quien, &QObject::destroyed, this, nullptr);
-        listo(0, "El modelo local está cargado con otro modelo (el del chat).");
+        listo(0, tr("El modelo local está cargado con otro modelo (el del chat)."));
         return;
     }
     // El mismo modelo: se usa el que anda (si hace falta la visión y no la cargó, se recarga con ella).
@@ -86,7 +86,7 @@ void ServidorModeloLocal::avisarListo(quint16 puerto, const QString& error) {
 void ServidorModeloLocal::arrancar(const Pedido& p) {
     parar();
     if (!QFileInfo::exists(p.ejecutable)) {
-        avisarListo(0, "Falta llama-server en el programa (" + p.ejecutable + ").");
+        avisarListo(0, tr("Falta llama-server en el programa (%1).").arg(p.ejecutable));
         return;
     }
     gguf_ = p.gguf;
@@ -112,13 +112,13 @@ void ServidorModeloLocal::arrancar(const Pedido& p) {
     if (!p.mmproj.isEmpty()) args << "--mmproj" << QDir::toNativeSeparators(p.mmproj);
     proc_->start(p.ejecutable, args);
     if (!proc_->waitForStarted(10000)) {
-        const QString e = "No arrancó llama-server: " + proc_->errorString();
+        const QString e = tr("No arrancó llama-server: %1").arg(proc_->errorString());
         parar();
         avisarListo(0, e);
         return;
     }
     for (auto& [quien, f] : esperan_)
-        if (f.second) f.second("Cargando el modelo local…");
+        if (f.second) f.second(tr("Cargando el modelo local…"));
     // Listo cuando /health contesta 200 (el modelo cargado).
     auto* red = new QNetworkAccessManager(proc_);
     reloj_ = new QTimer(proc_);
@@ -129,12 +129,12 @@ void ServidorModeloLocal::arrancar(const Pedido& p) {
         if (proc_ != esteProc) return;
         if (proc_->state() == QProcess::NotRunning) {
             parar();
-            avisarListo(0, "llama-server se cerró al cargar el modelo (ver Logs/llama-server.log).");
+            avisarListo(0, tr("llama-server se cerró al cargar el modelo (ver Logs/llama-server.log)."));
             return;
         }
         if (++*intentos > maximo) {
             parar();
-            avisarListo(0, "El modelo local no terminó de cargar a tiempo (ver Logs/llama-server.log).");
+            avisarListo(0, tr("El modelo local no terminó de cargar a tiempo (ver Logs/llama-server.log)."));
             return;
         }
         QNetworkReply* r = red->get(QNetworkRequest(QUrl(QString("http://127.0.0.1:%1/health").arg(puerto_))));

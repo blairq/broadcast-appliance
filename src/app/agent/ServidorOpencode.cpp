@@ -84,7 +84,7 @@ void ServidorOpencode::arrancar(const Pedido& p) {
     proc_->setStandardOutputFile(QProcess::nullDevice());
     proc_->start(p.ejecutable, {"serve", "--hostname", "127.0.0.1", "--port", QString::number(puerto)});
     if (!proc_->waitForStarted(10000)) {
-        const QString e = "No arrancó el servidor de OpenCode: " + proc_->errorString();
+        const QString e = tr("No arrancó el servidor de OpenCode: %1").arg(proc_->errorString());
         parar();
         avisar(e);
         return;
@@ -98,12 +98,12 @@ void ServidorOpencode::arrancar(const Pedido& p) {
         if (proc_ != este) return;
         if (proc_->state() == QProcess::NotRunning) {
             parar();
-            avisar("El servidor de OpenCode se cerró al arrancar.");
+            avisar(tr("El servidor de OpenCode se cerró al arrancar."));
             return;
         }
         if (++*intentos > 120) { // 60 s
             parar();
-            avisar("El servidor de OpenCode no arrancó a tiempo.");
+            avisar(tr("El servidor de OpenCode no arrancó a tiempo."));
             return;
         }
         QNetworkReply* r = red->get(QNetworkRequest(QUrl(url_ + "/api/session")));

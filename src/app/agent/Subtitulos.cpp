@@ -155,7 +155,7 @@ Subtitulos::Subtitulos(FlujosTexto& flujos, QObject* parent) : QObject(parent), 
     gActivo = this;
     fuentes::Tipo t;
     t.id = kTipo;
-    t.nombre = "Subtítulos";
+    t.nombre = tr("Subtítulos").toStdString();
     t.deApp = true;
     t.defectos = {{"lineas", 2},      {"caracteres", 42},   {"ancho", 1600},           {"minimo", 1.5},
                   {"cps", 17},        {"borrar", 4},        {"fondo", true},           {"contorno", false},
@@ -163,26 +163,26 @@ Subtitulos::Subtitulos(FlujosTexto& flujos, QObject* parent) : QObject(parent), 
                   {"font", {{"face", "Helvetica"}, {"size", 56}}}, {"flujo", ""}};
     t.props = [this](const json&) {
         using P = fuentes::Prop;
-        P fl{"flujo", "Qué muestra (salida de texto)", "list"};
-        fl.ayuda = "La transcripción de una «Voz a texto» o una traducción (Audio → Traducción).";
+        P fl{"flujo", tr("Qué muestra (salida de texto)").toStdString(), "list"};
+        fl.ayuda = tr("La transcripción de una «Voz a texto» o una traducción (Audio → Traducción).").toStdString();
         for (const QVariant& v : flujos_.flujos()) {
             const std::string n = v.toMap().value("nombre").toString().toStdString();
             if (!n.empty()) fl.opciones.push_back({{"value", n}, {"label", n}});
         }
         return std::vector<P>{fl,
-                              {"font", "Letra", "font"},
-                              {"color", "Color del texto", "color"},
-                              {"fondo", "Fondo detrás de cada línea", "bool"},
-                              {"color_fondo", "Color del fondo", "color"},
-                              {"contorno", "Contorno", "bool"},
-                              {"sombra", "Sombra", "bool"},
-                              {"lineas", "Líneas a la vez", "int", 1, static_cast<double>(kMaxLineas()), 1},
-                              {"caracteres", "Caracteres por línea (máximo)", "int", 10, 120, 1},
-                              {"ancho", "Ancho del cuadro (px)", "int", 200, 7680, 10},
-                              {"cps", "Velocidad de lectura (caracteres por segundo)", "float", 5, 40, 0.5},
-                              {"minimo", "Tiempo mínimo en pantalla (s)", "float", 0.5, 10, 0.1},
-                              {"borrar", "Se borra después de (s)", "float", 1, 60, 0.5},
-                              {"limpiar", "Borrar ahora", "button"}};
+                              {"font", tr("Letra").toStdString(), "font"},
+                              {"color", tr("Color del texto").toStdString(), "color"},
+                              {"fondo", tr("Fondo detrás de cada línea").toStdString(), "bool"},
+                              {"color_fondo", tr("Color del fondo").toStdString(), "color"},
+                              {"contorno", tr("Contorno").toStdString(), "bool"},
+                              {"sombra", tr("Sombra").toStdString(), "bool"},
+                              {"lineas", tr("Líneas a la vez").toStdString(), "int", 1, static_cast<double>(kMaxLineas()), 1},
+                              {"caracteres", tr("Caracteres por línea (máximo)").toStdString(), "int", 10, 120, 1},
+                              {"ancho", tr("Ancho del cuadro (px)").toStdString(), "int", 200, 7680, 10},
+                              {"cps", tr("Velocidad de lectura (caracteres por segundo)").toStdString(), "float", 5, 40, 0.5},
+                              {"minimo", tr("Tiempo mínimo en pantalla (s)").toStdString(), "float", 0.5, 10, 0.1},
+                              {"borrar", tr("Se borra después de (s)").toStdString(), "float", 1, 60, 0.5},
+                              {"limpiar", tr("Borrar ahora").toStdString(), "button"}};
     };
     t.botones["limpiar"] = [this](const std::string& fuente) { limpiar(fuente, {}); };
     fuentes::registrar(std::move(t));

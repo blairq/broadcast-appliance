@@ -161,7 +161,7 @@ std::string FlujosTexto::corregir(std::uint64_t id, const QString& texto, bool d
         emit pendientesCambio();
         return {};
     }
-    return "esa frase ya salió (o no existe)";
+    return tr("esa frase ya salió (o no existe)").toStdString();
 }
 
 QVariantList FlujosTexto::pendientesUi() const {

@@ -7,25 +7,36 @@
 #include <fstream>
 #include <system_error>
 
+#include "i18n/I18n.hpp"
+
+// Sin Qt (test_reconocedores): la marca para lupdate, que deja el texto como está.
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(contexto, texto) texto
+#endif
+
 namespace ba::app::agent {
 
 using json = nlohmann::json;
 
 namespace {
 constexpr MotorOido kDeFabrica = MotorOido::Parakeet; // nadie cambia sin pedirlo
+/// El título o la descripción de un consumidor (marcados con QT_TRANSLATE_NOOP), traducido.
+std::string etiqueta(const std::string& s) { return ba::i18n::traducir("reconocedores", s.c_str()); }
 } // namespace
 
 const std::vector<Reconocedores::Consumidor>& Reconocedores::consumidores() {
     static const std::vector<Consumidor> c{
-        {"dictado", "Dictado del operador",
-         "Lo que el operador le dice al asistente con F9 o el micrófono de la barra.", false},
-        {"transcripcion", "Transcripción continua y traducción en tiempo real",
-         "Las tarjetas «Voz a texto» en continuo: subtítulos, acta, disparadores y lo que se traduce.", false},
-        {"recepcion", "Recepción (atención hablada)",
-         "Lo que dice la persona que la recepción atiende hablando (lobby o sesión remota).", false},
-        {"registro", "Tótem de registro",
-         "Lo que contesta cada persona en los tótems (varias a la vez). Con Nemotron, puede interrumpir al "
-         "asistente hablando.",
+        {"dictado", QT_TRANSLATE_NOOP("reconocedores", "Dictado del operador"),
+         QT_TRANSLATE_NOOP("reconocedores", "Lo que el operador le dice al asistente con F9 o el micrófono de la barra."), false},
+        {"transcripcion", QT_TRANSLATE_NOOP("reconocedores", "Transcripción continua y traducción en tiempo real"),
+         QT_TRANSLATE_NOOP("reconocedores", "Las tarjetas «Voz a texto» en continuo: subtítulos, acta, disparadores y lo que se traduce."),
+         false},
+        {"recepcion", QT_TRANSLATE_NOOP("reconocedores", "Recepción (atención hablada)"),
+         QT_TRANSLATE_NOOP("reconocedores", "Lo que dice la persona que la recepción atiende hablando (lobby o sesión remota)."), false},
+        {"registro", QT_TRANSLATE_NOOP("reconocedores", "Tótem de registro"),
+         QT_TRANSLATE_NOOP("reconocedores",
+                           "Lo que contesta cada persona en los tótems (varias a la vez). Con Nemotron, puede "
+                           "interrumpir al asistente hablando."),
          true},
     };
     return c;
@@ -45,7 +56,8 @@ const std::vector<MotorOido>& Reconocedores::motores() {
 std::string Reconocedores::nombre(MotorOido m) { return m == MotorOido::Nemotron ? "nemotron" : "parakeet"; }
 
 std::string Reconocedores::titulo(MotorOido m) {
-    return m == MotorOido::Nemotron ? "Nemotron 3.5 (streaming)" : "Parakeet TDT v3 (por frases)";
+    return m == MotorOido::Nemotron ? ba::i18n::traducir("reconocedores", "Nemotron 3.5 (streaming)")
+                                    : ba::i18n::traducir("reconocedores", "Parakeet TDT v3 (por frases)");
 }
 
 std::optional<MotorOido> Reconocedores::deNombre(const std::string& s) {
@@ -76,9 +88,10 @@ MotorOido Reconocedores::motorDe(const std::string& consumidor) const {
 }
 
 std::string Reconocedores::elegir(const std::string& consumidor, const std::string& motor) {
-    if (Reconocedores::consumidor(consumidor) == nullptr) return "no hay un consumidor «" + consumidor + "»";
+    if (Reconocedores::consumidor(consumidor) == nullptr)
+        return ba::i18n::llenar(ba::i18n::traducir("reconocedores", "no hay un consumidor «%1»"), {consumidor});
     const auto m = deNombre(motor);
-    if (!m) return "el motor es «parakeet» o «nemotron»";
+    if (!m) return ba::i18n::traducir("reconocedores", "el motor es «parakeet» o «nemotron»");
     if (motorDe(consumidor) == *m) return {};
     if (*m == kDeFabrica)
         elegidos_.erase(consumidor);
@@ -101,8 +114,12 @@ bool Reconocedores::interrumpir(const std::string& consumidor) const {
 
 std::string Reconocedores::setInterrumpir(const std::string& consumidor, bool on) {
     const Consumidor* c = Reconocedores::consumidor(consumidor);
-    if (c == nullptr) return "no hay un consumidor «" + consumidor + "»";
-    if (!c->interrumpible) return c->titulo + " no se puede interrumpir (no tiene cancelación de eco)";
+    if (c == nullptr)
+        return ba::i18n::llenar(ba::i18n::traducir("reconocedores", "no hay un consumidor «%1»"), {consumidor});
+    if (!c->interrumpible)
+        return ba::i18n::llenar(
+            ba::i18n::traducir("reconocedores", "%1 no se puede interrumpir (no tiene cancelación de eco)"),
+            {etiqueta(c->titulo)});
     if (interrumpirElegido(consumidor) == on) return {};
     if (on)
         interrumpir_.erase(consumidor);
@@ -234,14 +251,16 @@ std::string Reconocedores::alerta() const {
         for (const std::string& id : ids) {
             const Consumidor* c = consumidor(id);
             if (!s.empty()) s += ", ";
-            s += c != nullptr ? c->titulo : id;
+            s += c != nullptr ? etiqueta(c->titulo) : id;
         }
         return s;
     };
     const int total = memoriaMB(MotorOido::Parakeet) + memoriaMB(MotorOido::Nemotron);
-    return "Están en uso los dos reconocedores de voz a la vez: Parakeet (" + lista(p) + ") y Nemotron (" +
-           lista(n) + "). Son dos modelos en memoria, ~" + std::to_string(total) +
-           " MB entre los dos. Si todos usan el mismo, queda uno solo.";
+    return ba::i18n::llenar(ba::i18n::traducir("reconocedores",
+                                               "Están en uso los dos reconocedores de voz a la vez: Parakeet (%1) y "
+                                               "Nemotron (%2). Son dos modelos en memoria, ~%3 MB entre los dos. Si "
+                                               "todos usan el mismo, queda uno solo."),
+                            {lista(p), lista(n), std::to_string(total)});
 }
 
 json Reconocedores::estado() const {
@@ -266,8 +285,8 @@ json Reconocedores::estado() const {
     for (const Consumidor& c : consumidores()) {
         elegidos.insert(motorDe(c.id));
         cs.push_back({{"id", c.id},
-                      {"titulo", c.titulo},
-                      {"descripcion", c.descripcion},
+                      {"titulo", etiqueta(c.titulo)},
+                      {"descripcion", etiqueta(c.descripcion)},
                       {"motor", nombre(motorDe(c.id))},
                       {"usos", usosDe(c.id).size()},
                       {"interrumpible", c.interrumpible},

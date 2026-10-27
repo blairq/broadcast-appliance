@@ -69,18 +69,18 @@ json Notificador::lista() const {
 
 json Notificador::agregar(const json& def, const std::string& clave) {
     const std::string tipo = def.value("tipo", std::string());
-    if (!kTipos.count(tipo)) return {{"error", "tipo: webhook, telegram o smtp"}};
+    if (!kTipos.count(tipo)) return {{"error", tr("tipo: webhook, telegram o smtp").toStdString()}};
     json n{{"tipo", tipo}, {"nombre", def.value("nombre", tipo)}};
     if (tipo == "telegram") {
         n["chat_id"] = def.value("chat_id", std::string());
-        if (n["chat_id"] == "") return {{"error", "falta chat_id (el chat o grupo de Telegram)"}};
+        if (n["chat_id"] == "") return {{"error", tr("falta chat_id (el chat o grupo de Telegram)").toStdString()}};
     } else if (tipo == "smtp") {
         n["servidor"] = def.value("servidor", std::string());
         n["puerto"] = def.value("puerto", 465);
         n["usuario"] = def.value("usuario", std::string());
         n["de"] = def.value("de", def.value("usuario", std::string()));
         n["para"] = def.value("para", std::string());
-        if (n["servidor"] == "" || n["para"] == "") return {{"error", "faltan servidor y para"}};
+        if (n["servidor"] == "" || n["para"] == "") return {{"error", tr("faltan servidor y para").toStdString()}};
     }
     std::string id = def.value("id", std::string());
     // Sin secreto se puede crear (p. ej. desde el asistente): queda «sin secreto»
@@ -110,9 +110,9 @@ bool Notificador::borrar(const std::string& id) {
 void Notificador::enviar(const std::string& id, const std::string& titulo, const std::string& texto, Listo listo) {
     if (!listo) listo = [](bool, const std::string&) {};
     const json* n = buscar(id);
-    if (n == nullptr) return listo(false, "no hay un notificador «" + id + "»");
+    if (n == nullptr) return listo(false, tr("no hay un notificador «%1»").arg(QString::fromStdString(id)).toStdString());
     const std::string clave = secreto(id);
-    if (clave.empty()) return listo(false, "le falta el secreto (token, URL o contraseña): volvé a cargarlo");
+    if (clave.empty()) return listo(false, tr("le falta el secreto (token, URL o contraseña): volvé a cargarlo").toStdString());
     const std::string tipo = n->value("tipo", std::string());
     if (tipo == "smtp") return enviarSmtp(*n, clave, titulo, texto, listo);
     QNetworkRequest req;
@@ -130,15 +130,17 @@ void Notificador::enviar(const std::string& id, const std::string& titulo, const
         cuerpo = QByteArray::fromStdString(json{{"chat_id", n->value("chat_id", std::string())}, {"text", titulo + "\n" + texto}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     if (!req.url().isValid() || (req.url().scheme() != "https" && req.url().scheme() != "http"))
-        return listo(false, "la URL no es válida");
+        return listo(false, tr("la URL no es válida").toStdString());
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setTransferTimeout(ba::ajustes::sAMs("notificaciones.timeoutS", 10));
     QNetworkReply* r = nam_.post(req, cuerpo);
     connect(r, &QNetworkReply::finished, this, [r, listo]() {
         r->deleteLater();
         const int status = r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        if (r->error() == QNetworkReply::NoError && status >= 200 && status < 300) return listo(true, "enviado");
-        listo(false, "no llegó: " + (status > 0 ? "HTTP " + std::to_string(status) : r->errorString().toStdString()));
+        if (r->error() == QNetworkReply::NoError && status >= 200 && status < 300) return listo(true, tr("enviado").toStdString());
+        listo(false, tr("no llegó: %1")
+                         .arg(status > 0 ? "HTTP " + QString::number(status) : r->errorString())
+                         .toStdString());
     });
 }
 
@@ -182,13 +184,13 @@ void Notificador::enviarSmtp(const json& n, const std::string& clave, const std:
                     ok = s.waitForEncrypted(10000);
                 }
             }
-            if (!ok) error = "no pude conectar con TLS a " + host.toStdString() + ":" + std::to_string(puerto);
+            if (!ok) error = tr("no pude conectar con TLS a %1:%2").arg(host).arg(puerto).toStdString();
             const QByteArray usuario = QByteArray::fromStdString(n.value("usuario", std::string()));
             if (ok) ok = mandar("EHLO broadcast-appliance", "250");
             if (ok && !usuario.isEmpty())
                 ok = mandar("AUTH LOGIN", "334") && mandar(usuario.toBase64(), "334") &&
                      mandar(QByteArray::fromStdString(clave).toBase64(), "235");
-            if (!ok && error.empty()) error = "el servidor no aceptó el usuario o la contraseña";
+            if (!ok && error.empty()) error = tr("el servidor no aceptó el usuario o la contraseña").toStdString();
             const std::string de = n.value("de", std::string()), para = n.value("para", std::string());
             if (ok)
                 ok = mandar(QByteArray::fromStdString("MAIL FROM:<" + de + ">"), "250") &&
@@ -205,9 +207,9 @@ void Notificador::enviarSmtp(const json& n, const std::string& clave, const std:
                                        "Content-Transfer-Encoding: 8bit\r\n\r\n" +
                                        QByteArray::fromStdString(cuerpo) + "\r\n.";
                 ok = mandar(msg, "250");
-                if (!ok) error = "el servidor no aceptó el mensaje";
+                if (!ok) error = tr("el servidor no aceptó el mensaje").toStdString();
             } else if (error.empty()) {
-                error = "el servidor rechazó el remitente o el destinatario";
+                error = tr("el servidor rechazó el remitente o el destinatario").toStdString();
             }
             mandar("QUIT", "221");
             s.disconnectFromHost();
@@ -216,7 +218,7 @@ void Notificador::enviarSmtp(const json& n, const std::string& clave, const std:
         QMetaObject::invokeMethod(
             QCoreApplication::instance(),
             [yo, listo, ok, error]() {
-                if (yo) listo(ok, ok ? "enviado" : error);
+                if (yo) listo(ok, ok ? tr("enviado").toStdString() : error);
             },
             Qt::QueuedConnection);
     }).detach();
@@ -233,7 +235,8 @@ QString Notificador::agregarUi(const QVariantMap& def, const QString& clave) {
 
 void Notificador::probarUi(const QString& id) {
     QPointer<Notificador> yo(this);
-    enviar(id.toStdString(), "Prueba de Broadcast Appliance", "Si te llegó esto, los avisos funcionan.",
+    enviar(id.toStdString(), tr("Prueba de Broadcast Appliance").toStdString(),
+           tr("Si te llegó esto, los avisos funcionan.").toStdString(),
            [yo, id](bool ok, const std::string& d) {
                if (yo) emit yo->probado(id, ok, QString::fromStdString(d));
            });

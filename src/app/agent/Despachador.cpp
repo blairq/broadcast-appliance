@@ -15,6 +15,7 @@
 
 #include "agent/Roles.hpp"
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::app::agent {
 
@@ -123,7 +124,7 @@ bool Despachador::evento(const json& ev) {
                                   ev.value("ruleId", "") + ", tipo " + tipo + ")";
         std::string err;
         if (encargar(rol->id, texto, "disparador:" + tipo, 0, &err).empty())
-            registrar(diag::Nivel::Aviso, rol->id, "no se pudo encargar: " + err);
+            registrar(diag::Nivel::Aviso, rol->id, ba::i18n::llenar(ba::i18n::traducir("agente", "no se pudo encargar: %1"), {err}));
         return true;
     }
     // Con agrupacion: se junta lo que llegue en la ventana.
@@ -158,7 +159,7 @@ void Despachador::lanzar(const std::string& rol) {
     std::string err;
     if (encargar(rol, texto, n == 1 ? "disparador" : "disparadores (" + std::to_string(n) + ")", 0, &err)
             .empty())
-        registrar(diag::Nivel::Aviso, rol, "no se pudo encargar: " + err);
+        registrar(diag::Nivel::Aviso, rol, ba::i18n::llenar(ba::i18n::traducir("agente", "no se pudo encargar: %1"), {err}));
 }
 
 std::string Despachador::encargar(const std::string& rolId, const std::string& texto,
@@ -166,26 +167,30 @@ std::string Despachador::encargar(const std::string& rolId, const std::string& t
                                   const std::vector<std::string>& adjuntos) {
     const Rol* rol = roles_.porId(rolId);
     if (rol == nullptr) {
-        if (error != nullptr) *error = "no existe el rol `" + rolId + "`";
+        if (error != nullptr) *error = tr("no existe el rol `%1`").arg(QString::fromStdString(rolId)).toStdString();
         return {};
     }
     if (!rol->activo) {
-        if (error != nullptr) *error = "el rol `" + rolId + "` esta apagado (pagina Agentes)";
+        if (error != nullptr) *error = tr("el rol `%1` esta apagado (pagina Agentes)").arg(QString::fromStdString(rolId)).toStdString();
         return {};
     }
     // Un rol que usa la app por dentro (el tótem de registro) no corre como agente de consola.
     if (rol->enLaApp) {
-        if (error != nullptr) *error = "el rol `" + rolId + "` no se encarga: lo usa la app por dentro (" + rol->titulo + ")";
+        if (error != nullptr)
+            *error = tr("el rol `%1` no se encarga: lo usa la app por dentro (%2)")
+                         .arg(QString::fromStdString(rolId), QString::fromStdString(rol->titulo))
+                         .toStdString();
         return {};
     }
     if (profundidad > kProfundidadMax) {
         if (error != nullptr)
-            *error = "un encargo de otro agente no puede encargar a un tercero (profundidad maxima " +
-                     std::to_string(kProfundidadMax) + ")";
+            *error = tr("un encargo de otro agente no puede encargar a un tercero (profundidad maxima %1)")
+                         .arg(kProfundidadMax)
+                         .toStdString();
         return {};
     }
     if (texto.empty()) {
-        if (error != nullptr) *error = "el encargo esta vacio";
+        if (error != nullptr) *error = tr("el encargo esta vacio").toStdString();
         return {};
     }
     // El mismo origen ya esta en curso o esperando: no se duplica (dos
@@ -249,7 +254,7 @@ std::string Despachador::contextoPara(const std::string& rol) const {
 void Despachador::lanzarAhora(Corrida& c) {
     const Rol* rol = roles_.porId(c.rol);
     if (rol == nullptr) {
-        terminar(c, "error", "el rol desaparecio");
+        terminar(c, "error", tr("el rol desaparecio").toStdString());
         return;
     }
     Lanzamiento l;
@@ -277,7 +282,7 @@ void Despachador::lanzarAhora(Corrida& c) {
     QString err;
     const term::Pty::Options o = motores_.lanzar ? motores_.lanzar(l, &err) : term::Pty::Options{};
     if (o.program.isEmpty()) {
-        terminar(c, "error", err.isEmpty() ? "no se pudo preparar el agente" : err.toStdString());
+        terminar(c, "error", err.isEmpty() ? tr("no se pudo preparar el agente").toStdString() : err.toStdString());
         return;
     }
     c.proc = new QProcess(this);
@@ -312,8 +317,13 @@ void Despachador::lanzarAhora(Corrida& c) {
         if (cc->estado == "detenida") {
             terminar(*cc, "detenida", {});
         } else if (st != QProcess::NormalExit || code != 0) {
-            std::string e = "el agente termino con codigo " + std::to_string(code);
-            if (!cc->stderrTail.empty()) e += ": " + recortar(cc->stderrTail, 300);
+            const std::string e =
+                cc->stderrTail.empty()
+                    ? tr("el agente termino con codigo %1").arg(code).toStdString()
+                    : tr("el agente termino con codigo %1: %2")
+                          .arg(code)
+                          .arg(QString::fromStdString(recortar(cc->stderrTail, 300)))
+                          .toStdString();
             terminar(*cc, "error", e);
         } else {
             terminar(*cc, cc->error.empty() ? "ok" : "error", cc->error);
@@ -322,24 +332,26 @@ void Despachador::lanzarAhora(Corrida& c) {
     connect(c.proc, &QProcess::errorOccurred, this, [this, id](QProcess::ProcessError e) {
         Corrida* cc = porId(id);
         if (cc == nullptr || e != QProcess::FailedToStart) return;
-        terminar(*cc, "error", "no se pudo iniciar el agente (" + cc->proc->program().toStdString() + ")");
+        terminar(*cc, "error", tr("no se pudo iniciar el agente (%1)").arg(cc->proc->program()).toStdString());
     });
     c.tope = new QTimer(this);
     c.tope->setSingleShot(true);
     connect(c.tope, &QTimer::timeout, this, [this, id]() {
         Corrida* cc = porId(id);
         if (cc == nullptr || cc->proc == nullptr) return;
-        cc->error = "se paso del tope de " + std::to_string(kTopeMinutos()) + " minutos";
+        cc->error = tr("se paso del tope de %1 minutos").arg(kTopeMinutos()).toStdString();
         cc->proc->kill();
     });
     c.tope->start(kTopeMinutos() * 60 * 1000);
     c.estado = "corriendo";
     c.inicioMs = ahoraMs();
     registrar(diag::Nivel::Info, c.rol,
-              "corrida " + c.id + " arranca con " + o.program.toStdString() + " (" +
-                  (rol->consola ? "con consola, " : "") +
-                  (rol->proveedor.empty() ? "proveedor del asistente" : rol->proveedor) +
-                  (rol->modelo.empty() ? "" : ", " + rol->modelo) + ")");
+              ba::i18n::llenar(
+                  rol->consola ? ba::i18n::traducir("agente", "corrida %1 arranca con %2 (con consola, %3)")
+                               : ba::i18n::traducir("agente", "corrida %1 arranca con %2 (%3)"),
+                  {c.id, o.program.toStdString(),
+                   (rol->proveedor.empty() ? ba::i18n::traducir("agente", "proveedor del asistente") : rol->proveedor) +
+                       (rol->modelo.empty() ? "" : ", " + rol->modelo)}));
     // EOF EN STDIN, EN CUANTO EL PROCESO EXISTA. Sin esto opencode se queda
     // esperando que le escriban por la entrada —el encargo va por argumento, no
     // por stdin— y no arranca nunca: 0 lineas de salida, 0 herramientas,
@@ -415,7 +427,8 @@ void Despachador::procesarLinea(Corrida& c, const std::string& linea) {
     } catch (const std::exception& e) {
         paso(c, json{{"tipo", "crudo"},
                      {"texto",
-                      recortar(std::string("no pude leer una linea del motor (") + e.what() + "): " + linea,
+                      recortar(ba::i18n::llenar(ba::i18n::traducir("agente", "no pude leer una linea del motor (%1): %2"),
+                                                {e.what(), linea}),
                                300)}});
     }
 }
@@ -464,7 +477,7 @@ void Despachador::procesarLineaInterna(Corrida& c, const std::string& linea) {
     if (tipo == "result") {
         const std::string r = j.value("result", "");
         if (!r.empty()) c.resultado = r;
-        if (j.value("is_error", false)) c.error = recortar(r.empty() ? "el agente informo un error" : r, 300);
+        if (j.value("is_error", false)) c.error = recortar(r.empty() ? tr("el agente informo un error").toStdString() : r, 300);
         json fin{
             {"tipo", "fin"}, {"turnos", j.value("num_turns", 0)}, {"duracionMs", j.value("duration_ms", 0)}};
         if (j.contains("total_cost_usd")) fin["costoUsd"] = j["total_cost_usd"];
@@ -497,7 +510,7 @@ void Despachador::procesarLineaInterna(Corrida& c, const std::string& linea) {
     if (tipo == "error") {
         std::string motivo = textoClave(j, "message");
         if (motivo.empty()) motivo = textoClave(j, "error");
-        if (motivo.empty()) motivo = "error del motor";
+        if (motivo.empty()) motivo = tr("error del motor").toStdString();
         c.error = recortar(motivo, 300);
         paso(c, json{{"tipo", "crudo"}, {"texto", c.error}});
         return;
@@ -538,15 +551,17 @@ void Despachador::terminar(Corrida& c, const std::string& estado, const std::str
         c.resumen.erase(0, 1);
     c.resumen = recortar(c.resumen, 600);
     const std::string dur =
-        c.inicioMs > 0 ? std::to_string((c.finMs - c.inicioMs) / 1000) + " s" : "sin arrancar";
+        c.inicioMs > 0 ? std::to_string((c.finMs - c.inicioMs) / 1000) + " s" : ba::i18n::traducir("agente", "sin arrancar");
     if (estado == "ok")
         registrar(diag::Nivel::Info, c.rol,
-                  "corrida " + c.id + " termino bien (" + dur + ", " + std::to_string(c.herramientas) +
-                      " herramientas): " + recortar(c.resumen, 200));
+                  ba::i18n::llenar(ba::i18n::traducir("agente", "corrida %1 termino bien (%2, %3 herramientas): %4"),
+                                   {c.id, dur, std::to_string(c.herramientas), recortar(c.resumen, 200)}));
     else
-        registrar(diag::Nivel::Aviso, c.rol, "corrida " + c.id + " " + estado + " (" + dur + "): " + error);
+        registrar(diag::Nivel::Aviso, c.rol,
+                  ba::i18n::llenar(ba::i18n::traducir("agente", "corrida %1 %2 (%3): %4"), {c.id, estado, dur, error}));
     if (estado == "error")
-        emit notify(QString::fromStdString("Agente " + c.rol + ": " + recortar(error, 120)), "error");
+        emit notify(tr("Agente %1: %2").arg(QString::fromStdString(c.rol), QString::fromStdString(recortar(error, 120))),
+                    "error");
     const std::string rol = c.rol;
     const std::string id = c.id;
     const bool ok = estado == "ok";
@@ -670,7 +685,7 @@ QVariantList Despachador::proveedores() const {
 
 void Despachador::setActivo(const QString& rol, bool activo) {
     if (roles_.setActivo(rol.toStdString(), activo)) {
-        registrar(diag::Nivel::Info, rol.toStdString(), activo ? "rol encendido" : "rol apagado");
+        registrar(diag::Nivel::Info, rol.toStdString(), activo ? ba::i18n::traducir("agente", "rol encendido") : ba::i18n::traducir("agente", "rol apagado"));
         emit cambio();
     }
 }
@@ -705,7 +720,7 @@ void Despachador::detener(const QString& id) {
     Corrida* c = porId(id.toStdString());
     if (c == nullptr) return;
     if (c->estado == "esperando") {
-        terminar(*c, "detenida", "cancelada antes de arrancar");
+        terminar(*c, "detenida", tr("cancelada antes de arrancar").toStdString());
         return;
     }
     if (c->proc == nullptr) return;

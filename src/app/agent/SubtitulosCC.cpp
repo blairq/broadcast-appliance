@@ -52,12 +52,13 @@ QVariantMap SubtitulosCC::estado() const {
 
 QString SubtitulosCC::activar(const QVariantMap& cfg) {
     const QString metodo = cfg.value("metodo", metodo_).toString();
-    if (metodo != "608" && metodo != "youtube_http" && metodo != "ambos") return "metodo: 608, youtube_http o ambos";
+    if (metodo != "608" && metodo != "youtube_http" && metodo != "ambos")
+        return tr("metodo: 608, youtube_http o ambos");
     const QString url = cfg.value("url", url_).toString();
     if ((metodo == "youtube_http" || metodo == "ambos") && !url.startsWith("http"))
-        return "falta la URL de subtítulos del evento (YouTube Studio > el vivo > Subtítulos > «HTTP POST»)";
+        return tr("falta la URL de subtítulos del evento (YouTube Studio > el vivo > Subtítulos > «HTTP POST»)");
     flujo_ = cfg.value("flujo", flujo_).toString();
-    if (flujo_.isEmpty()) return "falta `flujo`: la salida de texto (texto_flujos)";
+    if (flujo_.isEmpty()) return tr("falta `flujo`: la salida de texto (texto_flujos)");
     metodo_ = metodo;
     url_ = url;
     activo_ = true;
@@ -106,7 +107,8 @@ void SubtitulosCC::mandar(const QString& texto) {
 QString SubtitulosCC::probar(const QString& texto) {
     if (metodo_ != "youtube_http" && enviar608_ && metodo_ != "ambos") {
         // 608: si no hay ninguna salida transmitiendo, se avisa.
-        if (enviar608_(texto, 3.0) == 0) return "no hay ninguna transmisión activa para recibir los subtítulos 608";
+        if (enviar608_(texto, 3.0) == 0)
+            return tr("no hay ninguna transmisión activa para recibir los subtítulos 608");
         ++enviadas_;
         ultimas_.push_back(texto);
         emit cambio();

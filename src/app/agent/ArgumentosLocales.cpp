@@ -9,6 +9,8 @@
 #include <cmath>
 #include <regex>
 
+#include "i18n/I18n.hpp"
+
 namespace ba::app::agent::argumentos {
 
 namespace {
@@ -107,7 +109,7 @@ std::string ajustar(const std::string& v, const std::vector<std::string>& cand, 
     const std::string nv = normal(v);
     for (const auto& c : cand)
         if (normal(c) == nv) {
-            nota = "nombre normalizado: " + v + " -> " + c;
+            nota = ba::i18n::llenar(ba::i18n::traducir("argumentos", "nombre normalizado: %1 -> %2"), {v, c});
             return c;
         }
     std::vector<std::string> contiene;
@@ -117,7 +119,7 @@ std::string ajustar(const std::string& v, const std::vector<std::string>& cand, 
             contiene.push_back(c);
     }
     if (contiene.size() == 1) {
-        nota = "nombre completado: " + v + " -> " + contiene[0];
+        nota = ba::i18n::llenar(ba::i18n::traducir("argumentos", "nombre completado: %1 -> %2"), {v, contiene[0]});
         return contiene[0];
     }
     std::string mejor;
@@ -128,7 +130,7 @@ std::string ajustar(const std::string& v, const std::vector<std::string>& cand, 
             mejor = c;
         }
     if (pm >= 0.8) {
-        nota = "nombre parecido: " + v + " -> " + mejor;
+        nota = ba::i18n::llenar(ba::i18n::traducir("argumentos", "nombre parecido: %1 -> %2"), {v, mejor});
         return mejor;
     }
     return {};
@@ -234,7 +236,7 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
     json args = args0;
     if (args.is_object() && args.size() == 1 && !props.contains(args.begin().key()) &&
         args.begin().value().is_object()) {
-        r.notas.push_back("desenvuelto de «" + args.begin().key() + "»");
+        r.notas.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "desenvuelto de «%1»"), {args.begin().key()}));
         args = json(args.begin().value());
     }
     // Lo que el modelo copia en vez de un dato: un texto con forma de
@@ -251,20 +253,20 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
         const std::string k = it.key();
         json v = it.value();
         if (!props.contains(k)) {
-            r.notas.push_back("clave de más: " + k);
+            r.notas.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "clave de más: %1"), {k}));
             continue;
         }
         const json& p = props[k];
         const std::string tipo = tipoDe(p);
         if (v.is_string() && v.get<std::string>().empty()) {
-            r.notas.push_back("vacío: afuera " + k);
+            r.notas.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "vacío: afuera %1"), {k}));
             continue;
         }
         if (v.is_string() &&
             (v.get<std::string>() == herr ||
              (std::regex_match(v.get<std::string>(), formaDeHerramienta) && !p.contains("enum")) ||
              std::regex_match(v.get<std::string>(), comodin))) {
-            r.notas.push_back("«" + v.get<std::string>() + "» no es un dato: afuera " + k);
+            r.notas.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "«%1» no es un dato: afuera %2"), {v.get<std::string>(), k}));
             continue;
         }
 
@@ -283,7 +285,7 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
             std::string nota;
             const std::string n = ajustar(v.get<std::string>(), candidatos(herr, k, estado), nota);
             if (n.empty()) {
-                r.bloqueos.push_back("no existe: " + v.get<std::string>());
+                r.bloqueos.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "no existe: %1"), {v.get<std::string>()}));
                 r.args[k] = v;
                 continue;
             }
@@ -299,22 +301,25 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
             std::transform(kl.begin(), kl.end(), kl.begin(), ::tolower);
             if (kl.rfind("volume", 0) == 0 && volumen.count(fuente) > 0) {
                 v = std::round((volumen[fuente] + d) * 10.0) / 10.0;
-                r.notas.push_back("relativo " + std::string(d > 0 ? "+" : "") + json(d).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) +
-                                  " dB sobre " + json(volumen[fuente]).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+                r.notas.push_back(ba::i18n::llenar(
+                    ba::i18n::traducir("argumentos", "relativo %1 dB sobre %2"),
+                    {std::string(d > 0 ? "+" : "") + json(d).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                     json(volumen[fuente]).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}));
             } else if (herr == "audio_sincro" && kl == "ms") {
                 // La herramienta suma el cambio a su retardo actual («atrasale 40 ms
                 // más» es «+40»); antes llegaba como 40 a secas y lo DEJABA en 40.
-                r.notas.push_back("cambio: lo suma la herramienta: " + k + "=" + v.get<std::string>());
+                r.notas.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "cambio: lo suma la herramienta: %1=%2"), {k, v.get<std::string>()}));
                 r.args[k] = v;
                 continue;
             } else {
                 // Sin valor actual que conozcamos: el número con su signo.
-                r.notas.push_back("con signo, sin valor actual: " + k + "=" + v.get<std::string>());
+                r.notas.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "con signo, sin valor actual: %1=%2"), {k, v.get<std::string>()}));
                 v = d;
             }
         }
         if (p.contains("enum") && std::find(p["enum"].begin(), p["enum"].end(), v) == p["enum"].end())
-            r.bloqueos.push_back("valor fuera de los permitidos: " + k + "=" + v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            r.bloqueos.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "valor fuera de los permitidos: %1=%2"),
+                                                  {k, v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}));
         if (p.contains("minimum") && v.is_number() && v.get<double>() < p["minimum"].get<double>())
             v = p["minimum"];
         if (p.contains("maximum") && v.is_number() && v.get<double>() > p["maximum"].get<double>())
@@ -323,7 +328,7 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
     }
     for (const auto& req : esquema.value("required", json::array()))
         if (req.is_string() && !r.args.contains(req.get<std::string>()))
-            r.bloqueos.push_back("falta: " + req.get<std::string>());
+            r.bloqueos.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "falta: %1"), {req.get<std::string>()}));
     return r;
 }
 
