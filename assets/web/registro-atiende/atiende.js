@@ -334,10 +334,10 @@ function recibir(m) {
       if (elegida) { mandar({ type: "mirar", conn: elegida }); iniciarMedios(); } // volvió la conexión
       break;
     case "error":
-      cortar(m.error || t("Este enlace de atención no es válido."));
+      cortar(t(m.error) || t("Este enlace de atención no es válido."));
       break;
     case "cortado":
-      cortar(m.motivo || t("Se cerró la atención."));
+      cortar(t(m.motivo) || t("Se cerró la atención."));
       break;
     case "conversaciones":
       $("evento").textContent = m.evento || "";
@@ -361,7 +361,7 @@ function recibir(m) {
       break;
     case "medios-error":
       cerrarMedios(false);
-      aviso(m.error || t("No se pudo ver ni oír el tótem ahora; reintento en un rato."));
+      aviso(t(m.error) || t("No se pudo ver ni oír el tótem ahora; reintento en un rato."));
       setTimeout(() => { if (elegida && !pc) iniciarMedios(); }, 4000);
       break;
     case "aviso":

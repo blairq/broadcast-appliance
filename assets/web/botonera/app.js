@@ -65,7 +65,7 @@
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.solicitud) {
       $("pedir").disabled = false;
-      return aviso(j.error || t("No se pudo pedir el emparejamiento."), true);
+      return aviso(t(j.error) || t("No se pudo pedir el emparejamiento."), true);
     }
     // El código ya se usó: fuera de la barra de direcciones.
     history.replaceState(null, "", location.pathname);
@@ -88,7 +88,7 @@
       return conectar();
     }
     if (j.estado === "rechazada") return mensaje(t("Rechazado"), t("El operador no aprobó esta tablet."));
-    if (j.estado === "invalido") return mensaje(t("Código inválido"), (j.error || t("El código venció o ya se usó.")) + " " + t("Escaneá un QR nuevo."));
+    if (j.estado === "invalido") return mensaje(t("Código inválido"), (t(j.error) || t("El código venció o ya se usó.")) + " " + t("Escaneá un QR nuevo."));
     if (j.estado === "desconocida") return mensaje(t("Se perdió el pedido"), t("Escaneá un QR nuevo."));
     setTimeout(() => esperarAprobacion(solicitud, desde), 1000);
   }
@@ -128,7 +128,7 @@
     if (m.type === "auth") {
       if (!m.ok) {
         guardar(CLAVE_TOKEN, null);
-        mensaje(t("Tablet sin emparejar"), m.error || t("El token no vale."), false);
+        mensaje(t("Tablet sin emparejar"), t(m.error) || t("El token no vale."), false);
         if (ws) ws.close();
         return;
       }
@@ -140,13 +140,13 @@
       return;
     }
     if (m.type === "estado") {
-      if (m.error) return mensaje(t("Sin perfil"), m.error, true);
+      if (m.error) return mensaje(t("Sin perfil"), t(m.error), true);
       sinMensaje();
       dibujar(m);
       return;
     }
     if (m.type === "confirmar") return pedirConfirmacion(m);
-    if (m.type === "aviso") return aviso(m.texto || "", m.error);
+    if (m.type === "aviso") return aviso(t(m.texto || ""), m.error);
   }
 
   // --- Dibujo ----------------------------------------------------------------------

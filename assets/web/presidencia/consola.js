@@ -95,7 +95,7 @@ function recibir(m) {
       if (!m.ok) {
         pin = ""; cortado = true;
         $("botonEntrar").disabled = false;
-        $("error").textContent = m.error || t("No se pudo entrar.");
+        $("error").textContent = t(m.error) || t("No se pudo entrar.");
         $("error").classList.remove("oculto");
         return;
       }
@@ -130,13 +130,13 @@ function recibir(m) {
       rtcMensaje(m);
       break;
     case "error":
-      avisar(m.texto || t("No se pudo."), true);
+      avisar(t(m.texto) || t("No se pudo."), true);
       break;
     case "cortado":
       cortado = true;
-      $("sinConexion").textContent = m.motivo || t("Se cerró la consola.");
+      $("sinConexion").textContent = t(m.motivo) || t("Se cerró la consola.");
       $("sinConexion").classList.remove("oculto");
-      avisar(m.motivo || t("Se cerró la consola."), true);
+      avisar(t(m.motivo) || t("Se cerró la consola."), true);
       break;
   }
 }

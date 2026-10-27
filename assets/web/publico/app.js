@@ -153,7 +153,7 @@
     decir(t('Mandando…'));
     try {
       const j = await mandar({ texto, nombre: $('nombre').value.trim() });
-      if (!j.ok) { decir(j.error || t('No se pudo mandar.'), 'mal'); return; }
+      if (!j.ok) { decir(t(j.error) || t('No se pudo mandar.'), 'mal'); return; }
       $('texto').value = '';
       decir(t('Mandada. Vas a ver acá si la eligen.'), 'bien');
       if (j.preguntas) pintar(j.preguntas);
@@ -308,7 +308,7 @@
       });
       const j = await r.json();
       if (j.votacion) pintarUrna(j.votacion);
-      if (!j.ok && j.error) decirUrna(j.error, 'mal');
+      if (!j.ok && j.error) decirUrna(t(j.error), 'mal');
     } catch (_) {
       decirUrna(t('No se pudo votar: revisá la conexión.'), 'mal');
     }

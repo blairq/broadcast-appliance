@@ -41,7 +41,7 @@
         const r = await fetch("/api/control/emparejar", { method: "POST", headers: { "Content-Type": "application/json" },
                                                           body: JSON.stringify({ codigo, nombre }) });
         const d = await r.json();
-        if (!r.ok || !d.solicitud) throw new Error(d.error || t("no se pudo pedir"));
+        if (!r.ok || !d.solicitud) throw new Error(t(d.error) || t("no se pudo pedir"));
         $("emparejarTexto").textContent = t("Pedido. Aprobalo en la app (aparece un aviso) …");
         esperarAprobacion(d.solicitud);
       } catch (e) { avisar(BAi18n.llenar(t("No se pudo pedir el emparejamiento: %1"), e.message), true); }
@@ -62,7 +62,7 @@
         }
         if (d.estado === "rechazada" || d.estado === "vencida" || d.error) {
           $("emparejar").classList.add("oculto");
-          mensaje(t("No se aprobó"), d.error || t("La app rechazó el pedido (o se venció). Pedí otro QR."), false);
+          mensaje(t("No se aprobó"), t(d.error) || t("La app rechazó el pedido (o se venció). Pedí otro QR."), false);
           return;
         }
       } catch (_) { /* sigue esperando */ }
@@ -112,7 +112,7 @@
       case "auth":
         if (!m.ok) {
           guardar(CLAVE_TOKEN, null);
-          mensaje(t("Este aparato ya no está habilitado"), m.error || t("Lo quitaron en la app. Emparejalo de nuevo desde el QR."), true);
+          mensaje(t("Este aparato ya no está habilitado"), t(m.error) || t("Lo quitaron en la app. Emparejalo de nuevo desde el QR."), true);
           ws.onclose = null;
           ws.close();
           return;
@@ -146,7 +146,7 @@
         if (!p) return;
         pendientes.delete(m.id);
         if (m.ok) p.resolver(m.datos);
-        else p.rechazar(new Error(m.error || t("no se pudo")));
+        else p.rechazar(new Error(t(m.error) || t("no se pudo")));
         break;
       }
       case "confirmar": {
@@ -159,7 +159,7 @@
         break;
       }
       case "error":
-        avisar(m.error || t("error"), true);
+        avisar(t(m.error) || t("error"), true);
         break;
     }
   }

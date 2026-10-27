@@ -407,10 +407,10 @@ function recibir(m) {
       else { mostrar("inicio"); if (kiosco) empezar(); }
       break;
     case "error":
-      cortar(m.error || t("Este enlace de registro no es válido."));
+      cortar(t(m.error) || t("Este enlace de registro no es válido."));
       break;
     case "cortado":
-      cortar(m.motivo || t("Se cerró esta pantalla de registro."));
+      cortar(t(m.motivo) || t("Se cerró esta pantalla de registro."));
       break;
     case "canal":
       tomarCanal(m.canal || 0);

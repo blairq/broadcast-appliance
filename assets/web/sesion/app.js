@@ -570,7 +570,7 @@ function recibir(m) {
         cortadoAProposito = true;
         mostrar("entrar");
         $("botonEntrar").disabled = false;
-        error(m.error || t("No se pudo entrar."));
+        error(t(m.error) || t("No se pudo entrar."));
         return;
       }
       reintento = 1000;
@@ -607,7 +607,7 @@ function recibir(m) {
       break;
     case "medios":
       if (m.activo) iniciarSala(); else cerrarSala();
-      if (m.error) error(m.error);
+      if (m.error) error(t(m.error));
       break;
     case "atiende":
       if (m.on && estado !== "habilitado") iniciarAtencion(); else cerrarAtencion();
@@ -626,7 +626,7 @@ function recibir(m) {
     case "atiende-fallo":
       if (pcAtiende) { try { pcAtiende.close(); } catch (e) {} }
       pcAtiende = null;
-      $("atiendeTexto").textContent = (m.error || t("No se pudo abrir el micrófono hacia el asistente.")) +
+      $("atiendeTexto").textContent = (t(m.error) || t("No se pudo abrir el micrófono hacia el asistente.")) +
         " " + t("La presidencia te ve por la cámara igual.");
       break;
     case "medios-respuesta":
@@ -660,14 +660,14 @@ function recibir(m) {
       if (pcVista && m.candidate) pcVista.addIceCandidate(m.candidate).catch(() => {});
       break;
     case "vista-error":
-      $("sinCanal").textContent = m.error || t("No llega la imagen.");
+      $("sinCanal").textContent = t(m.error) || t("No llega la imagen.");
       break;
     case "votacion":
       ponerVotacion(m);
       break;
     case "voto":
       if (m.ok) { if (vot) vot.mi_voto = m.opcion; pintarVotacion(); if (navigator.vibrate) navigator.vibrate(120); }
-      else { $("votMio").textContent = m.error || t("No se pudo votar."); }
+      else { $("votMio").textContent = t(m.error) || t("No se pudo votar."); }
       break;
     case "resultado":
       mostrarResultado(m);
@@ -685,7 +685,7 @@ function recibir(m) {
     case "cortado":
       cortadoAProposito = true;
       pin = "";
-      $("cortadoTexto").textContent = m.motivo || t("Se cerró la sesión.");
+      $("cortadoTexto").textContent = t(m.motivo) || t("Se cerró la sesión.");
       mostrar("cortado");
       break;
   }
