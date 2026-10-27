@@ -80,9 +80,10 @@ bool resolveParticipant(const json& snapshot, const std::string& query, json& ou
     std::string names;
     for (const auto& p : people)
         names += (names.empty() ? "" : ", ") + p.value("name", "") + " (" + p.value("id", "") + ")";
-    err = prefix.size() > 1 ? "'" + query + "' coincide con varias personas: " + names + ". Usa el id."
-                            : "No hay nadie '" + query + "' en la conferencia." +
-                                  (names.empty() ? " La conferencia esta vacia." : " Estan: " + names + ".");
+    err = prefix.size() > 1 ? ba::i18n::llenar(ba::i18n::traducir("mcp", "'%1' coincide con varias personas: %2. Usa el id."), {query, names})
+                            : ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay nadie '%1' en la conferencia."), {query}) + " " +
+                                  (names.empty() ? ba::i18n::traducir("mcp", "La conferencia esta vacia.")
+                                                 : ba::i18n::llenar(ba::i18n::traducir("mcp", "Estan: %1."), {names}));
     return false;
 }
 
@@ -141,7 +142,7 @@ void McpService::registerRoomTools() {
     const auto contestar = [](const std::string& okText, Done done) -> sala::Listo {
         return [okText, done](const std::string& err, const json&) {
             done(err.empty() ? ToolResult::ok(okText)
-                             : ToolResult::error("La conferencia respondio: " + sala::explicarError(err)));
+                             : ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La conferencia respondio: %1"), {sala::explicarError(err)})));
         };
     };
     const auto withPerson = [&vm](const json& a, const char* field, json& p, Done& done) {
@@ -198,8 +199,8 @@ void McpService::registerRoomTools() {
             if (a.contains("cupo") && !a.contains("lobby") && !a.contains("locked")) {
                 const int n = a.value("cupo", 2);
                 const std::string e = vm.cupoSala().cambiar(n, [done, n](const std::string& err) {
-                    if (!err.empty()) done(ToolResult::error("La conferencia respondio: " + err));
-                    else done(ToolResult::ok("Cupo: " + std::to_string(n) + " invitados, sin reiniciar la conferencia."));
+                    if (!err.empty()) done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La conferencia respondio: %1"), {err})));
+                    else done(ToolResult::ok(ba::i18n::traducir("mcp", "Cupo: %n invitado, sin reiniciar la conferencia.", nullptr, n)));
                 });
                 if (!e.empty()) done(ToolResult::error(e));
                 return;
@@ -211,7 +212,7 @@ void McpService::registerRoomTools() {
             const auto si = [&a](const char* k) {
                 return a.contains(k) && a[k].is_boolean() ? std::optional<bool>(a[k].get<bool>()) : std::nullopt;
             };
-            const std::string e = control.entrada(si("lobby"), si("locked"), contestar("Conferencia actualizada.", done));
+            const std::string e = control.entrada(si("lobby"), si("locked"), contestar(ba::i18n::traducir("mcp", "Conferencia actualizada."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -228,7 +229,7 @@ void McpService::registerRoomTools() {
             {"properties", {{"pin", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "4 a 32 caracteres.")}}}}}};
         t.run = [&control](const json& a, Done done) {
             control.cambiarPin(a.value("pin", std::string()), [done](const std::string& err, const json& r) {
-                done(err.empty() ? ToolResult::ok("PIN nuevo: " + r.value("pin", std::string()))
+                done(err.empty() ? ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "PIN nuevo: %1"), {r.value("pin", std::string())}))
                                  : ToolResult::error(sala::explicarError(err)));
             });
         };
@@ -260,25 +261,28 @@ void McpService::registerRoomTools() {
                 std::string txt = antes;
                 const json g = b.value("global", json::object());
                 if (g.value("bloqueado", false))
-                    txt += "BLOQUEO GLOBAL activo: nadie puede entrar por " + std::to_string(g.value("quedanS", 0)) +
-                           " s más (" + std::to_string(g.value("fallos", 0)) + " fallos entre todos).\n";
+                    txt += ba::i18n::llenar(ba::i18n::traducir("mcp", "BLOQUEO GLOBAL activo: nadie puede entrar por %1 s más (%2 fallos entre todos)."),
+                                            {std::to_string(g.value("quedanS", 0)), std::to_string(g.value("fallos", 0))}) +
+                           "\n";
                 int n = 0;
                 for (const auto& ip : b.value("ips", json::array()))
                     if (ip.value("bloqueada", false)) {
-                        txt += "- " + ip.value("ip", std::string()) + ": bloqueada " +
-                               std::to_string(ip.value("quedanS", 0)) + " s más\n";
+                        txt += "- " + ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: bloqueada %2 s más"),
+                                                        {ip.value("ip", std::string()), std::to_string(ip.value("quedanS", 0))}) +
+                               "\n";
                         ++n;
                     }
-                if (!n && !g.value("bloqueado", false)) txt += "No hay nadie bloqueado.";
+                if (!n && !g.value("bloqueado", false)) txt += ba::i18n::traducir("mcp", "No hay nadie bloqueado.");
                 done(ToolResult::ok(txt).data(b));
             };
             if (a.value("accion", std::string("ver")) == "desbloquear") {
                 const std::string ip = a.contains("ip") && a["ip"].is_string() ? a["ip"].get<std::string>() : "";
                 control.desbloquearPin(ip, [done, mostrar, ip](const std::string& err, const json& j) {
-                    if (!err.empty()) return done(ToolResult::error("La conferencia respondio: " + sala::explicarError(err)));
-                    mostrar(j, !ip.empty() ? "Desbloqueada " + ip + ".\n"
-                                           : "Desbloqueadas " + std::to_string(j.value("desbloqueadas", 0)) +
-                                                 " IP y el bloqueo global.\n");
+                    if (!err.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La conferencia respondio: %1"), {sala::explicarError(err)})));
+                    mostrar(j, (!ip.empty() ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Desbloqueada %1."), {ip})
+                                            : ba::i18n::llenar(ba::i18n::traducir("mcp", "Desbloqueadas %1 IP y el bloqueo global."),
+                                                               {std::to_string(j.value("desbloqueadas", 0))})) +
+                                   "\n");
                 });
                 return;
             }
@@ -307,7 +311,7 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            oradores.aLaFila(p["id"], contestar("Vuelve a la fila.", done));
+            oradores.aLaFila(p["id"], contestar(ba::i18n::traducir("mcp", "Vuelve a la fila."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -330,7 +334,7 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            gente.admitir(p["id"], contestar("Adentro.", done));
+            gente.admitir(p["id"], contestar(ba::i18n::traducir("mcp", "Adentro."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -348,7 +352,7 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            gente.rechazar(p["id"], contestar("Afuera.", done));
+            gente.rechazar(p["id"], contestar(ba::i18n::traducir("mcp", "Afuera."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -367,7 +371,7 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            gente.sacar(p["id"], contestar("Listo.", done));
+            gente.sacar(p["id"], contestar(ba::i18n::traducir("mcp", "Listo."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -382,9 +386,10 @@ void McpService::registerRoomTools() {
             // orden de llegada, y corta al primer «sala llena».
             gente.admitirATodos([done](int pedidos, int admitidos, const std::string& err) {
                 if (pedidos == 0) return done(ToolResult::ok(ba::i18n::traducir("mcp", "No hay nadie esperando en el lobby.")));
-                const std::string cuenta = std::to_string(admitidos) + " de " + std::to_string(pedidos);
-                if (err.empty()) return done(ToolResult::ok("Pasaron " + cuenta + "."));
-                const std::string txt = "Pasaron " + cuenta + ". La conferencia respondio: " + sala::explicarError(err);
+                const std::string a = std::to_string(admitidos), de = std::to_string(pedidos);
+                if (err.empty()) return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Pasaron %1 de %2."), {a, de})));
+                const std::string txt = ba::i18n::llenar(ba::i18n::traducir("mcp", "Pasaron %1 de %2. La conferencia respondio: %3"),
+                                                         {a, de, sala::explicarError(err)});
                 done(admitidos > 0 ? ToolResult::ok(txt) : ToolResult::error(txt));
             });
         };
@@ -406,7 +411,7 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            gente.hablar(p["id"], a.value("on", true), contestar("Listo.", done));
+            gente.hablar(p["id"], a.value("on", true), contestar(ba::i18n::traducir("mcp", "Listo."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -522,19 +527,26 @@ void McpService::registerRoomTools() {
                 else if (tipo == "cloudflare") e = borrar ? acc->borrarTokenCloudflare() : acc->guardarTokenCloudflare(clave);
                 else return done(ToolResult::error(ba::i18n::traducir("mcp", "tipo: \"token\", \"api_key\" o \"cloudflare\"")));
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult::ok(std::string(tipo == "token" ? "Token de túnel de pinggy " : tipo == "cloudflare" ? "Token de Cloudflare " : "API key ") +
-                                    (borrar ? "borrado/a." : "guardado/a, cifrado/a en Credenciales/.") +
-                                    (reiniciarAhora ? " La conferencia lo lee al arrancar y está andando con el túnel "
-                                                      "prendido: reiniciala (gateway_restart) para que rija."
-                                     : tipo != "api_key" && !borrar ? " Rige al reiniciar la conferencia (gateway_restart o "
-                                                                      "aplicar Configuración)."
-                                                                    : "") +
+                // Una frase entera por caso (no «Token de…» + «borrado/a»).
+                const std::string hecho =
+                    tipo == "token"        ? (borrar ? ba::i18n::traducir("mcp", "Token de túnel de pinggy borrado/a.")
+                                                     : ba::i18n::traducir("mcp", "Token de túnel de pinggy guardado/a, cifrado/a en Credenciales/."))
+                    : tipo == "cloudflare" ? (borrar ? ba::i18n::traducir("mcp", "Token de Cloudflare borrado/a.")
+                                                     : ba::i18n::traducir("mcp", "Token de Cloudflare guardado/a, cifrado/a en Credenciales/."))
+                                           : (borrar ? ba::i18n::traducir("mcp", "API key borrado/a.")
+                                                     : ba::i18n::traducir("mcp", "API key guardado/a, cifrado/a en Credenciales/."));
+                done(ToolResult::ok(hecho +
+                                    (reiniciarAhora ? " " + ba::i18n::traducir("mcp", "La conferencia lo lee al arrancar y está andando con el túnel "
+                                                      "prendido: reiniciala (gateway_restart) para que rija.")
+                                     : tipo != "api_key" && !borrar ? " " + ba::i18n::traducir("mcp", "Rige al reiniciar la conferencia (gateway_restart o "
+                                                                      "aplicar Configuración).")
+                                                                    : std::string()) +
                                     (acc->clavesIguales()
-                                         ? " OJO: el token de túnel y la API key son la MISMA clave. Son dos cosas distintas del "
+                                         ? " " + ba::i18n::traducir("mcp", "OJO: el token de túnel y la API key son la MISMA clave. Son dos cosas distintas del "
                                            "panel de pinggy: el token (el del comando del túnel, …@pro.pinggy.io) abre el túnel; la "
                                            "API key (API keys) solo sirve para consultar la cuenta. Con la API key como token el "
-                                           "túnel no abre."
-                                         : "")));
+                                           "túnel no abre.")
+                                         : std::string())));
             };
             core_.addTool(std::move(t));
         }
@@ -579,7 +591,7 @@ void McpService::registerRoomTools() {
                     if (!a.contains(arg)) continue;
                     if (!settings->value(clave).isValid()) {
                         settings->revert();
-                        return done(ToolResult::error(std::string("esta versión no tiene ") + clave));
+                        return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "esta versión no tiene %1"), {clave})));
                     }
                     settings->setValue(clave, jsonToQv(a[arg]));
                     ++n;
@@ -712,9 +724,10 @@ void McpService::registerRoomTools() {
                 const QString via = QString::fromStdString(a["via"].get<std::string>());
                 const QString e = via == "desconectar" ? acc->desconectar() : acc->conectar(via);
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult::ok(via == "desconectar" ? "La conferencia vuelve a ser solo de la red local (se reinicia)."
-                                                         : "Conectando por " + via.toStdString() +
-                                                               " (la conferencia se reinicia). Mirá acceso_remoto_estado en unos segundos."));
+                done(ToolResult::ok(via == "desconectar" ? ba::i18n::traducir("mcp", "La conferencia vuelve a ser solo de la red local (se reinicia).")
+                                                         : ba::i18n::llenar(ba::i18n::traducir("mcp", "Conectando por %1 (la conferencia se reinicia). "
+                                                                                             "Mirá acceso_remoto_estado en unos segundos."),
+                                                                           {via.toStdString()})));
             };
             core_.addTool(std::move(t));
         }
@@ -761,7 +774,7 @@ void McpService::registerRoomTools() {
                         "Tarda; el resultado se ve en proxy_estado (acme.ultimo_error).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"host", {{"type", "string"}}}}}};
         t.run = [&control, contestar](const json& a, Done done) {
-            control.renovarProxy(a.value("host", std::string()), contestar("Pedido: mirá proxy_estado en un rato.", done));
+            control.renovarProxy(a.value("host", std::string()), contestar(ba::i18n::traducir("mcp", "Pedido: mirá proxy_estado en un rato."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -838,7 +851,7 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const std::string e =
-                gente.pedirle(p["id"], a.value("what", std::string()), contestar("Pedido enviado.", done));
+                gente.pedirle(p["id"], a.value("what", std::string()), contestar(ba::i18n::traducir("mcp", "Pedido enviado."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -862,7 +875,7 @@ void McpService::registerRoomTools() {
             if (!withPerson(a, "participant", p, done)) return;
             const std::string m = a.value("maximo", std::string("720p"));
             const std::string e = gente.pedirle(p["id"], m == "1080p" ? "calidad-max" : "calidad-" + m,
-                                                contestar("Pedido enviado: el navegador del invitado ajusta su camara.", done));
+                                                contestar(ba::i18n::traducir("mcp", "Pedido enviado: el navegador del invitado ajusta su camara."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -888,7 +901,7 @@ void McpService::registerRoomTools() {
                 return a.contains(k) && a[k].is_string() ? std::optional<std::string>(a[k].get<std::string>())
                                                          : std::nullopt;
             };
-            gente.perfil(p["id"], campo("name"), campo("info"), campo("contact"), contestar("Datos actualizados.", done));
+            gente.perfil(p["id"], campo("name"), campo("info"), campo("contact"), contestar(ba::i18n::traducir("mcp", "Datos actualizados."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -919,7 +932,7 @@ void McpService::registerRoomTools() {
                 if (!resolveParticipant(roomSnapshot(vm), to, p, err)) return done(ToolResult::error(err));
                 to = p["id"];
             }
-            const std::string e = control.chatear(to, a.value("text", std::string()), contestar("Enviado.", done));
+            const std::string e = control.chatear(to, a.value("text", std::string()), contestar(ba::i18n::traducir("mcp", "Enviado."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -1051,7 +1064,7 @@ void McpService::registerRoomTools() {
         t.run = [&control](const json& a, Done done) {
             control.verArchivo(a["id"].get<std::string>(), [a, done](const std::string& err, const json& share,
                                                                       const QByteArray& bytes) {
-                if (!err.empty()) return done(ToolResult::error(err + " share_list dice cuáles hay."));
+                if (!err.empty()) return done(ToolResult::error(err + " " + ba::i18n::traducir("mcp", "share_list dice cuáles hay.")));
                 if (bytes.isEmpty()) return done(ToolResult().data(share)); // video o audio: sus datos
                 QImage img;
                 if (!img.loadFromData(bytes)) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo leer la imagen.")));
@@ -1077,7 +1090,7 @@ void McpService::registerRoomTools() {
             // La misma operación que el botón «Tomar» de la página Sala.
             const sala::ControlSala::Tomado r = control.tomarArchivo(a["id"].get<std::string>());
             if (!r.error.empty()) return done(ToolResult::error(r.error));
-            done(ToolResult::ok("«" + r.nombre + "» agregado a la escena «" + r.escena + "» como «" + r.fuente + "»."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» agregado a la escena «%2» como «%3»."), {r.nombre, r.escena, r.fuente})));
         };
         core_.addTool(std::move(t));
     }
@@ -1117,12 +1130,14 @@ void McpService::registerRoomTools() {
         t.run = [&enlaces](const json& a, Done done) {
             const bool remoto = a.value("target", std::string("local")) == "remote";
             const auto alVolver = [done, remoto](const sala::Enlace& e) {
-                if (!e.ok) return done(ToolResult::error(e.mensaje.empty() ? std::string("sin enlace") : e.mensaje));
+                if (!e.ok) return done(ToolResult::error(e.mensaje.empty() ? ba::i18n::traducir("mcp", "sin enlace") : e.mensaje));
                 ToolResult res;
                 const std::string url = e.url;
-                res.text(url + "\n\n(El operador NO ve esta imagen. Para mostrarle el QR y que lo pueda copiar: "
-                               "qr_mostrar {\"texto\": \"" + url + "\", \"descripcion\": \"…\"}." +
-                         (!remoto ? std::string(" Es la dirección de la red local: para alguien de afuera, "
+                res.text(url + "\n\n(" +
+                         ba::i18n::llenar(ba::i18n::traducir("mcp", "El operador NO ve esta imagen. Para mostrarle el QR y que lo pueda copiar: "
+                                                               "qr_mostrar {\"texto\": \"%1\", \"descripcion\": \"…\"}."),
+                                          {url}) +
+                         (!remoto ? " " + ba::i18n::traducir("mcp", "Es la dirección de la red local: para alguien de afuera, "
                                                 "room_link {\"target\": \"remote\"}.")
                                   : std::string()) + ")");
                 res.structured = json{{"url", url}, {"remoto", remoto}};
@@ -1178,8 +1193,8 @@ void McpService::registerRoomTools() {
             conf->setOperatorFeed(
                 QString::fromStdString(a.value("video", conf->operatorVideo().toStdString())),
                 QString::fromStdString(a.value("audio", conf->operatorAudio().toStdString())));
-            done(ToolResult::ok("Listo: el lobby te ve con '" + conf->operatorVideo().toStdString() +
-                                "' y te oye con '" + conf->operatorAudio().toStdString() + "'."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: el lobby te ve con '%1' y te oye con '%2'."),
+                                                {conf->operatorVideo().toStdString(), conf->operatorAudio().toStdString()})));
         };
         core_.addTool(std::move(t));
     }
@@ -1272,7 +1287,7 @@ void McpService::registerRoomTools() {
                 if (s <= 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "defaultTime invalido (segundos o 'm:ss').")));
                 b["defaultSec"] = s;
             }
-            const std::string e = oradores.configurar(b, contestar("Modo oradores actualizado.", done));
+            const std::string e = oradores.configurar(b, contestar(ba::i18n::traducir("mcp", "Modo oradores actualizado."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -1293,7 +1308,7 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const bool on = a.value("on", true);
-            oradores.alAire(p["id"], on, contestar(p.value("name", "") + (on ? " al aire." : " fuera del aire."), done));
+            oradores.alAire(p["id"], on, contestar(ba::i18n::llenar(on ? ba::i18n::traducir("mcp", "%1 al aire.") : ba::i18n::traducir("mcp", "%1 fuera del aire."), {p.value("name", "")}), done));
         };
         core_.addTool(std::move(t));
     }
@@ -1305,7 +1320,7 @@ void McpService::registerRoomTools() {
         t.description = ba::i18n::traducir("mcp", "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo "
                         "'uno a la vez', el que estaba sale).");
         t.run = [&oradores, contestar](const json&, Done done) {
-            oradores.siguiente(contestar("Siguiente al aire.", done));
+            oradores.siguiente(contestar(ba::i18n::traducir("mcp", "Siguiente al aire."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -1322,7 +1337,7 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            oradores.mover(p["id"], a.value("position", 1) - 1, contestar("Fila reordenada.", done));
+            oradores.mover(p["id"], a.value("position", 1) - 1, contestar(ba::i18n::traducir("mcp", "Fila reordenada."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -1342,7 +1357,7 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            oradores.aLaFila(p["id"], contestar("A la fila de oradores.", done));
+            oradores.aLaFila(p["id"], contestar(ba::i18n::traducir("mcp", "A la fila de oradores."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -1364,7 +1379,7 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const bool on = a.value("on", true);
-            oradores.presentador(p["id"], on, contestar(on ? "Presentador fijo." : "Ya no es presentador.", done));
+            oradores.presentador(p["id"], on, contestar(on ? ba::i18n::traducir("mcp", "Presentador fijo.") : ba::i18n::traducir("mcp", "Ya no es presentador."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -1399,8 +1414,8 @@ void McpService::registerRoomTools() {
             } else {
                 s = parseSeconds(a["time"]);
             }
-            const std::string e = oradores.tiempo(p["id"], s, contestar("Tiempo: " + std::to_string(s) + " s.", done));
-            if (!e.empty()) done(ToolResult::error(e + " (segundos o 'm:ss')."));
+            const std::string e = oradores.tiempo(p["id"], s, contestar(ba::i18n::llenar(ba::i18n::traducir("mcp", "Tiempo: %1 s."), {std::to_string(s)}), done));
+            if (!e.empty()) done(ToolResult::error(e + " " + ba::i18n::traducir("mcp", "(segundos o 'm:ss').")));
         };
         core_.addTool(std::move(t));
     }
