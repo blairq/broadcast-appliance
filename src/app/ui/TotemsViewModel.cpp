@@ -1945,7 +1945,7 @@ bool TotemsViewModel::fuenteAgente(agent::FuenteMirada& f, std::string& prompt, 
     f.url = "http://127.0.0.1:" + std::to_string(puertoLocal_) + "/v1";
     f.clave.clear();
     f.modelo = "local"; // el alias del llama-server del programa
-    f.nombre = "modelo local";
+    f.nombre = tr("modelo local").toStdString();
     return true;
 }
 

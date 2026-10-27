@@ -222,7 +222,7 @@ sala::Atendedor AtencionViewModel::atendedor() const {
 QString AtencionViewModel::quienAtiendeTexto() const {
     const sala::Atendedor a = atendedor();
     if (a == sala::Atendedor::Nadie) return QString::fromStdString(sala::porQueNadie(a));
-    return "Atiende " + QString::fromStdString(sala::nombreDe(a)) + ".";
+    return tr("Atiende %1.").arg(QString::fromStdString(sala::nombreDe(a)));
 }
 
 QString AtencionViewModel::hablarFalta() const {
@@ -230,8 +230,8 @@ QString AtencionViewModel::hablarFalta() const {
     // El reconocedor que eligió la recepción (pestaña Agentes): con que esté bajado
     // alcanza, se carga al abrir el oído.
     if (!voz_.puedeOir("recepcion"))
-        return "Falta el reconocedor de voz (voz a texto) que usa la recepción: bajalo en Configuración → "
-               "Modelos locales (o elegí otro en Agentes).";
+        return tr("Falta el reconocedor de voz (voz a texto) que usa la recepción: bajalo en Configuración → "
+                  "Modelos locales (o elegí otro en Agentes).");
     if (!vozLista_)
         return tr("Falta la voz del atendedor: elegila en Configuración → Voz del sistema → Voz del atendedor.");
     return {};
@@ -299,8 +299,9 @@ void AtencionViewModel::sinVoz(const QString& id, const QString& error) {
     const auto* t = turnos_.turno(id.toStdString());
     const QString nombre = t != nullptr ? QString::fromStdString(t->nombre) : id;
     const bool enAsamblea = t != nullptr && t->ambito == sala::Ambito::Asamblea;
-    emit notify("No se pudo atender hablando a «" + nombre + "»" + (error.isEmpty() ? QString() : ": " + error) +
-                    (enAsamblea ? ". Se lo sigue atendiendo mirándole la cara." : ". Sigue por chat."),
+    const QString porQue = error.isEmpty() ? tr("No se pudo atender hablando a «%1».").arg(nombre)
+                                           : tr("No se pudo atender hablando a «%1»: %2.").arg(nombre, error);
+    emit notify(porQue + " " + (enAsamblea ? tr("Se lo sigue atendiendo mirándole la cara.") : tr("Sigue por chat.")),
                 "warn");
     turnos_.sinVoz(id.toStdString());
     cerrarVoz();
@@ -446,7 +447,7 @@ bool AtencionViewModel::atiendeHablandoEnAsamblea(const QString& id) const {
 
 QString AtencionViewModel::decirAlIntegrante(const QString& id, const QString& texto) {
     if (!atiendeHablandoEnAsamblea(id))
-        return "A «" + id + "» no se lo está atendiendo hablando en la sesión remota (atencion_estado dice a quién).";
+        return tr("A «%1» no se lo está atendiendo hablando en la sesión remota (atencion_estado dice a quién).").arg(id);
     const QString t = texto.trimmed();
     if (t.isEmpty()) return tr("Falta qué decirle.");
     decir(t);
@@ -542,9 +543,9 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
                                     return;
                                 }
                                 if (yo->vm_.cuerpo().guardar({{"id", id}, {"persona_id", ficha}}).isEmpty())
-                                    emit yo->notify("Anoté a «" + nombre +
-                                                        "» en Personas con la cara de su cámara y lo vinculé a su "
-                                                        "banca: la próxima vez se lo reconoce.",
+                                    emit yo->notify(tr("Anoté a «%1» en Personas con la cara de su cámara y lo vinculé a "
+                                                       "su banca: la próxima vez se lo reconoce.")
+                                                        .arg(nombre),
                                                     "info");
                             });
         return encargarAsamblea(id, "No tiene ficha de rostro: no hay con qué compararlo.");
@@ -562,9 +563,9 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
             if (asamblea::SesionRemota* s = yo->vm_.sesionRemota();
                 s != nullptr && s->habilitar(id.toStdString(), true, "reconocimiento").empty()) {
                 ev->acreditarPorPersona(personaId, "rostro");
-                emit yo->notify("«" + nombre +
-                                    "» quedó habilitado solo: la cámara lo reconoció y el padrón del evento lo deja "
-                                    "entrar solo.",
+                emit yo->notify(tr("«%1» quedó habilitado solo: la cámara lo reconoció y el padrón del evento lo deja "
+                                   "entrar solo.")
+                                    .arg(nombre),
                                 "info");
                 return;
             }
@@ -599,7 +600,7 @@ void AtencionViewModel::encargarAsamblea(const QString& id, const QString& queSe
         case sala::Atendedor::Recepcion: {
             std::string err;
             vm_.despachador().encargar("recepcion", texto.toStdString(), "sesion:" + id.toStdString(), 0, &err);
-            if (!err.empty()) emit notify("La recepción no tomó a «" + nombre + "»: " + QString::fromStdString(err), "warn");
+            if (!err.empty()) emit notify(tr("La recepción no tomó a «%1»: %2").arg(nombre, QString::fromStdString(err)), "warn");
             return;
         }
         case sala::Atendedor::Automatizacion:
@@ -607,8 +608,8 @@ void AtencionViewModel::encargarAsamblea(const QString& id, const QString& queSe
             return;
         case sala::Atendedor::Nadie: break;
     }
-    emit notify("«" + nombre + "» espera que lo habiliten en la sesión remota, y no hay quién lo atienda: " +
-                    QString::fromStdString(sala::porQueNadie(sala::Atendedor::Nadie)),
+    emit notify(tr("«%1» espera que lo habiliten en la sesión remota, y no hay quién lo atienda: %2")
+                    .arg(nombre, QString::fromStdString(sala::porQueNadie(sala::Atendedor::Nadie))),
                 "warn");
 }
 
@@ -711,12 +712,12 @@ void AtencionViewModel::probarVoz(const QString& texto) { probar(texto, {}); }
 
 void AtencionViewModel::probar(const QString& texto, std::function<void(const QVariantMap&)> fin) {
     const QString t = texto.trimmed().isEmpty()
-                          ? QString("Hola, ¿qué tal? Soy la que atiende la conferencia. ¿Me decís tu nombre y apellido, "
-                                    "tal como querés que se lea en pantalla?")
+                          ? tr("Hola, ¿qué tal? Soy la que atiende la conferencia. ¿Me decís tu nombre y apellido, "
+                               "tal como querés que se lea en pantalla?")
                           : texto.trimmed();
 #if defined(BA_HAVE_VOZ)
     if (!vozLista_) {
-        prueba_ = {{"probando", false}, {"texto", t}, {"error", hablarFalta().isEmpty() ? "No hay voz cargada." : hablarFalta()}};
+        prueba_ = {{"probando", false}, {"texto", t}, {"error", hablarFalta().isEmpty() ? tr("No hay voz cargada.") : hablarFalta()}};
         emit pruebaCambio();
         if (fin) fin(prueba_);
         return;
@@ -768,13 +769,13 @@ void AtencionViewModel::probar(const QString& texto, std::function<void(const QV
                                {"segundos", f > 0 ? static_cast<double>(a.size()) / f : 0.0},
                                {"forma", forma},
                                {"archivo", guardado ? ruta : QString()},
-                               {"error", a.empty() ? QString("La voz no generó audio.") : QString()}};
+                               {"error", a.empty() ? tr("La voz no generó audio.") : QString()}};
                 emit yo->pruebaCambio();
                 if (fin) fin(yo->prueba_);
             });
         });
 #else
-    prueba_ = {{"probando", false}, {"texto", t}, {"error", "Esta compilación no trae el motor de voz."}};
+    prueba_ = {{"probando", false}, {"texto", t}, {"error", tr("Esta compilación no trae el motor de voz.")}};
     emit pruebaCambio();
     if (fin) fin(prueba_);
 #endif
@@ -842,7 +843,7 @@ QString AtencionViewModel::configurar(const nlohmann::json& c) {
         if (const auto r = v->find("repo"); r != v->end() && r->is_string()) {
             const QString repo = QString::fromStdString(r->get<std::string>());
             if (modelos_.carpetaInstalada(repo).empty())
-                return "La voz «" + repo + "» no está bajada (modelos_locales / Configuración → Modelos locales).";
+                return tr("La voz «%1» no está bajada (modelos_locales / Configuración → Modelos locales).").arg(repo);
             elegirVoz(repo);
         }
         if (const auto h = v->find("hablante"); h != v->end() && h->is_number_integer()) setHablante(h->get<int>());

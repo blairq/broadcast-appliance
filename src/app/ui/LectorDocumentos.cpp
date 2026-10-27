@@ -185,7 +185,7 @@ void LectorDocumentos::leerDorso(const QImage& img, std::vector<std::string> ace
             agent::FuenteMirada f;
             f.url = "http://127.0.0.1:" + std::to_string(puerto) + "/v1";
             f.modelo = "local"; // el alias del llama-server
-            f.nombre = "modelo local";
+            f.nombre = tr("modelo local").toStdString();
             agent::mirarAparte(f, img, agent::pedidoDelDorso(), yo.data(),
                                [yo, soltar, img, aceptados = std::move(aceptados), confirmador = std::move(confirmador),
                                 luego = std::move(luego)](std::string texto, std::string err) mutable {
