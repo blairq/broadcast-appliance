@@ -103,15 +103,15 @@ Item {
             Text {
                 id: badgeText
                 anchors.centerIn: parent
-                text: field.badge === "gateway" ? "reinicia el servidor al aplicar" : "al volver a abrir el programa"
+                text: field.badge === "gateway" ? qsTr("reinicia el servidor al aplicar") : qsTr("al volver a abrir el programa")
                 color: Theme.textFaint
                 font.pixelSize: 10
             }
             MouseArea { id: badgeMa; anchors.fill: parent; hoverEnabled: true }
             ToolTip.visible: badgeMa.containsMouse; ToolTip.delay: 300
             ToolTip.text: field.badge === "gateway"
-                ? "Al aplicar se reinicia solo el servidor (gateway: la conferencia, la sesión remota, la botonera web, las pantallas…), sin cerrar el programa: lo que está conectado se corta y vuelve a entrar. También se puede reiniciar a mano con «Reiniciar el servidor» (acá) o «Reiniciar la conferencia» (en la página Conferencia)."
-                : "Rige la próxima vez que se abra el programa."
+                ? qsTr("Al aplicar se reinicia solo el servidor (gateway: la conferencia, la sesión remota, la botonera web, las pantallas…), sin cerrar el programa: lo que está conectado se corta y vuelve a entrar. También se puede reiniciar a mano con «Reiniciar el servidor» (acá) o «Reiniciar la conferencia» (en la página Conferencia).")
+                : qsTr("Rige la próxima vez que se abra el programa.")
         }
     }
 
@@ -210,7 +210,7 @@ Item {
                 valueRole: "value"
                 model: field.options
                 enabled: field.enabled
-                displayText: "Elegir…"
+                displayText: qsTr("Elegir…")
                 onActivated: { escrito.text = String(currentValue); field.edited(currentValue) }
             }
             Item { Layout.fillWidth: true }
@@ -222,7 +222,7 @@ Item {
             text: field.value !== undefined ? String(field.value) : ""
             echoMode: field.kind === "password" || field.kind === "secret" ? TextInput.Password : TextInput.Normal
             enabled: field.enabled
-            placeholderText: field.kind === "path" ? "/ruta/al/archivo" : ""
+            placeholderText: field.kind === "path" ? qsTr("/ruta/al/archivo") : ""
             onEditingFinished: if (text !== String(field.value)) field.edited(text)
         }
     }

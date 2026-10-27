@@ -21,7 +21,7 @@ Dialog {
     width: Math.min(parent ? parent.width - 60 : 900, 900)
     height: Math.min(parent ? parent.height - 60 : 720, 720)
     modal: true
-    title: "Plantillas de evento"
+    title: qsTr("Plantillas de evento")
     onAboutToShow: refrescar()
     Connections { target: dlg.cf; function onCambio() { dlg.refrescar() } }
 
@@ -30,9 +30,9 @@ Dialog {
         spacing: 8
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-            text: "Cada plantilla es un evento entero de un tipo (escenas, gráficos, guion con los textos para completar, " +
-                  "discursos, padrón de ejemplo). Las visibles aparecen en «Evento nuevo» y en «Prepararlo con el asistente», " +
-                  "en este orden. Las del programa no se tocan: editarla hace una copia tuya que le gana (y se puede restablecer)."
+            text: qsTr("Cada plantilla es un evento entero de un tipo (escenas, gráficos, guion con los textos para completar, "
+                       + "discursos, padrón de ejemplo). Las visibles aparecen en «Evento nuevo» y en «Prepararlo con el asistente», "
+                       + "en este orden. Las del programa no se tocan: editarla hace una copia tuya que le gana (y se puede restablecer).")
         }
         ListView {
             id: lv
@@ -73,9 +73,9 @@ Dialog {
                                 onEditingFinished: if (text !== modelData.nombre) dlg.ok(dlg.cf.plantillaAjustarUi(modelData.id, { nombre: text }))
                             }
                             Repeater {
-                                model: [modelData.programa && !modelData.editada ? "del programa" : "",
-                                        modelData.editada ? "editada" : "", modelData.propia && !modelData.programa ? "propia" : "",
-                                        modelData.activa ? "abierta" : ""].filter(x => x !== "")
+                                model: [modelData.programa && !modelData.editada ? qsTr("del programa") : "",
+                                        modelData.editada ? qsTr("editada") : "", modelData.propia && !modelData.programa ? qsTr("propia") : "",
+                                        modelData.activa ? qsTr("abierta") : ""].filter(x => x !== "")
                                 delegate: Rectangle {
                                     required property string modelData
                                     implicitWidth: et.implicitWidth + 10; implicitHeight: 18; radius: 4
@@ -89,38 +89,38 @@ Dialog {
                             text: modelData.descripcion
                             color: Theme.textDim
                             font.pixelSize: 11
-                            placeholderText: "Para qué sirve"
+                            placeholderText: qsTr("Para qué sirve")
                             onEditingFinished: if (text !== modelData.descripcion) dlg.ok(dlg.cf.plantillaAjustarUi(modelData.id, { descripcion: text }))
                         }
                     }
                     ColumnLayout {
                         spacing: 2
-                        Text { text: "Visible"; color: Theme.textFaint; font.pixelSize: 10; Layout.alignment: Qt.AlignHCenter }
+                        Text { text: qsTr("Visible"); color: Theme.textFaint; font.pixelSize: 10; Layout.alignment: Qt.AlignHCenter }
                         Toggle { checked: modelData.visible; onToggled: (w) => dlg.ok(dlg.cf.plantillaAjustarUi(modelData.id, { visible: w })) }
                     }
                     ColumnLayout {
                         spacing: 3
                         GlassButton {
-                            compact: true; text: "Editar"
+                            compact: true; text: qsTr("Editar")
                             enabled: !modelData.activa && !(Studio.streaming || Studio.recording)
                             onClicked: {
                                 const id = modelData.id, n = modelData.nombre
                                 ApplicationWindow.window.confirm({
-                                    title: "¿Editar «" + n + "»?",
-                                    text: "La app se reinicia con la plantilla abierta (sus escenas, gráficos y guion). Lo que cambies queda en la plantilla. Para volver, «Abrir otro…».",
-                                    accept: "Editarla", reject: "Cancelar",
+                                    title: qsTr("¿Editar «%1»?").arg(n),
+                                    text: qsTr("La app se reinicia con la plantilla abierta (sus escenas, gráficos y guion). Lo que cambies queda en la plantilla. Para volver, «Abrir otro…»."),
+                                    accept: qsTr("Editarla"), reject: qsTr("Cancelar"),
                                     action: function() { dlg.ok(dlg.cf.plantillaEditarUi(id)) } })
                             }
                         }
                         GlassButton {
-                            compact: true; text: modelData.editada ? "Restablecer" : "Borrar"
+                            compact: true; text: modelData.editada ? qsTr("Restablecer") : qsTr("Borrar")
                             visible: modelData.editada || (modelData.propia && !modelData.programa)
                             onClicked: {
                                 const id = modelData.id, n = modelData.nombre, rest = modelData.editada
                                 ApplicationWindow.window.confirm({
-                                    title: rest ? "¿Restablecer «" + n + "»?" : "¿Borrar «" + n + "»?",
-                                    text: rest ? "Se saca tu copia (va a la papelera) y vuelve la del programa." : "Va a la papelera de eventos.",
-                                    accept: rest ? "Restablecer" : "Borrar", reject: "Cancelar",
+                                    title: rest ? qsTr("¿Restablecer «%1»?").arg(n) : qsTr("¿Borrar «%1»?").arg(n),
+                                    text: rest ? qsTr("Se saca tu copia (va a la papelera) y vuelve la del programa.") : qsTr("Va a la papelera de eventos."),
+                                    accept: rest ? qsTr("Restablecer") : qsTr("Borrar"), reject: qsTr("Cancelar"),
                                     action: function() { dlg.ok(rest ? dlg.cf.plantillaRestablecerUi(id) : dlg.cf.plantillaBorrarUi(id)) } })
                             }
                         }
@@ -132,18 +132,18 @@ Dialog {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            Text { text: "Guardar el evento abierto como plantilla:"; color: Theme.textDim; font.pixelSize: 12 }
-            TextField { id: nuevaN; Layout.fillWidth: true; placeholderText: "Nombre de la plantilla"; color: Theme.text }
+            Text { text: qsTr("Guardar el evento abierto como plantilla:"); color: Theme.textDim; font.pixelSize: 12 }
+            TextField { id: nuevaN; Layout.fillWidth: true; placeholderText: qsTr("Nombre de la plantilla"); color: Theme.text }
             ComboBox {
                 id: nuevaEsc
                 Layout.preferredWidth: 220
-                model: [{ titulo: "Sin tipo", id: "" }].concat(Studio.evento ? Studio.evento.escenarios() : [])
+                model: [{ titulo: qsTr("Sin tipo"), id: "" }].concat(Studio.evento ? Studio.evento.escenarios() : [])
                 textRole: "titulo"
                 valueRole: "id"
-                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "El tipo de evento (su guía, para el asistente)"
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("El tipo de evento (su guía, para el asistente)")
             }
             GlassButton {
-                compact: true; active: true; text: "Guardar"
+                compact: true; active: true; text: qsTr("Guardar")
                 enabled: nuevaN.text.trim() !== ""
                 onClicked: { dlg.ok(dlg.cf.plantillaDesdeActualUi(nuevaN.text, nuevaEsc.currentValue)); nuevaN.text = "" }
             }
@@ -152,7 +152,7 @@ Dialog {
 
     footer: RowLayout {
         Item { Layout.fillWidth: true }
-        GlassButton { text: "Cerrar"; onClicked: dlg.close() }
+        GlassButton { text: qsTr("Cerrar"); onClicked: dlg.close() }
         Item { Layout.preferredWidth: 12; Layout.preferredHeight: 50 }
     }
 }

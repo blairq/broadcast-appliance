@@ -65,7 +65,7 @@ Rectangle {
         width: parent.width - 24
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.WordWrap
-        text: im.esVideo ? "Sin señal" : "Sin foto todavía"
+        text: im.esVideo ? qsTr("Sin señal") : qsTr("Sin foto todavía")
         color: Theme.textFaint; font.pixelSize: 13
     }
     // Lo que va encima (recuadros, caras): en coordenadas del rectángulo.

@@ -26,9 +26,9 @@ GridLayout {
         }
         if (activar && Studio.alAire)
             ApplicationWindow.window.confirm({
-                title: cual === "ftb" ? "¿Mandar la salida a negro?" : "¿Tapar la salida con la placa «" + textoPlaca.editText + "»?",
-                text: "Se ve en la transmisión y en la grabación.",
-                accept: cual === "ftb" ? "A negro" : "Poner la placa", reject: "Cancelar",
+                title: cual === "ftb" ? qsTr("¿Mandar la salida a negro?") : qsTr("¿Tapar la salida con la placa «%1»?").arg(textoPlaca.editText),
+                text: qsTr("Se ve en la transmisión y en la grabación."),
+                accept: cual === "ftb" ? qsTr("A negro") : qsTr("Poner la placa"), reject: qsTr("Cancelar"),
                 action: hacer
             })
         else
@@ -37,7 +37,7 @@ GridLayout {
 
     GlassButton {
         id: botonFtb
-        text: seg.estado.ftb ? "SACAR NEGRO" : "FTB"
+        text: seg.estado.ftb ? qsTr("SACAR NEGRO") : "FTB"
         active: !!seg.estado.ftb
         activeColor: "#000000"
         // Angosta, los botones no se estiran: el lugar es para el texto de la placa.
@@ -45,16 +45,16 @@ GridLayout {
         Layout.preferredWidth: seg.angosta ? 96 : 110
         onClicked: seg.poner("ftb", !seg.estado.ftb)
         ToolTip.visible: hovered; ToolTip.delay: 400
-        ToolTip.text: "Fundido a negro de todo lo que sale"
+        ToolTip.text: qsTr("Fundido a negro de todo lo que sale")
         SequentialAnimation on opacity {
             running: !!seg.estado.ftb && seg.visible; loops: Animation.Infinite
             NumberAnimation { to: 0.5; duration: 500 }
             NumberAnimation { to: 1.0; duration: 500 }
         }
     }
-    CheckBox { id: audioFtb; checked: true; text: "con audio"; font.pixelSize: 11 }
+    CheckBox { id: audioFtb; checked: true; text: qsTr("con audio"); font.pixelSize: 11 }
     GlassButton {
-        text: seg.estado.placa ? "SACAR PLACA" : "PLACA"
+        text: seg.estado.placa ? qsTr("SACAR PLACA") : qsTr("PLACA")
         active: !!seg.estado.placa
         activeColor: Theme.amber
         Layout.fillWidth: seg.columns === 2 && !seg.angosta

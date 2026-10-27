@@ -89,7 +89,7 @@ Panel {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.text; font.pixelSize: 13
-                    text: "«" + (propuesta.p.frase || "") + "» → ¿<b>" + (propuesta.p.titulo || "") + "</b>?"
+                    text: qsTr("«%1» → ¿<b>%2</b>?").arg(propuesta.p.frase || "").arg(propuesta.p.titulo || "")
                     textFormat: Text.StyledText
                 }
                 // Exactamente lo que se va a hacer (los datos los completó el modelo local).
@@ -105,27 +105,27 @@ Panel {
                     visible: !!propuesta.p.notas
                     wrapMode: Text.WordWrap
                     color: Theme.textDim; font.pixelSize: 11
-                    text: "Ajustado: " + (propuesta.p.notas || "")
+                    text: qsTr("Ajustado: %1").arg(propuesta.p.notas || "")
                 }
                 Text {
                     Layout.fillWidth: true
                     visible: !!propuesta.p.bloqueos
                     wrapMode: Text.WordWrap
                     color: Theme.warn; font.pixelSize: 11
-                    text: "No se puede hacer así: " + (propuesta.p.bloqueos || "") + ". Decilo de nuevo o pasalo al asistente."
+                    text: qsTr("No se puede hacer así: %1. Decilo de nuevo o pasalo al asistente.").arg(propuesta.p.bloqueos || "")
                 }
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6
-                    GlassButton { compact: true; text: "Hacer"; active: true; enabled: !!propuesta.p.puedeHacer; onClicked: barra.voz.confirmar(false) }
+                    GlassButton { compact: true; text: qsTr("Hacer"); active: true; enabled: !!propuesta.p.puedeHacer; onClicked: barra.voz.confirmar(false) }
                     GlassButton {
-                        compact: true; text: "Hacer y no volver a preguntar"; enabled: !!propuesta.p.puedeHacer
+                        compact: true; text: qsTr("Hacer y no volver a preguntar"); enabled: !!propuesta.p.puedeHacer
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "«" + (propuesta.p.titulo || "") + "» se va a hacer sola la próxima vez. Se puede quitar en Configuración → Voz del sistema."
+                        ToolTip.text: qsTr("«%1» se va a hacer sola la próxima vez. Se puede quitar en Configuración → Voz del sistema.").arg(propuesta.p.titulo || "")
                         onClicked: barra.voz.confirmar(true)
                     }
-                    GlassButton { compact: true; text: "Al asistente"; onClicked: barra.voz.alAsistente() }
-                    GlassButton { compact: true; text: "No"; onClicked: barra.voz.descartar() }
+                    GlassButton { compact: true; text: qsTr("Al asistente"); onClicked: barra.voz.alAsistente() }
+                    GlassButton { compact: true; text: qsTr("No"); onClicked: barra.voz.descartar() }
                 }
             }
         }
@@ -145,8 +145,8 @@ Panel {
                 Layout.fillWidth: true
                 enabled: barra.listo
                 placeholderText: barra.listo
-                    ? "Pedile algo al asistente sobre lo que estás viendo…"
-                    : "El asistente no está corriendo (pestaña Asistente)"
+                    ? qsTr("Pedile algo al asistente sobre lo que estás viendo…")
+                    : qsTr("El asistente no está corriendo (pestaña Asistente)")
                 color: Theme.text
                 font.pixelSize: 13
                 onAccepted: barra.mandar(text)
@@ -162,7 +162,7 @@ Panel {
                 enabled: barra.voz.lista || barra.voz.grabando
                 ToolTip.visible: hovered
                 ToolTip.text: barra.voz.lista
-                    ? "Mantené apretado (o " + barra.voz.tecla + ") y hablá. Mientras tanto el lobby no te oye."
+                    ? qsTr("Mantené apretado (o %1) y hablá. Mientras tanto el lobby no te oye.").arg(barra.voz.tecla)
                     : barra.voz.estado
                 MouseArea {
                     anchors.fill: parent
@@ -173,7 +173,7 @@ Panel {
                 }
             }
             GlassButton {
-                text: "Pedir"; compact: true
+                text: qsTr("Pedir"); compact: true
                 enabled: barra.listo && campo.text.trim() !== ""
                 onClicked: barra.mandar(campo.text)
             }
@@ -181,8 +181,8 @@ Panel {
                 icon: "⧉"; compact: true
                 onClicked: ApplicationWindow.window.sacarAVentana(barra.paginaAsistente, "Asistente")
                 ToolTip.visible: hovered
-                ToolTip.text: "La respuesta aparece en el Asistente.\nEsto lo abre en otra ventana, " +
-                              "para tener las dos cosas a la vez."
+                ToolTip.text: qsTr("La respuesta aparece en el Asistente.\nEsto lo abre en otra ventana, "
+                                   + "para tener las dos cosas a la vez.")
             }
         }
 

@@ -109,12 +109,12 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Matriz de mezcla"; color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
+            Text { text: qsTr("Matriz de mezcla"); color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
             // Lo que no quedaba claro: la matriz elige A DÓNDE VA cada entrada (las salidas son
             // las columnas). Lo que entra y cómo se procesa es de la entrada y de su rack.
             Text {
                 Layout.fillWidth: true
-                text: "Filas: lo que entrega cada entrada (ya con su rack) · Columnas: las salidas · Un cruce manda esa entrada a esa salida"
+                text: qsTr("Filas: lo que entrega cada entrada (ya con su rack) · Columnas: las salidas · Un cruce manda esa entrada a esa salida")
                 color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight
             }
             Row {
@@ -122,8 +122,8 @@ Item {
                 // En ventanas angostas la leyenda se esconde antes que pisar los botones.
                 visible: mx.width > 1150
                 Repeater {
-                    model: [ { c: "#ef4444", t: "programa" }, { c: "#f59e0b", t: "pistas (nativo, sin retardo)" },
-                             { c: "#a78bfa", t: "salida virtual" }, { c: "#14b8a6", t: "entrada virtual (~25 ms)" } ]
+                    model: [ { c: "#ef4444", t: qsTr("programa") }, { c: "#f59e0b", t: qsTr("pistas (nativo, sin retardo)") },
+                             { c: "#a78bfa", t: qsTr("salida virtual") }, { c: "#14b8a6", t: qsTr("entrada virtual (~25 ms)") } ]
                     delegate: Row {
                         required property var modelData
                         spacing: 5
@@ -132,14 +132,14 @@ Item {
                     }
                 }
             }
-            GlassButton { compact: true; text: "+ Entrada virtual"; activeColor: "#14b8a6"; active: true; onClicked: entradaPop.open() }
-            GlassButton { compact: true; text: "+ Salida virtual"; activeColor: "#a78bfa"; active: true; onClicked: salidaPop.open() }
+            GlassButton { compact: true; text: qsTr("+ Entrada virtual"); activeColor: "#14b8a6"; active: true; onClicked: entradaPop.open() }
+            GlassButton { compact: true; text: qsTr("+ Salida virtual"); activeColor: "#a78bfa"; active: true; onClicked: salidaPop.open() }
             GlassButton {
-                compact: true; icon: "🔌"; text: "Equipo"
+                compact: true; icon: "🔌"; text: qsTr("Equipo")
                 active: !!mx.mz && mx.mz.mostrarEquipo; activeColor: "#38bdf8"
                 onClicked: equipoPop.open()
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "Las entradas y salidas de lo que está enchufado (bocinas, monitores con audio, placas USB): mostrarlas u ocultarlas, todas o una por una."
+                ToolTip.text: qsTr("Las entradas y salidas de lo que está enchufado (bocinas, monitores con audio, placas USB): mostrarlas u ocultarlas, todas o una por una.")
             }
         }
         Text {
@@ -216,11 +216,11 @@ Item {
                                 ToolTip.visible: containsMouse
                                 ToolTip.delay: 250
                                 ToolTip.text: cab.modelData.nombre +
-                                    (cab.modelData.tipo === "escucha" ? "\n→ " + cab.modelData.dispositivoNombre + "\nlos auriculares del operador: nunca al aire"
-                                     : cab.modelData.tipo === "fisica" ? "\nsalida del equipo\nmezcla propia (~25 ms)"
-                                     : cab.modelData.tipo === "pista" ? (cab.modelData.uso ? "\n" + cab.modelData.uso : "\nlibre") + "\nnativo: sin retardo"
-                                     : cab.modelData.tipo === "salida" ? "\n→ " + (cab.modelData.dispositivoNombre || "sin dispositivo")
-                                     : "\nvuelve como entrada: «" + cab.modelData.nombre + "»")
+                                    (cab.modelData.tipo === "escucha" ? "\n" + qsTr("→ %1\nlos auriculares del operador: nunca al aire").arg(cab.modelData.dispositivoNombre)
+                                     : cab.modelData.tipo === "fisica" ? "\n" + qsTr("salida del equipo\nmezcla propia (~25 ms)")
+                                     : cab.modelData.tipo === "pista" ? "\n" + (cab.modelData.uso ? cab.modelData.uso : qsTr("libre")) + "\n" + qsTr("nativo: sin retardo")
+                                     : cab.modelData.tipo === "salida" ? "\n→ " + (cab.modelData.dispositivoNombre || qsTr("sin dispositivo"))
+                                     : "\n" + qsTr("vuelve como entrada: «%1»").arg(cab.modelData.nombre))
                             }
                             // En Programa: desplegar o plegar las pistas 2-6.
                             Rectangle {
@@ -243,8 +243,8 @@ Item {
                                     ToolTip.visible: containsMouse
                                     ToolTip.delay: 250
                                     ToolTip.text: mx.pistasPlegadas
-                                        ? "Mostrar las pistas 2 a 6 (las de la grabación multipista)"
-                                        : "Plegar las pistas 2 a 6"
+                                        ? qsTr("Mostrar las pistas 2 a 6 (las de la grabación multipista)")
+                                        : qsTr("Plegar las pistas 2 a 6")
                                 }
                             }
                         }
@@ -321,12 +321,12 @@ Item {
                                 }
                                 ToolTip.visible: maFila.containsMouse
                                 ToolTip.delay: 600
-                                ToolTip.text: "«" + fila.modelData.nombre + "»\n" +
-                                              "El vúmetro mide lo que ENTREGA esta entrada: lo que sale de su rack (sus filtros, " +
-                                              "voz a texto…), antes de su volumen. Se mueve aunque no vaya a ninguna salida.\n" +
-                                              "La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el " +
-                                              "programa, las pistas, los auriculares, las salidas del equipo). Lo que entra y " +
-                                              "cómo se procesa se arma en el rack de la entrada."
+                                ToolTip.text: qsTr("«%1»\n"
+                                                   + "El vúmetro mide lo que ENTREGA esta entrada: lo que sale de su rack (sus filtros, "
+                                                   + "voz a texto…), antes de su volumen. Se mueve aunque no vaya a ninguna salida.\n"
+                                                   + "La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el "
+                                                   + "programa, las pistas, los auriculares, las salidas del equipo). Lo que entra y "
+                                                   + "cómo se procesa se arma en el rack de la entrada.").arg(fila.modelData.nombre)
                             }
                             // Los cruces
                             Repeater {
@@ -403,7 +403,7 @@ Item {
                                         Text {
                                             visible: x0.activo && !!x0.c.ajustes
                                             anchors.centerIn: parent
-                                            text: x0.c.mute ? "M" : (x0.c.nivelDb > 0 ? "+" : "") + Math.round(x0.c.nivelDb || 0)
+                                            text: x0.c.mute ? qsTr("M", "mute") : (x0.c.nivelDb > 0 ? "+" : "") + Math.round(x0.c.nivelDb || 0)
                                             color: "#0b0b0d"; font { pixelSize: 9; weight: Font.Bold; family: Theme.mono }
                                         }
                                     }
@@ -427,8 +427,8 @@ Item {
                                         onExited: { if (mx.hFila === x0.f) mx.hFila = ""; if (mx.hBus === x0.b) mx.hBus = "" }
                                         onClicked: (ev) => {
                                             if (ev.button === Qt.RightButton) {
-                                                if (x0.modelData.tipo === "pista") { mx.msg = "Las pistas son nativas: prender o apagar, sin retardo."; return }
-                                                if (x0.modelData.tipo === "escucha") { mx.msg = "La escucha es prender o apagar: el volumen es el de la fuente."; return }
+                                                if (x0.modelData.tipo === "pista") { mx.msg = qsTr("Las pistas son nativas: prender o apagar, sin retardo."); return }
+                                                if (x0.modelData.tipo === "escucha") { mx.msg = qsTr("La escucha es prender o apagar: el volumen es el de la fuente."); return }
                                                 if (!x0.activo) mx.msg = mx.mz.setCruce(x0.f, x0.b, true)
                                                 ajustePop.f = x0.f; ajustePop.b = x0.b; ajustePop.col = x0.col
                                                 ajustePop.open()
@@ -439,8 +439,8 @@ Item {
                                         ToolTip.visible: containsMouse
                                         ToolTip.delay: 450
                                         ToolTip.text: x0.f + " → " + x0.modelData.nombre +
-                                            (x0.c.pfl ? "\nen PFL (se suma mientras esté prendido; el clic cambia la escucha fija)" : "") +
-                                            (x0.modelData.tipo === "pista" ? "" : "\nclic derecho: nivel, pan y mute")
+                                            (x0.c.pfl ? "\n" + qsTr("en PFL (se suma mientras esté prendido; el clic cambia la escucha fija)") : "") +
+                                            (x0.modelData.tipo === "pista" ? "" : "\n" + qsTr("clic derecho: nivel, pan y mute"))
                                     }
                                 }
                             }
@@ -451,7 +451,7 @@ Item {
                     y: mx.altoCab + 10
                     x: 12
                     visible: mx.filas.length === 0
-                    text: "No hay fuentes con audio todavía (se agregan en Entradas)."
+                    text: qsTr("No hay fuentes con audio todavía (se agregan en Entradas).")
                     color: Theme.textDim; font.pixelSize: 13
                 }
             }
@@ -488,7 +488,7 @@ Item {
                 }
                 ColumnLayout {
                     spacing: 12
-                    Text { text: "Pan"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Pan"); color: Theme.textDim; font.pixelSize: 11 }
                     Slider {
                         id: pan
                         Layout.preferredWidth: 160
@@ -496,13 +496,13 @@ Item {
                         value: ajustePop.c.pan !== undefined ? ajustePop.c.pan : 0
                         onMoved: mx.mz.ajustar(ajustePop.f, ajustePop.b, fader.value, value, ajustePop.c.mute || false)
                     }
-                    Text { text: pan.value === 0 ? "centro" : pan.value < 0 ? "izq " + Math.round(-pan.value * 100) + "%" : "der " + Math.round(pan.value * 100) + "%"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: pan.value === 0 ? qsTr("centro") : pan.value < 0 ? qsTr("izq %1%").arg(Math.round(-pan.value * 100)) : qsTr("der %1%").arg(Math.round(pan.value * 100)); color: Theme.textDim; font.pixelSize: 11 }
                     GlassButton {
-                        compact: true; text: "Mute"; active: !!ajustePop.c.mute; activeColor: Theme.live
+                        compact: true; text: qsTr("Mute"); active: !!ajustePop.c.mute; activeColor: Theme.live
                         onClicked: mx.mz.ajustar(ajustePop.f, ajustePop.b, fader.value, pan.value, !ajustePop.c.mute)
                     }
-                    GlassButton { compact: true; text: "Sin ajustes (0 dB)"; onClicked: { mx.mz.setAjustes(ajustePop.f, ajustePop.b, false); ajustePop.close() } }
-                    GlassButton { compact: true; text: "Cerrar"; onClicked: ajustePop.close() }
+                    GlassButton { compact: true; text: qsTr("Sin ajustes (0 dB)"); onClicked: { mx.mz.setAjustes(ajustePop.f, ajustePop.b, false); ajustePop.close() } }
+                    GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: ajustePop.close() }
                 }
             }
         }
@@ -521,23 +521,23 @@ Item {
             spacing: 10
             width: 340
             Text {
-                text: busPop.bus.tipo === "pista" ? "Pista " + (busPop.bus.indice + 1) + " de OBS"
-                      : busPop.bus.tipo === "escucha" ? "Escucha: los auriculares del operador"
-                      : busPop.bus.tipo === "fisica" ? "Salida del equipo"
-                      : busPop.bus.tipo === "salida" ? "Salida virtual" : "Entrada virtual"
+                text: busPop.bus.tipo === "pista" ? qsTr("Pista %1 de OBS").arg(busPop.bus.indice + 1)
+                      : busPop.bus.tipo === "escucha" ? qsTr("Escucha: los auriculares del operador")
+                      : busPop.bus.tipo === "fisica" ? qsTr("Salida del equipo")
+                      : busPop.bus.tipo === "salida" ? qsTr("Salida virtual") : qsTr("Entrada virtual")
                 color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 11
                 text: busPop.bus.tipo === "fisica"
-                      ? "«" + (busPop.bus.nombre || "") + "»: lo que se le manda sale por ese dispositivo (y esos canales). Pasa por la mezcla propia (~25 ms). El dispositivo se abre solo mientras recibe algo."
+                      ? qsTr("«%1»: lo que se le manda sale por ese dispositivo (y esos canales). Pasa por la mezcla propia (~25 ms). El dispositivo se abre solo mientras recibe algo.").arg(busPop.bus.nombre || "")
                       : busPop.bus.tipo === "escucha"
-                      ? "Lo que se prende acá suena por «" + (busPop.bus.dispositivoNombre || "") + "» y nunca va al aire por esta columna. Las voces (texto a audio) vienen prendidas. El dispositivo es el mismo que en Configuración → Voz del sistema."
+                      ? qsTr("Lo que se prende acá suena por «%1» y nunca va al aire por esta columna. Las voces (texto a audio) vienen prendidas. El dispositivo es el mismo que en Configuración → Voz del sistema.").arg(busPop.bus.dispositivoNombre || "")
                       : busPop.bus.tipo === "pista"
-                      ? (busPop.bus.indice === 0 ? "La mezcla del programa: lo que se emite y se graba." : "Libre, o la toma una grabación individual (" + (busPop.bus.uso || "ahora libre") + ").") + " Nativa: sin retardo."
-                      : busPop.bus.tipo === "salida" ? "Lo que se le manda sale por un dispositivo del equipo. Pasa por la mezcla propia (~25 ms)."
-                      : "Lo que se le manda vuelve como la fuente «" + busPop.bus.nombre + "»: tiene su menú de filtros en Audio y se rutea como cualquier entrada."
+                      ? (busPop.bus.indice === 0 ? qsTr("La mezcla del programa: lo que se emite y se graba.") : qsTr("Libre, o la toma una grabación individual (%1).").arg(busPop.bus.uso || qsTr("ahora libre"))) + " " + qsTr("Nativa: sin retardo.")
+                      : busPop.bus.tipo === "salida" ? qsTr("Lo que se le manda sale por un dispositivo del equipo. Pasa por la mezcla propia (~25 ms).")
+                      : qsTr("Lo que se le manda vuelve como la fuente «%1»: tiene su menú de filtros en Audio y se rutea como cualquier entrada.").arg(busPop.bus.nombre)
             }
             // La escucha: por qué dispositivo suena.
             Flow {
@@ -545,7 +545,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 6
                 GlassButton {
-                    compact: true; text: "La del sistema"
+                    compact: true; text: qsTr("La del sistema")
                     active: !!Studio.voz && Studio.voz.auriculares === ""
                     onClicked: { mx.msg = Studio.voz.setAuriculares(""); mx.mz.refrescar() }
                 }
@@ -565,8 +565,8 @@ Item {
             }
             RowLayout {
                 visible: busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
-                TextField { id: nombreBus; Layout.fillWidth: true; placeholderText: "nombre" }
-                GlassButton { compact: true; text: "Renombrar"; onClicked: mx.msg = mx.mz.renombrar(busPop.bus.id, nombreBus.text) }
+                TextField { id: nombreBus; Layout.fillWidth: true; placeholderText: qsTr("nombre") }
+                GlassButton { compact: true; text: qsTr("Renombrar"); onClicked: mx.msg = mx.mz.renombrar(busPop.bus.id, nombreBus.text) }
             }
             ComboBox {
                 id: dispBus
@@ -584,7 +584,7 @@ Item {
             RowLayout {
                 GlassButton {
                     visible: busPop.bus.tipo === "fisica"
-                    compact: true; text: "Ocultar este dispositivo"
+                    compact: true; text: qsTr("Ocultar este dispositivo")
                     onClicked: {
                         const id = String(busPop.bus.id || "")
                         mx.mz.setVisibleDispositivo(id.substring(4, id.lastIndexOf(":")), false)
@@ -593,11 +593,11 @@ Item {
                 }
                 GlassButton {
                     visible: busPop.bus.tipo !== "pista" && busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
-                    compact: true; text: "Quitar"; activeColor: Theme.live
+                    compact: true; text: qsTr("Quitar"); activeColor: Theme.live
                     onClicked: { mx.msg = mx.mz.quitarBus(busPop.bus.id); busPop.close() }
                 }
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cerrar"; onClicked: busPop.close() }
+                GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: busPop.close() }
             }
         }
     }
@@ -613,18 +613,18 @@ Item {
         ColumnLayout {
             spacing: 10
             width: 460
-            Text { text: "Entradas y salidas del equipo"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text { text: qsTr("Entradas y salidas del equipo"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 11
-                text: "Lo que se enchufa aparece solo. Las salidas, un par de canales por columna; las entradas, un " +
-                      "canal por fila (de fábrica, sin ir al aire). Un dispositivo se abre solo mientras se usa; " +
-                      "lo oculto no se abre nunca."
+                text: qsTr("Lo que se enchufa aparece solo. Las salidas, un par de canales por columna; las entradas, un "
+                           + "canal por fila (de fábrica, sin ir al aire). Un dispositivo se abre solo mientras se usa; "
+                           + "lo oculto no se abre nunca.")
             }
             RowLayout {
                 spacing: 10
                 Toggle { checked: !!mx.mz && mx.mz.mostrarEquipo; onToggled: (w) => mx.mz.mostrarEquipo = w }
-                Text { text: "Mostrar el equipo en la matriz"; color: Theme.text; font.pixelSize: 13 }
+                Text { text: qsTr("Mostrar el equipo en la matriz"); color: Theme.text; font.pixelSize: 13 }
             }
             Repeater {
                 model: mx.mz ? mx.mz.equipo : []
@@ -640,16 +640,16 @@ Item {
                     Text { text: modelData.tipo === "salida" ? "🔈" : "🎙"; font.pixelSize: 13 }
                     Text {
                         Layout.fillWidth: true; elide: Text.ElideRight
-                        text: modelData.nombre + "  ·  " + modelData.canales + (modelData.canales === 1 ? " canal" : " canales")
+                        text: modelData.nombre + "  ·  " + qsTr("%n canal", "", modelData.canales)
                         color: Theme.text; font.pixelSize: 12
                     }
                     Text {
-                        text: modelData.enApp ? "ya está en Audio" : modelData.abierto ? "en uso" : ""
+                        text: modelData.enApp ? qsTr("ya está en Audio") : modelData.abierto ? qsTr("en uso") : ""
                         color: modelData.abierto ? Theme.ok : Theme.textFaint; font.pixelSize: 11
                     }
                 }
             }
-            GlassButton { compact: true; text: "Cerrar"; onClicked: equipoPop.close() }
+            GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: equipoPop.close() }
         }
     }
 
@@ -662,17 +662,17 @@ Item {
         ColumnLayout {
             width: 340
             spacing: 10
-            Text { text: "Nueva entrada virtual"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text { text: qsTr("Nueva entrada virtual"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                text: "Una submezcla: lo que le mandes en la matriz vuelve como una entrada más, con su menú de filtros en Audio."
+                text: qsTr("Una submezcla: lo que le mandes en la matriz vuelve como una entrada más, con su menú de filtros en Audio.")
             }
-            TextField { id: nombreEntrada; Layout.fillWidth: true; placeholderText: "nombre (por ejemplo «Micrófonos»)" }
+            TextField { id: nombreEntrada; Layout.fillWidth: true; placeholderText: qsTr("nombre (por ejemplo «Micrófonos»)") }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: entradaPop.close() }
+                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: entradaPop.close() }
                 GlassButton {
-                    compact: true; text: "Agregar"; active: true; activeColor: "#14b8a6"
+                    compact: true; text: qsTr("Agregar"); active: true; activeColor: "#14b8a6"
                     onClicked: { mx.msg = mx.mz.agregarEntradaVirtual(nombreEntrada.text); nombreEntrada.text = ""; entradaPop.close() }
                 }
             }
@@ -687,18 +687,18 @@ Item {
         ColumnLayout {
             width: 360
             spacing: 10
-            Text { text: "Nueva salida virtual"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text { text: qsTr("Nueva salida virtual"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                text: "Un bus que sale por un dispositivo del equipo: otra placa, auriculares, o un cable virtual hacia otra aplicación."
+                text: qsTr("Un bus que sale por un dispositivo del equipo: otra placa, auriculares, o un cable virtual hacia otra aplicación.")
             }
-            TextField { id: nombreSalida; Layout.fillWidth: true; placeholderText: "nombre (por ejemplo «Retorno»)" }
+            TextField { id: nombreSalida; Layout.fillWidth: true; placeholderText: qsTr("nombre (por ejemplo «Retorno»)") }
             ComboBox { id: dispSalida; Layout.fillWidth: true; model: mx.mz ? mx.mz.dispositivos : []; textRole: "nombre" }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: salidaPop.close() }
+                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: salidaPop.close() }
                 GlassButton {
-                    compact: true; text: "Agregar"; active: true; activeColor: "#a78bfa"
+                    compact: true; text: qsTr("Agregar"); active: true; activeColor: "#a78bfa"
                     onClicked: {
                         const d = dispSalida.currentIndex >= 0 ? dispSalida.model[dispSalida.currentIndex].id : ""
                         mx.msg = mx.mz.agregarSalidaVirtual(nombreSalida.text, d)

@@ -28,11 +28,11 @@ Dialog {
     }
     readonly property var kSiNo: ["repetir", "alAire", "arrancar"]
     readonly property var kNombres: ({
-        escena: "Escena", archivo: "Archivo (de los medios del evento)", accion: "Qué hace",
-        repetir: "En bucle", alAire: "Ponerlo al aire en su escena", discurso: "Discurso",
-        arrancar: "Arrancarlo al cargarlo", participante: "Quién habla", fuente: "Fuente",
-        grafico: "Gráfico", pantalla: "Pantalla", contenido: "Qué muestra", db: "Volumen (dB)",
-        seVa: "Cuándo se va de la pantalla"
+        escena: qsTr("Escena"), archivo: qsTr("Archivo (de los medios del evento)"), accion: qsTr("Qué hace"),
+        repetir: qsTr("En bucle"), alAire: qsTr("Ponerlo al aire en su escena"), discurso: qsTr("Discurso"),
+        arrancar: qsTr("Arrancarlo al cargarlo"), participante: qsTr("Quién habla"), fuente: qsTr("Fuente"),
+        grafico: qsTr("Gráfico"), pantalla: qsTr("Pantalla"), contenido: qsTr("Qué muestra"), db: qsTr("Volumen (dB)"),
+        seVa: qsTr("Cuándo se va de la pantalla")
     })
     // Listas cerradas (no se escribe otra cosa).
     readonly property var kCerrados: ["accion", "seVa"]
@@ -48,7 +48,7 @@ Dialog {
     width: Math.min(parent ? parent.width - 80 : 640, 620)
     height: Math.min(parent ? parent.height - 80 : 720, 720)
     modal: true
-    title: dlg.c ? "Cue " + (dlg.cue + 1) + " del bloque " + (dlg.bloque + 1) + " · " + dlg.c.tipo : "Cue"
+    title: dlg.c ? qsTr("Cue %1 del bloque %2 · %3").arg(dlg.cue + 1).arg(dlg.bloque + 1).arg(dlg.c.tipo) : qsTr("Cue")
 
     ScrollView {
         id: scroll
@@ -70,13 +70,13 @@ Dialog {
                 font.pixelSize: 12
             }
 
-            Text { text: "Qué dice (lo que leés cuando toca)"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Qué dice (lo que leés cuando toca)"); color: Theme.textDim; font.pixelSize: 11 }
             TextArea {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 64
                 wrapMode: TextEdit.Wrap
                 text: dlg.c ? dlg.c.texto : ""
-                placeholderText: "Lo que vas a leer cuando toque"
+                placeholderText: qsTr("Lo que vas a leer cuando toque")
                 color: Theme.text
                 font.pixelSize: 12
                 onEditingFinished: if (dlg.c && text !== dlg.c.texto) dlg.ev.editarCue(dlg.bloque, dlg.cue, { texto: text })
@@ -125,7 +125,7 @@ Dialog {
                         // Lo que está guardado aunque no esté en la lista (se ve igual).
                         Component.onCompleted: if (editable && currentIndex < 0 && campo.valor !== undefined) editText = String(campo.valor)
                         displayText: currentIndex >= 0 ? currentText
-                                   : (campo.valor !== undefined && campo.valor !== "" ? String(campo.valor) : "Elegí…")
+                                   : (campo.valor !== undefined && campo.valor !== "" ? String(campo.valor) : qsTr("Elegí…"))
                         onActivated: (i) => dlg.poner(campo.modelData, campo.opciones[i].valor)
                         onAccepted: if (editText !== "" && editText !== String(campo.valor)) dlg.poner(campo.modelData, editText)
                     }
@@ -150,7 +150,7 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 6
                 visible: !!dlg.c && dlg.c.tipo === "grafico" && (dlg.c.datos.accion || "mostrar") === "mostrar"
-                Text { text: "Lo que dice el gráfico"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
+                Text { text: qsTr("Lo que dice el gráfico"); color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                 Repeater {
                     model: dlg.c && dlg.c.tipo === "grafico" ? dlg.ev.parametrosDeGrafico(dlg.c.datos.grafico || "") : []
                     delegate: ColumnLayout {
@@ -161,7 +161,7 @@ Dialog {
                         // deja decidir al gráfico): con «al avanzar» o «queda» no se usan.
                         visible: modelData.clave !== "salidaEn" || ["", "sola"].indexOf(dlg.c.datos.seVa || "") >= 0
                         Text {
-                            text: (modelData.titulo || modelData.clave) + (modelData.tipo === "ms" ? " (milisegundos)" : "")
+                            text: modelData.tipo === "ms" ? qsTr("%1 (milisegundos)").arg(modelData.titulo || modelData.clave) : (modelData.titulo || modelData.clave)
                             color: Theme.textDim; font.pixelSize: 11
                         }
                         // Para qué sirve (de la ficha del gráfico), y lo que vale el tiempo.
@@ -171,7 +171,7 @@ Dialog {
                             wrapMode: Text.WordWrap
                             text: (modelData.ayuda || "") +
                                   (modelData.clave === "salidaEn" ? (modelData.ayuda ? " " : "") +
-                                   "A ese momento arranca la salida y el gráfico se va solo; 0 = queda puesto hasta sacarlo." : "")
+                                   qsTr("A ese momento arranca la salida y el gráfico se va solo; 0 = queda puesto hasta sacarlo.") : "")
                             color: Theme.textFaint; font.pixelSize: 10
                         }
                         TextField {
@@ -195,9 +195,9 @@ Dialog {
                 spacing: 16
                 ColumnLayout {
                     spacing: 2
-                    Text { text: "Cuánto dura en el guion (segundos)"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Cuánto dura en el guion (segundos)"); color: Theme.textDim; font.pixelSize: 11 }
                     Text {
-                        text: "Para el reloj y la hora de fin; no cambia el gráfico ni el medio."
+                        text: qsTr("Para el reloj y la hora de fin; no cambia el gráfico ni el medio.")
                         color: Theme.textFaint; font.pixelSize: 10
                     }
                     TextField {
@@ -212,7 +212,7 @@ Dialog {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
-                    Text { text: "Encadena solo con el siguiente"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Encadena solo con el siguiente"); color: Theme.textDim; font.pixelSize: 11 }
                     Toggle {
                         checked: dlg.c ? dlg.c.automatico : false
                         onToggled: (w) => dlg.ev.editarCue(dlg.bloque, dlg.cue, { automatico: w })
@@ -226,22 +226,22 @@ Dialog {
         spacing: 8
         Item { Layout.preferredWidth: 8 }
         GlassButton {
-            icon: "✕"; text: "Quitar el cue"; compact: true
+            icon: "✕"; text: qsTr("Quitar el cue"); compact: true
             onClicked: { const b = dlg.bloque, c = dlg.cue; dlg.close(); dlg.ev.quitarCue(b, c) }
         }
         GlassButton {
-            text: "Poner al aire"; compact: true
+            text: qsTr("Poner al aire"); compact: true
             onClicked: dlg.ev.irA(dlg.bloque, dlg.cue)
         }
         GlassButton {
             readonly property string url: dlg.c ? dlg.ev.enlaceDeCue(dlg.c.tipo) : ""
             visible: url !== ""
-            text: "Ver el teleprompter ↗"; compact: true
+            text: qsTr("Ver el teleprompter ↗"); compact: true
             onClicked: Qt.openUrlExternally(url)
-            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La pantalla del orador en el navegador (" + url + ")"
+            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La pantalla del orador en el navegador (%1)").arg(url)
         }
         Item { Layout.fillWidth: true }
-        GlassButton { text: "Listo"; active: true; onClicked: dlg.close() }
+        GlassButton { text: qsTr("Listo"); active: true; onClicked: dlg.close() }
         Item { Layout.preferredWidth: 8; Layout.preferredHeight: 52 }
     }
 }

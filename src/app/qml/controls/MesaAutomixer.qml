@@ -28,19 +28,19 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            text: "Automixer de mesa redonda: los micrófonos de la misma mesa se reparten la ganancia. El que habla pasa al frente, los demás bajan y la suma no crece al abrir más."
+            text: qsTr("Automixer de mesa redonda: los micrófonos de la misma mesa se reparten la ganancia. El que habla pasa al frente, los demás bajan y la suma no crece al abrir más.")
             color: Theme.textDim; font.pixelSize: 12; wrapMode: Text.WordWrap
         }
         Text {
             visible: mesa.datos.microfonos.length === 0
-            text: "No hay micrófonos por GStreamer todavía (Entradas → Agregar entrada de audio)."
+            text: qsTr("No hay micrófonos por GStreamer todavía (Entradas → Agregar entrada de audio).")
             color: Theme.textDim; font.pixelSize: 13
         }
 
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Micrófonos"
+            title: qsTr("Micrófonos")
             ListView {
                 anchors.fill: parent
                 clip: true
@@ -56,12 +56,12 @@ Item {
                     TextField {
                         id: grupo
                         Layout.preferredWidth: 130
-                        placeholderText: "sin mesa"
+                        placeholderText: qsTr("sin mesa")
                         text: fila.en ? fila.en.mesa.grupo : ""
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "La mesa (p. ej. «bancas»). Vacío: fuera del automixer."
+                        ToolTip.text: qsTr("La mesa (p. ej. «bancas»). Vacío: fuera del automixer.")
                         onEditingFinished: if (text !== (fila.en ? fila.en.mesa.grupo : ""))
-                                               mesa.avisar(mesa.vg.automixerPonerUi(fila.modelData, text), text ? "En la mesa «" + text + "»" : "Fuera de la mesa")
+                                               mesa.avisar(mesa.vg.automixerPonerUi(fila.modelData, text), text ? qsTr("En la mesa «%1»").arg(text) : qsTr("Fuera de la mesa"))
                     }
                     // La ganancia que aplica ahora (0 dB = pasa entero; -40 dB = abajo de todo).
                     Rectangle {
@@ -80,9 +80,9 @@ Item {
                         visible: !!fila.en
                         Layout.preferredWidth: 150
                         color: Theme.textDim; font.pixelSize: 11
-                        text: !fila.en ? "" : (fila.en.mic.andando === false ? "sin señal"
+                        text: !fila.en ? "" : (fila.en.mic.andando === false ? qsTr("sin señal")
                               : (fila.en.mic.ganancia_db !== undefined ? fila.en.mic.ganancia_db.toFixed(1) + " dB" : "—")
-                                + (fila.en.mic.nivel_db !== undefined ? "  · entra " + Math.max(-90, fila.en.mic.nivel_db).toFixed(0) + " dBFS" : ""))
+                                + (fila.en.mic.nivel_db !== undefined ? qsTr("  · entra %1 dBFS").arg(Math.max(-90, fila.en.mic.nivel_db).toFixed(0)) : ""))
                     }
                 }
             }
@@ -95,19 +95,19 @@ Item {
                 required property var modelData
                 Layout.fillWidth: true
                 Layout.preferredHeight: 92
-                title: "Mesa «" + modelData.grupo + "» (" + modelData.microfonos.length + " micrófonos)"
+                title: qsTr("Mesa «%1» (%n micrófono)", "", modelData.microfonos.length).arg(modelData.grupo)
                 readonly property var aj: modelData.ajustes || ({})
                 function valor(k, def) { return aj[k] !== undefined ? aj[k] : def }
                 Flow {
                     anchors.fill: parent
                     spacing: 14
                     Repeater {
-                        model: [ { k: "umbral_db", t: "Umbral (dBFS)", d: -40, a: -90, b: 0 },
-                                 { k: "max_abiertos", t: "Máx. abiertos", d: 4, a: 1, b: 32 },
-                                 { k: "hold_ms", t: "Hold (ms)", d: 300, a: 0, b: 5000 },
-                                 { k: "piso_hold_db", t: "Piso del hold (dB)", d: -20, a: -60, b: 0 },
-                                 { k: "ataque_ms", t: "Ataque (ms)", d: 5, a: 0, b: 500 },
-                                 { k: "liberacion_ms", t: "Liberación (ms)", d: 200, a: 0, b: 5000 } ]
+                        model: [ { k: "umbral_db", t: qsTr("Umbral (dBFS)"), d: -40, a: -90, b: 0 },
+                                 { k: "max_abiertos", t: qsTr("Máx. abiertos"), d: 4, a: 1, b: 32 },
+                                 { k: "hold_ms", t: qsTr("Hold (ms)"), d: 300, a: 0, b: 5000 },
+                                 { k: "piso_hold_db", t: qsTr("Piso del hold (dB)"), d: -20, a: -60, b: 0 },
+                                 { k: "ataque_ms", t: qsTr("Ataque (ms)"), d: 5, a: 0, b: 500 },
+                                 { k: "liberacion_ms", t: qsTr("Liberación (ms)"), d: 200, a: 0, b: 5000 } ]
                         delegate: Row {
                             required property var modelData
                             spacing: 6
@@ -117,7 +117,7 @@ Item {
                                 value: panelMesa.valor(modelData.k, modelData.d)
                                 onValueModified: {
                                     const c = {}; c[modelData.k] = value
-                                    mesa.avisar(mesa.vg.automixerAjustesUi(panelMesa.modelData.grupo, c), "Ajuste de la mesa guardado")
+                                    mesa.avisar(mesa.vg.automixerAjustesUi(panelMesa.modelData.grupo, c), qsTr("Ajuste de la mesa guardado"))
                                 }
                             }
                         }

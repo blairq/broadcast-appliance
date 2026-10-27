@@ -101,7 +101,7 @@ Item {
 
             Row { id: extra; spacing: 8; visible: children.length > 0 }
             GlassButton {
-                compact: true; text: "Monitor"; icon: "▭"
+                compact: true; text: qsTr("Monitor"); icon: "▭"
                 onClicked: menuMonitores.popup()
                 Menu {
                     id: menuMonitores
@@ -110,7 +110,7 @@ Item {
                     MenuItem {
                         // «eDP-1» no le dice nada a nadie hasta que se lo ve
                         // puesto en la pantalla que es.
-                        text: "Identificar pantallas"
+                        text: qsTr("Identificar pantallas")
                         onTriggered: Studio.identificarPantallas()
                     }
                     MenuSeparator { id: sepMonitores }
@@ -126,7 +126,7 @@ Item {
                             required property string nombre
                             required property int orden
                             required property rect geometria
-                            text: "Monitor " + orden + " — " + nombre + "  (" + geometria.width + "×" + geometria.height + ")"
+                            text: qsTr("Monitor %1 — %2  (%3×%4)").arg(orden).arg(nombre).arg(geometria.width).arg(geometria.height)
                             checkable: true
                             checked: barra.ventana.screen && barra.ventana.screen.name === nombreSistema
                             onTriggered: { const s = barra.pantallaDeSistema(nombreSistema); if (s) barra.aMonitor(s) }
@@ -135,26 +135,26 @@ Item {
                     MenuItem {
                         visible: !!barra.alFijar
                         height: visible ? implicitHeight : 0
-                        text: "Dejar fijo en este monitor (Salidas → Pantallas)"
+                        text: qsTr("Dejar fijo en este monitor (Salidas → Pantallas)")
                         onTriggered: barra.alFijar(barra.idDeMonitor(barra.ventana.screen))
                     }
                     MenuItem {
                         enabled: false
                         visible: !Studio.puedeUbicarVentanas
                         height: visible ? implicitHeight : 0
-                        text: "(este escritorio solo deja mandarla a pantalla completa)"
+                        text: qsTr("(este escritorio solo deja mandarla a pantalla completa)")
                     }
                 }
             }
             GlassButton {
                 compact: true
-                text: barra.completa ? "Ventana" : "Pantalla completa"
+                text: barra.completa ? qsTr("Ventana") : qsTr("Pantalla completa")
                 icon: barra.completa ? "⧉" : "⛶"
                 onClicked: barra.ventana.visibility =
                     barra.completa ? Window.Windowed : Window.FullScreen
             }
             GlassButton {
-                compact: true; text: "Cerrar"; icon: "✕"
+                compact: true; text: qsTr("Cerrar"); icon: "✕"
                 onClicked: barra.alCerrar ? barra.alCerrar() : barra.ventana.close()
             }
         }

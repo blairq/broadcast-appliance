@@ -76,18 +76,18 @@ Popup {
             Layout.fillWidth: false
             Layout.fillHeight: true
             spacing: 10
-            Text { text: "Filtros de audio"; color: Theme.text; font { pixelSize: 19; weight: Font.DemiBold } }
-            Text { text: cat.visibles.length + " de " + cat.familias.filter(f => cat.conInstrumentos || f.esFiltro).length + " familias"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Filtros de audio"); color: Theme.text; font { pixelSize: 19; weight: Font.DemiBold } }
+            Text { text: qsTr("%1 de %n familias", "", cat.familias.filter(f => cat.conInstrumentos || f.esFiltro).length).arg(cat.visibles.length); color: Theme.textDim; font.pixelSize: 11 }
             TextField {
                 id: busqueda
                 Layout.fillWidth: true
-                placeholderText: "buscar: «voz», «ruido», «graves», «limiter»…"
+                placeholderText: qsTr("buscar: «voz», «ruido», «graves», «limiter»…")
             }
-            Text { text: "Categoría"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+            Text { text: qsTr("Categoría"); color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
             Flow {
                 Layout.fillWidth: true
                 spacing: 5
-                GlassButton { compact: true; text: "Todas"; active: cat.categoria === ""; onClicked: cat.categoria = "" }
+                GlassButton { compact: true; text: qsTr("Todas"); active: cat.categoria === ""; onClicked: cat.categoria = "" }
                 Repeater {
                     model: cat.categorias
                     delegate: GlassButton {
@@ -99,10 +99,10 @@ Popup {
                     }
                 }
             }
-            Text { text: "Mostrar"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+            Text { text: qsTr("Mostrar"); color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
             Repeater {
-                model: [ { k: "soloVivo", t: "Recomendados para vivo" }, { k: "soloEstereo", t: "Con versión estéreo" },
-                         { k: "soloSidechain", t: "Con sidechain" }, { k: "conInstrumentos", t: "Incluir instrumentos" } ]
+                model: [ { k: "soloVivo", t: qsTr("Recomendados para vivo") }, { k: "soloEstereo", t: qsTr("Con versión estéreo") },
+                         { k: "soloSidechain", t: qsTr("Con sidechain") }, { k: "conInstrumentos", t: qsTr("Incluir instrumentos") } ]
                 delegate: RowLayout {
                     required property var modelData
                     spacing: 8
@@ -114,9 +114,9 @@ Popup {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 10
-                text: "Plugins y capturas: Linux Studio Plugins (lsp-plug.in), LGPL-3.0."
+                text: qsTr("Plugins y capturas: Linux Studio Plugins (lsp-plug.in), LGPL-3.0.")
             }
-            GlassButton { compact: true; text: "Cerrar"; onClicked: cat.close() }
+            GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: cat.close() }
         }
 
         // --- Grilla de tarjetas ---------------------------------------------------------
@@ -178,7 +178,7 @@ Popup {
                                 anchors { right: parent.right; top: parent.top; margins: 6 }
                                 radius: 6; height: 18; width: vivoTxt.implicitWidth + 12
                                 color: Qt.rgba(0.94, 0.27, 0.27, 0.85)
-                                Text { id: vivoTxt; anchors.centerIn: parent; text: "VIVO"; color: "white"; font { pixelSize: 9; weight: Font.Bold } }
+                                Text { id: vivoTxt; anchors.centerIn: parent; text: qsTr("VIVO"); color: "white"; font { pixelSize: 9; weight: Font.Bold } }
                             }
                         }
                         Text { Layout.fillWidth: true; text: tarjeta.modelData.nombre; color: Theme.text; elide: Text.ElideRight; font { pixelSize: 14; weight: Font.DemiBold } }
@@ -189,7 +189,7 @@ Popup {
                             color: Theme.textDim; font.pixelSize: 11
                         }
                         Text {
-                            text: tarjeta.modelData.variantes.length + (tarjeta.modelData.variantes.length === 1 ? " variante" : " variantes")
+                            text: qsTr("%n variante", "", tarjeta.modelData.variantes.length)
                             color: Theme.textFaint; font.pixelSize: 10
                         }
                     }
@@ -205,7 +205,7 @@ Popup {
             Text {
                 anchors.centerIn: parent
                 visible: grilla.count === 0
-                text: cat.familias.length === 0 ? "No se pudieron abrir los módulos LSP." : "Nada coincide con la búsqueda."
+                text: cat.familias.length === 0 ? qsTr("No se pudieron abrir los módulos LSP.") : qsTr("Nada coincide con la búsqueda.")
                 color: Theme.textDim; font.pixelSize: 14
             }
         }
@@ -267,15 +267,15 @@ Popup {
                         radius: 10
                         color: Qt.rgba(1, 0.42, 0.17, 0.1)
                         border.color: Qt.rgba(1, 0.42, 0.17, 0.4)
-                        Text { id: usoTxt; anchors { fill: parent; margins: 8 } wrapMode: Text.WordWrap; text: "En vivo: " + (detallePop.d.usoVivo || ""); color: Theme.text; font.pixelSize: 12 }
+                        Text { id: usoTxt; anchors { fill: parent; margins: 8 } wrapMode: Text.WordWrap; text: qsTr("En vivo: %1").arg(detallePop.d.usoVivo || ""); color: Theme.text; font.pixelSize: 12 }
                     }
                     Text {
                         Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 20
                         wrapMode: Text.WordWrap; visible: !!detallePop.d.descripcionOriginal
-                        text: "«" + (detallePop.d.descripcionOriginal || "") + "» — LSP"
+                        text: qsTr("«%1» — LSP").arg(detallePop.d.descripcionOriginal || "")
                         color: Theme.textFaint; font { pixelSize: 11; italic: true }
                     }
-                    Text { Layout.leftMargin: 20; text: "Agregar a «" + (cat.au ? cat.au.source : "") + "»"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+                    Text { Layout.leftMargin: 20; text: qsTr("Agregar a «%1»").arg(cat.au ? cat.au.source : ""); color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
                     Flow {
                         Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 20
                         spacing: 6

@@ -25,24 +25,25 @@ ColumnLayout {
 
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
-        text: "Cortes de la transcripción continua" + (ac.flujo !== "" ? " (valen para todas)" : "")
+        text: ac.flujo !== "" ? qsTr("Cortes de la transcripción continua (valen para todas)")
+                              : qsTr("Cortes de la transcripción continua")
         color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 11
-        text: "Cuándo se manda una frase a subtítulos y traducción. Menos pausa y menos largo máximo = sale antes pero más " +
-              "cortada; más = frases enteras pero con más demora. Si la sala tiene ruido y no corta nunca, subí el umbral. " +
-              "Hablá y mirá el indicador de abajo: se aplica al toque."
+        text: qsTr("Cuándo se manda una frase a subtítulos y traducción. Menos pausa y menos largo máximo = sale antes pero más "
+                  + "cortada; más = frases enteras pero con más demora. Si la sala tiene ruido y no corta nunca, subí el umbral. "
+                  + "Hablá y mirá el indicador de abajo: se aplica al toque.")
     }
     Repeater {
         model: [
-            { k: "pausa", t: "Pausa que corta", min: 0.15, max: 1.5, paso: 0.05, u: " s",
-              ayuda: "Silencio que termina una frase. 0,3 a 0,4 s anda para la mayoría de los oradores." },
-            { k: "maximo", t: "Largo máximo de frase", min: 2, max: 15, paso: 0.5, u: " s",
-              ayuda: "Si el orador no hace pausa, al pasar este tiempo se corta en la próxima pausa corta." },
-            { k: "umbral", t: "Umbral de voz", min: 0.2, max: 0.9, paso: 0.05, u: "",
-              ayuda: "Cuán seguro tiene que estar el detector de que es voz. Más alto ignora más el ruido de la sala." }
+            { k: "pausa", t: qsTr("Pausa que corta"), min: 0.15, max: 1.5, paso: 0.05, u: " s",
+              ayuda: qsTr("Silencio que termina una frase. 0,3 a 0,4 s anda para la mayoría de los oradores.") },
+            { k: "maximo", t: qsTr("Largo máximo de frase"), min: 2, max: 15, paso: 0.5, u: " s",
+              ayuda: qsTr("Si el orador no hace pausa, al pasar este tiempo se corta en la próxima pausa corta.") },
+            { k: "umbral", t: qsTr("Umbral de voz"), min: 0.2, max: 0.9, paso: 0.05, u: "",
+              ayuda: qsTr("Cuán seguro tiene que estar el detector de que es voz. Más alto ignora más el ruido de la sala.") }
         ]
         delegate: FilaTiempo {
             required property var modelData
@@ -58,21 +59,21 @@ ColumnLayout {
     }
     RowLayout {
         spacing: 6
-        Text { text: "Valores típicos:"; color: Theme.textFaint; font.pixelSize: 11 }
-        GlassButton { compact: true; text: "Rápido"; onClicked: ac.poner(0.25, 4, 0.5)
-                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "0,25 s · 4 s: sale enseguida, frases más cortadas" }
-        GlassButton { compact: true; text: "Normal"; onClicked: ac.poner(0.35, 6, 0.5)
+        Text { text: qsTr("Valores típicos:"); color: Theme.textFaint; font.pixelSize: 11 }
+        GlassButton { compact: true; text: qsTr("Rápido"); onClicked: ac.poner(0.25, 4, 0.5)
+                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("0,25 s · 4 s: sale enseguida, frases más cortadas") }
+        GlassButton { compact: true; text: qsTr("Normal"); onClicked: ac.poner(0.35, 6, 0.5)
                       ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "0,35 s · 6 s" }
-        GlassButton { compact: true; text: "Sala ruidosa"; onClicked: ac.poner(0.35, 6, 0.7)
-                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Umbral 0,7: el murmullo y el eco no cuentan como voz" }
-        GlassButton { compact: true; text: "Frases enteras"; onClicked: ac.poner(0.6, 10, 0.5)
-                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "0,6 s · 10 s: mejor traducción, más demora" }
+        GlassButton { compact: true; text: qsTr("Sala ruidosa"); onClicked: ac.poner(0.35, 6, 0.7)
+                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Umbral 0,7: el murmullo y el eco no cuentan como voz") }
+        GlassButton { compact: true; text: qsTr("Frases enteras"); onClicked: ac.poner(0.6, 10, 0.5)
+                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("0,6 s · 10 s: mejor traducción, más demora") }
     }
     // Lo que oye ahora cada transcripción continua.
     Text {
         visible: ac.flujo === "" && ac.vz && ac.vz.oido.length === 0
         Layout.fillWidth: true; wrapMode: Text.WordWrap
-        text: "No hay ninguna transcripción continua andando (Audio → rack → «+ Agregar» → «Voz a texto: transcripción continua»)."
+        text: qsTr("No hay ninguna transcripción continua andando (Audio → rack → «+ Agregar» → «Voz a texto: transcripción continua»).")
         color: Theme.textFaint; font.pixelSize: 11
     }
     Repeater {
@@ -99,7 +100,7 @@ ColumnLayout {
             }
             Text {
                 Layout.preferredWidth: 120; horizontalAlignment: Text.AlignRight
-                text: o.modelData.hablando ? "hablando · " + ac.dos(o.modelData.segundos) + " s" : "silencio"
+                text: o.modelData.hablando ? qsTr("hablando · %1 s").arg(ac.dos(o.modelData.segundos)) : qsTr("silencio")
                 color: Theme.textDim; font { pixelSize: 11; family: Theme.mono }
             }
         }

@@ -16,7 +16,7 @@ ColumnLayout {
     spacing: 8
 
     Text {
-        text: "Emparejados"
+        text: qsTr("Emparejados")
         color: Theme.textFaint
         font.pixelSize: 11
     }
@@ -43,30 +43,31 @@ ColumnLayout {
                     spacing: 2
                     Text { text: ap.modelData.nombre; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
                     Text {
-                        text: (ap.modelData.conectado ? "Conectado" : "Sin conectar") +
+                        text: (ap.modelData.conectado ? qsTr("Conectado") : qsTr("Sin conectar")) +
                               (ap.modelData.ip ? " · " + ap.modelData.ip : "")
                         color: Theme.textDim; font.pixelSize: 11
                     }
                 }
-                Text { text: "Perfil"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Perfil"); color: Theme.textDim; font.pixelSize: 12 }
                 TextField {
                     id: perfilAp
                     Layout.preferredWidth: 240
                     text: ap.modelData.perfil
-                    placeholderText: "todo, o: escenas, audio"
+                    // «todo», «escenas», «audio» son las claves del perfil (se escriben así): no se traducen.
+                    placeholderText: qsTr("%1, o: %2").arg("todo").arg("escenas, audio")
                     color: Theme.text
                     font.pixelSize: 12
                 }
                 GlassButton {
-                    compact: true; text: "Guardar"
+                    compact: true; text: qsTr("Guardar")
                     enabled: perfilAp.text !== ap.modelData.perfil
                     onClicked: {
                         const e = raiz.cw.perfilUi(ap.modelData.id, perfilAp.text)
-                        Studio.notify(e !== "" ? e : "Perfil guardado.", e !== "" ? "error" : "ok")
+                        Studio.notify(e !== "" ? e : qsTr("Perfil guardado."), e !== "" ? "error" : "ok")
                     }
                 }
                 GlassButton {
-                    compact: true; text: "Quitar"
+                    compact: true; text: qsTr("Quitar")
                     onClicked: raiz.cw.quitarUi(ap.modelData.id)
                 }
             }

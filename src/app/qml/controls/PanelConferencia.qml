@@ -34,7 +34,7 @@ ColumnLayout {
             else if (que === "traza") pc.tramas = r.tramas || []
             else if (que === "funciones") pc.funciones = r.funciones || []
             else if (que === "funcion") pc.resultadoFuncion = JSON.stringify(r.resultado, null, 1)
-            else if (que === "conectar") Studio.notify("Central: " + (r.enlace === "ok" ? "conectada" : (r.motivo || r.enlace)), "info")
+            else if (que === "conectar") Studio.notify(qsTr("Central: %1").arg(r.enlace === "ok" ? qsTr("conectada") : (r.motivo || r.enlace)), "info")
         }
     }
 
@@ -45,60 +45,61 @@ ColumnLayout {
         Rectangle { implicitWidth: 12; implicitHeight: 12; radius: 6
                     color: pc.ok ? Theme.ok : (pc.e.enlace === "sincronizando" ? Theme.amber : Theme.live) }
         Text {
-            text: pc.ok ? "Central conectada" + (pc.e.ccu && pc.e.ccu.version ? " · " + pc.e.ccu.version : "")
-                  : pc.plugin === "no_instalado" ? "Sin configurar: elegí el puerto en Conexión"
-                  : pc.plugin !== "corriendo" ? "El control de la central está apagado"
-                  : "Sin control de la central: " + (pc.e.motivo || "…")
+            text: pc.ok ? (pc.e.ccu && pc.e.ccu.version ? qsTr("Central conectada · %1").arg(pc.e.ccu.version) : qsTr("Central conectada"))
+                  : pc.plugin === "no_instalado" ? qsTr("Sin configurar: elegí el puerto en Conexión")
+                  : pc.plugin !== "corriendo" ? qsTr("El control de la central está apagado")
+                  : qsTr("Sin control de la central: %1").arg(pc.e.motivo || "…")
             color: pc.ok ? Theme.text : Theme.live; font { pixelSize: 13; weight: Font.DemiBold }
         }
-        Text { visible: pc.ok && pc.e.solo_escuchar; text: "· solo escuchar"; color: Theme.amber; font.pixelSize: 12 }
+        Text { visible: pc.ok && pc.e.solo_escuchar; text: qsTr("· solo escuchar"); color: Theme.amber; font.pixelSize: 12 }
         Item { Layout.fillWidth: true }
         Text { visible: pc.ok; color: Theme.textDim; font.pixelSize: 12
-               text: "Abiertos " + (pc.e.abiertos || []).length + (pc.e.max_abiertos ? " de " + pc.e.max_abiertos : "") }
+               text: pc.e.max_abiertos ? qsTr("Abiertos %1 de %2").arg((pc.e.abiertos || []).length).arg(pc.e.max_abiertos)
+                                    : qsTr("Abiertos %1").arg((pc.e.abiertos || []).length) }
         ComboBox {
             visible: pc.ok
             implicitWidth: 270  // que entre «Operador (la app da la palabra)» entero
-            model: [ { t: "Operador (la app da la palabra)", v: "operador" }, { t: "Operador con réplicas", v: "operador_replicas" },
-                     { t: "Delegado con lista", v: "delegado_lista" }, { t: "Delegado con reemplazo", v: "reemplazo" },
-                     { t: "Por voz", v: "voz" }, { t: "Pulsar para hablar", v: "pulsar" } ]
+            model: [ { t: qsTr("Operador (la app da la palabra)"), v: "operador" }, { t: qsTr("Operador con réplicas"), v: "operador_replicas" },
+                     { t: qsTr("Delegado con lista"), v: "delegado_lista" }, { t: qsTr("Delegado con reemplazo"), v: "reemplazo" },
+                     { t: qsTr("Por voz"), v: "voz" }, { t: qsTr("Pulsar para hablar"), v: "pulsar" } ]
             textRole: "t"
             currentIndex: Math.max(0, model.findIndex(o => o.v === pc.e.modo))
             onActivated: (i) => {
                 const v = model[i].v
-                ApplicationWindow.window.confirm({ title: "¿Cambiar el modo de la central?",
-                    text: "Cambia cómo se abren los micrófonos de toda la sala.", accept: "Cambiar", reject: "Cancelar",
+                ApplicationWindow.window.confirm({ title: qsTr("¿Cambiar el modo de la central?"),
+                    text: qsTr("Cambia cómo se abren los micrófonos de toda la sala."), accept: qsTr("Cambiar"), reject: qsTr("Cancelar"),
                     action: function() { pc.pedir("modo", "modo", {modo: v}) } })
             }
-            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Modo de operación de la central"
+            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Modo de operación de la central")
         }
-        GlassButton { text: "Siguiente ▶"; active: true; enabled: pc.ok && (pc.e.pedidos || []).length > 0
+        GlassButton { text: qsTr("Siguiente ▶"); active: true; enabled: pc.ok && (pc.e.pedidos || []).length > 0
                       onClicked: pc.pedir("siguiente", "siguiente")
-                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Le da la palabra al primero de la lista" }
-        GlassButton { text: "Cerrar todos"; enabled: pc.ok && (pc.e.abiertos || []).length > 0
-                      onClicked: ApplicationWindow.window.confirm({ title: "¿Cerrar todos los micrófonos?",
-                          text: "Menos el del presidente.", accept: "Cerrar", reject: "Cancelar",
+                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Le da la palabra al primero de la lista") }
+        GlassButton { text: qsTr("Cerrar todos"); enabled: pc.ok && (pc.e.abiertos || []).length > 0
+                      onClicked: ApplicationWindow.window.confirm({ title: qsTr("¿Cerrar todos los micrófonos?"),
+                          text: qsTr("Menos el del presidente."), accept: qsTr("Cerrar"), reject: qsTr("Cancelar"),
                           action: function() { pc.pedir("cerrar", "cerrar_todos") } }) }
         // La presidencia sobre todos (también los remotos): Studio.silenciarTodos / hablaPresidencia.
-        GlassButton { text: "🔇 Silenciar a todos"; activeColor: Theme.live
+        GlassButton { text: qsTr("🔇 Silenciar a todos"); activeColor: Theme.live
                       onClicked: Studio.silenciarTodos()
                       ToolTip.visible: hovered; ToolTip.delay: 400
-                      ToolTip.text: "Cierra los micrófonos de la central (menos el del presidente), termina al orador y les saca la palabra a los remotos" }
-        GlassButton { text: Studio.presidenciaHabla ? "🎙 Presidencia hablando" : "🎙 Habla la presidencia"
+                      ToolTip.text: qsTr("Cierra los micrófonos de la central (menos el del presidente), termina al orador y les saca la palabra a los remotos") }
+        GlassButton { text: Studio.presidenciaHabla ? qsTr("🎙 Presidencia hablando") : qsTr("🎙 Habla la presidencia")
                       active: Studio.presidenciaHabla; activeColor: Theme.live; enabled: pc.ok
                       onClicked: Studio.hablaPresidencia(!Studio.presidenciaHabla)
-                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Calla a todos y abre el micrófono de la presidencia" }
+                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Calla a todos y abre el micrófono de la presidencia") }
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
         visible: pc.ok && !!(pc.e.prioridad && pc.e.prioridad.activa)
         color: Theme.live
-        text: "Prioridad del presidente: todos callados (también los remotos)."
+        text: qsTr("Prioridad del presidente: todos callados (también los remotos).")
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
         visible: pc.ok && pc.e.modo_operador === false
         color: Theme.amber
-        text: "La central no está en modo operador: los micrófonos los decide ella (o los delegados). Desde acá se abre y cierra solo lo que la central acepte."
+        text: qsTr("La central no está en modo operador: los micrófonos los decide ella (o los delegados). Desde acá se abre y cierra solo lo que la central acepte.")
     }
 
     TabBar {
@@ -106,11 +107,11 @@ ColumnLayout {
         Layout.fillWidth: true
         currentIndex: pc.pestana
         onCurrentIndexChanged: pc.pestana = currentIndex
-        TabButton { text: "Sala" }
-        TabButton { text: "Unidades" + ((pc.e.bancas_sin_unidad || []).length ? " (" + pc.e.bancas_sin_unidad.length + " sin unidad)" : "") }
-        TabButton { text: "Votación y asistencia" }
-        TabButton { text: "Conexión" }
-        TabButton { text: "Avanzado" }
+        TabButton { text: qsTr("Sala") }
+        TabButton { text: (pc.e.bancas_sin_unidad || []).length ? qsTr("Unidades (%1 sin unidad)").arg(pc.e.bancas_sin_unidad.length) : qsTr("Unidades") }
+        TabButton { text: qsTr("Votación y asistencia") }
+        TabButton { text: qsTr("Conexión") }
+        TabButton { text: qsTr("Avanzado") }
     }
 
     StackLayout {
@@ -138,8 +139,8 @@ ColumnLayout {
                         anchors { fill: parent; margins: 8; leftMargin: 12 }
                         spacing: 10
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
-                               text: "Sin la central conectada, tocar una banca no abre su micrófono (abre el menú de la banca)." }
-                        GlassButton { compact: true; text: "Ir a Conexión"; onClicked: pc.pestana = 3 }
+                               text: qsTr("Sin la central conectada, tocar una banca no abre su micrófono (abre el menú de la banca).") }
+                        GlassButton { compact: true; text: qsTr("Ir a Conexión"); onClicked: pc.pestana = 3 }
                     }
                 }
                 ScrollView {
@@ -158,7 +159,7 @@ ColumnLayout {
                 spacing: 8
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "Pidieron la palabra"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                    Text { text: qsTr("Pidieron la palabra"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
                     Item { Layout.fillWidth: true }
                     Text { visible: (pc.e.pedidos || []).length > 0; text: (pc.e.pedidos || []).length; color: Theme.amber
                            font { pixelSize: 13; weight: Font.Black } }
@@ -167,16 +168,16 @@ ColumnLayout {
                     Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.amber; font.pixelSize: 12
                     visible: !!(pc.e.proximo && pc.e.proximo.unidad)
                     text: pc.e.proximo && pc.e.proximo.unidad
-                          ? "Próximo según la central: " + (pc.e.proximo.banca ? "banca " + pc.e.proximo.banca : "unidad " + pc.e.proximo.unidad)
-                            + (pc.e.proximo.nombre ? " · " + pc.e.proximo.nombre : "") : ""
+                          ? qsTr("Próximo según la central: %1").arg((pc.e.proximo.banca ? qsTr("banca %1").arg(pc.e.proximo.banca) : qsTr("unidad %1").arg(pc.e.proximo.unidad))
+                            + (pc.e.proximo.nombre ? " · " + pc.e.proximo.nombre : "")) : ""
                 }
                 CheckBox {
-                    text: "Cerrar micrófonos al pasar al siguiente"
+                    text: qsTr("Cerrar micrófonos al pasar al siguiente")
                     enabled: pc.ok && !pc.e.solo_escuchar
                     checked: pc.e.cerrar_tras_siguiente === true
                     onToggled: pc.pedir("cts", "cerrar_tras_siguiente", {activo: checked})
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Con «Siguiente», la central cierra los micrófonos de los que estaban hablando (función sin documentar: probala en la sala)"
+                    ToolTip.text: qsTr("Con «Siguiente», la central cierra los micrófonos de los que estaban hablando (función sin documentar: probala en la sala)")
                 }
                 ListView {
                     Layout.fillWidth: true
@@ -186,9 +187,9 @@ ColumnLayout {
                     spacing: 4
                     model: pc.e.pedidos || []
                     EstadoVacio { anchors.centerIn: parent; width: parent.width; visible: parent.count === 0; chico: true
-                                  titulo: "Nadie pidió la palabra"
-                                  texto: pc.ok ? "Cuando alguien aprieta el botón de su banca, aparece acá con su turno. «Siguiente ▶» le da la palabra al primero."
-                                               : "Con la central conectada, los pedidos de palabra aparecen acá en orden." }
+                                  titulo: qsTr("Nadie pidió la palabra")
+                                  texto: pc.ok ? qsTr("Cuando alguien aprieta el botón de su banca, aparece acá con su turno. «Siguiente ▶» le da la palabra al primero.")
+                                               : qsTr("Con la central conectada, los pedidos de palabra aparecen acá en orden.") }
                     delegate: Rectangle {
                         required property var modelData
                         required property int index
@@ -198,10 +199,10 @@ ColumnLayout {
                             anchors { fill: parent; leftMargin: 8; rightMargin: 4 }
                             Text { text: modelData.turno; color: Theme.amber; font { pixelSize: 14; weight: Font.Black } }
                             Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 12
-                                   text: (modelData.banca ? "Banca " + modelData.banca : "unidad " + modelData.unidad) + (modelData.nombre ? " · " + modelData.nombre : "") }
+                                   text: (modelData.banca ? qsTr("Banca %1").arg(modelData.banca) : qsTr("unidad %1").arg(modelData.unidad)) + (modelData.nombre ? " · " + modelData.nombre : "") }
                             GlassButton { compact: true; text: "▲"; visible: index > 0
                                           onClicked: pc.pedir("pedido", "pedido", {banca: modelData.banca, unidad: modelData.unidad, accion: "primero"}) }
-                            GlassButton { compact: true; text: "Dar"; active: true
+                            GlassButton { compact: true; text: qsTr("Dar"); active: true
                                           onClicked: pc.pedir("mic", "microfono", {banca: modelData.banca, unidad: modelData.unidad, abierto: true}) }
                             GlassButton { compact: true; text: "✕"
                                           onClicked: pc.pedir("pedido", "pedido", {banca: modelData.banca, unidad: modelData.unidad, accion: "quitar"}) }
@@ -211,7 +212,7 @@ ColumnLayout {
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.08) }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "Hablando"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                    Text { text: qsTr("Hablando"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
                     Item { Layout.fillWidth: true }
                     Text { visible: (pc.e.hablando || []).length > 0; text: (pc.e.hablando || []).length; color: Theme.live
                            font { pixelSize: 13; weight: Font.Black } }
@@ -223,8 +224,8 @@ ColumnLayout {
                     spacing: 4
                     model: pc.e.hablando || []
                     EstadoVacio { anchors.centerIn: parent; width: parent.width; visible: parent.count === 0; chico: true
-                                  titulo: "Ningún micrófono abierto"
-                                  texto: "Tocá una banca para abrirle el micrófono." }
+                                  titulo: qsTr("Ningún micrófono abierto")
+                                  texto: qsTr("Tocá una banca para abrirle el micrófono.") }
                     delegate: Rectangle {
                         required property var modelData
                         width: ListView.view.width; height: 40; radius: 8
@@ -233,10 +234,10 @@ ColumnLayout {
                             anchors { fill: parent; leftMargin: 8; rightMargin: 4 }
                             Text { text: modelData.microfono ? "●" : "○"; color: "white"; font.pixelSize: 13 }
                             Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 12
-                                   text: (modelData.banca ? "Banca " + modelData.banca : "unidad " + modelData.unidad) + (modelData.nombre ? " · " + modelData.nombre : "") }
-                            GlassButton { compact: true; text: modelData.microfono ? "Cerrar" : "Abrir"
+                                   text: (modelData.banca ? qsTr("Banca %1").arg(modelData.banca) : qsTr("unidad %1").arg(modelData.unidad)) + (modelData.nombre ? " · " + modelData.nombre : "") }
+                            GlassButton { compact: true; text: modelData.microfono ? qsTr("Cerrar") : qsTr("Abrir")
                                           onClicked: pc.pedir("mic", "microfono", {banca: modelData.banca, unidad: modelData.unidad, abierto: !modelData.microfono, confirmar: true}) }
-                            GlassButton { compact: true; text: "Terminar"
+                            GlassButton { compact: true; text: qsTr("Terminar")
                                           onClicked: pc.pedir("mic", "microfono", {banca: modelData.banca, unidad: modelData.unidad, abierto: false, quitar: true, confirmar: true}) }
                         }
                     }
@@ -249,33 +250,33 @@ ColumnLayout {
             spacing: 8
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                text: "La central habla de unidades; la app, de bancas. «Aprender todas» va banca por banca: alguien aprieta el botón de micrófono de la banca que se muestra y queda asignada (se guarda en el Cuerpo)."
+                text: qsTr("La central habla de unidades; la app, de bancas. «Aprender todas» va banca por banca: alguien aprieta el botón de micrófono de la banca que se muestra y queda asignada (se guarda en el Cuerpo).")
             }
             RowLayout {
                 spacing: 8
-                GlassButton { text: pc.e.aprendiendo ? "Dejar de aprender" : "Aprender todas"; active: !!pc.e.aprendiendo; enabled: pc.ok
+                GlassButton { text: pc.e.aprendiendo ? qsTr("Dejar de aprender") : qsTr("Aprender todas"); active: !!pc.e.aprendiendo; enabled: pc.ok
                               onClicked: pc.pedir("aprender", "unidad_asignar", pc.e.aprendiendo ? {cancelar: true} : {aprender_todas: true}) }
                 Text { visible: !!pc.e.aprendiendo; color: Theme.amber; font { pixelSize: 15; weight: Font.Black }
-                       text: "Apretá el botón de la banca " + (pc.e.aprendiendo || "") }
+                       text: qsTr("Apretá el botón de la banca %1").arg(pc.e.aprendiendo || "") }
                 Item { Layout.fillWidth: true }
-                GlassButton { text: "Integrantes…"; onClicked: panelCuerpo.open() }
+                GlassButton { text: qsTr("Integrantes…"); onClicked: panelCuerpo.open() }
             }
             Text { visible: (pc.e.unidades_sin_banca || []).length > 0; color: Theme.amber; font.pixelSize: 12
                    Layout.fillWidth: true; elide: Text.ElideRight
-                   text: (pc.e.unidades_sin_banca || []).length + " unidades conectadas sin banca: " + (pc.e.unidades_sin_banca || []).join(", ")
+                   text: qsTr("%n unidad conectada sin banca: %1", "", (pc.e.unidades_sin_banca || []).length).arg((pc.e.unidades_sin_banca || []).join(", "))
                    HoverHandler { id: sobreSinBanca }
                    ToolTip.visible: sobreSinBanca.hovered; ToolTip.delay: 400
-                   ToolTip.text: "Ponele la banca a cada una en su fila (o «Aprender todas»)" }
+                   ToolTip.text: qsTr("Ponele la banca a cada una en su fila (o «Aprender todas»)") }
             RowLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: 8
                 visible: (pc.e.unidades || []).length > 0
                 spacing: 10
-                Text { Layout.preferredWidth: 90; text: "Unidad"; color: Theme.textFaint; font.pixelSize: 11 }
-                Text { Layout.preferredWidth: 80; text: "Tipo"; color: Theme.textFaint; font.pixelSize: 11 }
-                Text { Layout.preferredWidth: 230; text: "Equipo"; color: Theme.textFaint; font.pixelSize: 11 }
-                Text { Layout.preferredWidth: 90; text: "Estado"; color: Theme.textFaint; font.pixelSize: 11 }
-                Text { text: "Banca"; color: Theme.textFaint; font.pixelSize: 11 }
+                Text { Layout.preferredWidth: 90; text: qsTr("Unidad"); color: Theme.textFaint; font.pixelSize: 11 }
+                Text { Layout.preferredWidth: 80; text: qsTr("Tipo"); color: Theme.textFaint; font.pixelSize: 11 }
+                Text { Layout.preferredWidth: 230; text: qsTr("Equipo"); color: Theme.textFaint; font.pixelSize: 11 }
+                Text { Layout.preferredWidth: 90; text: qsTr("Estado"); color: Theme.textFaint; font.pixelSize: 11 }
+                Text { text: qsTr("Banca"); color: Theme.textFaint; font.pixelSize: 11 }
                 Item { Layout.fillWidth: true }
             }
             EstadoVacio {
@@ -283,10 +284,10 @@ ColumnLayout {
                 Layout.fillHeight: true
                 visible: (pc.e.unidades || []).length === 0
                 icono: "⏻"
-                titulo: pc.ok ? "La central no informó unidades" : "Sin la central no se ven las unidades"
-                texto: pc.ok ? "Fijate que las unidades estén enchufadas a la central y encendidas."
-                             : "Conectá la central (pestaña Conexión) y acá aparece cada unidad, de qué tipo es y qué banca tiene asignada."
-                accion: pc.ok ? "" : "Ir a Conexión"
+                titulo: pc.ok ? qsTr("La central no informó unidades") : qsTr("Sin la central no se ven las unidades")
+                texto: pc.ok ? qsTr("Fijate que las unidades estén enchufadas a la central y encendidas.")
+                             : qsTr("Conectá la central (pestaña Conexión) y acá aparece cada unidad, de qué tipo es y qué banca tiene asignada.")
+                accion: pc.ok ? "" : qsTr("Ir a Conexión")
                 onActivado: pc.pestana = 3
             }
             ListView {
@@ -307,17 +308,17 @@ ColumnLayout {
                     id: filaU
                     anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 8 }
                     spacing: 10
-                    Text { text: "Unidad " + modelData.unidad; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 90 }
+                    Text { text: qsTr("Unidad %1").arg(modelData.unidad); color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 90 }
                     Text { text: modelData.tipo; color: modelData.tipo === "presidente" ? "#d4af37" : Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 80 }
                     Text { Layout.preferredWidth: 230; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 11
-                           text: modelData.mitad ? "DDI " + modelData.ddi + " · micrófono " + modelData.mitad
+                           text: modelData.mitad ? qsTr("DDI %1 · micrófono %2").arg(modelData.ddi).arg(modelData.mitad)
                                  : (modelData.tipo_nombre || "")
                            HoverHandler { id: sobreDdi }
                            ToolTip.visible: sobreDdi.hovered && !!modelData.mitad; ToolTip.delay: 400
-                           ToolTip.text: "Una DCN-DDI en modo doble son dos micrófonos: la izquierda es la unidad y la derecha la unidad + 256. Cada uno va en su banca." }
-                    Text { text: modelData.conectada ? "conectada" : "desconectada"; color: modelData.conectada ? Theme.ok : Theme.live; font.pixelSize: 12; Layout.preferredWidth: 90 }
-                    TextField { id: campoBanca; Layout.preferredWidth: 90; placeholderText: "banca"; text: modelData.banca || "" }
-                    GlassButton { compact: true; text: "Asignar"; enabled: campoBanca.text.trim() !== "" && campoBanca.text !== (modelData.banca || "")
+                           ToolTip.text: qsTr("Una DCN-DDI en modo doble son dos micrófonos: la izquierda es la unidad y la derecha la unidad + 256. Cada uno va en su banca.") }
+                    Text { text: modelData.conectada ? qsTr("conectada") : qsTr("desconectada"); color: modelData.conectada ? Theme.ok : Theme.live; font.pixelSize: 12; Layout.preferredWidth: 90 }
+                    TextField { id: campoBanca; Layout.preferredWidth: 90; placeholderText: qsTr("banca"); text: modelData.banca || "" }
+                    GlassButton { compact: true; text: qsTr("Asignar"); enabled: campoBanca.text.trim() !== "" && campoBanca.text !== (modelData.banca || "")
                                   onClicked: pc.pedir("asignar", "unidad_asignar", {banca: campoBanca.text.trim(), unidad: modelData.unidad}) }
                     Item { Layout.fillWidth: true }
                   }
@@ -340,10 +341,10 @@ ColumnLayout {
             readonly property var vr: Studio.sesionRemota ? Studio.sesionRemota.votacionActual : ({})
             readonly property string est: v.estado || "sin_preparar"
             Text { visible: !!vot.err.votacion; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
-                   text: "La votación de la central no arrancó: " + (vot.err.votacion || "") }
+                   text: qsTr("La votación de la central no arrancó: %1").arg(vot.err.votacion || "") }
             Seccion {
-                titulo: "Votación en la central" + (vot.est === "abierta" ? " · ABIERTA" : vot.est === "pausada" ? " · en pausa" : "")
-                subtitulo: "Se vota con los botones de cada banca. Primero se prepara (tema y opciones), después se abre y se cierra; el resultado se pasa a Quórum como oficial."
+                titulo: vot.est === "abierta" ? qsTr("Votación en la central · ABIERTA") : vot.est === "pausada" ? qsTr("Votación en la central · en pausa") : qsTr("Votación en la central")
+                subtitulo: qsTr("Se vota con los botones de cada banca. Primero se prepara (tema y opciones), después se abre y se cierra; el resultado se pasa a Quórum como oficial.")
                 resaltado: vot.est === "abierta" ? Theme.live : "transparent"
             RowLayout {
                 spacing: 8
@@ -351,47 +352,47 @@ ColumnLayout {
                 TextField {
                     id: temaVot
                     Layout.fillWidth: true
-                    placeholderText: "Tema de la votación"
+                    placeholderText: qsTr("Tema de la votación")
                     text: Studio.ordenDelDia.actual && Studio.ordenDelDia.actual.titulo
-                          ? "Punto " + Studio.ordenDelDia.actual.n + ": " + Studio.ordenDelDia.actual.titulo : ""
+                          ? qsTr("Punto %1: %2").arg(Studio.ordenDelDia.actual.n).arg(Studio.ordenDelDia.actual.titulo) : ""
                 }
                 ComboBox {
                     id: menuVot
                     implicitWidth: 200
-                    model: [ { t: "Sí / No / Abstención", v: "si_no_abstencion" }, { t: "Sí / No", v: "si_no" },
-                             { t: "A favor / En contra", v: "a_favor_en_contra" } ]
+                    model: [ { t: qsTr("Sí / No / Abstención"), v: "si_no_abstencion" }, { t: qsTr("Sí / No"), v: "si_no" },
+                             { t: qsTr("A favor / En contra"), v: "a_favor_en_contra" } ]
                     textRole: "t"
                 }
-                CheckBox { id: nominalVot; text: "Nominal"; checked: true
-                           ToolTip.visible: hovered; ToolTip.text: "Voto abierto: se sabe qué votó cada banca" }
+                CheckBox { id: nominalVot; text: qsTr("Nominal"); checked: true
+                           ToolTip.visible: hovered; ToolTip.text: qsTr("Voto abierto: se sabe qué votó cada banca") }
             }
             RowLayout {
                 spacing: 8
-                GlassButton { text: "Preparar"; enabled: pc.ok && vot.est !== "abierta" && vot.est !== "pausada" && temaVot.text.trim() !== ""
+                GlassButton { text: qsTr("Preparar"); enabled: pc.ok && vot.est !== "abierta" && vot.est !== "pausada" && temaVot.text.trim() !== ""
                               // El número lo pone la central (la que sigue a la última).
                               onClicked: pc.pedir("votacion", "votacion", {accion: "preparar", tema: temaVot.text.trim(),
                                                   menu: menuVot.model[menuVot.currentIndex].v, abierta: nominalVot.checked}) }
-                GlassButton { text: "Abrir la votación"; active: true; enabled: pc.ok && vot.est === "preparada"
+                GlassButton { text: qsTr("Abrir la votación"); active: true; enabled: pc.ok && vot.est === "preparada"
                               onClicked: pc.pedir("votacion", "votacion", {accion: "abrir"}) }
-                GlassButton { text: vot.est === "pausada" ? "Reanudar" : "Pausar"; enabled: pc.ok && (vot.est === "abierta" || vot.est === "pausada")
+                GlassButton { text: vot.est === "pausada" ? qsTr("Reanudar") : qsTr("Pausar"); enabled: pc.ok && (vot.est === "abierta" || vot.est === "pausada")
                               onClicked: pc.pedir("votacion", "votacion", {accion: vot.est === "pausada" ? "reanudar" : "pausar"}) }
-                GlassButton { text: "Cerrar"; enabled: pc.ok && (vot.est === "abierta" || vot.est === "pausada")
-                              onClicked: ApplicationWindow.window.confirm({ title: "¿Cerrar la votación?", text: vot.v.tema || "",
-                                  accept: "Cerrar", reject: "Seguir", action: function() { pc.pedir("votacion", "votacion", {accion: "cerrar"}) } }) }
+                GlassButton { text: qsTr("Cerrar"); enabled: pc.ok && (vot.est === "abierta" || vot.est === "pausada")
+                              onClicked: ApplicationWindow.window.confirm({ title: qsTr("¿Cerrar la votación?"), text: vot.v.tema || "",
+                                  accept: qsTr("Cerrar"), reject: qsTr("Seguir"), action: function() { pc.pedir("votacion", "votacion", {accion: "cerrar"}) } }) }
                 Item { Layout.fillWidth: true }
                 GlassButton {
-                    text: "Pasar a Quórum (oficial)"; enabled: vot.est === "cerrada" && !!vot.v.totales
-                    onClicked: { const e = pc.dcn.pasarAQuorumUi(); Studio.notify(e !== "" ? e : "Resultado cargado en Quórum", e !== "" ? "error" : "info") }
-                    ToolTip.visible: hovered; ToolTip.text: "Carga el resultado como oficial en Quórum: acta, CSV nominal y gráfico de votación"
+                    text: qsTr("Pasar a Quórum (oficial)"); enabled: vot.est === "cerrada" && !!vot.v.totales
+                    onClicked: { const e = pc.dcn.pasarAQuorumUi(); Studio.notify(e !== "" ? e : qsTr("Resultado cargado en Quórum"), e !== "" ? "error" : "info") }
+                    ToolTip.visible: hovered; ToolTip.text: qsTr("Carga el resultado como oficial en Quórum: acta, CSV nominal y gráfico de votación")
                 }
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: vot.est === "sin_preparar" ? Theme.textFaint : Theme.text
                 font { pixelSize: vot.est === "sin_preparar" ? 12 : 15; weight: vot.est === "sin_preparar" ? Font.Normal : Font.DemiBold }
-                text: vot.est === "sin_preparar" ? (pc.ok ? "No hay ninguna votación preparada. Escribí el tema (sale solo del punto en tratamiento) y tocá «Preparar»."
-                                                          : "Sin la central conectada no se puede votar con las bancas: usá «Votación en los celulares», abajo.") :
-                      (vot.v.tema || "") + " — " + ({preparada: "preparada", abierta: "ABIERTA", pausada: "en pausa", cerrada: "cerrada"}[vot.est] || vot.est)
+                text: vot.est === "sin_preparar" ? (pc.ok ? qsTr("No hay ninguna votación preparada. Escribí el tema (sale solo del punto en tratamiento) y tocá «Preparar».")
+                                                          : qsTr("Sin la central conectada no se puede votar con las bancas: usá «Votación en los celulares», abajo.")) :
+                      (vot.v.tema || "") + " — " + ({preparada: qsTr("preparada"), abierta: qsTr("ABIERTA"), pausada: qsTr("en pausa"), cerrada: qsTr("cerrada")}[vot.est] || vot.est)
             }
             RowLayout {
                 visible: !!vot.v.totales
@@ -407,8 +408,8 @@ ColumnLayout {
                 }
                 ColumnLayout {
                     spacing: 0
-                    Text { text: (vot.v.presentes || 0) + " presentes"; color: Theme.textDim; font.pixelSize: 12 }
-                    Text { text: (vot.v.no_votaron || 0) + " sin votar"; color: Theme.textDim; font.pixelSize: 12 }
+                    Text { text: qsTr("%n presente", "", vot.v.presentes || 0); color: Theme.textDim; font.pixelSize: 12 }
+                    Text { text: qsTr("%n sin votar", "", vot.v.no_votaron || 0); color: Theme.textDim; font.pixelSize: 12 }
                 }
             }
             ListView {
@@ -422,7 +423,7 @@ ColumnLayout {
                 delegate: RowLayout {
                     required property var modelData
                     width: ListView.view.width
-                    Text { Layout.preferredWidth: 80; text: modelData.banca ? "Banca " + modelData.banca : "unidad " + modelData.unidad
+                    Text { Layout.preferredWidth: 80; text: modelData.banca ? qsTr("Banca %1").arg(modelData.banca) : qsTr("unidad %1").arg(modelData.unidad)
                            color: Theme.textDim; font.pixelSize: 12 }
                     Text { Layout.fillWidth: true; text: modelData.nombre || ""; color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight }
                     Text { text: modelData.voto; font { pixelSize: 12; weight: Font.DemiBold }
@@ -431,36 +432,37 @@ ColumnLayout {
             }
             }
             Seccion {
-                titulo: "Asistencia"
-                subtitulo: "La central sabe quién está sentado (tarjeta o botón de presencia en la banca)."
+                titulo: qsTr("Asistencia")
+                subtitulo: qsTr("La central sabe quién está sentado (tarjeta o botón de presencia en la banca).")
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
                 Text { color: Theme.text; font.pixelSize: 13
-                       text: vot.err.asistencia ? "Asistencia de la central: no arrancó (" + vot.err.asistencia + ")"
-                             : "Asistencia de la central: " + (vot.asis.presentes !== undefined ? vot.asis.presentes + " presentes, " + (vot.asis.ausentes || 0) + " ausentes" : "sin datos") }
+                       text: vot.err.asistencia ? qsTr("Asistencia de la central: no arrancó (%1)").arg(vot.err.asistencia)
+                             : vot.asis.presentes !== undefined ? qsTr("Asistencia de la central: %1 presentes, %2 ausentes").arg(vot.asis.presentes).arg(vot.asis.ausentes || 0)
+                             : qsTr("Asistencia de la central: sin datos") }
                 Item { Layout.fillWidth: true }
                 Switch { id: presQ; checked: pc.dcn ? pc.dcn.presentesDeLaCentral : false
                          onToggled: pc.dcn.presentesDeLaCentral = checked }
-                Text { text: "Quórum usa estos presentes"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Quórum usa estos presentes"); color: Theme.textDim; font.pixelSize: 12 }
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
                 visible: !!vot.v.desde_presidente || !!(pc.e.nominal_turno && pc.e.nominal_turno.delegado)
-                text: (vot.v.desde_presidente ? "El presidente maneja la votación desde su unidad. " : "")
+                text: (vot.v.desde_presidente ? qsTr("El presidente maneja la votación desde su unidad. ") : "")
                       + (pc.e.nominal_turno && pc.e.nominal_turno.delegado
-                         ? "Llamado nominal: vota " + (pc.e.nominal_turno.banca ? "la banca " + pc.e.nominal_turno.banca : "el delegado " + pc.e.nominal_turno.delegado)
+                         ? (pc.e.nominal_turno.banca ? qsTr("Llamado nominal: vota la banca %1").arg(pc.e.nominal_turno.banca) : qsTr("Llamado nominal: vota el delegado %1").arg(pc.e.nominal_turno.delegado))
                            + (pc.e.nominal_turno.segundos_restantes ? " (" + pc.e.nominal_turno.segundos_restantes + " s)" : "") : "")
             }
             }
             // --- Los celulares (sesión remota): votan igual, con o sin la central ---
             Seccion {
-                titulo: "Votación en los celulares" + (vot.vr.estado === "abierta" ? " · ABIERTA" : vot.vr.estado === "pausada" ? " · en pausa"
-                        : vot.vr.estado === "cerrada" ? " · cerrada" : "")
-                subtitulo: "Los que entran por el navegador votan desde su celular, con o sin la central."
+                titulo: vot.vr.estado === "abierta" ? qsTr("Votación en los celulares · ABIERTA") : vot.vr.estado === "pausada" ? qsTr("Votación en los celulares · en pausa")
+                        : vot.vr.estado === "cerrada" ? qsTr("Votación en los celulares · cerrada") : qsTr("Votación en los celulares")
+                subtitulo: qsTr("Los que entran por el navegador votan desde su celular, con o sin la central.")
                 resaltado: vot.vr.estado === "abierta" ? Theme.live : "transparent"
                 extra: [
-                    Text { color: Theme.textDim; font.pixelSize: 12; text: "Tiempo para votar (s)" },
+                    Text { color: Theme.textDim; font.pixelSize: 12; text: qsTr("Tiempo para votar (s)") },
                     SpinBox { from: 0; to: 600; stepSize: 10; editable: true
                               value: Studio.sesionRemota ? Studio.sesionRemota.votoSegundos : 60
                               onValueModified: Studio.sesionRemota.votoSegundos = value }
@@ -472,27 +474,27 @@ ColumnLayout {
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
                         text: (vot.vr.estado === "abierta" || vot.vr.estado === "pausada" || vot.vr.estado === "cerrada")
-                              ? "«" + (vot.vr.tema || "") + "» — votaron por el celular " + (vot.vr.votos || []).length + ": " +
-                                (vot.vr.opciones || []).map(o => o.texto + " " + ((vot.vr.totales || {})[o.id] || 0)).join(" · ")
-                              : "Cuando la central abre una votación, a los habilitados por el celular les aparece el cartel rojo con el tema, " +
-                                "las opciones y la cuenta regresiva. Sin la central, se abre desde acá. Al pasar a Quórum vale un voto por integrante."
+                              ? qsTr("«%1» — votaron por el celular %2: %3").arg(vot.vr.tema || "").arg((vot.vr.votos || []).length)
+                                    .arg((vot.vr.opciones || []).map(o => o.texto + " " + ((vot.vr.totales || {})[o.id] || 0)).join(" · "))
+                              : qsTr("Cuando la central abre una votación, a los habilitados por el celular les aparece el cartel rojo con el tema, "
+                                     + "las opciones y la cuenta regresiva. Sin la central, se abre desde acá. Al pasar a Quórum vale un voto por integrante.")
                     }
                     RowLayout {
                         visible: vot.vr.estado !== "abierta" && vot.vr.estado !== "pausada"
-                        TextField { id: temaCel; Layout.fillWidth: true; placeholderText: "Tema (votar sin la central)" }
+                        TextField { id: temaCel; Layout.fillWidth: true; placeholderText: qsTr("Tema (votar sin la central)") }
                         ComboBox { id: menuCel; implicitWidth: 170; textRole: "t"
-                                   model: [ { t: "Sí / No / Abst.", v: "si_no_abstencion" }, { t: "Sí / No", v: "si_no" },
-                                            { t: "Sí / No / Abst. / NP", v: "si_no_abstencion_nppv" } ] }
-                        GlassButton { text: "Abrir en los celulares"; enabled: temaCel.text.trim() !== ""
+                                   model: [ { t: qsTr("Sí / No / Abst."), v: "si_no_abstencion" }, { t: qsTr("Sí / No"), v: "si_no" },
+                                            { t: qsTr("Sí / No / Abst. / NP"), v: "si_no_abstencion_nppv" } ] }
+                        GlassButton { text: qsTr("Abrir en los celulares"); enabled: temaCel.text.trim() !== ""
                                       onClicked: { const e = Studio.votaciones.abrirEnCelularesUi(temaCel.text, menuCel.model[menuCel.currentIndex].v,
                                                                                                  Studio.sesionRemota.votoSegundos)
                                                    if (e) Studio.notify(e, "error") } }
                     }
                     RowLayout {
                         visible: (vot.vr.estado === "abierta" || vot.vr.estado === "pausada") && vot.vr.origen === "app"
-                        GlassButton { text: vot.vr.estado === "pausada" ? "Reanudar" : "Pausar"
+                        GlassButton { text: vot.vr.estado === "pausada" ? qsTr("Reanudar") : qsTr("Pausar")
                                       onClicked: Studio.votaciones.pausarEnCelularesUi(vot.vr.estado !== "pausada") }
-                        GlassButton { text: "Cerrar"; active: true; onClicked: Studio.votaciones.cerrarEnCelularesUi() }
+                        GlassButton { text: qsTr("Cerrar"); active: true; onClicked: Studio.votaciones.cerrarEnCelularesUi() }
                     }
                 }
             }
@@ -506,27 +508,27 @@ ColumnLayout {
             spacing: 8
             readonly property var cfg: pc.dcn ? pc.dcn.config : ({})
             Seccion {
-                titulo: "Conexión con la central"
-                subtitulo: "La central tiene que tener habilitada la licencia del Open Interface (LBB4187/00). Por serie: el puerto 1 de la CCU viene de fábrica en Full a 115200 (llaves S500); cable 1 a 1 con RTS/CTS, de hasta unos 2 m. Por red (CCU2): puerto 9451."
+                titulo: qsTr("Conexión con la central")
+                subtitulo: qsTr("La central tiene que tener habilitada la licencia del Open Interface (LBB4187/00). Por serie: el puerto 1 de la CCU viene de fábrica en Full a 115200 (llaves S500); cable 1 a 1 con RTS/CTS, de hasta unos 2 m. Por red (CCU2): puerto 9451.")
                 extra: [
                     Rectangle { implicitWidth: 10; implicitHeight: 10; radius: 5
                                 color: pc.ok ? Theme.ok : (pc.e.enlace === "sincronizando" ? Theme.amber : Theme.live) },
                     Text { color: pc.ok ? Theme.ok : Theme.textDim; font.pixelSize: 12
-                           text: pc.ok ? "conectada" + (pc.e.solo_escuchar ? " · solo escuchar" : "") : pc.plugin === "corriendo" ? "sin respuesta" : "apagada" }
+                           text: pc.ok ? (pc.e.solo_escuchar ? qsTr("conectada · solo escuchar") : qsTr("conectada")) : pc.plugin === "corriendo" ? qsTr("sin respuesta") : qsTr("apagada") }
                 ]
             GridLayout {
                 columns: 2
                 columnSpacing: 10; rowSpacing: 6
-                Text { text: "Cómo"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Cómo"); color: Theme.textDim; font.pixelSize: 12 }
                 ComboBox {
                     id: transp
                     implicitWidth: 260
-                    model: [ { t: "Puerto serie (RS-232, adaptador USB)", v: "serie" }, { t: "Red (CCU2, TCP 9451)", v: "tcp" },
-                             { t: "Simulador (sin el equipo)", v: "simulador" } ]
+                    model: [ { t: qsTr("Puerto serie (RS-232, adaptador USB)"), v: "serie" }, { t: qsTr("Red (CCU2, TCP 9451)"), v: "tcp" },
+                             { t: qsTr("Simulador (sin el equipo)"), v: "simulador" } ]
                     textRole: "t"
                     currentIndex: Math.max(0, model.findIndex(o => o.v === (conexion.cfg.transporte || "serie")))
                 }
-                Text { visible: transp.currentIndex === 0; text: "Puerto"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { visible: transp.currentIndex === 0; text: qsTr("Puerto"); color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     visible: transp.currentIndex === 0
                     ComboBox {
@@ -536,9 +538,9 @@ ColumnLayout {
                         model: pc.puertos.map(p => p.puerto)
                         editText: conexion.cfg.puerto || ""
                     }
-                    GlassButton { compact: true; text: "Buscar"; onClicked: pc.pedir("puertos", "puertos") }
+                    GlassButton { compact: true; text: qsTr("Buscar"); onClicked: pc.pedir("puertos", "puertos") }
                 }
-                Text { visible: transp.currentIndex === 0; text: "Velocidad"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { visible: transp.currentIndex === 0; text: qsTr("Velocidad"); color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     visible: transp.currentIndex === 0
                     ComboBox {
@@ -548,35 +550,35 @@ ColumnLayout {
                     }
                     ComboBox {
                         id: protocolo
-                        model: [ { t: "Full (de fábrica)", v: "full" }, { t: "Simple", v: "simple" } ]
+                        model: [ { t: qsTr("Full (de fábrica)"), v: "full" }, { t: qsTr("Simple"), v: "simple" } ]
                         textRole: "t"
                         currentIndex: conexion.cfg.protocolo === "simple" ? 1 : 0
                     }
                     CheckBox { id: rtscts; text: "RTS/CTS"; checked: conexion.cfg.rtscts !== false
-                               ToolTip.visible: hovered; ToolTip.text: "Control de flujo por hardware (la CCU lo usa; cable 1 a 1)" }
+                               ToolTip.visible: hovered; ToolTip.text: qsTr("Control de flujo por hardware (la CCU lo usa; cable 1 a 1)") }
                 }
-                Text { visible: transp.currentIndex === 1; text: "Dirección"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { visible: transp.currentIndex === 1; text: qsTr("Dirección"); color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     visible: transp.currentIndex === 1
                     TextField { id: host; implicitWidth: 200; placeholderText: "192.168.0.10"; text: conexion.cfg.host || "" }
                     TextField { id: puertoTcp; implicitWidth: 70; text: String(conexion.cfg.puerto_tcp || 9451) }
                 }
-                Text { text: "Solo escuchar"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Solo escuchar"); color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     Switch { id: soloEsc; checked: conexion.cfg.solo_escuchar !== false }
                     Text { color: Theme.textFaint; font.pixelSize: 11; Layout.preferredWidth: 360; wrapMode: Text.WordWrap
-                           text: "Recibe todo pero no le manda órdenes a la central. Para la primera prueba en la sala; apagalo cuando responda bien." }
+                           text: qsTr("Recibe todo pero no le manda órdenes a la central. Para la primera prueba en la sala; apagalo cuando responda bien.") }
                 }
-                Text { text: "Escape (avanzado)"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Escape (avanzado)"); color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     TextField { id: campoEscape; implicitWidth: 90; text: conexion.cfg.escape || "0xC8" }
-                    Text { color: Theme.textFaint; font.pixelSize: 11; text: "No lo cambies salvo que la central use otro (de fábrica, 0xC8)." }
+                    Text { color: Theme.textFaint; font.pixelSize: 11; text: qsTr("No lo cambies salvo que la central use otro (de fábrica, 0xC8).") }
                 }
             }
             RowLayout {
                 spacing: 8
                 GlassButton {
-                    text: pc.ok ? "Reconectar" : "Conectar"; active: true
+                    text: pc.ok ? qsTr("Reconectar") : qsTr("Conectar"); active: true
                     onClicked: {
                         const v = transp.model[transp.currentIndex].v
                         const c = {transporte: v, solo_escuchar: soloEsc.checked, escape: campoEscape.text.trim() || "0xC8"}
@@ -587,22 +589,22 @@ ColumnLayout {
                         pc.dcn.conectarUi(c)
                     }
                 }
-                GlassButton { text: "Desconectar"; enabled: pc.plugin === "corriendo"
+                GlassButton { text: qsTr("Desconectar"); enabled: pc.plugin === "corriendo"
                               onClicked: pc.pedir("desconectar", "desconectar") }
                 Item { Layout.fillWidth: true }
                 Text { visible: pc.e.contadores !== undefined; color: Theme.textFaint; font.pixelSize: 11
-                       text: pc.e.contadores ? "enviados " + pc.e.contadores.enviados + " · recibidos " + pc.e.contadores.recibidos
-                                               + " · reenvíos " + pc.e.contadores.reenvios + " · checksum mal " + pc.e.contadores.checksum_mal : "" }
+                       text: pc.e.contadores ? qsTr("enviados %1 · recibidos %2 · reenvíos %3 · checksum mal %4").arg(pc.e.contadores.enviados)
+                                                   .arg(pc.e.contadores.recibidos).arg(pc.e.contadores.reenvios).arg(pc.e.contadores.checksum_mal) : "" }
             }
             }
             RowLayout {
                 spacing: 8
                 Layout.topMargin: 4
-                Text { text: "Tramas"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                Text { text: qsTr("Tramas"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
                 Switch { id: trazaSw; enabled: pc.plugin === "corriendo"; onToggled: pc.pedir("traza", "traza", {activa: checked, ultimas: 200}) }
-                GlassButton { compact: true; text: "Actualizar"; enabled: pc.plugin === "corriendo"; onClicked: pc.pedir("traza", "traza", {ultimas: 200}) }
+                GlassButton { compact: true; text: qsTr("Actualizar"); enabled: pc.plugin === "corriendo"; onClicked: pc.pedir("traza", "traza", {ultimas: 200}) }
                 Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 11
-                       text: "Lo que va y viene por el cable, para cuando algo no anda (las últimas 200)." }
+                       text: qsTr("Lo que va y viene por el cable, para cuando algo no anda (las últimas 200).") }
             }
             ScrollView {
                 Layout.fillWidth: true
@@ -612,7 +614,7 @@ ColumnLayout {
                     readOnly: true
                     font { family: Theme.mono; pixelSize: 11 }
                     color: Theme.textDim
-                    text: pc.tramas.join("\n") || (pc.plugin === "corriendo" ? "(prendé «Tramas» para verlas)" : "(conectá la central para ver las tramas)")
+                    text: pc.tramas.join("\n") || (pc.plugin === "corriendo" ? qsTr("(prendé «Tramas» para verlas)") : qsTr("(conectá la central para ver las tramas)"))
                 }
             }
         }
@@ -635,12 +637,12 @@ ColumnLayout {
             onVisibleChanged: if (visible && !pc.funciones.length && pc.plugin === "corriendo") pc.pedir("funciones", "funciones", {})
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
-                text: "Funciones del Open Interface que no están en los manuales: salen del software de Bosch del DVD (docs/bosch/desensamblado.md). Ninguna está probada contra una CCU real; si la central no la conoce, contesta un error. Las de descarga de firmware a la CCU no están."
+                text: qsTr("Funciones del Open Interface que no están en los manuales: salen del software de Bosch del DVD (docs/bosch/desensamblado.md). Ninguna está probada contra una CCU real; si la central no la conoce, contesta un error. Las de descarga de firmware a la CCU no están.")
             }
             RowLayout {
                 spacing: 8
-                GlassButton { text: "Cargar la lista"; enabled: pc.plugin === "corriendo"; onClicked: pc.pedir("funciones", "funciones", {}) }
-                Text { color: Theme.textFaint; font.pixelSize: 12; text: pc.funciones.length ? pc.funciones.length + " funciones" : "" }
+                GlassButton { text: qsTr("Cargar la lista"); enabled: pc.plugin === "corriendo"; onClicked: pc.pedir("funciones", "funciones", {}) }
+                Text { color: Theme.textFaint; font.pixelSize: 12; text: pc.funciones.length ? qsTr("%n función", "", pc.funciones.length) : "" }
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -655,8 +657,8 @@ ColumnLayout {
                     model: pc.funciones
                     currentIndex: 0
                     EstadoVacio { anchors.centerIn: parent; width: parent.width - 20; visible: parent.count === 0; chico: true
-                                  titulo: pc.plugin === "corriendo" ? "Tocá «Cargar la lista»" : "Hace falta la central conectada"
-                                  texto: "Las funciones salen del plugin de la central." }
+                                  titulo: pc.plugin === "corriendo" ? qsTr("Tocá «Cargar la lista»") : qsTr("Hace falta la central conectada")
+                                  texto: qsTr("Las funciones salen del plugin de la central.") }
                     delegate: Rectangle {
                         required property var modelData
                         required property int index
@@ -667,9 +669,9 @@ ColumnLayout {
                             Text { text: modelData.codigo; color: Theme.textFaint; font { family: Theme.mono; pixelSize: 11 } }
                             Text { Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 12
                                    color: modelData.riesgo === "peligrosa" ? Theme.live : Theme.text
-                                   text: modelData.nombre + (modelData.clase === "aviso" ? "  (aviso)" : "") }
+                                   text: modelData.nombre + (modelData.clase === "aviso" ? qsTr("  (aviso)") : "") }
                             Text { visible: !modelData.verificado; text: "?"; color: Theme.amber; font.pixelSize: 12
-                                   ToolTip.visible: ma.containsMouse; ToolTip.text: "Formato no del todo claro en el desensamblado" }
+                                   ToolTip.visible: ma.containsMouse; ToolTip.text: qsTr("Formato no del todo claro en el desensamblado") }
                         }
                         MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; onClicked: lista.currentIndex = index }
                     }
@@ -678,14 +680,14 @@ ColumnLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: 6
-                    Text { text: avz.sel ? avz.sel.bosch + " · " + avz.sel.codigo : "Elegí una función"; color: Theme.text
+                    Text { text: avz.sel ? avz.sel.bosch + " · " + avz.sel.codigo : qsTr("Elegí una función"); color: Theme.text
                            font { pixelSize: 13; weight: Font.DemiBold } }
                     Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
                            text: avz.sel ? avz.sel.para : "" }
                     Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
                            visible: !!avz.sel
-                           text: avz.sel ? "Parámetros: " + (avz.sel.parametros.map(p => p.nombre + " (" + p.tipo + (p.descripcion ? ": " + p.descripcion : "") + ")").join(", ") || "ninguno")
-                                           + "\nRespuesta: " + (avz.sel.respuesta.map(r => r.nombre + " (" + r.tipo + ")").join(", ") || "nada") : "" }
+                           text: avz.sel ? qsTr("Parámetros: %1").arg(avz.sel.parametros.map(p => p.nombre + " (" + p.tipo + (p.descripcion ? ": " + p.descripcion : "") + ")").join(", ") || qsTr("ninguno"))
+                                           + "\n" + qsTr("Respuesta: %1").arg(avz.sel.respuesta.map(r => r.nombre + " (" + r.tipo + ")").join(", ") || qsTr("nada")) : "" }
                     ScrollView {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 110
@@ -696,24 +698,24 @@ ColumnLayout {
                         visible: !!avz.sel && avz.sel.clase === "pedido"
                         spacing: 8
                         CheckBox { id: confirmarF; visible: !!avz.sel && avz.sel.riesgo === "peligrosa"
-                                   text: "Entiendo: toca licencias o el visor de las unidades" }
+                                   text: qsTr("Entiendo: toca licencias o el visor de las unidades") }
                         GlassButton {
-                            text: "Mandar a la central"; active: true
+                            text: qsTr("Mandar a la central"); active: true
                             enabled: pc.ok && (!avz.sel || avz.sel.riesgo !== "peligrosa" || confirmarF.checked)
                             onClicked: {
                                 let a
-                                try { a = JSON.parse(args.text || "{}") } catch (err) { Studio.notify("Los parámetros no son JSON válido", "error"); return }
+                                try { a = JSON.parse(args.text || "{}") } catch (err) { Studio.notify(qsTr("Los parámetros no son JSON válido"), "error"); return }
                                 pc.pedir("funcion", "funcion", {nombre: avz.sel.nombre, args: a, confirmar: confirmarF.checked})
                             }
                         }
                     }
                     Text { visible: !!avz.sel && avz.sel.clase === "aviso"; color: Theme.textFaint; font.pixelSize: 12
-                           text: "Es un aviso: lo manda la central sola (sale en el bus como plugin/bosch-dcn/dcn/aviso)." }
+                           text: qsTr("Es un aviso: lo manda la central sola (sale en el bus como plugin/bosch-dcn/dcn/aviso).") }
                     ScrollView {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         TextArea { readOnly: true; font.family: Theme.mono; font.pixelSize: 11; color: Theme.textDim
-                                   text: pc.resultadoFuncion || "(la respuesta aparece acá)" }
+                                   text: pc.resultadoFuncion || qsTr("(la respuesta aparece acá)") }
                     }
                 }
             }

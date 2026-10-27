@@ -61,9 +61,9 @@ Popup {
         const motivo = dlg.cc ? dlg.cc.chequearMovimiento(dlg.entrada, false, "") : ""
         if (motivo === "") { accion(); return }
         ApplicationWindow.window.confirm({
-            title: "La cámara «" + dlg.entrada + "» está al aire",
-            text: motivo + " ¿Mover igual?",
-            accept: "Mover igual", reject: "Cancelar", action: accion
+            title: qsTr("La cámara «%1» está al aire").arg(dlg.entrada),
+            text: qsTr("%1 ¿Mover igual?").arg(motivo),
+            accept: qsTr("Mover igual"), reject: qsTr("Cancelar"), action: accion
         })
     }
     function avisar(e) { if (e) Studio.notify(e, "error") }
@@ -88,9 +88,9 @@ Popup {
 
     FileDialog {
         id: archivo
-        title: "Foto o video para el botón"
-        nameFilters: ["Imágenes y videos (*.jpg *.jpeg *.png *.gif *.webp *.bmp *.heic *.mp4 *.mov *.m4v *.mkv *.webm *.avi)",
-                      "Todos (*)"]
+        title: qsTr("Foto o video para el botón")
+        nameFilters: [qsTr("Imágenes y videos (*.jpg *.jpeg *.png *.gif *.webp *.bmp *.heic *.mp4 *.mov *.m4v *.mkv *.webm *.avi)"),
+                      qsTr("Todos (*)")]
         onAccepted: dlg.empezar(dlg.caras.importar(selectedFile.toString()))
         onRejected: if (dlg.modo === "archivo") dlg.close()
     }
@@ -105,17 +105,17 @@ Popup {
         spacing: 10
         RowLayout {
             spacing: 8
-            Text { text: "Cara del botón"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
+            Text { text: qsTr("Cara del botón"); color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
             Item { Layout.fillWidth: true }
-            GlassButton { compact: true; text: "Archivo…"; active: dlg.modo === "archivo"
+            GlassButton { compact: true; text: qsTr("Archivo…"); active: dlg.modo === "archivo"
                           onClicked: { dlg.modo = "archivo"; archivo.open() } }
-            GlassButton { compact: true; text: "Cámara"; active: dlg.modo === "camara"; onClicked: dlg.modo = "camara" }
+            GlassButton { compact: true; text: qsTr("Cámara"); active: dlg.modo === "camara"; onClicked: dlg.modo = "camara" }
         }
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
             text: dlg.modo === "archivo"
-                  ? "Una imagen, un GIF o un video: de un video se toman los primeros 5 segundos, que se repiten en el botón."
-                  : "Apuntá la cámara con el mouse y sacá una foto o un video corto (hasta 5 s, se repite en el botón)."
+                  ? qsTr("Una imagen, un GIF o un video: de un video se toman los primeros 5 segundos, que se repiten en el botón.")
+                  : qsTr("Apuntá la cámara con el mouse y sacá una foto o un video corto (hasta 5 s, se repite en el botón).")
         }
 
         // --- Cámara -------------------------------------------------------------------
@@ -125,7 +125,7 @@ Popup {
             spacing: 8
             RowLayout {
                 spacing: 8
-                Text { text: "Cámara"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Cámara"); color: Theme.textDim; font.pixelSize: 12 }
                 ComboBox {
                     Layout.fillWidth: true
                     model: dlg.cc ? dlg.cc.camaras.map(c => c.entrada) : []
@@ -139,7 +139,7 @@ Popup {
                 Layout.preferredHeight: width * 9 / 16
                 radius: 10; color: "black"; clip: true
                 VideoItem { id: video; anchors.fill: parent; source: dlg.entrada !== "" ? "entrada:" + dlg.entrada : ""; fillMode: VideoItem.Fit }
-                Text { visible: !video.hasFrame; anchors.centerIn: parent; text: "Sin señal"; color: Theme.textFaint; font.pixelSize: 13 }
+                Text { visible: !video.hasFrame; anchors.centerIn: parent; text: qsTr("Sin señal"); color: Theme.textFaint; font.pixelSize: 13 }
                 readonly property real aspecto: video.frameSize.width > 0 ? video.frameSize.width / video.frameSize.height : 16 / 9
                 readonly property real iw: Math.min(width, height * aspecto)
                 readonly property real ih: iw / aspecto
@@ -157,8 +157,8 @@ Popup {
                 Text {
                     anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
                     horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
-                    text: "Clic: apuntar · arrastrar: encuadrar · " + (dlg.digital ? "rueda: zoom · doble clic: cuadro completo" : "rueda: zoom") +
-                          " · el cuadrado es lo que sale en el botón"
+                    text: dlg.digital ? qsTr("Clic: apuntar · arrastrar: encuadrar · rueda: zoom · doble clic: cuadro completo · el cuadrado es lo que sale en el botón")
+                                  : qsTr("Clic: apuntar · arrastrar: encuadrar · rueda: zoom · el cuadrado es lo que sale en el botón")
                     color: Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 10
                     style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.7)
                 }
@@ -201,9 +201,9 @@ Popup {
             }
             RowLayout {
                 spacing: 8
-                GlassButton { text: "📷  Foto"; active: true; enabled: dlg.esperando === "" && dlg.entrada !== ""
+                GlassButton { text: qsTr("📷  Foto"); active: true; enabled: dlg.esperando === "" && dlg.entrada !== ""
                               onClicked: dlg.empezar(dlg.caras.capturarFoto(dlg.entrada)) }
-                GlassButton { text: "⏺  Video de " + dlg.segundos + " s"; enabled: dlg.esperando === "" && dlg.entrada !== ""
+                GlassButton { text: qsTr("⏺  Video de %1 s").arg(dlg.segundos); enabled: dlg.esperando === "" && dlg.entrada !== ""
                               onClicked: dlg.empezar(dlg.caras.grabar(dlg.entrada, dlg.segundos)) }
                 Slider { from: 1; to: 5; stepSize: 1; value: dlg.segundos; Layout.preferredWidth: 120
                          onMoved: dlg.segundos = value }
@@ -214,7 +214,7 @@ Popup {
         RowLayout {
             Text { Layout.fillWidth: true; text: dlg.caras.estado; color: dlg.caras.ocupada ? Theme.accent : Theme.textFaint
                    font.pixelSize: 12; elide: Text.ElideRight }
-            GlassButton { compact: true; text: "Cerrar"; onClicked: dlg.close() }
+            GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: dlg.close() }
         }
     }
 }

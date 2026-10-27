@@ -20,8 +20,9 @@ Dialog {
     property string message: ""
     property bool loading: false
     readonly property bool board: target.startsWith("board-")
-    title: board ? "Tablero de oradores (solo lectura) — " + (target === "board-remote" ? "por internet" : "red local")
-                 : target === "remote" ? "QR remoto — por internet" : "QR local — misma red"
+    title: board ? (target === "board-remote" ? qsTr("Tablero de oradores (solo lectura) — por internet")
+                                              : qsTr("Tablero de oradores (solo lectura) — red local"))
+                 : target === "remote" ? qsTr("QR remoto — por internet") : qsTr("QR local — misma red")
     function show(t) {
         target = t; url = ""; modules = []; message = ""; loading = true
         open()
@@ -74,7 +75,7 @@ Dialog {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 color: Theme.textDim; font.pixelSize: 13
-                text: qrDlg.loading ? "Generando…" : qrDlg.message
+                text: qrDlg.loading ? qsTr("Generando…") : qrDlg.message
             }
         }
         // Donde sirve el QR: se puede cambiar sin cerrar.
@@ -83,12 +84,12 @@ Dialog {
             visible: !qrDlg.board
             spacing: 6
             GlassButton {
-                compact: true; text: "Red local"
+                compact: true; text: qsTr("Red local")
                 active: qrDlg.target === "local"
                 onClicked: qrDlg.show("local")
             }
             GlassButton {
-                compact: true; text: "Por internet"
+                compact: true; text: qsTr("Por internet")
                 active: qrDlg.target === "remote"
                 onClicked: qrDlg.show("remote")
             }
@@ -96,24 +97,24 @@ Dialog {
         CheckBox {
             id: qrPin
             visible: !qrDlg.board
-            text: "Incluir el PIN en el QR (entran sin tipearlo)"
+            text: qsTr("Incluir el PIN en el QR (entran sin tipearlo)")
             onToggled: qrDlg.show(qrDlg.target)
         }
         RowLayout {
             visible: qrDlg.url !== ""
             Layout.preferredWidth: 300
             TextField { id: qrUrl; Layout.fillWidth: true; readOnly: true; text: qrDlg.url; font.pixelSize: 11 }
-            GlassButton { text: "Copiar"; compact: true; onClicked: Studio.copiar(qrDlg.url) }
+            GlassButton { text: qsTr("Copiar"); compact: true; onClicked: Studio.copiar(qrDlg.url) }
         }
         Text {
             Layout.preferredWidth: 300
             wrapMode: Text.Wrap
             color: Theme.textFaint; font.pixelSize: 11
             visible: qrDlg.url !== ""
-            text: qrDlg.board ? "Abrilo en la tablet: muestra la fila, las caras y los tiempos. La clave cambia en cada arranque." :
+            text: qrDlg.board ? qsTr("Abrilo en la tablet: muestra la fila, las caras y los tiempos. La clave cambia en cada arranque.") :
                   (qrDlg.message !== "" ? qrDlg.message + " " : "") +
-                  (qrDlg.target === "remote" ? "Sirve desde cualquier lugar." : "Sirve para dispositivos en la misma red (wifi) que este equipo.") +
-                  (qrPin.checked ? " Incluye el PIN: quien tenga este QR puede pedir entrar (igual pasa por el lobby)." : " El PIN no va en el QR: pasalo aparte.")
+                  (qrDlg.target === "remote" ? qsTr("Sirve desde cualquier lugar.") : qsTr("Sirve para dispositivos en la misma red (wifi) que este equipo.")) +
+                  " " + (qrPin.checked ? qsTr("Incluye el PIN: quien tenga este QR puede pedir entrar (igual pasa por el lobby).") : qsTr("El PIN no va en el QR: pasalo aparte."))
         }
     }
 }

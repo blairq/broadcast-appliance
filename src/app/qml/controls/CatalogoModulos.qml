@@ -99,24 +99,24 @@ Popup {
             Layout.fillWidth: false
             Layout.fillHeight: true
             spacing: 10
-            Text { text: "Módulos de video"; color: Theme.text; font { pixelSize: 19; weight: Font.DemiBold } }
-            Text { text: cat.visibles.length + " de " + cat.modulos.length + " · " + cat.version; color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            Text { text: qsTr("Módulos de video"); color: Theme.text; font { pixelSize: 19; weight: Font.DemiBold } }
+            Text { text: qsTr("%1 de %2 · %3").arg(cat.visibles.length).arg(cat.modulos.length).arg(cat.version); color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             TextField {
                 id: busqueda
                 Layout.fillWidth: true
-                placeholderText: "buscar: «croma», «desentrelazar», «texto», «blur»…"
+                placeholderText: qsTr("buscar: «croma», «desentrelazar», «texto», «blur»…")
             }
             RowLayout {
                 spacing: 8
                 Toggle { checked: cat.soloTarjetas; onToggled: (w) => { cat.soloTarjetas = w; cat.categoria = "" } }
-                Text { text: "Solo los que se pueden agregar"; color: Theme.text; font.pixelSize: 12 }
+                Text { text: qsTr("Solo los que se pueden agregar"); color: Theme.text; font.pixelSize: 12 }
             }
             RowLayout {
                 spacing: 8
                 Toggle { checked: cat.soloMezclas; onToggled: (w) => { cat.soloMezclas = w; cat.categoria = "" } }
-                Text { text: "Solo los de varias entradas"; color: Theme.text; font.pixelSize: 12 }
+                Text { text: qsTr("Solo los de varias entradas"); color: Theme.text; font.pixelSize: 12 }
             }
-            Text { text: "Categoría"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+            Text { text: qsTr("Categoría"); color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -125,7 +125,7 @@ Popup {
                 Flow {
                     width: parent.width
                     spacing: 5
-                    GlassButton { compact: true; text: "Todas"; active: cat.categoria === ""; onClicked: cat.categoria = "" }
+                    GlassButton { compact: true; text: qsTr("Todas"); active: cat.categoria === ""; onClicked: cat.categoria = "" }
                     Repeater {
                         model: cat.categorias
                         delegate: GlassButton {
@@ -141,9 +141,9 @@ Popup {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 10
-                text: "GStreamer (gstreamer.freedesktop.org), LGPL salvo donde se indica. Viene adentro del programa."
+                text: qsTr("GStreamer (gstreamer.freedesktop.org), LGPL salvo donde se indica. Viene adentro del programa.")
             }
-            GlassButton { compact: true; text: "Cerrar"; onClicked: cat.close() }
+            GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: cat.close() }
         }
 
         // --- Grilla -------------------------------------------------------------------------
@@ -178,7 +178,7 @@ Popup {
                             Layout.fillWidth: true
                             spacing: 6
                             Text { text: tarjeta.modelData.categoria; color: tarjeta.col; font { pixelSize: 10; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
-                            Text { visible: !!tarjeta.modelData.mezcla; text: "MEZCLA"; color: "#f472b6"; font { pixelSize: 9; weight: Font.Bold } }
+                            Text { visible: !!tarjeta.modelData.mezcla; text: qsTr("MEZCLA"); color: "#f472b6"; font { pixelSize: 9; weight: Font.Bold } }
                             Text { visible: String(tarjeta.modelData.elemento).indexOf("gl") === 0; text: "GPU"; color: "#ef4444"; font { pixelSize: 9; weight: Font.Bold } }
                         }
                         Text { Layout.fillWidth: true; text: tarjeta.modelData.titulo || tarjeta.modelData.nombre; color: Theme.text; elide: Text.ElideRight; font { pixelSize: 14; weight: Font.DemiBold } }
@@ -210,7 +210,7 @@ Popup {
             Text {
                 anchors.centerIn: parent
                 visible: grilla.count === 0
-                text: cat.modulos.length === 0 ? "No se pudo abrir GStreamer." : "Nada coincide con la búsqueda."
+                text: cat.modulos.length === 0 ? qsTr("No se pudo abrir GStreamer.") : qsTr("Nada coincide con la búsqueda.")
                 color: Theme.textDim; font.pixelSize: 14
             }
         }
@@ -253,17 +253,17 @@ Popup {
                     radius: 10
                     color: Qt.rgba(1, 0.42, 0.17, 0.1)
                     border.color: Qt.rgba(1, 0.42, 0.17, 0.4)
-                    Text { id: usoTxt; anchors { fill: parent; margins: 9 } wrapMode: Text.WordWrap; textFormat: Text.MarkdownText; text: "**En vivo:** " + (detallePop.d.uso || ""); color: Theme.text; font.pixelSize: 12 }
+                    Text { id: usoTxt; anchors { fill: parent; margins: 9 } wrapMode: Text.WordWrap; textFormat: Text.MarkdownText; text: qsTr("**En vivo:** %1").arg(detallePop.d.uso || ""); color: Theme.text; font.pixelSize: 12 }
                 }
                 Text {
                     Layout.fillWidth: true; Layout.leftMargin: 22; Layout.rightMargin: 22
                     wrapMode: Text.WordWrap; visible: !!detallePop.d.descripcion
-                    text: "«" + (detallePop.d.descripcion || "") + "» — " + (detallePop.d.clase || "GStreamer")
+                    text: qsTr("«%1» — %2").arg(detallePop.d.descripcion || "").arg(detallePop.d.clase || "GStreamer")
                     color: Theme.textFaint; font { pixelSize: 11; italic: true }
                 }
                 Text {
                     Layout.leftMargin: 22
-                    text: [detallePop.d.paquete, detallePop.d.plugin ? "plugin " + detallePop.d.plugin : "", detallePop.d.licencia ? "licencia " + detallePop.d.licencia : ""].filter(x => !!x).join("  ·  ")
+                    text: [detallePop.d.paquete, detallePop.d.plugin ? qsTr("plugin %1").arg(detallePop.d.plugin) : "", detallePop.d.licencia ? qsTr("licencia %1").arg(detallePop.d.licencia) : ""].filter(x => !!x).join("  ·  ")
                     color: Theme.textFaint; font.pixelSize: 11
                 }
                 RowLayout {
@@ -271,7 +271,7 @@ Popup {
                     spacing: 10
                     GlassButton {
                         visible: !!detallePop.d.tarjeta
-                        text: "+ Agregar a «" + (cat.vg ? cat.vg.entrada : "") + "»"
+                        text: qsTr("+ Agregar a «%1»").arg(cat.vg ? cat.vg.entrada : "")
                         active: true
                         activeColor: detallePop.col
                         onClicked: { cat.elegido(detallePop.d.tipo, detallePop.d.elemento); detallePop.close(); cat.close() }
@@ -279,7 +279,7 @@ Popup {
                     // Los nuestros que van con una tarjeta propia del grafo (superres, rostros, seguir).
                     GlassButton {
                         visible: !!detallePop.d.comoTarjeta
-                        text: "+ Agregar la tarjeta «" + cat.tituloTarjeta(detallePop.d.comoTarjeta) + "» a «" + (cat.vg ? cat.vg.entrada : "") + "»"
+                        text: qsTr("+ Agregar la tarjeta «%1» a «%2»").arg(cat.tituloTarjeta(detallePop.d.comoTarjeta)).arg(cat.vg ? cat.vg.entrada : "")
                         active: true
                         activeColor: detallePop.col
                         onClicked: { cat.elegido("tarjeta", detallePop.d.comoTarjeta); detallePop.close(); cat.close() }
@@ -287,36 +287,36 @@ Popup {
                     // De varias entradas: un nodo del estudio, con un puerto por cada una.
                     GlassButton {
                         visible: !!detallePop.d.mezcla
-                        text: "+ Agregar como mezcla"
+                        text: qsTr("+ Agregar como mezcla")
                         active: true
                         activeColor: detallePop.col
                         onClicked: { cat.elegido("mezcla", detallePop.d.elemento); detallePop.close(); cat.close() }
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "Un nodo del estudio («Mezcla de GStreamer») con sus entradas: se cablea desde cualquier entrada y sale como una fuente para las escenas"
+                        ToolTip.text: qsTr("Un nodo del estudio («Mezcla de GStreamer») con sus entradas: se cablea desde cualquier entrada y sale como una fuente para las escenas")
                     }
                     Text {
                         visible: !detallePop.d.tarjeta && !detallePop.d.comoTarjeta && !detallePop.d.mezcla
                         Layout.fillWidth: true; wrapMode: Text.WordWrap
-                        text: detallePop.d.rol === "fuente" ? "Es una fuente: va como entrada virtual (Entradas → «+ Virtual»), no como tarjeta."
-                              : detallePop.d.rol === "mezcla" ? "Junta varias entradas, pero no de video crudo: no va como tarjeta ni como mezcla."
-                              : detallePop.d.rol === "salida" ? "Es una salida de GStreamer: no va como tarjeta."
-                              : detallePop.d.uso ? "No va como tarjeta de filtro: " + detallePop.d.uso
-                              : "No va como tarjeta de filtro: no trabaja sobre la imagen cruda de una entrada."
+                        text: detallePop.d.rol === "fuente" ? qsTr("Es una fuente: va como entrada virtual (Entradas → «+ Virtual»), no como tarjeta.")
+                              : detallePop.d.rol === "mezcla" ? qsTr("Junta varias entradas, pero no de video crudo: no va como tarjeta ni como mezcla.")
+                              : detallePop.d.rol === "salida" ? qsTr("Es una salida de GStreamer: no va como tarjeta.")
+                              : detallePop.d.uso ? qsTr("No va como tarjeta de filtro: %1").arg(detallePop.d.uso)
+                              : qsTr("No va como tarjeta de filtro: no trabaja sobre la imagen cruda de una entrada.")
                         color: Theme.warn; font.pixelSize: 12
                     }
-                    GlassButton { compact: true; text: "Volver"; onClicked: detallePop.close() }
+                    GlassButton { compact: true; text: qsTr("Volver"); onClicked: detallePop.close() }
                 }
                 Text {
                     visible: (detallePop.d.entradas || []).length > 0
                     Layout.fillWidth: true; Layout.leftMargin: 22; Layout.rightMargin: 22
                     wrapMode: Text.WordWrap
-                    text: "Entradas: " + (detallePop.d.entradas || []).map(e => e.nombre + (e.pedido ? " (a pedido: las que hagan falta)" : "")).join(", ")
+                    text: qsTr("Entradas: %1").arg((detallePop.d.entradas || []).map(e => e.pedido ? qsTr("%1 (a pedido: las que hagan falta)").arg(e.nombre) : e.nombre).join(", "))
                     color: Theme.textDim; font.pixelSize: 11
                 }
                 Text {
                     visible: cat.detalleProps.length > 0
                     Layout.leftMargin: 22; Layout.topMargin: 6
-                    text: "Propiedades (" + cat.detalleProps.length + ")"
+                    text: qsTr("Propiedades (%1)").arg(cat.detalleProps.length)
                     color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 }
                 }
                 Repeater {
@@ -329,13 +329,13 @@ Popup {
                         Text {
                             Layout.preferredWidth: 150
                             color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight
-                            text: modelData.kind === "list" ? "opciones: " + (modelData.options || []).length
+                            text: modelData.kind === "list" ? qsTr("opciones: %1").arg((modelData.options || []).length)
                                   : (modelData.kind === "int" || modelData.kind === "float") ? modelData.kind + " " + Number(modelData.min).toPrecision(3) + " … " + Number(modelData.max).toPrecision(3)
                                   : modelData.kind
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap
-                            text: modelData.help + (modelData.value !== undefined && modelData.value !== "" ? "  [de fábrica: " + modelData.value + "]" : "")
+                            text: modelData.help + (modelData.value !== undefined && modelData.value !== "" ? qsTr("  [de fábrica: %1]").arg(modelData.value) : "")
                             color: Theme.textDim; font.pixelSize: 11
                         }
                     }

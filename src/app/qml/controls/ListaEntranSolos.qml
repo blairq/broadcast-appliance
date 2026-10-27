@@ -49,9 +49,9 @@ ColumnLayout {
         wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 12
         text: !les.hayEvento
-              ? "Abrí un evento: quién entra solo es de cada evento (su padrón)."
-              : "Los que tienen el permiso entran solos si la cámara los reconoce: a la conferencia sin esperar, y en la " +
-                "asamblea quedan habilitados. Se avisa siempre. Sin ficha de rostro no se puede dar el permiso."
+              ? qsTr("Abrí un evento: quién entra solo es de cada evento (su padrón).")
+              : qsTr("Los que tienen el permiso entran solos si la cámara los reconoce: a la conferencia sin esperar, y en la "
+                     + "asamblea quedan habilitados. Se avisa siempre. Sin ficha de rostro no se puede dar el permiso.")
     }
     ListView {
         Layout.fillWidth: true
@@ -70,15 +70,15 @@ ColumnLayout {
                 checked: solo
                 onToggled: (wanted) => Studio.evento.cambiarAsistente(id, { dejarPasarSolo: wanted })
             }
-            Text { Layout.fillWidth: true; text: nombre || "(sin nombre)"; color: Theme.text; font.pixelSize: 13
+            Text { Layout.fillWidth: true; text: nombre || qsTr("(sin nombre)"); color: Theme.text; font.pixelSize: 13
                    elide: Text.ElideRight }
-            Text { text: solo ? "entra solo" : "espera"; color: solo ? Theme.ok : Theme.textFaint; font.pixelSize: 11 }
+            Text { text: solo ? qsTr("entra solo") : qsTr("espera"); color: solo ? Theme.ok : Theme.textFaint; font.pixelSize: 11 }
         }
     }
     Text {
         visible: les.hayEvento && filas.count === 0
         color: Theme.textFaint; font.pixelSize: 12
-        text: "Nadie del padrón tiene ficha de rostro todavía."
+        text: qsTr("Nadie del padrón tiene ficha de rostro todavía.")
     }
     // Sumar al padrón a alguien de la libreta, ya con el permiso.
     RowLayout {
@@ -92,18 +92,18 @@ ColumnLayout {
                 p => p.nombre && !les.conFicha.some(a => a.personaId === p.id))
             model: opciones
             textRole: "nombre"
-            displayText: opciones.length === 0 ? "Todos los de Personas ya están" : (currentIndex < 0 ? "Elegí a alguien de Personas…" : currentText)
+            displayText: opciones.length === 0 ? qsTr("Todos los de Personas ya están") : (currentIndex < 0 ? qsTr("Elegí a alguien de Personas…") : currentText)
             currentIndex: -1
             enabled: opciones.length > 0
         }
         GlassButton {
-            compact: true; text: "Sumar con permiso"; active: true
+            compact: true; text: qsTr("Sumar con permiso"); active: true
             enabled: sumar.currentIndex >= 0
             onClicked: {
                 const p = sumar.opciones[sumar.currentIndex]
                 const id = Studio.evento.anotar({ personaId: p.id, nombre: p.nombre, dejarPasarSolo: true,
                                                   papel: "panelista", estado: "confirmo" })
-                if (id === "") Studio.notify("No se pudo sumar a «" + p.nombre + "» al padrón.", "error")
+                if (id === "") Studio.notify(qsTr("No se pudo sumar a «%1» al padrón.").arg(p.nombre), "error")
                 sumar.currentIndex = -1
             }
         }

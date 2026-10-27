@@ -28,38 +28,38 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 12
         Text { color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold
-               text: "Conectados: " + (cr.s ? cr.s.conectados : 0) + " · presentes: " + (cr.s ? cr.s.presentes : 0) }
+               text: qsTr("Conectados: %1 · presentes: %2").arg(cr.s ? cr.s.conectados : 0).arg(cr.s ? cr.s.presentes : 0) }
         GlassButton { visible: cr.esperando > 0; active: true
-                      text: cr.esperando + (cr.esperando === 1 ? " espera" : " esperan") + " que lo habiliten → Recinto"
+                      text: qsTr("%n espera que lo habiliten → Recinto", "", cr.esperando)
                       onClicked: cr.irAlRecinto() }
         Item { Layout.fillWidth: true }
         Text {
             color: cr.s && cr.s.origen.indexOf("https://") === 0 ? Theme.textFaint : Theme.amber
             font.pixelSize: 11
-            text: !cr.s || cr.s.origen === "" ? "Sin dirección pública todavía (¿túnel o red local con HTTPS?)"
-                  : cr.s.origen.indexOf("https://") === 0 ? "Entran por " + cr.s.origen + "/sesion/"
-                  : "Sin HTTPS el celular no da cámara ni micrófono: " + cr.s.origen
+            text: !cr.s || cr.s.origen === "" ? qsTr("Sin dirección pública todavía (¿túnel o red local con HTTPS?)")
+                  : cr.s.origen.indexOf("https://") === 0 ? qsTr("Entran por %1/sesion/").arg(cr.s.origen)
+                  : qsTr("Sin HTTPS el celular no da cámara ni micrófono: %1").arg(cr.s.origen)
         }
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-        text: "Cada uno entra con su link personal y su PIN (o con usuario y contraseña, tipeando). Sirve igual desde la sala " +
-              "(el celular de respaldo si la central no anda) que desde afuera. El link, el PIN y la contraseña se ven una sola vez."
+        text: qsTr("Cada uno entra con su link personal y su PIN (o con usuario y contraseña, tipeando). Sirve igual desde la sala "
+                   + "(el celular de respaldo si la central no anda) que desde afuera. El link, el PIN y la contraseña se ven una sola vez.")
     }
 
     // --- La atención a los que esperan (la misma que en la Sala) ----------------------------
     Seccion {
-        titulo: "Los que esperan que los habiliten"
-        subtitulo: "Que el asistente los atienda: les mira la cara contra su ficha y habilita solo a quien tiene permiso de entrar solo en el padrón del evento; al resto te lo pregunta."
+        titulo: qsTr("Los que esperan que los habiliten")
+        subtitulo: qsTr("Que el asistente los atienda: les mira la cara contra su ficha y habilita solo a quien tiene permiso de entrar solo en el padrón del evento; al resto te lo pregunta.")
         OpcionesAtencion { Layout.fillWidth: true; ambito: "asamblea" }
     }
 
     // --- Consolas de la presidencia (la página web /presidencia/) ---------------------------
     Seccion {
-        titulo: "Consola de la presidencia"
-        subtitulo: "Una página web para quien preside (tablet o compu): da la palabra, ve quién la pidió, maneja la votación y el debate. Cada acceso es un link propio que se puede revocar."
-        extra: GlassButton { compact: true; text: "Nuevo acceso…"; active: cr.s && cr.s.consolasUi.length === 0
-                             onClicked: { nombreConsola.text = "Presidencia"; nuevaConsola.open() } }
+        titulo: qsTr("Consola de la presidencia")
+        subtitulo: qsTr("Una página web para quien preside (tablet o compu): da la palabra, ve quién la pidió, maneja la votación y el debate. Cada acceso es un link propio que se puede revocar.")
+        extra: GlassButton { compact: true; text: qsTr("Nuevo acceso…"); active: cr.s && cr.s.consolasUi.length === 0
+                             onClicked: { nombreConsola.text = qsTr("Presidencia"); nuevaConsola.open() } }
         Flow {
             Layout.fillWidth: true
             spacing: 8
@@ -77,12 +77,12 @@ ColumnLayout {
                         Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: modelData.conectada ? Theme.ok : Theme.textFaint }
                         Text { text: modelData.nombre; color: modelData.conectada ? Theme.text : Theme.textDim; font.pixelSize: 12 }
                         Text { visible: modelData.creado_ms > 0; color: Theme.textFaint; font.pixelSize: 11
-                               text: "· " + (modelData.conectada ? "en uso" : "desde el " + Qt.formatDate(new Date(modelData.creado_ms), "d/M")) }
+                               text: modelData.conectada ? qsTr("· en uso") : qsTr("· desde el %1").arg(Qt.formatDate(new Date(modelData.creado_ms), "d/M")) }
                         Text { text: "✕"; color: Theme.textFaint; font.pixelSize: 12
-                               ToolTip.visible: mRev.containsMouse; ToolTip.delay: 400; ToolTip.text: "Revocar este acceso"
+                               ToolTip.visible: mRev.containsMouse; ToolTip.delay: 400; ToolTip.text: qsTr("Revocar este acceso")
                                MouseArea { id: mRev; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                           onClicked: ApplicationWindow.window.confirm({ title: "¿Revocar el acceso de «" + modelData.nombre + "»?",
-                                               text: "La consola deja de andar ya.", accept: "Revocar", reject: "Cancelar",
+                                           onClicked: ApplicationWindow.window.confirm({ title: qsTr("¿Revocar el acceso de «%1»?").arg(modelData.nombre),
+                                               text: qsTr("La consola deja de andar ya."), accept: qsTr("Revocar"), reject: qsTr("Cancelar"),
                                                action: function() { cr.s.revocarConsolaUi(modelData.id) } }) } }
                     }
                 }
@@ -91,31 +91,31 @@ ColumnLayout {
         Text {
             visible: !cr.s || cr.s.consolasUi.length === 0
             color: Theme.textFaint; font.pixelSize: 12
-            text: "Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside."
+            text: qsTr("Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside.")
         }
     }
     Dialog {
         id: nuevaConsola
         anchors.centerIn: Overlay.overlay
         modal: true
-        title: "Nuevo acceso a la consola"
+        title: qsTr("Nuevo acceso a la consola")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: {
-            const r = cr.s.generarConsolaUi(nombreConsola.text.trim() || "Presidencia")
+            const r = cr.s.generarConsolaUi(nombreConsola.text.trim() || qsTr("Presidencia"))
             if (r.error) Studio.notify(r.error, "error"); else credencial.mostrar(r)
         }
         ColumnLayout {
             spacing: 8
             Text { Layout.preferredWidth: 380; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                   text: "Un nombre para reconocerlo en la lista (p. ej. «Presidencia», «Vice», «Secretaría»). El link se muestra una sola vez." }
-            TextField { id: nombreConsola; Layout.fillWidth: true; placeholderText: "Presidencia"; onAccepted: nuevaConsola.accept() }
+                   text: qsTr("Un nombre para reconocerlo en la lista (p. ej. «Presidencia», «Vice», «Secretaría»). El link se muestra una sola vez.") }
+            TextField { id: nombreConsola; Layout.fillWidth: true; placeholderText: qsTr("Presidencia"); onAccepted: nuevaConsola.accept() }
         }
     }
 
     // --- Lo que ven en el celular: su cámara (siempre, en un recuadro) y hasta dos canales ---
     Seccion {
-        titulo: "Qué ven en el celular"
-        subtitulo: "Cada uno elige en su celular qué mirar: su cámara, la salida principal u otra escena; su propia imagen queda siempre en un recuadro. Las escenas usan los canales de las pantallas de la sala (4 entre todas)."
+        titulo: qsTr("Qué ven en el celular")
+        subtitulo: qsTr("Cada uno elige en su celular qué mirar: su cámara, la salida principal u otra escena; su propia imagen queda siempre en un recuadro. Las escenas usan los canales de las pantallas de la sala (4 entre todas).")
     RowLayout {
         id: vistasFila
         Layout.fillWidth: true
@@ -135,7 +135,7 @@ ColumnLayout {
             for (let i = 0; i < m.rowCount(); ++i) l.push(m.data(m.index(i, 0), 257)) // NameRole
             return l
         }
-        readonly property var opciones: ["—", "Salida principal"].concat(vistasFila.escenas)
+        readonly property var opciones: ["—", qsTr("Salida principal")].concat(vistasFila.escenas)
         function guardar() {
             const l = []
             for (const f of [vA, vB]) {
@@ -145,14 +145,14 @@ ColumnLayout {
             const e = cr.s.setVistasUi(l)
             if (e !== "") Studio.notify(e, "error")
         }
-        Text { color: Theme.textDim; font.pixelSize: 12; text: "Su cámara +" }
+        Text { color: Theme.textDim; font.pixelSize: 12; text: qsTr("Su cámara +") }
         component CanalVista: RowLayout {
             property int indice: 0
             property alias campo: nombreV
             property alias combo: fuenteV
             readonly property var v: cr.s && cr.s.vistasUi.length > indice ? cr.s.vistasUi[indice] : null
             spacing: 4
-            TextField { id: nombreV; Layout.preferredWidth: 130; color: Theme.text; placeholderText: "Nombre del canal"
+            TextField { id: nombreV; Layout.preferredWidth: 130; color: Theme.text; placeholderText: qsTr("Nombre del canal")
                         text: parent.v ? parent.v.nombre : ""; onEditingFinished: vistasFila.guardar() }
             ComboBox {
                 id: fuenteV
@@ -171,32 +171,32 @@ ColumnLayout {
 
     // --- Cómo es el acceso: PIN en el QR y acceso fijo ------------------------------------
     Seccion {
-        titulo: "Cómo entran los integrantes"
-        subtitulo: "Cada integrante entra desde el navegador con su link y su PIN."
+        titulo: qsTr("Cómo entran los integrantes")
+        subtitulo: qsTr("Cada integrante entra desde el navegador con su link y su PIN.")
         GridLayout {
             Layout.fillWidth: true
             columns: 3
             columnSpacing: 10
             rowSpacing: 8
             Toggle { checked: !!cr.s && cr.s.pinEnQr; onToggled: (w) => cr.s.pinEnQr = w }
-            Text { text: "PIN incluido en el QR"; color: Theme.text; font.pixelSize: 12 }
+            Text { text: qsTr("PIN incluido en el QR"); color: Theme.text; font.pixelSize: 12 }
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: cr.s && cr.s.pinEnQr ? Theme.amber : Theme.textFaint; font.pixelSize: 11
                    text: cr.s && cr.s.pinEnQr
-                         ? "Escanea y entra sin tipear nada. Ojo: el QR (o el link con PIN) solo ya alcanza para entrar; tratalo como una llave."
-                         : "El QR lleva solo el link y el PIN se pasa aparte (más seguro)." }
+                         ? qsTr("Escanea y entra sin tipear nada. Ojo: el QR (o el link con PIN) solo ya alcanza para entrar; tratalo como una llave.")
+                         : qsTr("El QR lleva solo el link y el PIN se pasa aparte (más seguro).") }
             Toggle { checked: !!cr.s && cr.s.accesoFijo
                      onToggled: (w) => {
                          if (w) { cr.s.accesoFijo = true; return }
-                         ApplicationWindow.window.confirm({ title: "¿Dejar de guardar los accesos?",
-                             text: "Los links que ya tienen siguen andando, pero no se van a poder volver a mostrar: para verlos habrá que renovarlos.",
-                             accept: "Dejar de guardar", reject: "Cancelar", action: function() { cr.s.accesoFijo = false } })
+                         ApplicationWindow.window.confirm({ title: qsTr("¿Dejar de guardar los accesos?"),
+                             text: qsTr("Los links que ya tienen siguen andando, pero no se van a poder volver a mostrar: para verlos habrá que renovarlos."),
+                             accept: qsTr("Dejar de guardar"), reject: qsTr("Cancelar"), action: function() { cr.s.accesoFijo = false } })
                      } }
-            Text { text: "Link y PIN fijos"; color: Theme.text; font.pixelSize: 12 }
+            Text { text: qsTr("Link y PIN fijos"); color: Theme.text; font.pixelSize: 12 }
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
                    text: cr.s && cr.s.accesoFijo
-                         ? "Cada integrante tiene siempre el mismo link y el mismo PIN (quedan guardados cifrados en este equipo). «Ver acceso…» los vuelve a mostrar; solo cambian con «Renovar…»."
-                           + (cr.parts.some(p => p.credencial && !p.fijo) ? " Los que ya tenían acceso de antes necesitan renovarlo una vez para que quede guardado." : "")
-                         : "Cada vez que se da acceso se genera un link y un PIN nuevos, y se muestran una sola vez." }
+                         ? qsTr("Cada integrante tiene siempre el mismo link y el mismo PIN (quedan guardados cifrados en este equipo). «Ver acceso…» los vuelve a mostrar; solo cambian con «Renovar…».")
+                           + (cr.parts.some(p => p.credencial && !p.fijo) ? " " + qsTr("Los que ya tenían acceso de antes necesitan renovarlo una vez para que quede guardado.") : "")
+                         : qsTr("Cada vez que se da acceso se genera un link y un PIN nuevos, y se muestran una sola vez.") }
         }
     }
 
@@ -204,9 +204,9 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         Layout.topMargin: 4
-        Text { text: "El acceso de cada integrante"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+        Text { text: qsTr("El acceso de cada integrante"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
         Text { visible: Studio.cuerpo.integrantes.length > 0; color: Theme.textFaint; font.pixelSize: 12
-               text: "· " + cr.parts.filter(p => p.credencial).length + " de " + Studio.cuerpo.integrantes.length + " con acceso" }
+               text: qsTr("· %1 de %2 con acceso").arg(cr.parts.filter(p => p.credencial).length).arg(Studio.cuerpo.integrantes.length) }
         Item { Layout.fillWidth: true }
     }
     RowLayout {
@@ -214,11 +214,11 @@ ColumnLayout {
         Layout.leftMargin: 8
         visible: Studio.cuerpo.integrantes.length > 0
         spacing: 10
-        Text { Layout.preferredWidth: 60; text: "Banca"; color: Theme.textFaint; font.pixelSize: 11 }
-        Text { Layout.preferredWidth: 200; text: "Conferencista"; color: Theme.textFaint; font.pixelSize: 11 }
-        Text { Layout.preferredWidth: 110; text: "Usuario"; color: Theme.textFaint; font.pixelSize: 11 }
-        Text { Layout.preferredWidth: 130; text: "Acceso"; color: Theme.textFaint; font.pixelSize: 11 }
-        Text { Layout.preferredWidth: 170; text: "Estado"; color: Theme.textFaint; font.pixelSize: 11 }
+        Text { Layout.preferredWidth: 60; text: qsTr("Banca"); color: Theme.textFaint; font.pixelSize: 11 }
+        Text { Layout.preferredWidth: 200; text: qsTr("Conferencista"); color: Theme.textFaint; font.pixelSize: 11 }
+        Text { Layout.preferredWidth: 110; text: qsTr("Usuario"); color: Theme.textFaint; font.pixelSize: 11 }
+        Text { Layout.preferredWidth: 130; text: qsTr("Acceso"); color: Theme.textFaint; font.pixelSize: 11 }
+        Text { Layout.preferredWidth: 170; text: qsTr("Estado"); color: Theme.textFaint; font.pixelSize: 11 }
         Item { Layout.fillWidth: true }
     }
     ListView {
@@ -232,10 +232,10 @@ ColumnLayout {
             width: parent.width
             visible: parent.count === 0
             icono: "▦"
-            titulo: "Todavía no hay integrantes"
-            texto: "Cada integrante del cuerpo puede entrar desde el navegador (en la sala con el celular, o desde afuera) con su link y su PIN. "
-                   + "Primero cargá los integrantes; después, acá, «Dar acceso…» a cada uno."
-            accion: "Cargar integrantes…"
+            titulo: qsTr("Todavía no hay integrantes")
+            texto: qsTr("Cada integrante del cuerpo puede entrar desde el navegador (en la sala con el celular, o desde afuera) con su link y su PIN. "
+                        + "Primero cargá los integrantes; después, acá, «Dar acceso…» a cada uno.")
+            accion: qsTr("Cargar integrantes…")
             onActivado: cuerpoCr.open()
         }
         delegate: Rectangle {
@@ -256,24 +256,24 @@ ColumnLayout {
                    color: est && est.usuario ? Theme.text : Theme.textFaint; text: est && est.usuario ? est.usuario : "—" }
             Text { Layout.preferredWidth: 130; font.pixelSize: 11
                    color: est && est.credencial ? Theme.textDim : Theme.textFaint
-                   text: !est || !est.credencial ? "sin acceso" : "link + PIN" + (est.con_clave ? " · contraseña" : "") }
+                   text: !est || !est.credencial ? qsTr("sin acceso") : est.con_clave ? qsTr("link + PIN · contraseña") : qsTr("link + PIN") }
             Text {
                 Layout.preferredWidth: 170
                 font.pixelSize: 12
                 color: !est ? Theme.textFaint : est.bloqueado ? Theme.live : est.estado === "habilitado" ? Theme.ok
                        : est.estado === "esperando" ? Theme.amber : Theme.textDim
                 text: !est || !est.credencial ? ""
-                      : est.bloqueado ? "bloqueado (clave errada)"
-                      : est.estado === "habilitado" ? "presente (" + (est.lugar === "sala" ? "sala" : "afuera") + ")"
-                      : est.estado === "esperando" ? "esperando (Recinto)"
-                      : "sin conectar"
+                      : est.bloqueado ? qsTr("bloqueado (clave errada)")
+                      : est.estado === "habilitado" ? (est.lugar === "sala" ? qsTr("presente (sala)") : qsTr("presente (afuera)"))
+                      : est.estado === "esperando" ? qsTr("esperando (Recinto)")
+                      : qsTr("sin conectar")
             }
             // Fijo y guardado: se ve el mismo cuando se quiera; renovar es aparte y se confirma.
-            GlassButton { compact: true; visible: !!est && est.credencial && est.fijo; text: "Ver acceso…"; active: true
+            GlassButton { compact: true; visible: !!est && est.credencial && est.fijo; text: qsTr("Ver acceso…"); active: true
                           onClicked: { const r = cr.s.generarUi(modelData.id, false)
                                        if (r.error) Studio.notify(r.error, "error"); else credencial.mostrar(r) } }
             GlassButton { compact: true
-                          text: !(est && est.credencial) ? "Dar acceso…" : est.fijo ? "Renovar…" : cr.s.accesoFijo ? "Renovar (queda fijo)…" : "Nuevo link…"
+                          text: !(est && est.credencial) ? qsTr("Dar acceso…") : est.fijo ? qsTr("Renovar…") : cr.s.accesoFijo ? qsTr("Renovar (queda fijo)…") : qsTr("Nuevo link…")
                           onClicked: {
                               const generar = function() {
                                   const r = cr.s.generarUi(modelData.id, true)
@@ -281,23 +281,23 @@ ColumnLayout {
                                   credencial.mostrar(r)
                               }
                               if (est && est.credencial)
-                                  ApplicationWindow.window.confirm({ title: "¿Generar un link y un PIN nuevos?",
-                                      text: "El link, el PIN y la contraseña anteriores de " + modelData.nombre + " dejan de andar"
-                                            + (est.conectado ? " (y si está conectado, se corta)." : "."),
-                                      accept: "Renovar", reject: "Cancelar", action: generar })
+                                  ApplicationWindow.window.confirm({ title: qsTr("¿Generar un link y un PIN nuevos?"),
+                                      text: (est.conectado ? qsTr("El link, el PIN y la contraseña anteriores de %1 dejan de andar (y si está conectado, se corta).")
+                                                            : qsTr("El link, el PIN y la contraseña anteriores de %1 dejan de andar.")).arg(modelData.nombre),
+                                      accept: qsTr("Renovar"), reject: qsTr("Cancelar"), action: generar })
                               else generar()
                           } }
-            GlassButton { compact: true; text: "Usuario y contraseña…"; visible: !!est && est.credencial
+            GlassButton { compact: true; text: qsTr("Usuario y contraseña…"); visible: !!est && est.credencial
                           onClicked: { claveDlg.id = modelData.id; claveDlg.nombre = modelData.nombre
                                        campoUsuario.text = est.usuario || ""; claveDlg.open() } }
-            GlassButton { compact: true; text: "Datos…"; visible: !!est && est.credencial
+            GlassButton { compact: true; text: qsTr("Datos…"); visible: !!est && est.credencial
                           onClicked: { datosDlg.id = modelData.id; datosDlg.nombre = modelData.nombre
                                        const d = est.datos || {}
                                        campoEmail.text = d.email || ""; campoTel.text = d.telefono || ""; campoNota.text = d.nota || ""
                                        datosDlg.open() } }
-            GlassButton { compact: true; text: "Revocar"; visible: !!est && est.credencial
-                          onClicked: ApplicationWindow.window.confirm({ title: "¿Revocar el acceso de " + modelData.nombre + "?",
-                              text: "El link y la contraseña dejan de andar ya (si está conectado, se corta).", accept: "Revocar", reject: "Cancelar",
+            GlassButton { compact: true; text: qsTr("Revocar"); visible: !!est && est.credencial
+                          onClicked: ApplicationWindow.window.confirm({ title: qsTr("¿Revocar el acceso de %1?").arg(modelData.nombre),
+                              text: qsTr("El link y la contraseña dejan de andar ya (si está conectado, se corta)."), accept: qsTr("Revocar"), reject: qsTr("Cancelar"),
                               action: function() { cr.s.revocarUi(modelData.id) } }) }
             Item { Layout.fillWidth: true }
           }
@@ -311,7 +311,7 @@ ColumnLayout {
         anchors.centerIn: Overlay.overlay
         modal: true
         standardButtons: Dialog.Close
-        title: "Acceso de " + (datos.nombre || "")
+        title: qsTr("Acceso de %1").arg(datos.nombre || "")
         property var datos: ({})
         function mostrar(r) { datos = r; open(); lienzo.requestPaint() }
         ColumnLayout {
@@ -319,11 +319,11 @@ ColumnLayout {
             Text { Layout.preferredWidth: 420; wrapMode: Text.WordWrap; font.pixelSize: 12
                    color: credencial.datos.fijo ? Theme.textDim : Theme.amber
                    text: (credencial.datos.fijo
-                          ? (credencial.datos.repetido ? "Es el mismo de siempre (acceso fijo): no cambió nada. " : "Queda fijo: se puede volver a ver con «Ver acceso…». ")
-                          : "Se muestra UNA sola vez. ")
+                          ? (credencial.datos.repetido ? qsTr("Es el mismo de siempre (acceso fijo): no cambió nada. ") : qsTr("Queda fijo: se puede volver a ver con «Ver acceso…». "))
+                          : qsTr("Se muestra UNA sola vez. "))
                          + (credencial.datos.pin_en_qr
-                            ? "El QR ya trae el PIN: con escanearlo entra. Pasáselo solo a esa persona."
-                            : "Pasale el link (o el QR) y el PIN por un canal seguro, por separado si se puede.") }
+                            ? qsTr("El QR ya trae el PIN: con escanearlo entra. Pasáselo solo a esa persona.")
+                            : qsTr("Pasale el link (o el QR) y el PIN por un canal seguro, por separado si se puede.")) }
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: 260; Layout.preferredHeight: 260; radius: 10; color: "white"
@@ -346,24 +346,24 @@ ColumnLayout {
                 }
             }
             Text { visible: !!credencial.datos.link_remoto; color: Theme.textDim; font.pixelSize: 11
-                   text: "En la red de la sala (el QR es este):" }
+                   text: qsTr("En la red de la sala (el QR es este):") }
             TextField { id: campoLink; Layout.preferredWidth: 420; readOnly: true; text: credencial.datos.link || ""; font.pixelSize: 11 }
             // Desde afuera (por el túnel), aparte: para quien no está en la sala.
             Text { visible: !!credencial.datos.link_remoto; color: Theme.textDim; font.pixelSize: 11
-                   text: "Desde afuera (por internet):" }
+                   text: qsTr("Desde afuera (por internet):") }
             RowLayout {
                 visible: !!credencial.datos.link_remoto
                 TextField { Layout.preferredWidth: 330; readOnly: true; text: credencial.datos.link_remoto || ""; font.pixelSize: 11 }
-                GlassButton { text: "Copiar"; compact: true
-                              onClicked: { Studio.copiar(credencial.datos.link_remoto); Studio.notify("Link de afuera copiado", "ok") } }
+                GlassButton { text: qsTr("Copiar"); compact: true
+                              onClicked: { Studio.copiar(credencial.datos.link_remoto); Studio.notify(qsTr("Link de afuera copiado"), "ok") } }
             }
             RowLayout {
                 Text { color: Theme.textDim; font.pixelSize: 13; text: "PIN" }
                 Text { color: Theme.text; font.pixelSize: 26; font.weight: Font.Black; font.letterSpacing: 4; text: credencial.datos.pin || "" }
                 Item { Layout.fillWidth: true }
-                GlassButton { text: "Copiar link"; onClicked: { campoLink.selectAll(); campoLink.copy(); Studio.notify("Link copiado", "ok") } }
-                GlassButton { visible: !!credencial.datos.link_con_pin; text: "Copiar con PIN"
-                              onClicked: { Studio.copiar(credencial.datos.link_con_pin); Studio.notify("Link con PIN copiado", "ok") } }
+                GlassButton { text: qsTr("Copiar link"); onClicked: { campoLink.selectAll(); campoLink.copy(); Studio.notify(qsTr("Link copiado"), "ok") } }
+                GlassButton { visible: !!credencial.datos.link_con_pin; text: qsTr("Copiar con PIN")
+                              onClicked: { Studio.copiar(credencial.datos.link_con_pin); Studio.notify(qsTr("Link con PIN copiado"), "ok") } }
             }
             Text { visible: !!credencial.datos.aviso; Layout.preferredWidth: 420; wrapMode: Text.WordWrap
                    color: Theme.amber; font.pixelSize: 11; text: credencial.datos.aviso || "" }
@@ -375,7 +375,7 @@ ColumnLayout {
         id: claveDlg
         anchors.centerIn: Overlay.overlay
         modal: true
-        title: "Usuario y contraseña de " + nombre
+        title: qsTr("Usuario y contraseña de %1").arg(nombre)
         property string id: ""
         property string nombre: ""
         property var r: ({})
@@ -384,12 +384,12 @@ ColumnLayout {
         ColumnLayout {
             spacing: 10
             Text { Layout.preferredWidth: 400; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                   text: "Para entrar sin el link, tipeando en …/sesion/. La contraseña nueva reemplaza a la anterior y se ve una sola vez." }
+                   text: qsTr("Para entrar sin el link, tipeando en …/sesion/. La contraseña nueva reemplaza a la anterior y se ve una sola vez.") }
             RowLayout {
-                Text { text: "Usuario"; color: Theme.textDim; font.pixelSize: 12 }
-                TextField { id: campoUsuario; Layout.fillWidth: true; placeholderText: "p. ej. banca12 o apellido" }
+                Text { text: qsTr("Usuario"); color: Theme.textDim; font.pixelSize: 12 }
+                TextField { id: campoUsuario; Layout.fillWidth: true; placeholderText: qsTr("p. ej. banca12 o apellido") }
             }
-            GlassButton { text: "Generar contraseña"; active: true
+            GlassButton { text: qsTr("Generar contraseña"); active: true
                           onClicked: {
                               const x = cr.s.generarClaveUi(claveDlg.id, campoUsuario.text.trim())
                               if (x.error) { Studio.notify(x.error, "error"); return }
@@ -400,7 +400,7 @@ ColumnLayout {
                 Text { color: Theme.textDim; font.pixelSize: 13; text: (claveDlg.r.usuario || "") + "  /" }
                 TextField { id: campoClave; readOnly: true; text: claveDlg.r.clave || ""; font.pixelSize: 20; font.letterSpacing: 2
                             Layout.preferredWidth: 220 }
-                GlassButton { text: "Copiar"; onClicked: { campoClave.selectAll(); campoClave.copy(); Studio.notify("Contraseña copiada", "ok") } }
+                GlassButton { text: qsTr("Copiar"); onClicked: { campoClave.selectAll(); campoClave.copy(); Studio.notify(qsTr("Contraseña copiada"), "ok") } }
             }
         }
     }
@@ -410,7 +410,7 @@ ColumnLayout {
         id: datosDlg
         anchors.centerIn: Overlay.overlay
         modal: true
-        title: "Datos de " + nombre
+        title: qsTr("Datos de %1").arg(nombre)
         property string id: ""
         property string nombre: ""
         standardButtons: Dialog.Save | Dialog.Cancel
@@ -421,12 +421,12 @@ ColumnLayout {
         GridLayout {
             columns: 2
             columnSpacing: 10; rowSpacing: 6
-            Text { text: "Email"; color: Theme.textDim; font.pixelSize: 12 }
+            Text { text: qsTr("Email"); color: Theme.textDim; font.pixelSize: 12 }
             TextField { id: campoEmail; Layout.preferredWidth: 300 }
-            Text { text: "Teléfono"; color: Theme.textDim; font.pixelSize: 12 }
+            Text { text: qsTr("Teléfono"); color: Theme.textDim; font.pixelSize: 12 }
             TextField { id: campoTel; Layout.preferredWidth: 300 }
-            Text { text: "Nota"; color: Theme.textDim; font.pixelSize: 12 }
-            TextField { id: campoNota; Layout.preferredWidth: 300; placeholderText: "p. ej. conecta desde la oficina del bloque" }
+            Text { text: qsTr("Nota"); color: Theme.textDim; font.pixelSize: 12 }
+            TextField { id: campoNota; Layout.preferredWidth: 300; placeholderText: qsTr("p. ej. conecta desde la oficina del bloque") }
         }
     }
 }

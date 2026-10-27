@@ -84,7 +84,7 @@ Item {
         return p && p.salida && p.salida.dispositivo === "sala-simulada"
     }
     function medir() {
-        if (punto === "") { aviso("Elegí un punto en el croquis"); return }
+        if (punto === "") { aviso(qsTr("Elegí un punto en el croquis")); return }
         if (!simulada() && !confirmado) { confirmar.open(); return }
         aviso(cal.medir(parlante, punto, microfono, etapa, duracion, nivelDb))
     }
@@ -95,7 +95,7 @@ Item {
         id: confirmar
         anchors.centerIn: parent
         modal: true
-        title: "Va a sonar un barrido de 20 Hz a 20 kHz"
+        title: qsTr("Va a sonar un barrido de 20 Hz a 20 kHz")
         property int falta: 3
         onOpened: { falta = 3; cuenta.start() }
         Timer { id: cuenta; interval: 1000; repeat: true; onTriggered: { confirmar.falta--; if (confirmar.falta <= 0) stop() } }
@@ -103,14 +103,14 @@ Item {
             width: 460
             spacing: 8
             Label { Layout.fillWidth: true; wrapMode: Text.WordWrap
-                    text: "Por «" + c.nombreDe(c.parlantes, c.parlante) + "», a " + c.nivelDb.toFixed(0) + " dBFS. Antes de medir:" }
+                    text: qsTr("Por «%1», a %2 dBFS. Antes de medir:").arg(c.nombreDe(c.parlantes, c.parlante)).arg(c.nivelDb.toFixed(0)) }
             Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim
-                    text: "• Que no haya público ni nadie con auriculares.\n• Los micrófonos en vivo cerrados (si no, acopla).\n• El volumen del equipo bajo: se sube de a poco hasta que la relación señal/ruido pase los 40 dB.\n• El micrófono en el punto, apuntado al parlante y a más de 1 m." }
+                    text: qsTr("• Que no haya público ni nadie con auriculares.\n• Los micrófonos en vivo cerrados (si no, acopla).\n• El volumen del equipo bajo: se sube de a poco hasta que la relación señal/ruido pase los 40 dB.\n• El micrófono en el punto, apuntado al parlante y a más de 1 m.") }
         }
         footer: DialogButtonBox {
-            Button { text: confirmar.falta > 0 ? "Medir (" + confirmar.falta + ")" : "Medir"; enabled: confirmar.falta <= 0
+            Button { text: confirmar.falta > 0 ? qsTr("Medir (%1)").arg(confirmar.falta) : qsTr("Medir"); enabled: confirmar.falta <= 0
                      DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole }
-            Button { text: "Cancelar"; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
+            Button { text: qsTr("Cancelar"); DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
         }
         onAccepted: { c.confirmado = true; c.medir() }
     }
@@ -185,7 +185,7 @@ Item {
                 g.fillRect(izq, arr, xDe(fs) - izq, aba - arr)
                 g.fillStyle = Theme.textFaint
                 g.font = "10px sans-serif"
-                g.fillText("modos (bajo fs = " + fs.toFixed(0) + " Hz)", izq + 4, aba - 6)
+                g.fillText(qsTr("modos (bajo fs = %1 Hz)").arg(fs.toFixed(0)), izq + 4, aba - 6)
             }
             g.lineWidth = 1
             g.font = "10px sans-serif"
@@ -236,7 +236,7 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.WordWrap
         color: Theme.textDim
-        text: "La calibración necesita ba-lspdsp (el DSP de LSP) y no está en esta compilación."
+        text: qsTr("La calibración necesita ba-lspdsp (el DSP de LSP) y no está en esta compilación.")
     }
 
     ColumnLayout {
@@ -262,7 +262,7 @@ Item {
                         width: parent.width
                         spacing: 8
 
-                        Titulo { text: "SESIÓN" }
+                        Titulo { text: qsTr("SESIÓN") }
                         RowLayout {
                             Layout.fillWidth: true
                             ComboBox {
@@ -270,17 +270,17 @@ Item {
                                 Layout.fillWidth: true
                                 model: c.cal ? c.cal.sesiones : []
                                 textRole: "nombre"
-                                displayText: c.hay ? c.ses.nombre : "Elegí una guardada…"
+                                displayText: c.hay ? c.ses.nombre : qsTr("Elegí una guardada…")
                                 onActivated: (i) => c.aviso(c.cal.abrir(model[i].id))
                             }
-                            GlassButton { compact: true; text: "Nueva"; onClicked: nuevaSesion.visible = !nuevaSesion.visible }
+                            GlassButton { compact: true; text: qsTr("Nueva"); onClicked: nuevaSesion.visible = !nuevaSesion.visible }
                         }
                         ColumnLayout {
                             id: nuevaSesion
                             visible: !c.hay
                             Layout.fillWidth: true
                             spacing: 6
-                            TextField { id: nomSala; Layout.fillWidth: true; placeholderText: "Nombre (p. ej. Recinto principal)" }
+                            TextField { id: nomSala; Layout.fillWidth: true; placeholderText: qsTr("Nombre (p. ej. Recinto principal)") }
                             RowLayout {
                                 Nota { text: "L × A × H (m)" }
                                 Numero { id: nL; desdeR: 1; hastaR: 100; value: 800 }
@@ -288,20 +288,20 @@ Item {
                                 Numero { id: nH; desdeR: 1; hastaR: 30; value: 300 }
                             }
                             GlassButton {
-                                text: "Crear sesión"
+                                text: qsTr("Crear sesión")
                                 onClicked: { c.aviso(c.cal.nueva(nomSala.text, nL.real, nA.real, nH.real)); if (c.hay) nuevaSesion.visible = false }
                             }
                         }
                         Nota {
                             visible: c.hay
                             Layout.fillWidth: true
-                            text: "Sala de " + c.sala.largo + " × " + c.sala.ancho + " × " + c.sala.alto + " m (" +
-                                  (c.sala.largo * c.sala.ancho * c.sala.alto).toFixed(0) + " m³). " +
-                                  (c.cal.analisis.schroeder_hz ? "Frecuencia de Schroeder ≈ " + c.cal.analisis.schroeder_hz + " Hz: abajo mandan los modos." : "")
+                            text: qsTr("Sala de %1 × %2 × %3 m (%4 m³). ").arg(c.sala.largo).arg(c.sala.ancho).arg(c.sala.alto)
+                                      .arg((c.sala.largo * c.sala.ancho * c.sala.alto).toFixed(0)) +
+                                  (c.cal.analisis.schroeder_hz ? qsTr("Frecuencia de Schroeder ≈ %1 Hz: abajo mandan los modos.").arg(c.cal.analisis.schroeder_hz) : "")
                         }
 
                         // --- Parlantes
-                        Titulo { text: "PARLANTES"; visible: c.hay; Layout.topMargin: 6 }
+                        Titulo { text: qsTr("PARLANTES"); visible: c.hay; Layout.topMargin: 6 }
                         Repeater {
                             model: c.hay ? c.parlantes : []
                             delegate: Rectangle {
@@ -315,10 +315,10 @@ Item {
                                     Text { text: "▲"; color: "#a78bfa"; font.pixelSize: 11 }
                                     Text { Layout.fillWidth: true; text: modelData.nombre; color: Theme.text; elide: Text.ElideRight
                                            font { family: Theme.font; pixelSize: 12 } }
-                                    Text { text: "canal " + (modelData.salida.canal < 0 ? "todos" : modelData.salida.canal + 1); color: Theme.textFaint
+                                    Text { text: modelData.salida.canal < 0 ? qsTr("canal todos") : qsTr("canal %1").arg(modelData.salida.canal + 1); color: Theme.textFaint
                                            font { family: Theme.font; pixelSize: 10 } }
                                     ToolButton { text: "✕"; onClicked: c.aviso(c.cal.quitar(modelData.id))
-                                                 ToolTip.visible: hovered; ToolTip.text: "Quitar el parlante (sus mediciones quedan)" }
+                                                 ToolTip.visible: hovered; ToolTip.text: qsTr("Quitar el parlante (sus mediciones quedan)") }
                                 }
                                 TapHandler { onTapped: c.parlante = modelData.id }
                             }
@@ -328,12 +328,12 @@ Item {
                             Layout.fillWidth: true
                             columns: 2
                             columnSpacing: 6; rowSpacing: 6
-                            TextField { id: nomPar; Layout.columnSpan: 2; Layout.fillWidth: true; placeholderText: "Nombre del parlante" }
+                            TextField { id: nomPar; Layout.columnSpan: 2; Layout.fillWidth: true; placeholderText: qsTr("Nombre del parlante") }
                             ComboBox { id: salPar; Layout.fillWidth: true; model: c.cal ? c.cal.salidas : []; textRole: "nombre"; valueRole: "id" }
-                            ComboBox { id: canPar; Layout.preferredWidth: 96; model: ["Izq.", "Der.", "Todos"] }
+                            ComboBox { id: canPar; Layout.preferredWidth: 96; model: [qsTr("Izq."), qsTr("Der."), qsTr("Todos")] }
                             GlassButton {
                                 Layout.columnSpan: 2
-                                text: "+ Parlante"
+                                text: qsTr("+ Parlante")
                                 compact: true
                                 onClicked: c.aviso(c.cal.agregarParlante(nomPar.text, salPar.currentValue, canPar.currentIndex === 2 ? -1 : canPar.currentIndex,
                                                                          0.5, c.sala.ancho * (c.parlantes.length % 2 ? 0.75 : 0.25)))
@@ -341,7 +341,7 @@ Item {
                         }
 
                         // --- Micrófonos
-                        Titulo { text: "MICRÓFONOS"; visible: c.hay; Layout.topMargin: 6 }
+                        Titulo { text: qsTr("MICRÓFONOS"); visible: c.hay; Layout.topMargin: 6 }
                         Repeater {
                             model: c.hay ? c.microfonos : []
                             delegate: Rectangle {
@@ -368,10 +368,10 @@ Item {
                                         wrapMode: Text.WordWrap
                                         color: calb.tipo === "archivo" || calb.tipo === "sustitucion" ? Theme.ok : Theme.amber
                                         font { family: Theme.font; pixelSize: 10 }
-                                        text: calb.tipo === "archivo" ? "Con archivo de calibración (" + (calb.archivo || "") + ")"
-                                            : calb.tipo === "sustitucion" ? "Calibrado por sustitución contra " + (calb.referencia || "la referencia")
-                                            : calb.tipo === "plano" ? "De medición, sin archivo (plano)"
-                                            : "Curva del modelo (" + (calb.modelo || "?") + ", ±3 dB): agudos solo tendencias"
+                                        text: calb.tipo === "archivo" ? qsTr("Con archivo de calibración (%1)").arg(calb.archivo || "")
+                                            : calb.tipo === "sustitucion" ? qsTr("Calibrado por sustitución contra %1").arg(calb.referencia || qsTr("la referencia"))
+                                            : calb.tipo === "plano" ? qsTr("De medición, sin archivo (plano)")
+                                            : qsTr("Curva del modelo (%1, ±3 dB): agudos solo tendencias").arg(calb.modelo || "?")
                                     }
                                 }
                                 TapHandler { onTapped: c.microfono = modelData.id }
@@ -382,10 +382,10 @@ Item {
                             Layout.fillWidth: true
                             columns: 2
                             columnSpacing: 6; rowSpacing: 6
-                            TextField { id: nomMic; Layout.columnSpan: 2; Layout.fillWidth: true; placeholderText: "Nombre del micrófono" }
+                            TextField { id: nomMic; Layout.columnSpan: 2; Layout.fillWidth: true; placeholderText: qsTr("Nombre del micrófono") }
                             ComboBox { id: entMic; Layout.fillWidth: true; model: c.cal ? c.cal.entradas : []; textRole: "nombre"; valueRole: "id" }
                             SpinBox { id: canMic; Layout.preferredWidth: 96; from: 1; to: 8; value: 1
-                                      ToolTip.visible: hovered; ToolTip.text: "Canal de la entrada" }
+                                      ToolTip.visible: hovered; ToolTip.text: qsTr("Canal de la entrada") }
                             ComboBox {
                                 id: modMic
                                 Layout.columnSpan: 2
@@ -396,10 +396,10 @@ Item {
                                 ToolTip.text: currentIndex >= 0 ? model[currentIndex].nota : ""
                             }
                             TextField { id: archMic; Layout.columnSpan: 2; Layout.fillWidth: true
-                                        placeholderText: "Archivo de calibración (opcional: ruta al .txt)" }
+                                        placeholderText: qsTr("Archivo de calibración (opcional: ruta al .txt)") }
                             GlassButton {
                                 Layout.columnSpan: 2
-                                text: "+ Micrófono"
+                                text: qsTr("+ Micrófono")
                                 compact: true
                                 onClicked: {
                                     const arch = archMic.text.trim()
@@ -411,7 +411,7 @@ Item {
                         }
 
                         // --- Objetivo
-                        Titulo { text: "CURVA OBJETIVO"; visible: c.hay; Layout.topMargin: 6 }
+                        Titulo { text: qsTr("CURVA OBJETIVO"); visible: c.hay; Layout.topMargin: 6 }
                         RowLayout {
                             visible: c.hay
                             Layout.fillWidth: true
@@ -425,7 +425,7 @@ Item {
                             Text { text: pend.value.toFixed(1) + " dB/oct"; color: Theme.textDim; font { family: Theme.font; pixelSize: 11 } }
                         }
                         Nota { visible: c.hay; Layout.fillWidth: true
-                               text: "0 = plana (monitoreo). −0,8 = palabra en sala (Toole: en régimen permanente la sala cae hacia los agudos)." }
+                               text: qsTr("0 = plana (monitoreo). −0,8 = palabra en sala (Toole: en régimen permanente la sala cae hacia los agudos).") }
                     }
                 }
             }
@@ -446,11 +446,11 @@ Item {
                         spacing: 6
                         RowLayout {
                             Layout.fillWidth: true
-                            Titulo { text: "CROQUIS"; Layout.fillWidth: true }
-                            Nota { text: "clic: punto nuevo de" }
+                            Titulo { text: qsTr("CROQUIS"); Layout.fillWidth: true }
+                            Nota { text: qsTr("clic: punto nuevo de") }
                             ComboBox {
                                 Layout.preferredWidth: 130
-                                model: [{ t: "escucha", n: "escucha" }, { t: "cerca", n: "cerca (1 m)" }, { t: "pared", n: "pared" }, { t: "microfono", n: "micrófono" }]
+                                model: [{ t: "escucha", n: qsTr("escucha") }, { t: "cerca", n: qsTr("cerca (1 m)") }, { t: "pared", n: qsTr("pared") }, { t: "microfono", n: qsTr("micrófono") }]
                                 textRole: "n"; valueRole: "t"
                                 onActivated: c.tipoPunto = currentValue
                             }
@@ -478,7 +478,7 @@ Item {
                                 border.color: Qt.rgba(1, 1, 1, 0.25)
                                 visible: c.hay
                                 Text { anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 2 }
-                                       text: "frente"; color: Theme.textFaint; font { family: Theme.font; pixelSize: 9 } }
+                                       text: qsTr("frente"); color: Theme.textFaint; font { family: Theme.font; pixelSize: 9 } }
                                 // Cuadrícula de 1 m.
                                 Repeater {
                                     model: Math.floor(c.sala.largo)
@@ -555,8 +555,9 @@ Item {
                                         }
                                         HoverHandler { id: ptHov; cursorShape: ptArr.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
                                         ToolTip.visible: ptHov.hovered && !ptArr.active; ToolTip.delay: 300
-                                        ToolTip.text: modelData.nombre + " (" + modelData.tipo + ")" + (hecho ? " — medido" : " — sin medir") +
-                                                      ". Arrastrá para moverlo; clic derecho para quitarlo."
+                                        ToolTip.text: (hecho ? qsTr("%1 (%2) — medido. Arrastrá para moverlo; clic derecho para quitarlo.")
+                                                           : qsTr("%1 (%2) — sin medir. Arrastrá para moverlo; clic derecho para quitarlo."))
+                                                      .arg(modelData.nombre).arg(modelData.tipo)
                                         TapHandler { acceptedButtons: Qt.LeftButton; onTapped: { c.punto = pt.modelData.id; plano.forceActiveFocus() } }
                                         TapHandler { acceptedButtons: Qt.RightButton; onTapped: c.menuDe(pt.modelData, pt.hecho) }
                                         DragHandler {
@@ -594,7 +595,7 @@ Item {
                                         }
                                         HoverHandler { id: paHov; cursorShape: paArr.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
                                         ToolTip.visible: paHov.hovered && !paArr.active
-                                        ToolTip.text: modelData.nombre + " (arrastrá para ubicarlo; clic derecho para quitarlo)"
+                                        ToolTip.text: qsTr("%1 (arrastrá para ubicarlo; clic derecho para quitarlo)").arg(modelData.nombre)
                                         TapHandler { acceptedButtons: Qt.LeftButton; onTapped: c.parlante = pa.modelData.id }
                                         TapHandler { acceptedButtons: Qt.RightButton; onTapped: c.menuDe(pa.modelData, false) }
                                         DragHandler {
@@ -611,14 +612,14 @@ Item {
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
                                 color: Theme.textFaint
-                                text: "Creá una sesión con las medidas de la sala (a la izquierda) o pedile al asistente que te guíe."
+                                text: qsTr("Creá una sesión con las medidas de la sala (a la izquierda) o pedile al asistente que te guíe.")
                             }
                         }
                         Nota {
                             Layout.fillWidth: true
                             visible: c.hay
-                            text: "Puntos de escucha: 5 a 9, a la altura de los oídos, a más de 1 m de las paredes y no simétricos. Verde: medido para «" +
-                                  c.nombreDe(c.parlantes, c.parlante) + "» (" + c.etapa + ")."
+                            text: qsTr("Puntos de escucha: 5 a 9, a la altura de los oídos, a más de 1 m de las paredes y no simétricos. Verde: medido para «%1» (%2).")
+                                      .arg(c.nombreDe(c.parlantes, c.parlante)).arg(c.etapa)
                         }
                     }
                 }
@@ -634,9 +635,9 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Titulo { text: "MEDIR"; Layout.fillWidth: true }
+                            Titulo { text: qsTr("MEDIR"); Layout.fillWidth: true }
                             Repeater {
-                                model: [{ t: "antes", n: "Antes" }, { t: "verificacion", n: "Verificación" }, { t: "sustitucion", n: "Sustitución" }]
+                                model: [{ t: "antes", n: qsTr("Antes") }, { t: "verificacion", n: qsTr("Verificación") }, { t: "sustitucion", n: qsTr("Sustitución") }]
                                 delegate: GlassButton {
                                     required property var modelData
                                     compact: true
@@ -651,29 +652,29 @@ Item {
                             wrapMode: Text.WordWrap
                             color: Theme.text
                             font { family: Theme.font; pixelSize: 13 }
-                            text: c.punto === "" ? "Elegí un punto en el croquis."
-                                : "«" + c.nombreDe(c.parlantes, c.parlante) + "» con «" + c.nombreDe(c.microfonos, c.microfono) + "» en «" + c.nombreDe(c.puntos, c.punto) + "»"
+                            text: c.punto === "" ? qsTr("Elegí un punto en el croquis.")
+                                : qsTr("«%1» con «%2» en «%3»").arg(c.nombreDe(c.parlantes, c.parlante)).arg(c.nombreDe(c.microfonos, c.microfono)).arg(c.nombreDe(c.puntos, c.punto))
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Nota { text: "Nivel" }
+                            Nota { text: qsTr("Nivel") }
                             Slider { id: nivel; Layout.fillWidth: true; from: -40; to: -6; stepSize: 1; value: c.nivelDb; onMoved: c.nivelDb = value }
                             Text { text: c.nivelDb.toFixed(0) + " dBFS"; color: c.nivelDb > -12 ? Theme.amber : Theme.textDim; font { family: Theme.font; pixelSize: 11 } }
-                            Nota { text: "Barrido" }
+                            Nota { text: qsTr("Barrido") }
                             ComboBox { Layout.preferredWidth: 76; model: ["2 s", "4 s", "8 s"]; currentIndex: 1
                                        onActivated: (i) => c.duracion = [2, 4, 8][i]
-                                       ToolTip.visible: hovered; ToolTip.text: "Más largo: más relación señal/ruido (+3 dB cada vez que se duplica)" }
+                                       ToolTip.visible: hovered; ToolTip.text: qsTr("Más largo: más relación señal/ruido (+3 dB cada vez que se duplica)") }
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             GlassButton {
-                                text: c.ocupado ? "Midiendo…" : (c.simulada() ? "Medir (sala simulada)" : "Medir este punto")
+                                text: c.ocupado ? qsTr("Midiendo…") : (c.simulada() ? qsTr("Medir (sala simulada)") : qsTr("Medir este punto"))
                                 active: !c.ocupado
                                 enabled: !c.ocupado && c.parlante !== "" && c.microfono !== "" && c.punto !== ""
                                 onClicked: c.medir()
                             }
-                            GlassButton { compact: true; text: "Cancelar"; visible: c.ocupado; onClicked: c.cal.cancelar() }
+                            GlassButton { compact: true; text: qsTr("Cancelar"); visible: c.ocupado; onClicked: c.cal.cancelar() }
                             BusyIndicator { running: c.ocupado; visible: running; implicitWidth: 26; implicitHeight: 26 }
                             Item { Layout.fillWidth: true }
                         }
@@ -700,7 +701,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: 6
                         Repeater {
-                            model: [{ t: "respuesta", n: "Respuesta" }, { t: "impulso", n: "Impulso y ETC" }, { t: "rt", n: "RT60" }, { t: "propuesta", n: "Propuesta" }]
+                            model: [{ t: "respuesta", n: qsTr("Respuesta") }, { t: "impulso", n: qsTr("Impulso y ETC") }, { t: "rt", n: "RT60" }, { t: "propuesta", n: qsTr("Propuesta") }]
                             delegate: GlassButton {
                                 required property var modelData
                                 compact: true
@@ -738,7 +739,7 @@ Item {
                                 anchors.centerIn: parent
                                 visible: !(c.curvas.puntos && c.curvas.puntos.length)
                                 color: Theme.textFaint
-                                text: "Sin mediciones en la zona de escucha para este parlante."
+                                text: qsTr("Sin mediciones en la zona de escucha para este parlante.")
                             }
                         }
                         Flow {
@@ -752,12 +753,12 @@ Item {
                                 Rectangle { width: 18; height: guiones ? 1 : 3; color: parent.tinte; anchors.verticalCenter: parent.verticalCenter }
                                 Text { text: parent.texto; color: Theme.textDim; font { family: Theme.font; pixelSize: 11 } }
                             }
-                            Ref { tinte: "#9ca3af"; texto: "cada punto (1/6 oct)" }
-                            Ref { tinte: "#ff6a2b"; texto: "promedio de la zona" }
-                            Ref { tinte: "#f4f4f6"; texto: "objetivo"; guiones: true }
-                            Ref { tinte: "#38bdf8"; texto: "previsto con el EQ"; visible: verPrevisto.checked }
-                            Ref { tinte: "#35c46b"; texto: "verificación"; visible: !!c.curvas.despues }
-                            CheckBox { id: verPrevisto; text: "previsto"; checked: true; padding: 0 }
+                            Ref { tinte: "#9ca3af"; texto: qsTr("cada punto (1/6 oct)") }
+                            Ref { tinte: "#ff6a2b"; texto: qsTr("promedio de la zona") }
+                            Ref { tinte: "#f4f4f6"; texto: qsTr("objetivo"); guiones: true }
+                            Ref { tinte: "#38bdf8"; texto: qsTr("previsto con el EQ"); visible: verPrevisto.checked }
+                            Ref { tinte: "#35c46b"; texto: qsTr("verificación"); visible: !!c.curvas.despues }
+                            CheckBox { id: verPrevisto; text: qsTr("previsto"); checked: true; padding: 0 }
                         }
                     }
 
@@ -780,10 +781,11 @@ Item {
                             Layout.fillWidth: true
                             color: Theme.text
                             font { family: Theme.font; pixelSize: 12 }
-                            text: parent.u.id ? "Medición " + parent.u.id + ": " + c.nombreDe(c.parlantes, parent.u.parlante) + " → " + c.nombreDe(c.puntos, parent.u.punto) +
-                                  " · directo " + c.fmt(parent.u.directo_ms, 2) + " ms · SNR " + c.fmt(parent.u.snr_db, 0) + " dB · C50 " +
-                                  c.fmt(parent.u.c50_db, 1) + " dB · polaridad " + (parent.u.polaridad < 0 ? "INVERTIDA" : "normal")
-                                : "Todavía no hay mediciones."
+                            text: parent.u.id ? qsTr("Medición %1: %2 → %3 · directo %4 ms · SNR %5 dB · C50 %6 dB · polaridad %7")
+                                      .arg(parent.u.id).arg(c.nombreDe(c.parlantes, parent.u.parlante)).arg(c.nombreDe(c.puntos, parent.u.punto))
+                                      .arg(c.fmt(parent.u.directo_ms, 2)).arg(c.fmt(parent.u.snr_db, 0)).arg(c.fmt(parent.u.c50_db, 1))
+                                      .arg(parent.u.polaridad < 0 ? qsTr("INVERTIDA") : qsTr("normal"))
+                                : qsTr("Todavía no hay mediciones.")
                         }
                         Canvas {
                             id: cvIr
@@ -795,7 +797,7 @@ Item {
                             onPaint: {
                                 const g = getContext("2d"); g.reset()
                                 g.fillStyle = Theme.textFaint; g.font = "10px sans-serif"
-                                g.fillText("respuesta impulsiva (primeros 100 ms; el primer pico es el directo)", 8, 12)
+                                g.fillText(qsTr("respuesta impulsiva (primeros 100 ms; el primer pico es el directo)"), 8, 12)
                                 const mid = height / 2
                                 g.strokeStyle = Qt.rgba(1, 1, 1, 0.1); g.beginPath(); g.moveTo(0, mid); g.lineTo(width, mid); g.stroke()
                                 for (let t = 0; t <= 100; t += 10) { const x = width * t / 100; g.fillText(t + " ms", x + 2, height - 4) }
@@ -817,7 +819,7 @@ Item {
                             onPaint: {
                                 const g = getContext("2d"); g.reset()
                                 g.fillStyle = Theme.textFaint; g.font = "10px sans-serif"
-                                g.fillText("energía-tiempo (dB, 300 ms): de qué pared vienen las reflexiones, por el retardo", 8, 12)
+                                g.fillText(qsTr("energía-tiempo (dB, 300 ms): de qué pared vienen las reflexiones, por el retardo"), 8, 12)
                                 for (let db = 0; db >= -60; db -= 20) {
                                     const y = 20 + (height - 36) * (-db / 60)
                                     g.strokeStyle = Qt.rgba(1, 1, 1, 0.08); g.beginPath(); g.moveTo(0, y); g.lineTo(width, y); g.stroke()
@@ -845,7 +847,7 @@ Item {
                             wrapMode: Text.WordWrap
                             color: Theme.text
                             font { family: Theme.font; pixelSize: 12 }
-                            text: "RT60 medio (500 Hz–1 kHz): " + c.fmt(c.cal ? c.cal.analisis.rt60_medio_s : -1, 2) + " s — palabra: 0,4–0,8 s en salas chicas; más largo se entiende peor (eso es tratamiento acústico, no EQ)."
+                            text: qsTr("RT60 medio (500 Hz–1 kHz): %1 s — palabra: 0,4–0,8 s en salas chicas; más largo se entiende peor (eso es tratamiento acústico, no EQ).").arg(c.fmt(c.cal ? c.cal.analisis.rt60_medio_s : -1, 2))
                         }
                         Canvas {
                             id: cvRt
@@ -880,7 +882,7 @@ Item {
                             }
                         }
                         Nota { Layout.fillWidth: true
-                               text: "Naranja: T20 · celeste: EDT (lo que se percibe). «—»: la banda no sobresale del ruido lo bastante (ISO 3382); subí el nivel o alargá el barrido." }
+                               text: qsTr("Naranja: T20 · celeste: EDT (lo que se percibe). «—»: la banda no sobresale del ruido lo bastante (ISO 3382); subí el nivel o alargá el barrido.") }
                     }
 
                     // --- Propuesta
@@ -901,9 +903,9 @@ Item {
                                 wrapMode: Text.WordWrap
                                 visible: !!prop.p.falta
                                 color: Theme.amber
-                                text: "Falta: " + (prop.p.falta || "")
+                                text: qsTr("Falta: %1").arg(prop.p.falta || "")
                             }
-                            Titulo { text: "FILTROS PROPUESTOS"; visible: !prop.p.falta }
+                            Titulo { text: qsTr("FILTROS PROPUESTOS"); visible: !prop.p.falta }
                             Repeater {
                                 model: prop.p.filtros || []
                                 delegate: Rectangle {
@@ -926,7 +928,7 @@ Item {
                                     }
                                 }
                             }
-                            Titulo { text: "LO QUE NO SE CORRIGE CON EQ"; visible: (prop.p.no_se_corrige || []).length > 0 }
+                            Titulo { text: qsTr("LO QUE NO SE CORRIGE CON EQ"); visible: (prop.p.no_se_corrige || []).length > 0 }
                             Repeater {
                                 model: prop.p.no_se_corrige || []
                                 delegate: Text {
@@ -938,34 +940,40 @@ Item {
                                     font { family: Theme.font; pixelSize: 11 }
                                 }
                             }
-                            Titulo { text: "RETARDO Y NIVEL"; visible: c.parlantes.length > 1 && prop.p.retardo_ms !== undefined }
+                            Titulo { text: qsTr("RETARDO Y NIVEL"); visible: c.parlantes.length > 1 && prop.p.retardo_ms !== undefined }
                             Text {
                                 visible: c.parlantes.length > 1 && prop.p.retardo_ms !== undefined
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 color: Theme.textDim
-                                text: "Retardar " + c.fmt(prop.p.retardo_ms, 2) + " ms y " + (prop.p.ganancia_db >= 0 ? "dejar" : "bajar " + Math.abs(prop.p.ganancia_db).toFixed(1) + " dB") +
-                                      " para que llegue junto y parejo con los demás." + (prop.p.polaridad ? " Polaridad: " + prop.p.polaridad : "")
+                                text: (prop.p.ganancia_db >= 0
+                                       ? qsTr("Retardar %1 ms y dejar para que llegue junto y parejo con los demás.").arg(c.fmt(prop.p.retardo_ms, 2))
+                                       : qsTr("Retardar %1 ms y bajar %2 dB para que llegue junto y parejo con los demás.").arg(c.fmt(prop.p.retardo_ms, 2)).arg(Math.abs(prop.p.ganancia_db).toFixed(1)))
+                                      + (prop.p.polaridad ? " " + qsTr("Polaridad: %1").arg(prop.p.polaridad) : "")
                             }
-                            Titulo { text: "APLICAR"; visible: (prop.p.filtros || []).length > 0; Layout.topMargin: 6 }
+                            Titulo { text: qsTr("APLICAR"); visible: (prop.p.filtros || []).length > 0; Layout.topMargin: 6 }
                             RowLayout {
                                 visible: (prop.p.filtros || []).length > 0
                                 Layout.fillWidth: true
-                                Nota { text: "En el rack de" }
+                                Nota { text: qsTr("En el rack de") }
                                 ComboBox { id: fuente; Layout.fillWidth: true; model: Studio.mezclador ? Studio.mezclador.entradas : []
-                                           ToolTip.visible: hovered; ToolTip.text: "La entrada que alimenta este parlante (se le agrega un EQ de LSP «EQ de sala»)" }
-                                GlassButton { compact: true; text: "Aplicar"; active: true; onClicked: c.aviso(c.cal.aplicar(c.parlante, fuente.currentText)) }
-                                GlassButton { compact: true; text: "Revertir"; onClicked: c.aviso(c.cal.revertir(fuente.currentText)) }
+                                           ToolTip.visible: hovered; ToolTip.text: qsTr("La entrada que alimenta este parlante (se le agrega un EQ de LSP «EQ de sala»)") }
+                                GlassButton { compact: true; text: qsTr("Aplicar"); active: true; onClicked: c.aviso(c.cal.aplicar(c.parlante, fuente.currentText)) }
+                                GlassButton { compact: true; text: qsTr("Revertir"); onClicked: c.aviso(c.cal.revertir(fuente.currentText)) }
                             }
-                            Titulo { text: "VERIFICACIÓN"; Layout.topMargin: 6; visible: !!prop.v.veredicto }
+                            Titulo { text: qsTr("VERIFICACIÓN"); Layout.topMargin: 6; visible: !!prop.v.veredicto }
                             Text {
                                 visible: !!prop.v.veredicto
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 color: prop.v.veredicto === "mejoró" ? Theme.ok : prop.v.veredicto && prop.v.veredicto.indexOf("empeoró") === 0 ? Theme.live : Theme.textDim
-                                text: (prop.v.desvio_antes_db >= 0 ? "Desvío contra el objetivo: antes " + prop.v.desvio_antes_db + " dB" : "") +
-                                      (prop.v.desvio_despues_db >= 0 ? ", después " + prop.v.desvio_despues_db + " dB. " : ". ") +
-                                      (prop.v.veredicto || "")
+                                text: {
+                                    const a = prop.v.desvio_antes_db, d = prop.v.desvio_despues_db
+                                    const desvio = a >= 0 && d >= 0 ? qsTr("Desvío contra el objetivo: antes %1 dB, después %2 dB. ").arg(a).arg(d)
+                                                 : a >= 0 ? qsTr("Desvío contra el objetivo: antes %1 dB. ").arg(a)
+                                                 : d >= 0 ? qsTr(", después %1 dB. ").arg(d) : ". "
+                                    return desvio + (prop.v.veredicto || "")
+                                }
                             }
                         }
                     }
@@ -978,11 +986,11 @@ Item {
             Layout.fillWidth: true
             contexto: "[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]"
             sugerencias: [
-                { t: "Guiame paso a paso", p: "Guiame paso a paso para calibrar esta sala: qué cargar, dónde poner el micrófono y cuándo medir. Esperá mi confirmación antes de cada barrido." },
-                { t: "Explicame la sala", p: "Mirá el análisis de la calibración y explicame en criollo qué tiene esta sala: modos, reverberación, qué se nota al hablar." },
-                { t: "¿Qué conviene corregir?", p: "Revisá la propuesta de la calibración: ¿los filtros tienen sentido? ¿hay algo que convenga resolver moviendo parlantes en vez de ecualizar?" },
-                { t: "Revisá la verificación", p: "Compará antes y después de la calibración. Si algo empeoró, decime qué revertir o ajustar." },
-                { t: "Calibrar mi SM58", p: "Quiero usar un SM58 para medir. Explicame cómo calibrarlo por sustitución si consigo un micrófono de medición, y qué límites tiene si no." }
+                { t: qsTr("Guiame paso a paso"), p: "Guiame paso a paso para calibrar esta sala: qué cargar, dónde poner el micrófono y cuándo medir. Esperá mi confirmación antes de cada barrido." },
+                { t: qsTr("Explicame la sala"), p: "Mirá el análisis de la calibración y explicame en criollo qué tiene esta sala: modos, reverberación, qué se nota al hablar." },
+                { t: qsTr("¿Qué conviene corregir?"), p: "Revisá la propuesta de la calibración: ¿los filtros tienen sentido? ¿hay algo que convenga resolver moviendo parlantes en vez de ecualizar?" },
+                { t: qsTr("Revisá la verificación"), p: "Compará antes y después de la calibración. Si algo empeoró, decime qué revertir o ajustar." },
+                { t: qsTr("Calibrar mi SM58"), p: "Quiero usar un SM58 para medir. Explicame cómo calibrarlo por sustitución si consigo un micrófono de medición, y qué límites tiene si no." }
             ]
         }
     }
@@ -993,7 +1001,7 @@ Item {
         property var obj: ({})
         property bool medido: false
         MenuItem { enabled: false; text: menuCroquis.obj.nombre || "" }
-        MenuItem { text: "Quitar"; onTriggered: c.menuQuitar(menuCroquis.obj, menuCroquis.medido) }
+        MenuItem { text: qsTr("Quitar"); onTriggered: c.menuQuitar(menuCroquis.obj, menuCroquis.medido) }
     }
     Dialog {
         id: confirmarQuitar
@@ -1001,9 +1009,9 @@ Item {
         anchors.centerIn: parent
         width: 420
         modal: true
-        title: "¿Quitar «" + (obj.nombre || "") + "»?"
+        title: qsTr("¿Quitar «%1»?").arg(obj.nombre || "")
         Label { width: confirmarQuitar.availableWidth; wrapMode: Text.WordWrap
-                text: "Ya tiene mediciones: dejan de entrar en el promedio y la propuesta (los archivos quedan en la carpeta de la sesión)." }
+                text: qsTr("Ya tiene mediciones: dejan de entrar en el promedio y la propuesta (los archivos quedan en la carpeta de la sesión).") }
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: { c.aviso(c.cal.quitar(obj.id)); if (c.punto === obj.id) c.punto = "" }
     }

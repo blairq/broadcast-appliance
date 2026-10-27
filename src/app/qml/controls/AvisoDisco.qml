@@ -37,13 +37,18 @@ Rectangle {
             font.pixelSize: 13
             font.weight: Font.DemiBold
             text: {
-                if (a.prioridad)
-                    return "El disco es de la grabación del programa" + (a.d.automatica ? " (se hizo solo)" : "") +
-                           ". En pausa: " + (a.d.pausadas || []).join(", ") + "."
+                if (a.prioridad) {
+                    const pausadas = (a.d.pausadas || []).join(", ")
+                    return a.d.automatica ? qsTr("El disco es de la grabación del programa (se hizo solo). En pausa: %1.").arg(pausadas)
+                                          : qsTr("El disco es de la grabación del programa. En pausa: %1.").arg(pausadas)
+                }
                 const atraso = a.d.atraso_s || 0
-                return "El disco no da abasto: " + (atraso >= 1 ? "lo grabado espera " + Math.round(atraso) + " s para entrar"
-                                                                : "el registro no puede escribir") +
-                       (a.d.desde_s > 0 ? " (hace " + a.d.desde_s + " s)" : "") + "."
+                const desde = a.d.desde_s > 0
+                if (atraso >= 1)
+                    return desde ? qsTr("El disco no da abasto: lo grabado espera %1 s para entrar (hace %2 s).").arg(Math.round(atraso)).arg(a.d.desde_s)
+                                 : qsTr("El disco no da abasto: lo grabado espera %1 s para entrar.").arg(Math.round(atraso))
+                return desde ? qsTr("El disco no da abasto: el registro no puede escribir (hace %1 s).").arg(a.d.desde_s)
+                             : qsTr("El disco no da abasto: el registro no puede escribir.")
             }
         }
         Text {
@@ -52,11 +57,11 @@ Rectangle {
             color: Theme.textDim
             font.pixelSize: 12
             text: a.prioridad
-                  ? (a.apuros ? "Cuando el disco ande bien 30 s seguidos, todo sigue solo (las ISO en el mismo archivo, con el salto)."
-                              : "El disco ya anda bien: en unos segundos sigue todo.")
+                  ? (a.apuros ? qsTr("Cuando el disco ande bien 30 s seguidos, todo sigue solo (las ISO en el mismo archivo, con el salto).")
+                              : qsTr("El disco ya anda bien: en unos segundos sigue todo."))
                   : (a.d.graba_programa
-                     ? "Para no perder la grabación del programa, pausá lo demás que escribe al disco: las ISO, la repetición y el registro."
-                     : "No se está grabando el programa. Si el disco es externo por USB, probá otro puerto o cable.")
+                     ? qsTr("Para no perder la grabación del programa, pausá lo demás que escribe al disco: las ISO, la repetición y el registro.")
+                     : qsTr("No se está grabando el programa. Si el disco es externo por USB, probá otro puerto o cable."))
         }
         RowLayout {
             Layout.fillWidth: true
@@ -66,22 +71,22 @@ Rectangle {
                 compact: true
                 active: true
                 activeColor: Theme.live
-                text: "Darle el disco al programa"
+                text: qsTr("Darle el disco al programa")
                 onClicked: { Studio.priorizarProgramaUi(true); a.d = Studio.apurosDiscoUi() }
             }
             GlassButton {
                 visible: a.prioridad
                 compact: true
-                text: "Seguir con todo ya"
+                text: qsTr("Seguir con todo ya")
                 onClicked: { Studio.priorizarProgramaUi(false); a.d = Studio.apurosDiscoUi() }
             }
             Item { Layout.fillWidth: true }
             CheckBox {
-                text: "Hacerlo solo"
+                text: qsTr("Hacerlo solo")
                 checked: a.d.modo === "auto"
                 onToggled: { Studio.modoDiscoUi(checked ? "auto" : "preguntar"); a.d = Studio.apurosDiscoUi() }
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "La próxima vez que el disco no dé abasto grabando el programa, pausar lo demás sin preguntar"
+                ToolTip.text: qsTr("La próxima vez que el disco no dé abasto grabando el programa, pausar lo demás sin preguntar")
             }
         }
     }

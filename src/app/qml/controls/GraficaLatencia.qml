@@ -101,7 +101,7 @@ Item {
                 c.strokeStyle = Qt.rgba(1, 1, 1, 0.05)
                 c.beginPath(); c.moveTo(x, 0); c.lineTo(x, g.altoPlot); c.stroke()
                 c.fillStyle = Qt.rgba(1, 1, 1, 0.4)
-                c.fillText(s === 0 ? "fin" : "−" + (s >= 120 ? Math.round(s / 60) + " min" : s + " s"), x, g.altoPlot + 12)
+                c.fillText(s === 0 ? qsTr("fin") : "−" + (s >= 120 ? Math.round(s / 60) + " min" : s + " s"), x, g.altoPlot + 12)
             }
             // La referencia del estudio (lo que espera la mezcla), con lo acumulado.
             if (g.verAcumulado && g.referencia > 0)
@@ -149,7 +149,7 @@ Item {
                 c.fillStyle = Qt.rgba(1, 1, 1, 0.35)
                 c.textAlign = "center"
                 c.font = "11px sans-serif"
-                c.fillText("Tocá tarjetas del mapa para sumarlas a la línea de tiempo", width / 2, g.altoPlot / 2)
+                c.fillText(qsTr("Tocá tarjetas del mapa para sumarlas a la línea de tiempo"), width / 2, g.altoPlot / 2)
             }
             // La franja de eventos.
             const y0 = g.altoPlot + g.altoEje
@@ -157,7 +157,7 @@ Item {
             c.fillRect(g.izq, y0, g.anchoPlot, g.altoEventos - 4)
             c.fillStyle = Qt.rgba(1, 1, 1, 0.4)
             c.textAlign = "right"
-            c.fillText("eventos", g.izq - 6, y0 + 15)
+            c.fillText(qsTr("eventos"), g.izq - 6, y0 + 15)
         }
     }
 
@@ -248,7 +248,7 @@ Item {
             anchors.centerIn: parent
             spacing: 1
             Text {
-                text: g.tCursor > 0 ? new Date(g.tCursor).toLocaleTimeString(Qt.locale(), "HH:mm:ss") + " · " + (g.verAcumulado ? "desde la captura" : "agrega") : ""
+                text: g.tCursor > 0 ? new Date(g.tCursor).toLocaleTimeString(Qt.locale(), "HH:mm:ss") + " · " + (g.verAcumulado ? qsTr("desde la captura") : qsTr("agrega")) : ""
                 color: Theme.textDim; font.pixelSize: 9
             }
             Repeater {
@@ -259,7 +259,7 @@ Item {
                     color: modelData.color; font.pixelSize: 10
                 }
             }
-            Text { text: "click: marcar este momento"; color: Theme.textFaint; font.pixelSize: 8 }
+            Text { text: qsTr("click: marcar este momento"); color: Theme.textFaint; font.pixelSize: 8 }
         }
     }
 }
