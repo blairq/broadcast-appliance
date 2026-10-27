@@ -195,7 +195,7 @@ bool iniciarGStreamer(std::string* error) {
             return;
         }
         if (!ba::platform::prepararGst()) {
-            err = "GStreamer no está en el programa";
+            err = traducir("motor", "GStreamer no está en el programa");
             return;
         }
         // Si rehace la lista de plugins, se oye cuál revisa (progresoGStreamer) y al
