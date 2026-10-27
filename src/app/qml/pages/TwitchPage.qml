@@ -33,19 +33,19 @@ Rectangle {
                 Rectangle { width: 34; height: 34; radius: 17; clip: true; color: Theme.field
                     Image { anchors.fill: parent; source: tw.avatar; fillMode: Image.PreserveAspectCrop } }
                 Text { text: tw.user.display_name || ""; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
-                StatusPill { text: tw.stream.live ? "EN VIVO · " + tw.stream.viewers + " espectadores" : "fuera del aire"
+                StatusPill { text: tw.stream.live ? qsTr("EN VIVO · %n espectador", "", tw.stream.viewers) : qsTr("fuera del aire")
                              dot: tw.stream.live ? Theme.live : Theme.textFaint; pulse: tw.stream.live === true }
-                GlassButton { text: "Actualizar"; compact: true; onClicked: tw.refresh() }
-                GlassButton { text: "Ver canal"; compact: true; onClicked: tw.openUrl("https://twitch.tv/" + (tw.user.login || "")) }
+                GlassButton { text: qsTr("Actualizar"); compact: true; onClicked: tw.refresh() }
+                GlassButton { text: qsTr("Ver canal"); compact: true; onClicked: tw.openUrl("https://twitch.tv/" + (tw.user.login || "")) }
                 GlassButton {
-                    text: "Desconectar"; compact: true
+                    text: qsTr("Desconectar"); compact: true
                     onClicked: ApplicationWindow.window.confirm({
-                        title: "¿Desconectar la cuenta de Twitch?",
+                        title: qsTr("¿Desconectar la cuenta de Twitch?"),
                         // Desconectar no corta la salida: la clave ya esta en uso y el vivo sigue.
-                        text: "Se revoca el acceso en Twitch y se borra el token guardado: para volver a usar Twitch hay que conectar la cuenta de nuevo."
-                              + (tw.streamingHere ? " La transmisión en curso no se corta, pero el chat se apaga." : ""),
-                        accept: "Desconectar",
-                        reject: "Cancelar",
+                        text: qsTr("Se revoca el acceso en Twitch y se borra el token guardado: para volver a usar Twitch hay que conectar la cuenta de nuevo.")
+                              + (tw.streamingHere ? " " + qsTr("La transmisión en curso no se corta, pero el chat se apaga.") : ""),
+                        accept: qsTr("Desconectar"),
+                        reject: qsTr("Cancelar"),
                         action: function() { tw.logout() }
                     })
                 }
@@ -63,7 +63,7 @@ Rectangle {
                 width: parent.width
                 spacing: 12
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 14
-                       text: "Para que la app (y el asistente por MCP) pueda cambiar el título y la categoría del canal, tomar la clave de transmisión, leer y escribir el chat y administrar los VODs, registrá una app en Twitch (una sola vez, unos 3 minutos):" }
+                       text: qsTr("Para que la app (y el asistente por MCP) pueda cambiar el título y la categoría del canal, tomar la clave de transmisión, leer y escribir el chat y administrar los VODs, registrá una app en Twitch (una sola vez, unos 3 minutos):") }
                 Repeater {
                     model: Studio.accountGuide("twitch").steps
                     delegate: Rectangle {
@@ -99,19 +99,19 @@ Rectangle {
                         id: twForm
                         anchors { fill: parent; margins: 14 }
                         spacing: 10
-                        Text { text: "4 · Pegá el ID de cliente"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                        Text { text: qsTr("4 · Pegá el ID de cliente"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                         RowLayout {
                             Layout.fillWidth: true
-                            TextField { id: twId; Layout.fillWidth: true; placeholderText: "ID de cliente (unos 30 caracteres)" }
-                            TextField { id: twSecret; Layout.preferredWidth: 260; placeholderText: "Secreto (solo si es Confidencial)"; echoMode: TextInput.Password }
+                            TextField { id: twId; Layout.fillWidth: true; placeholderText: qsTr("ID de cliente (unos 30 caracteres)") }
+                            TextField { id: twSecret; Layout.preferredWidth: 260; placeholderText: qsTr("Secreto (solo si es Confidencial)"); echoMode: TextInput.Password }
                         }
                         RowLayout {
-                            GlassButton { text: "Guardar"; active: true; activeColor: page.purple
+                            GlassButton { text: qsTr("Guardar"); active: true; activeColor: page.purple
                                           onClicked: { twErr.text = tw.saveClient(twId.text, twSecret.text); if (twErr.text === "") twSecret.text = "" } }
                             Text { id: twErr; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                               text: "Se guarda cifrado en Credenciales/, dentro de la carpeta portable (una actualización no lo toca)." }
+                               text: qsTr("Se guarda cifrado en Credenciales/, dentro de la carpeta portable (una actualización no lo toca).") }
                     }
                 }
             }
@@ -125,7 +125,7 @@ Rectangle {
             spacing: 14
             Item { Layout.fillHeight: true }
             Text { Layout.alignment: Qt.AlignHCenter; color: Theme.text; font { pixelSize: 22; weight: Font.DemiBold }
-                   text: tw.loginPending ? "Autorizá en Twitch con este código" : "Conectá tu cuenta de Twitch" }
+                   text: tw.loginPending ? qsTr("Autorizá en Twitch con este código") : qsTr("Conectá tu cuenta de Twitch") }
             Rectangle {
                 visible: tw.loginPending
                 Layout.alignment: Qt.AlignHCenter
@@ -135,21 +135,21 @@ Rectangle {
             }
             Text { Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: 620; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                    color: Theme.textDim; font.pixelSize: 14
-                   text: tw.loginPending ? "Se abrió twitch.tv/activate en el navegador: iniciá sesión con la cuenta del canal, confirmá el código y aceptá los permisos. La app se entera sola."
-                                         : "Se abre Twitch en el navegador para elegir la cuenta. La app guarda solo tokens de acceso (no tu contraseña), dentro de la carpeta portable." }
+                   text: tw.loginPending ? qsTr("Se abrió twitch.tv/activate en el navegador: iniciá sesión con la cuenta del canal, confirmá el código y aceptá los permisos. La app se entera sola.")
+                                         : qsTr("Se abre Twitch en el navegador para elegir la cuenta. La app guarda solo tokens de acceso (no tu contraseña), dentro de la carpeta portable.") }
             BusyIndicator { Layout.alignment: Qt.AlignHCenter; visible: tw.loginPending; running: tw.loginPending }
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                GlassButton { visible: !tw.loginPending; text: "Conectar con Twitch"; icon: "◆"; active: true; activeColor: page.purple; onClicked: tw.login() }
-                GlassButton { visible: tw.loginPending; text: "Abrir twitch.tv/activate"; onClicked: tw.openUrl(tw.verificationUri) }
-                GlassButton { visible: tw.loginPending; text: "Cancelar"; onClicked: tw.cancelLogin() }
+                GlassButton { visible: !tw.loginPending; text: qsTr("Conectar con Twitch"); icon: "◆"; active: true; activeColor: page.purple; onClicked: tw.login() }
+                GlassButton { visible: tw.loginPending; text: qsTr("Abrir twitch.tv/activate"); onClicked: tw.openUrl(tw.verificationUri) }
+                GlassButton { visible: tw.loginPending; text: qsTr("Cancelar"); onClicked: tw.cancelLogin() }
                 GlassButton {
-                    visible: !tw.loginPending; text: "Cambiar app"
+                    visible: !tw.loginPending; text: qsTr("Cambiar app")
                     onClicked: ApplicationWindow.window.confirm({
-                        title: "¿Cambiar la app de Twitch?",
-                        text: "Se borra el ID de cliente guardado (y el secreto, si había) y vuelven las instrucciones para registrar la app.",
-                        accept: "Cambiar app",
-                        reject: "Cancelar",
+                        title: qsTr("¿Cambiar la app de Twitch?"),
+                        text: qsTr("Se borra el ID de cliente guardado (y el secreto, si había) y vuelven las instrucciones para registrar la app."),
+                        accept: qsTr("Cambiar app"),
+                        reject: qsTr("Cancelar"),
                         action: function() { tw.clearClient() }
                     })
                 }
@@ -179,24 +179,24 @@ Rectangle {
                         spacing: 10
                         ColumnLayout {
                             Layout.fillWidth: true
-                            Text { text: "Título del vivo"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Título del vivo"); color: Theme.textDim; font.pixelSize: 12 }
                             TextField { id: chTitle; Layout.fillWidth: true; text: tw.channel.title || ""; maximumLength: 140 }
                         }
                         ColumnLayout {
                             Layout.preferredWidth: 300
-                            Text { text: "Categoría"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Categoría"); color: Theme.textDim; font.pixelSize: 12 }
                             TextField { id: chGame; Layout.fillWidth: true; text: tw.channel.game_name || ""; onTextEdited: tw.searchCategories(text) }
                         }
-                        GlassButton { Layout.alignment: Qt.AlignBottom; text: "Guardar"; onClicked: tw.updateChannel(chTitle.text, chGame.text) }
-                        GlassButton { Layout.alignment: Qt.AlignBottom; visible: !tw.streamingHere; text: "Transmitir a Twitch"; icon: "●"; active: true; activeColor: page.purple
+                        GlassButton { Layout.alignment: Qt.AlignBottom; text: qsTr("Guardar"); onClicked: tw.updateChannel(chTitle.text, chGame.text) }
+                        GlassButton { Layout.alignment: Qt.AlignBottom; visible: !tw.streamingHere; text: qsTr("Transmitir a Twitch"); icon: "●"; active: true; activeColor: page.purple
                                       onClicked: { tw.updateChannel(chTitle.text, chGame.text); tw.goLive() } }
                         GlassButton {
-                            Layout.alignment: Qt.AlignBottom; visible: tw.streamingHere; text: "Cortar transmisión"
+                            Layout.alignment: Qt.AlignBottom; visible: tw.streamingHere; text: qsTr("Cortar transmisión")
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Cortar la transmisión a Twitch?",
-                                text: "El vivo en Twitch termina y los espectadores dejan de ver la señal. Para volver al aire hay que transmitir de nuevo.",
-                                accept: "Cortar transmisión",
-                                reject: "Cancelar",
+                                title: qsTr("¿Cortar la transmisión a Twitch?"),
+                                text: qsTr("El vivo en Twitch termina y los espectadores dejan de ver la señal. Para volver al aire hay que transmitir de nuevo."),
+                                accept: qsTr("Cortar transmisión"),
+                                reject: qsTr("Cancelar"),
                                 action: function() { tw.stopLive() }
                             })
                         }
@@ -216,8 +216,8 @@ Rectangle {
                 id: twTabs
                 Layout.fillWidth: true
                 background: Rectangle { color: "transparent" }
-                TabButton { text: "VODs"; width: implicitWidth + 30 }
-                TabButton { text: "Chat"; width: implicitWidth + 30 }
+                TabButton { text: qsTr("VODs"); width: implicitWidth + 30 }
+                TabButton { text: qsTr("Chat"); width: implicitWidth + 30 }
             }
             StackLayout {
                 Layout.fillWidth: true
@@ -228,7 +228,7 @@ Rectangle {
                     clip: true
                     spacing: 8
                     model: tw.videos
-                    Text { anchors.centerIn: parent; visible: vodList.count === 0; text: "No hay VODs (Twitch guarda los vivos si activás «Almacenar transmisiones anteriores»)."; color: Theme.textFaint }
+                    Text { anchors.centerIn: parent; visible: vodList.count === 0; text: qsTr("No hay VODs (Twitch guarda los vivos si activás «Almacenar transmisiones anteriores»)."); color: Theme.textFaint }
                     delegate: Rectangle {
                         required property string uid
                         required property string title
@@ -250,11 +250,11 @@ Rectangle {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 Text { text: title; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
-                                Text { text: type + "  ·  " + page.day(created_at) + "  ·  " + duration + "  ·  " + views + " vistas"; color: Theme.textFaint; font.pixelSize: 11 }
+                                Text { text: type + "  ·  " + page.day(created_at) + "  ·  " + duration + "  ·  " + qsTr("%n vista", "", views); color: Theme.textFaint; font.pixelSize: 11 }
                             }
-                            GlassButton { compact: true; text: "Ver"; onClicked: tw.openUrl(url) }
+                            GlassButton { compact: true; text: qsTr("Ver"); onClicked: tw.openUrl(url) }
                             GlassButton {
-                                compact: true; text: "Borrar"
+                                compact: true; text: qsTr("Borrar")
                                 onClicked: {
                                     // Copias: la lista se refresca y este delegate puede no existir cuando el operador conteste.
                                     const id = uid
@@ -262,10 +262,10 @@ Rectangle {
                                     const twitch = page.tw
                                     ApplicationWindow.window.confirm({
                                         // El titulo de un VOD llega a 140 caracteres: va en el texto, que corta en lineas.
-                                        title: "¿Borrar este VOD de Twitch?",
-                                        text: "«" + nombre + "» se borra del canal de Twitch y no se puede recuperar.",
-                                        accept: "Borrar",
-                                        reject: "Cancelar",
+                                        title: qsTr("¿Borrar este VOD de Twitch?"),
+                                        text: qsTr("«%1» se borra del canal de Twitch y no se puede recuperar.").arg(nombre),
+                                        accept: qsTr("Borrar"),
+                                        reject: qsTr("Cancelar"),
                                         action: function() { twitch.deleteVideo(id) }
                                     })
                                 }
@@ -277,8 +277,8 @@ Rectangle {
                     spacing: 8
                     RowLayout {
                         Toggle { checked: tw.chatOn; onToggled: (wanted) => tw.setChatOn(wanted) }
-                        Text { text: tw.chatOn ? "Leyendo el chat del canal" : "Chat apagado"; color: Theme.textDim; font.pixelSize: 13; Layout.fillWidth: true }
-                        Text { text: "Para mostrarlo en el video: fuente «Chat en vivo» en una escena."; color: Theme.textFaint; font.pixelSize: 11 }
+                        Text { text: tw.chatOn ? qsTr("Leyendo el chat del canal") : qsTr("Chat apagado"); color: Theme.textDim; font.pixelSize: 13; Layout.fillWidth: true }
+                        Text { text: qsTr("Para mostrarlo en el video: fuente «Chat en vivo» en una escena."); color: Theme.textFaint; font.pixelSize: 11 }
                     }
                     ListView {
                         id: twChat
@@ -317,7 +317,7 @@ Rectangle {
                                     if (dest) { Studio.quitarDestacadoChatUi(k); dest = false }
                                     else dest = Studio.destacarChatUi(k)
                                 }
-                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Destacar para el chat en pantalla"
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Destacar para el chat en pantalla")
                             }
                             // A la cola de preguntas (una sola cola para la sala y las plataformas).
                             GlassButton {
@@ -325,15 +325,15 @@ Rectangle {
                                 compact: true
                                 text: "?"
                                 onClicked: { const e = Studio.preguntaDesdeChatUi("tw:" + tmsg.model.id); if (e !== "") Studio.notify(e, "error") }
-                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sumar a la cola de preguntas"
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sumar a la cola de preguntas")
                             }
                         }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         enabled: tw.chatOn
-                        TextField { id: twInput; Layout.fillWidth: true; placeholderText: "Escribir en el chat…"; onAccepted: { tw.sendChat(text); text = "" } }
-                        GlassButton { text: "Enviar"; onClicked: { tw.sendChat(twInput.text); twInput.text = "" } }
+                        TextField { id: twInput; Layout.fillWidth: true; placeholderText: qsTr("Escribir en el chat…"); onAccepted: { tw.sendChat(text); text = "" } }
+                        GlassButton { text: qsTr("Enviar"); onClicked: { tw.sendChat(twInput.text); twInput.text = "" } }
                     }
                 }
             }

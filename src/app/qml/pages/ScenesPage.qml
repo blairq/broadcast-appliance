@@ -81,7 +81,7 @@ Rectangle {
             Layout.preferredWidth: 310
             Layout.maximumWidth: 310
             Layout.fillHeight: true
-            title: "Escenas"
+            title: qsTr("Escenas")
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 8
@@ -93,11 +93,11 @@ Rectangle {
                     FilaDsk { Layout.fillWidth: true }
                 }
                 CheckBox {
-                    text: "Corte directo (sin preview)"
+                    text: qsTr("Corte directo (sin preview)")
                     checked: Studio.corteDirectoEditor
                     onToggled: Studio.corteDirectoEditor = checked
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Apagado (recomendado): el botón de cada escena la ARMA en el preview y sale con TAKE. Prendido: corta directo (al aire pide confirmación)."
+                    ToolTip.text: qsTr("Apagado (recomendado): el botón de cada escena la ARMA en el preview y sale con TAKE. Prendido: corta directo (al aire pide confirmación).")
                 }
                 ListView {
                     id: sceneList
@@ -143,7 +143,7 @@ Rectangle {
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: modelData.carpeta || "Sin carpeta"
+                                    text: modelData.carpeta || qsTr("Sin carpeta")
                                     color: Theme.textDim
                                     font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
                                     elide: Text.ElideRight
@@ -179,7 +179,7 @@ Rectangle {
                                     readonly property string esc: parent.parent.name
                                     visible: !parent.parent.live
                                     compact: true
-                                    text: Studio.corteDirectoEditor ? "Al aire" : (Studio.escenaArmada === esc ? "Armada" : "Armar")
+                                    text: Studio.corteDirectoEditor ? qsTr("Al aire") : (Studio.escenaArmada === esc ? qsTr("Armada") : qsTr("Armar"))
                                     active: !Studio.corteDirectoEditor
                                     activeColor: "#16a34a"
                                     onClicked: {
@@ -187,9 +187,9 @@ Rectangle {
                                         if (!Studio.alAire) { Studio.takeScene(esc); return }
                                         const n = esc
                                         ApplicationWindow.window.confirm({
-                                            title: "¿Cortar a «" + n + "» al aire?",
-                                            text: "Es un corte directo, sin pasar por el preview.",
-                                            accept: "Cortar", reject: "Cancelar",
+                                            title: qsTr("¿Cortar a «%1» al aire?").arg(n),
+                                            text: qsTr("Es un corte directo, sin pasar por el preview."),
+                                            accept: qsTr("Cortar"), reject: qsTr("Cancelar"),
                                             action: function() { Studio.takeScene(n) }
                                         })
                                     }
@@ -260,9 +260,9 @@ Rectangle {
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6
-                    GlassButton { text: "Escena"; icon: "+"; compact: true; onClicked: newSceneDlg.open() }
+                    GlassButton { text: qsTr("Escena"); icon: "+"; compact: true; onClicked: newSceneDlg.open() }
                     GlassButton {
-                        text: "Copiar"; icon: "⧉"; compact: true
+                        text: qsTr("Copiar"); icon: "⧉"; compact: true
                         // La forma barata de armar escenas parecidas: se hace
                         // UNA bien y las demás salen de copiarla. El nombre lo
                         // propone solo; renombrar es un clic más.
@@ -271,37 +271,37 @@ Rectangle {
                             if (nueva !== "") page.editScene = nueva
                         }
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "Una escena nueva con todas las fuentes de «" + page.editScene + "»"
+                        ToolTip.text: qsTr("Una escena nueva con todas las fuentes de «%1»").arg(page.editScene)
                     }
                     GlassButton {
-                        text: "Renombrar"; compact: true
+                        text: qsTr("Renombrar"); compact: true
                         enabled: !Studio.sceneProtected(page.editScene)
                         onClicked: { renameDlg.from = page.editScene; renameDlg.open() }
                         ToolTip.visible: hovered && !enabled
-                        ToolTip.text: "«" + page.editScene + "» está protegida"
+                        ToolTip.text: qsTr("«%1» está protegida").arg(page.editScene)
                     }
                     GlassButton {
-                        text: Studio.sceneProtected(page.editScene) ? "Protegida" : "Proteger"
+                        text: Studio.sceneProtected(page.editScene) ? qsTr("Protegida") : qsTr("Proteger")
                         icon: Studio.sceneProtected(page.editScene) ? "🔒" : "🔓"
                         compact: true
                         active: Studio.sceneProtected(page.editScene)
                         onClicked: Studio.setSceneProtected(page.editScene,
                                                             !Studio.sceneProtected(page.editScene))
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "Una escena protegida no se borra ni se renombra. Copiarla sí.\n" +
-                                      "Para la escena base de la que salen las demás."
+                        ToolTip.text: qsTr("Una escena protegida no se borra ni se renombra. Copiarla sí.\n" +
+                                      "Para la escena base de la que salen las demás.")
                     }
                     GlassButton {
-                        text: "Carpeta"; icon: "+"; compact: true
+                        text: qsTr("Carpeta"); icon: "+"; compact: true
                         onClicked: { folderDlg.scene = page.editScene; folderDlg.open() }
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "Mover «" + page.editScene + "» a una carpeta (o arrastrala hasta la carpeta)"
+                        ToolTip.text: qsTr("Mover «%1» a una carpeta (o arrastrala hasta la carpeta)").arg(page.editScene)
                     }
                     GlassButton {
-                        text: "Borrar"; compact: true
+                        text: qsTr("Borrar"); compact: true
                         enabled: !Studio.sceneProtected(page.editScene)
                         ToolTip.visible: hovered && !enabled
-                        ToolTip.text: "«" + page.editScene + "» está protegida: sacale el candado primero"
+                        ToolTip.text: qsTr("«%1» está protegida: sacale el candado primero").arg(page.editScene)
                         onClicked: {
                             const escena = page.editScene
                             // La unica escena no se puede borrar: el motor lo avisa, sin preguntar antes.
@@ -309,11 +309,12 @@ Rectangle {
                             // El motor deja borrar la escena al aire: corta en seco a otra.
                             const alAire = escena === Studio.currentScene
                             ApplicationWindow.window.confirm({
-                                title: "¿Borrar la escena «" + escena + "»?",
-                                text: (alAire ? "«" + escena + "» " + (Studio.alAire ? "está AL AIRE" : "es la del programa") + ": al borrarla se corta a otra escena. " : "")
-                                      + "Se pierden su disposición y las fuentes que solo están en ella.",
-                                accept: "Borrar",
-                                reject: "Cancelar",
+                                title: qsTr("¿Borrar la escena «%1»?").arg(escena),
+                                text: (alAire ? (Studio.alAire ? qsTr("«%1» está AL AIRE: al borrarla se corta a otra escena.")
+                                                               : qsTr("«%1» es la del programa: al borrarla se corta a otra escena.")).arg(escena) + " " : "")
+                                      + qsTr("Se pierden su disposición y las fuentes que solo están en ella."),
+                                accept: qsTr("Borrar"),
+                                reject: qsTr("Cancelar"),
                                 action: function() { Studio.removeScene(escena) }
                             })
                         }
@@ -331,11 +332,11 @@ Rectangle {
                 Text { text: page.editScene; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } }
                 Text {
                     visible: page.editScene !== Studio.currentScene
-                    text: "  (fuera del aire)"
+                    text: qsTr("  (fuera del aire)")
                     color: Theme.textFaint; font.pixelSize: 11
                 }
                 Item { Layout.fillWidth: true }
-                Text { text: "Arrastrar para mover · esquina para redimensionar"; color: Theme.textFaint; font.pixelSize: 11 }
+                Text { text: qsTr("Arrastrar para mover · esquina para redimensionar"); color: Theme.textFaint; font.pixelSize: 11 }
             }
             Item {
                 Layout.fillWidth: true
@@ -422,7 +423,7 @@ Rectangle {
                 // Media columna: con 280 fijos entraban tres fuentes y
                 // Propiedades, casi siempre vacía, se quedaba con el resto.
                 Layout.preferredHeight: Math.max(280, (parent.height - 12) / 2)
-                title: "Fuentes"
+                title: qsTr("Fuentes")
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 6
@@ -453,7 +454,7 @@ Rectangle {
                                 ToolButton { text: "▼"; onClicked: Studio.sources.move(name, -1) }
                                 ToolButton {
                                     text: "✕"
-                                    ToolTip.visible: hovered; ToolTip.text: "Quitar de la escena"; ToolTip.delay: 400
+                                    ToolTip.visible: hovered; ToolTip.text: qsTr("Quitar de la escena"); ToolTip.delay: 400
                                     onClicked: {
                                         // Copias: este delegate puede no existir cuando el operador conteste.
                                         const fuente = name
@@ -461,12 +462,13 @@ Rectangle {
                                         const pagina = page   // el id no resuelve si el delegate ya murio
                                         // Sale solo de ESTA escena; el motor libera la fuente si no queda en ninguna.
                                         ApplicationWindow.window.confirm({
-                                            title: "¿Quitar «" + fuente + "» de la escena?",
+                                            title: qsTr("¿Quitar «%1» de la escena?").arg(fuente),
                                             text: (escena === Studio.currentScene
-                                                   ? "«" + escena + "» " + (Studio.alAire ? "está AL AIRE" : "es la del programa") + ": la fuente sale del programa al instante. " : "")
-                                                  + "Se quita solo de esta escena; si no está en ninguna otra, se borra con su configuración.",
-                                            accept: "Quitar",
-                                            reject: "Cancelar",
+                                                   ? (Studio.alAire ? qsTr("«%1» está AL AIRE: la fuente sale del programa al instante.")
+                                                                    : qsTr("«%1» es la del programa: la fuente sale del programa al instante.")).arg(escena) + " " : "")
+                                                  + qsTr("Se quita solo de esta escena; si no está en ninguna otra, se borra con su configuración."),
+                                            accept: qsTr("Quitar"),
+                                            reject: qsTr("Cancelar"),
                                             action: function() {
                                                 // Si mientras tanto el editor paso a otra escena, no se toca nada.
                                                 if (Studio.sources.scene !== escena) return
@@ -481,7 +483,7 @@ Rectangle {
                         }
                     }
                     GlassButton {
-                        text: "Agregar fuente"; icon: "+"; compact: true
+                        text: qsTr("Agregar fuente"); icon: "+"; compact: true
                         onClicked: addSrcMenu.popup()
                         Menu {
                             id: addSrcMenu
@@ -506,7 +508,7 @@ Rectangle {
                                     readonly property int slot: Math.floor(index / 2) + 1
                                     readonly property bool share: index % 2 === 1
                                     readonly property string who: (Studio.conference.slotNames[slot - 1] || "")
-                                    text: "Invitado " + slot + (share ? " — pantalla" : "") + (who ? "  (" + who + ")" : "")
+                                    text: (share ? qsTr("Invitado %1 — pantalla") : qsTr("Invitado %1")).arg(slot) + (who ? "  (" + who + ")" : "")
                                     onTriggered: { const n = Studio.sources.addGuest(slot, share); if (n) page.selected = n }
                                 }
                             }
@@ -520,10 +522,10 @@ Rectangle {
                     // manejar este carrusel cuando esta escena esta al aire.
                     // Un código QR (el del Público, el de la Sala, uno guardado…).
                     GlassButton {
-                        text: "Agregar código QR"; icon: "▦"; compact: true
+                        text: qsTr("Agregar código QR"); icon: "▦"; compact: true
                         onClicked: qrMenu.popup()
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "Un QR en esta escena: el de la página del Público, el de la Conferencia, o uno de «Códigos QR». Se mantiene al día solo."
+                        ToolTip.text: qsTr("Un QR en esta escena: el de la página del Público, el de la Conferencia, o uno de «Códigos QR». Se mantiene al día solo.")
                         Menu {
                             id: qrMenu
                             property var opciones: []
@@ -544,19 +546,19 @@ Rectangle {
                         }
                     }
                     GlassButton {
-                        text: "Agregar carrusel"; icon: "▦"; compact: true
+                        text: qsTr("Agregar carrusel"); icon: "▦"; compact: true
                         // Siempre a la vista: sin carruseles todavía, el menú dice dónde se arman.
                         onClicked: carruselMenu.popup()
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
-                        ToolTip.text: "Poner en esta escena una tira de imágenes (se arman en Medios → Carruseles: con imágenes, un PDF o un PowerPoint)"
+                        ToolTip.text: qsTr("Poner en esta escena una tira de imágenes (se arman en Medios → Carruseles: con imágenes, un PDF o un PowerPoint)")
                         Menu {
                             id: carruselMenu
                             MenuItem {
                                 id: sinCarruseles
                                 visible: Studio.carruseles.carruseles.length === 0
                                 height: visible ? implicitHeight : 0
-                                text: "No hay carruseles: armar uno en Medios → Carruseles…"
+                                text: qsTr("No hay carruseles: armar uno en Medios → Carruseles…")
                                 onTriggered: ApplicationWindow.window.page = Studio.riel.paginaDeId("medios")
                             }
                             ItemsDeMenu {
@@ -565,8 +567,8 @@ Rectangle {
                                 model: Studio.carruseles.carruseles
                                 delegate: MenuItem {
                                     required property var modelData
-                                    text: modelData.nombre + "  (" + modelData.laminas + " láminas)" +
-                                          (modelData.fuente !== "" ? "  · ya puesto" : "")
+                                    text: modelData.nombre + "  (" + qsTr("%n lámina", "", modelData.laminas) + ")" +
+                                          (modelData.fuente !== "" ? "  · " + qsTr("ya puesto") : "")
                                     onTriggered: {
                                         Studio.carruseles.aplicarAEscena(modelData.nombre, page.editScene)
                                         page.selected = "Carrusel · " + modelData.nombre
@@ -580,7 +582,7 @@ Rectangle {
                     // escenas: es la MISMA fuente, con otra ubicacion. Asi
                     // ademas la transicion entre dos encuadres no tiene cortes.
                     GlassButton {
-                        text: "Reusar fuente"; icon: "⧉"; compact: true
+                        text: qsTr("Reusar fuente"); icon: "⧉"; compact: true
                         onClicked: { reuseMenu.items = Studio.sources.otherSources(); reuseMenu.popup() }
                         Menu {
                             id: reuseMenu
@@ -604,7 +606,7 @@ Rectangle {
             Panel {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: page.selected ? "Propiedades — " + page.selected : "Propiedades"
+                title: page.selected ? qsTr("Propiedades — %1").arg(page.selected) : qsTr("Propiedades")
                 ScrollView {
                     anchors.fill: parent
                     clip: true
@@ -612,7 +614,7 @@ Rectangle {
                     ColumnLayout {
                         width: parent.width
                         spacing: 10
-                        Text { visible: !page.selected; text: "Elegí una fuente para ver sus propiedades."; color: Theme.textFaint; font.pixelSize: 12 }
+                        Text { visible: !page.selected; text: qsTr("Elegí una fuente para ver sus propiedades."); color: Theme.textFaint; font.pixelSize: 12 }
                         // Transparencia, borde difuso y sombra del elemento EN ESTA escena.
                         PanelEfectos {
                             Layout.fillWidth: true
@@ -623,7 +625,7 @@ Rectangle {
                         // Una «Grilla de personas»: quién está en ella ahora (y fijar, sacar, mover).
                         Text {
                             visible: grillaAhora.visible
-                            text: "En la grilla ahora"
+                            text: qsTr("En la grilla ahora")
                             color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold }
                         }
                         VistaGrillas {
@@ -661,11 +663,11 @@ Rectangle {
     // --- Dialogos ---------------------------------------------------------------
     Dialog {
         id: newSceneDlg
-        title: "Nueva escena"
+        title: qsTr("Nueva escena")
         anchors.centerIn: parent
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
-        TextField { id: newSceneName; width: 280; placeholderText: "Nombre de la escena" }
+        TextField { id: newSceneName; width: 280; placeholderText: qsTr("Nombre de la escena") }
         onAccepted: { if (newSceneName.text) Studio.addScene(newSceneName.text); newSceneName.text = "" }
     }
     // Mover una escena a una carpeta (o sacarla, dejando el nombre vacio).
@@ -674,19 +676,19 @@ Rectangle {
         property string scene: ""
         anchors.centerIn: parent
         modal: true
-        title: "Carpeta de «" + scene + "»"
+        title: qsTr("Carpeta de «%1»").arg(scene)
         onOpened: folderField.forceActiveFocus()
         footer: DialogButtonBox {
-            GlassButton { text: "Guardar"; active: true; onClicked: { Studio.setSceneFolder(folderDlg.scene, folderField.text); folderDlg.close() } }
-            GlassButton { text: "Cancelar"; onClicked: folderDlg.close() }
+            GlassButton { text: qsTr("Guardar"); active: true; onClicked: { Studio.setSceneFolder(folderDlg.scene, folderField.text); folderDlg.close() } }
+            GlassButton { text: qsTr("Cancelar"); onClicked: folderDlg.close() }
         }
         ColumnLayout {
             spacing: 8
-            Label { text: "Nombre de la carpeta (vacío = sin carpeta)" }
+            Label { text: qsTr("Nombre de la carpeta (vacío = sin carpeta)") }
             TextField {
                 id: folderField
                 Layout.preferredWidth: 320
-                placeholderText: "p. ej. Bloque 1, Invitados, Placas"
+                placeholderText: qsTr("p. ej. Bloque 1, Invitados, Placas")
                 onAccepted: { Studio.setSceneFolder(folderDlg.scene, text); folderDlg.close() }
             }
             Flow {
@@ -708,7 +710,7 @@ Rectangle {
     Dialog {
         id: renameDlg
         property string from: ""
-        title: "Renombrar escena"
+        title: qsTr("Renombrar escena")
         anchors.centerIn: parent
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
