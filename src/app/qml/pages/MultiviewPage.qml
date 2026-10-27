@@ -23,7 +23,7 @@ Rectangle {
     }
     readonly property var colores: ["#202024", "#000000", "#ffffff", "#5a5a64", "#16a34a", "#2563eb",
                                     "#dc2626", "#eab308", "#ea580c", "#9333ea", "#0891b2"]
-    function nombre(k) { return k.startsWith("entrada:") ? "Entrada · " + k.slice(8) : Studio.frames.label(k) }
+    function nombre(k) { return k.startsWith("entrada:") ? qsTr("Entrada · %1").arg(k.slice(8)) : Studio.frames.label(k) }
     function poner(clave, valor) { const c = {}; c[clave] = valor; Studio.setMultiview(c) }
     function alternar(k) {
         const f = page.fuentes.slice(); const i = f.indexOf(k)
@@ -92,19 +92,19 @@ Rectangle {
                     }
                 }
                 GlassButton {
-                    compact: true; text: "Todas en ventanas"; icon: "⧉"
+                    compact: true; text: qsTr("Todas en ventanas"); icon: "⧉"
                     ToolTip.visible: hovered; ToolTip.delay: 300
-                    ToolTip.text: "Una ventana por multivista: una en cada monitor (los que no son el principal), en pantalla completa; si sobran, escalonadas en el principal."
-                    onClicked: { const n = Studio.abrirTodasLasMultiviews(); Studio.notify(n + " multivistas en ventanas.", "ok") }
+                    ToolTip.text: qsTr("Una ventana por multivista: una en cada monitor (los que no son el principal), en pantalla completa; si sobran, escalonadas en el principal.")
+                    onClicked: { const n = Studio.abrirTodasLasMultiviews(); Studio.notify(qsTr("%n multivista en ventanas.", "", n), "ok") }
                 }
                 GlassButton {
-                    compact: true; text: "Cerrar ventanas"
+                    compact: true; text: qsTr("Cerrar ventanas")
                     visible: (Studio.multiviewsConVentana || []).length > 0
                     onClicked: Studio.cerrarVentanasMultiview()
                 }
                 GlassButton {
                     compact: true; text: "+"; implicitWidth: 34
-                    ToolTip.visible: hovered; ToolTip.text: "Otra multivista"; ToolTip.delay: 300
+                    ToolTip.visible: hovered; ToolTip.text: qsTr("Otra multivista"); ToolTip.delay: 300
                     onClicked: Studio.nuevaMultiview("", false)
                 }
             }
@@ -135,7 +135,7 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         visible: page.fuentes.length === 0
-                        text: "Elegí las fuentes a la derecha."
+                        text: qsTr("Elegí las fuentes a la derecha.")
                         color: Theme.textDim; font.pixelSize: 15
                     }
                 }
@@ -146,7 +146,7 @@ Rectangle {
         Panel {
             Layout.preferredWidth: 380
             Layout.fillHeight: true
-            title: "Armado"
+            title: qsTr("Armado")
             ScrollView {
                 anchors.fill: parent
                 clip: true
@@ -155,31 +155,31 @@ Rectangle {
                     width: parent.width
                     spacing: 10
 
-                    Text { text: "Nombre"; color: Theme.textDim; font.pixelSize: 12 }
+                    Text { text: qsTr("Nombre"); color: Theme.textDim; font.pixelSize: 12 }
                     TextField {
                         id: nombreCampo
                         Layout.fillWidth: true
                         text: page.mv.nombre || ""
-                        placeholderText: "Nombre de esta multivista (p. ej. «Control», «Sala», «Cámaras»)"
+                        placeholderText: qsTr("Nombre de esta multivista (p. ej. «Control», «Sala», «Cámaras»)")
                         onEditingFinished: if (text.trim() !== "" && text !== page.mv.nombre) Studio.renombrarMultiview(page.mv.id, text)
                     }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8
                         GlassButton {
-                            text: (Studio.multiviewsConVentana || []).indexOf(page.mv.id) >= 0 ? "Llevar la ventana" : "Sacar a una ventana"
+                            text: (Studio.multiviewsConVentana || []).indexOf(page.mv.id) >= 0 ? qsTr("Llevar la ventana") : qsTr("Sacar a una ventana")
                             icon: "⧉"; active: true
                             onClicked: Studio.abrirMultiviewEnVentana(page.mv.id, monitorCombo.monitor, completaSw.checked)
                         }
-                        GlassButton { compact: true; text: "Duplicar"; onClicked: Studio.nuevaMultiview((page.mv.nombre || "Multiview") + " (copia)", true) }
-                        GlassButton { compact: true; text: "De fábrica"; onClicked: Studio.restablecerMultiview() }
+                        GlassButton { compact: true; text: qsTr("Duplicar"); onClicked: Studio.nuevaMultiview(qsTr("%1 (copia)").arg(page.mv.nombre || "Multiview"), true) }
+                        GlassButton { compact: true; text: qsTr("De fábrica"); onClicked: Studio.restablecerMultiview() }
                         GlassButton {
-                            compact: true; text: "Borrar"
+                            compact: true; text: qsTr("Borrar")
                             enabled: (Studio.multiviews || []).length > 1
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Borrar «" + (page.mv.nombre || "") + "»?",
-                                text: "Se borra esta multivista. Las ventanas que la mostraban pasan a mostrar otra.",
-                                accept: "Borrar", reject: "Cancelar",
+                                title: qsTr("¿Borrar «%1»?").arg(page.mv.nombre || ""),
+                                text: qsTr("Se borra esta multivista. Las ventanas que la mostraban pasan a mostrar otra."),
+                                accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
                                 action: function() { Studio.borrarMultiview(page.mv.id) }
                             })
                         }
@@ -187,7 +187,7 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        Text { text: "Monitor"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Monitor"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox {
                             id: monitorCombo
                             Layout.fillWidth: true
@@ -195,23 +195,24 @@ Rectangle {
                             // identificarlos, y se los pide por su id estable.
                             readonly property var lista: Studio.monitores
                             readonly property string monitor: currentIndex >= 0 && currentIndex < lista.length ? lista[currentIndex].id : ""
-                            model: lista.map(m => "Monitor " + m.orden + " — " + m.nombre + "  (" + m.ancho + "×" + m.alto + (m.principal ? ", principal)" : ")"))
+                            model: lista.map(m => (m.principal ? qsTr("Monitor %1 — %2  (%3×%4, principal)") : qsTr("Monitor %1 — %2  (%3×%4)"))
+                                                     .arg(m.orden).arg(m.nombre).arg(m.ancho).arg(m.alto))
                             currentIndex: Math.max(0, lista.findIndex(m => !m.principal))
                         }
                     }
                     RowLayout {
                         Switch { id: completaSw; checked: true }
-                        Text { text: "En pantalla completa"; color: Theme.text; font.pixelSize: 13 }
+                        Text { text: qsTr("En pantalla completa"); color: Theme.text; font.pixelSize: 13 }
                     }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                        text: "La ventana sigue lo que cambies acá, en vivo. En la ventana (mové el mouse): elegir monitor, otra multivista, maximizar, pantalla completa (o doble clic) y cerrar."
+                        text: qsTr("La ventana sigue lo que cambies acá, en vivo. En la ventana (mové el mouse): elegir monitor, otra multivista, maximizar, pantalla completa (o doble clic) y cerrar.")
                     }
 
-                    Text { Layout.topMargin: 6; text: "Fuentes"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                    Text { Layout.topMargin: 6; text: qsTr("Fuentes"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                        text: "Tildá las que van; el orden es el de los cuadros (con «Control», las dos primeras van grandes arriba)."
+                        text: qsTr("Tildá las que van; el orden es el de los cuadros (con «Control», las dos primeras van grandes arriba).")
                     }
                     Repeater {
                         model: page.disponibles
@@ -231,13 +232,13 @@ Rectangle {
                         }
                     }
 
-                    Text { Layout.topMargin: 8; text: "Distribución"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                    Text { Layout.topMargin: 8; text: qsTr("Distribución"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
                         Repeater {
-                            model: [{ v: "control", t: "Control" }, { v: "grid", t: "Cuadrícula" }, { v: "focus", t: "Foco" },
-                                    { v: "pip", t: "PiP" }, { v: "row", t: "Fila" }]
+                            model: [{ v: "control", t: qsTr("Control") }, { v: "grid", t: qsTr("Cuadrícula") }, { v: "focus", t: qsTr("Foco") },
+                                    { v: "pip", t: "PiP" }, { v: "row", t: qsTr("Fila") }]
                             delegate: GlassButton {
                                 required property var modelData
                                 compact: true; text: modelData.t
@@ -247,14 +248,14 @@ Rectangle {
                         }
                     }
 
-                    Text { Layout.topMargin: 8; text: "Separación entre cuadros"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                    Text { Layout.topMargin: 8; text: qsTr("Separación entre cuadros"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                     RowLayout {
                         Layout.fillWidth: true
                         Slider { Layout.fillWidth: true; from: 0; to: 60; stepSize: 1; value: page.mv.separacion || 0
                                  onMoved: page.poner("separacion", Math.round(value)) }
                         Text { text: (page.mv.separacion || 0) + " px"; color: Theme.textDim; font.pixelSize: 12 }
                     }
-                    Text { text: "Color de la separación"; color: Theme.textDim; font.pixelSize: 12 }
+                    Text { text: qsTr("Color de la separación"); color: Theme.textDim; font.pixelSize: 12 }
                     Flow {
                         Layout.fillWidth: true; spacing: 6
                         Repeater {
@@ -269,14 +270,14 @@ Rectangle {
                         }
                     }
 
-                    Text { Layout.topMargin: 8; text: "Borde de cada cuadro"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                    Text { Layout.topMargin: 8; text: qsTr("Borde de cada cuadro"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                     RowLayout {
                         Layout.fillWidth: true
                         Slider { Layout.fillWidth: true; from: 0; to: 20; stepSize: 1; value: page.mv.borde || 0
                                  onMoved: page.poner("borde", Math.round(value)) }
                         Text { text: (page.mv.borde || 0) + " px"; color: Theme.textDim; font.pixelSize: 12 }
                     }
-                    Text { text: "Color del borde"; color: Theme.textDim; font.pixelSize: 12 }
+                    Text { text: qsTr("Color del borde"); color: Theme.textDim; font.pixelSize: 12 }
                     Flow {
                         Layout.fillWidth: true; spacing: 6
                         Repeater {
@@ -291,26 +292,26 @@ Rectangle {
                         }
                     }
 
-                    Text { Layout.topMargin: 8; text: "Marcas"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                    Text { Layout.topMargin: 8; text: qsTr("Marcas"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                     RowLayout {
                         Switch { checked: page.mv.nombres === true; onToggled: page.poner("nombres", checked) }
-                        Text { text: "Nombre de cada fuente"; color: Theme.text; font.pixelSize: 13 }
+                        Text { text: qsTr("Nombre de cada fuente"); color: Theme.text; font.pixelSize: 13 }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         visible: page.mv.nombres === true
-                        Text { text: "Tamaño"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Tamaño"); color: Theme.textDim; font.pixelSize: 12 }
                         Slider { Layout.fillWidth: true; from: 10; to: 48; stepSize: 1; value: page.mv.tamNombres || 18
                                  onMoved: page.poner("tamNombres", Math.round(value)) }
                     }
                     RowLayout {
                         Switch { checked: page.mv.tally !== false; onToggled: page.poner("tally", checked) }
-                        Text { text: "Tally (rojo al aire, verde armada)"; color: Theme.text; font.pixelSize: 13 }
+                        Text { text: qsTr("Tally (rojo al aire, verde armada)"); color: Theme.text; font.pixelSize: 13 }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         visible: page.mv.tally !== false
-                        Text { text: "Grosor del tally"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Grosor del tally"); color: Theme.textDim; font.pixelSize: 12 }
                         Slider { Layout.fillWidth: true; from: 1; to: 12; stepSize: 1
                                  value: page.mv.grosorTally !== undefined ? page.mv.grosorTally : 2
                                  onMoved: page.poner("grosorTally", Math.round(value)) }
@@ -318,7 +319,7 @@ Rectangle {
                     }
                     RowLayout {
                         Switch { checked: page.mv.vumetros !== false; onToggled: page.poner("vumetros", checked) }
-                        Text { text: "Vúmetros"; color: Theme.text; font.pixelSize: 13 }
+                        Text { text: qsTr("Vúmetros"); color: Theme.text; font.pixelSize: 13 }
                     }
                 }
             }

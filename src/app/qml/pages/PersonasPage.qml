@@ -66,32 +66,32 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Personas"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: qsTr("Personas"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             StatusPill {
-                text: page.pv.personas.length + " en la libreta"
+                text: qsTr("%n en la libreta", "", page.pv.personas.length)
                 dot: page.pv.disponible ? Theme.ok : Theme.textFaint
             }
             StatusPill {
                 // Las fichas que anotó solo el sistema y esperan que alguien
                 // diga quién es. Si no se ven, nadie las completa nunca.
                 visible: page.pv.sinNombre > 0
-                text: page.pv.sinNombre + " sin nombre"
+                text: qsTr("%n sin nombre", "", page.pv.sinNombre)
                 dot: Theme.warn
             }
-            GlassButton { compact: true; text: "Cuerpo (integrantes)…"; onClicked: panelCuerpo.open() }
+            GlassButton { compact: true; text: qsTr("Cuerpo (integrantes)…"); onClicked: panelCuerpo.open() }
             Item { implicitWidth: 10 }
-            GlassButton { compact: true; text: "Libreta"; active: page.pestana === "libreta"
+            GlassButton { compact: true; text: qsTr("Libreta"); active: page.pestana === "libreta"
                           onClicked: page.pestana = "libreta" }
             GlassButton {
-                compact: true; text: "Registro"; active: page.pestana === "registro"
+                compact: true; text: qsTr("Registro"); active: page.pestana === "registro"
                 onClicked: page.pestana = "registro"
                 ToolTip.visible: hovered
-                ToolTip.text: "Tótems de registro: una TV con cámara o el celular, la gente se registra hablando"
+                ToolTip.text: qsTr("Tótems de registro: una TV con cámara o el celular, la gente se registra hablando")
             }
             Item { Layout.fillWidth: true }
             Text {
-                text: "Se reconoce a quien ya se dio de alta. La foto es para que vos confirmes; " +
-                      "el sistema compara con los vectores."
+                text: qsTr("Se reconoce a quien ya se dio de alta. La foto es para que vos confirmes; " +
+                      "el sistema compara con los vectores.")
                 color: Theme.textFaint; font.pixelSize: 11
                 elide: Text.ElideRight; Layout.maximumWidth: 560
             }
@@ -108,7 +108,7 @@ Rectangle {
                 id: sinModelos
                 anchors.fill: parent
                 spacing: 6
-                Text { text: "El reconocimiento de rostros no está disponible"
+                Text { text: qsTr("El reconocimiento de rostros no está disponible")
                        color: Theme.warn; font { pixelSize: 14; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim
                        font.pixelSize: 12; text: page.pv.aviso }
@@ -137,7 +137,7 @@ Rectangle {
                     spacing: 8
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "Mirando"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Mirando"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox {
                             Layout.fillWidth: true
                             model: page.pv.fuentes()
@@ -169,18 +169,17 @@ Rectangle {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { text: "Anotar sola a cada persona nueva"
+                            Text { text: qsTr("Anotar sola a cada persona nueva")
                                    color: Theme.text; font.pixelSize: 12 }
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 color: Theme.textFaint; font.pixelSize: 10
                                 text: swAuto.checked
-                                      ? "Mirando «" + page.pv.etiquetaDe(page.pv.feedAuto) +
-                                        "». Cada cara que no conozca queda anotada sin nombre, con su " +
-                                        "foto, para que la completes. No rotula a nadie."
-                                      : "Abre una ficha sin nombre por cada cara desconocida que pase " +
-                                        "por esta cámara, y le suma poses a las que ya conoce."
+                                      ? qsTr("Mirando «%1». Cada cara que no conozca queda anotada sin nombre, con su " +
+                                        "foto, para que la completes. No rotula a nadie.").arg(page.pv.etiquetaDe(page.pv.feedAuto))
+                                      : qsTr("Abre una ficha sin nombre por cada cara desconocida que pase " +
+                                        "por esta cámara, y le suma poses a las que ya conoce.")
                             }
                         }
                     }
@@ -200,18 +199,17 @@ Rectangle {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { text: "Acreditar a quien llega por esta cámara"
+                            Text { text: qsTr("Acreditar a quien llega por esta cámara")
                                    color: Theme.text; font.pixelSize: 12 }
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 color: Theme.textFaint; font.pixelSize: 10
                                 text: swPuerta.checked
-                                      ? "Mirando «" + page.pv.etiquetaDe(page.pv.feedPuerta) +
-                                        "». Al que reconoce lo marca como llegado en el padrón del " +
-                                        "evento. Al que no está en la lista lo avisa y no lo anota."
-                                      : "Para la entrada del lugar: reconoce al que llega y deja " +
-                                        "constancia en el padrón, igual que el lobby con los de la sala."
+                                      ? qsTr("Mirando «%1». Al que reconoce lo marca como llegado en el padrón del " +
+                                        "evento. Al que no está en la lista lo avisa y no lo anota.").arg(page.pv.etiquetaDe(page.pv.feedPuerta))
+                                      : qsTr("Para la entrada del lugar: reconoce al que llega y deja " +
+                                        "constancia en el padrón, igual que el lobby con los de la sala.")
                             }
                         }
                     }
@@ -270,8 +268,8 @@ Rectangle {
                                             id: etq; anchors.centerIn: parent
                                             text: modelData.nombre !== ""
                                                   ? modelData.nombre + "  " + Math.round(modelData.parecido * 100) + "%"
-                                                  : modelData.id !== "" ? "anotada, sin nombre"
-                                                  : "no sé quién es"
+                                                  : modelData.id !== "" ? qsTr("anotada, sin nombre")
+                                                  : qsTr("no sé quién es")
                                             color: "white"; font.pixelSize: 10
                                         }
                                     }
@@ -281,23 +279,23 @@ Rectangle {
                         Text {
                             anchors.centerIn: parent
                             visible: page.vistos.length === 0
-                            text: "No se ve ninguna cara"
+                            text: qsTr("No se ve ninguna cara")
                             color: Theme.textFaint; font.pixelSize: 13
                         }
                     }
 
                     // --- La ficha que se está editando -------------------------
-                    Text { text: page.editando === "" ? "Persona nueva" : "Editando"
+                    Text { text: page.editando === "" ? qsTr("Persona nueva") : qsTr("Editando")
                            color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } }
-                    TextField { id: campoNombre; Layout.fillWidth: true; placeholderText: "Nombre y apellido" }
+                    TextField { id: campoNombre; Layout.fillWidth: true; placeholderText: qsTr("Nombre y apellido") }
                     TextField { id: campoCargo; Layout.fillWidth: true
-                                placeholderText: "Cargo (lo que va en el rótulo)" }
+                                placeholderText: qsTr("Cargo (lo que va en el rótulo)") }
                     TextField { id: campoNota; Layout.fillWidth: true
-                                placeholderText: "Nota para el operador (no sale al aire)" }
+                                placeholderText: qsTr("Nota para el operador (no sale al aire)") }
                     RowLayout {
                         Layout.fillWidth: true
                         GlassButton {
-                            text: page.editando === "" ? "Crear y tomarle la cara" : "Guardar"
+                            text: page.editando === "" ? qsTr("Crear y tomarle la cara") : qsTr("Guardar")
                             active: true
                             enabled: campoNombre.text.trim() !== ""
                             onClicked: {
@@ -313,7 +311,7 @@ Rectangle {
                                 page.abrir(null)
                             }
                         }
-                        GlassButton { text: "Limpiar"; visible: page.editando !== ""
+                        GlassButton { text: qsTr("Limpiar"); visible: page.editando !== ""
                                       onClicked: page.abrir(null) }
                         Item { Layout.fillWidth: true }
                     }
@@ -332,8 +330,8 @@ Rectangle {
                         Layout.fillWidth: true
                         visible: page.pv.personas.length === 0
                         wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 12
-                        text: "Todavía no hay nadie. Poné a alguien frente a la cámara, escribí su " +
-                              "nombre a la izquierda y dale «Crear y tomarle la cara»."
+                        text: qsTr("Todavía no hay nadie. Poné a alguien frente a la cámara, escribí su " +
+                              "nombre a la izquierda y dale «Crear y tomarle la cara».")
                     }
                     ScrollView {
                         id: sc
@@ -383,7 +381,7 @@ Rectangle {
                                             // una fila en blanco parece un
                                             // error, no una tarea.
                                             Text { text: fila.modelData.nombre !== ""
-                                                         ? fila.modelData.nombre : "Sin nombre"
+                                                         ? fila.modelData.nombre : qsTr("Sin nombre")
                                                    color: fila.modelData.nombre !== "" ? Theme.text
                                                                                        : Theme.accent
                                                    font { pixelSize: 14; weight: Font.DemiBold
@@ -399,22 +397,21 @@ Rectangle {
                                                 // que ver: la ficha existe pero
                                                 // no reconoce a nadie.
                                                 text: fila.modelData.caras === 0
-                                                      ? "sin ninguna cara: no se la va a reconocer"
-                                                      : fila.modelData.caras + " cara(s)" +
-                                                        (fila.modelData.vistaSeg >= 0
-                                                         ? " · vista hace " + Theme.hace(fila.modelData.vistaSeg)
-                                                         : " · nunca vista")
+                                                      ? qsTr("sin ninguna cara: no se la va a reconocer")
+                                                      : fila.modelData.vistaSeg >= 0
+                                                        ? qsTr("%n cara · vista hace %1", "", fila.modelData.caras).arg(Theme.hace(fila.modelData.vistaSeg))
+                                                        : qsTr("%n cara · nunca vista", "", fila.modelData.caras)
                                             }
                                         }
                                         GlassButton {
-                                            compact: true; text: "Sumar cara"; icon: "＋"
+                                            compact: true; text: qsTr("Sumar cara"); icon: "＋"
                                             onClicked: page.pv.sumarCara(fila.modelData.id, page.fuente, false)
                                             ToolTip.visible: hovered
-                                            ToolTip.text: "Le suma la cara que se ve ahora.\nDe frente, de costado, " +
-                                                          "con anteojos y sin: así se la reconoce en el día real."
+                                            ToolTip.text: qsTr("Le suma la cara que se ve ahora.\nDe frente, de costado, " +
+                                                          "con anteojos y sin: así se la reconoce en el día real.")
                                         }
                                         GlassButton {
-                                            compact: true; text: "Editar"
+                                            compact: true; text: qsTr("Editar")
                                             onClicked: page.abrir(fila.modelData)
                                         }
                                         GlassButton {
@@ -432,11 +429,10 @@ Rectangle {
                                                 const nombre = fila.modelData.nombre
                                                 const caras = fila.modelData.caras
                                                 ApplicationWindow.window.confirm({
-                                                    title: "¿Borrar a «" + (nombre !== "" ? nombre : "esta persona") + "»?",
-                                                    text: "Se va la ficha, su foto y sus " + caras +
-                                                          " cara(s). Para volver a reconocerla hay que darla de " +
-                                                          "alta otra vez y mostrarle la cara de nuevo.",
-                                                    accept: "Borrar",
+                                                    title: qsTr("¿Borrar a «%1»?").arg(nombre !== "" ? nombre : qsTr("esta persona")),
+                                                    text: qsTr("Se va la ficha, su foto y sus caras (%1). Para volver a reconocerla hay que darla de " +
+                                                               "alta otra vez y mostrarle la cara de nuevo.").arg(caras),
+                                                    accept: qsTr("Borrar"),
                                                     action: () => {
                                                         if (hoja.editando === id) hoja.abrir(null)
                                                         hoja.pv.borrar(id)

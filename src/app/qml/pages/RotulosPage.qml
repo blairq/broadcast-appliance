@@ -27,7 +27,7 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
             Text {
-                text: "Rótulos"
+                text: qsTr("Rótulos")
                 color: Theme.text
                 font { pixelSize: 20; weight: Font.DemiBold }
             }
@@ -39,23 +39,23 @@ Rectangle {
                 Text {
                     id: esc
                     anchors.centerIn: parent
-                    text: page.r.escena === "" ? "sin escena al aire" : "al aire: " + page.r.escena
+                    text: page.r.escena === "" ? qsTr("sin escena al aire") : qsTr("al aire: %1").arg(page.r.escena)
                     color: Theme.textDim
                     font.pixelSize: 11
                 }
             }
             Item { Layout.fillWidth: true }
             GlassButton {
-                icon: "▣"; text: "Desde el celular"; compact: true
+                icon: "▣"; text: qsTr("Desde el celular"); compact: true
                 onClicked: qrDlg.mostrar("local", true)
                 ToolTip.visible: hovered
-                ToolTip.text: "Un QR para rotular desde un teléfono, con su clave"
+                ToolTip.text: qsTr("Un QR para rotular desde un teléfono, con su clave")
             }
             GlassButton {
                 icon: "↻"; compact: true
                 onClicked: page.r.refrescar()
                 ToolTip.visible: hovered
-                ToolTip.text: "Volver a mirar qué hay en la escena"
+                ToolTip.text: qsTr("Volver a mirar qué hay en la escena")
             }
         }
 
@@ -71,9 +71,9 @@ Rectangle {
                 wrapMode: Text.WordWrap
                 color: Theme.textDim
                 font.pixelSize: 14
-                text: "Ninguna escena tiene una fuente de «Gráfico animado».\n\n" +
+                text: qsTr("Ninguna escena tiene una fuente de «Gráfico animado».\n\n" +
                       "Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, " +
-                      "y después volvé acá a escribir los textos."
+                      "y después volvé acá a escribir los textos.")
             }
         }
 
@@ -119,7 +119,7 @@ Rectangle {
                                 }
                                 Text {
                                     visible: !tarjeta.modelData.escenaAlAire
-                                    text: "en «" + tarjeta.modelData.escena + "» (no está al aire)"
+                                    text: qsTr("en «%1» (no está al aire)").arg(tarjeta.modelData.escena)
                                     color: Theme.textFaint
                                     font.pixelSize: 11
                                 }
@@ -187,30 +187,30 @@ Rectangle {
                                 spacing: 8
                                 GlassButton {
                                     visible: tarjeta.modelData.escenaAlAire
-                                    text: "Al aire"; icon: "▶"
+                                    text: qsTr("Al aire"); icon: "▶"
                                     onClicked: page.r.disparar(tarjeta.modelData.id, false)
                                 }
                                 // De una escena que no está al aire: se dibuja ahí y la
                                 // escena queda armada en el preview; sale con TAKE.
                                 GlassButton {
                                     visible: !tarjeta.modelData.escenaAlAire
-                                    text: "Armar en PVW"; icon: "▷"; active: true
+                                    text: qsTr("Armar en PVW"); icon: "▷"; active: true
                                     onClicked: {
                                         if (page.r.disparar(tarjeta.modelData.id, false) === "")
                                             Studio.armarEscena(tarjeta.modelData.escena)
                                     }
                                     ToolTip.visible: hovered
-                                    ToolTip.text: "Lo dibuja en «" + tarjeta.modelData.escena + "» y la deja armada: sale con TAKE"
+                                    ToolTip.text: qsTr("Lo dibuja en «%1» y la deja armada: sale con TAKE").arg(tarjeta.modelData.escena)
                                 }
                                 GlassButton {
                                     visible: tarjeta.modelData.escenaAlAire
-                                    text: "En bucle"; compact: true
+                                    text: qsTr("En bucle"); compact: true
                                     onClicked: page.r.disparar(tarjeta.modelData.id, true)
                                     ToolTip.visible: hovered
-                                    ToolTip.text: "Para un ticker: se repite hasta que lo saques"
+                                    ToolTip.text: qsTr("Para un ticker: se repite hasta que lo saques")
                                 }
                                 GlassButton {
-                                    text: "Sacar"; icon: "✕"; compact: true
+                                    text: qsTr("Sacar"); icon: "✕"; compact: true
                                     enabled: tarjeta.modelData.enAire
                                     onClicked: page.r.ocultar(tarjeta.modelData.id)
                                 }
@@ -263,7 +263,7 @@ Rectangle {
                         anchors.fill: parent // el margen lo pone Panel (`padding`)
                         spacing: 8
                         Text {
-                            text: "Se escriben solos"
+                            text: qsTr("Se escriben solos")
                             color: Theme.text
                             font { pixelSize: 13; weight: Font.DemiBold }
                         }
@@ -293,11 +293,11 @@ Rectangle {
                                         text: vin.modelData.fuente + " · " + vin.modelData.grafico
                                     }
                                     GlassButton {
-                                        text: "Ahora"; compact: true
+                                        text: qsTr("Ahora"); compact: true
                                         onClicked: page.r.dispararVinculo(vin.modelData.id)
                                     }
                                     GlassButton {
-                                        text: vin.modelData.activo ? "Apagar" : "Prender"; compact: true
+                                        text: vin.modelData.activo ? qsTr("Apagar") : qsTr("Prender"); compact: true
                                         onClicked: page.r.activarVinculo(vin.modelData.id,
                                                                          !vin.modelData.activo)
                                     }
@@ -314,8 +314,7 @@ Rectangle {
                                     text: {
                                         if (vin.modelData.problema !== "") return vin.modelData.problema
                                         if (!vin.modelData.fuenteExiste)
-                                            return "esperando a que «" + vin.modelData.fuente +
-                                                   "» aparezca en alguna escena"
+                                            return qsTr("esperando a que «%1» aparezca en alguna escena").arg(vin.modelData.fuente)
                                         const r = vin.modelData.resuelve
                                         let ps = []
                                         for (const k in r) ps.push(k + ": " + r[k])
@@ -329,8 +328,8 @@ Rectangle {
                             wrapMode: Text.WordWrap
                             color: Theme.textFaint
                             font.pixelSize: 10
-                            text: "Se revisan una vez por segundo y salen al aire solos cuando lo que " +
-                                  "dicen cambia. Para armar uno, pedíselo al asistente acá abajo."
+                            text: qsTr("Se revisan una vez por segundo y salen al aire solos cuando lo que " +
+                                  "dicen cambia. Para armar uno, pedíselo al asistente acá abajo.")
                         }
                     }
                 }
@@ -348,7 +347,7 @@ Rectangle {
         anchors.centerIn: parent
         modal: true
         standardButtons: Dialog.Close
-        title: "Rotular desde el celular"
+        title: qsTr("Rotular desde el celular")
         property string target: "local"
         property bool conClave: true
         property string url: ""
@@ -411,7 +410,7 @@ Rectangle {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     color: Theme.textDim; font.pixelSize: 13
-                    text: qrDlg.cargando ? "Generando…" : qrDlg.mensaje
+                    text: qrDlg.cargando ? qsTr("Generando…") : qrDlg.mensaje
                 }
             }
 
@@ -419,12 +418,12 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 6
                 GlassButton {
-                    compact: true; text: "Red local"
+                    compact: true; text: qsTr("Red local")
                     active: qrDlg.target === "local"
                     onClicked: qrDlg.mostrar("local", qrDlg.conClave)
                 }
                 GlassButton {
-                    compact: true; text: "Por internet"
+                    compact: true; text: qsTr("Por internet")
                     active: qrDlg.target === "remote"
                     onClicked: qrDlg.mostrar("remote", qrDlg.conClave)
                 }
@@ -432,7 +431,7 @@ Rectangle {
 
             CheckBox {
                 checked: qrDlg.conClave
-                text: "Incluir la clave en el QR (entra sin tipearla)"
+                text: qsTr("Incluir la clave en el QR (entra sin tipearla)")
                 onToggled: qrDlg.mostrar(qrDlg.target, checked)
             }
 
@@ -442,11 +441,10 @@ Rectangle {
                 color: Theme.textDim
                 font.pixelSize: 11
                 text: qrDlg.conClave
-                    ? "La clave viaja en el fragmento del enlace: no llega al servidor ni queda en " +
+                    ? qsTr("La clave viaja en el fragmento del enlace: no llega al servidor ni queda en " +
                       "ningún registro. Aun así, el que tenga este QR puede rotular: no lo dejes pegado " +
-                      "en una pared."
-                    : "Sin la clave adentro, el QR abre la página y pide la clave. Decísela vos: " +
-                      (qrDlg.clave === "" ? "" : qrDlg.clave)
+                      "en una pared.")
+                    : qsTr("Sin la clave adentro, el QR abre la página y pide la clave. Decísela vos: %1").arg(qrDlg.clave)
             }
 
             Text {

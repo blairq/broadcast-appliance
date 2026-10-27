@@ -50,20 +50,20 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
             Text {
-                text: "Logs del sistema"
+                text: qsTr("Logs del sistema")
                 color: Theme.text
                 font { pixelSize: 20; weight: Font.DemiBold }
             }
             Text {
-                text: page.r.lineas.length + " líneas"
+                text: qsTr("%n línea", "", page.r.lineas.length)
                 color: Theme.textDim
                 font.pixelSize: 11
             }
             // Filtros de un clic para lo que más se mira. Leer un log es leer
             // bajo presión: tener que escribir el nombre del módulo, no.
             Repeater {
-                model: [{t: "Todo", m: ""}, {t: "MCP", m: "mcp"}, {t: "Agentes", m: "agente."},
-                        {t: "Pantallas", m: "pantallas"}, {t: "QR", m: "qr"}]
+                model: [{t: qsTr("Todo"), m: ""}, {t: "MCP", m: "mcp"}, {t: qsTr("Agentes"), m: "agente."},
+                        {t: qsTr("Pantallas"), m: "pantallas"}, {t: "QR", m: "qr"}]
                 delegate: GlassButton {
                     required property var modelData
                     compact: true
@@ -75,7 +75,7 @@ Rectangle {
             Item { Layout.fillWidth: true }
             TextField {
                 Layout.preferredWidth: 280
-                placeholderText: "Buscar en el texto o en el módulo…"
+                placeholderText: qsTr("Buscar en el texto o en el módulo…")
                 color: Theme.text
                 font.pixelSize: 12
                 text: page.r.busca
@@ -87,28 +87,28 @@ Rectangle {
                 }
             }
             GlassButton {
-                text: "Marcar"; icon: "⚑"; compact: true
-                onClicked: page.r.marcar("marca del operador")
+                text: qsTr("Marcar"); icon: "⚑"; compact: true
+                onClicked: page.r.marcar(qsTr("marca del operador"))
                 ToolTip.visible: hovered
-                ToolTip.text: "Deja una marca acá, para encontrar este momento después"
+                ToolTip.text: qsTr("Deja una marca acá, para encontrar este momento después")
             }
             GlassButton {
-                text: "Guardar"; icon: "↓"; compact: true
+                text: qsTr("Guardar"); icon: "↓"; compact: true
                 onClicked: page.r.exportar()
                 ToolTip.visible: hovered
-                ToolTip.text: "Guarda lo que estás viendo, ya filtrado, en Logs/"
+                ToolTip.text: qsTr("Guarda lo que estás viendo, ya filtrado, en Logs/")
             }
             GlassButton {
-                text: "Copiar"; icon: "⧉"; compact: true
+                text: qsTr("Copiar"); icon: "⧉"; compact: true
                 onClicked: {
                     copiador.text = page.r.comoTexto()
                     copiador.selectAll()
                     copiador.copy()
-                    Studio.notify("Registro copiado (" + page.r.lineas.length + " líneas)", "ok")
+                    Studio.notify(qsTr("Registro copiado (%n línea)", "", page.r.lineas.length), "ok")
                 }
             }
             GlassButton {
-                text: page.r.siguiendo ? "Siguiendo" : "Pausado"
+                text: page.r.siguiendo ? qsTr("Siguiendo") : qsTr("Pausado")
                 icon: page.r.siguiendo ? "▶" : "⏸"
                 compact: true
                 active: page.r.siguiendo
@@ -133,16 +133,16 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.live
                     font { pixelSize: 12; weight: Font.DemiBold }
-                    text: "⚠  No se está cargando: " + page.r.apagados.join(", ")
+                    text: qsTr("⚠  No se está cargando: %1").arg(page.r.apagados.join(", "))
                 }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.textDim
                     font.pixelSize: 11
-                    text: "Se llevó puesto el arranque dos veces seguidas, así que el programa " +
+                    text: qsTr("Se llevó puesto el arranque dos veces seguidas, así que el programa " +
                           "lo salteó para poder abrir. Buscá su nombre acá abajo para ver qué pasó. " +
-                          "Al prenderlo, se vuelve a cargar en el próximo arranque."
+                          "Al prenderlo, se vuelve a cargar en el próximo arranque.")
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -153,7 +153,7 @@ Rectangle {
                             required property var modelData
                             compact: true
                             icon: "↺"
-                            text: "Prender " + modelData
+                            text: qsTr("Prender %1").arg(modelData)
                             onClicked: page.r.prender(modelData)
                         }
                     }
@@ -176,7 +176,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 6
                     Text {
-                        text: "Desde"
+                        text: qsTr("Desde")
                         color: Theme.textDim
                         font.pixelSize: 11
                     }
@@ -194,12 +194,12 @@ Rectangle {
                     Item { Layout.fillWidth: true }
                     CheckBox {
                         checked: page.r.enMemoria
-                        text: "Solo esta corrida"
+                        text: qsTr("Solo esta corrida")
                         onToggled: page.r.enMemoria = checked
                         ToolTip.visible: hovered
-                        ToolTip.text: "Prendido: solo lo de la app, desde que arrancó, sin tocar el disco.\n" +
+                        ToolTip.text: qsTr("Prendido: solo lo de la app, desde que arrancó, sin tocar el disco.\n" +
                                       "Apagado: los archivos de Logs/, que traen también al gateway, al " +
-                                      "launcher y la corrida anterior."
+                                      "launcher y la corrida anterior.")
                     }
                 }
 
@@ -209,7 +209,7 @@ Rectangle {
                     Text {
                         Layout.alignment: Qt.AlignTop
                         Layout.topMargin: 5
-                        text: "Módulo"
+                        text: qsTr("Módulo")
                         color: Theme.textDim
                         font.pixelSize: 11
                     }
@@ -223,7 +223,7 @@ Rectangle {
                             width: parent.width
                             spacing: 5
                             GlassButton {
-                                compact: true; text: "todos"
+                                compact: true; text: qsTr("todos")
                                 active: page.r.modulo === ""
                                 onClicked: page.r.modulo = ""
                             }
@@ -245,7 +245,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 6
                     Text {
-                        text: "Se registra desde"
+                        text: qsTr("Se registra desde")
                         color: Theme.textDim
                         font.pixelSize: 11
                     }
@@ -265,8 +265,8 @@ Rectangle {
                         elide: Text.ElideRight
                         color: Theme.textFaint
                         font.pixelSize: 10
-                        text: "lo de abajo de este nivel no se escribe en ningún lado" +
-                              (page.r.descartadas > 0 ? "  ·  " + page.r.descartadas + " descartadas" : "")
+                        text: qsTr("lo de abajo de este nivel no se escribe en ningún lado") +
+                              (page.r.descartadas > 0 ? "  ·  " + qsTr("%n descartada", "", page.r.descartadas) : "")
                     }
                 }
             }
@@ -345,9 +345,9 @@ Rectangle {
                 wrapMode: Text.WordWrap
                 color: Theme.textDim
                 font.pixelSize: 13
-                text: "No hay nada que pase este filtro.\n\n" +
+                text: qsTr("No hay nada que pase este filtro.\n\n" +
                       "Probá bajando el nivel, sacando el módulo o vaciando la búsqueda. " +
-                      "Los archivos están en " + page.r.carpeta
+                      "Los archivos están en %1").arg(page.r.carpeta)
             }
         }
     }

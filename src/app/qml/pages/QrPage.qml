@@ -37,21 +37,21 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Códigos QR"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: qsTr("Códigos QR"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             StatusPill {
-                text: page.q.codigos.length + " guardados"
+                text: qsTr("%n guardado", "", page.q.codigos.length)
                 dot: Theme.textFaint
             }
             Item { Layout.fillWidth: true }
             Text {
                 visible: page.q.modulos > 0
-                text: page.q.modulos + "×" + page.q.modulos + " módulos"
+                text: qsTr("%1×%1 módulos").arg(page.q.modulos)
                 color: page.q.modulos > 80 ? Theme.warn : Theme.textFaint
                 font.pixelSize: 11
                 ToolTip.visible: hoverHandler.hovered
                 ToolTip.text: page.q.modulos > 80
-                    ? "Muy denso: de lejos va a costar leerlo. Probá con menos texto o menos corrección."
-                    : "Cuántos cuadraditos de lado tiene"
+                    ? qsTr("Muy denso: de lejos va a costar leerlo. Probá con menos texto o menos corrección.")
+                    : qsTr("Cuántos cuadraditos de lado tiene")
                 HoverHandler { id: hoverHandler }
             }
         }
@@ -73,18 +73,18 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         GlassButton {
-                            compact: true; text: "Del aparato"
+                            compact: true; text: qsTr("Del aparato")
                             active: page.q.ambito === "global"
                             onClicked: page.q.ambito = "global"
                             ToolTip.visible: hovered
-                            ToolTip.text: "Sirven para todos los eventos (el WiFi de la sala, el teleprompter)"
+                            ToolTip.text: qsTr("Sirven para todos los eventos (el WiFi de la sala, el teleprompter)")
                         }
                         GlassButton {
-                            compact: true; text: "De este evento"
+                            compact: true; text: qsTr("De este evento")
                             active: page.q.ambito === "evento"
                             onClicked: page.q.ambito = "evento"
                             ToolTip.visible: hovered
-                            ToolTip.text: "Viajan con el evento a otra máquina"
+                            ToolTip.text: qsTr("Viajan con el evento a otra máquina")
                         }
                     }
                     Text {
@@ -158,11 +158,11 @@ Rectangle {
                             Menu {
                                 id: menu
                                 MenuItem {
-                                    text: page.q.ambito === "global" ? "Copiar al evento" : "Copiar al aparato"
+                                    text: page.q.ambito === "global" ? qsTr("Copiar al evento") : qsTr("Copiar al aparato")
                                     onTriggered: page.chequear(page.q.copiarA(fila.modelData.id,
                                         page.q.ambito === "global" ? "evento" : "global"))
                                 }
-                                MenuItem { text: "Borrar"; onTriggered: page.chequear(page.q.borrar(fila.modelData.id)) }
+                                MenuItem { text: qsTr("Borrar"); onTriggered: page.chequear(page.q.borrar(fila.modelData.id)) }
                             }
                         }
                         Text {
@@ -172,7 +172,7 @@ Rectangle {
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                             color: Theme.textFaint; font.pixelSize: 11
-                            text: "Ninguno todavía. Elegí un tipo a la derecha y guardalo."
+                            text: qsTr("Ninguno todavía. Elegí un tipo a la derecha y guardalo.")
                         }
                     }
                 }
@@ -199,16 +199,16 @@ Rectangle {
                         TextField {
                             id: nombre
                             Layout.fillWidth: true
-                            placeholderText: "Nombre para guardarlo (WiFi de la sala)"
+                            placeholderText: qsTr("Nombre para guardarlo (WiFi de la sala)")
                             text: page.q.actual.nombre
                             color: Theme.text; font.pixelSize: 12
-                            onAccepted: page.chequear(page.q.guardar(text), "Guardado")
+                            onAccepted: page.chequear(page.q.guardar(text), qsTr("Guardado"))
                         }
                         GlassButton {
-                            compact: true; text: "Guardar"; icon: "↓"; active: page.q.sucio
-                            onClicked: page.chequear(page.q.guardar(nombre.text), "Guardado")
+                            compact: true; text: qsTr("Guardar"); icon: "↓"; active: page.q.sucio
+                            onClicked: page.chequear(page.q.guardar(nombre.text), qsTr("Guardado"))
                         }
-                        GlassButton { compact: true; text: "Nuevo"; icon: "+"; onClicked: { page.q.nuevo("enlace"); nombre.text = "" } }
+                        GlassButton { compact: true; text: qsTr("Nuevo"); icon: "+"; onClicked: { page.q.nuevo("enlace"); nombre.text = "" } }
                     }
 
                     Text {
@@ -261,13 +261,13 @@ Rectangle {
                                 visible: page.tipoActual() && page.tipoActual().delAparato
                                 wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 11
-                                text: "Este lo arma el sistema: lleva la clave que corresponda en cada " +
+                                text: qsTr("Este lo arma el sistema: lleva la clave que corresponda en cada " +
                                       "momento. Por eso se guarda QUÉ es, no el texto, y el código sale " +
-                                      "siempre al día."
+                                      "siempre al día.")
                             }
                             GlassButton {
                                 visible: page.tipoActual() && page.tipoActual().delAparato
-                                compact: true; text: "Volver a pedir el enlace"; icon: "⟳"
+                                compact: true; text: qsTr("Volver a pedir el enlace"); icon: "⟳"
                                 onClicked: page.q.resolver()
                             }
                         }
@@ -317,9 +317,9 @@ Rectangle {
                             RowLayout {
                                 Layout.alignment: Qt.AlignHCenter
                                 spacing: 8
-                                GlassButton { compact: true; text: "Guardar PNG"; icon: "↓"
+                                GlassButton { compact: true; text: qsTr("Guardar PNG"); icon: "↓"
                                               onClicked: page.q.exportar("png", 1024) }
-                                GlassButton { compact: true; text: "Guardar SVG"; icon: "↓"
+                                GlassButton { compact: true; text: qsTr("Guardar SVG"); icon: "↓"
                                               onClicked: page.q.exportar("svg") }
                             }
                             // Al aire: una fuente «Código QR» con ESTE código (guardado), en la
@@ -329,12 +329,12 @@ Rectangle {
                                 Layout.alignment: Qt.AlignHCenter
                                 compact: true; icon: "▦"
                                 visible: page.q.abierto !== ""
-                                text: "Agregar a la escena «" + Studio.sources.scene + "»"
+                                text: qsTr("Agregar a la escena «%1»").arg(Studio.sources.scene)
                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "Pone este código en la escena (abajo a la derecha; se mueve y se achica en Escenas). Para una pantalla externa: Pantallas → «Un código QR»."
+                                ToolTip.text: qsTr("Pone este código en la escena (abajo a la derecha; se mueve y se achica en Escenas). Para una pantalla externa: Pantallas → «Un código QR».")
                                 onClicked: {
-                                    const n = Studio.sources.addConAjustes("ba_qr", "QR · " + (page.q.actual.nombre || "código"), { qr: page.q.abierto, fondo: true, tamano: 720 })
-                                    if (n) Studio.notify("«" + n + "» está en la escena «" + Studio.sources.scene + "».", "info")
+                                    const n = Studio.sources.addConAjustes("ba_qr", "QR · " + (page.q.actual.nombre || qsTr("código")), { qr: page.q.abierto, fondo: true, tamano: 720 })
+                                    if (n) Studio.notify(qsTr("«%1» está en la escena «%2».").arg(n).arg(Studio.sources.scene), "info")
                                 }
                             }
                         }
@@ -350,9 +350,9 @@ Rectangle {
                 ColumnLayout {
                     anchors { fill: parent; margins: 12 }
                     spacing: 10
-                    Text { text: "Cómo se ve"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Cómo se ve"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
 
-                    Text { text: "Color"; color: Theme.textDim; font.pixelSize: 10 }
+                    Text { text: qsTr("Color"); color: Theme.textDim; font.pixelSize: 10 }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
@@ -371,7 +371,7 @@ Rectangle {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "Degradado"; color: Theme.textDim; font.pixelSize: 10 }
+                        Text { text: qsTr("Degradado"); color: Theme.textDim; font.pixelSize: 10 }
                         Item { Layout.fillWidth: true }
                         Toggle {
                             checked: page.est.secundario !== ""
@@ -395,27 +395,27 @@ Rectangle {
                         }
                     }
 
-                    Text { text: "Cuerpo"; color: Theme.textDim; font.pixelSize: 10 }
+                    Text { text: qsTr("Cuerpo"); color: Theme.textDim; font.pixelSize: 10 }
                     ComboBox {
                         Layout.fillWidth: true
                         textRole: "t"; valueRole: "v"
-                        model: [{t: "Cuadrados", v: "cuadrados"}, {t: "Redondeados", v: "redondeados"},
-                                {t: "Puntos", v: "circulos"}, {t: "Separados", v: "separados"},
-                                {t: "Muy redondeados", v: "muy-redondeados"}]
+                        model: [{t: qsTr("Cuadrados"), v: "cuadrados"}, {t: qsTr("Redondeados"), v: "redondeados"},
+                                {t: qsTr("Puntos"), v: "circulos"}, {t: qsTr("Separados"), v: "separados"},
+                                {t: qsTr("Muy redondeados"), v: "muy-redondeados"}]
                         currentIndex: Math.max(0, indexOfValue(page.est.puntos))
                         onActivated: page.q.setEstilo("puntos", currentValue)
                     }
-                    Text { text: "Ojos"; color: Theme.textDim; font.pixelSize: 10 }
+                    Text { text: qsTr("Ojos"); color: Theme.textDim; font.pixelSize: 10 }
                     ComboBox {
                         Layout.fillWidth: true
                         textRole: "t"; valueRole: "v"
-                        model: [{t: "Cuadrados", v: "cuadrados"}, {t: "Redondeados", v: "redondeados"}]
+                        model: [{t: qsTr("Cuadrados"), v: "cuadrados"}, {t: qsTr("Redondeados"), v: "redondeados"}]
                         currentIndex: Math.max(0, indexOfValue(page.est.ojos))
                         onActivated: page.q.setEstilo("ojos", currentValue)
                         ToolTip.visible: hovered
-                        ToolTip.text: "Solo dos: un ojo más redondo que esto deja de leerse"
+                        ToolTip.text: qsTr("Solo dos: un ojo más redondo que esto deja de leerse")
                     }
-                    Text { text: "Ícono al centro"; color: Theme.textDim; font.pixelSize: 10 }
+                    Text { text: qsTr("Ícono al centro"); color: Theme.textDim; font.pixelSize: 10 }
                     ComboBox {
                         Layout.fillWidth: true
                         model: page.q.iconos
@@ -423,38 +423,38 @@ Rectangle {
                         currentIndex: Math.max(0, indexOfValue(page.est.icono))
                         onActivated: page.q.setEstilo("icono", currentValue)
                         ToolTip.visible: hovered
-                        ToolTip.text: "Tapa módulos, así que sube la corrección de errores solo"
+                        ToolTip.text: qsTr("Tapa módulos, así que sube la corrección de errores solo")
                     }
-                    Text { text: "Marco"; color: Theme.textDim; font.pixelSize: 10 }
+                    Text { text: qsTr("Marco"); color: Theme.textDim; font.pixelSize: 10 }
                     ComboBox {
                         Layout.fillWidth: true
                         textRole: "t"; valueRole: "v"
-                        model: [{t: "Sin marco", v: "ninguno"}, {t: "Simple", v: "simple"},
-                                {t: "Redondeado", v: "redondeado"}]
+                        model: [{t: qsTr("Sin marco"), v: "ninguno"}, {t: qsTr("Simple"), v: "simple"},
+                                {t: qsTr("Redondeado"), v: "redondeado"}]
                         currentIndex: Math.max(0, indexOfValue(page.est.marco))
                         onActivated: page.q.setEstilo("marco", currentValue)
                     }
-                    Text { text: "Corrección de errores"; color: Theme.textDim; font.pixelSize: 10 }
+                    Text { text: qsTr("Corrección de errores"); color: Theme.textDim; font.pixelSize: 10 }
                     ComboBox {
                         Layout.fillWidth: true
                         enabled: page.est.icono === ""
                         textRole: "t"; valueRole: "v"
-                        model: [{t: "Baja (más chico)", v: "baja"}, {t: "Media", v: "media"},
-                                {t: "Alta", v: "alta"}, {t: "Máxima (aguanta más)", v: "maxima"}]
+                        model: [{t: qsTr("Baja (más chico)"), v: "baja"}, {t: qsTr("Media"), v: "media"},
+                                {t: qsTr("Alta"), v: "alta"}, {t: qsTr("Máxima (aguanta más)"), v: "maxima"}]
                         currentIndex: Math.max(0, indexOfValue(page.est.correccion))
                         onActivated: page.q.setEstilo("correccion", currentValue)
                         ToolTip.visible: hovered
                         ToolTip.text: page.est.icono !== ""
-                            ? "Con ícono va siempre en máxima: si no, el ícono tapa módulos y deja de leerse"
-                            : "Cuánto daño aguanta antes de no leerse. Más corrección, código más grande"
+                            ? qsTr("Con ícono va siempre en máxima: si no, el ícono tapa módulos y deja de leerse")
+                            : qsTr("Cuánto daño aguanta antes de no leerse. Más corrección, código más grande")
                     }
                     Item { Layout.fillHeight: true }
                     GlassButton {
                         Layout.fillWidth: true
-                        compact: true; text: "Volver al estilo simple"
+                        compact: true; text: qsTr("Volver al estilo simple")
                         onClicked: page.q.estiloSimple()
                         ToolTip.visible: hovered
-                        ToolTip.text: "Negro, cuadrado y sin adornos: aburrido y siempre se lee"
+                        ToolTip.text: qsTr("Negro, cuadrado y sin adornos: aburrido y siempre se lee")
                     }
                 }
             }
