@@ -96,6 +96,15 @@ def test_translations_keep_placeholders_and_plural_forms(ts: Path) -> None:
             assert sorted(set(MARCADOR.findall(f)) - {"%n", "%Ln"}) == esperados, f"{donde}: placeholders differ in {f!r}"
 
 
+def test_source_language_has_every_plural() -> None:
+    """The source language has no catalog except plurals: "%n invitado" needs its Spanish
+    forms too, or the program says «5 invitado». Run `make i18n-actualizar` and fill them."""
+    fuente = next(c for c, p in perfiles().items() if p.get("fuente"))
+    sin = [f"[{ctx}] {fuente_txt!r}" for ctx, fuente_txt, numerus, _, terminada in mensajes(TS_DIR / f"ba_{fuente}.ts")
+           if numerus and not terminada]
+    assert not sin, f"plurals without their {fuente} forms in i18n/ba_{fuente}.ts:\n" + "\n".join(sin)
+
+
 def test_tool_names_are_never_translatable() -> None:
     inventario = json.loads((REPO / "docs" / "mcp.json").read_text(encoding="utf-8"))
     nombres = {h for c in inventario["categorias"] for h in c["herramientas"]}
