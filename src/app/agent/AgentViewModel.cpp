@@ -1299,7 +1299,8 @@ const char* kOficinaPrompt =
     "\n\n# Documentos, presentaciones y planillas\n"
     "Además del aparato tenés tres MCP de oficina: `wordcraft` (documentos de Word: programa, orden del día, acta, "
     "cartas), `deckcraft` (presentaciones: láminas para la apertura, los oradores, los puntos del orden del día) y "
-    "`gridcraft` (planillas con fórmulas y gráficos: votaciones, asistencia). Guardá lo que hagas en la carpeta del "
+    "`gridcraft` (planillas con fórmulas y gráficos: votaciones, asistencia). Si te piden un Word, una presentación o "
+    "una planilla, usá ESOS MCP: no armes el archivo con la consola ni con otra biblioteca. Guardá lo que hagas en la carpeta del "
     "evento: los documentos para la web, en su documentación (después `documento_agregar`); una presentación, como "
     ".pptx en Medios/ y `laminas_desarmar` para el carrusel; un gráfico, como imagen en Medios/ para una escena.";
 } // namespace
