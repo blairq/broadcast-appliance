@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "medios/Playlist.hpp"
+#include "i18n/I18n.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "platform/Paths.hpp"
@@ -63,12 +64,12 @@ void Playlist::anotarAire() const {
 std::string Playlist::retomar() {
     std::ifstream f(ba::platform::stateDir() / "playlist-aire.json");
     const json j = json::parse(f, nullptr, false);
-    if (!j.is_object() || !j.value("reproduciendo", false)) return "no estaba sonando";
+    if (!j.is_object() || !j.value("reproduciendo", false)) return ba::i18n::traducir("medios", "no estaba sonando");
     const int i = j.value("indice", -1);
     // Si la lista cambió, el mismo ítem es el del mismo archivo.
     if (i < 0 || i >= static_cast<int>(items_.size()) ||
         items_[static_cast<size_t>(i)].value("archivo", std::string()) != j.value("archivo", std::string()))
-        return "la playlist cambió";
+        return ba::i18n::traducir("medios", "la playlist cambió");
     if (const std::string e = cargarItem(i); !e.empty()) return e;
     const double t = j.value("tiempo_s", 0.0);
     if (t > 1) {
@@ -79,14 +80,15 @@ std::string Playlist::retomar() {
 }
 
 std::string Playlist::setItems(const json& items) {
-    if (!items.is_array()) return "`items` tiene que ser una lista";
+    if (!items.is_array()) return ba::i18n::traducir("medios", "`items` tiene que ser una lista");
     json limpios = json::array();
     for (const auto& it : items) {
         json x = it.is_string() ? json{{"archivo", it}} : it;
         const std::string f = x.value("archivo", std::string());
-        if (f.empty() || !QFileInfo::exists(qs(f))) return "no existe el archivo «" + f + "»";
+        if (f.empty() || !QFileInfo::exists(qs(f))) return ba::i18n::llenar(ba::i18n::traducir("medios", "no existe el archivo «%1»"), {f});
         const double in = std::max(0.0, x.value("in_s", 0.0)), out = std::max(0.0, x.value("out_s", 0.0));
-        if (out > 0 && out <= in) return "en «" + f + "» el out tiene que ser mayor que el in";
+        if (out > 0 && out <= in)
+            return ba::i18n::llenar(ba::i18n::traducir("medios", "en «%1» el out tiene que ser mayor que el in"), {f});
         limpios.push_back({{"archivo", f},
                            {"nombre", x.value("nombre", QFileInfo(qs(f)).completeBaseName().toStdString())},
                            {"in_s", in},
@@ -117,7 +119,8 @@ std::string Playlist::asegurarEscena() {
 }
 
 std::string Playlist::cargarItem(int i) {
-    if (i < 0 || i >= static_cast<int>(items_.size())) return "no hay un ítem " + std::to_string(i + 1);
+    if (i < 0 || i >= static_cast<int>(items_.size()))
+        return ba::i18n::llenar(ba::i18n::traducir("medios", "no hay un ítem %1"), {std::to_string(i + 1)});
     if (const std::string e = asegurarEscena(); !e.empty()) return e;
     const json& it = items_[static_cast<size_t>(i)];
     const std::string ajustes = json{{"is_local_file", true},
@@ -144,7 +147,7 @@ std::string Playlist::cargarItem(int i) {
 }
 
 std::string Playlist::control(const std::string& accion, int indice) {
-    if (items_.empty()) return "la playlist está vacía";
+    if (items_.empty()) return ba::i18n::traducir("medios", "la playlist está vacía");
     if (accion == "play") return cargarItem(indice >= 0 ? indice : std::max(0, indice_));
     if (accion == "next") {
         int n = indice_ + 1;
@@ -156,7 +159,8 @@ std::string Playlist::control(const std::string& accion, int indice) {
     }
     if (accion == "prev") return cargarItem(std::max(0, indice_ - 1));
     if (accion == "ir") { // `indice` = segundo del clip actual
-        if (!rt_.engine().seekMedia(kFuente, static_cast<std::int64_t>(std::max(0, indice)) * 1000)) return "no hay medio";
+        if (!rt_.engine().seekMedia(kFuente, static_cast<std::int64_t>(std::max(0, indice)) * 1000))
+            return ba::i18n::traducir("medios", "no hay medio");
         return {};
     }
     if (accion == "stop") {
@@ -167,7 +171,7 @@ std::string Playlist::control(const std::string& accion, int indice) {
         emit estadoCambio();
         return {};
     }
-    return "acción: play, next, prev, stop o ir";
+    return ba::i18n::traducir("medios", "acción: play, next, prev, stop o ir");
 }
 
 void Playlist::vigilar() {
@@ -246,7 +250,7 @@ QString Playlist::agregarVariosUi(const QStringList& archivos) {
 }
 
 QString Playlist::quitarUi(int indice) {
-    if (indice < 0 || indice >= static_cast<int>(items_.size())) return "no hay ese ítem";
+    if (indice < 0 || indice >= static_cast<int>(items_.size())) return tr("no hay ese ítem");
     json nuevos = items_;
     nuevos.erase(nuevos.begin() + indice);
     if (indice_ == indice) control("stop");
@@ -255,7 +259,7 @@ QString Playlist::quitarUi(int indice) {
 
 QString Playlist::moverUi(int indice, int destino) {
     const int n = static_cast<int>(items_.size());
-    if (indice < 0 || indice >= n || destino < 0 || destino >= n) return "fuera de la lista";
+    if (indice < 0 || indice >= n || destino < 0 || destino >= n) return tr("fuera de la lista");
     json nuevos = items_;
     const json x = nuevos[static_cast<size_t>(indice)];
     nuevos.erase(nuevos.begin() + indice);

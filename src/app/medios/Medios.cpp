@@ -2,6 +2,8 @@
 // src/app/medios/Medios.cpp — ver Medios.hpp
 // ============================================================================
 #include "medios/Medios.hpp"
+
+#include <QCoreApplication>
 #include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
@@ -198,15 +200,15 @@ namespace {
 bool aptoParaTocar(const QString& raiz, const QString& queRel, QString* error, QString& abs) {
     abs = resolverAdentro(raiz, queRel);
     if (abs.isEmpty()) {
-        if (error) *error = "esa ruta se sale de la carpeta del sistema";
+        if (error) *error = QCoreApplication::translate("medios", "esa ruta se sale de la carpeta del sistema");
         return false;
     }
     if (!QFileInfo::exists(abs)) {
-        if (error) *error = "no existe: " + queRel;
+        if (error) *error = QCoreApplication::translate("medios", "no existe: %1").arg(queRel);
         return false;
     }
     if (carpetas().contains(QDir::cleanPath(queRel))) {
-        if (error) *error = "«" + queRel + "» es una carpeta del sistema: no se mueve ni se borra";
+        if (error) *error = QCoreApplication::translate("medios", "«%1» es una carpeta del sistema: no se mueve ni se borra").arg(queRel);
         return false;
     }
     return true;
@@ -232,19 +234,19 @@ bool mover(const QString& raiz, const QString& queRel, const QString& destinoRel
     if (!aptoParaTocar(raiz, queRel, error, abs)) return false;
     const QString dest = resolverAdentro(raiz, destinoRel);
     if (dest.isEmpty() || !QFileInfo(dest).isDir()) {
-        if (error) *error = "el destino no es una carpeta: " + destinoRel;
+        if (error) *error = QCoreApplication::translate("medios", "el destino no es una carpeta: %1").arg(destinoRel);
         return false;
     }
     // Una carpeta adentro de si misma desaparece del arbol y se lleva lo que
     // tenia: el sistema de archivos lo permite y nadie lo quiso hacer nunca.
     if (QFileInfo(abs).isDir() && (dest == abs || dest.startsWith(abs + "/"))) {
-        if (error) *error = "no se puede mover una carpeta adentro de si misma";
+        if (error) *error = QCoreApplication::translate("medios", "no se puede mover una carpeta adentro de si misma");
         return false;
     }
     if (QFileInfo(abs).dir().absolutePath() == dest) return true; // ya estaba ahi
     const QString destino = dest + "/" + libre(dest, QFileInfo(abs).fileName());
     if (!QDir().rename(abs, destino)) {
-        if (error) *error = "no se pudo mover (¿permisos?)";
+        if (error) *error = QCoreApplication::translate("medios", "no se pudo mover (¿permisos?)");
         return false;
     }
     return true;
@@ -255,20 +257,20 @@ bool crearCarpeta(const QString& raiz, const QString& padreRel, const QString& n
     // Un nombre con barra crearia dos carpetas de una y el operador vería una
     // sola: mejor decirlo que adivinar cual quiso.
     if (limpio.isEmpty() || limpio.contains('/') || limpio.contains('\\') || limpio.startsWith('.')) {
-        if (error) *error = "nombre de carpeta no valido";
+        if (error) *error = QCoreApplication::translate("medios", "nombre de carpeta no valido");
         return false;
     }
     const QString padre = resolverAdentro(raiz, padreRel);
     if (padre.isEmpty() || !QFileInfo(padre).isDir()) {
-        if (error) *error = "no existe la carpeta " + padreRel;
+        if (error) *error = QCoreApplication::translate("medios", "no existe la carpeta %1").arg(padreRel);
         return false;
     }
     if (QFileInfo::exists(padre + "/" + limpio)) {
-        if (error) *error = "ya hay algo llamado «" + limpio + "» ahi";
+        if (error) *error = QCoreApplication::translate("medios", "ya hay algo llamado «%1» ahi").arg(limpio);
         return false;
     }
     if (!QDir(padre).mkdir(limpio)) {
-        if (error) *error = "no se pudo crear (¿permisos?)";
+        if (error) *error = QCoreApplication::translate("medios", "no se pudo crear (¿permisos?)");
         return false;
     }
     return true;
@@ -279,16 +281,16 @@ bool renombrar(const QString& raiz, const QString& queRel, const QString& nombre
     if (!aptoParaTocar(raiz, queRel, error, abs)) return false;
     const QString limpio = nombre.trimmed();
     if (limpio.isEmpty() || limpio.contains('/') || limpio.contains('\\') || limpio.startsWith('.')) {
-        if (error) *error = "nombre no valido";
+        if (error) *error = QCoreApplication::translate("medios", "nombre no valido");
         return false;
     }
     const QString dir = QFileInfo(abs).dir().absolutePath();
     if (QFileInfo::exists(dir + "/" + limpio) && dir + "/" + limpio != abs) {
-        if (error) *error = "ya hay algo llamado «" + limpio + "» ahi";
+        if (error) *error = QCoreApplication::translate("medios", "ya hay algo llamado «%1» ahi").arg(limpio);
         return false;
     }
     if (!QDir().rename(abs, dir + "/" + limpio)) {
-        if (error) *error = "no se pudo renombrar (¿permisos?)";
+        if (error) *error = QCoreApplication::translate("medios", "no se pudo renombrar (¿permisos?)");
         return false;
     }
     return true;
@@ -299,11 +301,11 @@ bool aPapelera(const QString& raiz, const QString& queRel, QString* error) {
     if (!aptoParaTocar(raiz, queRel, error, abs)) return false;
     const QString papelera = raiz + "/Papelera";
     if (!QDir().mkpath(papelera)) {
-        if (error) *error = "no se pudo crear la papelera";
+        if (error) *error = QCoreApplication::translate("medios", "no se pudo crear la papelera");
         return false;
     }
     if (!QDir().rename(abs, papelera + "/" + libre(papelera, QFileInfo(abs).fileName()))) {
-        if (error) *error = "no se pudo mover a la papelera (¿permisos?)";
+        if (error) *error = QCoreApplication::translate("medios", "no se pudo mover a la papelera (¿permisos?)");
         return false;
     }
     return true;
