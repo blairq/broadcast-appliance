@@ -3,6 +3,8 @@
 // ============================================================================
 #include "pantallas/Buscar.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cstring>
@@ -27,8 +29,8 @@ bool sePuedeBuscar() { return false; }
 
 std::vector<Encontrado> buscar(int, std::string* error) {
     if (error != nullptr)
-        *error = "Este programa se compiló sin búsqueda en la red (mDNS): agregá el televisor a mano "
-                 "poniendo su dirección IP.";
+        *error = ba::i18n::traducir("pantallas", "Este programa se compiló sin búsqueda en la red (mDNS): agregá el televisor "
+                                                 "a mano poniendo su dirección IP.");
     return {};
 }
 
@@ -233,8 +235,8 @@ std::vector<Encontrado> buscar(int segundos, std::string* error) {
         // El 5353 está tomado (en la Mac, siempre: es del sistema): la pregunta unicast heredada.
         if (!buscarUnicast(segundos, b)) {
             if (error != nullptr)
-                *error = "No pude buscar en la red (¿el firewall bloquea el mDNS?): agregá el televisor a mano "
-                         "con su dirección IP.";
+                *error = ba::i18n::traducir("pantallas", "No pude buscar en la red (¿el firewall bloquea el mDNS?): agregá el "
+                                                         "televisor a mano con su dirección IP.");
             return {};
         }
     } else {
@@ -247,7 +249,7 @@ std::vector<Encontrado> buscar(int segundos, std::string* error) {
     if (r < 0 && b.porServicio.empty()) {
         char buf[128] = {0};
         mdns_strerror(r, buf, sizeof(buf));
-        if (error != nullptr) *error = std::string("La búsqueda en la red falló: ") + buf;
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("pantallas", "La búsqueda en la red falló: %1"), {buf});
         return {};
     }
 

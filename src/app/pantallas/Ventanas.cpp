@@ -6,6 +6,7 @@
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Monitores.hpp"
 
+#include <QCoreApplication>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -140,15 +141,17 @@ QString VentanasModel::validar(QStringList& cosas) const {
         if (t.isEmpty() || limpias.contains(t)) continue;
         if (catalogo_ != nullptr) {
             const CatalogoVisible::Cosa* cosa = catalogo_->buscar(t);
-            if (cosa == nullptr) return "No hay nada que se llame «" + t + "» en lo que se puede mostrar.";
+            if (cosa == nullptr)
+                return QCoreApplication::translate("pantallas", "No hay nada que se llame «%1» en lo que se puede mostrar.").arg(t);
             if (cosa->dibujo.isEmpty())
-                return "«" + cosa->titulo + "» no se puede mostrar en una ventana (solo en una TV de la red).";
+                return QCoreApplication::translate("pantallas", "«%1» no se puede mostrar en una ventana (solo en una TV de la red).")
+                    .arg(cosa->titulo);
         }
         limpias << t;
     }
-    if (limpias.isEmpty()) return QStringLiteral("Elegí qué mostrar.");
+    if (limpias.isEmpty()) return QCoreApplication::translate("pantallas", "Elegí qué mostrar.");
     if (limpias.size() > kMaxCosas)
-        return "Como mucho " + QString::number(kMaxCosas) + " cosas en una ventana: más ya no se leen.";
+        return QCoreApplication::translate("pantallas", "Como mucho %1 cosas en una ventana: más ya no se leen.").arg(kMaxCosas);
     cosas = limpias;
     return {};
 }
@@ -231,7 +234,7 @@ QStringList VentanasModel::afuera() const {
 
 QString VentanasModel::setCosas(int id, const QStringList& pedidas) {
     const int r = filaDe(id);
-    if (r < 0) return QStringLiteral("No hay una ventana con ese id.");
+    if (r < 0) return QCoreApplication::translate("pantallas", "No hay una ventana con ese id.");
     QStringList cosas = pedidas;
     if (const QString e = validar(cosas); !e.isEmpty()) return e;
     FilaVentana& f = filas_[static_cast<std::size_t>(r)];

@@ -5,6 +5,7 @@
 
 #include "pantallas/Catalogo.hpp"
 
+#include <QCoreApplication>
 #include <QFile>
 #include <QGuiApplication>
 #include <QJsonArray>
@@ -260,22 +261,24 @@ void MonitoresModel::tocada(int fila) {
 
 QString MonitoresModel::asignar(const QString& id, const QStringList& cosas, bool pantallaCompleta) {
     const int r = filaDe(id);
-    if (r < 0) return QStringLiteral("No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas.");
+    if (r < 0) return QCoreApplication::translate("pantallas", "No conozco ese monitor: los que hay salen en la lista de Pantallas conectadas.");
     QStringList limpias;
     for (const QString& c : cosas) {
         const QString t = c.trimmed();
         if (t.isEmpty() || limpias.contains(t)) continue;
         if (catalogo_ != nullptr) {
             const CatalogoVisible::Cosa* cosa = catalogo_->buscar(t);
-            if (cosa == nullptr) return "No hay nada que se llame «" + t + "» en lo que se puede mostrar.";
+            if (cosa == nullptr)
+                return QCoreApplication::translate("pantallas", "No hay nada que se llame «%1» en lo que se puede mostrar.").arg(t);
             if (cosa->dibujo.isEmpty())
-                return "«" + cosa->titulo + "» no se puede mostrar en un monitor (solo en una TV de la red).";
+                return QCoreApplication::translate("pantallas", "«%1» no se puede mostrar en un monitor (solo en una TV de la red).")
+                    .arg(cosa->titulo);
         }
         limpias << t;
     }
-    if (limpias.isEmpty()) return QStringLiteral("Elegí qué mostrar (para dejarlo vacío, «Quitar»).");
+    if (limpias.isEmpty()) return QCoreApplication::translate("pantallas", "Elegí qué mostrar (para dejarlo vacío, «Quitar»).");
     if (limpias.size() > kMaxCosas)
-        return "Como mucho " + QString::number(kMaxCosas) + " cosas en un monitor: más ya no se leen.";
+        return QCoreApplication::translate("pantallas", "Como mucho %1 cosas en un monitor: más ya no se leen.").arg(kMaxCosas);
     Fila& f = filas_[static_cast<std::size_t>(r)];
     if (f.cosas == limpias && f.pantallaCompleta == pantallaCompleta) return {};
     f.cosas = limpias;
@@ -286,7 +289,7 @@ QString MonitoresModel::asignar(const QString& id, const QStringList& cosas, boo
 
 QString MonitoresModel::setPantallaCompleta(const QString& id, bool si) {
     const int r = filaDe(id);
-    if (r < 0) return QStringLiteral("No conozco ese monitor.");
+    if (r < 0) return QCoreApplication::translate("pantallas", "No conozco ese monitor.");
     Fila& f = filas_[static_cast<std::size_t>(r)];
     if (f.pantallaCompleta == si) return {};
     f.pantallaCompleta = si;
@@ -296,7 +299,7 @@ QString MonitoresModel::setPantallaCompleta(const QString& id, bool si) {
 
 QString MonitoresModel::quitar(const QString& id) {
     const int r = filaDe(id);
-    if (r < 0) return QStringLiteral("No conozco ese monitor.");
+    if (r < 0) return QCoreApplication::translate("pantallas", "No conozco ese monitor.");
     Fila& f = filas_[static_cast<std::size_t>(r)];
     if (!f.conectado) return olvidar(id); // sin nada y sin estar: no hay qué esperar
     if (f.cosas.isEmpty()) return {};
@@ -307,7 +310,7 @@ QString MonitoresModel::quitar(const QString& id) {
 
 QString MonitoresModel::olvidar(const QString& id) {
     const int r = filaDe(id);
-    if (r < 0) return QStringLiteral("No conozco ese monitor.");
+    if (r < 0) return QCoreApplication::translate("pantallas", "No conozco ese monitor.");
     if (filas_[static_cast<std::size_t>(r)].conectado) return quitar(id);
     beginRemoveRows({}, r, r);
     filas_.erase(filas_.begin() + r);
