@@ -36,7 +36,9 @@ Rectangle {
         { titulo: "Personas", secciones: ["Caras", "Tótems de registro"] },
         { titulo: "Control y pantallas", secciones: ["Botonera y superficies", "Teleprompter", "Pantallas", "Página del evento"] },
         // Las tres formas de sacar la conferencia a internet, cada una con su página.
-        { titulo: "Acceso desde internet", secciones: [page.pinggySection, "Cloudflare", "Túnel propio (WireGuard)"] },
+        // Cloudflare y el túnel propio (WireGuard) están escondidos hasta probarlos: el código y sus
+        // ajustes siguen, para volver a mostrarlos sumalos acá ("Cloudflare", "Túnel propio (WireGuard)").
+        { titulo: "Acceso desde internet", secciones: [page.pinggySection] },
         { titulo: "Asistente", secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
         { titulo: "Sistema", secciones: [page.aparienciaSection, "Plugins y descargas", "Dispositivos y drivers", page.systemSection] }
     ]

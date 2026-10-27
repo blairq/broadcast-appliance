@@ -113,7 +113,7 @@ Item {
                     }
                     MenuSeparator {}
                     MenuItem {
-                        text: "Configurar pinggy o Cloudflare…"
+                        text: "Configurar pinggy…"
                         onTriggered: { Studio.seccionConfig = "Pinggy"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
                     }
                 }

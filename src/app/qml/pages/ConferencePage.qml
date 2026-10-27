@@ -1130,6 +1130,9 @@ Rectangle {
                 // --- Acceso directo: HTTPS propio + tunel WireGuard -------------------
                 Panel {
                     id: direct
+                    // Escondido hasta probarlo (como Cloudflare y WireGuard en Configuración):
+                    // por ahora el acceso desde internet es pinggy.
+                    visible: false
                     Layout.fillWidth: true
                     Layout.preferredHeight: 196
                     title: "Acceso directo"
