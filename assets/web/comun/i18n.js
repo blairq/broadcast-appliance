@@ -12,7 +12,8 @@
 //   <input data-i18n-placeholder="Tu nombre">                          // BAi18n.aplicar()
 //
 // Qué idioma: ?idioma= en la URL, si no el que eligió esta persona en la página
-// (BAi18n.elegir, se recuerda en este navegador), si no según `preferir`:
+// (BAi18n.elegir, se recuerda en este navegador), si no según `preferir` (el del evento
+// es el que pasa la página o, si no, el del evento abierto, que manda el gateway):
 //   "navegador" (invitados, público remoto): el del navegador si lo hay, si no el del evento;
 //   "evento" (pantallas, presidencia): el del evento.
 // tools/i18n/extraer.py encuentra los t("…") y data-i18n="…" para el .ts.
@@ -92,7 +93,10 @@
     if (op.preferir) estado.preferir = op.preferir;
     try {
       const r = await fetch("/comun/i18n/idiomas.json", { cache: "no-cache" });
-      estado.idiomas = r.ok ? await r.json() : [];
+      const j = r.ok ? await r.json() : {};
+      estado.idiomas = j.idiomas || [];
+      // El del evento abierto, si la página no lo sabe por su cuenta.
+      if (!estado.evento && j.evento) estado.evento = j.evento;
     } catch (e) {
       estado.idiomas = [];
     }

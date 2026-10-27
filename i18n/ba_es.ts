@@ -1091,6 +1091,17 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     </message>
 </context>
 <context>
+    <name>Traductor</name>
+    <message numerus="yes">
+        <location filename="../src/app/agent/Traductor.cpp" line="+196"/>
+        <source>falta bajar %n paquete</source>
+        <translation>
+            <numerusform>falta bajar %n paquete</numerusform>
+            <numerusform>falta bajar %n paquetes</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>TwitchPage</name>
     <message numerus="yes">
         <location filename="../src/app/qml/pages/TwitchPage.qml" line="+36"/>
@@ -1144,7 +1155,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+461"/>
+        <location line="+463"/>
         <source>Maneja %n tarjeta: lo que ajustes acá cambia en todas.</source>
         <translation>
             <numerusform>Maneja %n tarjeta: lo que ajustes acá cambia en ella.</numerusform>
@@ -1206,6 +1217,77 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>
             <numerusform>%n comentario</numerusform>
             <numerusform>%n comentarios</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>qt</name>
+    <message numerus="yes">
+        <location filename="../src/app/arranque/Registrar.cpp" line="+62"/>
+        <source>el hilo de la interfaz perdió %n refresco de pantalla (display link) desde el aviso anterior</source>
+        <translation>
+            <numerusform>el hilo de la interfaz perdió %n refresco de pantalla (display link) desde el aviso anterior</numerusform>
+            <numerusform>el hilo de la interfaz perdió %n refrescos de pantalla (display link) desde el aviso anterior</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>web/board</name>
+    <message numerus="yes">
+        <location filename="../build/i18n-actualizar/cadenas-web.cpp" line="+19"/>
+        <source>%n en el lobby</source>
+        <translation>
+            <numerusform>%n en el lobby</numerusform>
+            <numerusform>%n en el lobby</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>web/evento</name>
+    <message numerus="yes">
+        <location line="+666"/>
+        <source>%n día</source>
+        <translation>
+            <numerusform>%n día</numerusform>
+            <numerusform>%n días</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+26"/>
+        <source>%n sección</source>
+        <translation>
+            <numerusform>%n sección</numerusform>
+            <numerusform>%n secciones</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+28"/>
+        <source>%n página</source>
+        <translation>
+            <numerusform>%n página</numerusform>
+            <numerusform>%n páginas</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>web/guest</name>
+    <message numerus="yes">
+        <location line="+150"/>
+        <source>Hay %n persona antes que vos.</source>
+        <translation>
+            <numerusform>Hay %n persona antes que vos.</numerusform>
+            <numerusform>Hay %n personas antes que vos.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>web/publico</name>
+    <message numerus="yes">
+        <location line="+616"/>
+        <source>%n voto</source>
+        <translation>
+            <numerusform>%n voto</numerusform>
+            <numerusform>%n votos</numerusform>
         </translation>
     </message>
 </context>

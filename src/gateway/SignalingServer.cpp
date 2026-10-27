@@ -1162,7 +1162,15 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                              {"fuente", p.fuente},
                              {"pseudo", p.pseudo},
                              {"cobertura", ba::i18n::cobertura(p.codigo).fraccion()}});
-            http::sendResponse(fd, 200, "application/json", l.dump());
+            // El idioma del evento abierto (lo manda la app con el estado de la página del
+            // evento): las páginas que no lo reciben por otro lado lo toman de acá.
+            std::string evento;
+            {
+                std::lock_guard<std::mutex> g(eventoWebM_);
+                const auto e = eventoWeb_.find("estado");
+                if (e != eventoWeb_.end() && e->is_object()) evento = e->value("idioma", std::string());
+            }
+            http::sendResponse(fd, 200, "application/json", nlohmann::json{{"idiomas", l}, {"evento", evento}}.dump());
             return;
         }
         if (rel.rfind("i18n/", 0) == 0) {

@@ -6,8 +6,9 @@ lupdate lee C++ y QML. Lo demás se marca así y sale de acá:
     `data-i18n="texto"` (el contenido), `data-i18n-placeholder`, `data-i18n-title`,
     `data-i18n-aria-label`. El contexto es `web/<interfaz>` (`web/comun` lo de todas).
 
-Cada texto sale como QT_TRANSLATE_NOOP("<contexto>", "<texto>"), así entra al mismo
-.ts que el resto y la traducción se hace en un solo lugar.
+Cada texto sale como QT_TRANSLATE_NOOP("<contexto>", "<texto>") (QT_TRANSLATE_N_NOOP si
+lleva %n: es un plural), así entra al mismo .ts que el resto y la traducción se hace en un
+solo lugar.
 
 Uso: tools/i18n/extraer.py <salida.cpp>
 """
@@ -81,7 +82,9 @@ def main() -> int:
             continue
         vistos.add((contexto, texto))
         lineas.append(f"// {f.relative_to(RAIZ).as_posix()}")
-        lineas.append(f"QT_TRANSLATE_NOOP({a_cpp(contexto)}, {a_cpp(texto)});")
+        # Con %n es un plural: lupdate lo marca numerus con la variante _N_.
+        macro = "QT_TRANSLATE_N_NOOP" if "%n" in texto else "QT_TRANSLATE_NOOP"
+        lineas.append(f"{macro}({a_cpp(contexto)}, {a_cpp(texto)});")
     pathlib.Path(sys.argv[1]).write_text("\n".join(lineas) + "\n", encoding="utf-8")
     print(f"[i18n] {len(vistos)} textos de la web")
     return 0
