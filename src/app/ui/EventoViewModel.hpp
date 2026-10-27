@@ -431,7 +431,8 @@ class EventoViewModel : public QObject {
     /// Saca (con su salida) los gráficos que puso el guion y «se van al avanzar»
     /// (títulos, placas): se llama antes de pasar a otra cue.
     void sacarAlAvanzar();
-    void anotar(const QString& texto, const QString& tipo);
+    /// A la bitácora de la página y, si `alRegistro`, al registro general (lo del ensayo no).
+    void anotar(const QString& texto, const QString& tipo, bool alRegistro = true);
     std::function<void(const std::string&, const nlohmann::json&, std::function<void(bool, const std::string&)>)>
         herramienta_;
     std::function<QVariantList()> chequeosAparato_;
