@@ -24,7 +24,7 @@ ColumnLayout {
     signal agregada(string nombre)
 
     Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-           text: "Micrófonos, líneas e interfaces de audio de esta máquina. Se escuchan en todas las escenas; su procesamiento se arma en la página Audio." }
+           text: qsTr("Micrófonos, líneas e interfaces de audio de esta máquina. Se escuchan en todas las escenas; su procesamiento se arma en la página Audio.") }
     RowLayout {
         Layout.fillWidth: true
         ComboBox {
@@ -35,22 +35,22 @@ ColumnLayout {
             valueRole: "value"
         }
         GlassButton { compact: true; text: "↻"; onClicked: agregar.inp.refresh()
-                      ToolTip.visible: hovered; ToolTip.text: "Buscar dispositivos de nuevo" }
+                      ToolTip.visible: hovered; ToolTip.text: qsTr("Buscar dispositivos de nuevo") }
     }
     // El nombre del sistema, si el operador le puso otro: para reconocerlo.
     Text {
         readonly property var elegido: micBox.currentIndex >= 0 ? agregar.inp.audioDevices[micBox.currentIndex] : null
         visible: !!elegido && elegido.propio
-        text: elegido ? "Del sistema: " + elegido.tecnico : ""
+        text: elegido ? qsTr("Del sistema: %1").arg(elegido.tecnico) : ""
         Layout.fillWidth: true; elide: Text.ElideRight
         color: Theme.textFaint; font.pixelSize: 11
     }
-    Text { visible: agregar.inp.audioDevices.length === 0; text: "No se encontraron entradas de audio."; color: Theme.textFaint; font.pixelSize: 12 }
+    Text { visible: agregar.inp.audioDevices.length === 0; text: qsTr("No se encontraron entradas de audio."); color: Theme.textFaint; font.pixelSize: 12 }
     RowLayout {
         Layout.fillWidth: true
-        TextField { id: micName; Layout.fillWidth: true; placeholderText: "Nombre (opcional: si no, el del dispositivo)" }
+        TextField { id: micName; Layout.fillWidth: true; placeholderText: qsTr("Nombre (opcional: si no, el del dispositivo)") }
         GlassButton {
-            text: "Agregar"; active: true; enabled: micBox.currentIndex >= 0
+            text: qsTr("Agregar"); active: true; enabled: micBox.currentIndex >= 0
             onClicked: {
                 const nombre = micName.text.trim() !== "" ? micName.text.trim() : agregar.inp.audioInputName(micBox.currentValue)
                 agregar.error = agregar.inp.addAudioInput(micBox.currentValue, micName.text)

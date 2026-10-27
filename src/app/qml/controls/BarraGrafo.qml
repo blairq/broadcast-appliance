@@ -88,7 +88,7 @@ Item {
         GlassButton {
             id: botonAgregar
             visible: barra.agregar.length > 0
-            compact: true; text: "+ Agregar"; active: menuAgregar.opened
+            compact: true; text: qsTr("+ Agregar"); active: menuAgregar.opened
             enabled: barra.puedeAgregar
             onClicked: menuAgregar.opened ? menuAgregar.close() : menuAgregar.open()
             ToolTip.visible: hovered && !barra.puedeAgregar && barra.porQueNoAgregar !== ""
@@ -156,7 +156,7 @@ Item {
         // No entran (panel de la derecha ancho, ventana chica): juntas en un menú.
         GlassButton {
             visible: barra.apretado && barra.acciones.length > 0
-            compact: true; text: "Herramientas ▾"; active: menuHerr.opened
+            compact: true; text: qsTr("Herramientas ▾"); active: menuHerr.opened
             onClicked: menuHerr.opened ? menuHerr.close() : menuHerr.open()
             Popup {
                 id: menuHerr
@@ -206,10 +206,10 @@ Item {
             spacing: 2
             Repeater {
                 model: [
-                    { t: "−", tip: "Alejar (Cmd + rueda)", f: () => barra.lienzo.acercar(1 / 1.2) },
-                    { t: barra.lienzo ? Math.round(barra.lienzo.escala * 100) + " %" : "", tip: "Tamaño real (100 %)", f: () => barra.lienzo.zoom = 1, ancho: 52 },
-                    { t: "+", tip: "Acercar (Cmd + rueda)", f: () => barra.lienzo.acercar(1.2) },
-                    { t: "Ajustar", tip: "Que entre todo a lo ancho", f: () => barra.lienzo.zoom = barra.lienzo.escalaParaTodo || 0 }
+                    { t: "−", tip: qsTr("Alejar (Cmd + rueda)"), f: () => barra.lienzo.acercar(1 / 1.2) },
+                    { t: barra.lienzo ? Math.round(barra.lienzo.escala * 100) + " %" : "", tip: qsTr("Tamaño real (100 %)"), f: () => barra.lienzo.zoom = 1, ancho: 52 },
+                    { t: "+", tip: qsTr("Acercar (Cmd + rueda)"), f: () => barra.lienzo.acercar(1.2) },
+                    { t: qsTr("Ajustar"), tip: qsTr("Que entre todo a lo ancho"), f: () => barra.lienzo.zoom = barra.lienzo.escalaParaTodo || 0 }
                 ]
                 delegate: GlassButton {
                     required property var modelData
@@ -222,18 +222,18 @@ Item {
         }
         GlassButton {
             visible: barra.lienzo !== null
-            compact: true; text: "Grilla"; icon: "▦"
+            compact: true; text: qsTr("Grilla"); icon: "▦"
             active: !!barra.lienzo && barra.lienzo.grilla
             onClicked: barra.lienzo.grilla = !barra.lienzo.grilla
             ToolTip.visible: hovered; ToolTip.delay: 500
-            ToolTip.text: "Dejar la grilla a la vista (al mover una tarjeta aparece igual)"
+            ToolTip.text: qsTr("Dejar la grilla a la vista (al mover una tarjeta aparece igual)")
         }
         GlassButton {
             visible: barra.lienzo !== null
-            compact: true; text: "Ordenar"
+            compact: true; text: qsTr("Ordenar")
             onClicked: barra.lienzo.ordenar()
             ToolTip.visible: hovered; ToolTip.delay: 500
-            ToolTip.text: "Acomoda las tarjetas en la grilla siguiendo el orden de la cadena (no cambia ninguna conexión)"
+            ToolTip.text: qsTr("Acomoda las tarjetas en la grilla siguiendo el orden de la cadena (no cambia ninguna conexión)")
         }
 
         // --- Lo raro ----------------------------------------------------------------------
@@ -242,7 +242,7 @@ Item {
             visible: barra.mas.length > 0
             compact: true; text: "⋯"; active: menuMas.opened
             onClicked: menuMas.opened ? menuMas.close() : menuMas.open()
-            ToolTip.visible: hovered && !menuMas.opened; ToolTip.delay: 500; ToolTip.text: "Más"
+            ToolTip.visible: hovered && !menuMas.opened; ToolTip.delay: 500; ToolTip.text: qsTr("Más")
             Popup {
                 id: menuMas
                 y: parent.height + 6

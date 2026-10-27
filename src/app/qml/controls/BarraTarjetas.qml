@@ -33,7 +33,7 @@ Rectangle {
         // Qué se abre lo dice el catálogo: las que tienen su panel propio (más
         // completo que la tarjeta) van a ese; la PTZ, a la de la primera cámara.
         const id = Studio.catalogo.ventanaDeTarjeta(t.kind)
-        if (id === "") { Studio.notify(t.kind === "ptz" ? "No hay cámaras con PTZ" : "«" + t.titulo + "» no se abre en una ventana", "warn"); return }
+        if (id === "") { Studio.notify(t.kind === "ptz" ? qsTr("No hay cámaras con PTZ") : qsTr("«%1» no se abre en una ventana").arg(t.titulo), "warn"); return }
         w.sacar(id)
     }
     /// En el tablero (verde): se oculta; si no está, aparece donde estaba.
@@ -63,7 +63,7 @@ Rectangle {
         }
         ToolTip.visible: puntosMa.containsMouse && !barra.desplegada
         ToolTip.delay: 400
-        ToolTip.text: "Ver los nombres y abrir como tarjeta o como ventana"
+        ToolTip.text: qsTr("Ver los nombres y abrir como tarjeta o como ventana")
     }
 
     Flickable {
@@ -132,7 +132,8 @@ Rectangle {
                         Timer { id: unClic; interval: 240; onTriggered: barra.alternarTarjeta(fila.modelData) }
                         ToolTip.visible: ma.containsMouse && !barra.desplegada
                         ToolTip.delay: 250
-                        ToolTip.text: fila.modelData.titulo + (fila.modelData.abierta ? " — clic: ocultarla" : " — clic: mostrarla") + " · doble clic: en ventana"
+                        ToolTip.text: fila.modelData.abierta ? qsTr("%1 — clic: ocultarla · doble clic: en ventana").arg(fila.modelData.titulo)
+                                                      : qsTr("%1 — clic: mostrarla · doble clic: en ventana").arg(fila.modelData.titulo)
                     }
                     // Desplegada: el nombre y los dos botones.
                     Text {
@@ -144,12 +145,12 @@ Rectangle {
                     }
                     GlassButton {
                         visible: barra.desplegada
-                        compact: true; text: fila.modelData.abierta ? "Ocultar" : "Tarjeta"
+                        compact: true; text: fila.modelData.abierta ? qsTr("Ocultar") : qsTr("Tarjeta")
                         onClicked: barra.alternarTarjeta(fila.modelData)
                     }
                     GlassButton {
                         visible: barra.desplegada
-                        compact: true; text: "Ventana"; icon: "⧉"
+                        compact: true; text: qsTr("Ventana"); icon: "⧉"
                         onClicked: barra.abrirVentana(fila.modelData)
                     }
                 }

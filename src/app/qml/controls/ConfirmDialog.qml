@@ -11,8 +11,8 @@ import BA
 Dialog {
     id: dlg
     property string text: ""
-    property string acceptText: "Sí"
-    property string rejectText: "No"
+    property string acceptText: qsTr("Sí")
+    property string rejectText: qsTr("No")
     // Corre una sola vez y solo si el operador acepta. Se suelta al cerrar
     // (aceptando o no) para no retener closures de las paginas.
     property var action: null
@@ -24,8 +24,8 @@ Dialog {
         opts = opts || {}
         title = opts.title || ""
         text = opts.text || ""
-        acceptText = opts.accept || "Sí"
-        rejectText = opts.reject || "No"
+        acceptText = opts.accept || qsTr("Sí")
+        rejectText = opts.reject || qsTr("No")
         action = opts.action || null
         restante = Math.max(0, opts.espera || 0)
         cuenta.restart()
@@ -105,9 +105,8 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.text
                 font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
-                text: "● EL EVENTO ESTÁ CORRIENDO — " +
-                      (Studio.evento.actual.texto || Studio.evento.actual.tipo || "") +
-                      ". Lo que hagas ahora sale al aire."
+                text: qsTr("● EL EVENTO ESTÁ CORRIENDO — %1. Lo que hagas ahora sale al aire.")
+                      .arg(Studio.evento.actual.texto || Studio.evento.actual.tipo || "")
             }
         }
 
@@ -133,7 +132,7 @@ Dialog {
             // Accion de riesgo: en rojo y nunca con el foco inicial.
             DialogButton {
                 id: acceptBtn
-                text: dlg.restante > 0 ? dlg.acceptText + " (" + dlg.restante + ")" : dlg.acceptText
+                text: dlg.restante > 0 ? qsTr("%1 (%2)").arg(dlg.acceptText).arg(dlg.restante) : dlg.acceptText
                 enabled: dlg.restante <= 0
                 opacity: enabled ? 1 : 0.5
                 risky: true

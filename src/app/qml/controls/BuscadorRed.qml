@@ -32,10 +32,10 @@ Popup {
     readonly property var ficha: { tick; return red && sel !== "" ? red.fichaDe(sel) : ({}) }
     function estadoRtsp(e) {
         const rs = e.rtsp || []
-        if (rs.some(r => r.codigo === 200)) return { t: "se ve", c: Theme.ok }
-        if (rs.some(r => r.codigo === 401)) return { t: e.credenciales_guardadas ? "clave incorrecta?" : "pide clave", c: Theme.warn }
+        if (rs.some(r => r.codigo === 200)) return { t: qsTr("se ve"), c: Theme.ok }
+        if (rs.some(r => r.codigo === 401)) return { t: e.credenciales_guardadas ? qsTr("clave incorrecta?") : qsTr("pide clave"), c: Theme.warn }
         if (e.onvif) return { t: "ONVIF", c: Theme.accent }
-        return { t: rs.length ? "sin URL" : "—", c: Theme.textFaint }
+        return { t: rs.length ? qsTr("sin URL") : "—", c: Theme.textFaint }
     }
 
     RowLayout {
@@ -53,9 +53,9 @@ Popup {
             spacing: 8
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: "Equipos de video en la red"; color: Theme.text; Layout.fillWidth: true; font { pixelSize: 18; weight: Font.DemiBold } }
+                Text { text: qsTr("Equipos de video en la red"); color: Theme.text; Layout.fillWidth: true; font { pixelSize: 18; weight: Font.DemiBold } }
                 GlassButton {
-                    compact: true; text: bus.red && bus.red.escaneando ? "Buscando…" : "Buscar de nuevo"
+                    compact: true; text: bus.red && bus.red.escaneando ? qsTr("Buscando…") : qsTr("Buscar de nuevo")
                     enabled: bus.red && !bus.red.escaneando
                     onClicked: bus.red.escanear()
                 }
@@ -107,11 +107,11 @@ Popup {
                 Text {
                     anchors.centerIn: parent
                     visible: parent.count === 0
-                    text: bus.red && bus.red.escaneando ? "Buscando (unos segundos)…" : "Nada todavía: «Buscar de nuevo»."
+                    text: bus.red && bus.red.escaneando ? qsTr("Buscando (unos segundos)…") : qsTr("Nada todavía: «Buscar de nuevo».")
                     color: Theme.textDim; font.pixelSize: 13
                 }
             }
-            GlassButton { compact: true; text: "Cerrar"; onClicked: bus.close() }
+            GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: bus.close() }
         }
 
         // --- El equipo elegido -------------------------------------------------------------
@@ -126,7 +126,7 @@ Popup {
                 Text {
                     visible: !bus.actual
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
-                    text: "Elegí un equipo para ver qué es, guardar su usuario y clave, y conectarlo al estudio."
+                    text: qsTr("Elegí un equipo para ver qué es, guardar su usuario y clave, y conectarlo al estudio.")
                     color: Theme.textDim; font.pixelSize: 13
                 }
                 ColumnLayout {
@@ -140,9 +140,9 @@ Popup {
                     }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap
-                        text: bus.actual ? "Marca: " + bus.actual.marca.nombre + " (" + bus.actual.marca.porque + ")" +
-                                           (bus.actual.mac ? "\nMAC " + bus.actual.mac + " — " + (bus.actual.fabricante_mac || "fabricante desconocido") : "") +
-                                           "\nPuertos: " + (bus.actual.puertos || []).join(", ") : ""
+                        text: bus.actual ? qsTr("Marca: %1 (%2)").arg(bus.actual.marca.nombre).arg(bus.actual.marca.porque) +
+                                           (bus.actual.mac ? "\n" + qsTr("MAC %1 — %2").arg(bus.actual.mac).arg(bus.actual.fabricante_mac || qsTr("fabricante desconocido")) : "") +
+                                           "\n" + qsTr("Puertos: %1").arg((bus.actual.puertos || []).join(", ")) : ""
                         color: Theme.textDim; font.pixelSize: 12
                     }
                     Rectangle {
@@ -164,16 +164,16 @@ Popup {
                         }
                     }
                     // Usuario y clave.
-                    Text { text: "Usuario y clave" + (bus.actual && bus.actual.credenciales_guardadas ? " (guardados ✓)" : ""); color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+                    Text { text: bus.actual && bus.actual.credenciales_guardadas ? qsTr("Usuario y clave (guardados ✓)") : qsTr("Usuario y clave"); color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
                     RowLayout {
                         Layout.fillWidth: true
                         TextField { id: usr; Layout.preferredWidth: 160; placeholderText: bus.actual ? (bus.actual.usuario_de_fabrica || "admin") : "admin" }
-                        TextField { id: pwd; Layout.fillWidth: true; Layout.preferredWidth: 1; placeholderText: "Clave (o código de verificación)"; echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData }
+                        TextField { id: pwd; Layout.fillWidth: true; Layout.preferredWidth: 1; placeholderText: qsTr("Clave (o código de verificación)"); echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData }
                         GlassButton {
-                            compact: true; text: "Guardar y probar"; active: true
+                            compact: true; text: qsTr("Guardar y probar"); active: true
                             onClicked: {
                                 const e = bus.red.guardarCredenciales(bus.sel, usr.text !== "" ? usr.text : usr.placeholderText, pwd.text)
-                                guardarMsg.text = e === "" ? "Guardado (cifrado). Probando las URLs…" : e
+                                guardarMsg.text = e === "" ? qsTr("Guardado (cifrado). Probando las URLs…") : e
                                 if (e === "") pwd.text = ""
                             }
                         }
@@ -181,7 +181,7 @@ Popup {
                     Text { id: guardarMsg; visible: text !== ""; color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                     // La ficha y el plan.
                     RowLayout {
-                        GlassButton { text: "Analizar (ONVIF + GStreamer)"; onClicked: { bus.red.pedirFicha(bus.sel); fichaMsg.text = "Analizando (unos segundos)…" } }
+                        GlassButton { text: qsTr("Analizar (ONVIF + GStreamer)"); onClicked: { bus.red.pedirFicha(bus.sel); fichaMsg.text = qsTr("Analizando (unos segundos)…") } }
                         Text { id: fichaMsg; visible: text !== "" && !bus.ficha.plan; color: Theme.textDim; font.pixelSize: 11 }
                     }
                     Text {
@@ -192,7 +192,7 @@ Popup {
                     Text {
                         visible: !!bus.ficha.equipo
                         Layout.fillWidth: true; wrapMode: Text.WordWrap
-                        text: bus.ficha.equipo ? (bus.ficha.equipo.Manufacturer || "") + " " + (bus.ficha.equipo.Model || "") + " · firmware " + (bus.ficha.equipo.FirmwareVersion || "?") : ""
+                        text: bus.ficha.equipo ? qsTr("%1 %2 · firmware %3").arg(bus.ficha.equipo.Manufacturer || "").arg(bus.ficha.equipo.Model || "").arg(bus.ficha.equipo.FirmwareVersion || "?") : ""
                         color: Theme.textDim; font.pixelSize: 12
                     }
                     Repeater {
@@ -200,14 +200,14 @@ Popup {
                         delegate: Text {
                             required property var modelData
                             Layout.fillWidth: true; elide: Text.ElideRight
-                            text: "Perfil «" + (modelData.nombre || modelData.token) + "»: " + (modelData.ancho || "?") + "x" + (modelData.alto || "?") + " " + (modelData.codec || "") +
-                                  " a " + (modelData.fps || "?") + " fps" + (modelData.ptz ? " · PTZ" : "")
+                            text: qsTr("Perfil «%1»: %2x%3 %4 a %5 fps").arg(modelData.nombre || modelData.token).arg(modelData.ancho || "?").arg(modelData.alto || "?")
+                                      .arg(modelData.codec || "").arg(modelData.fps || "?") + (modelData.ptz ? " · PTZ" : "")
                             color: Theme.textDim; font.pixelSize: 12
                         }
                     }
                     Text {
                         visible: !!bus.ficha.ptz && bus.ficha.ptz.tiene
-                        text: bus.ficha.ptz ? "PTZ por ONVIF ✓" + (bus.ficha.ptz.presets ? " · " + bus.ficha.ptz.presets.length + " presets" : "") : ""
+                        text: bus.ficha.ptz ? qsTr("PTZ por ONVIF ✓") + (bus.ficha.ptz.presets ? " · " + qsTr("%n presets", "", bus.ficha.ptz.presets.length) : "") : ""
                         color: Theme.ok; font.pixelSize: 12
                     }
                     Rectangle {
@@ -218,7 +218,7 @@ Popup {
                         ColumnLayout {
                             id: planCol
                             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
-                            Text { text: "Cómo se va a conectar"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                            Text { text: qsTr("Cómo se va a conectar"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
                             Repeater {
                                 model: bus.ficha.plan ? bus.ficha.plan.pasos || [] : []
                                 delegate: Text { required property string modelData; Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "• " + modelData; color: Theme.textDim; font.pixelSize: 12 }
@@ -232,43 +232,43 @@ Popup {
                         visible: ya.length > 0
                         Layout.fillWidth: true
                         spacing: 6
-                        Text { text: "Ya está en el estudio"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+                        Text { text: qsTr("Ya está en el estudio"); color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
                         Repeater {
                             model: yaCol.ya
                             delegate: ColumnLayout {
                                 required property var modelData
                                 Layout.fillWidth: true
                                 spacing: 4
-                                Text { text: "«" + modelData.entrada + "»"; color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true; Layout.preferredWidth: 1; elide: Text.ElideRight }
+                                Text { text: qsTr("«%1»").arg(modelData.entrada); color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true; Layout.preferredWidth: 1; elide: Text.ElideRight }
                                 Flow {
                                 Layout.fillWidth: true
                                 spacing: 6
                                 GlassButton {
-                                    compact: true; text: "Configurar su PTZ"
-                                    onClicked: { const e = bus.red.ptzDesdeUi(bus.sel, modelData.entrada); agregarMsg.text = e === "" ? "PTZ configurado: se mueve desde Cámaras PTZ." : e }
+                                    compact: true; text: qsTr("Configurar su PTZ")
+                                    onClicked: { const e = bus.red.ptzDesdeUi(bus.sel, modelData.entrada); agregarMsg.text = e === "" ? qsTr("PTZ configurado: se mueve desde Cámaras PTZ.") : e }
                                     ToolTip.visible: hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Con la clave ONVIF ya guardada (después de cargarla y de «Analizar»)"
+                                    ToolTip.text: qsTr("Con la clave ONVIF ya guardada (después de cargarla y de «Analizar»)")
                                 }
                                 ComboBox { id: otraEscena; width: 170; model: bus.escenas }
                                 GlassButton {
-                                    compact: true; text: "Sumar a esa escena"
-                                    onClicked: { const e = bus.red.reusarDesdeUi(bus.sel, otraEscena.currentText); agregarMsg.text = e === "" ? "Sumada a «" + otraEscena.currentText + "» (el mismo stream, no otro)." : e }
+                                    compact: true; text: qsTr("Sumar a esa escena")
+                                    onClicked: { const e = bus.red.reusarDesdeUi(bus.sel, otraEscena.currentText); agregarMsg.text = e === "" ? qsTr("Sumada a «%1» (el mismo stream, no otro).").arg(otraEscena.currentText) : e }
                                 }
                                 }
                             }
                         }
                     }
                     // Agregar.
-                    Text { text: yaCol.visible ? "Agregar otra vez (otro stream)" : "Agregar al estudio"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
+                    Text { text: yaCol.visible ? qsTr("Agregar otra vez (otro stream)") : qsTr("Agregar al estudio"); color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
                     RowLayout {
                         Layout.fillWidth: true
-                        TextField { id: nombreCam; Layout.fillWidth: true; Layout.preferredWidth: 1; placeholderText: bus.actual && bus.actual.onvif ? bus.actual.onvif.nombre : "Nombre de la entrada" }
+                        TextField { id: nombreCam; Layout.fillWidth: true; Layout.preferredWidth: 1; placeholderText: bus.actual && bus.actual.onvif ? bus.actual.onvif.nombre : qsTr("Nombre de la entrada") }
                         ComboBox { id: escenaCam; Layout.preferredWidth: 170; model: bus.escenas }
                         GlassButton {
-                            text: "Agregar"; active: true
+                            text: qsTr("Agregar"); active: true
                             onClicked: {
                                 const e = bus.red.agregarDesdeUi(bus.sel, nombreCam.text, escenaCam.currentText)
-                                agregarMsg.text = e === "" ? "Agregada: la conexión tarda unos segundos (Video → su grafo, y el PTZ si tiene)." : e
+                                agregarMsg.text = e === "" ? qsTr("Agregada: la conexión tarda unos segundos (Video → su grafo, y el PTZ si tiene).") : e
                             }
                         }
                     }
