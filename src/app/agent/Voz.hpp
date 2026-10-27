@@ -379,7 +379,7 @@ class Voz : public QObject {
     Contexto contexto_;
     std::function<bool()> asistenteGrande_;
     std::function<bool()> asistenteLocal_;
-    std::string sistemaArgs_; ///< las reglas para completar argumentos (datos/voz-argumentos.txt)
+    std::string sistemaArgs_; ///< las reglas para completar argumentos (assets/idiomas/<código>/voz-argumentos.txt)
     QVariantMap propuesta_;
     bool usarModeloLocal_ = true;
     bool vistaAsistente_ = false;

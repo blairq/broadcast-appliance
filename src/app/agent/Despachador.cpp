@@ -92,6 +92,16 @@ struct Despachador::Pendiente {
     QTimer* timer = nullptr;
 };
 
+namespace {
+/// Un disparador contado al agente (en el idioma del operador): su hora, el texto sin nada
+/// de invitados (llmText) y de qué regla y tipo viene.
+std::string lineaDeEvento(const json& ev) {
+    return ba::i18n::llenar(ba::i18n::traducir("asistente", "[%1] %2 (disparador %3, tipo %4)"),
+                            {hora(ev.value("atMs", std::int64_t{0})), ev.value("llmText", ev.value("text", "")),
+                             ev.value("ruleId", ""), ev.value("type", "")});
+}
+} // namespace
+
 Despachador::Despachador(Roles& roles, Motores motores, QObject* parent)
     : QObject(parent), roles_(roles), motores_(std::move(motores)) {}
 
@@ -119,9 +129,7 @@ bool Despachador::evento(const json& ev) {
 
     // Sin agrupacion: una corrida por evento, ya.
     if (rol->agruparMs <= 0 || rol->agruparMax <= 1) {
-        const std::string texto = "[" + hora(ev.value("atMs", std::int64_t{0})) + "] " +
-                                  ev.value("llmText", ev.value("text", "")) + " (disparador " +
-                                  ev.value("ruleId", "") + ", tipo " + tipo + ")";
+        const std::string texto = lineaDeEvento(ev);
         std::string err;
         if (encargar(rol->id, texto, "disparador:" + tipo, 0, &err).empty())
             registrar(diag::Nivel::Aviso, rol->id, ba::i18n::llenar(ba::i18n::traducir("agente", "no se pudo encargar: %1"), {err}));
@@ -151,9 +159,7 @@ void Despachador::lanzar(const std::string& rol) {
     if (it == agrupando_.end() || !it->second || it->second->eventos.empty()) return;
     std::string texto;
     for (const json& ev : it->second->eventos)
-        texto += "[" + hora(ev.value("atMs", std::int64_t{0})) + "] " +
-                 ev.value("llmText", ev.value("text", "")) + " (disparador " + ev.value("ruleId", "") +
-                 ", tipo " + ev.value("type", "") + ")\n";
+        texto += lineaDeEvento(ev) + "\n";
     const std::size_t n = it->second->eventos.size();
     it->second->eventos.clear();
     std::string err;
@@ -243,7 +249,7 @@ std::string Despachador::contextoPara(const std::string& rol) const {
         if (previos.size() >= static_cast<std::size_t>(kResumenesDeContexto)) break;
     }
     if (!previos.empty()) {
-        out += "Lo que paso antes hoy con tu rol (mas reciente primero):\n";
+        out += ba::i18n::traducir("asistente", "Lo que paso antes hoy con tu rol (mas reciente primero):") + "\n";
         for (const auto& p : previos)
             out += p + "\n";
         out += "\n";
@@ -263,7 +269,8 @@ void Despachador::lanzarAhora(Corrida& c) {
     l.modelo = QString::fromStdString(rol->modelo);
     l.prompt = QString::fromStdString(Roles::instrucciones(*rol));
     l.consola = rol->consola;
-    l.encargo = QString::fromStdString(contextoPara(c.rol) + "ENCARGO:\n" + c.encargo);
+    l.encargo = QString::fromStdString(contextoPara(c.rol) + ba::i18n::traducir("asistente", "ENCARGO:") + "\n" +
+                                       c.encargo);
     for (const std::string& f : c.adjuntos)
         l.adjuntos << QString::fromStdString(f);
     // El modelo local no es un programa: lo atiende la app (sin contexto ni

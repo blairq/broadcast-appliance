@@ -26,6 +26,7 @@
 
 #include "agent/ArgumentosLocales.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
 #if defined(BA_HAVE_CLAP)
@@ -1099,12 +1100,16 @@ void Voz::responder(int id, const QString& texto) {
 
 void Voz::contestarLectura(int id, const QString& frase, const QString& herramienta, const QString& datos) {
     // El mismo modelo local, sin prefijo: una oración para decir en voz alta.
+    // En el idioma del operador: el sistema y el pedido (las marcas <|im_start|>… son del modelo).
     const std::string texto =
-        "<|im_start|>system\nSos la voz del aparato de transmisión en vivo. Contestale al operador lo que "
-        "preguntó en UNA oración corta en castellano rioplatense, para decir en voz alta: sin listas, sin "
-        "símbolos, sin markdown. Usá solo los datos que te paso.<|im_end|>\n<|im_start|>user\nPregunta: «" +
-        frase.toStdString() + "»\nDatos (de " + herramienta.toStdString() +
-        "): " + datos.left(2500).toStdString() + "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
+        "<|im_start|>system\n" +
+        ba::i18n::traducir("asistente", "Sos la voz del aparato de transmisión en vivo. Contestale al operador lo que "
+                                        "preguntó en UNA oración corta en castellano rioplatense, para decir en voz alta: "
+                                        "sin listas, sin símbolos, sin markdown. Usá solo los datos que te paso.") +
+        "<|im_end|>\n<|im_start|>user\n" +
+        ba::i18n::llenar(ba::i18n::traducir("asistente", "Pregunta: «%1»\nDatos (de %2): %3"),
+                         {frase.toStdString(), herramienta.toStdString(), datos.left(2500).toStdString()}) +
+        "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
     bitacora(id, "modelo_pedido", {{"op", "generar"}, {"para", "contestar"}, {"prompt", texto}});
     const auto t0 = std::chrono::steady_clock::now();
     modelos_.generar(QString::fromStdString(texto), false, 60, {}, [this, id, t0](const nlohmann::json& j) {

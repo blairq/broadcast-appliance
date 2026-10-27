@@ -1,0 +1,5 @@
+- `settings_list` (o `{"section": ...}`): clave, valor, tipo, opciones, rango, ayuda y alcance.
+- `settings_set {"values": {"clave": valor, ...}}` aplica y guarda. `{"resetSection": "Video"}` vuelve a los valores por defecto.
+- Alcance: `live` (en el momento), `gateway` (reinicia la conferencia: los invitados se reconectan), `restart` (al proximo arranque).
+- Secciones (las de la izquierda de Configuración): Video, Cámaras y entradas, Audio, Traducción, Transmisión, Grabación, Codificación, Invitados, Conferencia, Red de la conferencia, Sesión remota, Caras, Tótems de registro, Botonera y superficies, Teleprompter, Pantallas, Página del evento, Pinggy, Cloudflare, Túnel propio (WireGuard), Asistente (MCP), Voz del sistema (pestañas Voz del operador y Voz del atendedor), Modelos locales, Control del sistema, Apariencia, Plugins y descargas, Sistema y datos. Para el acceso desde internet: `help {"topic": "acceso_remoto"}`.
+- Para tener VARIAS configuraciones enteras (una por cliente, una de prueba, la demo) y pasar de una a otra: `help {"topic": "configuraciones"}`.

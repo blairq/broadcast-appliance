@@ -3,7 +3,7 @@
 
 Para cada herramienta reactiva (datos/semillas-reactivas.json), N frases:
   1. elegir: ¿el modelo local elige la herramienta esperada?
-  2. argumentos: generar con las reglas de datos/voz-argumentos.txt y el
+  2. argumentos: generar con las reglas de assets/idiomas/es/voz-argumentos.txt y el
      estado real del aparato (por su MCP), y la misma validación que
      agent/ArgumentosLocales (nombres que existen, relativos, enum, requeridos);
   3. ejecución: SOLO las herramientas seguras (lectura, audio, escenas,
@@ -27,7 +27,7 @@ ap.add_argument("--modelo", default="BlairQ__broadcast-reactivo-qwen3.5-4b-mtp-u
 ap.add_argument("--por", type=int, default=3, help="frases por herramienta")
 ap.add_argument("--solo", default="", help="herramientas separadas por coma")
 ap.add_argument("--salida", default=os.path.join(RAIZ,"build","voz-banco.json"))
-ap.add_argument("--sistema", default=os.path.join(RAIZ,"datos","voz-argumentos.txt"))
+ap.add_argument("--sistema", default=os.path.join(RAIZ,"assets","idiomas","es","voz-argumentos.txt"))
 A=ap.parse_args()
 R=A.app; SYS=open(A.sistema).read(); POR=A.por; SALIDA=A.salida; SOLO=A.solo.split(",") if A.solo else None
 TOK=subprocess.run([R+"/bin/64bit/ba-mcp","--token"],capture_output=True,text=True).stdout.strip()

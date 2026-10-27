@@ -6,7 +6,7 @@
 //
 //   - el prompt: la herramienta, su esquema, el estado del aparato (escenas,
 //     fuentes, audio con su volumen, participantes, gráficos) y el pedido,
-//     con las reglas en datos/voz-argumentos.txt;
+//     con las reglas en assets/idiomas/<código>/voz-argumentos.txt;
 //   - la respuesta: el primer objeto JSON;
 //   - la validación: solo claves del esquema; los nombres, a uno que exista
 //     del tipo que maneja la herramienta (sin mayúsculas ni acentos, o el
@@ -28,7 +28,7 @@ namespace ba::app::agent::argumentos {
 
 using json = nlohmann::json;
 
-/// La parte que no cambia (las reglas): datos/voz-argumentos.txt.
+/// La parte que no cambia (las reglas): assets/idiomas/<código>/voz-argumentos.txt.
 std::string sistemaPorDefecto();
 
 /// La parte del estado que usa la herramienta (las escenas para las de
