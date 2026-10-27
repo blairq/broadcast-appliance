@@ -1,0 +1,123 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/icons/logo.png">
+    <img alt="Broadcast Appliance" src="assets/icons/logo-claro.png" width="480">
+  </picture>
+</p>
+
+[English](README.md) · **Español**
+
+# Broadcast Appliance
+
+Un estudio de transmisión en vivo todo en uno —switcher, mezclador de audio,
+videoconferencia, asambleas, gráficos, grabación y transmisión— que se maneja
+**hablándole a un asistente de IA**. Portable: todo lo que necesita viaja
+adentro de la carpeta, en Windows, macOS y Linux.
+
+[![CI](https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml/badge.svg)](https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B)
+[![Licencia](https://img.shields.io/badge/licencia-GPL--3.0-blue.svg)](#licencia)
+
+---
+
+## Inicio rápido
+
+1. **Bajá** el último release para tu sistema desde
+   **[Releases](https://github.com/blairq/broadcast-appliance/releases/latest)**:
+   `.zip` para Windows, `.tar.gz` para Linux, `.dmg` para macOS.
+2. **Descomprimilo y abrí `BroadcastAppliance`.** No se instala nada en el
+   sistema: el programa, sus datos y sus modelos viven en esa carpeta. En macOS
+   la app no está notarizada: la primera vez, clic derecho → **Abrir**.
+3. **Configurá el asistente.** En la página **Asistente** (✦ en el menú
+   lateral) elegí el agente y el modelo, y arrancalo. Después, en **Agentes**,
+   prendé los roles automáticos que quieras.
+4. **Preguntale todo.** «Armame un evento para mañana a las 19 con dos cámaras
+   y un invitado remoto», «transmitilo a YouTube», «¿por qué el invitado 3 se
+   escucha bajo?». El asistente de eventos arma el evento, lo configura, lo
+   corre con vos y te explica lo que le preguntes.
+
+<p align="center">
+  <img alt="La página Asistente: elegí el asistente de eventos y su modelo, y arrancalo" src="docs/img/quick-start-assistant.jpg" width="820">
+</p>
+
+> **No hay manual de ayuda, y es a propósito.** Todo se hace desde el asistente
+> de eventos: conoce cada parte del programa (más de 700 herramientas) y ve lo
+> que está en pantalla y al aire. Si no sabés cómo hacer algo, preguntale.
+
+---
+
+## Qué hace
+
+- **Eventos, de punta a punta.** Cada evento tiene sus escenas, su mezclador,
+  sus medios, su asamblea y su página web. Eventos nuevos desde cero, desde una
+  copia o desde una plantilla; un histórico de todo lo que se grabó y transmitió.
+- **Video.** Escenas y transiciones sobre un motor propio de GStreamer, cámaras
+  (USB, de red, NDI, PTZ con seguimiento de caras), gráficos animados,
+  teleprompter, códigos QR, multiview, superresolución con IA y unión de
+  cámaras en panorámica. Grabación y transmisión a YouTube, Twitch, Facebook o
+  cualquier servidor RTMP/SRT.
+- **Audio.** Un mezclador con grupos que se compactan y **un VCA por grupo**, un
+  rack de procesadores LSP por fuente, matriz de mezcla, loudness EBU R128,
+  calibración de sala, automezclador, PFL, AFV y sincronía con los labios.
+- **Conferencia.** Los invitados entran por WebRTC con un enlace: lobby
+  privado, chat, modo oradores con reloj, hasta 64 invitados.
+- **Asamblea.** Centrales de conferencia (Bosch DCN), integrantes remotos,
+  orden del día, debates y votación.
+- **Pantallas.** Los monitores de la máquina y los televisores de la red
+  (Chromecast), con lo que va en cada uno.
+- **Personas.** Reconocimiento de caras, padrón con acreditación y **tótems de
+  registro**: una TV o un celular con cámara donde la gente se registra
+  hablando con el asistente, muestra su documento (el código de barras, o el
+  dorso por OCR) y se saca la foto.
+- **Voz.** Dictado, subtítulos y traducción en vivo (Parakeet o Nemotron,
+  locales), voces sintéticas y el asistente contestando en voz alta.
+- **IA local.** Modelos de lenguaje y de visión locales (llama.cpp / MLX) para
+  que lo esencial ande sin internet; asistentes en línea (Claude, Gemini,
+  opencode, pi) cuando los quieras.
+- **Confiable.** Un supervisor que reinicia lo que falla sin cortar la
+  transmisión, y después de un corte de luz todo vuelve como estaba.
+
+---
+
+## Documentación
+
+| | |
+|---|---|
+| [Compilar, probar y empaquetar](docs/es/compilar.md) | Para quien desarrolla: requisitos, compilación, tests, CI y el paquete portable. |
+| [Arquitectura](docs/es/arquitectura.md) | Procesos, núcleo, estado de cada parte, estructura del repositorio, dependencias. |
+| [Configuración de referencia](docs/es/configuracion.md) | Lo que se puede ajustar a mano (normalmente lo hace el asistente). |
+| [Cómo funciona cada parte](docs/funciones/) | Un archivo por función. |
+| [Guía del invitado](docs/manual/guia-del-invitado.md) | Para quien entra a la conferencia. |
+| [`docs/`](docs/README.md) | Todo lo demás: planes, modelos locales, historia. |
+
+---
+
+## Compilar desde el código
+
+```bash
+git clone https://github.com/blairq/broadcast-appliance.git
+cd broadcast-appliance
+make deps      # las dependencias de terceros, fijadas (se bajan; nada en el sistema)
+make dev       # build de desarrollo
+make test      # la suite de tests C++
+```
+
+Los builds por plataforma, el paquete portable y los detalles están en
+[Compilar, probar y empaquetar](docs/es/compilar.md).
+
+---
+
+## Licencia
+
+El código propio del proyecto se distribuye bajo **GNU GPL-3.0** (ver
+[`LICENSE`](LICENSE)); el titular es **Jorge Ortega**. Las dependencias de
+terceros conservan sus licencias (mbedTLS Apache-2.0, nlohmann/json MIT,
+libsamplerate MIT, Argon2 CC0/Apache-2.0, CLAP MIT, LSP LGPL, entre otras; ver
+[Arquitectura → Dependencias](docs/es/arquitectura.md)).
+
+## Contribuir
+
+Antes de mandar cambios: `make build` tiene que compilar sin errores,
+`make test` tiene que pasar y también los chequeos del repositorio
+(`pytest -q` con `requirements-dev.txt`). Los detalles, en
+[Compilar, probar y empaquetar](docs/es/compilar.md).

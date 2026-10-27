@@ -10,23 +10,41 @@ from pathlib import Path
 
 import pytest
 
-REQUIRED_HEADINGS = ["Arquitectura", "Compilación", "Tests", "Dependencias"]
+# The README is short on purpose (English, with a Spanish twin): the long parts live
+# in docs/en and docs/es and the READMEs link them.
+REQUIRED_HEADINGS = {
+    "README.md": ["Quick start", "Documentation", "License"],
+    "README.es.md": ["Inicio rápido", "Documentación", "Licencia"],
+}
 
 
-def _readme(repo_root: Path) -> Path:
-    return repo_root / "README.md"
-
-
-@pytest.mark.parametrize("heading", REQUIRED_HEADINGS)
-def test_readme_contains_required_heading(repo_root: Path, heading: str) -> None:
-    """README.md must document the required top-level sections."""
-    readme = _readme(repo_root)
-    assert readme.is_file(), f"missing README.md: {readme}"
-    lines = readme.read_text(encoding="utf-8").splitlines()
+@pytest.mark.parametrize(
+    "readme,heading", [(r, h) for r, hs in REQUIRED_HEADINGS.items() for h in hs]
+)
+def test_readme_contains_required_heading(repo_root: Path, readme: str, heading: str) -> None:
+    """Each README must have the quick start, the documentation index and the license."""
+    path = repo_root / readme
+    assert path.is_file(), f"missing {readme}: {path}"
+    lines = path.read_text(encoding="utf-8").splitlines()
     heading_lines = [ln for ln in lines if ln.lstrip().startswith("#")]
     assert any(heading in ln for ln in heading_lines), (
-        f"required heading {heading!r} missing from README.md"
+        f"required heading {heading!r} missing from {readme}"
     )
+
+
+@pytest.mark.parametrize("readme", list(REQUIRED_HEADINGS))
+def test_readme_local_links_exist(repo_root: Path, readme: str) -> None:
+    """Every relative link in the READMEs (docs, images) must point to a real file."""
+    import re
+
+    text = (repo_root / readme).read_text(encoding="utf-8")
+    targets = re.findall(r'\]\(([^)\s#]+)', text) + re.findall(r'src="([^"#]+)"', text)
+    missing = [
+        t for t in targets
+        if not t.startswith(("http://", "https://", "mailto:"))
+        and not (repo_root / t).exists()
+    ]
+    assert not missing, f"{readme} links to missing files: {missing}"
 
 
 def test_docs_conf_py_exists(repo_root: Path) -> None:
