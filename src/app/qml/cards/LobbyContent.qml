@@ -53,16 +53,16 @@ Item {
         spacing: 8
         RowLayout {
             Layout.fillWidth: true
-            StatusPill { text: conf.online ? "Conferencia " + conf.room : "Sin conferencia"; dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
+            StatusPill { text: conf.online ? qsTr("Conferencia %1").arg(conf.room) : qsTr("Sin conferencia"); dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
             Item { Layout.fillWidth: true }
             Text {
                 visible: conf.online
-                text: (conf.maxGuests - conf.slotsFree) + "/" + conf.maxGuests + " adentro"
+                text: qsTr("%1/%2 adentro").arg(conf.maxGuests - conf.slotsFree).arg(conf.maxGuests)
                 color: Theme.textDim; font.pixelSize: 12
             }
         }
         Text {
-            text: conf.waiting.count === 0 ? "Nadie en el lobby" : (conf.waiting.count === 1 ? "1 persona espera" : conf.waiting.count + " personas esperan")
+            text: conf.waiting.count === 0 ? qsTr("Nadie en el lobby") : qsTr("%n persona espera", "", conf.waiting.count)
             color: conf.waiting.count > 0 ? Theme.accentSoft : Theme.textFaint
             font { pixelSize: 13; weight: conf.waiting.count > 0 ? Font.DemiBold : Font.Normal }
         }
@@ -90,7 +90,7 @@ Item {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 6 }
                     spacing: 6
                     Text { text: name; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
-                    GlassButton { text: "Admitir"; compact: true; active: true; activeColor: Theme.ok; onClicked: conf.admit(uid) }
+                    GlassButton { text: qsTr("Admitir"); compact: true; active: true; activeColor: Theme.ok; onClicked: conf.admit(uid) }
                     GlassButton { text: "✕"; compact: true; onClicked: conf.reject(uid) }
                 }
             }
@@ -98,10 +98,10 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Text {
-                text: conf.shares.count > 0 ? "📎 " + conf.shares.count + " archivo(s) compartido(s)" : ""
+                text: conf.shares.count > 0 ? qsTr("📎 %n archivo compartido", "", conf.shares.count) : ""
                 color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true
             }
-            GlassButton { text: "Abrir conferencia"; compact: true; onClicked: ApplicationWindow.window.showPage(2) }
+            GlassButton { text: qsTr("Abrir conferencia"); compact: true; onClicked: ApplicationWindow.window.showPage(2) }
         }
     }
 }

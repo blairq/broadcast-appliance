@@ -126,8 +126,8 @@ Item {
                 onClicked: Studio.armarEscena(parent.nombre)
                 onDoubleClicked: Studio.takeScene(parent.nombre) // corte directo
                 ToolTip.visible: containsMouse
-                ToolTip.text: parent.live ? "Está al aire"
-                                          : "Clic: armar para el TAKE\nDoble clic: cortar al aire ya"
+                ToolTip.text: parent.live ? qsTr("Está al aire")
+                                          : qsTr("Clic: armar para el TAKE\nDoble clic: cortar al aire ya")
                 ToolTip.delay: 600
             }
         }
@@ -149,7 +149,7 @@ Item {
                 Text {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
                     verticalAlignment: Text.AlignVCenter
-                    text: "AL AIRE · " + (Studio.currentScene || "—")
+                    text: qsTr("AL AIRE · %1").arg(Studio.currentScene || "—")
                     color: Theme.text; elide: Text.ElideRight
                     font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
                 }
@@ -163,18 +163,18 @@ Item {
                 Text {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
                     verticalAlignment: Text.AlignVCenter
-                    text: "ARMADA · " + (Studio.escenaArmada || "nada")
+                    text: qsTr("ARMADA · %1").arg(Studio.escenaArmada || qsTr("nada"))
                     color: Studio.escenaArmada !== "" ? Theme.text : Theme.textFaint
                     elide: Text.ElideRight
                     font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
                 }
             }
             GlassButton {
-                text: "TAKE"; active: true
+                text: qsTr("TAKE"); active: true
                 enabled: Studio.escenaArmada !== ""
                 onClicked: Studio.take()
                 ToolTip.visible: hovered
-                ToolTip.text: "Saca al aire la escena armada.\nLa que sale queda armada, para volver."
+                ToolTip.text: qsTr("Saca al aire la escena armada.\nLa que sale queda armada, para volver.")
             }
         }
 
@@ -219,9 +219,9 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Text { text: "Transición: " + Studio.transitionType; color: Theme.textFaint; font.pixelSize: 11 }
+            Text { text: qsTr("Transición: %1").arg(Studio.transitionType); color: Theme.textFaint; font.pixelSize: 11 }
             Item { Layout.fillWidth: true }
-            GlassButton { text: "Editar"; compact: true; onClicked: ApplicationWindow.window.showPage(1) }
+            GlassButton { text: qsTr("Editar"); compact: true; onClicked: ApplicationWindow.window.showPage(1) }
         }
     }
 }

@@ -28,7 +28,7 @@ Item {
     Text {
         visible: contenido.status === Loader.Error
         anchors.centerIn: parent
-        text: "Esta tarjeta no se pudo abrir en una ventana."
+        text: qsTr("Esta tarjeta no se pudo abrir en una ventana.")
         color: Theme.textDim; font.pixelSize: 12
     }
 }

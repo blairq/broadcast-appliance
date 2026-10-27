@@ -25,6 +25,10 @@ Item {
     /// Lo pone en true VentanaSuelta: ya está en su ventana, no ofrece sacarlo
     /// de nuevo.
     property bool enVentana: false
+    // De dónde llegó: la clave viaja al gateway (en español); acá, la etiqueta.
+    readonly property var origenes: [ { t: qsTr("sala"), v: "sala" }, { t: qsTr("público"), v: "publico" },
+                                      { t: "YouTube", v: "youtube" }, { t: "Twitch", v: "twitch" }, { t: "Facebook", v: "facebook" } ]
+    function origen(v) { const o = origenes.find(x => x.v === v); return o ? o.t : v }
 
     // Prende la consulta al gateway mientras se ve, y la apaga al irse: si no,
     // el aparato le preguntaría cada dos segundos para siempre.
@@ -41,10 +45,9 @@ Item {
         Text {
             text: {
                 const r = raiz.pub.recuento
-                if (!raiz.pub.enLinea) return "Sin conexión con el servidor"
+                if (!raiz.pub.enLinea) return qsTr("Sin conexión con el servidor")
                 if (!r || r.total === undefined) return "…"
-                return r.nuevas + " sin mirar · " + r.elegidas + " en la cola · " +
-                       r.respondidas + " respondidas"
+                return qsTr("%1 sin mirar · %2 en la cola · %3 respondidas").arg(r.nuevas).arg(r.elegidas).arg(r.respondidas)
             }
             color: raiz.pub.enLinea ? Theme.textDim : Theme.live
             font.pixelSize: 12
@@ -54,27 +57,27 @@ Item {
             compact: true
             visible: !raiz.enVentana
             text: "⧉"
-            onClicked: ApplicationWindow.window.sacarPanel("preguntas", "Preguntas")
+            onClicked: ApplicationWindow.window.sacarPanel("preguntas", qsTr("Preguntas"))
             ToolTip.visible: hovered
             ToolTip.delay: 400
-            ToolTip.text: "Sacar a su propia ventana, para mandarla a otro monitor"
+            ToolTip.text: qsTr("Sacar a su propia ventana, para mandarla a otro monitor")
         }
         GlassButton {
             compact: true
-            text: "Sumar una"
+            text: qsTr("Sumar una")
             onClicked: sumarDlg.open()
             ToolTip.visible: hovered
             ToolTip.delay: 400
-            ToolTip.text: "Meter en la cola una que llegó por el chat o que dijeron a viva voz"
+            ToolTip.text: qsTr("Meter en la cola una que llegó por el chat o que dijeron a viva voz")
         }
         GlassButton {
             compact: true
-            text: "Limpiar"
+            text: qsTr("Limpiar")
             enabled: raiz.pub.recuento && (raiz.pub.recuento.respondidas + raiz.pub.recuento.descartadas) > 0
             onClicked: raiz.pub.moderar("limpiar")
             ToolTip.visible: hovered
             ToolTip.delay: 400
-            ToolTip.text: "Saca las respondidas y las descartadas; no toca las que esperan"
+            ToolTip.text: qsTr("Saca las respondidas y las descartadas; no toca las que esperan")
         }
     }
 
@@ -130,18 +133,17 @@ Item {
                     RowLayout {
                         spacing: 8
                         Text {
-                            text: (fila.modelData.nombre || "Anónimo") + " · " +
-                                  fila.modelData.deDonde + " · " + fila.modelData.votos +
-                                  (fila.modelData.votos === 1 ? " voto" : " votos")
+                            text: (fila.modelData.nombre || qsTr("Anónimo")) + " · " +
+                                  raiz.origen(fila.modelData.deDonde) + " · " + qsTr("%n voto", "", fila.modelData.votos)
                             color: Theme.textFaint
                             font.pixelSize: 11
                         }
                         Text {
                             visible: fila.modelData.estado !== "nueva"
-                            text: fila.modelData.estado === "al_aire" ? "AL AIRE"
-                                : fila.modelData.estado === "elegida" ? "EN LA COLA"
-                                : fila.modelData.estado === "respondida" ? "respondida"
-                                                                         : "descartada"
+                            text: fila.modelData.estado === "al_aire" ? qsTr("AL AIRE")
+                                : fila.modelData.estado === "elegida" ? qsTr("EN LA COLA")
+                                : fila.modelData.estado === "respondida" ? qsTr("respondida")
+                                                                         : qsTr("descartada")
                             color: fila.modelData.estado === "al_aire" ? Theme.live
                                  : fila.modelData.estado === "elegida" ? Theme.ok
                                                                        : Theme.textFaint
@@ -153,19 +155,19 @@ Item {
                 GlassButton {
                     compact: true
                     visible: fila.modelData.estado === "nueva"
-                    text: "A la cola"
+                    text: qsTr("A la cola")
                     onClicked: raiz.pub.moderar("elegir", fila.modelData.id)
                 }
                 GlassButton {
                     compact: true
                     visible: fila.modelData.estado === "elegida" || fila.modelData.estado === "nueva"
-                    text: "Al aire"
+                    text: qsTr("Al aire")
                     onClicked: raiz.pub.moderar("al_aire", fila.modelData.id)
                 }
                 GlassButton {
                     compact: true
                     visible: fila.modelData.estado === "al_aire"
-                    text: "Respondida"
+                    text: qsTr("Respondida")
                     onClicked: raiz.pub.moderar("responder", fila.modelData.id)
                 }
                 GlassButton {
@@ -175,7 +177,7 @@ Item {
                     onClicked: raiz.pub.moderar("descartar", fila.modelData.id)
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Descartarla: el que la mandó lo ve, los demás no"
+                    ToolTip.text: qsTr("Descartarla: el que la mandó lo ve, los demás no")
                 }
             }
         }
@@ -191,8 +193,8 @@ Item {
             color: Theme.textFaint
             font.pixelSize: 12
             text: raiz.pub.enLinea
-                  ? "Todavía no preguntó nadie. El QR de la página del público es por donde entran."
-                  : "No puedo ver las preguntas: el servidor no responde."
+                  ? qsTr("Todavía no preguntó nadie. El QR de la página del público es por donde entran.")
+                  : qsTr("No puedo ver las preguntas: el servidor no responde.")
         }
     }
 
@@ -203,17 +205,17 @@ Item {
         anchors.centerIn: Overlay.overlay
         width: 460
         modal: true
-        title: "Sumar una pregunta a la cola"
+        title: qsTr("Sumar una pregunta a la cola")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: { qTexto.text = ""; qNombre.text = "" }
-        onAccepted: raiz.pub.sumar(qTexto.text, qNombre.text, qDonde.currentText)
+        onAccepted: raiz.pub.sumar(qTexto.text, qNombre.text, qDonde.currentValue)
         ColumnLayout {
             spacing: 8
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "Para lo que llegó por otro lado: el chat de la conferencia, el de una plataforma, o " +
-                      "alguien que levantó la mano en el salón. Va a la MISMA cola que las demás."
+                text: qsTr("Para lo que llegó por otro lado: el chat de la conferencia, el de una plataforma, o " +
+                           "alguien que levantó la mano en el salón. Va a la MISMA cola que las demás.")
                 color: Theme.textDim
                 font.pixelSize: 12
             }
@@ -223,7 +225,7 @@ Item {
                 Layout.preferredHeight: 70
                 wrapMode: TextArea.Wrap
                 color: Theme.text
-                placeholderText: "La pregunta"
+                placeholderText: qsTr("La pregunta")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -232,11 +234,13 @@ Item {
                     id: qNombre
                     Layout.fillWidth: true
                     color: Theme.text
-                    placeholderText: "Quién la hizo (opcional)"
+                    placeholderText: qsTr("Quién la hizo (opcional)")
                 }
                 ComboBox {
                     id: qDonde
-                    model: ["sala", "publico", "youtube", "twitch", "facebook"]
+                    model: raiz.origenes
+                    textRole: "t"
+                    valueRole: "v"
                 }
             }
         }

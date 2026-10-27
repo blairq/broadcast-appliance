@@ -142,7 +142,7 @@ Popup {
             Layout.fillWidth: true
             spacing: 12
             Text {
-                text: "Qué hace este botón"
+                text: qsTr("Qué hace este botón")
                 color: Theme.text
                 font { pixelSize: 18; weight: Font.DemiBold }
             }
@@ -150,8 +150,8 @@ Popup {
                 id: buscar
                 Layout.fillWidth: true
                 color: Theme.text
-                placeholderText: sel.seccion === "" ? "Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…"
-                                                    : "Buscar en «" + ((sel.catalogo.find(c => c.id === sel.seccion) || {}).titulo || sel.seccion) + "» (o elegí «Todas»)"
+                placeholderText: sel.seccion === "" ? qsTr("Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…")
+                                                    : qsTr("Buscar en «%1» (o elegí «Todas»)").arg((sel.catalogo.find(c => c.id === sel.seccion) || {}).titulo || sel.seccion)
                 onTextChanged: sel.filtrar()
                 Keys.onDownPressed: { lista.forceActiveFocus(); if (lista.currentIndex < 0) lista.currentIndex = 0 }
                 Keys.onReturnPressed: if (sel.filas.length > 0) {
@@ -160,11 +160,11 @@ Popup {
                 }
             }
             Text {
-                text: sel.filas.length + (sel.filas.length === 1 ? " herramienta" : " herramientas")
+                text: qsTr("%n herramienta", "", sel.filas.length)
                 color: Theme.textDim
                 font.pixelSize: 12
             }
-            GlassButton { compact: true; text: "Cerrar"; onClicked: sel.close() }
+            GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: sel.close() }
         }
 
         RowLayout {
@@ -179,7 +179,7 @@ Popup {
                 Layout.fillHeight: true
                 clip: true
                 spacing: 2
-                model: [{ id: "", titulo: "Todas" }].concat(sel.catalogo)
+                model: [{ id: "", titulo: qsTr("Todas") }].concat(sel.catalogo)
                 delegate: Rectangle {
                     required property var modelData
                     width: secciones.width
@@ -316,19 +316,19 @@ Popup {
                             Item { Layout.fillWidth: true }
                             Text {
                                 visible: modelData.soloLectura
-                                text: "solo mira"
+                                text: qsTr("solo mira")
                                 color: Theme.ok
                                 font.pixelSize: 10
                             }
                             Text {
                                 visible: modelData.destructiva
-                                text: "borra o cambia"
+                                text: qsTr("borra o cambia")
                                 color: Theme.amber
                                 font.pixelSize: 10
                             }
                             Text {
                                 visible: fila.puesta
-                                text: "la de ahora"
+                                text: qsTr("la de ahora")
                                 color: Theme.accentSoft
                                 font.pixelSize: 10
                             }
@@ -336,7 +336,7 @@ Popup {
                         // Por qué salió (las palabras que engancharon): para corregir la búsqueda, no probar a ciegas.
                         Text {
                             visible: (modelData.porque || "") !== ""
-                            text: "por: " + modelData.porque
+                            text: qsTr("por: %1").arg(modelData.porque)
                             color: Theme.textFaint
                             font.pixelSize: 10
                         }
@@ -362,7 +362,7 @@ Popup {
                 Text {
                     anchors.centerIn: parent
                     visible: sel.filas.length === 0
-                    text: "Nada con eso. Probá con otras palabras (lo que querés que pase, no el nombre técnico)."
+                    text: qsTr("Nada con eso. Probá con otras palabras (lo que querés que pase, no el nombre técnico).")
                     color: Theme.textFaint
                     font.pixelSize: 13
                 }
@@ -379,20 +379,19 @@ Popup {
                 color: Theme.textDim
                 font.pixelSize: 12
                 text: lista.currentIndex >= 0 && lista.currentIndex < sel.filas.length
-                      ? "«" + sel.filas[lista.currentIndex].titulo + "»" +
-                        (sel.filas[lista.currentIndex].ejemplo ? " · trae argumentos de ejemplo" : "") +
-                        " · doble clic o Enter para usarla"
-                      : "Tocá una para leer todo lo que hace; doble clic o Enter para usarla."
+                      ? (sel.filas[lista.currentIndex].ejemplo ? qsTr("«%1» · trae argumentos de ejemplo · doble clic o Enter para usarla")
+                                                               : qsTr("«%1» · doble clic o Enter para usarla")).arg(sel.filas[lista.currentIndex].titulo)
+                      : qsTr("Tocá una para leer todo lo que hace; doble clic o Enter para usarla.")
             }
             GlassButton {
                 compact: true
-                text: "Sin herramienta"
+                text: qsTr("Sin herramienta")
                 onClicked: { sel.elegida("", ""); sel.close() }
             }
             GlassButton {
                 compact: true
                 active: true
-                text: "Usar esta"
+                text: qsTr("Usar esta")
                 enabled: lista.currentIndex >= 0 && lista.currentIndex < sel.filas.length
                 onClicked: {
                     const f = sel.filas[lista.currentIndex]

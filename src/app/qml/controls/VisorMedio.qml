@@ -119,8 +119,7 @@ Popup {
             }
             Text {
                 text: visor.actual
-                      ? (visor.indice + 1) + " de " + visor.m.archivos.length + " · " +
-                        visor.actual.carpeta
+                      ? qsTr("%1 de %2 · %3").arg(visor.indice + 1).arg(visor.m.archivos.length).arg(visor.actual.carpeta)
                       : ""
                 color: Theme.textFaint
                 font.pixelSize: 11
@@ -190,9 +189,9 @@ Popup {
                 wrapMode: Text.WordWrap
                 color: Theme.textFaint
                 font.pixelSize: 13
-                text: "Una presentación se mira desarmándola en láminas:\n" +
-                      "así se puede saltar a cualquiera en vivo, que es para lo que sirve.\n\n" +
-                      "Cerrá esto y usá «Armar un carrusel»."
+                text: qsTr("Una presentación se mira desarmándola en láminas:\n" +
+                           "así se puede saltar a cualquiera en vivo, que es para lo que sirve.\n\n" +
+                           "Cerrá esto y usá «Armar un carrusel».")
             }
 
             Text {
@@ -240,7 +239,7 @@ Popup {
             // Sin emoji: el bundle lleva sus propias tipografías y no hay
             // ninguna garantía de que tengan el altavoz. Una palabra se ve
             // igual en las dos plataformas.
-            Text { text: "Vol"; color: Theme.textFaint; font.pixelSize: 11 }
+            Text { text: qsTr("Vol"); color: Theme.textFaint; font.pixelSize: 11 }
             Slider {
                 Layout.preferredWidth: 90
                 from: 0; to: 1
@@ -252,8 +251,8 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            GlassButton { compact: true; text: "◀ Anterior"; onClicked: visor.pasar(-1) }
-            GlassButton { compact: true; text: "Siguiente ▶"; onClicked: visor.pasar(1) }
+            GlassButton { compact: true; text: qsTr("◀ Anterior"); onClicked: visor.pasar(-1) }
+            GlassButton { compact: true; text: qsTr("Siguiente ▶"); onClicked: visor.pasar(1) }
             Item { Layout.fillWidth: true }
             Text {
                 text: visor.actual ? visor.actual.relativa : ""
@@ -263,7 +262,7 @@ Popup {
                 Layout.maximumWidth: 380
             }
             GlassButton {
-                text: "Usar en una escena"
+                text: qsTr("Usar en una escena")
                 onClicked: {
                     ApplicationWindow.window.pedirAlAsistente(
                         "Poné este archivo en la escena que corresponda: " + visor.actual.relativa)

@@ -35,8 +35,8 @@ ColumnLayout {
     function conPermiso(fn) {
         const motivo = v.t.cc.chequearMovimiento(v.t.entrada, false, "")
         if (motivo === "") { fn(); return }
-        ApplicationWindow.window.confirm({ title: "La cámara está al aire", text: motivo + " ¿Mover igual?",
-                                           accept: "Mover igual", reject: "Cancelar", action: fn })
+        ApplicationWindow.window.confirm({ title: qsTr("La cámara está al aire"), text: qsTr("%1 ¿Mover igual?").arg(motivo),
+                                           accept: qsTr("Mover igual"), reject: qsTr("Cancelar"), action: fn })
     }
     function irA(p) {
         v.conPermiso(function() { const r = v.t.cc.irAPosicion(v.t.entrada, p.id, -1); v.t.avisar(r.ok ? (r.aviso || "") : r.error) })
@@ -55,20 +55,20 @@ ColumnLayout {
             elide: Text.ElideRight
             color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
         }
-        StatusPill { text: v.t.mueveDigital ? "DIGITAL" : "ÓPTICO"; dot: v.t.cam && v.t.cam.listo ? Theme.ok : Theme.warn }
+        StatusPill { text: v.t.mueveDigital ? qsTr("DIGITAL") : qsTr("ÓPTICO"); dot: v.t.cam && v.t.cam.listo ? Theme.ok : Theme.warn }
         GlassButton {
             visible: !v.t.mueveDigital
-            compact: true; text: "Sacar foto"; icon: "📷"
+            compact: true; text: qsTr("Sacar foto"); icon: "📷"
             onClicked: { const r = v.t.cc.sacarFoto(v.t.entrada); v.t.avisar(r.ok ? (r.aviso || "") : r.error) }
             ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: "Una foto de lo que ve ahora (mejor bien abierta): después, tocar un punto de la foto lleva la cámara ahí"
+            ToolTip.text: qsTr("Una foto de lo que ve ahora (mejor bien abierta): después, tocar un punto de la foto lleva la cámara ahí")
         }
         GlassButton {
-            compact: true; text: "Configuración"; icon: "⚙"
+            compact: true; text: qsTr("Configuración"); icon: "⚙"
             active: v.configurar
             onClicked: v.configurar = !v.configurar
             ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: v.configurar ? "Achicar: solo las imágenes, los puntos y el joystick" : "Grabar, regrabar y borrar puntos prefijados; seguimiento de caras"
+            ToolTip.text: v.configurar ? qsTr("Achicar: solo las imágenes, los puntos y el joystick") : qsTr("Grabar, regrabar y borrar puntos prefijados; seguimiento de caras")
         }
     }
 
@@ -86,9 +86,9 @@ ColumnLayout {
             Layout.fillHeight: true
             Layout.preferredWidth: 3
             fuente: v.t.mueveDigital ? "entrada-entera:" + v.t.entrada : "entrada:" + v.t.entrada
-            titulo: v.t.mueveDigital ? "TOMA ENTERA" : "EN VIVO"
-            ayuda: v.t.mueveDigital ? "clic: centrar · arrastrar: encuadrar · agarrar el recuadro: moverlo · rueda: zoom · doble clic: todo"
-                                    : "clic: apuntar · arrastrar: encuadrar · rueda: zoom (aproximado en cámaras motorizadas)"
+            titulo: v.t.mueveDigital ? qsTr("TOMA ENTERA") : qsTr("EN VIVO")
+            ayuda: v.t.mueveDigital ? qsTr("clic: centrar · arrastrar: encuadrar · agarrar el recuadro: moverlo · rueda: zoom · doble clic: todo")
+                                    : qsTr("clic: apuntar · arrastrar: encuadrar · rueda: zoom (aproximado en cámaras motorizadas)")
             // Digital: el recuadro de lo que sale, para agarrarlo.
             arrastrable: v.t.mueveDigital ? { x: v.t.pos.x || 0.5, y: v.t.pos.y || 0.5, w: 1 / v.zoom, h: 1 / v.zoom } : null
             Rectangle {
@@ -101,7 +101,7 @@ ColumnLayout {
                 border { color: Theme.live; width: 2 }
                 Text {
                     anchors { left: parent.left; bottom: parent.top; bottomMargin: 2 }
-                    text: "SALE · " + v.zoom.toFixed(2) + "×"
+                    text: qsTr("SALE · %1×").arg(v.zoom.toFixed(2))
                     color: Theme.live; font { pixelSize: 10; weight: Font.DemiBold }
                     style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.8)
                 }
@@ -166,12 +166,12 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: width * 9 / 16
                 fuente: v.t.mueveDigital ? "entrada:" + v.t.entrada : (v.fotoInfo.hay ? v.fotoInfo.url : "")
-                titulo: v.t.mueveDigital ? "LO QUE SALE" : "FOTO"
-                ayuda: v.t.mueveDigital ? "clic: centrar en ese punto · arrastrar: encuadrar"
-                       : !v.fotoInfo.hay ? "«Sacar foto» (arriba) con la cámara bien abierta"
-                       : !v.fotoInfo.movida ? "clic: apuntar · arrastrar: encuadrar"
-                       : v.fotoInfo.conMemoria ? "se movió: al tocar, vuelve a donde se sacó y apunta"
-                                               : "se movió y no tiene memoria para volver: sacá otra"
+                titulo: v.t.mueveDigital ? qsTr("LO QUE SALE") : qsTr("FOTO")
+                ayuda: v.t.mueveDigital ? qsTr("clic: centrar en ese punto · arrastrar: encuadrar")
+                       : !v.fotoInfo.hay ? qsTr("«Sacar foto» (arriba) con la cámara bien abierta")
+                       : !v.fotoInfo.movida ? qsTr("clic: apuntar · arrastrar: encuadrar")
+                       : v.fotoInfo.conMemoria ? qsTr("se movió: al tocar, vuelve a donde se sacó y apunta")
+                                               : qsTr("se movió y no tiene memoria para volver: sacá otra")
                 onClic: (x, y) => v.conPermiso(function() {
                     v.t.avisar(v.t.mueveDigital ? v.t.cc.apuntar(v.t.entrada, x, y, 0, 0)
                                                 : v.t.cc.apuntarEnFoto(v.t.entrada, x, y, 0, 0))
@@ -191,7 +191,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
                     Repeater {
-                        model: v.t.caps.zoom === true ? [{t: "+ Acercar", v: 1}, {t: "− Alejar", v: -1}] : []
+                        model: v.t.caps.zoom === true ? [{t: qsTr("+ Acercar"), v: 1}, {t: qsTr("− Alejar"), v: -1}] : []
                         delegate: Rectangle {
                             required property var modelData
                             Layout.fillWidth: true
@@ -210,13 +210,13 @@ ColumnLayout {
                     }
                     RowLayout {
                         spacing: 4
-                        Text { text: "Vel."; color: Theme.textDim; font.pixelSize: 11 }
+                        Text { text: qsTr("Vel."); color: Theme.textDim; font.pixelSize: 11 }
                         Slider { Layout.fillWidth: true; from: 0.1; to: 1; value: v.t.velocidad; onMoved: v.t.velocidad = value }
                     }
                     GlassButton {
                         compact: true
                         visible: v.t.caps.home === true
-                        text: "Inicio"
+                        text: qsTr("Inicio")
                         onClicked: v.conPermiso(function() { v.t.avisar(v.t.cc.home(v.t.entrada)) })
                     }
                 }
@@ -229,10 +229,10 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: 8
-        Text { text: "PUNTOS PREFIJADOS"; color: Theme.textDim; font { pixelSize: 11; weight: Font.DemiBold; letterSpacing: 1 } }
+        Text { text: qsTr("PUNTOS PREFIJADOS"); color: Theme.textDim; font { pixelSize: 11; weight: Font.DemiBold; letterSpacing: 1 } }
         Text {
             visible: v.t.posiciones.length === 0
-            text: "Todavía no hay: «Configuración» → «Guardar donde está»."
+            text: qsTr("Todavía no hay: «Configuración» → «Guardar donde está».")
             color: Theme.textFaint; font.pixelSize: 11
         }
         Item { Layout.fillWidth: true }
@@ -272,7 +272,7 @@ ColumnLayout {
                 Text {
                     visible: !punto.modelData.miniatura_url
                     anchors.centerIn: parent
-                    text: "sin foto"; color: Theme.textFaint; font.pixelSize: 10
+                    text: qsTr("sin foto"); color: Theme.textFaint; font.pixelSize: 10
                 }
                 // Su número de preset (los controles que llaman por número van a esta).
                 Rectangle {
@@ -307,9 +307,9 @@ ColumnLayout {
                 spacing: 3
                 z: 2
                 Repeater {
-                    model: [{ i: "⟳", q: "regrabar", ayuda: "Regrabar: donde está ahora la cámara" },
-                            { i: "📷", q: "miniatura", ayuda: "Sacarle una foto nueva" },
-                            { i: "✕", q: "borrar", ayuda: "Borrar este punto" }]
+                    model: [{ i: "⟳", q: "regrabar", ayuda: qsTr("Regrabar: donde está ahora la cámara") },
+                            { i: "📷", q: "miniatura", ayuda: qsTr("Sacarle una foto nueva") },
+                            { i: "✕", q: "borrar", ayuda: qsTr("Borrar este punto") }]
                     delegate: Rectangle {
                         required property var modelData
                         width: 24; height: 24; radius: 6
@@ -322,16 +322,16 @@ ColumnLayout {
                             onClicked: {
                                 const p = punto.modelData
                                 if (modelData.q === "borrar") {
-                                    ApplicationWindow.window.confirm({ title: "¿Borrar «" + p.nombre + "»?",
-                                        text: "Se borra el punto prefijado (y su memoria en la cámara).",
-                                        accept: "Borrar", reject: "Cancelar",
+                                    ApplicationWindow.window.confirm({ title: qsTr("¿Borrar «%1»?").arg(p.nombre),
+                                        text: qsTr("Se borra el punto prefijado (y su memoria en la cámara)."),
+                                        accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
                                         action: function() { v.t.avisar(v.t.cc.borrarPosicion(v.t.entrada, p.id)) } })
                                     return
                                 }
                                 const c = {}
                                 c[modelData.q] = true
                                 const r = v.t.cc.editarPosicion(v.t.entrada, p.id, c)
-                                v.t.avisar(r.ok ? (r.aviso || (modelData.q === "regrabar" ? "«" + p.nombre + "» regrabado" : "")) : r.error)
+                                v.t.avisar(r.ok ? (r.aviso || (modelData.q === "regrabar" ? qsTr("«%1» regrabado").arg(p.nombre) : "")) : r.error)
                             }
                         }
                         ToolTip.visible: bm.containsMouse
@@ -357,16 +357,16 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                Text { text: "Nuevo punto:"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Nuevo punto:"); color: Theme.textDim; font.pixelSize: 12 }
                 TextField {
                     id: nombreNuevo
                     Layout.fillWidth: true
-                    placeholderText: "Nombre (p. ej. «Atril», «Plano general»)"
+                    placeholderText: qsTr("Nombre (p. ej. «Atril», «Plano general»)")
                     onAccepted: guardar.clicked()
                 }
                 GlassButton {
                     id: guardar
-                    compact: true; text: "Guardar donde está"; icon: "＋"
+                    compact: true; text: qsTr("Guardar donde está"); icon: "＋"
                     enabled: nombreNuevo.text.trim() !== ""
                     onClicked: {
                         const r = v.t.cc.crearPosicion(v.t.entrada, nombreNuevo.text.trim(), "", 0, -1)
@@ -378,7 +378,7 @@ ColumnLayout {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "En cada punto: ⟳ lo regraba donde está ahora la cámara, 📷 le saca una foto nueva, ✕ lo borra."
+                text: qsTr("En cada punto: ⟳ lo regraba donde está ahora la cámara, 📷 le saca una foto nueva, ✕ lo borra.")
                 color: Theme.textFaint; font.pixelSize: 11
             }
             // Rostros y seguimiento.
@@ -387,7 +387,7 @@ ColumnLayout {
                 spacing: 6
                 GlassButton {
                     compact: true
-                    text: v.t.analizando ? "Analizando…" : "Analizar rostros"
+                    text: v.t.analizando ? qsTr("Analizando…") : qsTr("Analizar rostros")
                     icon: "☻"
                     enabled: !v.t.analizando && v.t.sg && v.t.sg.disponible
                     onClicked: { v.t.analizando = true; v.t.sg.analizar(v.t.entrada) }
@@ -398,13 +398,13 @@ ColumnLayout {
                     model: v.t.caras.map((c, i) => v.t.nombreCara(c, i))
                     currentIndex: v.t.elegida
                     displayText: v.t.elegida >= 0 && v.t.elegida < v.t.caras.length ? v.t.nombreCara(v.t.caras[v.t.elegida], v.t.elegida)
-                                                                                     : (v.t.caras.length ? "¿A quién seguir?" : "Sin caras analizadas")
+                                                                                     : (v.t.caras.length ? qsTr("¿A quién seguir?") : qsTr("Sin caras analizadas"))
                     onActivated: (i) => v.t.elegida = i
                     enabled: v.t.caras.length > 0
                 }
                 GlassButton {
                     compact: true
-                    text: v.t.siguiendo ? "Dejar de seguir" : "Seguir"
+                    text: v.t.siguiendo ? qsTr("Dejar de seguir") : qsTr("Seguir")
                     icon: v.t.siguiendo ? "■" : "◎"
                     active: v.t.siguiendo !== null
                     enabled: v.t.sg && v.t.sg.disponible
@@ -416,7 +416,7 @@ ColumnLayout {
     Text {
         visible: v.t.siguiendo !== null
         Layout.fillWidth: true
-        text: v.t.siguiendo ? "Siguiendo a " + (v.t.siguiendo.nombre || "la cara elegida") + " — " + v.t.siguiendo.estado : ""
+        text: v.t.siguiendo ? qsTr("Siguiendo a %1 — %2").arg(v.t.siguiendo.nombre || qsTr("la cara elegida")).arg(v.t.siguiendo.estado) : ""
         color: v.t.siguiendo && v.t.siguiendo.estado.startsWith("perdida") ? Theme.warn : Theme.ok
         font.pixelSize: 11; elide: Text.ElideRight
     }

@@ -29,19 +29,19 @@ Popup {
         spacing: 8
         RowLayout {
             Layout.fillWidth: true
-            Text { text: "Scopes"; color: Theme.text; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true }
-            GlassButton { compact: true; text: "Cerrar"; onClicked: pop.close() }
+            Text { text: qsTr("Scopes"); color: Theme.text; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true }
+            GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: pop.close() }
         }
         RowLayout {
             spacing: 6
             Repeater {
-                model: [{ id: "", t: "Programa" }].concat(pop.entrada !== "" ? [{ id: pop.entrada, t: pop.entrada }] : [])
+                model: [{ id: "", t: qsTr("Programa") }].concat(pop.entrada !== "" ? [{ id: pop.entrada, t: pop.entrada }] : [])
                 delegate: GlassButton { required property var modelData; compact: true; text: modelData.t; active: pop.fuente === modelData.id
                                         onClicked: { pop.fuente = modelData.id; pop.refrescar() } }
             }
             Item { Layout.fillWidth: true }
             Repeater {
-                model: [{ id: "onda", t: "Onda" }, { id: "parade", t: "Parade" }, { id: "vector", t: "Vector" }, { id: "histograma", t: "Histograma" }]
+                model: [{ id: "onda", t: qsTr("Onda") }, { id: "parade", t: qsTr("Parade") }, { id: "vector", t: qsTr("Vector") }, { id: "histograma", t: qsTr("Histograma") }]
                 delegate: GlassButton { required property var modelData; compact: true; text: modelData.t; active: pop.tipo === modelData.id
                                         onClicked: { pop.tipo = modelData.id; pop.refrescar() } }
             }
@@ -60,30 +60,30 @@ Popup {
                 cache: false
                 smooth: true
             }
-            Text { anchors.centerIn: parent; visible: !pop.dato.imagen; text: pop.dato.error || "Sin imagen"; color: Theme.textDim }
+            Text { anchors.centerIn: parent; visible: !pop.dato.imagen; text: pop.dato.error || qsTr("Sin imagen"); color: Theme.textDim }
         }
         Text {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             readonly property var l: pop.dato.legalidad || {}
-            text: "Negros aplastados " + (l.negros_aplastados_pct || 0) + " % · blancos quemados " + (l.blancos_quemados_pct || 0) +
-                  " % · fuera de gama " + (l.fuera_de_gama_pct || 0) + " %"
+            text: qsTr("Negros aplastados %1 % · blancos quemados %2 % · fuera de gama %3 %")
+                  .arg(l.negros_aplastados_pct || 0).arg(l.blancos_quemados_pct || 0).arg(l.fuera_de_gama_pct || 0)
             color: (l.fuera_de_gama_pct || 0) > 1 || (l.blancos_quemados_pct || 0) > 5 ? Theme.amber : Theme.textFaint
             font.pixelSize: 11
         }
         RowLayout {
             spacing: 8
-            Text { text: "Legalizar para TV"; color: Theme.textDim; font.pixelSize: 12 }
+            Text { text: qsTr("Legalizar para TV"); color: Theme.textDim; font.pixelSize: 12 }
             ComboBox {
                 id: leg
                 Layout.preferredWidth: 260
                 textRole: "t"
-                model: [{ id: "no", t: "No" }, { id: "pal", t: "Sí, PAL (+133 %)" }, { id: "ntsc", t: "Sí, estricto (+120 %)" }, { id: "rango", t: "Solo el rango" }]
+                model: [{ id: "no", t: qsTr("No") }, { id: "pal", t: qsTr("Sí, PAL (+133 %)") }, { id: "ntsc", t: qsTr("Sí, estricto (+120 %)") }, { id: "rango", t: qsTr("Solo el rango") }]
                 currentIndex: Math.max(0, model.findIndex(m => m.id === (pop.dato.legalizador || "no")))
                 onActivated: (i) => { const e = Studio.legalizarUi(model[i].id); if (e !== "") Studio.notify(e, "error") }
             }
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
-                   text: "Corre en la cadena de GStreamer de cada entrada (balegal): lo que se agrega después en la escena (zócalos, gráficos) no pasa por él." }
+                   text: qsTr("Corre en la cadena de GStreamer de cada entrada (balegal): lo que se agrega después en la escena (zócalos, gráficos) no pasa por él.") }
         }
     }
 }

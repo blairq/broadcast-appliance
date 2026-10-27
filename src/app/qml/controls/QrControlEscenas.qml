@@ -28,13 +28,13 @@ Dialog {
             if (res.startsWith("error:")) { dlg.error = res.slice(6).trim(); return }
             id = res
         }
-        Studio.emparejarTabletUi(id, "Tablet de escenas", 30)
+        Studio.emparejarTabletUi(id, qsTr("Tablet de escenas"), 30)
     }
 
     anchors.centerIn: parent
     width: Math.min(parent ? parent.width - 60 : 560, 560)
     modal: true
-    title: "QR para manejar las escenas"
+    title: qsTr("QR para manejar las escenas")
     onOpened: generar()
 
     Connections {
@@ -54,8 +54,8 @@ Dialog {
         Text {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: "Escanealo con la tablet o el celular: abre la Botonera con las escenas (un toque arma, TAKE corta), " +
-                  "FTB, grabación y transmisión. El código sirve una sola vez."
+            text: qsTr("Escanealo con la tablet o el celular: abre la Botonera con las escenas (un toque arma, TAKE corta), " +
+                  "FTB, grabación y transmisión. El código sirve una sola vez.")
             color: Theme.textDim; font.pixelSize: 12
         }
         Text {
@@ -74,7 +74,7 @@ Dialog {
                 Text {
                     anchors.centerIn: parent
                     visible: !dlg.r.qr && dlg.error === ""
-                    text: "Generando…"; color: "#666"; font.pixelSize: 13
+                    text: qsTr("Generando…"); color: "#666"; font.pixelSize: 13
                 }
             }
             ColumnLayout {
@@ -83,14 +83,14 @@ Dialog {
                 Text {
                     readonly property int resta: Math.max(0, Math.round(((dlg.r.vence_ms || 0) - dlg.ahora) / 1000))
                     visible: !!dlg.r.url
-                    text: resta > 0 ? "Vence en " + resta + " s" : "El código venció: generá otro"
+                    text: resta > 0 ? qsTr("Vence en %1 s").arg(resta) : qsTr("El código venció: generá otro")
                     color: resta > 0 ? Theme.text : Theme.live; font.pixelSize: 14
                 }
                 TextField { visible: !!dlg.r.url; Layout.fillWidth: true; readOnly: true; text: dlg.r.url || ""; color: Theme.textDim; font.pixelSize: 11 }
                 Text {
                     visible: !!dlg.r.huella
                     Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
-                    text: "El certificado es propio: la tablet avisa la primera vez. Huella: " + (dlg.r.huella || "")
+                    text: qsTr("El certificado es propio: la tablet avisa la primera vez. Huella: %1").arg(dlg.r.huella || "")
                     color: Theme.textFaint; font.pixelSize: 10
                 }
                 Text {
@@ -99,14 +99,14 @@ Dialog {
                     text: dlg.r.aviso || ""
                     color: Theme.amber; font.pixelSize: 11
                 }
-                GlassButton { compact: true; text: "Otro QR"; onClicked: dlg.generar() }
+                GlassButton { compact: true; text: qsTr("Otro QR"); onClicked: dlg.generar() }
             }
         }
 
         // Los aparatos que lo escanearon y esperan: aprobar acá mismo.
         Text {
             visible: dlg.bot && dlg.bot.solicitudes.length > 0
-            text: "Piden entrar"
+            text: qsTr("Piden entrar")
             color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
         }
         Repeater {
@@ -118,18 +118,18 @@ Dialog {
                 Text {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
-                    text: modelData.nombre + " · " + modelData.ip + " · perfil «" + modelData.perfil + "»"
+                    text: qsTr("%1 · %2 · perfil «%3»").arg(modelData.nombre).arg(modelData.ip).arg(modelData.perfil)
                     color: Theme.text; font.pixelSize: 12
                 }
-                GlassButton { compact: true; text: "Aprobar"; active: true; onClicked: Studio.aprobarTabletUi(modelData.id, true) }
-                GlassButton { compact: true; text: "Rechazar"; onClicked: Studio.aprobarTabletUi(modelData.id, false) }
+                GlassButton { compact: true; text: qsTr("Aprobar"); active: true; onClicked: Studio.aprobarTabletUi(modelData.id, true) }
+                GlassButton { compact: true; text: qsTr("Rechazar"); onClicked: Studio.aprobarTabletUi(modelData.id, false) }
             }
         }
     }
 
     footer: RowLayout {
         Item { Layout.fillWidth: true }
-        GlassButton { text: "Cerrar"; onClicked: dlg.close() }
+        GlassButton { text: qsTr("Cerrar"); onClicked: dlg.close() }
         Item { Layout.preferredWidth: 12; Layout.preferredHeight: 50 }
     }
 }

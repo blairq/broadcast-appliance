@@ -155,8 +155,8 @@ Item {
                     font { pixelSize: 25; weight: Font.Light; family: "Helvetica Neue" }
                 }
                 Text {
-                    text: (t.nodo.p95_ms !== null && t.nodo.p95_ms !== undefined ? "p95 " + t.ms(t.nodo.p95_ms) + "   " : "") +
-                          (t.nodo.acumulado_ms !== null && t.nodo.acumulado_ms !== undefined ? "desde la captura " + t.ms(t.nodo.acumulado_ms) : "")
+                    text: (t.nodo.p95_ms !== null && t.nodo.p95_ms !== undefined ? qsTr("p95 %1").arg(t.ms(t.nodo.p95_ms)) + "   " : "") +
+                          (t.nodo.acumulado_ms !== null && t.nodo.acumulado_ms !== undefined ? qsTr("desde la captura %1").arg(t.ms(t.nodo.acumulado_ms)) : "")
                     color: Theme.textDim
                     font.pixelSize: 9
                 }
@@ -202,8 +202,8 @@ Item {
                     Text {
                         id: etiqueta
                         anchors.centerIn: parent
-                        text: t.nodo.fuente === "medido" ? "medido" : t.nodo.fuente === "declarado" ? "declarado"
-                            : t.nodo.fuente === "derivacion" ? "no atrasa" : t.nodo.fuente === "hora_corrida" ? "hora corrida" : "sin medir"
+                        text: t.nodo.fuente === "medido" ? qsTr("medido") : t.nodo.fuente === "declarado" ? qsTr("declarado")
+                            : t.nodo.fuente === "derivacion" ? qsTr("no atrasa") : t.nodo.fuente === "hora_corrida" ? qsTr("hora corrida") : qsTr("sin medir")
                         color: t.nodo.fuente === "medido" ? Theme.ok : t.nodo.fuente === "hora_corrida" ? Theme.live : Theme.textDim
                         font.pixelSize: 8
                     }
@@ -232,7 +232,7 @@ Item {
                     Text {
                         id: chipMem
                         anchors.centerIn: parent
-                        text: parent.d.cruce === "baja" ? "⇣ baja a RAM" : parent.d.cruce === "sube" ? "⇡ sube a GPU"
+                        text: parent.d.cruce === "baja" ? qsTr("⇣ baja a RAM") : parent.d.cruce === "sube" ? qsTr("⇡ sube a GPU")
                             : parent.mem === "sistema" ? "RAM" : "GPU"
                         color: parent.d.cruce === "baja" ? Theme.amber : parent.mem !== "sistema" ? "#4fd8ff" : Theme.textDim
                         font.pixelSize: 8

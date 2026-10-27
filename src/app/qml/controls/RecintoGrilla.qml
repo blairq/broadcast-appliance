@@ -134,8 +134,8 @@ ColumnLayout {
     FileDialog {
         id: subirFoto
         property string deId: ""
-        title: "La foto del integrante"
-        nameFilters: ["Imágenes (*.jpg *.jpeg *.png *.webp *.heic *.bmp)"]
+        title: qsTr("La foto del integrante")
+        nameFilters: [qsTr("Imágenes (*.jpg *.jpeg *.png *.webp *.heic *.bmp)")]
         onAccepted: { const e = Studio.cuerpo.subirFoto(deId, selectedFile.toString()); rec.aviso = e }
     }
     function tocar(celda) {
@@ -143,8 +143,8 @@ ColumnLayout {
         if (rec.tocarAbreMicrofono && !rec.editando && celda.l !== null && rec.conCentral) {
             if (celda.micAbierto && celda.presidente) {
                 const bb = celda.l.banca
-                ApplicationWindow.window.confirm({ title: "¿Cerrar el micrófono del presidente?",
-                    text: "Banca " + bb, accept: "Cerrar", reject: "Cancelar",
+                ApplicationWindow.window.confirm({ title: qsTr("¿Cerrar el micrófono del presidente?"),
+                    text: qsTr("Banca %1").arg(bb), accept: qsTr("Cerrar"), reject: qsTr("Cancelar"),
                     action: function() { rec.microfono(bb, false, true) } })
             } else {
                 rec.microfono(celda.l.banca, !celda.micAbierto, false)
@@ -170,21 +170,21 @@ ColumnLayout {
         ComboBox {
             id: dist
             implicitWidth: 140
-            model: [ { t: "Hemiciclo", v: "hemiciclo" }, { t: "Grilla", v: "grilla" }, { t: "Lista", v: "lista" } ]
+            model: [ { t: qsTr("Hemiciclo"), v: "hemiciclo" }, { t: qsTr("Grilla"), v: "grilla" }, { t: qsTr("Lista"), v: "lista" } ]
             textRole: "t"
             enabled: !rec.editando
             currentIndex: Math.max(0, model.findIndex(o => o.v === (rec.r.distribucion || "grilla")))
             onActivated: (i) => rec.editar({distribucion: model[i].v})
-            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Cómo se dibujan las bancas"
+            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Cómo se dibujan las bancas")
         }
-        Text { text: "Filas"; color: Theme.textDim; font.pixelSize: 12; visible: rec.editando || rec.distribucion !== "lista" }
+        Text { text: qsTr("Filas"); color: Theme.textDim; font.pixelSize: 12; visible: rec.editando || rec.distribucion !== "lista" }
         SpinBox { from: 1; to: 40; value: Math.max(1, rec.filas); editable: true; visible: rec.editando || rec.distribucion !== "lista"
                   onValueModified: rec.editar({filas: value, columnas: Math.max(1, rec.columnas)}) }
-        Text { text: "Columnas"; color: Theme.textDim; font.pixelSize: 12; visible: rec.editando || rec.distribucion !== "lista" }
+        Text { text: qsTr("Columnas"); color: Theme.textDim; font.pixelSize: 12; visible: rec.editando || rec.distribucion !== "lista" }
         SpinBox { from: 1; to: 60; value: Math.max(1, rec.columnas); editable: true; visible: rec.editando || rec.distribucion !== "lista"
                   onValueModified: rec.editar({filas: Math.max(1, rec.filas), columnas: value}) }
         GlassButton {
-            compact: true; text: "Acomodar solas"
+            compact: true; text: qsTr("Acomodar solas")
             onClicked: {
                 const n = (Studio.cuerpo.integrantes || []).filter(i => (i.banca || "") !== "").length
                 const col = Math.max(rec.columnas, 1)
@@ -197,19 +197,19 @@ ColumnLayout {
             compact: true
             visible: !rec.editando
             readonly property int pendientes: Studio.cuerpo.fotosPendientes
-            text: pendientes > 0 ? "Sacando fotos… faltan " + pendientes + " (parar)" : "Sacar las fotos que faltan"
+            text: pendientes > 0 ? qsTr("Sacando fotos… faltan %1 (parar)").arg(pendientes) : qsTr("Sacar las fotos que faltan")
             active: pendientes > 0
             onClicked: {
                 if (pendientes > 0) { Studio.cuerpo.cancelarFaltantes(); return }
                 const n = Studio.cuerpo.capturarFaltantes()
-                rec.aviso = n === 0 ? "No falta ninguna foto de los que tienen cámara en su banca (las demás se suben a mano: tocá la banca)." : ""
+                rec.aviso = n === 0 ? qsTr("No falta ninguna foto de los que tienen cámara en su banca (las demás se suben a mano: tocá la banca).") : ""
             }
             ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: "Lleva la cámara de cada banca a su posición y saca la foto (al aire, la cámara no se mueve)"
+            ToolTip.text: qsTr("Lleva la cámara de cada banca a su posición y saca la foto (al aire, la cámara no se mueve)")
         }
         Text { visible: !!rec.sr && rec.sr.conectados > 0; color: Theme.textDim; font.pixelSize: 12
-               text: rec.sr ? "Remotos: " + rec.sr.presentes + " presentes de " + rec.sr.conectados + " conectados" : "" }
-        GlassButton { compact: true; text: rec.editando ? "Listo" : "Editar lugares"; active: rec.editando
+               text: rec.sr ? qsTr("Remotos: %1 presentes de %2 conectados").arg(rec.sr.presentes).arg(rec.sr.conectados) : "" }
+        GlassButton { compact: true; text: rec.editando ? qsTr("Listo") : qsTr("Editar lugares"); active: rec.editando
                       onClicked: { rec.editando = !rec.editando; rec.elegida = "" } }
     }
     Text {
@@ -217,9 +217,9 @@ ColumnLayout {
         visible: rec.aviso !== "" || (rec.filas === 0 && !rec.sinNadie) || rec.editando
         color: rec.aviso !== "" ? Theme.live : Theme.textFaint
         text: rec.aviso !== "" ? rec.aviso
-              : rec.filas === 0 ? "Todavía no hay grilla. A cada integrante ponele su banca (botón «Integrantes» de arriba), y tocá «Acomodar solas»."
-              : rec.elegida !== "" ? "Banca " + rec.elegida + ": tocá el lugar vacío donde va (o «Sacar»)."
-              : "Tocá una banca y después el lugar donde va. En el hemiciclo, las filas son los arcos (la primera, la más cerca de la presidencia)."
+              : rec.filas === 0 ? qsTr("Todavía no hay grilla. A cada integrante ponele su banca (botón «Integrantes» de arriba), y tocá «Acomodar solas».")
+              : rec.elegida !== "" ? qsTr("Banca %1: tocá el lugar vacío donde va (o «Sacar»).").arg(rec.elegida)
+              : qsTr("Tocá una banca y después el lugar donde va. En el hemiciclo, las filas son los arcos (la primera, la más cerca de la presidencia).")
     }
     // Sin nadie cargado la grilla queda vacía y no dice nada: lo que hay que hacer.
     EstadoVacio {
@@ -228,10 +228,10 @@ ColumnLayout {
         Layout.bottomMargin: 40
         visible: rec.sinNadie
         icono: "▦"
-        titulo: "Todavía no hay integrantes en el recinto"
-        texto: "Cargá quién se sienta en cada banca (a mano o pegando una planilla): nombre, bloque y número de banca. "
-               + "Con eso aparecen las bancas acá, con su cara, y se pueden acomodar como está la sala de verdad."
-        accion: "Cargar integrantes…"
+        titulo: qsTr("Todavía no hay integrantes en el recinto")
+        texto: qsTr("Cargá quién se sienta en cada banca (a mano o pegando una planilla): nombre, bloque y número de banca. "
+               + "Con eso aparecen las bancas acá, con su cara, y se pueden acomodar como está la sala de verdad.")
+        accion: qsTr("Cargar integrantes…")
         onActivado: rec.pedirCuerpo()
     }
     // Las que todavía no tienen lugar.
@@ -239,7 +239,7 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 6
         visible: rec.editando && (rec.r.sin_lugar || []).length > 0
-        Text { text: "Sin lugar:"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Sin lugar:"); color: Theme.textDim; font.pixelSize: 12 }
         Repeater {
             model: rec.r.sin_lugar || []
             delegate: GlassButton {
@@ -248,7 +248,7 @@ ColumnLayout {
                 onClicked: rec.elegida = modelData
             }
         }
-        GlassButton { compact: true; text: "Sacar"; visible: rec.elegida !== ""
+        GlassButton { compact: true; text: qsTr("Sacar"); visible: rec.elegida !== ""
                       onClicked: { rec.editar({mover: {banca: rec.elegida, fila: -1}}); rec.elegida = "" } }
     }
 
@@ -322,30 +322,30 @@ ColumnLayout {
                     Text { visible: celda.ancha && celda.i !== null; Layout.fillWidth: true; elide: Text.ElideRight
                            text: celda.i ? celda.i.nombre + (celda.i.bloque ? " · " + celda.i.bloque : "") : ""; color: Theme.text; font.pixelSize: 12 }
                     Item { Layout.fillWidth: !celda.ancha }
-                    Text { visible: celda.micAbierto; text: "● AIRE"; color: "white"; font { pixelSize: 10; weight: Font.Black } }
-                    Text { visible: celda.turnoCcu > 0 && !celda.micAbierto; text: "pidió " + celda.turnoCcu; color: Theme.amber; font { pixelSize: 10; weight: Font.DemiBold } }
+                    Text { visible: celda.micAbierto; text: qsTr("● AIRE"); color: "white"; font { pixelSize: 10; weight: Font.Black } }
+                    Text { visible: celda.turnoCcu > 0 && !celda.micAbierto; text: qsTr("pidió %1").arg(celda.turnoCcu); color: Theme.amber; font { pixelSize: 10; weight: Font.DemiBold } }
                     Text { visible: celda.conectado
-                           text: celda.esperando ? "ESPERA" : (celda.rem && celda.rem.lugar === "sala" ? "CEL" : "REMOTO")
+                           text: celda.esperando ? qsTr("ESPERA") : (celda.rem && celda.rem.lugar === "sala" ? qsTr("CEL") : qsTr("REMOTO"))
                            color: celda.esperando ? Theme.amber : Theme.ok; font { pixelSize: 9; weight: Font.Black }
-                           ToolTip.visible: hvR.hovered; ToolTip.text: celda.esperando ? "Entró por el navegador y espera que lo habiliten (tocá la banca)"
-                                                                       : celda.rem && celda.rem.lugar === "sala" ? "Conectado con el celular desde la sala" : "Conectado desde afuera"
+                           ToolTip.visible: hvR.hovered; ToolTip.text: celda.esperando ? qsTr("Entró por el navegador y espera que lo habiliten (tocá la banca)")
+                                                                       : celda.rem && celda.rem.lugar === "sala" ? qsTr("Conectado con el celular desde la sala") : qsTr("Conectado desde afuera")
                            HoverHandler { id: hvR } }
                     Text { visible: celda.sinUnidad && !celda.conectado; text: "⏻"; color: Theme.textFaint; font.pixelSize: 11
-                           ToolTip.visible: hvU.hovered; ToolTip.text: celda.uni === null ? "Sin unidad de la central (Asamblea → Conferencia → Unidades)" : "Unidad desconectada"
+                           ToolTip.visible: hvU.hovered; ToolTip.text: celda.uni === null ? qsTr("Sin unidad de la central (Asamblea → Conferencia → Unidades)") : qsTr("Unidad desconectada")
                            HoverHandler { id: hvU } }
                     Text { visible: celda.turno > 0; text: "#" + celda.turno; color: Theme.amber; font { pixelSize: 11; weight: Font.DemiBold } }
                     Text { visible: celda.i !== null && !celda.i.validado; text: "⚠"; color: Theme.amber; font.pixelSize: 11
-                           ToolTip.visible: hv.hovered; ToolTip.text: "Nombre sin validar (botón «Integrantes» de arriba)"
+                           ToolTip.visible: hv.hovered; ToolTip.text: qsTr("Nombre sin validar (botón «Integrantes» de arriba)")
                            HoverHandler { id: hv } }
                 }
                 Text { visible: !celda.ancha && !celda.chica; Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
-                       text: celda.i ? celda.i.nombre : "(nadie con esta banca)"
+                       text: celda.i ? celda.i.nombre : qsTr("(nadie con esta banca)")
                        color: celda.i ? Theme.text : Theme.textFaint; font.pixelSize: 11 }
                 Item { Layout.fillHeight: true; visible: !celda.ancha }
                 Text { Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 10
                        visible: celda.ancha || (celda.height > 70 && !celda.chica)
                        // La toma es de la banca (también de una vacía).
-                       text: celda.l && celda.l.toma ? "🎥 " + celda.l.toma.posicion : "sin toma"
+                       text: celda.l && celda.l.toma ? "🎥 " + celda.l.toma.posicion : qsTr("sin toma")
                        color: celda.l && celda.l.toma ? Theme.textDim : Theme.amber }
             }
         }
@@ -364,7 +364,7 @@ ColumnLayout {
         visible: rec.filas > 0 && rec.distribucion === "grilla" && !rec.sinNadie
         radius: 6
         color: Qt.rgba(1, 1, 1, 0.05)
-        Text { anchors.centerIn: parent; text: "PRESIDENCIA"; color: Theme.textFaint
+        Text { anchors.centerIn: parent; text: qsTr("PRESIDENCIA"); color: Theme.textFaint
                font { pixelSize: 11; letterSpacing: 2; weight: Font.DemiBold } }
     }
 
@@ -410,7 +410,7 @@ ColumnLayout {
         Rectangle {
             x: hemi.cx - width / 2; y: hemi.cy + 4
             width: Math.min(260, hemi.r0 * 1.2); height: 32; radius: 6; color: Qt.rgba(1, 1, 1, 0.05)
-            Text { anchors.centerIn: parent; text: "PRESIDENCIA"; color: Theme.textFaint
+            Text { anchors.centerIn: parent; text: qsTr("PRESIDENCIA"); color: Theme.textFaint
                    font { pixelSize: 11; letterSpacing: 2; weight: Font.DemiBold } }
         }
         Repeater {
@@ -468,7 +468,7 @@ ColumnLayout {
         background: Rectangle { color: Theme.panel; radius: 14; border.color: Theme.glassBorder }
         contentItem: ColumnLayout {
             spacing: 12
-            Text { text: ptt.i ? "Hablarle a " + ptt.i.nombre : ""; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text { text: ptt.i ? qsTr("Hablarle a %1").arg(ptt.i.nombre) : ""; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 width: 200; height: 200; radius: 100
@@ -476,7 +476,7 @@ ColumnLayout {
                 border.color: ptt.hablando ? "white" : Theme.glassBorder; border.width: 3
                 Text { anchors.centerIn: parent; horizontalAlignment: Text.AlignHCenter; color: "white"
                        font { pixelSize: 16; weight: Font.Bold }
-                       text: ptt.hablando ? "🎙\nTE ESTÁ\nESCUCHANDO" : "🎙\nMANTENÉ\nAPRETADO" }
+                       text: ptt.hablando ? qsTr("🎙\nTE ESTÁ\nESCUCHANDO") : qsTr("🎙\nMANTENÉ\nAPRETADO") }
                 MouseArea {
                     anchors.fill: parent
                     onPressed: ptt.poner(true)
@@ -485,8 +485,8 @@ ColumnLayout {
                 }
             }
             Text { Layout.preferredWidth: 260; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                   text: "Te oye con tu micrófono de la sala (el de hablarle a los invitados), mezclado con el sonido que recibe en su celular." }
-            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: "Cerrar"; onClicked: ptt.close() }
+                   text: qsTr("Te oye con tu micrófono de la sala (el de hablarle a los invitados), mezclado con el sonido que recibe en su celular.") }
+            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: qsTr("Cerrar"); onClicked: ptt.close() }
         }
     }
 
@@ -497,33 +497,33 @@ ColumnLayout {
         readonly property var rem: menu.i ? rec.remotos[menu.i.id] : undefined
         function abrir(l, item) { menu.l = l; popup(item, 0, item.height) }
         // La sesión remota primero: si alguien espera, es lo que se busca.
-        MenuItem { text: "Habilitar (lo vi por la cámara)"; visible: !!menu.rem && menu.rem.estado === "esperando"; height: visible ? implicitHeight : 0
+        MenuItem { text: qsTr("Habilitar (lo vi por la cámara)"); visible: !!menu.rem && menu.rem.estado === "esperando"; height: visible ? implicitHeight : 0
                    onTriggered: { const e = rec.sr.habilitarUi(menu.i.id, true); if (e) rec.aviso = e } }
-        MenuItem { text: "Deshabilitar (sesión remota)"; visible: !!menu.rem && menu.rem.estado === "habilitado"; height: visible ? implicitHeight : 0
+        MenuItem { text: qsTr("Deshabilitar (sesión remota)"); visible: !!menu.rem && menu.rem.estado === "habilitado"; height: visible ? implicitHeight : 0
                    onTriggered: rec.sr.habilitarUi(menu.i.id, false) }
-        MenuItem { text: "Sacar de la sesión remota"; visible: !!menu.rem && menu.rem.conectado; height: visible ? implicitHeight : 0
+        MenuItem { text: qsTr("Sacar de la sesión remota"); visible: !!menu.rem && menu.rem.conectado; height: visible ? implicitHeight : 0
                    onTriggered: rec.sr.expulsarUi(menu.i.id, "") }
-        MenuItem { text: "🎙 Hablarle (apretar para hablar)…"; visible: !!menu.rem && menu.rem.conectado; height: visible ? implicitHeight : 0
+        MenuItem { text: qsTr("🎙 Hablarle (apretar para hablar)…"); visible: !!menu.rem && menu.rem.conectado; height: visible ? implicitHeight : 0
                    onTriggered: ptt.abrir(menu.i) }
-        MenuItem { text: "Abrir el micrófono (central)"; visible: rec.conCentral; height: visible ? implicitHeight : 0
+        MenuItem { text: qsTr("Abrir el micrófono (central)"); visible: rec.conCentral; height: visible ? implicitHeight : 0
                    onTriggered: rec.microfono(menu.l.banca, true, false) }
-        MenuItem { text: "Cerrar el micrófono (central)"; visible: rec.conCentral; height: visible ? implicitHeight : 0
+        MenuItem { text: qsTr("Cerrar el micrófono (central)"); visible: rec.conCentral; height: visible ? implicitHeight : 0
                    onTriggered: rec.microfono(menu.l.banca, false, true) }
-        MenuItem { text: "Sacar su foto con la cámara"; enabled: menu.i !== null && !!(menu.i.preset_ptz && menu.i.preset_ptz.camara)
+        MenuItem { text: qsTr("Sacar su foto con la cámara"); enabled: menu.i !== null && !!(menu.i.preset_ptz && menu.i.preset_ptz.camara)
                    onTriggered: { rec.aviso = ""; Studio.cuerpo.capturarFoto(menu.i.id) } }
-        MenuItem { text: "Subir su foto…"; enabled: menu.i !== null
+        MenuItem { text: qsTr("Subir su foto…"); enabled: menu.i !== null
                    onTriggered: { subirFoto.deId = menu.i.id; subirFoto.open() } }
-        MenuItem { text: "Toma de la banca (cámara y posición)…"
+        MenuItem { text: qsTr("Toma de la banca (cámara y posición)…")
                    onTriggered: tomaBanca.abrir(menu.l) }
-        MenuItem { text: "Apuntar la cámara"; enabled: !!(menu.l && menu.l.toma)
+        MenuItem { text: qsTr("Apuntar la cámara"); enabled: !!(menu.l && menu.l.toma)
                    onTriggered: rec.aviso = Studio.bancas.enfocar("banca " + menu.l.banca, false) }
-        MenuItem { text: "Al aire (arma su cámara)"; enabled: menu.i !== null
+        MenuItem { text: qsTr("Al aire (arma su cámara)"); enabled: menu.i !== null
                    onTriggered: { const e = Studio.bancas.alAire(menu.l.banca, "armar"); rec.aviso = e !== "" ? e : Studio.bancas.ultimoAviso() } }
-        MenuItem { text: "Sumar a la fila"; enabled: menu.i !== null
+        MenuItem { text: qsTr("Sumar a la fila"); enabled: menu.i !== null
                    onTriggered: rec.aviso = Studio.bancas.agregar(menu.l.banca) }
-        MenuItem { text: "Sacar de la fila"; enabled: menu.i !== null && rec.turno(menu.i.id) > 0
+        MenuItem { text: qsTr("Sacar de la fila"); enabled: menu.i !== null && rec.turno(menu.i.id) > 0
                    onTriggered: Studio.bancas.quitar(menu.l.banca) }
-        MenuItem { text: "Terminar (cierra su micrófono)"
+        MenuItem { text: qsTr("Terminar (cierra su micrófono)")
                    enabled: menu.i !== null && rec.b.al_aire && rec.b.al_aire.id === menu.i.id
                    onTriggered: Studio.bancas.terminar() }
     }
@@ -541,14 +541,14 @@ ColumnLayout {
         ColumnLayout {
             spacing: 10
             Text {
-                text: "Toma de la banca " + (tomaBanca.l ? tomaBanca.l.banca : "")
+                text: qsTr("Toma de la banca %1").arg(tomaBanca.l ? tomaBanca.l.banca : "")
                       + (tomaBanca.l && tomaBanca.l.integrante ? " — " + tomaBanca.l.integrante.nombre : "")
                 color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
             }
             Text {
                 Layout.maximumWidth: 360
                 wrapMode: Text.WordWrap
-                text: "La cámara y la posición que la enfocan. Las usan dar la palabra, el debate, «enfocar banca N» y la fuente «Banca con la palabra». Las posiciones se guardan en Cámaras PTZ."
+                text: qsTr("La cámara y la posición que la enfocan. Las usan dar la palabra, el debate, «enfocar banca N» y la fuente «Banca con la palabra». Las posiciones se guardan en Cámaras PTZ.")
                 color: Theme.textDim; font.pixelSize: 11
             }
             SelectorToma {
@@ -560,7 +560,7 @@ ColumnLayout {
                     if (e !== "") rec.aviso = e
                 }
             }
-            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: "Listo"; onClicked: tomaBanca.close() }
+            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: qsTr("Listo"); onClicked: tomaBanca.close() }
         }
     }
 }

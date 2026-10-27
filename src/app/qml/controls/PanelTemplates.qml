@@ -13,7 +13,7 @@ ColumnLayout {
 
     Text {
         Layout.fillWidth: true
-        text: "El estilo de las páginas de control en los aparatos (tablets, celulares, notebooks). Cambia en todos al instante, sin recargar."
+        text: qsTr("El estilo de las páginas de control en los aparatos (tablets, celulares, notebooks). Cambia en todos al instante, sin recargar.")
         color: Theme.textDim
         font.pixelSize: 13
         wrapMode: Text.WordWrap
@@ -54,7 +54,7 @@ ColumnLayout {
                                 border.color: Qt.rgba(1, 1, 1, 0.12)
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "Escena"
+                                    text: qsTr("Escena")
                                     color: tarjeta.modelData.texto
                                     font { pixelSize: 13; weight: Font.DemiBold }
                                 }
@@ -64,7 +64,7 @@ ColumnLayout {
                                 color: tarjeta.modelData.acento
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "Auto"
+                                    text: qsTr("Auto")
                                     color: "#ffffff"
                                     font { pixelSize: 13; weight: Font.DemiBold }
                                 }
@@ -85,7 +85,7 @@ ColumnLayout {
                             color: Theme.text
                             font { pixelSize: 15; weight: Font.DemiBold }
                         }
-                        StatusPill { visible: tarjeta.elegido; text: "En uso"; dot: Theme.ok; on: true }
+                        StatusPill { visible: tarjeta.elegido; text: qsTr("En uso"); dot: Theme.ok; on: true }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -97,7 +97,7 @@ ColumnLayout {
                     GlassButton {
                         Layout.alignment: Qt.AlignRight
                         compact: true
-                        text: tarjeta.elegido ? "Elegido" : "Usar este"
+                        text: tarjeta.elegido ? qsTr("Elegido") : qsTr("Usar este")
                         enabled: !tarjeta.elegido
                         active: tarjeta.elegido
                         onClicked: Studio.temaWeb = tarjeta.modelData.id

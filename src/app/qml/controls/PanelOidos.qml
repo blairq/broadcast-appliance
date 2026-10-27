@@ -18,8 +18,8 @@ Panel {
     id: panel
     readonly property var voz: Studio.voz
     readonly property var r: panel.voz ? panel.voz.reconocedores : ({})
-    readonly property var motores: [{ id: "parakeet", nombre: "Parakeet (por frases)" },
-                                    { id: "nemotron", nombre: "Nemotron (streaming)" }]
+    readonly property var motores: [{ id: "parakeet", nombre: qsTr("Parakeet (por frases)") },
+                                    { id: "nemotron", nombre: qsTr("Nemotron (streaming)") }]
     visible: !!panel.voz && panel.voz.disponible
     padding: 12
     implicitHeight: col.implicitHeight + 2 * padding
@@ -31,10 +31,10 @@ Panel {
     }
     function estadoDe(m) {
         if (!m) return ""
-        if (m.cargando) return "cargando…"
-        if (m.cargado) return "en memoria · " + m.usos + (m.usos === 1 ? " uso" : " usos")
-        if (m.error !== "") return "no cargó"
-        return m.instalado ? "sin usar" : "sin bajar"
+        if (m.cargando) return qsTr("cargando…")
+        if (m.cargado) return qsTr("en memoria · %n uso", "", m.usos)
+        if (m.error !== "") return qsTr("no cargó")
+        return m.instalado ? qsTr("sin usar") : qsTr("sin bajar")
     }
     function elegir(consumidor, motor) {
         const err = panel.voz.elegirReconocedor(consumidor, motor)
@@ -49,25 +49,24 @@ Panel {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Oído (voz a texto)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+            Text { text: qsTr("Oído (voz a texto)"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
             Repeater {
                 model: panel.motores
                 delegate: StatusPill {
                     required property var modelData
                     readonly property var m: panel.motor(modelData.id)
-                    text: modelData.nombre.split(" ")[0] + ": " + panel.estadoDe(m)
+                    text: qsTr("%1: %2").arg(modelData.nombre.split(" ")[0]).arg(panel.estadoDe(m))
                     dot: m && m.cargado ? Theme.ok : (m && m.cargando ? Theme.accent : Theme.textFaint)
                     pulse: !!m && m.cargando
                     ToolTip.visible: hov.hovered
-                    ToolTip.text: (m && m.error !== "" ? m.error + "\n" : "") + "~" + (m ? m.memoria_mb : 0) +
-                                  " MB en memoria cuando está cargado"
+                    ToolTip.text: (m && m.error !== "" ? m.error + "\n" : "") + qsTr("~%1 MB en memoria cuando está cargado").arg(m ? m.memoria_mb : 0)
                     HoverHandler { id: hov }
                 }
             }
             Item { Layout.fillWidth: true }
             Text {
-                text: "Cada uno elige con qué escucha. Un motor se carga si alguien lo usa y se suelta a los " +
-                      (panel.r.margen_s || 120) + " s sin uso."
+                text: qsTr("Cada uno elige con qué escucha. Un motor se carga si alguien lo usa y se suelta a los %1 s sin uso.")
+                      .arg(panel.r.margen_s || 120)
                 color: Theme.textFaint; font.pixelSize: 11
                 elide: Text.ElideRight; Layout.maximumWidth: 520
             }
@@ -85,11 +84,11 @@ Panel {
             visible: (panel.r.alerta || "") !== ""
             spacing: 8
             GlassButton {
-                compact: true; text: "Todos con Parakeet"
+                compact: true; text: qsTr("Todos con Parakeet")
                 onClicked: { for (const c of (panel.r.consumidores || [])) panel.elegir(c.id, "parakeet") }
             }
             GlassButton {
-                compact: true; text: "Todos con Nemotron"
+                compact: true; text: qsTr("Todos con Nemotron")
                 enabled: !!panel.motor("nemotron") && panel.motor("nemotron").instalado
                 onClicked: { for (const c of (panel.r.consumidores || [])) panel.elegir(c.id, "nemotron") }
             }
@@ -120,14 +119,14 @@ Panel {
                     onActivated: (i) => panel.elegir(fila.modelData.id, panel.motores[i].id)
                 }
                 Text {
-                    text: fila.modelData.usos > 0 ? (fila.modelData.usos + " escuchando") : "—"
+                    text: fila.modelData.usos > 0 ? qsTr("%n escuchando", "", fila.modelData.usos) : "—"
                     color: fila.modelData.usos > 0 ? Theme.ok : Theme.textFaint
                     font.pixelSize: 11
                     Layout.preferredWidth: 90
                 }
                 Text {
                     visible: !!fila.m && !fila.m.instalado
-                    text: "Falta bajarlo (Configuración → Modelos locales)"
+                    text: qsTr("Falta bajarlo (Configuración → Modelos locales)")
                     color: Theme.warn; font.pixelSize: 11
                 }
                 // Solo donde hay cancelación de eco (el tótem) y con Nemotron, que sigue
@@ -143,8 +142,8 @@ Panel {
                 }
                 Text {
                     visible: fila.modelData.interrumpible
-                    text: fila.modelData.motor === "nemotron" ? "La persona puede interrumpir al asistente"
-                                                              : "Interrumpir al asistente: solo con Nemotron"
+                    text: fila.modelData.motor === "nemotron" ? qsTr("La persona puede interrumpir al asistente")
+                                                              : qsTr("Interrumpir al asistente: solo con Nemotron")
                     color: fila.modelData.motor === "nemotron" ? Theme.textDim : Theme.textFaint
                     font.pixelSize: 11
                 }

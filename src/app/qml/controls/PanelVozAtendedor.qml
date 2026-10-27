@@ -27,18 +27,18 @@ ScrollView {
             wrapMode: Text.WordWrap
             visible: !pva.at
             color: Theme.amber; font.pixelSize: 13
-            text: "Esta compilación no trae la atención hablada (falta el motor de voz)."
+            text: qsTr("Esta compilación no trae la atención hablada (falta el motor de voz).")
         }
 
-        Text { visible: !!pva.at; text: "Voz del atendedor"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+        Text { visible: !!pva.at; text: qsTr("Voz del atendedor"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
         Text {
             visible: !!pva.at
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             color: Theme.textFaint; font.pixelSize: 11
-            text: "Con la que el asistente le contesta a quien atiende hablando en el lobby. Le llega solo a esa " +
+            text: qsTr("Con la que el asistente le contesta a quien atiende hablando en el lobby. Le llega solo a esa " +
                   "persona: nunca al aire, ni a los demás que esperan, ni a tus auriculares. Las voces se bajan " +
-                  "en Modelos locales (tipo «texto a voz»)."
+                  "en Modelos locales (tipo «texto a voz»).")
         }
         Repeater {
             model: pva.at ? pva.at.voces : []
@@ -58,7 +58,7 @@ ScrollView {
                         spacing: 1
                         Text { text: modelData.nombre; color: Theme.text; font.pixelSize: 13 }
                         Text {
-                            text: "calidad " + modelData.calidad + " · " + Math.round(modelData.tamano_gb * 1024) + " MB"
+                            text: qsTr("calidad %1 · %2 MB").arg(modelData.calidad).arg(Math.round(modelData.tamano_gb * 1024))
                             color: Theme.textDim; font.pixelSize: 11
                         }
                     }
@@ -66,13 +66,13 @@ ScrollView {
                         compact: true
                         visible: !modelData.instalado
                         enabled: Studio.modelos.enCola.indexOf(modelData.repo) < 0
-                        text: enabled ? "Bajar" : "En la cola"; icon: "⇩"
+                        text: enabled ? qsTr("Bajar") : qsTr("En la cola"); icon: "⇩"
                         onClicked: Studio.notify(modelData.repo + ": " + Studio.modelos.descargar(modelData.repo), "info")
                     }
                     GlassButton {
                         compact: true
                         visible: modelData.instalado
-                        text: modelData.elegida ? "Elegida" : "Elegir"
+                        text: modelData.elegida ? qsTr("Elegida") : qsTr("Elegir")
                         active: modelData.elegida
                         onClicked: pva.at.elegirVoz(modelData.repo)
                     }
@@ -88,36 +88,36 @@ ScrollView {
                 delegate: GlassButton {
                     required property int index
                     compact: true
-                    text: "Voz " + (index + 1)
+                    text: qsTr("Voz %1").arg(index + 1)
                     active: pva.at.hablante === index
                     onClicked: pva.at.hablante = index
                 }
             }
-            Text { text: "más lento"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("más lento"); color: Theme.textDim; font.pixelSize: 11 }
             Slider {
                 Layout.fillWidth: true
                 from: 0.7; to: 1.5; stepSize: 0.05
                 value: pva.at ? pva.at.velocidad : 1
                 onMoved: pva.at.velocidad = value
             }
-            Text { text: "más rápido"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("más rápido"); color: Theme.textDim; font.pixelSize: 11 }
         }
 
         Rectangle { visible: !!pva.at; Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
         // --- Probar, sin que suene -------------------------------------------------------
-        Text { visible: !!pva.at; text: "Probar (no suena)"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+        Text { visible: !!pva.at; text: qsTr("Probar (no suena)"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
         RowLayout {
             Layout.fillWidth: true
             visible: !!pva.at
             TextField {
                 id: frase
                 Layout.fillWidth: true
-                placeholderText: "escribí una frase (o dejalo vacío para una de ejemplo)"
+                placeholderText: qsTr("escribí una frase (o dejalo vacío para una de ejemplo)")
                 onAccepted: pva.at.probarVoz(text)
             }
             GlassButton {
-                compact: true; text: "Generar"; active: true
+                compact: true; text: qsTr("Generar"); active: true
                 enabled: pva.at && pva.at.vozLista && !pva.at.prueba.probando
                 onClicked: pva.at.probarVoz(frase.text)
             }
@@ -129,10 +129,10 @@ ScrollView {
             color: pva.at && pva.at.prueba.error ? Theme.amber : Theme.textDim
             font.pixelSize: 12
             text: !pva.at ? ""
-                  : pva.at.prueba.probando ? "Generando…"
+                  : pva.at.prueba.probando ? qsTr("Generando…")
                   : pva.at.prueba.error ? pva.at.prueba.error
-                  : "Dura " + Number(pva.at.prueba.segundos || 0).toFixed(1).replace(".", ",") + " s." +
-                    (pva.at.prueba.archivo ? " Quedó en " + pva.at.prueba.archivo + " para escucharlo con auriculares." : "")
+                  : qsTr("Dura %1 s.").arg(Number(pva.at.prueba.segundos || 0).toFixed(1).replace(".", ",")) +
+                    (pva.at.prueba.archivo ? " " + qsTr("Quedó en %1 para escucharlo con auriculares.").arg(pva.at.prueba.archivo) : "")
         }
         // La forma de onda: el pico de cada tramo, de 0 a 1.
         Row {
@@ -155,8 +155,8 @@ ScrollView {
         RowLayout {
             visible: !!pva.at && !!pva.at.prueba.archivo
             GlassButton {
-                compact: true; text: "Copiar la ruta del .wav"
-                onClicked: { rutaWav.text = pva.at.prueba.archivo; rutaWav.selectAll(); rutaWav.copy(); Studio.notify("Ruta copiada", "ok") }
+                compact: true; text: qsTr("Copiar la ruta del .wav")
+                onClicked: { rutaWav.text = pva.at.prueba.archivo; rutaWav.selectAll(); rutaWav.copy(); Studio.notify(qsTr("Ruta copiada"), "ok") }
             }
             TextInput { id: rutaWav; visible: false }
         }

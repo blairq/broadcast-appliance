@@ -66,20 +66,20 @@ Item {
         anchors { top: parent.top; right: mezBtn.left; rightMargin: 6 }
         z: 10
         compact: true
-        text: "Audio ›"
+        text: qsTr("Audio ›")
         onClicked: ApplicationWindow.window.showPage(Studio.riel.paginaDeId("audio"))
         ToolTip.visible: hovered; ToolTip.delay: 400
-        ToolTip.text: "La pestaña Audio: el rack y los filtros de cada entrada, la matriz y las salidas."
+        ToolTip.text: qsTr("La pestaña Audio: el rack y los filtros de cada entrada, la matriz y las salidas.")
     }
     GlassButton {
         id: mezBtn
         anchors { top: parent.top; right: parent.right }
         z: 10
         compact: true
-        text: "⧉ Mezclador"
+        text: qsTr("⧉ Mezclador")
         onClicked: ApplicationWindow.window.sacarPanel("mezclador", "Mezclador")
         ToolTip.visible: hovered; ToolTip.delay: 400
-        ToolTip.text: "Abre el Mezclador en su propia ventana: lo que sale de cada entrada, las salidas y la matriz."
+        ToolTip.text: qsTr("Abre el Mezclador en su propia ventana: lo que sale de cada entrada, las salidas y la matriz.")
     }
 
     RowLayout {
@@ -102,20 +102,21 @@ Item {
                 LevelMeter { vertical: true; db: Studio.programPeakL; Layout.fillHeight: true }
                 LevelMeter { vertical: true; db: Studio.programPeakR; Layout.fillHeight: true }
             }
-            Text { text: "Programa"; color: Theme.accentSoft; font { pixelSize: 11; weight: Font.DemiBold } }
+            Text { text: qsTr("Programa"); color: Theme.accentSoft; font { pixelSize: 11; weight: Font.DemiBold } }
             // La balística de todos los medidores: pico → PPM (EBU IIb) → VU.
             Rectangle {
                 Layout.fillWidth: true
                 height: 16; radius: 5
                 color: Qt.rgba(1, 1, 1, 0.06)
-                Text { anchors.centerIn: parent; text: Studio.balistica.toUpperCase(); color: Theme.textDim; font { pixelSize: 9; weight: Font.Bold } }
+                // La clave («pico», «ppm», «vu») no se traduce: solo su etiqueta.
+                Text { anchors.centerIn: parent; text: Studio.balistica === "pico" ? qsTr("PICO") : Studio.balistica.toUpperCase(); color: Theme.textDim; font { pixelSize: 9; weight: Font.Bold } }
                 MouseArea {
                     id: balMa
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: Studio.balistica = Studio.balistica === "pico" ? "ppm" : Studio.balistica === "ppm" ? "vu" : "pico"
                 }
                 ToolTip.visible: balMa.containsMouse; ToolTip.delay: 500
-                ToolTip.text: "Balística de los medidores: PICO (instantáneo), PPM (EBU IIb: cae 24 dB en 2,8 s) o VU (integra 300 ms)"
+                ToolTip.text: qsTr("Balística de los medidores: PICO (instantáneo), PPM (EBU IIb: cae 24 dB en 2,8 s) o VU (integra 300 ms)")
             }
         }
         // Loudness de lo que sale (EBU R128): M y S en barras, el integrado en grande,
@@ -145,12 +146,12 @@ Item {
                     Text { text: "TP " + (ld.l.tp > -100 ? Number(ld.l.tp).toFixed(1) : "—"); font.pixelSize: 11
                            color: ld.l.tp > ld.ob.tp ? Theme.live : Theme.textDim }
                     Text { text: "LRA " + Number(ld.l.lra || 0).toFixed(1); color: Theme.textDim; font.pixelSize: 11 }
-                    Text { text: "obj. " + ld.ob.lufs + " / " + ld.ob.tp; color: Theme.textFaint; font.pixelSize: 9 }
+                    Text { text: qsTr("obj. %1 / %2").arg(ld.ob.lufs).arg(ld.ob.tp); color: Theme.textFaint; font.pixelSize: 9 }
                     Text { visible: (ld.l.gr_db || 0) < -0.1; text: "LIM " + Number(ld.l.gr_db).toFixed(1); color: Theme.amber; font.pixelSize: 10 }
                 }
             }
-            GlassButton { compact: true; text: "Reset"; onClicked: Studio.resetLoudnessUi()
-                          ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Vuelve a cero el integrado y el LRA (arranca solo al transmitir o grabar)" }
+            GlassButton { compact: true; text: qsTr("Reset"); onClicked: Studio.resetLoudnessUi()
+                          ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Vuelve a cero el integrado y el LRA (arranca solo al transmitir o grabar)") }
         }
         Rectangle { width: 1; Layout.fillHeight: true; color: Qt.rgba(1, 1, 1, 0.1) }
 
@@ -244,8 +245,8 @@ Item {
                         value: Math.max(-60, tira.gananciaGrupoDb)
                         onMoved: Studio.mixer.setGananciaGrupoDb(tira.grupo, value)
                         ToolTip.visible: pressed || vcaVMa.containsMouse; ToolTip.delay: pressed ? 0 : 500
-                        ToolTip.text: "Volumen general de " + tira.nombreGrupo + ": " + value.toFixed(1)
-                                      + " dB (mueve a todos sin tocar el fader de cada uno; doble clic en «VCA»: 0 dB)"
+                        ToolTip.text: qsTr("Volumen general de %1: %2 dB (mueve a todos sin tocar el fader de cada uno; doble clic en «VCA»: 0 dB)")
+                                      .arg(tira.nombreGrupo).arg(value.toFixed(1))
                         MouseArea { id: vcaVMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                         TapHandler { onDoubleTapped: Studio.mixer.setGananciaGrupoDb(tira.grupo, 0) }
                     }
@@ -289,7 +290,7 @@ Item {
                                 onClicked: Studio.mixer.setCompacto(tira.grupo, !tira.compacto)
                             }
                             ToolTip.visible: grMa.containsMouse; ToolTip.delay: 400
-                            ToolTip.text: "Compactar " + tira.nombreGrupo + ": sin faders, una casilla por tira (" + tira.tamGrupo + " tiras)"
+                            ToolTip.text: qsTr("Compactar %1: sin faders, una casilla por tira (%n tira)", "", tira.tamGrupo).arg(tira.nombreGrupo)
                         }
                     }
                     RowLayout {
@@ -311,7 +312,7 @@ Item {
                         Layout.fillWidth: true
                         height: 22; radius: 8
                         color: muted ? Theme.canalMute : Qt.rgba(1, 1, 1, 0.08)
-                        Text { anchors.centerIn: parent; text: muted ? "MUDO" : "M"; color: Theme.text; font { pixelSize: 10; weight: Font.Bold } }
+                        Text { anchors.centerIn: parent; text: muted ? qsTr("MUDO") : qsTr("M", "botón de silenciar un canal"); color: Theme.text; font { pixelSize: 10; weight: Font.Bold } }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Studio.mixer.setMuted(name, !muted) }
                     }
                     // PFL: escucharla por el monitor sin tocar el aire (uno a la vez, amarillo).
@@ -327,7 +328,7 @@ Item {
                             onClicked: { const e = Studio.pflUi(name); if (e !== "") Studio.notify(e, "error") }
                         }
                         ToolTip.visible: pflMa.containsMouse; ToolTip.delay: 500
-                        ToolTip.text: "Escucharla en los auriculares sin tocar lo que sale al aire (se suma a lo que ya va ahí, como la voz del asistente). Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla."
+                        ToolTip.text: qsTr("Escucharla en los auriculares sin tocar lo que sale al aire (se suma a lo que ya va ahí, como la voz del asistente). Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla.")
                     }
                     // AFV: el audio sigue al video (sube y baja con su escena).
                     Rectangle {
@@ -341,7 +342,7 @@ Item {
                             onClicked: Studio.setAfv(name, !parent.on)
                         }
                         ToolTip.visible: afvMa.containsMouse; ToolTip.delay: 500
-                        ToolTip.text: "Audio que sigue al video: sube cuando entra al aire una escena con esta fuente y baja cuando sale"
+                        ToolTip.text: qsTr("Audio que sigue al video: sube cuando entra al aire una escena con esta fuente y baja cuando sale")
                         MouseArea { id: afvMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                     }
                     // Sincronizar con el video (sincro labios): el retardo del canal, a mano o con aplausos.
@@ -351,12 +352,12 @@ Item {
                         Layout.fillWidth: true
                         height: 18; radius: 6
                         color: ms !== 0 ? Theme.canalSinc : Qt.rgba(1, 1, 1, 0.05)
-                        Text { anchors.centerIn: parent; text: sincBtn.ms !== 0 ? (sincBtn.ms > 0 ? "+" : "") + sincBtn.ms + " ms" : "SINC"
+                        Text { anchors.centerIn: parent; text: sincBtn.ms !== 0 ? (sincBtn.ms > 0 ? "+" : "") + sincBtn.ms + " ms" : qsTr("SINC")
                                color: sincBtn.ms !== 0 ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                         MouseArea { id: sincMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
                                     onClicked: retardoPop.abrir(name) }
                         ToolTip.visible: sincMa.containsMouse; ToolTip.delay: 500
-                        ToolTip.text: "Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)"
+                        ToolTip.text: qsTr("Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)")
                     }
                     // El canal que manda el teclado se marca: sin esto, subir el
                     // volumen con las flechas es una apuesta.
@@ -398,7 +399,7 @@ Item {
                             MouseArea { id: abrMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: Studio.mixer.setCompacto(tira.grupo, false) }
                             ToolTip.visible: abrMa.containsMouse; ToolTip.delay: 400
-                            ToolTip.text: "Mostrar los faders de " + tira.nombreGrupo + " (" + tira.tamGrupo + " tiras)"
+                            ToolTip.text: qsTr("Mostrar los faders de %1 (%n tira)", "", tira.tamGrupo).arg(tira.nombreGrupo)
                         }
                         Text {
                             Layout.fillWidth: true
@@ -410,7 +411,7 @@ Item {
                         Layout.fillWidth: true
                         height: 22; radius: 8
                         color: Qt.rgba(1, 1, 1, 0.08)
-                        Text { anchors.centerIn: parent; text: "M todos"; color: Theme.text; font { pixelSize: 10; weight: Font.Bold } }
+                        Text { anchors.centerIn: parent; text: qsTr("M todos"); color: Theme.text; font { pixelSize: 10; weight: Font.Bold } }
                         MouseArea {
                             id: todosMa
                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -425,7 +426,7 @@ Item {
                             }
                         }
                         ToolTip.visible: todosMa.containsMouse; ToolTip.delay: 400
-                        ToolTip.text: "Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)"
+                        ToolTip.text: qsTr("Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)")
                     }
                     // El volumen general del grupo (VCA), acostado: compactado no hay lugar para uno parado.
                     RowLayout {
@@ -478,7 +479,7 @@ Item {
                                 onClicked: Studio.mixer.setMuted(casilla.name, !casilla.muted)
                             }
                             ToolTip.visible: casMa.containsMouse; ToolTip.delay: 400
-                            ToolTip.text: casilla.name + (casilla.muted ? " · muda" : "") + " (un clic la silencia)"
+                            ToolTip.text: (casilla.muted ? qsTr("%1 · muda (un clic la silencia)") : qsTr("%1 (un clic la silencia)")).arg(casilla.name)
                         }
                     }
                 }

@@ -15,7 +15,7 @@ Dialog {
     modal: true
     width: Math.min(parent ? parent.width - 32 : 640, 640)
     height: Math.min(parent ? parent.height - 64 : 560, 560)
-    title: "Descargas"
+    title: qsTr("Descargas")
     standardButtons: Dialog.Close
 
     readonly property var dl: Studio.descargas
@@ -27,8 +27,8 @@ Dialog {
              : e === "listo" ? Theme.ok : e === "error" ? Theme.live : Theme.textFaint
     }
     function nombreEstado(e) {
-        return e === "bajando" ? "bajando" : e === "en_cola" ? "en la cola" : e === "listo" ? "listo"
-             : e === "error" ? "falló" : "cancelada"
+        return e === "bajando" ? qsTr("bajando") : e === "en_cola" ? qsTr("en la cola") : e === "listo" ? qsTr("listo")
+             : e === "error" ? qsTr("falló") : qsTr("cancelada")
     }
 
     contentItem: ColumnLayout {
@@ -41,13 +41,12 @@ Dialog {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 color: Theme.textDim; font.pixelSize: 12
-                text: dlg.dl.buscando ? "Buscando actualizaciones…"
-                      : dlg.dl.actualizaciones.length > 0 ? "Hay " + dlg.dl.actualizaciones.length + " actualización"
-                                                            + (dlg.dl.actualizaciones.length === 1 ? "" : "es") + "."
-                      : "Una sola cola para todo, de a dos a la vez. Lo que ya está en la cola o bajado no se repite."
+                text: dlg.dl.buscando ? qsTr("Buscando actualizaciones…")
+                      : dlg.dl.actualizaciones.length > 0 ? qsTr("Hay %n actualización.", "", dlg.dl.actualizaciones.length)
+                      : qsTr("Una sola cola para todo, de a dos a la vez. Lo que ya está en la cola o bajado no se repite.")
             }
             GlassButton {
-                compact: true; text: "Buscar actualizaciones"
+                compact: true; text: qsTr("Buscar actualizaciones")
                 enabled: !dlg.dl.buscando
                 onClicked: dlg.dl.buscarActualizaciones()
             }
@@ -63,7 +62,7 @@ Dialog {
                     color: Theme.text; font.pixelSize: 12
                     text: modelData.titulo + "  ·  " + modelData.actual + " → " + modelData.version
                 }
-                GlassButton { compact: true; active: true; text: "Actualizar"; onClicked: dlg.dl.actualizar(modelData.id) }
+                GlassButton { compact: true; active: true; text: qsTr("Actualizar"); onClicked: dlg.dl.actualizar(modelData.id) }
             }
         }
         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
@@ -92,12 +91,12 @@ Dialog {
                     }
                     Text { color: dlg.colorDe(modelData.estado); font.pixelSize: 11; text: dlg.nombreEstado(modelData.estado) }
                     GlassButton {
-                        compact: true; text: "Cancelar"
+                        compact: true; text: qsTr("Cancelar")
                         visible: modelData.estado === "bajando" || modelData.estado === "en_cola"
                         onClicked: dlg.dl.cancelar(modelData.id)
                     }
                     GlassButton {
-                        compact: true; text: "Reintentar"
+                        compact: true; text: qsTr("Reintentar")
                         visible: modelData.reintentable
                         onClicked: dlg.dl.reintentar(modelData.id)
                     }
@@ -115,7 +114,7 @@ Dialog {
                     text: modelData.estado === "bajando" && modelData.kbps > 0
                           ? modelData.texto + "  ·  " + dlg.velocidad(modelData.kbps)
                           : modelData.estado === "listo" && modelData.bytes > 0
-                          ? "Listo  ·  " + dlg.mb(modelData.bytes) + " MB"
+                          ? qsTr("Listo  ·  %1 MB").arg(dlg.mb(modelData.bytes))
                           : modelData.texto
                 }
             }
@@ -123,13 +122,13 @@ Dialog {
                 anchors.centerIn: parent
                 visible: lista.count === 0
                 color: Theme.textFaint; font.pixelSize: 12
-                text: "No se bajó nada todavía."
+                text: qsTr("No se bajó nada todavía.")
             }
         }
         RowLayout {
             Layout.fillWidth: true
             Item { Layout.fillWidth: true }
-            GlassButton { compact: true; text: "Limpiar lo terminado"; onClicked: dlg.dl.limpiarTerminadas() }
+            GlassButton { compact: true; text: qsTr("Limpiar lo terminado"); onClicked: dlg.dl.limpiarTerminadas() }
         }
     }
 }

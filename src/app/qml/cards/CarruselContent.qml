@@ -106,8 +106,8 @@ Item {
                        ? Theme.accent : Qt.rgba(1, 1, 1, 0.18)
                 ToolTip.visible: ratonPunto.containsMouse
                 ToolTip.text: tarjeta.cc.actual === tarjeta.cc.enEscena
-                              ? "Este carrusel está en la escena al aire"
-                              : "Este carrusel NO está en la escena al aire: tocar una lámina no cambia nada"
+                              ? qsTr("Este carrusel está en la escena al aire")
+                              : qsTr("Este carrusel NO está en la escena al aire: tocar una lámina no cambia nada")
                 MouseArea { id: ratonPunto; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true }
             }
             GlassButton {
@@ -121,13 +121,13 @@ Item {
                 onClicked: ApplicationWindow.window.sacarPanel("carrusel", "Carrusel")
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: "Sacar el carrusel a su propia ventana"
+                ToolTip.text: qsTr("Sacar el carrusel a su propia ventana")
             }
             TextField {
                 id: busca
                 Layout.fillWidth: true
                 color: Theme.text
-                placeholderText: "Buscar lámina…"
+                placeholderText: qsTr("Buscar lámina…")
                 onTextChanged: tarjeta.cc.consulta = text
                 Keys.onEscapePressed: text = ""
             }
@@ -307,10 +307,10 @@ Item {
                 font.pixelSize: 12
                 text: tarjeta.cc.actual === ""
                       ? (tarjeta.cc.enEscena === ""
-                         ? "Esta escena no tiene carrusel.\n\nSe arman en Medios y se ponen en una\nescena desde la pestaña Escenas."
-                         : "Elegí un carrusel arriba.")
-                      : busca.text !== "" ? "Ninguna lámina coincide."
-                                          : "Este carrusel está vacío."
+                         ? qsTr("Esta escena no tiene carrusel.\n\nSe arman en Medios y se ponen en una\nescena desde la pestaña Escenas.")
+                         : qsTr("Elegí un carrusel arriba."))
+                      : busca.text !== "" ? qsTr("Ninguna lámina coincide.")
+                                          : qsTr("Este carrusel está vacío.")
             }
         }
 
@@ -335,19 +335,18 @@ Item {
             Item { Layout.fillWidth: true }
             Text {
                 visible: tira.count > 0
-                text: (tira.currentIndex + 1) + " de " + tira.count
+                text: qsTr("%1 de %2").arg(tira.currentIndex + 1).arg(tira.count)
                 color: Theme.textFaint
                 font.pixelSize: 11
             }
             GlassButton {
                 compact: true
-                text: "Poner"
+                text: qsTr("Poner")
                 active: true
                 enabled: tira.count > 0
                 onClicked: tarjeta.poner()
                 ToolTip.visible: hovered
-                ToolTip.text: "Pone la lámina del centro (Enter, o doble clic sobre ella).\n" +
-                              "Recorrer la tira no cambia lo que se ve."
+                ToolTip.text: qsTr("Pone la lámina del centro (Enter, o doble clic sobre ella).\nRecorrer la tira no cambia lo que se ve.")
             }
         }
     }
@@ -402,8 +401,7 @@ Item {
                     color: Studio.streaming ? Theme.live : Theme.textFaint
                 }
                 Text {
-                    text: (Studio.streaming ? "AL AIRE · " : "PROGRAMA · ") +
-                          (Studio.currentScene || "—")
+                    text: (Studio.streaming ? qsTr("AL AIRE · %1") : qsTr("PROGRAMA · %1")).arg(Studio.currentScene || "—")
                     color: Theme.text
                     font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold }
                 }

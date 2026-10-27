@@ -20,6 +20,13 @@ Item {
     /// Lo pone en true VentanaSuelta (ver PanelPreguntas).
     property bool enVentana: false
     readonly property var r: ev.resumenPadron
+    // El papel y el canal se guardan con su clave (en español); acá, la etiqueta.
+    readonly property var papeles: [ { t: qsTr("público"), v: "publico" }, { t: qsTr("orador"), v: "orador" },
+                                     { t: qsTr("panelista"), v: "panelista" }, { t: qsTr("prensa"), v: "prensa" },
+                                     { t: qsTr("staff"), v: "staff" } ]
+    readonly property var canales: [ { t: qsTr("Sin definir"), v: "sin_definir" }, { t: qsTr("Presencial"), v: "presencial" },
+                                     { t: qsTr("En línea"), v: "online" } ]
+    function etiqueta(lista, v) { const o = lista.find(x => x.v === v); return o ? o.t : v }
 
     ColumnLayout {
         anchors.fill: parent
@@ -36,8 +43,9 @@ Item {
             border.color: q.hay_quorum ? Theme.ok : Theme.live
             Text {
                 anchors.centerIn: parent
-                text: (parent.q.hay_quorum ? "HAY QUÓRUM" : "SIN QUÓRUM") + " · " + parent.q.presentes + " de " +
-                      parent.q.necesarios + " necesarios (" + parent.q.miembros + " miembros)"
+                text: (parent.q.hay_quorum ? qsTr("HAY QUÓRUM · %1 de %2 necesarios (%3 miembros)")
+                                           : qsTr("SIN QUÓRUM · %1 de %2 necesarios (%3 miembros)"))
+                      .arg(parent.q.presentes).arg(parent.q.necesarios).arg(parent.q.miembros)
                 color: Theme.text
                 font.pixelSize: 17
                 font.weight: Font.Black
@@ -46,7 +54,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
-            Text { text: "Miembros"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Miembros"); color: Theme.textDim; font.pixelSize: 11 }
             SpinBox {
                 id: qMiembros; from: 0; to: 1000; editable: true; Layout.preferredWidth: 100
                 value: Studio.quorum.estado.miembros || 0
@@ -54,19 +62,19 @@ Item {
             ComboBox {
                 id: qMayoria
                 implicitWidth: 200
-                model: [ { t: "Mayoría simple", v: "simple" }, { t: "Mayoría absoluta", v: "absoluta" },
-                         { t: "2/3 de presentes", v: "dos_tercios_presentes" }, { t: "2/3 de miembros", v: "dos_tercios_miembros" } ]
+                model: [ { t: qsTr("Mayoría simple"), v: "simple" }, { t: qsTr("Mayoría absoluta"), v: "absoluta" },
+                         { t: qsTr("2/3 de presentes"), v: "dos_tercios_presentes" }, { t: qsTr("2/3 de miembros"), v: "dos_tercios_miembros" } ]
                 textRole: "t"
                 currentIndex: Math.max(0, model.findIndex(o => o.v === Studio.quorum.estado.mayoria))
             }
             GlassButton {
-                compact: true; text: "Guardar reglas"
+                compact: true; text: qsTr("Guardar reglas")
                 onClicked: {
                     const e = Studio.quorum.setReglaUi({ miembros: qMiembros.value, minimo: "mitad_mas_uno", mayoria: qMayoria.model[qMayoria.currentIndex].v })
                     if (e !== "") Studio.notify(e, "error")
                 }
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "Quórum: la mitad más uno de los miembros. La mayoría es la de fábrica para el resultado oficial."
+                ToolTip.text: qsTr("Quórum: la mitad más uno de los miembros. La mayoría es la de fábrica para el resultado oficial.")
             }
             Item { Layout.fillWidth: true }
         }
@@ -76,19 +84,19 @@ Item {
             Layout.fillWidth: true
             spacing: 14
             Text {
-                text: raiz.r.presentes + " de " + raiz.r.total + " presentes"
+                text: qsTr("%1 de %2 presentes").arg(raiz.r.presentes).arg(raiz.r.total)
                 color: Theme.text
                 font { pixelSize: 14; weight: Font.DemiBold }
             }
             Text {
-                text: raiz.r.presenciales + " en el lugar · " + raiz.r.enLinea + " en línea"
-                      + (raiz.r.sinDato > 0 ? " · " + raiz.r.sinDato + " sin dato" : "")
+                text: qsTr("%1 en el lugar · %2 en línea").arg(raiz.r.presenciales).arg(raiz.r.enLinea)
+                      + (raiz.r.sinDato > 0 ? " · " + qsTr("%1 sin dato").arg(raiz.r.sinDato) : "")
                 color: Theme.textDim
                 font.pixelSize: 12
             }
             Text {
                 visible: raiz.r.conVoto > 0
-                text: "quórum " + raiz.r.votoPresente + "/" + raiz.r.conVoto
+                text: qsTr("quórum %1/%2").arg(raiz.r.votoPresente).arg(raiz.r.conVoto)
                 color: Theme.ok
                 font { pixelSize: 12; weight: Font.DemiBold }
             }
@@ -97,12 +105,12 @@ Item {
                 compact: true
                 visible: !raiz.enVentana
                 text: "⧉"
-                onClicked: ApplicationWindow.window.sacarPanel("padron", "Padrón")
+                onClicked: ApplicationWindow.window.sacarPanel("padron", qsTr("Padrón"))
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: "Sacar a su propia ventana, para el mostrador de acreditación"
+                ToolTip.text: qsTr("Sacar a su propia ventana, para el mostrador de acreditación")
             }
-            GlassButton { compact: true; text: "Anotar"; onClicked: altaDlg.open() }
+            GlassButton { compact: true; text: qsTr("Anotar"); onClicked: altaDlg.open() }
         }
 
         Item {
@@ -135,20 +143,20 @@ Item {
                             spacing: 0
                             Text {
                                 textFormat: Text.PlainText
-                                text: fila.modelData.nombre || "(sin nombre)"
+                                text: fila.modelData.nombre || qsTr("(sin nombre)")
                                 color: Theme.text
                                 font.pixelSize: 13
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
                             Text {
-                                text: fila.modelData.papel + " · " +
+                                text: raiz.etiqueta(raiz.papeles, fila.modelData.papel) + " · " +
                                       (fila.modelData.estado === "llego" && fila.modelData.porDonde !== ""
-                                       ? "llegó por " + fila.modelData.porDonde
+                                       ? qsTr("llegó por %1").arg(fila.modelData.porDonde)
                                        : fila.modelData.canal === "sin_definir"
-                                         ? "sin definir" : fila.modelData.canal) +
-                                      (fila.modelData.vota ? " · vota" : "") +
-                                      (fila.modelData.dejarPasarSolo ? " · entra solo" : "")
+                                         ? qsTr("sin definir") : raiz.etiqueta(raiz.canales, fila.modelData.canal)) +
+                                      (fila.modelData.vota ? " · " + qsTr("vota") : "") +
+                                      (fila.modelData.dejarPasarSolo ? " · " + qsTr("entra solo") : "")
                                 color: Theme.textFaint
                                 font.pixelSize: 11
                             }
@@ -163,7 +171,7 @@ Item {
                         }
                         GlassButton {
                             compact: true
-                            text: fila.modelData.estado === "llego" ? "Se fue" : "Llegó"
+                            text: fila.modelData.estado === "llego" ? qsTr("Se fue") : qsTr("Llegó")
                             onClicked: fila.modelData.estado === "llego"
                                        ? raiz.ev.despedir(fila.modelData.id)
                                        : raiz.ev.acreditar(fila.modelData.id, "mostrador")
@@ -172,10 +180,10 @@ Item {
                             compact: true
                             text: "✕"
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "Sacar del padrón",
-                                text: "Se saca a «" + (fila.modelData.nombre || "esta persona") +
-                                      "» de la lista de este evento. No toca su ficha de rostro.",
-                                accept: "Sacar", reject: "Dejarlo",
+                                title: qsTr("Sacar del padrón"),
+                                text: qsTr("Se saca a «%1» de la lista de este evento. No toca su ficha de rostro.")
+                                      .arg(fila.modelData.nombre || qsTr("esta persona")),
+                                accept: qsTr("Sacar"), reject: qsTr("Dejarlo"),
                                 action: () => raiz.ev.quitarAsistente(fila.modelData.id)
                             })
                         }
@@ -192,9 +200,9 @@ Item {
                 color: Theme.textFaint
                 font.pixelSize: 12
                 text: raiz.ev.abierto === ""
-                      ? "El padrón vive en el evento: abrí uno primero."
-                      : "Todavía no hay nadie anotado. Sin padrón no hay quórum, y sin quórum lo " +
-                        "que se decida no vale."
+                      ? qsTr("El padrón vive en el evento: abrí uno primero.")
+                      : qsTr("Todavía no hay nadie anotado. Sin padrón no hay quórum, y sin quórum lo " +
+                             "que se decida no vale.")
             }
         }
     }
@@ -204,12 +212,12 @@ Item {
         anchors.centerIn: Overlay.overlay
         width: 460
         modal: true
-        title: "Anotar a alguien"
+        title: qsTr("Anotar a alguien")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: { aNombre.text = ""; aNota.text = ""; aVota.checked = false }
         onAccepted: raiz.ev.anotar({
             nombre: aNombre.text.trim(),
-            papel: aPapel.currentText,
+            papel: aPapel.currentValue,
             canal: aCanal.currentValue,
             nota: aNota.text.trim(),
             vota: aVota.checked
@@ -220,42 +228,40 @@ Item {
                 id: aNombre
                 Layout.fillWidth: true
                 color: Theme.text
-                placeholderText: "Nombre y apellido"
+                placeholderText: qsTr("Nombre y apellido")
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
                 ComboBox {
                     id: aPapel
-                    model: ["publico", "orador", "panelista", "prensa", "staff"]
+                    model: raiz.papeles
+                    textRole: "t"
+                    valueRole: "v"
                     Layout.preferredWidth: 140
                 }
                 ComboBox {
                     id: aCanal
-                    model: [
-                        { t: "Sin definir", v: "sin_definir" },
-                        { t: "Presencial", v: "presencial" },
-                        { t: "En línea", v: "online" }
-                    ]
+                    model: raiz.canales
                     textRole: "t"
                     valueRole: "v"
                     Layout.preferredWidth: 140
                 }
                 Toggle { id: aVota }
-                Text { text: "Vota"; color: Theme.text; font.pixelSize: 12 }
+                Text { text: qsTr("Vota"); color: Theme.text; font.pixelSize: 12 }
                 Item { Layout.fillWidth: true }
             }
             TextField {
                 id: aNota
                 Layout.fillWidth: true
                 color: Theme.text
-                placeholderText: "Nota (por qué está: «panelista», «entra por la puerta lateral»)"
+                placeholderText: qsTr("Nota (por qué está: «panelista», «entra por la puerta lateral»)")
             }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "«Vota» no sale del papel: en una asamblea un propietario es público y vota, y " +
-                      "la prensa no. Sin esto no hay quórum."
+                text: qsTr("«Vota» no sale del papel: en una asamblea un propietario es público y vota, y " +
+                           "la prensa no. Sin esto no hay quórum.")
                 color: Theme.textFaint
                 font.pixelSize: 11
             }

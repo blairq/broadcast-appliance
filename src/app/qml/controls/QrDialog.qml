@@ -29,11 +29,11 @@ Dialog {
     /// La vista que se pide (la entiende `fuente`; "" si no aplica).
     property string vista: ""
     /// El texto de abajo, cuando la clave va adentro.
-    property string avisoConClave: "La clave viaja en el fragmento del enlace: no llega al servidor ni " +
+    property string avisoConClave: qsTr("La clave viaja en el fragmento del enlace: no llega al servidor ni " +
                                    "queda en ningún registro. Aun así, el que tenga este QR puede usarlo: " +
-                                   "no lo dejes pegado en una pared."
+                                   "no lo dejes pegado en una pared.")
     /// El texto de abajo, cuando no va.
-    property string avisoSinClave: "Sin la clave adentro, el QR abre la página y la pide. Decísela vos:"
+    property string avisoSinClave: qsTr("Sin la clave adentro, el QR abre la página y la pide. Decísela vos:")
 
     property string target: "local"
     property bool conClave: true
@@ -101,7 +101,7 @@ Dialog {
                 verticalAlignment: Text.AlignVCenter
                 color: Theme.textDim
                 font.pixelSize: 13
-                text: dlg.cargando ? "Generando…" : dlg.mensaje
+                text: dlg.cargando ? qsTr("Generando…") : dlg.mensaje
             }
         }
 
@@ -110,12 +110,12 @@ Dialog {
             spacing: 6
             visible: dlg.ofreceRemoto
             GlassButton {
-                compact: true; text: "Red local"
+                compact: true; text: qsTr("Red local")
                 active: dlg.target === "local"
                 onClicked: dlg.mostrar("local", dlg.conClave)
             }
             GlassButton {
-                compact: true; text: "Por internet"
+                compact: true; text: qsTr("Por internet")
                 active: dlg.target === "remote"
                 onClicked: dlg.mostrar("remote", dlg.conClave)
             }
@@ -124,7 +124,7 @@ Dialog {
         CheckBox {
             visible: dlg.ofreceClave
             checked: dlg.conClave
-            text: "Incluir la clave en el QR (entra sin tipearla)"
+            text: qsTr("Incluir la clave en el QR (entra sin tipearla)")
             onToggled: dlg.mostrar(dlg.target, checked)
         }
 
@@ -157,13 +157,13 @@ Dialog {
                 selectByMouse: true
             }
             GlassButton {
-                text: "Copiar"
+                text: qsTr("Copiar")
                 icon: "⧉"
                 compact: true
                 onClicked: { campoUrl.selectAll(); Studio.copiar(dlg.url) }
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: "Copia el enlace al portapapeles"
+                ToolTip.text: qsTr("Copia el enlace al portapapeles")
             }
         }
     }

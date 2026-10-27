@@ -127,7 +127,7 @@ Item {
                     anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 8 }
                     radius: 6; width: sinTxt.implicitWidth + 16; height: sinTxt.implicitHeight + 6
                     color: Qt.rgba(0, 0, 0, 0.6)
-                    Text { id: sinTxt; anchors.centerIn: parent; text: "SIN SEÑAL"; color: Theme.live; font { pixelSize: 16; weight: Font.Black } }
+                    Text { id: sinTxt; anchors.centerIn: parent; text: qsTr("SIN SEÑAL"); color: Theme.live; font { pixelSize: 16; weight: Font.Black } }
                 }
             }
             // Tally: rojo si está al aire (o es el programa), verde si está armada.

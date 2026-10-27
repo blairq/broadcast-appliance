@@ -21,8 +21,8 @@ Popup {
     property string fotoDe: ""
     FileDialog {
         id: abrirFoto
-        nameFilters: ["Imágenes (*.jpg *.jpeg *.png *.webp *.heic)"]
-        onAccepted: { const e = pop.cu.subirFoto(pop.fotoDe, selectedFile); Studio.notify(e !== "" ? e : "Foto cargada", e !== "" ? "error" : "info") }
+        nameFilters: [qsTr("Imágenes (*.jpg *.jpeg *.png *.webp *.heic)")]
+        onAccepted: { const e = pop.cu.subirFoto(pop.fotoDe, selectedFile); Studio.notify(e !== "" ? e : qsTr("Foto cargada"), e !== "" ? "error" : "info") }
     }
     Connections {
         target: pop.cu
@@ -30,7 +30,7 @@ Popup {
     }
     FileDialog {
         id: abrirPlanilla
-        nameFilters: ["Planillas (*.csv *.txt)"]
+        nameFilters: [qsTr("Planillas (*.csv *.txt)")]
         onAccepted: Studio.notify(pop.cu.importar(selectedFile, false), "info")
     }
 
@@ -40,37 +40,37 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            Text { text: "Cuerpo"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } }
+            Text { text: qsTr("Cuerpo"); color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } }
             TextField {
                 Layout.preferredWidth: 320
                 text: pop.cu.nombre
-                placeholderText: "Nombre (p. ej. Asamblea 2025-2029)"
+                placeholderText: qsTr("Nombre (p. ej. Asamblea 2025-2029)")
                 onEditingFinished: if (text !== pop.cu.nombre) pop.cu.setNombre(text)
             }
             StatusPill {
-                text: pop.cu.integrantes.length + " integrantes · " + pop.cu.integrantes.filter(x => !x.validado_por).length + " sin validar"
+                text: qsTr("%n integrante", "", pop.cu.integrantes.length) + " · " + qsTr("%n sin validar", "", pop.cu.integrantes.filter(x => !x.validado_por).length)
                 dot: pop.cu.integrantes.some(x => !x.validado_por) ? Theme.warn : Theme.ok
             }
             Item { Layout.fillWidth: true }
-            GlassButton { compact: true; text: "Importar planilla…"; onClicked: abrirPlanilla.open() }
-            GlassButton { compact: true; text: "Planilla de ejemplo"
-                          onClicked: { const r = pop.cu.plantilla(); Studio.notify(r !== "" ? "Escrita en " + r : "No se pudo escribir", r !== "" ? "info" : "error") } }
-            GlassButton { compact: true; text: "Cerrar"; onClicked: pop.close() }
+            GlassButton { compact: true; text: qsTr("Importar planilla…"); onClicked: abrirPlanilla.open() }
+            GlassButton { compact: true; text: qsTr("Planilla de ejemplo")
+                          onClicked: { const r = pop.cu.plantilla(); Studio.notify(r !== "" ? qsTr("Escrita en %1").arg(r) : qsTr("No se pudo escribir"), r !== "" ? "info" : "error") } }
+            GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: pop.close() }
         }
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap
             color: Theme.textDim; font.pixelSize: 11
-            text: "Lo que sale en los zócalos sale de acá. Un integrante «sin validar» (nuevo, o le cambiaron el nombre o el cargo) se marca " +
-                  "hasta que alguien lo revise. Cámara y posición: el preset PTZ de su banca; micrófono: la fuente de audio de su banca."
+            text: qsTr("Lo que sale en los zócalos sale de acá. Un integrante «sin validar» (nuevo, o le cambiaron el nombre o el cargo) se marca " +
+                       "hasta que alguien lo revise. Cámara y posición: el preset PTZ de su banca; micrófono: la fuente de audio de su banca.")
         }
         // Encabezado
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
             Repeater {
-                model: [ { t: "Foto", w: 36 }, { t: "Banca", w: 60 }, { t: "Nombre", w: 190 }, { t: "Cargo", w: 130 }, { t: "Bloque", w: 120 },
-                         { t: "Distrito", w: 100 }, { t: "Cámara", w: 110 }, { t: "Posición", w: 100 }, { t: "Micrófono", w: 110 },
-                         { t: "Prioridad", w: 60 } ]
+                model: [ { t: qsTr("Foto"), w: 36 }, { t: qsTr("Banca"), w: 60 }, { t: qsTr("Nombre"), w: 190 }, { t: qsTr("Cargo"), w: 130 }, { t: qsTr("Bloque"), w: 120 },
+                         { t: qsTr("Distrito"), w: 100 }, { t: qsTr("Cámara"), w: 110 }, { t: qsTr("Posición"), w: 100 }, { t: qsTr("Micrófono"), w: 110 },
+                         { t: qsTr("Prioridad"), w: 60 } ]
                 delegate: Text { required property var modelData; text: modelData.t; color: Theme.textFaint
                                  font { pixelSize: 10; weight: Font.Bold }
                                  Layout.preferredWidth: modelData.w }
@@ -105,7 +105,7 @@ Popup {
                     property string valor
                     text: valor
                     font.pixelSize: 11
-                    placeholderText: fila.modelData.nuevo ? (campo === "nombre" ? "+ nuevo integrante" : "") : ""
+                    placeholderText: fila.modelData.nuevo ? (campo === "nombre" ? qsTr("+ nuevo integrante") : "") : ""
                     onEditingFinished: if (text !== valor && (fila.modelData.id || (campo === "nombre" && text !== ""))) fila.poner(campo, text)
                 }
                 Rectangle {
@@ -119,11 +119,11 @@ Popup {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: menuFoto.popup() }
                     Menu {
                         id: menuFoto
-                        MenuItem { text: "Subir una imagen…"; onTriggered: { pop.fotoDe = fila.modelData.id; abrirFoto.open() } }
-                        MenuItem { text: "Capturar con la cámara de su banca"; enabled: !!fila.ptz.camara
-                                   onTriggered: { Studio.notify("Llevando la cámara a la banca " + (fila.modelData.banca || "") + "…", "info")
+                        MenuItem { text: qsTr("Subir una imagen…"); onTriggered: { pop.fotoDe = fila.modelData.id; abrirFoto.open() } }
+                        MenuItem { text: qsTr("Capturar con la cámara de su banca"); enabled: !!fila.ptz.camara
+                                   onTriggered: { Studio.notify(qsTr("Llevando la cámara a la banca %1…").arg(fila.modelData.banca || ""), "info")
                                                   pop.cu.capturarFoto(fila.modelData.id) } }
-                        MenuItem { text: "Quitar la foto"; enabled: !!fila.modelData.foto_url; onTriggered: pop.cu.borrarFoto(fila.modelData.id) }
+                        MenuItem { text: qsTr("Quitar la foto"); enabled: !!fila.modelData.foto_url; onTriggered: pop.cu.borrarFoto(fila.modelData.id) }
                     }
                 }
                 Item { visible: !!fila.modelData.nuevo; Layout.preferredWidth: 36 }
@@ -142,7 +142,7 @@ Popup {
                         const e = pop.cu.guardar({ id: fila.modelData.id, camara: c, posicion: p })
                         if (e !== "") Studio.notify(e, "error")
                     }
-                    ToolTip.visible: hovered && (fila.modelData.banca || "") === ""; ToolTip.text: "Primero su banca: la toma es de la banca"
+                    ToolTip.visible: hovered && (fila.modelData.banca || "") === ""; ToolTip.text: qsTr("Primero su banca: la toma es de la banca")
                     property bool hovered: false
                     HoverHandler { onHoveredChanged: parent.hovered = hovered }
                 }
@@ -152,10 +152,10 @@ Popup {
                         Layout.preferredWidth: 60; inputMethodHints: Qt.ImhFormattedNumbersOnly }
                 StatusPill {
                     visible: !fila.modelData.nuevo
-                    text: fila.modelData.validado_por ? "validado" : "sin validar"
+                    text: fila.modelData.validado_por ? qsTr("validado") : qsTr("sin validar")
                     dot: fila.modelData.validado_por ? Theme.ok : Theme.warn
                 }
-                GlassButton { compact: true; visible: !fila.modelData.nuevo && !fila.modelData.validado_por; text: "Validar"
+                GlassButton { compact: true; visible: !fila.modelData.nuevo && !fila.modelData.validado_por; text: qsTr("Validar")
                               onClicked: pop.cu.validar(fila.modelData.id) }
                 GlassButton { compact: true; visible: !fila.modelData.nuevo; text: "✕"; onClicked: pop.cu.borrar(fila.modelData.id) }
                 Item { Layout.fillWidth: true }

@@ -44,10 +44,10 @@ Item {
         function onMedicion(r) {
             pop.midiendo = false
             if (r.error) { pop.medicionTexto = "✕ " + r.error; return }
-            let t = (r.significa ? r.significa + ": " : "") + "«" + r.b + "» va " + r.desfase_ms + " ms detrás de «" + r.a + "»"
-            if (r.confianza !== undefined) t += " (confianza " + Number(r.confianza).toFixed(2) + ", ±" + (r.resolucion_ms || 0) + " ms)"
-            if (r.aplicado) t += "\nCorregido. Medido de nuevo: " + (r.despues ? r.despues.desfase_ms + " ms — " + r.despues.significa : "—")
-            if (r.no_aplicado) t += "\nNo se pudo corregir: " + r.no_aplicado
+            let t = (r.significa ? r.significa + ": " : "") + qsTr("«%1» va %2 ms detrás de «%3»").arg(r.b).arg(r.desfase_ms).arg(r.a)
+            if (r.confianza !== undefined) t += " " + qsTr("(confianza %1, ±%2 ms)").arg(Number(r.confianza).toFixed(2)).arg(r.resolucion_ms || 0)
+            if (r.aplicado) t += "\n" + qsTr("Corregido. Medido de nuevo: %1").arg(r.despues ? r.despues.desfase_ms + " ms — " + r.despues.significa : "—")
+            if (r.no_aplicado) t += "\n" + qsTr("No se pudo corregir: %1").arg(r.no_aplicado)
             pop.medicionTexto = t
             pop.refrescar()
         }
@@ -86,7 +86,7 @@ Item {
                 /// Cambia la clase y se ve enseguida (no espera la vuelta del reloj de 1,5 s).
                 function cambiarClase(entrada, clase) {
                     pop.avisar(pop.vg.claseSincroniaUi(entrada, clase),
-                               "«" + entrada + "» " + (clase === "sala" ? "se sincroniza con la sala" : "va con su propia demora"))
+                               (clase === "sala" ? qsTr("«%1» se sincroniza con la sala") : qsTr("«%1» va con su propia demora")).arg(entrada))
                     latPanel.lat = pop.vg.estudioLatenciaUi()
                     refrescoClase.restart()
                 }
@@ -117,8 +117,8 @@ Item {
                                 elide: Text.ElideRight
                             }
                             Text {
-                                text: fila.modelData.marca ? "marca la latencia" : fila.modelData.llega_tarde ? "pasa el tope: va con su demora"
-                                    : !fila.modelData.en_escena ? "no está en ninguna escena" : (fila.sala ? "sincronizada" : "con su propia demora")
+                                text: fila.modelData.marca ? qsTr("marca la latencia") : fila.modelData.llega_tarde ? qsTr("pasa el tope: va con su demora")
+                                    : !fila.modelData.en_escena ? qsTr("no está en ninguna escena") : (fila.sala ? qsTr("sincronizada") : qsTr("con su propia demora"))
                                 color: fila.modelData.marca ? Theme.accent : Theme.textFaint; font.pixelSize: 9
                             }
                         }
@@ -162,10 +162,10 @@ Item {
                             }
                             Text {
                                 anchors.right: parent.right
-                                text: ((fila.modelData.retraso_propio_ms || 0) > 0 ? "+" + latPanel.ms(fila.modelData.retraso_propio_ms) + " propios"
-                                                                                   : "tarda " + latPanel.ms(fila.modelData.edad_p50_ms) +
-                                                                                     " · tiembla " + latPanel.ms(fila.modelData.tiembla_ms)) +
-                                      ((fila.modelData.cuadros_tarde_60s || 0) > 0 ? " · " + fila.modelData.cuadros_tarde_60s + " tarde" : "")
+                                text: ((fila.modelData.retraso_propio_ms || 0) > 0 ? qsTr("+%1 propios").arg(latPanel.ms(fila.modelData.retraso_propio_ms))
+                                                                                   : qsTr("tarda %1 · tiembla %2").arg(latPanel.ms(fila.modelData.edad_p50_ms))
+                                                                                                                   .arg(latPanel.ms(fila.modelData.tiembla_ms))) +
+                                      ((fila.modelData.cuadros_tarde_60s || 0) > 0 ? " · " + qsTr("%1 tarde").arg(fila.modelData.cuadros_tarde_60s) : "")
                                 color: (fila.modelData.cuadros_tarde_60s || 0) > 0 ? Theme.live : Theme.textFaint
                                 font.pixelSize: 9
                             }
@@ -174,16 +174,16 @@ Item {
                         Row {
                             spacing: 2
                             GlassButton {
-                                compact: true; text: "Sala"; active: fila.sala
+                                compact: true; text: qsTr("Sala"); active: fila.sala
                                 onClicked: if (!fila.sala) latPanel.cambiarClase(fila.modelData.entrada, "sala")
                                 ToolTip.visible: hovered; ToolTip.delay: 500
-                                ToolTip.text: "Sincronizada: sale alineada con las demás (marca la latencia si es la más lenta)"
+                                ToolTip.text: qsTr("Sincronizada: sale alineada con las demás (marca la latencia si es la más lenta)")
                             }
                             GlassButton {
-                                compact: true; text: "Propia"; active: !fila.sala
+                                compact: true; text: qsTr("Propia"); active: !fila.sala
                                 onClicked: if (fila.sala) latPanel.cambiarClase(fila.modelData.entrada, "propia")
                                 ToolTip.visible: hovered; ToolTip.delay: 500
-                                ToolTip.text: "Con su propia demora: no atrasa a las demás (invitados, ventanas, una cámara que toma otra cosa)"
+                                ToolTip.text: qsTr("Con su propia demora: no atrasa a las demás (invitados, ventanas, una cámara que toma otra cosa)")
                             }
                         }
                     }
@@ -200,7 +200,7 @@ Item {
                         Layout.fillWidth: true
                         spacing: 28
                         Column {
-                            Text { text: "Latencia del estudio"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Latencia del estudio"); color: Theme.textDim; font.pixelSize: 12 }
                             Row {
                                 spacing: 4
                                 Text { id: grande; text: Math.round(latPanel.lat.latencia_ms || 0); color: Theme.text; font { pixelSize: 46; weight: Font.Light } }
@@ -208,21 +208,21 @@ Item {
                             }
                         }
                         Column {
-                            Text { text: "La marca"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("La marca"); color: Theme.textDim; font.pixelSize: 12 }
                             Text {
-                                text: latPanel.lat.la_marca ? latPanel.lat.la_marca : "nadie"
+                                text: latPanel.lat.la_marca ? latPanel.lat.la_marca : qsTr("nadie")
                                 color: Theme.accent; font { pixelSize: 20; weight: Font.DemiBold }
                             }
                         }
                         Column {
-                            Text { text: "El programa sale con"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("El programa sale con"); color: Theme.textDim; font.pixelSize: 12 }
                             Text {
                                 text: pop.programaMs >= 0 ? latPanel.ms(pop.programaMs)
                                                           : "~" + latPanel.ms((latPanel.lat.latencia_ms || 0) + (latPanel.lat.margen_ms || 0))
                                 color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold }
                             }
                             Text {
-                                text: pop.programaMs >= 0 ? "medido desde la captura" : "+" + latPanel.ms(latPanel.lat.margen_ms) + " del compositor (estimado)"
+                                text: pop.programaMs >= 0 ? qsTr("medido desde la captura") : qsTr("+%1 del compositor (estimado)").arg(latPanel.ms(latPanel.lat.margen_ms))
                                 color: Theme.textFaint; font.pixelSize: 9
                             }
                         }
@@ -230,69 +230,68 @@ Item {
                         Column {
                             spacing: 6
                             StatusPill {
-                                text: latPanel.lat.baja_sola ? "Sin nada al aire: se acomoda sola" : "Al aire: solo sube"
+                                text: latPanel.lat.baja_sola ? qsTr("Sin nada al aire: se acomoda sola") : qsTr("Al aire: solo sube")
                                 dot: latPanel.lat.baja_sola ? Theme.ok : Theme.amber
                             }
                             // Si el colchón alcanza: los cuadros que llegaron tarde al compositor.
                             StatusPill {
                                 readonly property int n: latPanel.lat.cuadros_tarde_60s || 0
-                                text: n === 0 ? "Ningún cuadro tarde (último minuto)" : n + (n === 1 ? " cuadro tarde" : " cuadros tarde") + " en el último minuto"
+                                text: n === 0 ? qsTr("Ningún cuadro tarde (último minuto)") : qsTr("%n cuadro tarde en el último minuto", "", n)
                                 dot: n === 0 ? Theme.ok : n < 10 ? Theme.amber : Theme.live
                             }
                             GlassButton {
                                 visible: latPanel.lat.puede_bajarse === true
-                                text: "Bajar a " + latPanel.ms(latPanel.lat.objetivo_ms)
+                                text: qsTr("Bajar a %1").arg(latPanel.ms(latPanel.lat.objetivo_ms))
                                 icon: "↓"; active: true
-                                onClicked: pop.avisar(pop.vg.bajarLatenciaUi(), "Latencia del estudio: " + latPanel.ms(latPanel.lat.objetivo_ms))
+                                onClicked: pop.avisar(pop.vg.bajarLatenciaUi(), qsTr("Latencia del estudio: %1").arg(latPanel.ms(latPanel.lat.objetivo_ms)))
                                 ToolTip.visible: hovered; ToolTip.delay: 300
-                                ToolTip.text: latPanel.lat.baja_sola ? "Baja a lo que piden las sincronizadas"
-                                                                     : "Con algo al aire, bajarla es un salto en todas las salidas"
+                                ToolTip.text: latPanel.lat.baja_sola ? qsTr("Baja a lo que piden las sincronizadas")
+                                                                     : qsTr("Con algo al aire, bajarla es un salto en todas las salidas")
                             }
                         }
                     }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                        text: "Las entradas sincronizadas salen alineadas entre sí y con el audio: el estudio espera a la más lenta (la línea blanca). " +
-                              "No se mueve al cambiar de escena: en vivo solo sube, si una entrada lo pide sostenido. Para bajarla, mejorá la que la marca " +
-                              "(otro modo de cámara, menos procesamiento) o pasala a «Propia» si no tiene que alinearse con la sala."
+                        text: qsTr("Las entradas sincronizadas salen alineadas entre sí y con el audio: el estudio espera a la más lenta (la línea blanca). " +
+                                   "No se mueve al cambiar de escena: en vivo solo sube, si una entrada lo pide sostenido. Para bajarla, mejorá la que la marca " +
+                                   "(otro modo de cámara, menos procesamiento) o pasala a «Propia» si no tiene que alinearse con la sala.")
                     }
                     // --- Las sincronizadas ---
                     Text {
                         visible: latPanel.sala.length > 0
-                        text: "Sincronizadas con la sala · " + latPanel.sala.length
+                        text: qsTr("Sincronizadas con la sala · %1").arg(latPanel.sala.length)
                         color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                     }
                     Repeater { model: latPanel.sala; delegate: FilaSinc {} }
                     // --- Con su propia demora ---
                     Text {
                         visible: latPanel.propias.length > 0
-                        text: "Con su propia demora · " + latPanel.propias.length + "   (no atrasan a las demás; si llegan tarde se les corre la hora, audio y video juntos)"
+                        text: qsTr("Con su propia demora · %1   (no atrasan a las demás; si llegan tarde se les corre la hora, audio y video juntos)").arg(latPanel.propias.length)
                         color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                     }
                     Repeater { model: latPanel.propias; delegate: FilaSinc {} }
                     Text {
                         visible: latPanel.sinSenal > 0
-                        text: latPanel.sinSenal + (latPanel.sinSenal === 1 ? " entrada más" : " entradas más") +
-                              " sin video ni señal ahora (audio, invitados sin conectar): no marcan la latencia"
+                        text: qsTr("%n entrada más sin video ni señal ahora (audio, invitados sin conectar): no marcan la latencia", "", latPanel.sinSenal)
                         color: Theme.textFaint; font.pixelSize: 10
                     }
                     // --- Ajustes ---
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        Text { text: "Tope"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Tope"); color: Theme.textDim; font.pixelSize: 12 }
                         SpinBox {
                             from: 0; to: 2000; stepSize: 10; editable: true
                             value: latPanel.lat.tope_ms || 0
                             onValueModified: pop.vg.ponerTopeEstudioUi(value)
                         }
-                        GlassButton { compact: true; text: "Automático"; active: latPanel.lat.automatico === true
+                        GlassButton { compact: true; text: qsTr("Automático"); active: latPanel.lat.automatico === true
                                       onClicked: pop.vg.ponerTopeEstudioUi(-1) }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
-                            text: "Una sincronizada que pide más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora."
+                            text: qsTr("Una sincronizada que pide más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora.")
                         }
-                        GlassButton { compact: true; text: "Ver en el mapa"; icon: "⤳"; onClicked: pop.verMapa() }
+                        GlassButton { compact: true; text: qsTr("Ver en el mapa"); icon: "⤳"; onClicked: pop.verMapa() }
                     }
                 }
             }
@@ -306,24 +305,24 @@ Item {
                     id: relojCol
                     anchors.fill: parent
                     spacing: 8
-                    Text { text: "Reloj del estudio"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Reloj del estudio"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                        text: "Las entradas de red presentan cada cuadro a su hora de captura + el colchón. Con el mismo reloj en todos los aparatos " +
-                              "(NTP, PTP o el de uno publicado) las cámaras RTSP quedan alineadas solas; SRT y RTMP se alinean midiendo (abajo)."
+                        text: qsTr("Las entradas de red presentan cada cuadro a su hora de captura + el colchón. Con el mismo reloj en todos los aparatos " +
+                                   "(NTP, PTP o el de uno publicado) las cámaras RTSP quedan alineadas solas; SRT y RTMP se alinean midiendo (abajo).")
                     }
                     RowLayout {
                         spacing: 8
                         ComboBox {
                             id: tipoReloj
                             Layout.preferredWidth: 220
-                            model: ["Sistema (este aparato)", "NTP", "PTP (IEEE 1588)", "El de otro aparato"]
+                            model: [qsTr("Sistema (este aparato)"), "NTP", "PTP (IEEE 1588)", qsTr("El de otro aparato")]
                         }
                         TextField {
                             id: servidor
                             visible: tipoReloj.currentIndex === 1 || tipoReloj.currentIndex === 3
                             Layout.preferredWidth: 200
-                            placeholderText: tipoReloj.currentIndex === 1 ? "pool.ntp.org" : "IP del otro aparato"
+                            placeholderText: tipoReloj.currentIndex === 1 ? "pool.ntp.org" : qsTr("IP del otro aparato")
                             text: pop.reloj.servidor || ""
                         }
                         SpinBox {
@@ -339,22 +338,22 @@ Item {
                             value: pop.reloj.dominio || 0
                         }
                         Text {
-                            text: "Colchón de las entradas de red"; color: Theme.textDim; font.pixelSize: 12
+                            text: qsTr("Colchón de las entradas de red"); color: Theme.textDim; font.pixelSize: 12
                             HoverHandler { id: colHov }
                             ToolTip.visible: colHov.hovered; ToolTip.delay: 400
-                            ToolTip.text: "Lo que espera cada cámara o entrada de red (RTSP, SRT…) para absorber los saltos de la red. No es la latencia del estudio: con una entrada de red, el estudio se atrasa al menos esto para que todo salga alineado."
+                            ToolTip.text: qsTr("Lo que espera cada cámara o entrada de red (RTSP, SRT…) para absorber los saltos de la red. No es la latencia del estudio: con una entrada de red, el estudio se atrasa al menos esto para que todo salga alineado.")
                         }
                         SpinBox { id: latencia; from: 0; to: 5000; stepSize: 50; editable: true; value: pop.reloj.latencia_ms || 200 }
                         Text { text: "ms"; color: Theme.textDim; font.pixelSize: 12 }
                         GlassButton {
-                            compact: true; text: "Aplicar"; active: true
+                            compact: true; text: qsTr("Aplicar"); active: true
                             onClicked: {
                                 const tipo = ["sistema", "ntp", "ptp", "red"][tipoReloj.currentIndex]
                                 const c = { tipo: tipo, latencia_ms: latencia.value }
                                 if (tipo === "ntp" || tipo === "red") c.servidor = servidor.text
                                 if (tipo === "red") c.puerto = puertoReloj.value
                                 if (tipo === "ptp") c.dominio = dominio.value
-                                pop.avisar(pop.vg.configurarRelojUi(c), "Reloj del estudio: " + tipo)
+                                pop.avisar(pop.vg.configurarRelojUi(c), qsTr("Reloj del estudio: %1").arg(tipo))
                             }
                         }
                     }
@@ -363,9 +362,9 @@ Item {
                         Toggle {
                             checked: (pop.reloj.publicar_puerto || 0) > 0
                             onToggled: (w) => pop.avisar(pop.vg.configurarRelojUi({ publicar_puerto: w ? publicar.value : 0 }),
-                                                         w ? "Publicando el reloj en el puerto " + publicar.value : "Ya no se publica el reloj")
+                                                         w ? qsTr("Publicando el reloj en el puerto %1").arg(publicar.value) : qsTr("Ya no se publica el reloj"))
                         }
-                        Text { text: "Publicar el reloj de este aparato (para que otros lo usen) en el puerto"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Publicar el reloj de este aparato (para que otros lo usen) en el puerto"); color: Theme.textDim; font.pixelSize: 12 }
                         SpinBox { id: publicar; from: 1; to: 65535; editable: true; value: (pop.reloj.publicar_puerto || 0) > 0 ? pop.reloj.publicar_puerto : 8554 }
                     }
                 }
@@ -380,10 +379,10 @@ Item {
                     id: redCol
                     anchors.fill: parent
                     spacing: 6
-                    Text { text: "Entradas de red y de plugins"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Entradas de red y de plugins"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text {
                         visible: pop.red.length === 0
-                        text: "No hay. Agregá una abajo, o buscá cámaras en la red (Entradas → «Buscar cámaras en la red…»)."
+                        text: qsTr("No hay. Agregá una abajo, o buscá cámaras en la red (Entradas → «Buscar cámaras en la red…»).")
                         color: Theme.textFaint; font.pixelSize: 11
                     }
                     Repeater {
@@ -399,47 +398,47 @@ Item {
                                 spacing: 10
                                 Text { text: fila.modelData.entrada; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } Layout.preferredWidth: 160; elide: Text.ElideRight }
                                 StatusPill {
-                                    text: fila.g.error ? "sin señal" : (fila.modelData.ancho > 0 ? fila.modelData.ancho + "x" + fila.modelData.alto + " · " + Number((fila.g.origen || {}).fps || 0).toFixed(1) + " fps" : "conectando…")
+                                    text: fila.g.error ? qsTr("sin señal") : (fila.modelData.ancho > 0 ? fila.modelData.ancho + "x" + fila.modelData.alto + " · " + Number((fila.g.origen || {}).fps || 0).toFixed(1) + " fps" : qsTr("conectando…"))
                                     dot: fila.g.error ? Theme.live : fila.modelData.ancho > 0 ? Theme.ok : Theme.amber
                                     medidaDe: "1920x1080 · 30.0 fps"
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: "colchón " + (fila.g.latencia_ms || 0) + " ms · desfase " + (fila.g.desfase_ms || 0) + " ms · tarda " +
-                                          Math.round(fila.g.edad_p50_ms || 0) + "–" + Math.round(fila.g.edad_p95_ms || 0) + " ms" +
-                                          (fila.g.ntp_sync ? " · con su hora" : "") + (fila.g.llega_tarde ? " · llega tarde" : "") +
-                                          (fila.g.normalizado ? " · normalizada" : "") + (fila.g.superres ? " · superres x2" : "")
+                                    text: qsTr("colchón %1 ms · desfase %2 ms · tarda %3–%4 ms").arg(fila.g.latencia_ms || 0).arg(fila.g.desfase_ms || 0)
+                                              .arg(Math.round(fila.g.edad_p50_ms || 0)).arg(Math.round(fila.g.edad_p95_ms || 0)) +
+                                          (fila.g.ntp_sync ? " · " + qsTr("con su hora") : "") + (fila.g.llega_tarde ? " · " + qsTr("llega tarde") : "") +
+                                          (fila.g.normalizado ? " · " + qsTr("normalizada") : "") + (fila.g.superres ? " · " + qsTr("superres x2") : "")
                                     color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
                                 }
                                 SpinBox {
                                     id: desf
                                     from: -5000; to: 5000; stepSize: 10; editable: true
                                     value: fila.g.desfase_ms || 0
-                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Desfase (ms): positivo la atrasa"
+                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Desfase (ms): positivo la atrasa")
                                 }
-                                GlassButton { compact: true; text: "Desfasar"; onClicked: pop.avisar(pop.vg.desfaseUi(fila.modelData.entrada, desf.value), "Desfase aplicado") }
+                                GlassButton { compact: true; text: qsTr("Desfasar"); onClicked: pop.avisar(pop.vg.desfaseUi(fila.modelData.entrada, desf.value), qsTr("Desfase aplicado")) }
                                 // Cómo sale a horario: el colchón propio o el appsink de GStreamer
                                 // sincronizado con la latencia del estudio (audio y video juntos en los dos).
                                 ComboBox {
                                     implicitWidth: 130
-                                    model: [ { t: "Colchón", v: "colchon" }, { t: "GStreamer", v: "gstreamer" } ]
+                                    model: [ { t: qsTr("Colchón"), v: "colchon" }, { t: "GStreamer", v: "gstreamer" } ]
                                     textRole: "t"
                                     currentIndex: fila.g.sincronia === "gstreamer" ? 1 : 0
-                                    onActivated: (i) => pop.avisar(pop.vg.sincroniaUi(fila.modelData.entrada, model[i].v), "Sincronía: " + model[i].t)
+                                    onActivated: (i) => pop.avisar(pop.vg.sincroniaUi(fila.modelData.entrada, model[i].v), qsTr("Sincronía: %1").arg(model[i].t))
                                     ToolTip.visible: hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Colchón: cola propia con la hora de captura (menos latencia con cámaras de hora inestable). " +
-                                                  "GStreamer: appsink al reloj con la latencia del estudio" +
-                                                  (fila.g.sincronia === "gstreamer" ? " (ahora " + (fila.g.latencia_estudio_ms || 0) + " ms)" : "")
+                                    ToolTip.text: qsTr("Colchón: cola propia con la hora de captura (menos latencia con cámaras de hora inestable). " +
+                                                       "GStreamer: appsink al reloj con la latencia del estudio") +
+                                                  (fila.g.sincronia === "gstreamer" ? " " + qsTr("(ahora %1 ms)").arg(fila.g.latencia_estudio_ms || 0) : "")
                                 }
                                 // Superresolución x2 (macOS 26): para cámaras chicas (el tope lo pone el sistema).
-                                Text { visible: pop.vg.haySuperres(); text: "Superres x2"; color: Theme.textDim; font.pixelSize: 11 }
+                                Text { visible: pop.vg.haySuperres(); text: qsTr("Superres x2"); color: Theme.textDim; font.pixelSize: 11 }
                                 Toggle {
                                     visible: pop.vg.haySuperres()
                                     checked: fila.g.superres === true
-                                    onToggled: (w) => pop.avisar(pop.vg.superresUi(fila.modelData.entrada, w), w ? "Superresolución prendida" : "Superresolución apagada")
+                                    onToggled: (w) => pop.avisar(pop.vg.superresUi(fila.modelData.entrada, w), w ? qsTr("Superresolución prendida") : qsTr("Superresolución apagada"))
                                     ToolTip.visible: hov.hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Duplica la resolución con la superresolución de Apple (para cámaras chicas: hasta el tamaño máximo que acepte el sistema, hoy 960x960; las más grandes pasan sin tocar)" +
-                                                  (fila.g.superres_ms > 0 ? ". Ahora: " + Number(fila.g.superres_ms).toFixed(1) + " ms por cuadro" : "")
+                                    ToolTip.text: qsTr("Duplica la resolución con la superresolución de Apple (para cámaras chicas: hasta el tamaño máximo que acepte el sistema, hoy 960x960; las más grandes pasan sin tocar)") +
+                                                  (fila.g.superres_ms > 0 ? ". " + qsTr("Ahora: %1 ms por cuadro").arg(Number(fila.g.superres_ms).toFixed(1)) : "")
                                     HoverHandler { id: hov }
                                 }
                             }
@@ -448,8 +447,8 @@ Item {
                                 visible: (fila.g.filtros || []).length > 0
                                 Layout.fillWidth: true
                                 Layout.leftMargin: 170
-                                text: "En GStreamer: " + (fila.g.filtros || []).map(f => (f.audio ? "🔊 " : "") + f.elemento +
-                                          (f.ms > 0 ? " " + Number(f.ms).toFixed(0) + " ms" : "") + (f.andando === false ? " (no está)" : "")).join(" → ")
+                                text: qsTr("En GStreamer: %1").arg((fila.g.filtros || []).map(f => (f.audio ? "🔊 " : "") + f.elemento +
+                                          (f.ms > 0 ? " " + Number(f.ms).toFixed(0) + " ms" : "") + (f.andando === false ? " " + qsTr("(no está)") : "")).join(" → "))
                                 color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
                             }
                             // Los filtros de audio de la entrada: tocar uno lo edita; ‹ › lo mueve; ✕ lo saca.
@@ -464,10 +463,10 @@ Item {
                                     const l = lista.slice(), j = i + d
                                     if (j < 0 || j >= l.length) return
                                     const x = l[i]; l[i] = l[j]; l[j] = x
-                                    pop.avisar(pop.vg.ponerFiltrosAudioUi(fila.modelData.entrada, l), "Orden cambiado")
+                                    pop.avisar(pop.vg.ponerFiltrosAudioUi(fila.modelData.entrada, l), qsTr("Orden cambiado"))
                                     refrescar()
                                 }
-                                Text { text: "Audio:"; color: Theme.textDim; font.pixelSize: 11; height: 26; verticalAlignment: Text.AlignVCenter }
+                                Text { text: qsTr("Audio:"); color: Theme.textDim; font.pixelSize: 11; height: 26; verticalAlignment: Text.AlignVCenter }
                                 Repeater {
                                     model: filaAudio.lista
                                     delegate: Row {
@@ -484,7 +483,7 @@ Item {
                                             text: chip.modelData.elemento === "baplugin"
                                                   ? "🐍 " + (chip.modelData.propiedades.plugin || "") + " · " + (chip.modelData.propiedades.tarjeta || "")
                                                   : chip.modelData.elemento
-                                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Editar este filtro"
+                                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Editar este filtro")
                                             onClicked: editorAudio.abrirPara(fila.modelData.entrada, filaAudio, chip.index)
                                         }
                                         GlassButton {
@@ -493,25 +492,25 @@ Item {
                                         }
                                         GlassButton {
                                             compact: true; text: "✕"
-                                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sacar este filtro"
-                                            onClicked: { pop.avisar(pop.vg.quitarFiltroAudioUi(fila.modelData.entrada, chip.index), "Filtro sacado"); filaAudio.refrescar() }
+                                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sacar este filtro")
+                                            onClicked: { pop.avisar(pop.vg.quitarFiltroAudioUi(fila.modelData.entrada, chip.index), qsTr("Filtro sacado")); filaAudio.refrescar() }
                                         }
                                     }
                                 }
                                 GlassButton {
-                                    compact: true; text: "+ filtro…"
+                                    compact: true; text: qsTr("+ filtro…")
                                     ToolTip.visible: hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Un módulo de audio de GStreamer o una tarjeta de audio de un plugin de Python"
+                                    ToolTip.text: qsTr("Un módulo de audio de GStreamer o una tarjeta de audio de un plugin de Python")
                                     onClicked: editorAudio.abrirPara(fila.modelData.entrada, filaAudio, -1)
                                 }
                                 ComboBox {
-                                    model: [ { t: "Rápidos…", v: "" }, { t: "Compresor", v: "compresor" }, { t: "Pasa altos (80 Hz)", v: "pasa_altos" },
-                                             { t: "Eco", v: "eco" }, { t: "Volumen x1,5", v: "volumen" }, { t: "Automixer (mesa)", v: "automixer" } ]
+                                    model: [ { t: qsTr("Rápidos…"), v: "" }, { t: qsTr("Compresor"), v: "compresor" }, { t: qsTr("Pasa altos (80 Hz)"), v: "pasa_altos" },
+                                             { t: qsTr("Eco"), v: "eco" }, { t: qsTr("Volumen x1,5"), v: "volumen" }, { t: qsTr("Automixer (mesa)"), v: "automixer" } ]
                                     textRole: "t"
                                     implicitWidth: 140
                                     onActivated: (i) => {
                                         const v = model[i].v
-                                        if (v) { pop.avisar(pop.vg.agregarFiltroAudioUi(fila.modelData.entrada, v), "Filtro agregado (la demora se compensa sola)"); filaAudio.refrescar() }
+                                        if (v) { pop.avisar(pop.vg.agregarFiltroAudioUi(fila.modelData.entrada, v), qsTr("Filtro agregado (la demora se compensa sola)")); filaAudio.refrescar() }
                                         currentIndex = 0
                                     }
                                 }
@@ -540,25 +539,25 @@ Item {
                     id: sincCol
                     anchors.fill: parent
                     spacing: 8
-                    Text { text: "Comprobar dos cámaras"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Comprobar dos cámaras"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                        text: "Para saber si dos cámaras que toman lo mismo salen alineadas: poné frente a las dos algo que cambie a la vez (un reloj " +
-                              "con milisegundos en un teléfono, un aplauso, un flash), elegilas y «Medir». Tiene que dar menos de un cuadro. " +
-                              "«Medir y corregir» atrasa la que va adelantada y vuelve a medir."
+                        text: qsTr("Para saber si dos cámaras que toman lo mismo salen alineadas: poné frente a las dos algo que cambie a la vez (un reloj " +
+                                   "con milisegundos en un teléfono, un aplauso, un flash), elegilas y «Medir». Tiene que dar menos de un cuadro. " +
+                                   "«Medir y corregir» atrasa la que va adelantada y vuelve a medir.")
                     }
                     RowLayout {
                         spacing: 8
-                        ComboBox { id: entA; Layout.preferredWidth: 220; model: pop.entradasTodas(); displayText: currentIndex < 0 ? "Referencia…" : currentText; currentIndex: -1 }
-                        Text { text: "contra"; color: Theme.textDim; font.pixelSize: 12 }
-                        ComboBox { id: entB; Layout.preferredWidth: 220; model: pop.entradasTodas(); displayText: currentIndex < 0 ? "La otra…" : currentText; currentIndex: -1 }
+                        ComboBox { id: entA; Layout.preferredWidth: 220; model: pop.entradasTodas(); displayText: currentIndex < 0 ? qsTr("Referencia…") : currentText; currentIndex: -1 }
+                        Text { text: qsTr("contra"); color: Theme.textDim; font.pixelSize: 12 }
+                        ComboBox { id: entB; Layout.preferredWidth: 220; model: pop.entradasTodas(); displayText: currentIndex < 0 ? qsTr("La otra…") : currentText; currentIndex: -1 }
                         GlassButton {
-                            compact: true; text: pop.midiendo ? "Midiendo…" : "Medir"
+                            compact: true; text: pop.midiendo ? qsTr("Midiendo…") : qsTr("Medir")
                             enabled: !pop.midiendo && entA.currentIndex >= 0 && entB.currentIndex >= 0 && entA.currentIndex !== entB.currentIndex
                             onClicked: { pop.midiendo = true; pop.medicionTexto = ""; pop.vg.medirUi(entA.currentText, entB.currentText, false) }
                         }
                         GlassButton {
-                            compact: true; text: "Medir y corregir"; active: true
+                            compact: true; text: qsTr("Medir y corregir"); active: true
                             enabled: !pop.midiendo && entA.currentIndex >= 0 && entB.currentIndex >= 0 && entA.currentIndex !== entB.currentIndex
                             onClicked: { pop.midiendo = true; pop.medicionTexto = ""; pop.vg.medirUi(entA.currentText, entB.currentText, true) }
                         }
@@ -582,11 +581,11 @@ Item {
                     id: audioSincCol
                     anchors.fill: parent
                     spacing: 6
-                    Text { text: "Audio de cada canal con su video"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Audio de cada canal con su video"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                        text: "El retardo de cada audio respecto de su imagen (sincro labios). Positivo atrasa el audio: lo normal cuando la cámara " +
-                              "llega tarde. Se ajusta a mano o midiendo con aplausos; es el mismo botón SINC del Mezclador."
+                        text: qsTr("El retardo de cada audio respecto de su imagen (sincro labios). Positivo atrasa el audio: lo normal cuando la cámara " +
+                                   "llega tarde. Se ajusta a mano o midiendo con aplausos; es el mismo botón SINC del Mezclador.")
                     }
                     Repeater {
                         model: Studio.mixer
@@ -600,7 +599,7 @@ Item {
                             Text { Layout.fillWidth: true; text: filaSinc.name; color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight }
                             Text { text: (filaSinc.ms > 0 ? "+" : "") + filaSinc.ms + " ms"
                                    color: filaSinc.ms !== 0 ? Theme.accent : Theme.textFaint; font.pixelSize: 12 }
-                            GlassButton { compact: true; text: "Sincronizar…"; onClicked: retardoPop.abrir(filaSinc.name) }
+                            GlassButton { compact: true; text: qsTr("Sincronizar…"); onClicked: retardoPop.abrir(filaSinc.name) }
                         }
                     }
                 }
@@ -615,26 +614,26 @@ Item {
                     id: nuevaCol
                     anchors.fill: parent
                     spacing: 8
-                    Text { text: "Entrada de red nueva"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Entrada de red nueva"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                        text: "SRT (srt://:9000?mode=listener para recibir), RTMP, RTSP, UDP o HTTP. Entra sincronizada con el reloj del estudio. " +
-                              "«Normalizar» la deja como las demás (desentrelaza, píxel cuadrado, los cuadros del estudio, color BT.709)."
+                        text: qsTr("SRT (srt://:9000?mode=listener para recibir), RTMP, RTSP, UDP o HTTP. Entra sincronizada con el reloj del estudio. " +
+                                   "«Normalizar» la deja como las demás (desentrelaza, píxel cuadrado, los cuadros del estudio, color BT.709).")
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        TextField { id: nNombre; Layout.preferredWidth: 160; placeholderText: "Nombre" }
+                        TextField { id: nNombre; Layout.preferredWidth: 160; placeholderText: qsTr("Nombre") }
                         TextField { id: nUri; Layout.fillWidth: true; placeholderText: "srt://… / rtmp://… / rtsp://…" }
                         ComboBox { id: nEscena; Layout.preferredWidth: 180; editable: true; model: pop.vg ? pop.vg.escenasUi() : []; editText: "" }
                         SpinBox { id: nLat; from: 0; to: 5000; stepSize: 50; editable: true; value: pop.reloj.latencia_ms || 200 }
-                        CheckBox { id: nNorm; text: "Normalizar"; checked: true }
+                        CheckBox { id: nNorm; text: qsTr("Normalizar"); checked: true }
                         GlassButton {
-                            compact: true; text: "Agregar"; active: true
+                            compact: true; text: qsTr("Agregar"); active: true
                             enabled: nNombre.text.trim() !== "" && nUri.text.trim() !== "" && nEscena.editText.trim() !== ""
                             onClicked: {
                                 const e = pop.vg.nuevaEntradaRed(nNombre.text, nUri.text, nEscena.editText, nLat.value, nNorm.checked)
-                                pop.avisar(e, "Entrada «" + nNombre.text + "» en «" + nEscena.editText + "»")
+                                pop.avisar(e, qsTr("Entrada «%1» en «%2»").arg(nNombre.text).arg(nEscena.editText))
                                 if (e === "") { nNombre.text = ""; nUri.text = "" }
                             }
                         }
@@ -652,7 +651,7 @@ Item {
                     id: diagCol
                     anchors.fill: parent
                     spacing: 4
-                    Text { text: "Diagnóstico de todas las entradas"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Diagnóstico de todas las entradas"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Repeater {
                         model: pop.diag
                         delegate: ColumnLayout {

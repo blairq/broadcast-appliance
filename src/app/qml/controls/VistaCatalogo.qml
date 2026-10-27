@@ -102,7 +102,7 @@ Item {
                 width: parent.width - 40
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                text: v.itemId === "" ? "" : Studio.catalogo.tituloDe(v.itemId) + "\nElegí otra cosa en Salidas → Pantallas."
+                text: v.itemId === "" ? "" : qsTr("%1\nElegí otra cosa en Salidas → Pantallas.").arg(Studio.catalogo.tituloDe(v.itemId))
                 color: Theme.textDim; font.pixelSize: 16
             }
         }
