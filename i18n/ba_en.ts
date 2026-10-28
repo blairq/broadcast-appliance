@@ -1486,6 +1486,11 @@
     </message>
     <message>
         <location line="+1" />
+        <source>Informes</source>
+        <translation>Reports</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Votación</source>
         <translation>Voting</translation>
     </message>
@@ -1505,7 +1510,7 @@
         <translation>Debate</translation>
     </message>
     <message>
-        <location line="+43" />
+        <location line="+44" />
         <source>Grillas de personas</source>
         <translation>People grids</translation>
     </message>
@@ -18734,6 +18739,125 @@ Add images from the Files tab.</translation>
     </message>
 </context>
 <context>
+    <name>PanelInformes</name>
+    <message>
+        <location filename="../src/app/qml/controls/PanelInformes.qml" line="+25" />
+        <source>Generar</source>
+        <translation>Generate</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Plantillas</source>
+        <translation>Templates</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Plantilla</source>
+        <translation>Template</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>Actualizar la vista</source>
+        <translation>Refresh preview</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Generar PDF</source>
+        <translation>Generate PDF</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Informe guardado: %1</source>
+        <translation>Report saved: %1</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Rellena la plantilla con lo de ahora y la guarda en PDF en la carpeta del evento (informes/), con el texto al lado</source>
+        <translation>Fills the template with the current data and saves it as a PDF in the event folder (informes/), with the text next to it</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Abrir</source>
+        <translation>Open</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Así queda con lo de ahora (el quórum, los puntos con su estado y resultado, las votaciones oficiales y el uso de la palabra):</source>
+        <translation>This is how it looks with the current data (the quorum, the items with their status and result, the official votes and speaking time):</translation>
+    </message>
+    <message>
+        <location line="+35" />
+        <source>Nombre</source>
+        <translation>Name</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Guardar</source>
+        <translation>Save</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Nueva…</source>
+        <translation>New…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <location line="+4" />
+        <source>Quitar</source>
+        <translation>Remove</translation>
+    </message>
+    <message>
+        <location line="-1" />
+        <source>¿Quitar la plantilla «%1»?</source>
+        <translation>Remove the template «%1»?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Los informes ya generados quedan.</source>
+        <translation>Reports already generated are kept.</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cancelar</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>✨ Pedírsela al asistente</source>
+        <translation>✨ Ask the assistant for one</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Armame una plantilla para el informe del resultado de la sesión (informe_plantilla_guardar). Contame qué datos querés que tenga y cómo, y la escribo: encabezado, quórum, puntos del orden del día con su resultado, votaciones, uso de la palabra, firmas…</source>
+        <translation>Make me a template for the session results report (informe_plantilla_guardar). Ask me what data I want in it and how, and write it: header, quorum, agenda items with their result, votes, speaking time, signatures…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>El asistente escribe la plantilla con los campos; después la ves y la cambiás acá</source>
+        <translation>The assistant writes the template with the fields; then you see it and change it here</translation>
+    </message>
+    <message>
+        <location line="+36" />
+        <source>Campos</source>
+        <translation>Fields</translation>
+    </message>
+    <message>
+        <location line="+24" />
+        <source>Plantilla nueva</source>
+        <translation>New template</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Empieza con el texto de la de fábrica; después la cambiás.</source>
+        <translation>It starts with the default text; you change it afterwards.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Nombre (p. ej. «Acta para la prensa»)</source>
+        <translation>Name (e.g. «Press minutes»)</translation>
+    </message>
+</context>
+<context>
     <name>PanelMezclador</name>
     <message>
         <location filename="../src/app/qml/controls/PanelMezclador.qml" line="+114" />
@@ -19195,54 +19319,39 @@ Add images from the Files tab.</translation>
         <translation>Load the agenda…</translation>
     </message>
     <message>
-        <location line="+21" />
-        <source>pendiente</source>
-        <translation>pending</translation>
+        <location line="+30" />
+        <source>Expte. %1</source>
+        <translation>File %1</translation>
     </message>
     <message>
-        <location line="+0" />
-        <source>en tratamiento</source>
-        <translation>under discussion</translation>
+        <location line="+35" />
+        <source>Estado</source>
+        <translation>Status</translation>
     </message>
     <message>
-        <location line="+0" />
-        <source>votado</source>
-        <translation>voted</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>a comisión</source>
-        <translation>sent to committee</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>retirado</source>
-        <translation>withdrawn</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Expte. %1 · %2</source>
-        <translation>File %1 · %2</translation>
-    </message>
-    <message>
-        <location line="+12" />
+        <location line="-25" />
         <source>Documentos de este punto:
 %1</source>
         <translation>Documents for this item:
 %1</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+17" />
         <source>Tratar</source>
         <translation>Discuss</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="-49" />
         <source>Pendiente</source>
         <translation>Pending</translation>
     </message>
     <message>
         <location line="+0" />
+        <source>En tratamiento</source>
+        <translation>Under discussion</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Votado</source>
         <translation>Voted</translation>
     </message>
@@ -19252,22 +19361,22 @@ Add images from the Files tab.</translation>
         <translation>Sent to committee</translation>
     </message>
     <message>
-        <location line="+0" />
+        <location line="+1" />
         <source>Retirado</source>
         <translation>Withdrawn</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>Estado…</source>
-        <translation>Status…</translation>
-    </message>
-    <message>
-        <location line="+5" />
+        <location line="+63" />
         <source>Resultado</source>
         <translation>Result</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+4" />
+        <source>Cómo salió: aprobado por 15 votos, pasa a comisión…</source>
+        <translation>How it went: approved by 15 votes, sent to committee…</translation>
+    </message>
+    <message>
+        <location line="+21" />
         <source>Pegá el orden del día</source>
         <translation>Paste the agenda</translation>
     </message>
@@ -19375,7 +19484,12 @@ Add images from the Files tab.</translation>
         <translation>Members</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+6" />
+        <source>En 0, los miembros son los del padrón con voto: %1</source>
+        <translation>At 0, the members are those with a vote in the roll: %1</translation>
+    </message>
+    <message>
+        <location line="+5" />
         <source>Mayoría simple</source>
         <translation>Simple majority</translation>
     </message>
@@ -29323,7 +29437,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+219" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+221" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (failed: %2)</translation>
     </message>
@@ -29430,7 +29544,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Central unit (end of debate): %1</translation>
     </message>
     <message>
-        <location line="+77" />
+        <location line="+81" />
         <source>## Banca virtual</source>
         <translation>## Virtual seat</translation>
     </message>
@@ -29485,7 +29599,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>didn't respond</translation>
     </message>
     <message>
-        <location line="+139" />
+        <location line="+213" />
         <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
         <translation>“%1” (%2) is requesting web control access: approve it in Services → Web control.</translation>
     </message>
@@ -29527,18 +29641,18 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     </message>
     <message>
         <location line="+7" />
-        <location line="+1979" />
+        <location line="+1980" />
         <source>Tablet emparejada.</source>
         <translation>Tablet paired.</translation>
     </message>
     <message>
-        <location line="-1979" />
-        <location line="+1979" />
+        <location line="-1980" />
+        <location line="+1980" />
         <source>Emparejamiento rechazado.</source>
         <translation>Pairing rejected.</translation>
     </message>
     <message>
-        <location line="-1959" />
+        <location line="-1960" />
         <source>pide entrar al control web</source>
         <translation>requests web control access</translation>
     </message>
@@ -29906,7 +30020,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Open it in the device's browser (on the local network; the code is valid for a few minutes and works once). Then approve it here, in Services → Web control.</translation>
     </message>
     <message>
-        <location line="+43" />
+        <location line="+44" />
         <source>La sesión remota no está andando.</source>
         <translation>The remote session isn't running.</translation>
     </message>
@@ -39377,7 +39491,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Recording stopped</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-3691" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-3770" />
         <source>Disparador</source>
         <translation>Trigger</translation>
     </message>
@@ -40192,26 +40306,31 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+10" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1266" />
         <source>pendiente</source>
         <translation>pending</translation>
     </message>
     <message>
         <location line="+1" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
         <source>en tratamiento</source>
         <translation>under discussion</translation>
     </message>
     <message>
         <location line="+1" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1" />
         <source>votado</source>
         <translation>voted</translation>
     </message>
     <message>
         <location line="+1" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
         <source>a comisión</source>
         <translation>sent to committee</translation>
     </message>
     <message>
         <location line="+1" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1" />
         <source>retirado</source>
         <translation>withdrawn</translation>
     </message>
@@ -40277,7 +40396,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Debate</translation>
     </message>
     <message>
-        <location filename="../src/app/asamblea/Quorum.cpp" line="+45" />
+        <location filename="../src/app/asamblea/Quorum.cpp" line="+47" />
         <source>mayoría absoluta</source>
         <translation>absolute majority</translation>
     </message>
@@ -40312,7 +40431,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>majority: simple, absoluta, dos_tercios_presentes or dos_tercios_miembros</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+65" />
         <source>el CSV no tiene votos («nombre;afirmativo|negativo|abstención|ausente»)</source>
         <translation>the CSV has no votes (“nombre;afirmativo|negativo|abstención|ausente”)</translation>
     </message>
@@ -40373,11 +40492,13 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+5" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-6" />
         <source>APROBADO</source>
         <translation>PASSED</translation>
     </message>
     <message>
         <location line="+1" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
         <source>RECHAZADO</source>
         <translation>REJECTED</translation>
     </message>
@@ -40721,6 +40842,124 @@ Choose something else in Outputs → Screens.</translation>
         <source>no participa</source>
         <extracomment>un voto, como va en la tabla nominal del acta (en minúsculas)</extracomment>
         <translation>not voting</translation>
+    </message>
+    <message>
+        <location filename="../src/app/asamblea/InformesResultado.cpp" line="+102" />
+        <source>sí</source>
+        <translation>yes</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>no</source>
+        <translation>no</translation>
+    </message>
+    <message>
+        <location line="+110" />
+        <source>el nombre del cuerpo</source>
+        <translation>the name of the body</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>el nombre del evento</source>
+        <translation>the name of the event</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>la fecha y la hora del evento</source>
+        <translation>the date and time of the event</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>cuándo se generó el informe</source>
+        <translation>when the report was generated</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>«Hay quórum» o «Sin quórum»</source>
+        <translation>«Quorum present» or «No quorum»</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>los números del quórum</source>
+        <translation>the quorum numbers</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>presentes y anotados en el padrón</source>
+        <translation>present and registered in the roll</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>los que llegaron, uno por uno</source>
+        <translation>those who arrived, one by one</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>los puntos del orden del día</source>
+        <translation>the agenda items</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>las votaciones oficiales</source>
+        <translation>the official votes</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>el uso de la palabra, de más a menos</source>
+        <translation>speaking time, from most to least</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>lo de adentro sale solo si la lista está vacía</source>
+        <translation>what's inside only shows if the list is empty</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Resultado de la sesión</source>
+        <translation>Session results</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>falta el nombre de la plantilla</source>
+        <translation>the template name is missing</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <location line="+13" />
+        <source>no se pudo guardar la plantilla</source>
+        <translation>the template could not be saved</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <location line="+7" />
+        <location line="+16" />
+        <source>no hay una plantilla «%1»</source>
+        <translation>there is no template «%1»</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>no hay un evento abierto: el informe va en su carpeta</source>
+        <translation>no event is open: the report goes in its folder</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>no se pudo escribir en la carpeta del evento</source>
+        <translation>could not write to the event folder</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>no hay conversor a PDF</source>
+        <translation>no PDF converter available</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-7" />
+        <source>Hay quórum</source>
+        <translation>Quorum present</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Sin quórum</source>
+        <translation>No quorum</translation>
     </message>
 </context>
 <context>
@@ -41686,7 +41925,7 @@ Data (from %2): %3</translation>
         <translation> What I already know: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+560" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-695" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>The app restarted and the event “%1” is already open. If you were in the middle of something, continue from where you left off; if not, wait for the operator's request.</translation>
     </message>
@@ -41746,7 +41985,7 @@ Data (from %2): %3</translation>
         <translation>closed the %1 credentials form without saving.</translation>
     </message>
     <message>
-        <location line="+3214" />
+        <location line="+3293" />
         <source>las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican</source>
         <translation>the listed pages require typing CONFIRMAR with a reason; settings that restart the gateway or the program aren't applied</translation>
     </message>
@@ -47110,7 +47349,7 @@ Data (from %2): %3</translation>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4150" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4229" />
         <source>cada evento a su carpeta: %1</source>
         <translation>each event to its folder: %1</translation>
     </message>
@@ -49461,7 +49700,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1440" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1518" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn't start on open: %2</translation>
     </message>
@@ -53064,7 +53303,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+404" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+268" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+1108" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+3084" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+3178" />
         <location line="+454" />
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+155" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1496" />
@@ -53211,10 +53450,10 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+200" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-734" />
         <location line="+40" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2255" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2348" />
         <location line="+1261" />
         <location line="+125" />
-        <location line="+307" />
+        <location line="+400" />
         <location filename="../src/app/mcp/McpYouTubeTools.cpp" line="+123" />
         <source>Listo.</source>
         <translation>Done.</translation>
@@ -54798,7 +55037,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <location line="+1" />
         <location filename="../src/app/mcp/McpControlWebTools.cpp" line="+1" />
         <location filename="../src/app/mcp/McpMatrizTools.cpp" line="-41" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-410" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-503" />
         <source>Quitado.</source>
         <translation>Removed.</translation>
     </message>
@@ -62761,8 +63000,8 @@ Don't use the main monitor (where the interface is) unless asked: it covers it.<
     </message>
     <message>
         <location line="+2" />
-        <source>Las reglas del cuerpo: `miembros` (cuantos lo integran), `minimo` para sesionar ("mitad_mas_uno" o un numero) y la `mayoria` de fabrica para aprobar (simple, absoluta, dos_tercios_presentes, dos_tercios_miembros). Sin argumentos, las muestra.</source>
-        <translation>The body's rules: `miembros` (how many make it up), `minimo` to hold a session ("mitad_mas_uno" or a number) and the default `mayoria` to pass (simple, absoluta, dos_tercios_presentes, dos_tercios_miembros). With no arguments, it shows them.</translation>
+        <source>Las reglas del cuerpo: `miembros` (cuantos lo integran; 0 = los del padron con voto), `minimo` para sesionar ("mitad_mas_uno" o un numero) y la `mayoria` de fabrica para aprobar (simple, absoluta, dos_tercios_presentes, dos_tercios_miembros). Sin argumentos, las muestra.</source>
+        <translation>The body's rules: `miembros` (how many members it has; 0 = those with a vote in the roll), `minimo` to hold a session ("mitad_mas_uno" or a number) and the default `mayoria` to pass (simple, absoluta, dos_tercios_presentes, dos_tercios_miembros). Without arguments, shows them.</translation>
     </message>
     <message>
         <location line="+6" />
@@ -63855,7 +64094,7 @@ It doesn't change anything in the event except adding the missing manual items t
     </message>
     <message>
         <location line="+22" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1319" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1412" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1554" />
         <source>Guardado.</source>
         <translation>Saved.</translation>
@@ -66476,7 +66715,7 @@ For this to answer anything, lobby recognition has to be on: `rostro_autoalta {a
         <translation>Nobody is visible on the waiting cameras.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-3766" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-3859" />
         <source>ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (%1):
 - Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el tiempo.
 - Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.
@@ -67870,7 +68109,65 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Item `n` moves to `estado` (en_tratamiento: closes the previous one, puts “Item N: …” in {punto} for lower thirds and marks it for the minutes and chapters), with optional `resultado` (“passed unanimously”). With `siguiente`: true, the next pending item moves to en_tratamiento.</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="+24" />
+        <source>Las plantillas del informe del resultado</source>
+        <translation>The session results report templates</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Las plantillas del informe del resultado de la sesión ({id, nombre}) y los campos que se pueden usar. Con `id`, también su texto y cómo queda rellenada con lo de ahora (`vista`).</source>
+        <translation>The session results report templates ({id, nombre}) and the fields that can be used. With `id`, also its text and how it looks filled with the current data (`vista`).</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Una plantilla es Markdown con campos: {{cuerpo}}, {{evento}}, {{fecha}}, {{hora}}, {{generado}}, {{quorum.estado}}, {{quorum.presentes}}, {{quorum.necesarios}}, {{quorum.miembros}}, {{padron.presentes}}, {{padron.total}}. Las listas se repiten entre {{#lista}} y {{/lista}} y adentro se usan los campos de cada uno: presentes (nombre, papel, por_donde, hora), puntos (n, expediente, titulo, estado, resultado), votaciones (asunto, afirmativos, negativos, abstenciones, presentes, mayoria, resultado), palabra (nombre, tiempo). {{^lista}}…{{/lista}} sale solo si está vacía y {{#lista.0}}…{{/lista.0}} una vez si tiene alguno (para el encabezado de una tabla). Un tag solo en su renglón no deja renglón vacío, así las filas de una tabla quedan juntas.</source>
+        <translation>A template is Markdown with fields: {{cuerpo}}, {{evento}}, {{fecha}}, {{hora}}, {{generado}}, {{quorum.estado}}, {{quorum.presentes}}, {{quorum.necesarios}}, {{quorum.miembros}}, {{padron.presentes}}, {{padron.total}}. Lists repeat between {{#lista}} and {{/lista}} and inside you use each item's fields: presentes (nombre, papel, por_donde, hora), puntos (n, expediente, titulo, estado, resultado), votaciones (asunto, afirmativos, negativos, abstenciones, presentes, mayoria, resultado), palabra (nombre, tiempo). {{^lista}}…{{/lista}} only shows if it is empty and {{#lista.0}}…{{/lista.0}} once if it has any (for a table header). A tag alone on its line leaves no blank line, so the rows of a table stay together.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <location line="+29" />
+        <location line="+32" />
+        <source>Los informes no están disponibles en esta sesión.</source>
+        <translation>Reports are not available in this session.</translation>
+    </message>
+    <message>
+        <location line="-55" />
+        <location line="+59" />
+        <source>No hay una plantilla «%1».</source>
+        <translation>There is no template «%1».</translation>
+    </message>
+    <message>
+        <location line="-48" />
+        <source>Escribir una plantilla del informe del resultado</source>
+        <translation>Write a session results report template</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Escribe una plantilla del informe del resultado (Markdown con campos: ver informe_plantillas). Con `id` cambia esa (y su `nombre`, si viene); sin `id` crea una nueva con `nombre`. `quitar`: true la borra. El operador la ve y la cambia en Asamblea → Informes → Plantillas.</source>
+        <translation>Writes a session results report template (Markdown with fields: see informe_plantillas). With `id` it changes that one (and its `nombre`, if given); without `id` it creates a new one with `nombre`. `quitar`: true deletes it. The operator sees it and changes it in Assembly → Reports → Templates.</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <source>Falta el `texto` de la plantilla.</source>
+        <translation>The template's `texto` is missing.</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Generar el informe del resultado en PDF</source>
+        <translation>Generate the session results report as PDF</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Rellena la plantilla `plantilla` (su id; sin ella, la primera) con lo de ahora y la guarda en PDF en la carpeta del evento (informes/), con el Markdown al lado. Con `soloVer`: true devuelve el texto sin escribir nada.</source>
+        <translation>Fills the template `plantilla` (its id; without it, the first one) with the current data and saves it as a PDF in the event folder (informes/), with the Markdown next to it. With `soloVer`: true returns the text without writing anything.</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Informe guardado: %1</source>
+        <translation>Report saved: %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
         <source>Terminar al orador presencial</source>
         <translation>End the in-room speaker</translation>
     </message>
@@ -70102,8 +70399,8 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
     </message>
     <message>
         <location line="+9" />
-        <source>Con page=configuracion: a que seccion ir (el nombre tal cual lo muestra la lista, p. ej. "Video", "Red de la conferencia", "Apariencia"). Con page=camaras: "recinto" (la grilla de bancas) o el nombre de una entrada. Con page=audio: "estudio" (todo el audio, cada fuente con su cadena), "racks", "matriz", "mesa" (automixer) o el nombre de una fuente (abre su rack). Con page=video: "&lt;entrada&gt;[/&lt;tarjeta&gt;]". Con page=historico: "&lt;evento&gt;[/&lt;pestaña&gt;]" (resumen, tiempo, grabaciones, config, archivos). Con page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], recinto, orden, votacion, conexiones o debate. Con page=personas: "libreta" o "registro" (los tótems de registro). Con page=latencias: "mapa" (los tiempos de cada entrada a cada salida) o "sincronia" (la latencia del estudio, quién la marca, la clase de cada entrada, reloj y red: la vista única de sincronización). Sin esto queda la que estaba.</source>
-        <translation>With page=configuracion: which section to go to (the name exactly as the list shows it, e.g. "Video", "Red de la conferencia", "Apariencia"). With page=camaras: "recinto" (the seat grid) or an input name. With page=audio: "estudio" (all the audio, each source with its chain), "racks", "matriz", "mesa" (automixer) or a source name (opens its rack). With page=video: "&lt;entrada&gt;[/&lt;tarjeta&gt;]". With page=historico: "&lt;evento&gt;[/&lt;pestaña&gt;]" (resumen, tiempo, grabaciones, config, archivos). With page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], recinto, orden, votacion, conexiones or debate. With page=personas: "libreta" or "registro" (the check-in kiosks). With page=latencias: "mapa" (the timing from each input to each output) or "sincronia" (the studio latency, who sets it, each input's class, clock and network: the single sync view). Without this it stays where it was.</translation>
+        <source>Con page=configuracion: a que seccion ir (el nombre tal cual lo muestra la lista, p. ej. "Video", "Red de la conferencia", "Apariencia"). Con page=camaras: "recinto" (la grilla de bancas) o el nombre de una entrada. Con page=audio: "estudio" (todo el audio, cada fuente con su cadena), "racks", "matriz", "mesa" (automixer) o el nombre de una fuente (abre su rack). Con page=video: "&lt;entrada&gt;[/&lt;tarjeta&gt;]". Con page=historico: "&lt;evento&gt;[/&lt;pestaña&gt;]" (resumen, tiempo, grabaciones, config, archivos). Con page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], recinto, orden, informes, votacion, conexiones o debate. Con page=personas: "libreta" o "registro" (los tótems de registro). Con page=latencias: "mapa" (los tiempos de cada entrada a cada salida) o "sincronia" (la latencia del estudio, quién la marca, la clase de cada entrada, reloj y red: la vista única de sincronización). Sin esto queda la que estaba.</source>
+        <translation>With page=configuracion: which section to go to (the name exactly as the list shows it, e.g. "Video", "Red de la conferencia", "Apariencia"). With page=camaras: "recinto" (the seat grid) or an input name. With page=audio: "estudio" (all the audio, each source with its chain), "racks", "matriz", "mesa" (automixer) or a source name (opens its rack). With page=video: "&lt;entrada&gt;[/&lt;tarjeta&gt;]". With page=historico: "&lt;evento&gt;[/&lt;pestaña&gt;]" (resumen, tiempo, grabaciones, config, archivos). With page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], recinto, orden, informes, votacion, conexiones or debate. With page=personas: "libreta" or "registro" (the check-in kiosks). With page=latencias: "mapa" (the timing from each input to each output) or "sincronia" (the studio latency, who sets it, each input's class, clock and network: the single sync view). Without this it stays where it was.</translation>
     </message>
     <message>
         <location line="+17" />
@@ -77778,7 +78075,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
 <context>
     <name>modo-vivo</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1806" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1807" />
         <source>modo en vivo: se desbloqueó «%1» — motivo: %2</source>
         <translation>live mode: “%1” was unlocked — reason: %2</translation>
     </message>

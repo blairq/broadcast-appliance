@@ -66,71 +66,85 @@ ColumnLayout {
             accion: qsTr("Cargar el orden del día…")
             onActivado: carga.open()
         }
+        // Dos renglones: arriba el punto (el título entero, hasta tres líneas), los
+        // documentos y «Tratar»; abajo el estado y el resultado, a lo ancho.
         delegate: Rectangle {
+            id: fila
             required property var modelData
+            readonly property var estados: [ { t: qsTr("Pendiente"), v: "pendiente" }, { t: qsTr("En tratamiento"), v: "en_tratamiento" },
+                                             { t: qsTr("Votado"), v: "votado" }, { t: qsTr("A comisión"), v: "comision" },
+                                             { t: qsTr("Retirado"), v: "retirado" } ]
             width: ListView.view.width
-            height: 46
+            height: cuerpoFila.implicitHeight + 20
             radius: 8
             color: modelData.estado === "en_tratamiento" ? Qt.rgba(0.78, 0.16, 0.16, 0.22) : Qt.rgba(1, 1, 1, 0.04)
             border.color: modelData.estado === "en_tratamiento" ? Theme.live : Theme.glassBorder
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 8
+            ColumnLayout {
+                id: cuerpoFila
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
                 spacing: 8
-                Text { text: modelData.n + "."; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
-                ColumnLayout {
+                RowLayout {
                     Layout.fillWidth: true
-                    spacing: 0
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.titulo; color: Theme.text; font.pixelSize: 13 }
-                    Text {
-                        Layout.fillWidth: true; elide: Text.ElideRight
-                        readonly property string estado: ({ pendiente: qsTr("pendiente"), en_tratamiento: qsTr("en tratamiento"), votado: qsTr("votado"),
-                                                           comision: qsTr("a comisión"), retirado: qsTr("retirado") })[modelData.estado]
-                        text: (modelData.expediente ? qsTr("Expte. %1 · %2").arg(modelData.expediente).arg(estado) : estado) +
-                              (modelData.resultado ? " · " + modelData.resultado : "")
-                        color: Theme.textFaint; font.pixelSize: 11
+                    spacing: 8
+                    Text { Layout.alignment: Qt.AlignTop; text: fila.modelData.n + "."; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
+                               text: fila.modelData.titulo; color: Theme.text; font.pixelSize: 13 }
+                        Text { Layout.fillWidth: true; visible: !!fila.modelData.expediente; elide: Text.ElideRight
+                               text: qsTr("Expte. %1").arg(fila.modelData.expediente || ""); color: Theme.textFaint; font.pixelSize: 11 }
                     }
-                }
-                GlassButton {
-                    id: btnDocs
-                    readonly property var lista: od.docsDe(modelData.n)
-                    compact: true
-                    visible: lista.length > 0
-                    text: "📄 " + lista.length
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: qsTr("Documentos de este punto:\n%1").arg(lista.map(d => d.titulo).join("\n"))
-                    onClicked: menuDocs.popup(btnDocs, 0, btnDocs.height)
-                    Menu {
-                        id: menuDocs
-                        ItemsDeMenu {
-                            menu: menuDocs
-                            model: btnDocs.lista
-                            delegate: MenuItem {
-                                required property var modelData
-                                text: modelData.titulo
-                                onTriggered: Studio.documentos.abrirUi(modelData.id)
+                    GlassButton {
+                        id: btnDocs
+                        readonly property var lista: od.docsDe(fila.modelData.n)
+                        Layout.alignment: Qt.AlignTop
+                        compact: true
+                        visible: lista.length > 0
+                        text: "📄 " + lista.length
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: qsTr("Documentos de este punto:\n%1").arg(lista.map(d => d.titulo).join("\n"))
+                        onClicked: menuDocs.popup(btnDocs, 0, btnDocs.height)
+                        Menu {
+                            id: menuDocs
+                            ItemsDeMenu {
+                                menu: menuDocs
+                                model: btnDocs.lista
+                                delegate: MenuItem {
+                                    required property var modelData
+                                    text: modelData.titulo
+                                    onTriggered: Studio.documentos.abrirUi(modelData.id)
+                                }
                             }
                         }
                     }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignTop
+                        compact: true; text: qsTr("Tratar")
+                        visible: fila.modelData.estado !== "en_tratamiento"
+                        onClicked: od.o.puntoUi(fila.modelData.n, "en_tratamiento", "")
+                    }
                 }
-                GlassButton {
-                    compact: true; text: qsTr("Tratar")
-                    visible: modelData.estado !== "en_tratamiento"
-                    onClicked: od.o.puntoUi(modelData.n, "en_tratamiento", "")
-                }
-                ComboBox {
-                    implicitWidth: 130
-                    model: [ { t: qsTr("Pendiente"), v: "pendiente" }, { t: qsTr("Votado"), v: "votado" }, { t: qsTr("A comisión"), v: "comision" }, { t: qsTr("Retirado"), v: "retirado" } ]
-                    textRole: "t"
-                    displayText: qsTr("Estado…")
-                    onActivated: (i) => od.o.puntoUi(modelData.n, model[i].v, "")
-                }
-                TextField {
-                    Layout.preferredWidth: 170
-                    placeholderText: qsTr("Resultado")
-                    text: modelData.resultado || ""
-                    color: Theme.text
-                    onEditingFinished: if (text !== (modelData.resultado || "")) od.o.puntoUi(modelData.n, modelData.estado, text)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Text { text: qsTr("Estado"); color: Theme.textDim; font.pixelSize: 11 }
+                    ComboBox {
+                        implicitWidth: 160
+                        model: fila.estados
+                        textRole: "t"
+                        currentIndex: Math.max(0, fila.estados.findIndex(o => o.v === fila.modelData.estado))
+                        onActivated: (i) => od.o.puntoUi(fila.modelData.n, fila.estados[i].v, resultado.text)
+                    }
+                    Text { text: qsTr("Resultado"); color: Theme.textDim; font.pixelSize: 11 }
+                    TextField {
+                        id: resultado
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("Cómo salió: aprobado por 15 votos, pasa a comisión…")
+                        text: fila.modelData.resultado || ""
+                        color: Theme.text
+                        onEditingFinished: if (text !== (fila.modelData.resultado || "")) od.o.puntoUi(fila.modelData.n, fila.modelData.estado, text)
+                    }
                 }
             }
         }

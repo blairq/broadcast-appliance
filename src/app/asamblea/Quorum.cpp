@@ -40,14 +40,15 @@ std::string minus(std::string s) {
     return o;
 }
 
+} // namespace
+
 // Va al acta: en el idioma del evento.
-std::string nombreMayoria(const std::string& m) {
+std::string Quorum::nombreMayoria(const std::string& m) {
     if (m == "absoluta") return ba::i18n::traducirEvento("asamblea", "mayoría absoluta");
     if (m == "dos_tercios_presentes") return ba::i18n::traducirEvento("asamblea", "dos tercios de los presentes");
     if (m == "dos_tercios_miembros") return ba::i18n::traducirEvento("asamblea", "dos tercios de los miembros");
     return ba::i18n::traducirEvento("asamblea", "mayoría simple");
 }
-} // namespace
 
 Quorum::Quorum(const fs::path& datos, std::function<int()> presentes, std::function<int()> miembrosDelPadron, QObject* parent)
     : QObject(parent),

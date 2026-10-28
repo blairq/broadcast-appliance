@@ -189,7 +189,7 @@ void McpService::registerUiTools() {
                                 "nombre de una fuente (abre su rack). Con page=video: \"<entrada>[/<tarjeta>]\". Con "
                                 "page=historico: \"<evento>[/<pestaña>]\" (resumen, tiempo, grabaciones, config, "
                                 "archivos). Con page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], "
-                                "recinto, orden, votacion, conexiones o debate. Con page=personas: \"libreta\" o \"registro\" (los tótems de registro). Con page=latencias: \"mapa\" (los tiempos de cada "
+                                "recinto, orden, informes, votacion, conexiones o debate. Con page=personas: \"libreta\" o \"registro\" (los tótems de registro). Con page=latencias: \"mapa\" (los tiempos de cada "
                                 "entrada a cada salida) o \"sincronia\" (la latencia del estudio, quién la marca, la clase "
                                 "de cada entrada, reloj y red: la vista única de sincronización). Sin esto queda la que estaba.")}}}}},
             {"required", {"page"}}};

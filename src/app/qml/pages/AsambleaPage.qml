@@ -97,7 +97,7 @@ Rectangle {
                        : parent.od.puntos.length > 0 ? qsTr("%n punto en el orden del día", "", parent.od.puntos.length) : qsTr("Sin orden del día")
             }
             Pastilla {
-                pestana: 4
+                pestana: 5
                 punto: parent.sr && parent.sr.conectados > 0 ? Theme.ok : Theme.textFaint
                 texto: parent.sr && parent.sr.conectados > 0
                        ? qsTr("%1 de %2", "remotos presentes de conectados")
@@ -106,7 +106,7 @@ Rectangle {
                        : qsTr("Nadie conectado desde afuera")
             }
             Pastilla {
-                pestana: 5
+                pestana: 6
                 visible: !!(Studio.debate && Studio.debate.estado.activo)
                 punto: Theme.live
                 texto: qsTr("Debate en curso")
@@ -133,6 +133,7 @@ Rectangle {
             TabButton { text: qsTr("Conferencia") }
             TabButton { text: qsTr("Recinto") }
             TabButton { text: qsTr("Orden del día") }
+            TabButton { text: qsTr("Informes") }
             TabButton { text: qsTr("Votación") }
             TabButton { text: Studio.sesionRemota && Studio.sesionRemota.conectados > 0 ? qsTr("Conexiones remotas (%1)").arg(Studio.sesionRemota.conectados) : qsTr("Conexiones remotas") }
             TabButton { text: qsTr("Debate") + (Studio.debate && Studio.debate.estado.activo ? " ●" : "") }
@@ -151,6 +152,7 @@ Rectangle {
                 }
             }
             Panel { PanelOrdenDelDia { anchors.fill: parent } }
+            Panel { PanelInformes { anchors.fill: parent } }
             Panel { PanelVotacion { anchors.fill: parent } }
             Panel { PanelConexionesRemotas { anchors.fill: parent; anchors.margins: 12; onIrAlRecinto: tabs.currentIndex = 1 } }
             Panel { ScrollView { anchors.fill: parent; contentWidth: availableWidth; clip: true
@@ -158,13 +160,13 @@ Rectangle {
         }
     }
 
-    // ui_show_page {page: "asamblea", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "votacion" | "conexiones" | "debate"}
+    // ui_show_page {page: "asamblea", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "informes" | "votacion" | "conexiones" | "debate"}
     Connections {
         target: Studio
         function onMostrarSeccion(pagina, seccion) {
             if (pagina !== "asamblea") return
             const partes = seccion.toLowerCase().split("/")
-            const i = ["conferencia", "recinto", "orden", "votacion", "conexiones", "debate"].indexOf(partes[0])
+            const i = ["conferencia", "recinto", "orden", "informes", "votacion", "conexiones", "debate"].indexOf(partes[0])
             if (i >= 0) tabs.currentIndex = i
             if (i === 0 && partes.length > 1) {
                 const j = ["sala", "unidades", "votacion", "conexion", "avanzado"].indexOf(partes[1])

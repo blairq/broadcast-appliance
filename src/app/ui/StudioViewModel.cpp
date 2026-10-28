@@ -92,6 +92,8 @@
 #include "asamblea/SesionRemota.hpp"
 #include "asamblea/SeguirMicrofono.hpp"
 #include "asamblea/OrdenDelDia.hpp"
+#include "asamblea/InformesResultado.hpp"
+#include "evento/APdf.hpp"
 #include "asamblea/Quorum.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
@@ -1661,6 +1663,74 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         if (evento_) connect(evento_.get(), &EventoViewModel::padronChanged, quorum_.get(), &asamblea::Quorum::cambio);
         connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, quorum_.get(), &asamblea::Quorum::cambio);
     }
+    // El resultado de la sesión en PDF, con plantillas (asamblea/InformesResultado): lo que
+    // se rellena sale del cuerpo, el quórum, el orden del día, las votaciones oficiales,
+    // el padrón y el uso de la palabra. Los textos en el idioma del evento.
+    informes_ = std::make_unique<asamblea::InformesResultado>(
+        rt.dataRoot(),
+        [this]() {
+            using nlohmann::json;
+            const auto T = [](const char* t) { return ba::i18n::traducirEvento("asamblea", t); };
+            json d = json::object();
+            d["cuerpo"] = cuerpo_ ? cuerpo_->cuerpo().nombre() : std::string();
+            if (evento_) {
+                const QVariantMap g = evento_->guion();
+                d["evento"] = g.value("nombre").toString().toStdString();
+                d["fecha"] = g.value("fecha").toString().toStdString();
+                d["hora"] = g.value("inicio").toString().toStdString();
+                const QVariantMap r = evento_->resumenPadron();
+                d["padron"] = {{"presentes", r.value("presentes").toInt()}, {"total", r.value("total").toInt()},
+                               {"con_voto", r.value("conVoto").toInt()}, {"voto_presentes", r.value("votoPresente").toInt()}};
+                json presentes = json::array();
+                for (const QVariant& v : evento_->padron()) {
+                    const QVariantMap a = v.toMap();
+                    const qint64 llego = a.value("llegoMs").toLongLong();
+                    if (llego <= 0 && a.value("estado").toString() != "llego") continue;
+                    presentes.push_back({{"nombre", a.value("nombre").toString().toStdString()},
+                                         {"papel", a.value("papel").toString().toStdString()},
+                                         {"por_donde", a.value("porDonde").toString().toStdString()},
+                                         {"hora", llego > 0 ? QDateTime::fromMSecsSinceEpoch(llego).toString("HH:mm").toStdString() : std::string()}});
+                }
+                d["presentes"] = presentes;
+            }
+            if (quorum_) {
+                const json q = quorum_->estado();
+                d["quorum"] = {{"presentes", q.value("presentes", 0)}, {"necesarios", q.value("necesarios", 0)},
+                               {"miembros", q.value("miembros", 0)}, {"hay", q.value("hay_quorum", false)},
+                               {"estado", q.value("hay_quorum", false) ? T(QT_TRANSLATE_NOOP("asamblea", "Hay quórum")) : T(QT_TRANSLATE_NOOP("asamblea", "Sin quórum"))}};
+                json vs = json::array();
+                for (const auto& o : quorum_->oficiales())
+                    vs.push_back({{"asunto", o.value("asunto", std::string())}, {"afirmativos", o.value("afirmativos", 0)},
+                                  {"negativos", o.value("negativos", 0)}, {"abstenciones", o.value("abstenciones", 0)},
+                                  {"presentes", o.value("presentes", 0)}, {"mayoria", asamblea::Quorum::nombreMayoria(o.value("mayoria", std::string()))},
+                                  {"aprobado", o.value("aprobado", false)},
+                                  {"resultado", o.value("aprobado", false) ? T(QT_TRANSLATE_NOOP("asamblea", "APROBADO")) : T(QT_TRANSLATE_NOOP("asamblea", "RECHAZADO"))}});
+                d["votaciones"] = vs;
+            }
+            if (ordenDia_) {
+                const std::map<std::string, std::string> estados{{"pendiente", T(QT_TRANSLATE_NOOP("asamblea", "pendiente"))}, {"en_tratamiento", T(QT_TRANSLATE_NOOP("asamblea", "en tratamiento"))},
+                                                                 {"votado", T(QT_TRANSLATE_NOOP("asamblea", "votado"))}, {"comision", T(QT_TRANSLATE_NOOP("asamblea", "a comisión"))},
+                                                                 {"retirado", T(QT_TRANSLATE_NOOP("asamblea", "retirado"))}};
+                json ps = json::array();
+                for (const auto& p : ordenDia_->puntos()) {
+                    const std::string e = p.value("estado", std::string());
+                    ps.push_back({{"n", p.value("n", 0)}, {"expediente", p.value("expediente", std::string())},
+                                  {"titulo", p.value("titulo", std::string())},
+                                  {"estado", estados.count(e) ? estados.at(e) : e}, {"resultado", p.value("resultado", std::string())}});
+                }
+                d["puntos"] = ps;
+                json pal = json::array();
+                for (const auto& t : ordenDia_->tiemposPalabra(remotosPalabra())) {
+                    const long long seg = t.value("segundos", 0LL);
+                    pal.push_back({{"nombre", t.value("nombre", std::string())}, {"segundos", seg},
+                                   {"tiempo", QString("%1:%2").arg(seg / 60).arg(seg % 60, 2, 10, QChar('0')).toStdString()}});
+                }
+                d["palabra"] = pal;
+            }
+            return d;
+        },
+        [this]() { return evento_ ? evento_->carpetaEvento() : std::filesystem::path(); },
+        [](const QString& md, const QString& titulo, const QString& destino) { return APdf::texto(md, "markdown", titulo, destino); });
     // Las votaciones (central, celulares, Quórum) son del modelo.
     if (sesionRemota_ && quorum_)
         votaciones_ = std::make_unique<asamblea::Votaciones>(*sesionRemota_, *dcn_, *quorum_, *bus_, this);
@@ -3935,6 +4005,7 @@ QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }
 QObject* StudioViewModel::accesoRemotoQml() const { return accesoRemoto_.get(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return seguirMic_.get(); }
 QObject* StudioViewModel::ordenDelDiaQml() const { return ordenDia_.get(); }
+QObject* StudioViewModel::informesQml() const { return informes_.get(); }
 QObject* StudioViewModel::quorumQml() const { return quorum_.get(); }
 
 nlohmann::json StudioViewModel::remotosPalabra() const {

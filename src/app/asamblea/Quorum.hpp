@@ -45,6 +45,8 @@ class Quorum : public QObject {
     json estado() const;
     /// Cuántos votos afirmativos hacen falta con esta mayoría.
     static int necesarios(const std::string& mayoria, int votantes, int presentes, int miembros);
+    /// El nombre de una mayoría, para el acta y los informes (en el idioma del evento).
+    static std::string nombreMayoria(const std::string& mayoria);
     /// Carga un resultado oficial: {asunto, afirmativos, negativos, abstenciones, presentes?, mayoria?, punto?, nominal?}
     /// o {csv}: «nombre;voto» por línea (afirmativo|negativo|abstención|ausente). Devuelve el resultado o {error}.
     json cargarOficial(const json& r);

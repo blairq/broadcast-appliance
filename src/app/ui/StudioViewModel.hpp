@@ -137,6 +137,7 @@ class Votaciones;
 class Presidencia;
 class SeguirMicrofono;
 class OrdenDelDia;
+class InformesResultado;
 class Quorum;
 }
 
@@ -242,6 +243,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* seguirMicrofono READ seguirMicrofonoQml CONSTANT)
     /// El orden del día de la sesión y el uso de la palabra (asamblea/OrdenDelDia).
     Q_PROPERTY(QObject* ordenDelDia READ ordenDelDiaQml CONSTANT)
+    /// El resultado de la sesión en PDF, con plantillas (asamblea/InformesResultado).
+    Q_PROPERTY(QObject* informes READ informesQml CONSTANT)
     /// Quórum, mayorías y resultados oficiales de las votaciones (asamblea/Quorum).
     Q_PROPERTY(QObject* quorum READ quorumQml CONSTANT)
     /// El catálogo de acciones y los atajos de teclado (control/Acciones).
@@ -562,6 +565,8 @@ class StudioViewModel : public QObject {
     asamblea::SeguirMicrofono& seguirMicrofono() { return *seguirMic_; }
     QObject* ordenDelDiaQml() const;
     asamblea::OrdenDelDia& ordenDelDia() { return *ordenDia_; }
+    QObject* informesQml() const;
+    asamblea::InformesResultado* informes() { return informes_.get(); }
     QObject* quorumQml() const;
     asamblea::Quorum& quorum() { return *quorum_; }
     QObject* accionesQml() const;
@@ -1188,6 +1193,7 @@ class StudioViewModel : public QObject {
     qint64 caidaMs_ = 0;
     std::unique_ptr<asamblea::SeguirMicrofono> seguirMic_;
     std::unique_ptr<asamblea::OrdenDelDia> ordenDia_;
+    std::unique_ptr<asamblea::InformesResultado> informes_;
     std::unique_ptr<asamblea::Quorum> quorum_;
     std::unique_ptr<agent::RotuloTraduccionConfig> rotulo_; ///< Config/rotulo-traduccion.json (modelo)
     QTimer rotuloApagar_;
