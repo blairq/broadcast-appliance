@@ -147,7 +147,13 @@ Rectangle {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: page.g.abrir(modelData.nombre)
+                                // Elegir un gráfico lo muestra andando: se abre y se reproduce
+                                // desde el principio (aunque ya estuviera reproduciendo otro).
+                                onClicked: {
+                                    if (!page.g.abrir(modelData.nombre)) return
+                                    page.g.reproduciendo = false
+                                    page.g.reproduciendo = true
+                                }
                             }
                           }
                         }
