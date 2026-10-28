@@ -1080,7 +1080,7 @@ Rectangle {
                                 GlassButton { text: qsTr("Editar…"); compact: true; active: true; onClicked: cueDlg.abrir(page.selB, page.selC) }
                                 GlassButton { text: qsTr("Poner al aire"); compact: true; onClicked: page.ev.irA(page.selB, page.selC) }
                                 GlassButton {
-                                    readonly property string url: page.selCue ? page.ev.enlaceDeCue(page.selCue.tipo) : ""
+                                    readonly property string url: page.selCue ? page.ev.enlaceDeCue(page.selCue.tipo, page.selCue.datos || ({})) : ""
                                     visible: url !== ""
                                     text: qsTr("Ver el teleprompter ↗"); compact: true
                                     onClicked: Qt.openUrlExternally(url)

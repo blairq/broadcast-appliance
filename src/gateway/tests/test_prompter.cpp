@@ -22,6 +22,7 @@
 #include "Prompter.hpp"
 
 using ba::gateway::Prompter;
+using ba::gateway::Prompters;
 using json = nlohmann::json;
 
 namespace {
@@ -197,6 +198,27 @@ void conectados() {
     CHECK(q.clientes().size() <= Prompter::kMaxClientes, "la tabla tiene tope");
 }
 
+// Varios teleprompters, cada uno con su texto (Prompters).
+void varios() {
+    Prompters ps;
+    CHECK(Prompters::idValido("") == "principal", "sin id: el principal");
+    CHECK(Prompters::idValido("atril-2") == "atril-2", "minúsculas, números y guiones");
+    CHECK(Prompters::idValido("Atril").empty() && Prompters::idValido("a/b").empty() && Prompters::idValido(std::string(33, 'a')).empty(),
+          "ni mayúsculas, ni barras, ni más de 32");
+    const auto a = ps.de(""), b = ps.de("invitado");
+    CHECK(a && b && a != b && ps.de("principal") == a, "el principal y otro, distintos; el mismo id da el mismo");
+    a->cargar("Presidencia", "uno dos tres");
+    b->cargar("Invitado", "cuatro cinco");
+    CHECK(a->estado()["titulo"] == "Presidencia" && b->estado()["titulo"] == "Invitado", "cada uno con su texto");
+    const auto l = ps.lista();
+    CHECK(l.size() == 2 && l[0]["id"] == "principal" && l[1]["titulo"] == "Invitado" && l[1]["palabras"] == 2, "la lista, el principal primero");
+    CHECK(!ps.quitar("principal") && ps.quitar("invitado") && ps.lista().size() == 1, "el principal no se saca; los otros sí");
+    CHECK(b->estado()["titulo"] == "Invitado", "el que se sacó sigue vivo mientras alguien lo usa");
+    CHECK(!ps.de("No Vale"), "un id que no vale no crea nada");
+    for (int i = 0; i < static_cast<int>(Prompters::kMax) + 5; ++i) ps.de("p" + std::to_string(i));
+    CHECK(ps.lista().size() <= Prompters::kMax, "tienen tope");
+}
+
 } // namespace
 
 int main() {
@@ -207,6 +229,7 @@ int main() {
     saltar_a_parrafo();
     limites();
     conectados();
+    varios();
     if (g_fallos == 0) std::printf("test_prompter: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

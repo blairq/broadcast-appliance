@@ -32,6 +32,7 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -115,6 +116,35 @@ class Prompter {
     };
     std::map<std::string, Cliente> clientes_;
     uint64_t version_ = 0; ///< sube con cada cambio: las vistas detectan saltos
+};
+
+/// VARIOS TELEPROMPTERS, cada uno con su texto, su velocidad y su página: el del
+/// presidente y el del orador invitado leen cosas distintas al mismo tiempo.
+/// «principal» es el de siempre (/prompter/); los demás, /prompter/<id>/. Se crean
+/// al primer uso (la app carga un discurso, o alguien abre la página): así no hay
+/// una lista que sincronizar con la app, que es la que les pone nombre. La clave
+/// del control es la misma para todos.
+class Prompters {
+   public:
+    static constexpr const char* kPrincipal = "principal";
+    /// Tope: más que esto es alguien probando direcciones.
+    static constexpr std::size_t kMax = 32;
+
+    /// El id normalizado ("" = principal), o "" si no vale (minúsculas, números y
+    /// guiones; de 1 a 32).
+    static std::string idValido(const std::string& id);
+
+    /// El de `id`, creándolo si no estaba; nullptr si el id no vale o ya hay kMax.
+    /// Compartido: si otro hilo lo saca mientras se usa, sigue vivo hasta terminar.
+    std::shared_ptr<Prompter> de(const std::string& id);
+    /// [{id, titulo, palabras, corriendo, duracionSeg, oradores, controles}], el principal primero.
+    nlohmann::json lista() const;
+    /// Saca uno (el principal no se saca). false si no estaba.
+    bool quitar(const std::string& id);
+
+   private:
+    mutable std::mutex m_;
+    std::map<std::string, std::shared_ptr<Prompter>> todos_;
 };
 
 } // namespace ba::gateway

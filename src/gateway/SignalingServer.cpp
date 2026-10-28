@@ -1061,6 +1061,16 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             return;
         }
         std::string rel = path.size() > 10 ? path.substr(10) : std::string("index.html");
+        // Cada teleprompter tiene su página: /prompter/<id>/ es la misma, y ella
+        // lee de la dirección cuál es (Prompters). /prompter/<id> sin la barra se
+        // redirige, por lo mismo de arriba.
+        if (const auto barra = rel.find('/'); barra != std::string::npos) {
+            if (!Prompters::idValido(rel.substr(0, barra)).empty()) rel = rel.substr(barra + 1);
+        } else if (!rel.empty() && rel.find('.') == std::string::npos && rel != "control" &&
+                   !Prompters::idValido(rel).empty()) {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /prompter/" + rel + "/\r\n");
+            return;
+        }
         if (rel.empty() || rel == "control") rel = "index.html";
         if (!cfg_.prompterWebroot.empty() && serveStatic(fd, cfg_.prompterWebroot, rel)) return;
         http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n");
@@ -1075,10 +1085,17 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             const auto campo = [&q](const char* k) {
                 return q.count(k) ? http::urlDecode(q.at(k)) : std::string();
             };
-            prompter_.visto(campo("id"), campo("vista"), campo("nombre"), clientIp);
+            // Cuál (`p`; sin eso, el principal). Abrir la página de uno que no
+            // existe lo crea vacío: la tablet espera ahí a que le carguen el discurso.
+            const auto prompter = prompters_.de(campo("p"));
+            if (!prompter) {
+                http::sendResponse(fd, 404, "application/json", R"({"ok":false,"error":"prompter"})");
+                return;
+            }
+            prompter->visto(campo("id"), campo("vista"), campo("nombre"), clientIp);
             // Publico: es el texto que el orador va a decir en voz alta en un
             // rato. Lo que se protege es CAMBIARLO, no verlo.
-            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            http::sendResponse(fd, 200, "application/json", prompter->estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -1094,8 +1111,13 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
                 return;
             }
-            prompter_.comandar(req);
-            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            const auto prompter = prompters_.de(req.value("prompter", std::string()));
+            if (!prompter) {
+                http::sendResponse(fd, 404, "application/json", R"({"ok":false,"error":"prompter"})");
+                return;
+            }
+            prompter->comandar(req);
+            http::sendResponse(fd, 200, "application/json", prompter->estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
     }

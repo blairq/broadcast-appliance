@@ -32,7 +32,8 @@ json estadoDe(PrompterViewModel& p) {
                                   {"ip", m.value("ip").toString().toStdString()}});
     }
     const QVariantMap e = p.estado();
-    return json{{"enLinea", p.enLinea()},
+    return json{{"prompter", p.elegido().toStdString()},
+                {"enLinea", p.enLinea()},
                 {"cargado", p.cargado().toStdString()},
                 {"corriendo", e.value("corriendo", false).toBool()},
                 {"palabras", e.value("palabras", 0).toInt()},
@@ -46,6 +47,22 @@ json estadoDe(PrompterViewModel& p) {
                 {"controles", p.controles()}};
 }
 
+/// El argumento `prompter` (cuál): elige ese en la página, así el operador ve lo
+/// mismo que toca el asistente. "" o el error.
+std::string elegir(PrompterViewModel& p, const json& a) {
+    if (!a.contains("prompter")) return {};
+    const QString id = QString::fromStdString(a.value("prompter", std::string()));
+    if (!p.hayPrompter(id))
+        return ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay un teleprompter «%1». prompter_lista dice cuáles hay."), {id.toStdString()});
+    p.setElegido(id);
+    return {};
+}
+
+json argPrompter() {
+    return {{"type", "string"},
+            {"description", ba::i18n::traducir("mcp", "cuál teleprompter (su id, de prompter_lista); sin esto, el que está elegido en la página")}};
+}
+
 } // namespace
 
 void McpService::registerPrompterTools() {
@@ -55,6 +72,46 @@ void McpService::registerPrompterTools() {
     auto* p = static_cast<PrompterViewModel*>(vm_.prompter());
     if (p == nullptr) return;
 
+    {
+        Tool t;
+        t.name = "prompter_lista";
+        t.title = ba::i18n::traducir("mcp", "Los teleprompters (varios, cada uno con su texto y su página)");
+        t.category = "prompter";
+        t.description = ba::i18n::traducir("mcp", "Sin argumentos: los teleprompters del evento ({id, nombre, titulo cargado, corriendo, oradores}) "
+                        "y cuál está elegido. Cada uno tiene su texto, su velocidad y su página: el principal en /prompter/, "
+                        "los demás en /prompter/<id>/ (el enlace y el QR, en la página Teleprompter). `agregar: nombre` crea "
+                        "uno (queda elegido); `quitar: id` lo saca; `renombrar: {id, nombre}`; `elegir: id` lo elige. Las "
+                        "demás herramientas prompter_* y el cue «teleprompter» del guion reciben `prompter` (el id).");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"agregar", {{"type", "string"}}},
+                           {"quitar", {{"type", "string"}}},
+                           {"elegir", {{"type", "string"}}},
+                           {"renombrar",
+                            {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}, {"nombre", {{"type", "string"}}}}}}}}}};
+        t.examples = {R"({})", R"({"agregar": "Atril del invitado"})", R"({"renombrar": {"id": "principal", "nombre": "Atril de la presidencia"}})"};
+        t.run = [p](const json& a, Done done) {
+            if (a.contains("agregar")) {
+                const QVariantMap r = p->agregarPrompter(QString::fromStdString(a.value("agregar", std::string())));
+                if (r.contains("error")) return done(ToolResult::error(r.value("error").toString().toStdString()));
+            }
+            if (a.contains("quitar"))
+                if (const QString e = p->quitarPrompter(QString::fromStdString(a.value("quitar", std::string()))); !e.isEmpty())
+                    return done(ToolResult::error(e.toStdString()));
+            if (a.contains("renombrar"))
+                if (const QString e = p->renombrarPrompter(QString::fromStdString(a["renombrar"].value("id", std::string())),
+                                                           QString::fromStdString(a["renombrar"].value("nombre", std::string())));
+                    !e.isEmpty())
+                    return done(ToolResult::error(e.toStdString()));
+            if (a.contains("elegir"))
+                if (const std::string e = elegir(*p, {{"prompter", a.value("elegir", std::string())}}); !e.empty())
+                    return done(ToolResult::error(e));
+            p->consultar([p, done](bool) {
+                done(ToolResult().data({{"prompters", qvToJson(p->prompters())}, {"elegido", p->elegido().toStdString()}}));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "prompter_estado";
@@ -69,7 +126,9 @@ void McpService::registerPrompterTools() {
         // Se le pregunta al gateway ANTES de contestar: la pagina solo consulta
         // mientras esta a la vista, y por MCP el estado tiene que estar fresco
         // aunque el operador este mirando otra pantalla.
-        t.run = [p](const json&, Done done) {
+        t.inputSchema = {{"type", "object"}, {"properties", {{"prompter", argPrompter()}}}};
+        t.run = [p](const json& a, Done done) {
+            if (const std::string e = elegir(*p, a); !e.empty()) return done(ToolResult::error(e));
             p->consultar([p, done](bool) { done(ToolResult().data(estadoDe(*p))); });
         };
         core_.addTool(std::move(t));
@@ -208,9 +267,11 @@ void McpService::registerPrompterTools() {
         t.category = "prompter";
         t.description = ba::i18n::traducir("mcp", "Manda un discurso a la pantalla del orador. Queda LISTO pero PARADO: arrancarlo "
                         "es otra cosa (prompter_control).");
-        t.inputSchema = {
-            {"type", "object"}, {"required", {"rel"}}, {"properties", {{"rel", {{"type", "string"}}}}}};
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"rel"}},
+                         {"properties", {{"rel", {{"type", "string"}}}, {"prompter", argPrompter()}}}};
         t.run = [p](const json& a, Done done) {
+            if (const std::string e = elegir(*p, a); !e.empty()) return done(ToolResult::error(e));
             const QString err = p->cargar(QString::fromStdString(a["rel"].get<std::string>()));
             if (!err.isEmpty()) {
                 done(ToolResult::error(err.toStdString()));
@@ -240,13 +301,15 @@ void McpService::registerPrompterTools() {
                            {"parrafo", {{"type", "integer"}, {"minimum", 0}}},
                            {"aviso", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "vacio lo saca")}}},
                            {"panico", {{"type", "boolean"}}},
-                           {"espejo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "texto espejado (para el vidrio del prompter)")}}}}}};
-        t.examples = {R"({"aviso": "Redondeá"})", R"({"ppm": 130})"};
+                           {"espejo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "texto espejado (para el vidrio del prompter)")}}},
+                           {"prompter", argPrompter()}}}};
+        t.examples = {R"({"aviso": "Redondeá"})", R"({"ppm": 130})", R"({"prompter": "atril-invitado", "corriendo": true})"};
         t.run = [p](const json& a, Done done) {
+            if (const std::string e = elegir(*p, a); !e.empty()) return done(ToolResult::error(e));
             // El espejo es de la pantalla del prompter: vale aunque la sala no esté corriendo.
             if (a.contains("espejo")) {
                 p->setEspejo(a.value("espejo", false));
-                if (a.size() == 1)
+                if (a.size() == 1 + (a.contains("prompter") ? 1 : 0))
                     return done(ToolResult::ok(a.value("espejo", false) ? ba::i18n::traducir("mcp", "Espejado.")
                                                                         : ba::i18n::traducir("mcp", "Sin espejo.")));
             }
@@ -287,6 +350,8 @@ void McpService::registerPrompterTools() {
                                                      : ba::i18n::traducir("mcp", "parado")) + "; ";
             }
             if (hecho.empty()) {
+                if (a.contains("prompter") && a.size() == 1)
+                    return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Elegido «%1»."), {a.value("prompter", std::string())})));
                 done(ToolResult::error(ba::i18n::traducir(
                     "mcp", "No mandaste nada que hacer. Ver help {\"tool\": \"prompter_control\"}.")));
                 return;

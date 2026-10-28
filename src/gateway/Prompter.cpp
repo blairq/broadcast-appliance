@@ -232,4 +232,53 @@ json Prompter::clientes() const {
     return json(vivos);
 }
 
+// --- Varios -----------------------------------------------------------------------
+
+std::string Prompters::idValido(const std::string& id) {
+    if (id.empty()) return kPrincipal;
+    if (id.size() > 32) return {};
+    for (const unsigned char c : id)
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) return {};
+    return id;
+}
+
+std::shared_ptr<Prompter> Prompters::de(const std::string& id) {
+    const std::string k = idValido(id);
+    if (k.empty()) return nullptr;
+    std::lock_guard<std::mutex> lock(m_);
+    auto it = todos_.find(k);
+    if (it != todos_.end()) return it->second;
+    if (todos_.size() >= kMax) return nullptr;
+    return todos_.emplace(k, std::make_shared<Prompter>()).first->second;
+}
+
+json Prompters::lista() const {
+    std::lock_guard<std::mutex> lock(m_);
+    json out = json::array();
+    const auto fila = [](const std::string& id, const Prompter& p) {
+        const json e = p.estado(), c = p.clientes();
+        int oradores = 0;
+        for (const auto& x : c)
+            if (x.value("vista", std::string()) == "orador") ++oradores;
+        return json{{"id", id},
+                    {"titulo", e.value("titulo", std::string())},
+                    {"palabras", e.value("palabras", 0)},
+                    {"corriendo", e.value("corriendo", false)},
+                    {"duracionSeg", p.duracionSeg()},
+                    {"oradores", oradores},
+                    {"controles", static_cast<int>(c.size()) - oradores}};
+    };
+    if (auto it = todos_.find(kPrincipal); it != todos_.end()) out.push_back(fila(it->first, *it->second));
+    for (const auto& [id, p] : todos_)
+        if (id != kPrincipal) out.push_back(fila(id, *p));
+    return out;
+}
+
+bool Prompters::quitar(const std::string& id) {
+    const std::string k = idValido(id);
+    if (k.empty() || k == kPrincipal) return false;
+    std::lock_guard<std::mutex> lock(m_);
+    return todos_.erase(k) > 0;
+}
+
 } // namespace ba::gateway

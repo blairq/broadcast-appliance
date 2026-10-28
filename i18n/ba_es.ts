@@ -321,7 +321,7 @@
 <context>
     <name>EventoViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1176"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1194"/>
         <source>, %n bloque vacío que no pasa</source>
         <translation>
             <numerusform>, %n bloque vacío que no pasa</numerusform>
@@ -337,7 +337,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+768"/>
+        <location line="+774"/>
         <source>%n persona llegó (escanearon su invitación).</source>
         <translation>
             <numerusform>%n persona llegó (escaneó su invitación).</numerusform>
@@ -929,8 +929,9 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PrompterPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/PrompterPage.qml" line="+60"/>
+        <location filename="../src/app/qml/pages/PrompterPage.qml" line="+63"/>
         <location line="+2"/>
+        <location line="+47"/>
         <source>%n en el atril</source>
         <translation>
             <numerusform>%n en el atril</numerusform>
@@ -938,7 +939,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+3"/>
+        <location line="-44"/>
         <location line="+2"/>
         <source>%n con el control</source>
         <translation>
@@ -947,7 +948,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+116"/>
+        <location line="+158"/>
         <source>%n palabra · %1</source>
         <translation>
             <numerusform>%n palabra · %1</numerusform>
@@ -1400,7 +1401,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1408"/>
+        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1409"/>
         <source>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</source>
         <translation>
             <numerusform>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</numerusform>

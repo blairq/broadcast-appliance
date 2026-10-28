@@ -10,13 +10,22 @@
 
 namespace ba::app::sala {
 
-Teleprompter::Teleprompter(ConferenceClient& sala) : sala_(sala) {}
+Teleprompter::Teleprompter(ConferenceClient& sala, std::string id) : sala_(sala), id_(std::move(id)) {}
 
 void Teleprompter::mandar(const nlohmann::json& orden, Listo listo) {
-    pedir(sala_, "POST", "/api/v1/prompter", orden, std::move(listo));
+    nlohmann::json o = orden;
+    if (!id_.empty()) o["prompter"] = id_;
+    pedir(sala_, "POST", "/api/v1/prompter", o, std::move(listo));
 }
 
-void Teleprompter::ver(Listo listo) { pedir(sala_, "GET", "/api/v1/prompter", {}, std::move(listo)); }
+void Teleprompter::ver(Listo listo) {
+    // (el id ya viene con letras, números y guiones: va tal cual en la consulta)
+    pedir(sala_, "GET", id_.empty() ? std::string("/api/v1/prompter") : "/api/v1/prompter?p=" + id_, {}, std::move(listo));
+}
+
+void Teleprompter::lista(Listo listo) { pedir(sala_, "GET", "/api/v1/prompters", {}, std::move(listo)); }
+
+void Teleprompter::quitar(Listo listo) { pedir(sala_, "POST", "/api/v1/prompters", {{"quitar", id_}}, std::move(listo)); }
 
 std::string Teleprompter::cargarDiscurso(const Discursos& docs, const std::string& rel, bool arrancar, Listo listo) {
     if (rel.empty()) return ba::i18n::traducir("sala", "No dice qué discurso.");

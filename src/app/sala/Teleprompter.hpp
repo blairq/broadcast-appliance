@@ -13,6 +13,10 @@
 //     todavía está caminando hacia el atril);
 //   - velocidad de 40 a 400 palabras por minuto, tamaño de 1 a 10.
 //
+// HAY VARIOS (gateway/Prompter.hpp: Prompters), cada uno con su texto y su
+// página. Un Teleprompter habla con UNO: el principal, o el que da `para(id)`.
+// Los nombres que les pone el operador están en ListaPrompters.
+//
 // Nada se guarda acá de antemano: se manda y el estado vuelve con el cambio.
 // ============================================================================
 #pragma once
@@ -29,7 +33,16 @@ namespace ba::app::sala {
 
 class Teleprompter {
    public:
-    explicit Teleprompter(ConferenceClient& sala);
+    /// `id`: cuál ("" o "principal" = el de siempre, /prompter/).
+    explicit Teleprompter(ConferenceClient& sala, std::string id = {});
+    /// El mismo modelo, hablándole a otro teleprompter.
+    Teleprompter para(const std::string& id) const { return Teleprompter(sala_, id); }
+    const std::string& id() const { return id_; }
+
+    /// Los que tiene el gateway: {prompters: [{id, titulo, palabras, corriendo, oradores, controles}]}.
+    void lista(Listo listo);
+    /// Lo saca del gateway (el principal no).
+    void quitar(Listo listo = {});
 
     /// El estado (titulo, texto, palabras, posicion, ppm, corriendo, clientes, clave…).
     void ver(Listo listo);
@@ -55,6 +68,7 @@ class Teleprompter {
     void mandar(const nlohmann::json& orden, Listo listo);
 
     ConferenceClient& sala_;
+    std::string id_;
 };
 
 } // namespace ba::app::sala

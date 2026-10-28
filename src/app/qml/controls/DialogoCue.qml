@@ -32,10 +32,11 @@ Dialog {
         repetir: qsTr("En bucle"), alAire: qsTr("Ponerlo al aire en su escena"), discurso: qsTr("Discurso"),
         arrancar: qsTr("Arrancarlo al cargarlo"), participante: qsTr("Quién habla"), fuente: qsTr("Fuente"),
         grafico: qsTr("Gráfico"), pantalla: qsTr("Pantalla"), contenido: qsTr("Qué muestra"), db: qsTr("Volumen (dB)"),
-        seVa: qsTr("Cuándo se va de la pantalla"), carrusel: qsTr("Carrusel"), lamina: qsTr("Lámina")
+        seVa: qsTr("Cuándo se va de la pantalla"), carrusel: qsTr("Carrusel"), lamina: qsTr("Lámina"),
+        prompter: qsTr("En qué teleprompter")
     })
     // Listas cerradas (no se escribe otra cosa).
-    readonly property var kCerrados: ["accion", "seVa", "carrusel", "lamina"]
+    readonly property var kCerrados: ["accion", "seVa", "carrusel", "lamina", "prompter"]
 
     function abrir(b, c) { dlg.bloque = b; dlg.cue = c; open() }
     function poner(campo, valor) {
@@ -234,7 +235,7 @@ Dialog {
             onClicked: dlg.ev.irA(dlg.bloque, dlg.cue)
         }
         GlassButton {
-            readonly property string url: dlg.c ? dlg.ev.enlaceDeCue(dlg.c.tipo) : ""
+            readonly property string url: dlg.c ? dlg.ev.enlaceDeCue(dlg.c.tipo, dlg.c.datos || ({})) : ""
             visible: url !== ""
             text: qsTr("Ver el teleprompter ↗"); compact: true
             onClicked: Qt.openUrlExternally(url)

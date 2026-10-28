@@ -29,6 +29,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include "sala/ListaPrompters.hpp"
 #include "evento/Evento.hpp"
 #include "evento/EventoStore.hpp"
 #include "evento/Padron.hpp"
@@ -281,7 +282,9 @@ class EventoViewModel : public QObject {
                                              const QVariantMap& datos = {}) const;
     /// La vista web para ver si un cue anda (el teleprompter: la pantalla del orador,
     /// que avanza sola), en esta máquina; "" si ese tipo no tiene vista.
-    Q_INVOKABLE QString enlaceDeCue(const QString& tipo) const;
+    Q_INVOKABLE QString enlaceDeCue(const QString& tipo, const QVariantMap& datos = {}) const;
+    /// Los teleprompters del evento con su nombre (<evento>/prompters.json; ver sala/ListaPrompters).
+    sala::ListaPrompters listaPrompters() const;
     /// Los tipos de evento con guía para prepararlos con el asistente (assets/idiomas/<c>/guias/escenarios,
     /// en el idioma del operador):
     /// [{id, titulo, icono, resumen}].

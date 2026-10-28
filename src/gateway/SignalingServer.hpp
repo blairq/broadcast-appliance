@@ -235,7 +235,7 @@ class SignalingServer {
     std::string temaWeb() const;
     /// El teleprompter, para que la API de control (A) le cargue discursos y
     /// lo comande sin pasar por la clave del control remoto.
-    Prompter& prompter() { return prompter_; }
+    Prompters& prompters() { return prompters_; }
     /// El buzon de rotulos, que A publica y viene a vaciar.
     Rotulador& rotulador() { return rotulador_; }
     Preguntas& preguntas() { return preguntas_; }
@@ -465,7 +465,7 @@ class SignalingServer {
     TokenAuth& auth_;
     WebrtcHub& hub_;
     Room& room_;
-    Prompter prompter_;
+    Prompters prompters_; ///< los teleprompters (Prompter.hpp: «principal» y los que se agreguen)
     /// Lo que rota en cada pantalla (lo publica A, lo lee /pantalla/carrusel/).
     Carruseles carruseles_;
     /// EL TALLY: que escena esta al aire, cual armada y que fuentes tiene cada

@@ -17,9 +17,11 @@
 //   GET    /api/v1/room                    estado completo (snapshot)
 //   GET    /api/v1/events                  SSE: "room" (snapshot) y "chat"
 //   GET    /api/v1/network                 HTTPS, tunel WireGuard, IPs y enlaces
-//   GET    /api/v1/prompter                estado del teleprompter (+ la clave y quien esta conectado)
-//   POST   /api/v1/prompter                {texto?, titulo?, panico?, ...comandos}
-//   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador&conClave=0|1  enlace + QR
+//   GET    /api/v1/prompter?p=<id>         estado de un teleprompter (+ la clave y quien esta conectado; sin p, el principal)
+//   POST   /api/v1/prompter                {prompter?, texto?, titulo?, panico?, ...comandos}
+//   GET    /api/v1/prompters               los teleprompters: [{id, titulo, palabras, corriendo, oradores, controles}]
+//   POST   /api/v1/prompters               {quitar: id}
+//   GET    /api/v1/prompter-link?target=local|remote&vista=control|orador&conClave=0|1&p=<id>  enlace + QR
 //   GET    /api/v1/cast-link?target=local|remote&nombre=  enlace del programa en vivo para una pantalla
 //   GET    /api/v1/carruseles              los publicados
 //   GET    /api/v1/superficies             que paginas estan VIVAS (latido, ver Superficies.hpp)
@@ -397,26 +399,45 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
     // --- Teleprompter -------------------------------------------------------
+    if (path == "/api/v1/prompters") {
+        if (method == "GET") {
+            sendJson(fd, 200, json{{"ok", true}, {"prompters", prompters_.lista()}});
+            return;
+        }
+        if (method == "POST") {
+            const std::string id = req.value("quitar", std::string());
+            if (!prompters_.quitar(id)) return sendErr(fd, 400, "prompter");
+            sendJson(fd, 200, json{{"ok", true}, {"prompters", prompters_.lista()}});
+            return;
+        }
+    }
     if (path == "/api/v1/prompter") {
+        // Cuál: `p` en la consulta (GET) o `prompter` en el cuerpo (POST); sin eso, el principal.
+        const auto q = http::parseQuery(query);
+        const std::string id = method == "POST" ? req.value("prompter", std::string())
+                                                : (q.count("p") ? http::urlDecode(q.at("p")) : std::string());
+        const auto prompter = prompters_.de(id);
+        if (!prompter) return sendErr(fd, 400, "prompter");
         // A ve siempre la clave del control: la necesita para armar el enlace
         // que le manda al operador. Por la superficie de invitados no sale.
-        const auto conClave = [this](json e) {
+        const auto conClave = [this, &prompter, &id](json e) {
             e["clave"] = cfg_.prompterKey;
-            e["clientes"] = prompter_.clientes();
+            e["clientes"] = prompter->clientes();
+            e["prompter"] = Prompters::idValido(id);
             return e;
         };
         if (method == "GET") {
-            sendJson(fd, 200, conClave(prompter_.estado()));
+            sendJson(fd, 200, conClave(prompter->estado()));
             return;
         }
         if (method == "POST") {
             // A comanda sin clave: ya paso por el token de la API de control.
             if (req.contains("texto") && req["texto"].is_string()) {
-                prompter_.cargar(req.value("titulo", std::string()), req["texto"].get<std::string>());
+                prompter->cargar(req.value("titulo", std::string()), req["texto"].get<std::string>());
             }
-            if (req.value("panico", false)) prompter_.pararEnSeco();
-            prompter_.comandar(req);
-            sendJson(fd, 200, conClave(prompter_.estado()));
+            if (req.value("panico", false)) prompter->pararEnSeco();
+            prompter->comandar(req);
+            sendJson(fd, 200, conClave(prompter->estado()));
             return;
         }
     }
@@ -832,6 +853,10 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // La clave puede ir DENTRO del enlace (se entra sin tipear) o no: un QR
         // pegado en una pared no deberia llevarla.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
+        // Cuál: el principal en /prompter/, los demás en /prompter/<id>/.
+        const std::string pid = Prompters::idValido(q.count("p") ? http::urlDecode(q.at("p")) : std::string());
+        if (pid.empty()) return sendErr(fd, 400, "prompter");
+        const std::string carpeta = pid == Prompters::kPrincipal ? std::string() : pid + "/";
         json out = origenDe("prompter", target);
         if (!out.contains("origen")) {
             out["ok"] = false;
@@ -840,7 +865,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
         std::string origin = out["origen"].get<std::string>();
         // La tablet del orador no lleva clave nunca: solo lee.
-        const std::string url = origin + "/prompter/" +
+        const std::string url = origin + "/prompter/" + carpeta +
                                 (control ? (conClave ? "#control&k=" + cfg_.prompterKey : "#control") : "");
         const qrcodegen::QrCode qr =
             qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);

@@ -118,7 +118,7 @@ constexpr CampoDeTipo kTipos[] = {
     {"escena", QT_TRANSLATE_NOOP("evento", "Escena"), QT_TRANSLATE_NOOP("evento", "Pone una escena al aire."), "escena"},
     {"musica", QT_TRANSLATE_NOOP("evento", "Música"), QT_TRANSLATE_NOOP("evento", "Arranca o para un tema de los medios del evento."), "archivo,accion,repetir"},
     {"video", QT_TRANSLATE_NOOP("evento", "Video"), QT_TRANSLATE_NOOP("evento", "Reproduce un video de los medios del evento en su propia escena."), "archivo,accion,repetir,alAire"},
-    {"teleprompter", QT_TRANSLATE_NOOP("evento", "Teleprompter"), QT_TRANSLATE_NOOP("evento", "Carga un discurso y lo deja listo."), "discurso,arrancar"},
+    {"teleprompter", QT_TRANSLATE_NOOP("evento", "Teleprompter"), QT_TRANSLATE_NOOP("evento", "Carga un discurso y lo deja listo."), "prompter,discurso,arrancar"},
     {"orador", QT_TRANSLATE_NOOP("evento", "Orador"), QT_TRANSLATE_NOOP("evento", "Le da la palabra a alguien, con su tiempo."), "participante"},
     {"grafico", QT_TRANSLATE_NOOP("evento", "Gráfico"), QT_TRANSLATE_NOOP("evento", "Saca al aire un gráfico animado en una fuente de escena."),
      "fuente,grafico,accion,seVa"},
@@ -853,6 +853,10 @@ QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString
         for (const QString& f : fuentesDeGrafico()) op(f);
     } else if (campo == "fuente" && tipo == "audio") {
         for (const std::string& f : rt_.engine().audioSources()) op(QString::fromStdString(f));
+    } else if (campo == "prompter") {
+        // Los teleprompters del evento (cada uno con su página): el principal primero.
+        for (const auto& p : listaPrompters().lista())
+            op(QString::fromStdString(p.value("id", std::string())), QString::fromStdString(p.value("nombre", std::string())));
     } else if (campo == "contenido" && tipo == "pantalla") {
         op("programa", tr("El programa (lo que sale al aire)"));
         op("reloj", tr("Un reloj"));
@@ -863,10 +867,24 @@ QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString
     return out;
 }
 
-QString EventoViewModel::enlaceDeCue(const QString& tipo) const {
+QString EventoViewModel::enlaceDeCue(const QString& tipo, const QVariantMap& datos) const {
     // El servidor de la sala, en esta máquina (la pantalla del orador solo lee: sin clave).
-    if (tipo == "teleprompter") return "http://127.0.0.1:" + QString::number(rt_.gateway().port) + "/prompter/";
+    // Cada teleprompter tiene su página: el principal en /prompter/, los demás en /prompter/<id>/.
+    if (tipo == "teleprompter") {
+        const QString id = datos.value("prompter").toString();
+        const QString carpeta = id.isEmpty() || id == sala::ListaPrompters::kPrincipal || !listaPrompters().existe(id.toStdString())
+                                    ? QString()
+                                    : id + "/";
+        return "http://127.0.0.1:" + QString::number(rt_.gateway().port) + "/prompter/" + carpeta;
+    }
     return {};
+}
+
+sala::ListaPrompters EventoViewModel::listaPrompters() const {
+    sala::ListaPrompters l;
+    const QString discursos = carpetaDeDiscursos();
+    if (!discursos.isEmpty()) l.cargar(QDir::cleanPath(QDir(discursos).absoluteFilePath("../prompters.json")).toStdString());
+    return l;
 }
 
 QVariantList EventoViewModel::escenarios() const {
@@ -1945,9 +1963,15 @@ void EventoViewModel::ejecutarActual() {
             // datos del cue: por defecto el texto queda LISTO pero parado, que
             // es lo que se quiere casi siempre (el orador todavia esta
             // caminando hacia el atril).
+            // En cuál (cada uno con su texto y su página); sin decir, el principal.
+            const std::string cual = c->datos.value("prompter", std::string());
+            if (!cual.empty() && !listaPrompters().existe(cual)) {
+                anotar(tr("No hay un teleprompter «%1» en el evento").arg(QString::fromStdString(cual)), "error");
+                return;
+            }
             const Discursos docs(carpetaDeDiscursos());
-            const std::string err =
-                sala_->teleprompter().cargarDiscurso(docs, rel.toStdString(), c->datos.value("arrancar", false));
+            const std::string err = sala_->teleprompter().para(cual).cargarDiscurso(docs, rel.toStdString(),
+                                                                                   c->datos.value("arrancar", false));
             if (!err.empty()) {
                 anotar(tr("No se pudo abrir el discurso: %1").arg(rel), "error");
                 emit notify(tr("No encontré el discurso \"%1\" en la carpeta del evento").arg(rel), "error");

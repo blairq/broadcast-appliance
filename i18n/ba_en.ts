@@ -6389,6 +6389,11 @@ Turn it on from the Log.</translation>
         <translation>Slide</translation>
     </message>
     <message>
+        <location line="+1" />
+        <source>En qué teleprompter</source>
+        <translation>Which teleprompter</translation>
+    </message>
+    <message>
         <location line="+16" />
         <source>Cue %1 del bloque %2 · %3</source>
         <translation>Cue %1 of block %2 · %3</translation>
@@ -9365,7 +9370,7 @@ Turn it on from the Log.</translation>
         <translation>Stays until taken off</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+12" />
         <source>El programa (lo que sale al aire)</source>
         <translation>The program (what goes on air)</translation>
     </message>
@@ -9390,7 +9395,7 @@ Turn it on from the Log.</translation>
         <translation>The vote</translation>
     </message>
     <message>
-        <location line="+155" />
+        <location line="+169" />
         <source>Bloque nuevo</source>
         <translation>New block</translation>
     </message>
@@ -9658,12 +9663,12 @@ Turn it on from the Log.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+190" />
+        <location line="+196" />
         <source>El cue no se pudo ejecutar: falta «%1» en los medios del evento</source>
         <translation>The cue couldn't run: “%1” is missing from the event's media</translation>
     </message>
     <message>
-        <location line="-185" />
+        <location line="-191" />
         <source>No se pudo reproducir %1: %2</source>
         <translation>Couldn't play %1: %2</translation>
     </message>
@@ -9683,7 +9688,12 @@ Turn it on from the Log.</translation>
         <translation>Couldn't load the speech: it doesn't say which</translation>
     </message>
     <message>
-        <location line="+12" />
+        <location line="+11" />
+        <source>No hay un teleprompter «%1» en el evento</source>
+        <translation>There is no teleprompter «%1» in the event</translation>
+    </message>
+    <message>
+        <location line="+7" />
         <source>No se pudo abrir el discurso: %1</source>
         <translation>Couldn't open the speech: %1</translation>
     </message>
@@ -23827,7 +23837,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
 <context>
     <name>PrompterPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PrompterPage.qml" line="+52" />
+        <location filename="../src/app/qml/pages/PrompterPage.qml" line="+55" />
         <source>Teleprompter</source>
         <translation>Teleprompter</translation>
     </message>
@@ -23850,6 +23860,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
     <message numerus="yes">
         <location line="+6" />
         <location line="+2" />
+        <location line="+47" />
         <source>%n en el atril</source>
         <translation>
             <numerusform>%n on the lectern</numerusform>
@@ -23857,7 +23868,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+3" />
+        <location line="-44" />
         <location line="+2" />
         <source>%n con el control</source>
         <translation>
@@ -23881,7 +23892,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>Speaks the text following the teleprompter controls (speed, pause, jumps). It plays through the “Teleprompter voice” source: add filters in Audio and route it in the Matrix; by default, only in your headphones.</translation>
     </message>
     <message>
-        <location line="+30" />
+        <location line="+72" />
         <source>Discursos</source>
         <translation>Speeches</translation>
     </message>
@@ -23929,7 +23940,8 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>Sends it to the teleprompter. It's ready, but stopped.</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="-115" />
+        <location line="+121" />
         <source>Renombrar…</source>
         <translation>Rename…</translation>
     </message>
@@ -24007,12 +24019,54 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>Write the speech. A blank line separates paragraphs, and the remote can jump from one to another.</translation>
     </message>
     <message>
-        <location line="+31" />
+        <location line="-227" />
+        <location line="+258" />
         <source>Sin discurso cargado</source>
         <translation>No speech loaded</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="-258" />
+        <source>Cargado: %1</source>
+        <translation>Loaded: %1</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Página: /prompter/%1</source>
+        <translation>Page: /prompter/%1</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Otro teleprompter…</source>
+        <translation>Another teleprompter…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Uno más, con su texto y su página: por ejemplo, el atril del invitado mientras la presidencia lee otra cosa</source>
+        <translation>One more, with its own text and page: for example, the guest's lectern while the chair reads something else</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+5" />
+        <source>Quitar</source>
+        <translation>Remove</translation>
+    </message>
+    <message>
+        <location line="-2" />
+        <source>¿Quitar este teleprompter?</source>
+        <translation>Remove this teleprompter?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Su página deja de existir y las tablets que lo miran se quedan sin texto. Los discursos no se borran.</source>
+        <translation>Its page stops existing and the tablets watching it are left without text. The speeches are not deleted.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cancelar</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location line="+259" />
         <source>faltan %1</source>
         <translation>%1 left</translation>
     </message>
@@ -24174,6 +24228,21 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>Opening</translation>
     </message>
     <message>
+        <location line="+12" />
+        <source>Teleprompter nuevo</source>
+        <translation>New teleprompter</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Nombre del teleprompter</source>
+        <translation>Teleprompter name</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Atril del invitado</source>
+        <translation>Guest's lectern</translation>
+    </message>
+    <message>
         <location line="+10" />
         <source>Renombrar</source>
         <translation>Rename</translation>
@@ -24202,7 +24271,7 @@ Front, side, with and without glasses: that's how they get recognized on the day
 <context>
     <name>PrompterViewModel</name>
     <message>
-        <location filename="../src/app/ui/PrompterViewModel.cpp" line="+96" />
+        <location filename="../src/app/ui/PrompterViewModel.cpp" line="+168" />
         <source>El guion del evento no está disponible.</source>
         <translation>The event rundown is not available.</translation>
     </message>
@@ -24212,13 +24281,13 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>Speeches live in the event folder. Open or create an event in the Rundown tab and come back: they're the same files the “teleprompter” cue uses.</translation>
     </message>
     <message>
-        <location line="+29" />
+        <location line="+34" />
         <source>No pude abrir «%1»</source>
         <translation>I couldn't open “%1”</translation>
     </message>
     <message>
         <location line="+16" />
-        <location line="+172" />
+        <location line="+187" />
         <source>No hay ningún documento abierto.</source>
         <translation>No document is open.</translation>
     </message>
@@ -41910,7 +41979,7 @@ Data (from %2): %3</translation>
         <translation>The list of who gets in automatically when recognized is the event roll: padron_ver {solos: true}; change it with padron_cambiar {id, dejarPasarSolo}.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="-1555" />
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="-1561" />
         <source>Quiero preparar un evento nuevo: «%1». Seguí la guía de ese tipo de evento: evento_escenario {"id": "%2"} (trae el protocolo común y lo propio de este tipo). Empezá por las preguntas, de a pocas y con opciones; no armes nada hasta que te confirme el plan. </source>
         <translation>I want to prepare a new event: “%1”. Follow the guide for that type of event: evento_escenario {"id": "%2"} (it brings the common protocol and what's specific to this type). Start with the questions, a few at a time and with options; don't build anything until I confirm the plan. </translation>
     </message>
@@ -46594,7 +46663,7 @@ Data (from %2): %3</translation>
 <context>
     <name>evento</name>
     <message>
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="-784" />
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="-802" />
         <source>Escena</source>
         <translation>Scene</translation>
     </message>
@@ -46714,7 +46783,7 @@ Data (from %2): %3</translation>
         <translation>Does nothing: it's a cue for you.</translation>
     </message>
     <message>
-        <location line="+835" />
+        <location line="+853" />
         <source>El del programa (%1)</source>
         <translation>The program's (%1)</translation>
     </message>
@@ -46889,7 +46958,7 @@ Data (from %2): %3</translation>
         <translation>Generated by Broadcast Appliance on %1.</translation>
     </message>
     <message>
-        <location line="+1073" />
+        <location line="+1079" />
         <source>PTZ probado con las cámaras reales (presets, que no se muevan al aire)</source>
         <translation>PTZ tested with the real cameras (presets, no movement on air)</translation>
     </message>
@@ -47674,7 +47743,7 @@ Data (from %2): %3</translation>
 <context>
     <name>gateway</name>
     <message>
-        <location filename="../src/gateway/AdminApi.cpp" line="+178" />
+        <location filename="../src/gateway/AdminApi.cpp" line="+180" />
         <source>control: PIN de la conferencia cambiado</source>
         <translation>control: conference PIN changed</translation>
     </message>
@@ -47709,7 +47778,7 @@ Data (from %2): %3</translation>
         <translation>the proxy is off</translation>
     </message>
     <message>
-        <location line="+332" />
+        <location line="+351" />
         <source>hace falta una pregunta y al menos dos opciones</source>
         <translation>a question and at least two options are needed</translation>
     </message>
@@ -47729,7 +47798,7 @@ Data (from %2): %3</translation>
         <translation>Couldn't get an access permit for the screen.</translation>
     </message>
     <message>
-        <location line="+110" />
+        <location line="+114" />
         <source>nivel desconocido</source>
         <translation>unknown level</translation>
     </message>
@@ -47792,8 +47861,8 @@ Data (from %2): %3</translation>
         <location line="+11" />
         <location line="+3" />
         <location line="+27" />
-        <location line="+117" />
-        <location line="+49" />
+        <location line="+127" />
+        <location line="+61" />
         <location line="+94" />
         <location line="+16" />
         <location line="+53" />
@@ -48605,7 +48674,7 @@ Data (from %2): %3</translation>
         <translation>nobody</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1464" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1486" />
         <source>senalizacion: fallo la inicializacion de sockets</source>
         <translation>signaling: socket initialization failed</translation>
     </message>
@@ -48717,7 +48786,7 @@ Data (from %2): %3</translation>
         <translation>no event</translation>
     </message>
     <message>
-        <location line="+317" />
+        <location line="+339" />
         <source>falta `texto` (o es demasiado largo)</source>
         <translation>`texto` missing (or too long)</translation>
     </message>
@@ -53472,7 +53541,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpModeloTools.cpp" line="+401" />
         <location line="+627" />
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-98" />
-        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+200" />
+        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+259" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-734" />
         <location line="+40" />
         <location filename="../src/app/mcp/McpService.cpp" line="-2348" />
@@ -57642,7 +57711,17 @@ Without `indice` it adds a new one at the end. With `indice` (0-based) it acts o
         <translation>Adds a cue to a block, changes its data, moves it or removes it.</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+584" />
+        <source>escena, musica, video, teleprompter, orador, grafico, carrusel, pantalla, audio, pausa, espera o nota</source>
+        <translation>scene, music, video, teleprompter, speaker, graphic, screen, audio, pause, wait or note</translation>
+    </message>
+    <message>
+        <location line="-521" />
+        <source>Cual cue del bloque (base 0).</source>
+        <translation>Which cue in the block (0-based).</translation>
+    </message>
+    <message>
+        <location line="-61" />
         <source>Un cue es una cosa concreta que pasa. Los tipos y lo que necesita cada uno en `datos`:
 
   escena        {escena}              pone esa escena al aire
@@ -57654,7 +57733,8 @@ Without `indice` it adds a new one at the end. With `indice` (0-based) it acts o
                                         protegida. El operador puede componerla; el
                                         guion solo le cambia el archivo. `alAire` en
                                         false lo deja cargado sin cortar a esa escena.
-  teleprompter  {discurso}            un archivo de Discursos/
+  teleprompter  {discurso, prompter, arrancar}  un archivo de Discursos/; `prompter`: en cuál
+                                        (su id, de prompter_lista; sin eso, el principal)
   orador        {participante}        ademas necesita duracionSeg &gt; 0
   grafico       {fuente, grafico, valores, seVa, duracionMs, repetir, accion}
                                         `fuente` es el nombre de la fuente «Grafico
@@ -57708,7 +57788,8 @@ Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter, grafico, carru
                                         stays protected. The operator can compose it; the
                                         rundown only changes its file. `alAire` set to
                                         false leaves it loaded without cutting to that scene.
-  teleprompter  {discurso}            a file from Discursos/
+  teleprompter  {discurso, prompter, arrancar}  a file from Discursos/; `prompter`: which one
+                                        (its id, from prompter_lista; without it, the main one)
   orador        {participante}        also needs duracionSeg &gt; 0
   grafico       {fuente, grafico, valores, seVa, duracionMs, repetir, accion}
                                         `fuente` is the name of the “Animated
@@ -57753,17 +57834,7 @@ Without `cue` it adds a new one at the end of the block. With `cue` it acts on t
 Mind what actually RUNS today: escena, orador, musica, teleprompter, grafico, carrusel, video and audio do. Pantalla not yet: it can be written in the rundown (useful for timing and so the operator knows what to do), but when they come up they're logged as “not run yet” instead of failing silently.</translation>
     </message>
     <message>
-        <location line="+581" />
-        <source>escena, musica, video, teleprompter, orador, grafico, carrusel, pantalla, audio, pausa, espera o nota</source>
-        <translation>scene, music, video, teleprompter, speaker, graphic, screen, audio, pause, wait or note</translation>
-    </message>
-    <message>
-        <location line="-521" />
-        <source>Cual cue del bloque (base 0).</source>
-        <translation>Which cue in the block (0-based).</translation>
-    </message>
-    <message>
-        <location line="+6" />
+        <location line="+67" />
         <source>Lo que lee el operador.</source>
         <translation>What the operator reads.</translation>
     </message>
@@ -59660,7 +59731,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="-148" />
+        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="-190" />
         <source>Teleprompter</source>
         <translation>Teleprompter</translation>
     </message>
@@ -64058,12 +64129,32 @@ It doesn't change anything in the event except adding the missing manual items t
         </translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+1" />
+        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="-13" />
+        <source>No hay un teleprompter «%1». prompter_lista dice cuáles hay.</source>
+        <translation>There is no teleprompter «%1». prompter_lista says which ones exist.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>cuál teleprompter (su id, de prompter_lista); sin esto, el que está elegido en la página</source>
+        <translation>which teleprompter (its id, from prompter_lista); without it, the one selected on the page</translation>
+    </message>
+    <message>
+        <location line="+7" />
         <source>Los discursos que lee el orador (carpeta del evento), el control del texto (arrancar, velocidad, avisos) y qué pantallas hay conectadas.</source>
         <translation>The speeches the speaker reads (event folder), the text control (start, speed, notes) and which screens are connected.</translation>
     </message>
     <message>
         <location line="+8" />
+        <source>Los teleprompters (varios, cada uno con su texto y su página)</source>
+        <translation>The teleprompters (several, each with its own text and page)</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Sin argumentos: los teleprompters del evento ({id, nombre, titulo cargado, corriendo, oradores}) y cuál está elegido. Cada uno tiene su texto, su velocidad y su página: el principal en /prompter/, los demás en /prompter/&lt;id&gt;/ (el enlace y el QR, en la página Teleprompter). `agregar: nombre` crea uno (queda elegido); `quitar: id` lo saca; `renombrar: {id, nombre}`; `elegir: id` lo elige. Las demás herramientas prompter_* y el cue «teleprompter» del guion reciben `prompter` (el id).</source>
+        <translation>Without arguments: the event's teleprompters ({id, nombre, loaded titulo, corriendo, oradores}) and which one is selected. Each has its own text, speed and page: the main one at /prompter/, the others at /prompter/&lt;id&gt;/ (the link and QR, on the Teleprompter page). `agregar: nombre` creates one (it becomes selected); `quitar: id` removes it; `renombrar: {id, nombre}`; `elegir: id` selects it. The other prompter_* tools and the rundown's «teleprompter» cue take `prompter` (the id).</translation>
+    </message>
+    <message>
+        <location line="+38" />
         <source>Como esta el teleprompter</source>
         <translation>Teleprompter status</translation>
     </message>
@@ -64078,7 +64169,7 @@ It doesn't change anything in the event except adding the missing manual items t
         <translation>Before someone steps up to the lectern, what matters is `oradores`: if it is 0, the tablet is off or nobody opened the link. That's worth saying NOW, not with the speaker standing there.</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+16" />
         <source>Los discursos que hay</source>
         <translation>Available speeches</translation>
     </message>
@@ -64150,7 +64241,7 @@ It doesn't change anything in the event except adding the missing manual items t
         <translation>Sends a speech to the speaker's screen. It is left READY but STOPPED: starting it is something else (prompter_control).</translation>
     </message>
     <message>
-        <location line="+10" />
+        <location line="+12" />
         <source>Cargado y parado. El orador ya lo ve en el atril.</source>
         <translation>Loaded and stopped. The speaker already sees it on the lectern.</translation>
     </message>
@@ -64180,7 +64271,7 @@ It doesn't change anything in the event except adding the missing manual items t
         <translation>mirrored text (for the prompter glass)</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+9" />
         <source>Espejado.</source>
         <translation>Mirrored.</translation>
     </message>
@@ -64235,7 +64326,12 @@ It doesn't change anything in the event except adding the missing manual items t
         <translation>stopped</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+4" />
+        <source>Elegido «%1».</source>
+        <translation>Selected «%1».</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>No mandaste nada que hacer. Ver help {"tool": "prompter_control"}.</source>
         <translation>You didn't send anything to do. See help {"tool": "prompter_control"}.</translation>
     </message>
@@ -82978,7 +83074,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>couldn't save %1</translation>
     </message>
     <message>
-        <location filename="../src/app/sala/Teleprompter.cpp" line="+22" />
+        <location filename="../src/app/sala/Teleprompter.cpp" line="+31" />
         <source>No dice qué discurso.</source>
         <translation>It doesn't say which speech.</translation>
     </message>
@@ -83011,6 +83107,43 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2" />
         <source>No hay nadie con derecho a voto y presente en el padrón (hace falta «vota» y estado «llegó»). Una votación formal donde nadie puede votar da un resultado que parece válido.</source>
         <translation>There's no one in the roll who's present and entitled to vote (it needs “vota” and status “llegó”). A formal vote where nobody can vote gives a result that looks valid.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/sala/ListaPrompters.cpp" line="+63" />
+        <source>Principal</source>
+        <translation>Main</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Ponele un nombre al teleprompter (con alguna letra o número).</source>
+        <translation>Give the teleprompter a name (with some letter or number).</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>No se pudo guardar la lista de teleprompters (¿hay un evento abierto?).</source>
+        <translation>The teleprompter list could not be saved (is an event open?).</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>El teleprompter principal no se saca.</source>
+        <translation>The main teleprompter cannot be removed.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <location line="+7" />
+        <source>No hay un teleprompter «%1».</source>
+        <translation>There is no teleprompter «%1».</translation>
+    </message>
+    <message>
+        <location line="-6" />
+        <location line="+11" />
+        <source>No se pudo guardar la lista de teleprompters.</source>
+        <translation>The teleprompter list could not be saved.</translation>
+    </message>
+    <message>
+        <location line="-6" />
+        <source>Falta el nombre.</source>
+        <translation>The name is missing.</translation>
     </message>
 </context>
 <context>

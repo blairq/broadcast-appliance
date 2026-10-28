@@ -17,6 +17,7 @@
 #include <QTimer>
 
 #include "sala/EnlacesSala.hpp"
+#include "sala/ListaPrompters.hpp"
 #include "sala/Teleprompter.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -48,6 +49,13 @@ struct PrompterViewModel::Impl {
     QVariantList documentos;
     QStringList carpetas;
 
+    /// Los teleprompters: los nombres (del evento) y lo que dice el gateway de cada uno.
+    sala::ListaPrompters lista;
+    QString elegido = sala::ListaPrompters::kPrincipal;
+    nlohmann::json enGateway = nlohmann::json::array();
+    /// El modelo hablándole al elegido (las órdenes de la página van todas a ese).
+    sala::Teleprompter tp() const { return sala->teleprompter().para(elegido.toStdString()); }
+
     QVariantMap estado;
     QVariantList conectados;
     QString clave;
@@ -69,6 +77,70 @@ PrompterViewModel::PrompterViewModel(EventoViewModel* evento, ConferenceViewMode
 }
 
 PrompterViewModel::~PrompterViewModel() = default;
+
+namespace {
+QVariant aQv(const nlohmann::json& j) {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+        .object()
+        .value("v")
+        .toVariant();
+}
+} // namespace
+
+// --- Cuál -----------------------------------------------------------------------------
+
+QVariantList PrompterViewModel::prompters() const {
+    QVariantList out;
+    for (auto p : d_->lista.lista()) {
+        for (const auto& g : d_->enGateway)
+            if (g.value("id", std::string()) == p.value("id", std::string()))
+                for (const char* k : {"titulo", "corriendo", "oradores", "controles", "palabras"}) p[k] = g.value(k, nlohmann::json());
+        out.append(aQv(p));
+    }
+    return out;
+}
+
+QString PrompterViewModel::elegido() const { return d_->elegido; }
+
+void PrompterViewModel::setElegido(const QString& id) {
+    if (id == d_->elegido || !hayPrompter(id)) return;
+    d_->elegido = id;
+    d_->estado.clear();
+    d_->conectados.clear();
+    emit promptersCambio();
+    emit estadoCambio();
+    refrescar(); // cuál documento está cargado es de cada uno
+    consultar();
+}
+
+bool PrompterViewModel::hayPrompter(const QString& id) const { return d_->lista.existe(id.toStdString()); }
+
+QVariantMap PrompterViewModel::agregarPrompter(const QString& nombre) {
+    if (!d_->docs.listo()) return {{"error", sinEvento()}};
+    std::string err;
+    const std::string id = d_->lista.agregar(nombre.toStdString(), &err);
+    if (id.empty()) return {{"error", QString::fromStdString(err)}};
+    emit promptersCambio();
+    setElegido(QString::fromStdString(id));
+    return {{"id", QString::fromStdString(id)}};
+}
+
+QString PrompterViewModel::quitarPrompter(const QString& id) {
+    const std::string err = d_->lista.quitar(id.toStdString());
+    if (!err.empty()) return QString::fromStdString(err);
+    // Y del gateway: su texto y su página dejan de existir.
+    if (d_->sala != nullptr) d_->sala->teleprompter().para(id.toStdString()).quitar();
+    if (d_->elegido == id) setElegido(sala::ListaPrompters::kPrincipal);
+    emit promptersCambio();
+    return {};
+}
+
+QString PrompterViewModel::renombrarPrompter(const QString& id, const QString& nombre) {
+    const std::string err = d_->lista.renombrar(id.toStdString(), nombre.toStdString());
+    if (!err.empty()) return QString::fromStdString(err);
+    emit promptersCambio();
+    return {};
+}
 
 // --- Documentos ---------------------------------------------------------------------
 
@@ -104,6 +176,11 @@ void PrompterViewModel::refrescar() {
     // La raíz puede haber cambiado (otro evento abierto, o ninguno).
     d_->docs.setRaiz(d_->evento == nullptr ? QString() : d_->evento->carpetaDeDiscursos());
     if (d_->docs.listo()) QDir(d_->docs.raiz()).mkpath(".");
+    // Los teleprompters con nombre son del evento: <evento>/prompters.json (al lado de Discursos/).
+    const QString archivo = d_->docs.listo() ? QDir(d_->docs.raiz()).absoluteFilePath("../prompters.json") : QString();
+    d_->lista.cargar(QDir::cleanPath(archivo).toStdString());
+    if (!d_->lista.existe(d_->elegido.toStdString())) d_->elegido = sala::ListaPrompters::kPrincipal;
+    emit promptersCambio();
     d_->carpetas = d_->docs.carpetas();
     // Si la carpeta que se estaba mirando ya no está (la borraron desde el
     // disco, o se cambió de evento), se vuelve a la raíz en vez de mostrar
@@ -276,9 +353,24 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
         return;
     }
     QPointer<PrompterViewModel> yo(this);
-    d_->sala->teleprompter().ver([yo, cuando](const std::string& err, const nlohmann::json& j) {
+    // Y lo que el gateway sabe de todos (para la lista: qué tiene cargado cada uno).
+    d_->sala->teleprompter().lista([yo](const std::string& err, const nlohmann::json& j) {
+        if (!yo || !err.empty()) return;
+        const nlohmann::json l = j.value("prompters", nlohmann::json::array());
+        if (l != yo->d_->enGateway) {
+            yo->d_->enGateway = l;
+            emit yo->promptersCambio();
+        }
+    });
+    const QString pedido = d_->elegido;
+    d_->tp().ver([yo, cuando, pedido](const std::string& err, const nlohmann::json& j) {
         if (!yo) return;
         auto& d_ = yo->d_;
+        // Si mientras tanto se eligió otro, esta respuesta es del anterior.
+        if (pedido != d_->elegido) {
+            if (cuando) cuando(err.empty());
+            return;
+        }
         const bool ok = err.empty();
         const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(
                                                           j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
@@ -308,26 +400,26 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
 
 QString PrompterViewModel::cargar(const QString& rel) {
     if (d_->sala == nullptr) return tr("El servidor no está disponible.");
-    return QString::fromStdString(d_->sala->teleprompter().cargarDiscurso(d_->docs, rel.toStdString()));
+    return QString::fromStdString(d_->tp().cargarDiscurso(d_->docs, rel.toStdString()));
 }
 
 QString PrompterViewModel::cargarDelEditor() {
     if (d_->abierto.isEmpty()) return tr("No hay ningún documento abierto.");
-    if (d_->sala != nullptr) d_->sala->teleprompter().cargarTexto(d_->abierto.toStdString(), d_->texto.toStdString());
+    if (d_->sala != nullptr) d_->tp().cargarTexto(d_->abierto.toStdString(), d_->texto.toStdString());
     return {};
 }
 
 void PrompterViewModel::arrancar(bool si) {
-    if (d_->sala != nullptr) d_->sala->teleprompter().arrancar(si);
+    if (d_->sala != nullptr) d_->tp().arrancar(si);
 }
 void PrompterViewModel::setPpm(int ppm) {
-    if (d_->sala != nullptr) d_->sala->teleprompter().setPpm(ppm);
+    if (d_->sala != nullptr) d_->tp().setPpm(ppm);
 }
 void PrompterViewModel::setTamano(int t) {
-    if (d_->sala != nullptr) d_->sala->teleprompter().setTamano(t);
+    if (d_->sala != nullptr) d_->tp().setTamano(t);
 }
 void PrompterViewModel::setEspejo(bool si) {
-    if (d_->sala != nullptr) d_->sala->teleprompter().setEspejo(si);
+    if (d_->sala != nullptr) d_->tp().setEspejo(si);
 }
 namespace {
 // Los avisos rápidos al orador (los botones de PrompterPage): la clave es el texto en español y
@@ -344,20 +436,20 @@ QString PrompterViewModel::avisoParaOrador(const QString& clave) const {
 }
 
 void PrompterViewModel::avisar(const QString& texto) {
-    if (d_->sala != nullptr) d_->sala->teleprompter().avisar(avisoParaOrador(texto).toStdString());
+    if (d_->sala != nullptr) d_->tp().avisar(avisoParaOrador(texto).toStdString());
 }
 void PrompterViewModel::panico() {
-    if (d_->sala != nullptr) d_->sala->teleprompter().panico();
+    if (d_->sala != nullptr) d_->tp().panico();
 }
 
 void PrompterViewModel::irA(double fraccion) {
     // La vista habla en fracción; el gateway, en palabras.
     const double total = d_->estado.value("palabras", 0).toDouble();
-    if (d_->sala != nullptr) d_->sala->teleprompter().irA(std::clamp(fraccion, 0.0, 1.0) * total);
+    if (d_->sala != nullptr) d_->tp().irA(std::clamp(fraccion, 0.0, 1.0) * total);
 }
 
 void PrompterViewModel::irAParrafo(int n) {
-    if (d_->sala != nullptr) d_->sala->teleprompter().irAParrafo(n);
+    if (d_->sala != nullptr) d_->tp().irAParrafo(n);
 }
 
 void PrompterViewModel::pedirQr(const QString& target, const QString& vista, bool conClave) {
@@ -366,13 +458,16 @@ void PrompterViewModel::pedirQr(const QString& target, const QString& vista, boo
         return;
     }
     QPointer<PrompterViewModel> yo(this);
-    d_->sala->enlaces().prompter(target == "remote", vista.toStdString(), conClave, [yo](const sala::Enlace& e) {
-        if (!yo) return;
-        QStringList filas;
-        for (const std::string& f : e.filas) filas << QString::fromStdString(f);
-        emit yo->qrListo(QString::fromStdString(e.url), filas, QString::fromStdString(e.mensaje),
-                         QString::fromStdString(e.clave));
-    });
+    d_->sala->enlaces().prompter(
+        target == "remote", vista.toStdString(), conClave,
+        [yo](const sala::Enlace& e) {
+            if (!yo) return;
+            QStringList filas;
+            for (const std::string& f : e.filas) filas << QString::fromStdString(f);
+            emit yo->qrListo(QString::fromStdString(e.url), filas, QString::fromStdString(e.mensaje),
+                             QString::fromStdString(e.clave));
+        },
+        d_->elegido.toStdString());
 }
 
 } // namespace ba::app

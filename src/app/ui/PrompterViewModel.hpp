@@ -26,6 +26,12 @@
 // son operaciones de sala::Teleprompter, las mismas que usa el cue
 // «teleprompter» del guion: este view model solo las presenta.
 //
+// HAY VARIOS TELEPROMPTERS, cada uno con su texto y su página (/prompter/<id>/):
+// el del presidente y el del invitado leen cosas distintas a la vez. La página
+// maneja UNO por vez, el `elegido`; los nombres son del evento (ListaPrompters,
+// <evento>/prompters.json) y el estado de cada uno, del gateway. El MCP elige
+// el mismo: lo que toca el asistente es lo que el operador ve en la página.
+//
 // LA CLAVE ES DEL GATEWAY. La genera él al arrancar (aleatoria, 16 bytes) y
 // no se puede cambiar desde acá: cambiarla dejaría afuera al control que ya
 // está en la mano de alguien. Se muestra para poder dictarla.
@@ -68,8 +74,15 @@ class PrompterViewModel : public QObject {
     /// Vacío si hay un evento abierto; si no, por qué no se puede trabajar.
     Q_PROPERTY(QString sinEvento READ sinEvento NOTIFY documentosCambio)
 
+    // --- Cuál -----------------------------------------------------------------
+    /// Los teleprompters del evento: [{id, nombre, titulo, corriendo, oradores,
+    /// controles}] (el principal primero; titulo y lo demás, del gateway).
+    Q_PROPERTY(QVariantList prompters READ prompters NOTIFY promptersCambio)
+    /// El que maneja la página (y el MCP): su id.
+    Q_PROPERTY(QString elegido READ elegido WRITE setElegido NOTIFY promptersCambio)
+
     // --- El teleprompter -----------------------------------------------------
-    /// El estado que manda el gateway: titulo, texto, palabras, posicion, ppm,
+    /// El estado que manda el gateway (del elegido): titulo, texto, palabras, posicion, ppm,
     /// corriendo, tamano, espejo, aviso, duracionSeg. Vacío si no contesta.
     Q_PROPERTY(QVariantMap estado READ estado NOTIFY estadoCambio)
     /// true si el gateway está contestando.
@@ -103,6 +116,10 @@ class PrompterViewModel : public QObject {
     int duracionSeg() const;
     QString sinEvento() const;
 
+    QVariantList prompters() const;
+    QString elegido() const;
+    void setElegido(const QString& id);
+
     QVariantMap estado() const;
     bool enLinea() const;
     QString cargado() const;
@@ -135,8 +152,17 @@ class PrompterViewModel : public QObject {
     Q_INVOKABLE QString mover(const QString& rel, const QString& aCarpeta);
     Q_INVOKABLE QString borrar(const QString& rel);
 
+    // --- Cuál -----------------------------------------------------------------
+    /// Uno nuevo con ese nombre (queda elegido): {id} o {error}.
+    Q_INVOKABLE QVariantMap agregarPrompter(const QString& nombre);
+    /// Lo saca (el principal no). "" o el error.
+    Q_INVOKABLE QString quitarPrompter(const QString& id);
+    Q_INVOKABLE QString renombrarPrompter(const QString& id, const QString& nombre);
+    /// ¿Existe en el evento?
+    bool hayPrompter(const QString& id) const;
+
     // --- El teleprompter -----------------------------------------------------
-    /// Manda un documento al teleprompter. Queda LISTO pero parado.
+    /// Manda un documento al teleprompter elegido. Queda LISTO pero parado.
     Q_INVOKABLE QString cargar(const QString& rel);
     /// Manda lo que hay en el editor, sin pasar por el disco (para probar).
     Q_INVOKABLE QString cargarDelEditor();
@@ -166,6 +192,7 @@ class PrompterViewModel : public QObject {
     Q_INVOKABLE void pedirQr(const QString& target, const QString& vista, bool conClave);
 
    signals:
+    void promptersCambio();
     void documentosCambio();
     void editorCambio();
     void estadoCambio();

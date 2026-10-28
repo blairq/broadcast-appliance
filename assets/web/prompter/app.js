@@ -22,6 +22,10 @@
 
   const $ = (id) => document.getElementById(id);
   const esControl = location.hash.includes("control");
+  // CUAL TELEPROMPTER. Hay varios, cada uno con su texto: /prompter/ es el
+  // principal y /prompter/<id>/ cada uno de los otros. La pagina es la misma.
+  const partes = location.pathname.split("/").filter(Boolean); // ["prompter", "<id>"?]
+  const prompterId = partes.length > 1 && partes[1] !== "index.html" ? partes[1] : "";
   const clave = new URLSearchParams(location.hash.replace(/^#/, "").replace("control&", "")).get("k") || "";
 
   // QUIEN SOY. El operador necesita ver, antes del discurso, si la tablet del
@@ -43,7 +47,10 @@
     miId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
     guardado("ba-prompter-id", miId);
   }
-  let miNombre = guardado("ba-prompter-nombre");
+  // El nombre del aparato ("Atril 1") es de cada teleprompter: la misma tablet
+  // puede ser el atril de uno y despues el de otro.
+  const claveNombre = "ba-prompter-nombre" + (prompterId ? "-" + prompterId : "");
+  let miNombre = guardado(claveNombre);
 
   const estado = {
     texto: "",
@@ -79,7 +86,8 @@
   async function leer() {
     const quien =
       "?vista=" + vista + "&id=" + encodeURIComponent(miId) +
-      (miNombre ? "&nombre=" + encodeURIComponent(miNombre) : "");
+      (miNombre ? "&nombre=" + encodeURIComponent(miNombre) : "") +
+      (prompterId ? "&p=" + encodeURIComponent(prompterId) : "");
     const r = await fetch("/api/prompter" + quien, { cache: "no-store" });
     const d = await r.json();
     aplicar(d);
@@ -90,7 +98,7 @@
     const r = await fetch("/api/prompter", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.assign({ clave }, cmd)),
+      body: JSON.stringify(Object.assign({ clave, prompter: prompterId }, cmd)),
     });
     if (r.status === 403) {
       if ($("c-error")) $("c-error").textContent =
@@ -290,7 +298,7 @@
     campo.value = miNombre;
     campo.addEventListener("change", () => {
       miNombre = campo.value.trim().slice(0, 40);
-      guardado("ba-prompter-nombre", miNombre);
+      guardado(claveNombre, miNombre);
     });
   }
 

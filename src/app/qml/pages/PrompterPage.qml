@@ -8,6 +8,9 @@
 // archivos, que viven en la carpeta del evento), el EDITOR (escribir y
 // mandar), y a la derecha el CONTROL con los aparatos conectados y los QR.
 //
+// HAY VARIOS TELEPROMPTERS, cada uno con su texto y su página (/prompter/<id>/).
+// La fila de arriba elige cuál se maneja: el control, el QR y «Mandar» van a ese.
+//
 // Todo el estado es del gateway: acá no se guarda nada. Mientras la página
 // está a la vista se le pregunta dos veces por segundo, y al salir se deja de
 // preguntar (`mirar`), porque preguntar cuando nadie mira es gastar.
@@ -88,6 +91,48 @@ Rectangle {
                 color: Theme.warn; font.pixelSize: 11
                 wrapMode: Text.WordWrap
                 Layout.maximumWidth: 520
+            }
+        }
+
+        // --- Cuál teleprompter -----------------------------------------------
+        Flow {
+            Layout.fillWidth: true
+            spacing: 6
+            Repeater {
+                model: page.p.prompters
+                delegate: GlassButton {
+                    required property var modelData
+                    compact: true
+                    active: modelData.id === page.p.elegido
+                    icon: modelData.corriendo ? "●" : ""
+                    text: modelData.nombre + (modelData.titulo ? " · " + modelData.titulo.split("/").pop() : "")
+                    onClicked: page.p.elegido = modelData.id
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: (modelData.titulo ? qsTr("Cargado: %1").arg(modelData.titulo) : qsTr("Sin discurso cargado")) +
+                                  "\n" + qsTr("%n en el atril", "", modelData.oradores || 0) + " · " +
+                                  qsTr("Página: /prompter/%1").arg(modelData.id === "principal" ? "" : modelData.id + "/")
+                }
+            }
+            GlassButton {
+                compact: true; icon: "+"; text: qsTr("Otro teleprompter…")
+                enabled: page.p.sinEvento === ""
+                onClicked: { nombrePrompter.modo = "agregar"; nombrePrompter.open() }
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: qsTr("Uno más, con su texto y su página: por ejemplo, el atril del invitado mientras la presidencia lee otra cosa")
+            }
+            GlassButton {
+                compact: true; text: qsTr("Renombrar…")
+                onClicked: { nombrePrompter.modo = "renombrar"; nombrePrompter.open() }
+            }
+            GlassButton {
+                compact: true; text: qsTr("Quitar")
+                visible: page.p.elegido !== "principal"
+                onClicked: ApplicationWindow.window.confirm({
+                    title: qsTr("¿Quitar este teleprompter?"),
+                    text: qsTr("Su página deja de existir y las tablets que lo miran se quedan sin texto. Los discursos no se borran."),
+                    accept: qsTr("Quitar"), reject: qsTr("Cancelar"),
+                    action: () => page.chequear(page.p.quitarPrompter(page.p.elegido))
+                })
             }
         }
 
@@ -557,6 +602,32 @@ Rectangle {
             placeholderText: qsTr("Apertura")
             color: Theme.text
             onAccepted: nuevaCarpeta.accept()
+        }
+    }
+
+    Dialog {
+        id: nombrePrompter
+        property string modo: "agregar"
+        readonly property var actual: (page.p.prompters || []).find(x => x.id === page.p.elegido)
+        anchors.centerIn: parent
+        modal: true
+        title: modo === "agregar" ? qsTr("Teleprompter nuevo") : qsTr("Nombre del teleprompter")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: { nombreP.text = modo === "agregar" ? "" : (actual ? actual.nombre : ""); nombreP.forceActiveFocus() }
+        onAccepted: {
+            if (modo === "agregar") {
+                const r = page.p.agregarPrompter(nombreP.text)
+                if (r.error) page.avisar(r.error)
+            } else {
+                page.chequear(page.p.renombrarPrompter(page.p.elegido, nombreP.text))
+            }
+        }
+        TextField {
+            id: nombreP
+            width: 320
+            placeholderText: qsTr("Atril del invitado")
+            color: Theme.text
+            onAccepted: nombrePrompter.accept()
         }
     }
 

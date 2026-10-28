@@ -50,7 +50,8 @@ class EnlacesSala {
     /// El de la página del público, con la clave adentro (se proyecta o se imprime).
     void publico(bool remoto, Listo listo);
     /// `vista`: "control" u "orador".
-    void prompter(bool remoto, const std::string& vista, bool conClave, Listo listo);
+    /// `id`: cuál teleprompter ("" = el principal).
+    void prompter(bool remoto, const std::string& vista, bool conClave, Listo listo, const std::string& id = {});
     /// El de los rótulos para el celular; con `conClave` la clave va adentro.
     void rotulos(bool remoto, bool conClave, Listo listo);
     /// Lo que sale al aire (o, con `canal` >= 0, la escena de ese canal) para

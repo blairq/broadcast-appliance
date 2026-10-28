@@ -64,9 +64,10 @@ void EnlacesSala::publico(bool remoto, Listo listo) {
     pedirEnlace(std::string("/api/v1/publico-link?target=") + destino(remoto) + "&conClave=1", std::move(listo));
 }
 
-void EnlacesSala::prompter(bool remoto, const std::string& vista, bool conClave, Listo listo) {
+void EnlacesSala::prompter(bool remoto, const std::string& vista, bool conClave, Listo listo, const std::string& id) {
     pedirEnlace(std::string("/api/v1/prompter-link?target=") + destino(remoto) +
-                    "&vista=" + (vista == "orador" ? "orador" : "control") + "&conClave=" + (conClave ? "1" : "0"),
+                    "&vista=" + (vista == "orador" ? "orador" : "control") + "&conClave=" + (conClave ? "1" : "0") +
+                    (id.empty() ? std::string() : "&p=" + id),
                 std::move(listo));
 }
 
