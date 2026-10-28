@@ -68,6 +68,7 @@
 #include "agent/EstadoIA.hpp"
 #include "ui/DocumentosViewModel.hpp"
 #include "ui/PdfEscena.hpp"
+#include "ui/ManualesViewModel.hpp"
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
@@ -1021,6 +1022,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         agent_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
         agenteAuto_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
         marca("despachador");
+        // Los manuales de usuario (Configuración → Sistema → Manuales): los arma el asistente de evento.
+        manuales_ = std::make_unique<ManualesViewModel>(ManualesViewModel::Partes{
+            .enVivo = [this]() { return modoVivo(); },
+            .encargar = [this](const QString& t) { if (agent_) agent_->encargar(t); },
+            .paginas = []() { return RielConfig::idsDePaginas(); }});
         connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
         // Las alertas las recibe el de automatización: él se las ofrece primero a los roles
         // (una sola vez por alerta; el del evento ya no las mira).
@@ -2845,6 +2851,7 @@ QObject* StudioViewModel::twitch() const { return twitch_.get(); }
 QObject* StudioViewModel::facebook() const { return facebook_.get(); }
 QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
+QObject* StudioViewModel::manualesQml() const { return manuales_.get(); }
 QObject* StudioViewModel::agenteAutomatizacion() const { return agenteAuto_.get(); }
 QObject* StudioViewModel::modelos() const { return modelos_.get(); }
 QObject* StudioViewModel::descargas() const { return &net::Descargas::la(); }

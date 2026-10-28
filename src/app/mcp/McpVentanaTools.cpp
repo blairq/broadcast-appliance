@@ -22,19 +22,24 @@
 
 #include "arranque/AppRuntime.hpp"
 #include <QGuiApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QImage>
+#include <QPainter>
 #include <QQuickWindow>
 #include <QScreen>
 #include <QThread>
 #include <QTimer>
 #include <QWindow>
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Paths.hpp"
 #include "ui/RielConfig.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -657,7 +662,11 @@ void McpService::registerVentanaTools() {
             "tarjeta encima de otra, un texto cortado, un boton que no aparece— esto lo muestra; "
             "describirlo de memoria no. Por defecto la ventana principal; `ventana_listar` da las "
             "otras (los paneles sueltos son `panel:<id>`).\n\n"
-            "Para mirar una pagina puntual, primero `ui_show_page` y despues esto.");
+            "Para mirar una pagina puntual, primero `ui_show_page` y despues esto.\n\n"
+            "`archivo` la guarda además (para un manual): una ruta relativa dentro de la carpeta "
+            "Manuales de los datos (p. ej. «es/capturas/01-dashboard.jpg»), en `.jpg` o `.png`, al `ancho` "
+            "pedido. `recuadros` marca ahí lo importante: [{x, y, w, h, color: rojo|amarillo}] en fracciones "
+            "de la imagen (0..1); el original sin marcas se guarda aparte si se pide con otro `archivo`.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"ventana",
@@ -668,8 +677,20 @@ void McpService::registerVentanaTools() {
                             {{"type", "integer"},
                              {"minimum", 320},
                              {"maximum", 3840},
-                             {"description", ba::i18n::traducir("mcp", "a cuanto achicarla. 1280 si no se dice")}}}}}};
-        t.examples = {R"({})", R"({"ventana": "panel:carrusel"})"};
+                             {"description", ba::i18n::traducir("mcp", "a cuanto achicarla. 1280 si no se dice")}}},
+                           {"archivo",
+                            {{"type", "string"},
+                             {"description", ba::i18n::traducir("mcp", "guardarla en Manuales/<archivo> (.jpg o .png)")}}},
+                           {"recuadros",
+                            {{"type", "array"},
+                             {"items",
+                              {{"type", "object"},
+                               {"properties",
+                                {{"x", {{"type", "number"}}}, {"y", {{"type", "number"}}}, {"w", {{"type", "number"}}},
+                                 {"h", {{"type", "number"}}}, {"color", {{"type", "string"}, {"enum", {"rojo", "amarillo"}}}}}}}}}}}}};
+        t.examples = {R"({})", R"({"ventana": "panel:carrusel"})",
+                      R"({"ancho": 1600, "archivo": "es/capturas/01-dashboard.jpg"})",
+                      R"({"ancho": 1600, "archivo": "es/capturas/01b-dashboard-anotada.jpg", "recuadros": [{"x": 0.8, "y": 0.02, "w": 0.15, "h": 0.06, "color": "rojo"}]})"};
         t.run = [this](const json& a, Done done) {
             const QString id = QString::fromStdString(a.value("ventana", std::string("principal")));
             QWindow* w = porId(id);
@@ -700,6 +721,35 @@ void McpService::registerVentanaTools() {
             }
             ToolResult r;
             r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Interfaz de «%1»."), {id.toStdString()}));
+            // Guardarla para un manual: solo dentro de <Datos>/Manuales (nada de rutas sueltas).
+            if (const std::string rel = a.value("archivo", std::string()); !rel.empty()) {
+                const QString q = QDir::cleanPath(QString::fromStdString(rel));
+                const QString ext = q.section('.', -1).toLower();
+                if (q.startsWith("..") || QDir::isAbsolutePath(q) || (ext != "jpg" && ext != "jpeg" && ext != "png"))
+                    return done(ToolResult::error(ba::i18n::traducir(
+                        "mcp", "`archivo` va relativo a la carpeta Manuales, sin «..», y termina en .jpg o .png.")));
+                const QDir raiz(QString::fromStdU16String((ba::platform::dataRoot() / "Manuales").u16string()));
+                const QString destino = raiz.absoluteFilePath(q);
+                const int ancho = std::clamp(a.value("ancho", 1600), 320, 3840);
+                QImage guardar = img.width() > ancho ? img.scaledToWidth(ancho, Qt::SmoothTransformation) : img;
+                if (a.contains("recuadros") && a["recuadros"].is_array()) {
+                    guardar = guardar.convertToFormat(QImage::Format_RGB32);
+                    QPainter pintor(&guardar);
+                    for (const auto& b : a["recuadros"]) {
+                        const QColor color = b.value("color", std::string("rojo")) == "amarillo" ? QColor(255, 210, 0, 242)
+                                                                                               : QColor(230, 20, 20, 242);
+                        pintor.setPen(QPen(color, 3));
+                        pintor.drawRect(QRectF(b.value("x", 0.0) * guardar.width(), b.value("y", 0.0) * guardar.height(),
+                                               b.value("w", 0.0) * guardar.width(), b.value("h", 0.0) * guardar.height()));
+                    }
+                }
+                QDir().mkpath(QFileInfo(destino).absolutePath());
+                if (!guardar.save(destino, nullptr, ext == "png" ? -1 : 90))
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo guardar «%1»."), {destino.toStdString()})));
+                r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada en %1 (%2x%3)."),
+                                        {destino.toStdString(), std::to_string(guardar.width()), std::to_string(guardar.height())}));
+                r.structured = json{{"archivo", destino.toStdString()}};
+            }
             addImage(r, img, a, 1280, core_, rt_.dataRoot());
             done(r);
         };

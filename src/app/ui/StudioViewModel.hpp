@@ -151,6 +151,7 @@ class HistoricoViewModel;
 class GraficoViewModel;
 class RotuladorViewModel;
 class PrompterViewModel;
+class ManualesViewModel;
 class PantallasViewModel;
 class CatalogoVisible;
 class MonitoresModel;
@@ -317,6 +318,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* rotulador READ rotulador CONSTANT)
     /// El teleprompter: los discursos, quién está conectado y los controles.
     Q_PROPERTY(QObject* prompter READ prompter CONSTANT)
+    /// Los manuales de usuario que arma el asistente (Configuración → Sistema → Manuales).
+    Q_PROPERTY(QObject* manuales READ manualesQml CONSTANT)
     /// Pantallas externas (televisores): dónde mostrar y qué mostrar.
     Q_PROPERTY(QObject* pantallas READ pantallas CONSTANT)
     /// Todo lo que se puede mostrar en una ventana, un monitor o una TV, con id
@@ -566,6 +569,7 @@ class StudioViewModel : public QObject {
     QObject* ordenDelDiaQml() const;
     asamblea::OrdenDelDia& ordenDelDia() { return *ordenDia_; }
     QObject* informesQml() const;
+    QObject* manualesQml() const;
     asamblea::InformesResultado* informes() { return informes_.get(); }
     QObject* quorumQml() const;
     asamblea::Quorum& quorum() { return *quorum_; }
@@ -1231,6 +1235,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y conmutador_
     void revisarSenales();
     std::unique_ptr<agent::AgentViewModel> agent_;
+    std::unique_ptr<ManualesViewModel> manuales_;
     std::unique_ptr<agent::AgentViewModel> agenteAuto_;
     std::unique_ptr<agent::Roles> roles_;
     std::unique_ptr<agent::Despachador> despachador_;

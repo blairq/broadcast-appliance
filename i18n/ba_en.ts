@@ -12978,6 +12978,24 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
     </message>
 </context>
 <context>
+    <name>ManualesViewModel</name>
+    <message>
+        <location filename="../src/app/ui/ManualesViewModel.cpp" line="+125" />
+        <source>Se está transmitiendo o grabando: los manuales se generan cuando termine (el asistente abre otro evento y reinicia el programa).</source>
+        <translation>Streaming or recording: the manuals are generated when it ends (the assistant opens another event and restarts the program).</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Falta el encargo de los manuales (prompts/manuales.md) en la instalación.</source>
+        <translation>The manuals brief (prompts/manuales.md) is missing from the installation.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>El asistente no está disponible.</source>
+        <translation>The assistant is not available.</translation>
+    </message>
+</context>
+<context>
     <name>Matriz</name>
     <message>
         <location filename="../src/app/audio/Matriz.cpp" line="+123" />
@@ -27513,7 +27531,7 @@ For the base scene the others come from.</translation>
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+34" />
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+35" />
         <source>Imagen y sonido</source>
         <translation>Picture and sound</translation>
     </message>
@@ -27558,7 +27576,7 @@ For the base scene the others come from.</translation>
         <translation>System</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>Saca la conferencia a internet por un túnel de Cloudflare, con tu dominio (p. ej. sala.miorganismo.gob.ar). Hace falta una cuenta de Cloudflare con el dominio cargado y el token del túnel (Zero Trust → Networks → Tunnels → el túnel → token). El video de los de afuera va por la conexión directa o el TURN. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio.</source>
         <translation>Takes the conference to the internet through a Cloudflare tunnel, with your domain (e.g. room.myorg.gov). You need a Cloudflare account with the domain set up and the tunnel token (Zero Trust → Networks → Tunnels → the tunnel → token). Outside participants' video goes over the direct connection or TURN. Only one of the three paths is used: Pinggy, Cloudflare or your own tunnel.</translation>
     </message>
@@ -27659,12 +27677,12 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+698" />
+        <location line="+703" />
         <source>Seguridad</source>
         <translation>Security</translation>
     </message>
     <message>
-        <location line="-698" />
+        <location line="-703" />
         <source>Archivos</source>
         <translation>Files</translation>
     </message>
@@ -27733,10 +27751,11 @@ For the base scene the others come from.</translation>
         <location line="+1" />
         <location line="+12" />
         <location line="+136" />
-        <location line="+348" />
+        <location line="+353" />
         <location line="+81" />
         <location line="+111" />
-        <location line="+340" />
+        <location line="+81" />
+        <location line="+360" />
         <location line="+20" />
         <location line="+39" />
         <location line="+45" />
@@ -27744,7 +27763,7 @@ For the base scene the others come from.</translation>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="-1127" />
+        <location line="-1233" />
         <source>Configuración, credenciales, grabaciones y archivos no se tocan.</source>
         <translation>Settings, credentials, recordings and files are not touched.</translation>
     </message>
@@ -27790,12 +27809,12 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+2" />
-        <location line="+374" />
+        <location line="+379" />
         <source>● Guardado</source>
         <translation>● Saved</translation>
     </message>
     <message>
-        <location line="-374" />
+        <location line="-379" />
         <source>● Sin token</source>
         <translation>● No token</translation>
     </message>
@@ -27806,22 +27825,22 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+3" />
-        <location line="+374" />
+        <location line="+379" />
         <location line="+35" />
         <source>Guardar</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location line="-405" />
+        <location line="-410" />
         <source>Token de Cloudflare guardado (cifrado). Prendé el túnel y aplicá.</source>
         <translation>Cloudflare token saved (encrypted). Turn on the tunnel and apply.</translation>
     </message>
     <message>
         <location line="+4" />
-        <location line="+368" />
+        <location line="+373" />
         <location line="+4" />
         <location line="+31" />
-        <location line="+497" />
+        <location line="+598" />
         <location line="+4" />
         <location line="+59" />
         <location line="+40" />
@@ -27831,18 +27850,18 @@ For the base scene the others come from.</translation>
         <translation>Delete</translation>
     </message>
     <message>
-        <location line="-1415" />
+        <location line="-1521" />
         <source>Token de Cloudflare borrado.</source>
         <translation>Cloudflare token deleted.</translation>
     </message>
     <message>
         <location line="+7" />
-        <location line="+549" />
+        <location line="+554" />
         <source>Valores por defecto de esta sección</source>
         <translation>Defaults for this section</translation>
     </message>
     <message>
-        <location line="-538" />
+        <location line="-543" />
         <source>Reiniciar el servidor ahora</source>
         <translation>Restart the server now</translation>
     </message>
@@ -27858,12 +27877,12 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+540" />
+        <location line="+545" />
         <source>Reiniciar</source>
         <translation>Restart</translation>
     </message>
     <message>
-        <location line="-537" />
+        <location line="-542" />
         <source>El servidor se está reiniciando.</source>
         <translation>The server is restarting.</translation>
     </message>
@@ -27873,7 +27892,7 @@ For the base scene the others come from.</translation>
         <translation>Changes marked “restarts the server” restart it automatically when applied; the rest of the program keeps running.</translation>
     </message>
     <message>
-        <location line="+130" />
+        <location line="+135" />
         <source>Túnel listo: se entra desde internet</source>
         <translation>Tunnel ready: reachable from the internet</translation>
     </message>
@@ -28029,13 +28048,13 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+3" />
-        <location line="+616" />
+        <location line="+717" />
         <location line="+957" />
         <source>Actualizar</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location line="-1559" />
+        <location line="-1660" />
         <source>Copiar</source>
         <translation>Copy</translation>
     </message>
@@ -28195,12 +28214,12 @@ For the base scene the others come from.</translation>
         <translation>Subdomain (optional)</translation>
     </message>
     <message>
-        <location line="-621" />
+        <location line="-627" />
         <source>General</source>
         <translation>General</translation>
     </message>
     <message>
-        <location line="+625" />
+        <location line="+631" />
         <source>dejalo vacío o p. ej. salaconcejo</source>
         <translation>leave it empty or e.g. salaconcejo</translation>
     </message>
@@ -28320,7 +28339,112 @@ For the base scene the others come from.</translation>
         <translation>The conference is restarting.</translation>
     </message>
     <message>
-        <location line="+31" />
+        <location line="+29" />
+        <source>El asistente de evento arma la biblioteca de manuales de usuario: saca una captura de cada pantalla (en un evento vacío, aparte, sin tocar el tuyo) y escribe los documentos en Word y PDF: el de los asistentes y la voz, el general, los flujos de trabajo y uno por tipo de evento. Tarda bastante y usa mucho del modelo; el programa se reinicia dos veces (al ir al evento de los manuales y al volver).</source>
+        <translation>The event assistant builds the user manual library: it takes a screenshot of every screen (in a separate empty event, without touching yours) and writes the documents in Word and PDF: the assistants and voice one, the general one, the workflows and one per kind of event. It takes a while and uses a lot of the model; the program restarts twice (going to the manuals event and coming back).</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>Activá el asistente con un modelo igual o mejor que %1 (para que quede de producción, %2): es una tarea larga y con modelos más chicos los manuales salen incompletos.</source>
+        <translation>Turn on the assistant with a model equal to or better than %1 (for production quality, %2): it is a long task and with smaller models the manuals come out incomplete.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Ahora el asistente de evento usa: %1.</source>
+        <translation>The event assistant is now using: %1.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Idioma</source>
+        <translation>Language</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 (el de la interfaz)</source>
+        <translation>%1 (the interface's)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Alcance</source>
+        <translation>Scope</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Siete flujos de trabajo agrupados</source>
+        <translation>Seven grouped workflows</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Un manual por cada tipo de evento (19)</source>
+        <translation>One manual per kind of event (19)</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>PDF</source>
+        <translation>PDF</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Además del Word, en PDF</source>
+        <translation>PDF as well as Word</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Capturas</source>
+        <translation>Screenshots</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Marcar lo importante en algunas (recuadros)</source>
+        <translation>Mark the important parts in some (boxes)</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Generar los manuales con el asistente</source>
+        <translation>Generate the manuals with the assistant</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>¿Generar los manuales?</source>
+        <translation>Generate the manuals?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se lo encargo al asistente de evento (%1). Abre un evento aparte para las capturas, así que el programa se reinicia; al terminar vuelve al tuyo. No lo hagas en vivo.</source>
+        <translation>I'll hand it to the event assistant (%1). It opens a separate event for the screenshots, so the program restarts; when done it returns to yours. Don't do it live.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>sin modelo elegido</source>
+        <translation>no model chosen</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Generar</source>
+        <translation>Generate</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Abrir la carpeta</source>
+        <translation>Open the folder</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Se guardan en %1</source>
+        <translation>They are saved in %1</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Manuales generados (%1 capturas)</source>
+        <translation>Generated manuals (%1 screenshots)</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Todavía no hay manuales en este idioma.</source>
+        <translation>There are no manuals in this language yet.</translation>
+    </message>
+    <message>
+        <location line="+41" />
         <source>Le permite al asistente (Claude, Gemini, opencode) manejar el escritorio de esta máquina: ver la pantalla, mover el mouse, escribir, abrir programas, buscar archivos y acomodar ventanas. De fábrica está apagado.</source>
         <translation>Lets the assistant (Claude, Gemini, opencode) control this machine's desktop: see the screen, move the mouse, type, open programs, find files and arrange windows. Off by default.</translation>
     </message>
@@ -29516,7 +29640,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+221" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+222" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (failed: %2)</translation>
     </message>
@@ -29586,7 +29710,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The notification via “%1” didn't go out: %2</translation>
     </message>
     <message>
-        <location line="+112" />
+        <location line="+117" />
         <source>Modo seguro</source>
         <translation>Safe mode</translation>
     </message>
@@ -29720,18 +29844,18 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     </message>
     <message>
         <location line="+7" />
-        <location line="+1980" />
+        <location line="+1981" />
         <source>Tablet emparejada.</source>
         <translation>Tablet paired.</translation>
     </message>
     <message>
-        <location line="-1980" />
-        <location line="+1980" />
+        <location line="-1981" />
+        <location line="+1981" />
         <source>Emparejamiento rechazado.</source>
         <translation>Pairing rejected.</translation>
     </message>
     <message>
-        <location line="-1960" />
+        <location line="-1961" />
         <source>pide entrar al control web</source>
         <translation>requests web control access</translation>
     </message>
@@ -29871,7 +29995,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Stream recovered</translation>
     </message>
     <message>
-        <location line="+133" />
+        <location line="+134" />
         <location line="+7" />
         <source>El escáner de red no está disponible.</source>
         <translation>The network scanner is not available.</translation>
@@ -36200,6 +36324,11 @@ Choose something else in Outputs → Screens.</translation>
         <translation>System control</translation>
     </message>
     <message>
+        <location line="+1" />
+        <source>Manuales</source>
+        <translation>Manuals</translation>
+    </message>
+    <message>
         <location line="+18" />
         <source>Automático (el del sistema: %1)</source>
         <translation>Automatic (the system's: %1)</translation>
@@ -39570,7 +39699,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Recording stopped</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-3770" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-3776" />
         <source>Disparador</source>
         <translation>Trigger</translation>
     </message>
@@ -40385,7 +40514,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1266" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1271" />
         <source>pendiente</source>
         <translation>pending</translation>
     </message>
@@ -42004,12 +42133,12 @@ Data (from %2): %3</translation>
         <translation> What I already know: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-695" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-700" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>The app restarted and the event “%1” is already open. If you were in the middle of something, continue from where you left off; if not, wait for the operator's request.</translation>
     </message>
     <message>
-        <location line="+89" />
+        <location line="+94" />
         <source>el invitado %1</source>
         <translation>guest %1</translation>
     </message>
@@ -42064,7 +42193,7 @@ Data (from %2): %3</translation>
         <translation>closed the %1 credentials form without saving.</translation>
     </message>
     <message>
-        <location line="+3293" />
+        <location line="+3294" />
         <source>las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican</source>
         <translation>the listed pages require typing CONFIRMAR with a reason; settings that restart the gateway or the program aren't applied</translation>
     </message>
@@ -47428,7 +47557,7 @@ Data (from %2): %3</translation>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4229" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4235" />
         <source>cada evento a su carpeta: %1</source>
         <translation>each event to its folder: %1</translation>
     </message>
@@ -49779,7 +49908,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1518" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1523" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn't start on open: %2</translation>
     </message>
@@ -51426,6 +51555,14 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
         <location line="+4" />
         <source>%1 es de la versión %2 de la API (se esperaba %3)</source>
         <translation>%1 is from API version %2 (expected %3)</translation>
+    </message>
+</context>
+<context>
+    <name>manuales</name>
+    <message>
+        <location filename="../src/app/ui/ManualesViewModel.cpp" line="-19" />
+        <source>Manual del sistema</source>
+        <translation>System manual</translation>
     </message>
 </context>
 <context>
@@ -70990,7 +71127,7 @@ The files: app.log (Process A), gateway.log (Process B), graficos.log, launcher.
         <translation>Quitting the application.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpVentanaTools.cpp" line="+200" />
+        <location filename="../src/app/mcp/McpVentanaTools.cpp" line="+205" />
         <source>Este escritorio es Wayland: ubicar las ventanas es del compositor, no del programa. El TAMAÑO se aplica; la POSICION no. No es un error de la app y no se puede forzar desde adentro. Ojo, tampoco alcanza con arrancar sobre XWayland (QT_QPA_PLATFORM=xcb): se probo, y GNOME ignora igual la posicion pedida y coloca las ventanas a su criterio. Con un escritorio que si lo respete (KDE, XFCE, un gestor de mosaico, o X11 a secas) estas herramientas funcionan enteras. Mientras tanto sirven para LEER donde esta todo, para el tamaño, y para pantalla completa en un monitor, que es lo que mas se usa.</source>
         <translation>This desktop is Wayland: placing windows is up to the compositor, not the program. SIZE is applied; POSITION isn't. It's not an app bug and it can't be forced from inside. Note, starting on XWayland (QT_QPA_PLATFORM=xcb) isn't enough either: it was tested, and GNOME still ignores the requested position and places windows as it sees fit. With a desktop that does respect it (KDE, XFCE, a tiling manager, or plain X11) these tools work fully. Meanwhile they're useful for READING where everything is, for size, and for full screen on a monitor, which is what's used most.</translation>
     </message>
@@ -71252,13 +71389,17 @@ It also works as a test: it appears in FULL SCREEN on each monitor, which is the
         <location line="+4" />
         <source>Una foto de la INTERFAZ del aparato, no de lo que sale al aire (eso es `foto_programa`). Es la unica forma de mirar una pagina: si algo se ve mal —una tarjeta encima de otra, un texto cortado, un boton que no aparece— esto lo muestra; describirlo de memoria no. Por defecto la ventana principal; `ventana_listar` da las otras (los paneles sueltos son `panel:&lt;id&gt;`).
 
-Para mirar una pagina puntual, primero `ui_show_page` y despues esto.</source>
+Para mirar una pagina puntual, primero `ui_show_page` y despues esto.
+
+`archivo` la guarda además (para un manual): una ruta relativa dentro de la carpeta Manuales de los datos (p. ej. «es/capturas/01-dashboard.jpg»), en `.jpg` o `.png`, al `ancho` pedido. `recuadros` marca ahí lo importante: [{x, y, w, h, color: rojo|amarillo}] en fracciones de la imagen (0..1); el original sin marcas se guarda aparte si se pide con otro `archivo`.</source>
         <translation>A snapshot of the device's INTERFACE, not of what goes on air (that's `foto_programa`). It's the only way to look at a page: if something looks wrong —a card on top of another, cut-off text, a button that doesn't appear— this shows it; describing it from memory doesn't. The main window by default; `ventana_listar` gives the others (floating panels are `panel:&lt;id&gt;`).
 
-To look at a specific page, first `ui_show_page` and then this.</translation>
+To look at a specific page, first `ui_show_page` and then this.
+
+`archivo` also saves it (for a manual): a path relative to the Manuales folder of the data (e.g. «es/capturas/01-dashboard.jpg»), in `.jpg` or `.png`, at the requested `ancho`. `recuadros` marks the important parts there: [{x, y, w, h, color: rojo|amarillo}] in fractions of the image (0..1); the unmarked original is saved separately if asked for with another `archivo`.</translation>
     </message>
     <message>
-        <location line="+11" />
+        <location line="+15" />
         <source>id de ventana_listar; `principal` si no se dice</source>
         <translation>id from ventana_listar; `principal` if not specified</translation>
     </message>
@@ -71268,7 +71409,12 @@ To look at a specific page, first `ui_show_page` and then this.</translation>
         <translation>how much to shrink it. 1280 if not specified</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+3" />
+        <source>guardarla en Manuales/&lt;archivo&gt; (.jpg o .png)</source>
+        <translation>save it in Manuales/&lt;archivo&gt; (.jpg or .png)</translation>
+    </message>
+    <message>
+        <location line="+16" />
         <source>No hay ninguna ventana «%1». `ventana_listar` dice cuales hay.</source>
         <translation>There's no window “%1”. `ventana_listar` says which ones there are.</translation>
     </message>
@@ -71288,7 +71434,22 @@ To look at a specific page, first `ui_show_page` and then this.</translation>
         <translation>Interface of “%1”.</translation>
     </message>
     <message>
-        <location line="+10" />
+        <location line="+6" />
+        <source>`archivo` va relativo a la carpeta Manuales, sin «..», y termina en .jpg o .png.</source>
+        <translation>`archivo` is relative to the Manuales folder, without «..», and ends in .jpg or .png.</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>No se pudo guardar «%1».</source>
+        <translation>Could not save «%1».</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Guardada en %1 (%2x%3).</source>
+        <translation>Saved in %1 (%2x%3).</translation>
+    </message>
+    <message>
+        <location line="+13" />
         <source>Cerrar una ventana</source>
         <translation>Close a window</translation>
     </message>
@@ -78211,7 +78372,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
 <context>
     <name>modo-vivo</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1807" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1808" />
         <source>modo en vivo: se desbloqueó «%1» — motivo: %2</source>
         <translation>live mode: “%1” was unlocked — reason: %2</translation>
     </message>
