@@ -27,6 +27,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libwayland-dev libdrm-dev libfreetype-dev libfontconfig1-dev \
       libsndfile1-dev libcairo2-dev libgl-dev \
       xvfb libgl1-mesa-dri \
+      # libXi: está en la base de Linux (tools/deps/linux-baseline.txt) y la pide el Chrome sin
+      # ventana (por at-spi): un Linux de escritorio la trae; para las pruebas, acá también.
+      libxi6 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /trabajo

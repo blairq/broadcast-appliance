@@ -14,6 +14,10 @@
 #include <QTemporaryDir>
 #include <QTimer>
 
+#if defined(Q_OS_LINUX)
+#include <unistd.h>
+#endif
+
 #include <algorithm>
 #include <memory>
 
@@ -49,7 +53,7 @@ void CapturaWeb::capturar(const Pedido& p, Listo listo) {
     QDir().mkpath(perfil);
     const int ancho = std::clamp(p.ancho, 320, 3840), alto = std::clamp(p.alto, 320, 4000);
     const QString idioma = !p.idioma.isEmpty() ? p.idioma : QString::fromStdString(ba::i18n::actual().codigo);
-    const QStringList args{"--headless",
+    QStringList args{"--headless",
                            "--disable-gpu",
                            "--hide-scrollbars",
                            "--no-first-run",
@@ -64,11 +68,13 @@ void CapturaWeb::capturar(const Pedido& p, Listo listo) {
                            "--accept-lang=" + idioma,
                            QString("--window-size=%1,%2").arg(ancho).arg(alto),
                            QString("--virtual-time-budget=%1").arg(std::clamp(p.esperaMs, 0, 20000)),
-                           "--screenshot=" + png,
-                           p.url};
+                           "--screenshot=" + png};
     auto* proc = new QProcess(this);
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 #if defined(Q_OS_LINUX)
+    // Como root (un contenedor, las pruebas en Docker) Chrome no arranca con su caja de arena:
+    // sin ella solo en ese caso. Una máquina de verdad no corre el programa como root.
+    if (::geteuid() == 0) args << "--no-sandbox";
     // Las bibliotecas que no están en la base viajan al lado (tools/deps/chrome-headless.sh).
     const QString lib = QFileInfo(ejecutable()).absolutePath() + "/lib";
     env.insert("LD_LIBRARY_PATH", lib + (env.contains("LD_LIBRARY_PATH") ? ":" + env.value("LD_LIBRARY_PATH") : QString()));
@@ -99,6 +105,7 @@ void CapturaWeb::capturar(const Pedido& p, Listo listo) {
         vigilado->kill();
         terminar(QString::fromStdString(ba::i18n::traducir("captura-web", "La página tardó demasiado (40 s) y se cortó.")));
     });
+    args << p.url; // la dirección, al final (después de las opciones)
     proc->start(ejecutable(), args);
 }
 
