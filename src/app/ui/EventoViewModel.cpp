@@ -1879,10 +1879,12 @@ void EventoViewModel::ejecutarActual() {
         return;
     }
 
+    // Todo por el runtime (rt_.setScene, setMuted…), no directo al motor: el runtime avisa
+    // (la tarjeta Dirección, el mezclador, el tally) y lo deja guardado en la configuración.
     switch (c->tipo) {
         case evento::Tipo::Escena: {
             const std::string escena = c->datos.value("escena", std::string());
-            if (escena.empty() || !rt_.engine().setCurrentScene(escena)) {
+            if (escena.empty() || !rt_.setScene(escena)) {
                 anotar(tr("No se pudo poner la escena \"%1\"").arg(QString::fromStdString(escena)), "error");
                 emit notify(tr("El cue no se pudo ejecutar: no existe la escena \"%1\"").arg(QString::fromStdString(escena)),
                             "error");
@@ -2062,7 +2064,7 @@ void EventoViewModel::ejecutarActual() {
             const std::string f = fuente.toStdString();
             if (accion == "silenciar" || accion == "activar") {
                 const bool mudo = accion == "silenciar";
-                if (!rt_.engine().setSourceMuted(f, mudo)) {
+                if (!rt_.setMuted(f, mudo)) {
                     anotar(tr("No existe la fuente de audio \"%1\"").arg(fuente), "error");
                     emit notify(tr("El cue no se pudo ejecutar: no existe la fuente \"%1\"").arg(fuente),
                                 "error");
@@ -2074,7 +2076,7 @@ void EventoViewModel::ejecutarActual() {
             if (accion == "volumen") {
                 // En dB, que es como piensa el operador. 0 = sin cambio.
                 const double db = c->datos.value("db", 0.0);
-                if (!rt_.engine().setSourceVolume(f, static_cast<float>(std::pow(10.0, db / 20.0)))) {
+                if (!rt_.setVolume(f, static_cast<float>(std::pow(10.0, db / 20.0)))) {
                     anotar(tr("No existe la fuente de audio \"%1\"").arg(fuente), "error");
                     return;
                 }
@@ -2134,7 +2136,7 @@ void EventoViewModel::ejecutarActual() {
             // se ve un cuadro en negro mientras abre.
             if (c->datos.value("alAire", true)) {
                 escenaPrevia_ = QString::fromStdString(rt_.engine().currentScene());
-                if (!rt_.engine().setCurrentScene(kEscenaVideo)) {
+                if (!rt_.setScene(kEscenaVideo)) {
                     anotar(tr("No se pudo poner al aire la escena del video"), "error");
                     return;
                 }
