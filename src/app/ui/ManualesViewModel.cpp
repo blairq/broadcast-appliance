@@ -127,6 +127,8 @@ QString ManualesViewModel::generar() {
     const QString e = encargo();
     if (e.isEmpty()) return tr("Falta el encargo de los manuales (prompts/manuales.md) en la instalación.");
     if (!p_.encargar) return tr("El asistente no está disponible.");
+    if (p_.faltaAsistente)
+        if (const QString falta = p_.faltaAsistente(); !falta.isEmpty()) return falta;
     QDir().mkpath(carpeta() + "/capturas");
     refrescar();
     p_.encargar(e);

@@ -45,6 +45,7 @@ class ManualesViewModel : public QObject {
     struct Partes {
         std::function<bool()> enVivo;                     ///< sale algo de verdad (no se genera)
         std::function<void(const QString&)> encargar;     ///< al asistente de evento
+        std::function<QString()> faltaAsistente;          ///< "" si el asistente puede tomar el encargo
         std::function<QStringList()> paginas;             ///< los ids del riel
     };
     explicit ManualesViewModel(Partes partes, QObject* parent = nullptr);

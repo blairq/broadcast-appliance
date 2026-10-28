@@ -77,14 +77,29 @@ Rectangle {
                     GlassButton {
                         active: true
                         text: qsTr("Generar los manuales con el asistente")
-                        onClicked: ApplicationWindow.window.confirm({
-                            title: qsTr("¿Generar los manuales?"),
-                            text: qsTr("Se lo encargo al asistente de evento (%1). Abre un evento aparte para las capturas, así "
-                                  + "que el programa se reinicia; al terminar vuelve al tuyo. No lo hagas en vivo.")
-                                  .arg(man.modeloActual !== "" ? man.modeloActual : qsTr("sin modelo elegido")),
-                            accept: qsTr("Generar"), reject: qsTr("Cancelar"),
-                            action: () => { const e = man.m.generar(); if (e !== "") Studio.notify(e, "error") }
-                        })
+                        onClicked: {
+                            // Primero, que haya un asistente que pueda tomarlo (elegido, instalado,
+                            // con su clave y el MCP prendido); si no, a la pestaña Asistente.
+                            const falta = man.ag ? man.ag.faltaParaEncargo() : qsTr("El asistente no está disponible.")
+                            if (falta !== "") {
+                                ApplicationWindow.window.confirm({
+                                    title: qsTr("Falta el asistente"),
+                                    text: falta + "\n\n" + qsTr("Los manuales los arma el asistente de evento, con un modelo igual o mejor que %1.").arg(man.m.modeloMinimo),
+                                    accept: qsTr("Ir al asistente"), reject: qsTr("Cancelar"),
+                                    action: () => { ApplicationWindow.window.page = 7 }
+                                })
+                                return
+                            }
+                            ApplicationWindow.window.confirm({
+                                title: qsTr("¿Generar los manuales?"),
+                                text: qsTr("Se lo encargo al asistente de evento (%1). Abre un evento aparte para las capturas, así "
+                                      + "que el programa se reinicia; al terminar vuelve al tuyo. No lo hagas en vivo.")
+                                      .arg(man.modeloActual !== "" ? man.modeloActual : qsTr("sin modelo elegido"))
+                                      + (man.ag.running ? "" : "\n\n" + qsTr("El asistente no está corriendo: lo arranco y se lo paso cuando esté listo.")),
+                                accept: qsTr("Generar"), reject: qsTr("Cancelar"),
+                                action: () => { const e = man.m.generar(); if (e !== "") Studio.notify(e, "error") }
+                            })
+                        }
                     }
                     GlassButton { text: qsTr("Abrir la carpeta"); onClicked: man.m.abrirCarpeta() }
                 }

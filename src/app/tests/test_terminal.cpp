@@ -13,6 +13,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QGuiApplication>
+#include <QThread>
 
 #include <cstdio>
 #include <functional>
@@ -72,6 +73,21 @@ int main(int argc, char** argv) {
         s.line(0, 0, l);
         CHECK(qRed(l[0].fg) > 150 && qGreen(l[0].fg) < 150, "HOLA en rojo");
         CHECK(l[6].fg == s.defaultFg(), "mundo con el color por defecto");
+    }
+    // --- 1a) pegar un texto largo no traba: el programa devuelve todo lo que lee (cat) y,
+    //         mientras se pega, nadie lee lo suyo; antes la escritura esperaba en este mismo
+    //         hilo y se trababan los dos (el encargo de los manuales colgó la app). ---------
+    {
+        TerminalSession s;
+        s.resize(80, 24);
+        CHECK(s.start(sh("stty raw -echo; exec cat")), "arranca cat");
+        QThread::msleep(200);
+        const QString largo = QString(50000, QChar('a')) + "FIN"; // (50.000 es justo 625 renglones de 80: FIN abre uno)
+        QElapsedTimer t;
+        t.start();
+        s.paste(largo);
+        CHECK(t.elapsed() < 1000, "pegar 50.000 letras vuelve enseguida (no espera a que el programa lea)");
+        CHECK(waitFor([&] { return screenText(s).contains("FIN"); }, 15000), "y el texto llega entero");
     }
     // --- 1b) ratón: el programa lo pide (1000 + SGR 1006) y le llegan los clicks ---------------
     {

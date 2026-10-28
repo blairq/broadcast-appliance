@@ -232,6 +232,10 @@ class AgentViewModel : public QObject {
     /// esté listo y le manda `texto`; pide que se lo muestre (`pideVerse`). Lo usa
     /// «Evento nuevo → con el asistente» (la guía del tipo de evento).
     Q_INVOKABLE void encargar(const QString& texto);
+    /// Qué le falta para tomar un encargo: "" si está configurado (proveedor, instalado, con
+    /// su clave y el servidor MCP prendido); si no, qué hacer. Que no esté corriendo no falta:
+    /// `encargar` lo arranca.
+    Q_INVOKABLE QString faltaParaEncargo() const;
     Q_INVOKABLE void setAlertEnabled(const QString& id, bool on);
     Q_INVOKABLE void deleteAlert(const QString& id);
     /// Sin sonido (sus alarmas siguen apareciendo).

@@ -1026,6 +1026,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         manuales_ = std::make_unique<ManualesViewModel>(ManualesViewModel::Partes{
             .enVivo = [this]() { return modoVivo(); },
             .encargar = [this](const QString& t) { if (agent_) agent_->encargar(t); },
+            .faltaAsistente = [this]() { return agent_ ? agent_->faltaParaEncargo() : QString("El asistente no está disponible."); },
             .paginas = []() { return RielConfig::idsDePaginas(); }});
         connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
         // Las alertas las recibe el de automatización: él se las ofrece primero a los roles

@@ -805,7 +805,27 @@
         <translation>The agent isn't running.</translation>
     </message>
     <message>
-        <location line="+34" />
+        <location line="+11" />
+        <source>No hay ningún asistente elegido: elegí uno en la pestaña Asistente.</source>
+        <translation>No assistant is selected: choose one in the Assistant tab.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>El asistente «%1» no está instalado: instalalo en la pestaña Asistente.</source>
+        <translation>The assistant «%1» is not installed: install it in the Assistant tab.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Al asistente «%1» le falta su clave: cargala en la pestaña Asistente.</source>
+        <translation>The assistant «%1» is missing its key: enter it in the Assistant tab.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>El servidor MCP no está prendido: sin él el asistente no puede manejar el programa (Configuración → Asistente (MCP)).</source>
+        <translation>The MCP server is off: without it the assistant cannot operate the program (Settings → Assistant (MCP)).</translation>
+    </message>
+    <message>
+        <location line="+28" />
         <source>El asistente no está listo (instalado y con el servidor MCP prendido): el pedido queda para cuando arranque.</source>
         <translation>The assistant isn't ready (installed and with the MCP server on): the request waits until it starts.</translation>
     </message>
@@ -13050,7 +13070,27 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
         <translation>Generate the manuals with the assistant</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+4" />
+        <source>El asistente no está disponible.</source>
+        <translation>The assistant is not available.</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Falta el asistente</source>
+        <translation>The assistant is missing</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Los manuales los arma el asistente de evento, con un modelo igual o mejor que %1.</source>
+        <translation>The manuals are built by the event assistant, with a model equal to or better than %1.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Ir al asistente</source>
+        <translation>Go to the assistant</translation>
+    </message>
+    <message>
+        <location line="+6" />
         <source>¿Generar los manuales?</source>
         <translation>Generate the manuals?</translation>
     </message>
@@ -13066,16 +13106,22 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
     </message>
     <message>
         <location line="+1" />
+        <source>El asistente no está corriendo: lo arranco y se lo paso cuando esté listo.</source>
+        <translation>The assistant is not running: I'll start it and hand it over when it's ready.</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Generar</source>
         <translation>Generate</translation>
     </message>
     <message>
-        <location line="+0" />
+        <location line="-11" />
+        <location line="+11" />
         <source>Cancelar</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+5" />
         <source>Abrir la carpeta</source>
         <translation>Open folder</translation>
     </message>
@@ -29722,7 +29768,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The notification via “%1” didn't go out: %2</translation>
     </message>
     <message>
-        <location line="+117" />
+        <location line="+118" />
         <source>Modo seguro</source>
         <translation>Safe mode</translation>
     </message>
@@ -39706,7 +39752,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Recording stopped</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-3776" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-3777" />
         <source>Disparador</source>
         <translation>Trigger</translation>
     </message>
@@ -40521,7 +40567,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1271" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1272" />
         <source>pendiente</source>
         <translation>pending</translation>
     </message>
@@ -41180,7 +41226,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>asistente</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2229" />
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2237" />
         <source>Claude — suscripción Pro/Max</source>
         <translation>Claude — Pro/Max subscription</translation>
     </message>
@@ -41250,7 +41296,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Your own server. Set its address (baseURL), which model to request and any extra parameters it understands, and paste its key. opencode handles it: this device doesn't talk to the model, it builds its configuration.</translation>
     </message>
     <message>
-        <location line="+1950" />
+        <location line="+1958" />
         <source>[%1] %2 (disparador %3)</source>
         <translation>[%1] %2 (trigger %3)</translation>
     </message>
@@ -42140,12 +42186,12 @@ Data (from %2): %3</translation>
         <translation> What I already know: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-700" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-701" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>The app restarted and the event “%1” is already open. If you were in the middle of something, continue from where you left off; if not, wait for the operator's request.</translation>
     </message>
     <message>
-        <location line="+94" />
+        <location line="+95" />
         <source>el invitado %1</source>
         <translation>guest %1</translation>
     </message>
@@ -47564,7 +47610,7 @@ Data (from %2): %3</translation>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4235" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4236" />
         <source>cada evento a su carpeta: %1</source>
         <translation>each event to its folder: %1</translation>
     </message>
@@ -49915,7 +49961,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1523" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1524" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn't start on open: %2</translation>
     </message>

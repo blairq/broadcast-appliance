@@ -30,6 +30,11 @@ struct Pty::Impl {
     int master = -1;
     pid_t pid = -1;
     QSocketNotifier* notifier = nullptr;
+    /// Lo que todavía no entró en la TTY: se reintenta cada pocos milisegundos hasta que
+    /// el programa lo lea (sin trabar el hilo de la interfaz, ver Pty::write). Un
+    /// temporizador que corre solo mientras hay cola: simple y igual en todos los sistemas.
+    QTimer* reintento = nullptr;
+    QByteArray pendiente;
     bool exited = false;
 };
 
@@ -89,6 +94,13 @@ bool Pty::start(const Options& opt, QString* error) {
     d_->master = master;
     d_->pid = pid;
     d_->exited = false;
+    d_->pendiente.clear();
+    if (d_->reintento == nullptr) {
+        d_->reintento = new QTimer(this);
+        d_->reintento->setSingleShot(true);
+        d_->reintento->setInterval(4);
+        connect(d_->reintento, &QTimer::timeout, this, [this]() { escribirPendiente(); });
+    }
     d_->notifier = new QSocketNotifier(master, QSocketNotifier::Read, this);
     connect(d_->notifier, &QSocketNotifier::activated, this, [this]() {
         char buf[65536];
@@ -109,6 +121,8 @@ bool Pty::start(const Options& opt, QString* error) {
             int code = -1;
             if (::waitpid(d_->pid, &status, 0) == d_->pid)
                 code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+            if (d_->reintento != nullptr) d_->reintento->stop();
+            d_->pendiente.clear();
             ::close(d_->master);
             d_->master = -1;
             d_->pid = -1;
@@ -123,20 +137,33 @@ bool Pty::start(const Options& opt, QString* error) {
     return true;
 }
 
+// NUNCA espera. Antes, con la TTY llena, se quedaba reintentando en el hilo de la
+// interfaz; pero el programa deja de leer lo que se le escribe cuando no puede escribir
+// lo suyo, y lo suyo lo lee ese mismo hilo: con un texto largo (pegar un encargo de
+// 13.000 letras al asistente) se trababan los dos y la app se colgaba. Ahora lo que no
+// entra queda en cola y se reintenta enseguida, sin esperar (Impl::reintento).
 void Pty::write(const QByteArray& data) {
-    if (d_->master < 0) return;
-    qsizetype off = 0;
-    int spins = 0;
-    while (off < data.size()) {
-        const ssize_t n = ::write(d_->master, data.constData() + off, static_cast<size_t>(data.size() - off));
+    if (d_->master < 0 || data.isEmpty()) return;
+    d_->pendiente.append(data);
+    escribirPendiente();
+}
+
+void Pty::escribirPendiente() {
+    while (d_->master >= 0 && !d_->pendiente.isEmpty()) {
+        const ssize_t n = ::write(d_->master, d_->pendiente.constData(), static_cast<size_t>(d_->pendiente.size()));
         if (n > 0) {
-            off += n;
-        } else if (n < 0 && (errno == EAGAIN || errno == EINTR) && ++spins < 200) {
-            ::usleep(1000);
+            d_->pendiente.remove(0, static_cast<qsizetype>(n));
+        } else if (n < 0 && errno == EINTR) {
+            continue;
+        } else if (n < 0 && errno == EAGAIN) {
+            break; // llena: sigue cuando haya lugar
         } else {
+            d_->pendiente.clear(); // la TTY se cerró: no hay a quién mandarle
             break;
         }
     }
+    if (d_->reintento != nullptr && d_->master >= 0 && !d_->pendiente.isEmpty() && !d_->reintento->isActive())
+        d_->reintento->start();
 }
 
 void Pty::resize(int cols, int rows) {
@@ -155,6 +182,8 @@ void Pty::terminate() {
         d_->notifier->deleteLater();
         d_->notifier = nullptr;
     }
+    if (d_->reintento != nullptr) d_->reintento->stop();
+    d_->pendiente.clear();
     ::close(d_->master); // SIGHUP a la sesion del hijo
     d_->master = -1;
     ::kill(-pid, SIGHUP);

@@ -2065,6 +2065,14 @@ void AgentViewModel::send(const QString& text) {
     session_->submit(text.trimmed());
 }
 
+QString AgentViewModel::faltaParaEncargo() const {
+    if (findProvider(provider_) == nullptr) return tr("No hay ningún asistente elegido: elegí uno en la pestaña Asistente.");
+    if (!installed()) return tr("El asistente «%1» no está instalado: instalalo en la pestaña Asistente.").arg(current().value("name").toString());
+    if (!hasKey()) return tr("Al asistente «%1» le falta su clave: cargala en la pestaña Asistente.").arg(current().value("name").toString());
+    if (!mcpReady()) return tr("El servidor MCP no está prendido: sin él el asistente no puede manejar el programa (Configuración → Asistente (MCP)).");
+    return {};
+}
+
 void AgentViewModel::encargar(const QString& texto) {
     if (texto.trimmed().isEmpty()) return;
     emit pideVerse();

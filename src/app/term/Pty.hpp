@@ -53,6 +53,8 @@ class Pty : public QObject {
     void finished(int exitCode);
 
    private:
+    /// Manda lo que haya en cola sin esperar (lo que no entra, sigue cuando hay lugar).
+    void escribirPendiente();
     struct Impl;
     std::unique_ptr<Impl> d_;
 };
