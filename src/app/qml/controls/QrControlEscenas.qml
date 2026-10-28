@@ -27,6 +27,9 @@ Dialog {
             const res = dlg.bot.crearPerfilUi(dlg.kPerfil, "director")
             if (res.startsWith("error:")) { dlg.error = res.slice(6).trim(); return }
             id = res
+        } else {
+            // Uno hecho antes de que la plantilla tuviera los botones del guion: se le suman.
+            dlg.bot.completarGuionUi(id)
         }
         Studio.emparejarTabletUi(id, qsTr("Tablet de escenas"), 30)
     }

@@ -3257,7 +3257,7 @@ This opens it in another window, so you can have both at once.</translation>
 <context>
     <name>Botonera</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="+1813"/>
+        <location filename="../src/app/control/Botonera.cpp" line="+1864"/>
         <source>Los argumentos no son JSON válido (un objeto {…})</source>
         <translation>The arguments aren&apos;t valid JSON (an object {…})</translation>
     </message>
@@ -9618,7 +9618,7 @@ Turn it on from the Log.</translation>
         <translation>(rehearsal) %1</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+10"/>
         <source>No se pudo poner la escena &quot;%1&quot;</source>
         <translation>Couldn&apos;t switch to scene &quot;%1&quot;</translation>
     </message>
@@ -25104,7 +25104,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
 <context>
     <name>QrControlEscenas</name>
     <message>
-        <location filename="../src/app/qml/controls/QrControlEscenas.qml" line="+31"/>
+        <location filename="../src/app/qml/controls/QrControlEscenas.qml" line="+34"/>
         <source>Tablet de escenas</source>
         <translation>Scene tablet</translation>
     </message>
@@ -29365,7 +29365,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Event “%1” ready: open it with “Open another…”</translation>
     </message>
     <message>
-        <location line="+199"/>
+        <location line="+219"/>
         <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
         <translation>The configuration “%1” was damaged: the previous version was loaded (the damaged one was kept as .corrupto).</translation>
     </message>
@@ -39642,7 +39642,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-684"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-704"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>startup: %1 took %2 ms</translation>
     </message>
@@ -41633,7 +41633,7 @@ Data (from %2): %3</translation>
         <translation>The list of who gets in automatically when recognized is the event roll: padron_ver {solos: true}; change it with padron_cambiar {id, dejarPasarSolo}.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="-1553"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="-1555"/>
         <source>Quiero preparar un evento nuevo: «%1». Seguí la guía de ese tipo de evento: evento_escenario {&quot;id&quot;: &quot;%2&quot;} (trae el protocolo común y lo propio de este tipo). Empezá por las preguntas, de a pocas y con opciones; no armes nada hasta que te confirme el plan. </source>
         <translation>I want to prepare a new event: “%1”. Follow the guide for that type of event: evento_escenario {&quot;id&quot;: &quot;%2&quot;} (it brings the common protocol and what&apos;s specific to this type). Start with the questions, a few at a time and with options; don&apos;t build anything until I confirm the plan. </translation>
     </message>
@@ -41658,7 +41658,7 @@ Data (from %2): %3</translation>
         <translation> What I already know: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+534"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+554"/>
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>The app restarted and the event “%1” is already open. If you were in the middle of something, continue from where you left off; if not, wait for the operator&apos;s request.</translation>
     </message>
@@ -41975,7 +41975,7 @@ Data (from %2): %3</translation>
 <context>
     <name>botonera</name>
     <message>
-        <location filename="../src/app/control/Botonera.cpp" line="-1418"/>
+        <location filename="../src/app/control/Botonera.cpp" line="-1469"/>
         <source>no hay una plantilla «%1» (botonera_plantillas)</source>
         <translation>there&apos;s no template “%1” (botonera_plantillas)</translation>
     </message>
@@ -41992,7 +41992,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+13"/>
         <location line="+51"/>
-        <location line="+745"/>
+        <location line="+796"/>
         <location line="+91"/>
         <location line="+107"/>
         <location line="+32"/>
@@ -42000,7 +42000,7 @@ Data (from %2): %3</translation>
         <translation>there&apos;s no profile “%1”</translation>
     </message>
     <message>
-        <location line="-1020"/>
+        <location line="-1071"/>
         <source>herramientas_permitidas es una lista</source>
         <translation>herramientas_permitidas is a list</translation>
     </message>
@@ -42130,12 +42130,12 @@ Data (from %2): %3</translation>
         <location line="+44"/>
         <location line="+101"/>
         <location line="+10"/>
-        <location line="+893"/>
+        <location line="+944"/>
         <source>no hay esa página (perfil «%1», página «%2»)</source>
         <translation>that page doesn&apos;t exist (profile “%1”, page “%2”)</translation>
     </message>
     <message>
-        <location line="-1042"/>
+        <location line="-1093"/>
         <source>la celda se sale de la grilla (%1×%2)</source>
         <translation>the cell goes outside the grid (%1×%2)</translation>
     </message>
@@ -42187,56 +42187,56 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+25"/>
-        <location line="+47"/>
+        <location line="+96"/>
         <source>Director</source>
         <translation>Director</translation>
     </message>
     <message>
-        <location line="-46"/>
+        <location line="-95"/>
         <source>Escenas con tally (un toque arma, TAKE corta), FTB, grabación y transmisión</source>
         <translation>Scenes with tally (one tap loads, TAKE cuts), FTB, recording and streaming</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+66"/>
+        <location line="+117"/>
         <source>Audio</source>
         <translation>Audio</translation>
     </message>
     <message>
-        <location line="-65"/>
+        <location line="-116"/>
         <source>Un fader por fuente con su medidor y mudo; loudness del programa</source>
         <translation>A fader per source with its meter and mute; program loudness</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+88"/>
+        <location line="+139"/>
         <source>Asamblea</source>
         <translation>Assembly</translation>
     </message>
     <message>
-        <location line="-87"/>
+        <location line="-138"/>
         <source>Las bancas del cuerpo (un toque: al aire armado), siguiente, terminar, TAKE</source>
         <translation>The body&apos;s seats (one tap: loaded for air), next, end, TAKE</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+108"/>
+        <location line="+159"/>
         <source>Recinto</source>
         <translation>Chamber</translation>
     </message>
     <message>
-        <location line="-107"/>
+        <location line="-158"/>
         <source>Las bancas donde están en la sala (un toque: al aire armado), siguiente, terminar, TAKE</source>
         <translation>The seats where they are in the room (one tap: loaded for air), next, end, TAKE</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+128"/>
+        <location line="+179"/>
         <source>Micrófonos de bancas</source>
         <translation>Seat microphones</translation>
     </message>
     <message>
-        <location line="-127"/>
+        <location line="-178"/>
         <source>La central de conferencia: la cara de cada banca donde está en la sala; un toque le da o le corta el audio, mantener la pone al aire; siguiente, cerrar todos</source>
         <translation>The conference central unit: each seat&apos;s face where it is in the room; one tap gives or cuts its audio, holding puts it on air; next, close all</translation>
     </message>
@@ -42251,7 +42251,27 @@ Data (from %2): %3</translation>
         <translation>Turn the pages of the scene&apos;s PDF, pick another one from the event documents and put the “PDF” scene on air</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+13"/>
+        <source>◀ Cue</source>
+        <translation>◀ Cue</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Cue ▶</source>
+        <translation>Cue ▶</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>no hay ese perfil</source>
+        <translation>there is no such profile</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la página no tiene lugar para una fila más</source>
+        <translation>the page has no room for one more row</translation>
+    </message>
+    <message>
+        <location line="+59"/>
         <source>Volver de FTB</source>
         <translation>Back from FTB</translation>
     </message>
@@ -42268,7 +42288,7 @@ Data (from %2): %3</translation>
 {{v}}</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+41"/>
         <location line="+23"/>
         <source>Siguiente</source>
         <translation>Next</translation>
@@ -46592,7 +46612,7 @@ Data (from %2): %3</translation>
         <translation>Generated by Broadcast Appliance on %1.</translation>
     </message>
     <message>
-        <location line="+1071"/>
+        <location line="+1073"/>
         <source>PTZ probado con las cámaras reales (presets, que no se muevan al aire)</source>
         <translation>PTZ tested with the real cameras (presets, no movement on air)</translation>
     </message>
@@ -47062,7 +47082,7 @@ Data (from %2): %3</translation>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4124"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4144"/>
         <source>cada evento a su carpeta: %1</source>
         <translation>each event to its folder: %1</translation>
     </message>
@@ -49413,7 +49433,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1420"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1440"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn&apos;t start on open: %2</translation>
     </message>

@@ -871,6 +871,54 @@ json Botonera::plantillas() const {
                                                "evento y poner la escena «PDF» al aire")}}});
 }
 
+namespace {
+/// Las celdas del guion en la fila `y` de una página de 6 columnas: «◀ Cue», el cue actual
+/// (tema «evento/cue») y «Cue ▶». Las usan la plantilla «director» y completarGuion.
+json celdasDelGuion(int y) {
+    const auto correr = [](const char* accion) {
+        return json{{"tipo", "herramienta"}, {"herramienta", "evento_correr"}, {"args", {{"accion", accion}}}};
+    };
+    return json::array(
+        {json{{"x", 0}, {"y", y}, {"tipo", "boton"},
+              {"estilo", {{"texto", traducir("botonera", "◀ Cue")}, {"fondo", "#1f3f5f"}, {"color", "#ffffff"}}},
+              {"accion", correr("atras")}, {"estado", json::array()}},
+         json{{"x", 1}, {"y", y}, {"ancho", 4}, {"tipo", "texto"},
+              {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
+              {"estado", json::array({{{"tema", "evento/cue"}, {"ruta", "texto"}, {"op", "existe"}, {"efecto", "texto"},
+                                       {"dato", "{{v}}"}}})}},
+         json{{"x", 5}, {"y", y}, {"tipo", "boton"},
+              {"estilo", {{"texto", traducir("botonera", "Cue ▶")}, {"fondo", "#1f5f8a"}, {"color", "#ffffff"}}},
+              {"accion", correr("siguiente")}, {"estado", json::array()}}});
+}
+} // namespace
+
+std::string Botonera::completarGuion(const std::string& perfil) {
+    json* p = buscarPerfil(perfil);
+    if (p == nullptr || !p->contains("paginas") || (*p)["paginas"].empty()) return traducir("botonera", "no hay ese perfil");
+    json& g = (*p)["paginas"][0];
+    for (const json& c : g.value("celdas", json::array()))
+        if (c.contains("accion") && c["accion"].value("herramienta", std::string()) == "evento_correr") return {}; // ya está
+    // Una fila nueva abajo (con 6 columnas, como la plantilla).
+    const int fila = g.value("filas", 4);
+    if (fila + 1 > 16) return traducir("botonera", "la página no tiene lugar para una fila más");
+    g["filas"] = fila + 1;
+    g["columnas"] = std::max(6, g.value("columnas", 6));
+    for (const json& c : celdasDelGuion(fila)) g["celdas"].push_back(c);
+    // Y que el aparato la pueda usar (el perfil dice qué herramientas tiene permitidas).
+    if (p->contains("herramientas_permitidas") && (*p)["herramientas_permitidas"].is_array()) {
+        json& ps = (*p)["herramientas_permitidas"];
+        if (std::find(ps.begin(), ps.end(), json("evento_correr")) == ps.end()) ps.push_back("evento_correr");
+    }
+    guardar();
+    sucio_ = true;
+    emit cambio();
+    return {};
+}
+
+QString Botonera::completarGuionUi(const QString& perfil) {
+    return QString::fromStdString(completarGuion(perfil.toStdString()));
+}
+
 json Botonera::armarPlantilla(const std::string& id) const {
     const auto herr = [](const std::string& h, json args = json::object()) {
         return json{{"tipo", "herramienta"}, {"herramienta", h}, {"args", std::move(args)}};
@@ -898,6 +946,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
     int columnas = 6, filas = 4;
     std::string nombre;
     if (id == "director") {
+        filas = 5; // la última fila: el guion (cue anterior, el actual, cue siguiente)
         nombre = traducir("botonera", "Director");
         const std::vector<std::string> esc = g_.escenas ? g_.escenas() : std::vector<std::string>{};
         int i = 0;
@@ -918,6 +967,8 @@ json Botonera::armarPlantilla(const std::string& id) const {
         usar(boton(5, 3, traducir("botonera", "AIRE"), herr("stream_start"),
                    {lig("salida/stream", "activo", "==", true, "fondo", "#c62828"),
                     lig("salida/stream", "tiempo", "", nullptr, "texto", traducir("botonera", "AIRE\n{{v}}"))}));
+        // El guion: ir de cue en cue (lo mismo que los botones de la página Evento).
+        for (const json& c : celdasDelGuion(4)) usar(c);
     } else if (id == "audio") {
         nombre = traducir("botonera", "Audio");
         std::vector<std::string> fu = g_.fuentesAudio ? g_.fuentesAudio() : std::vector<std::string>{};

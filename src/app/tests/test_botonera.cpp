@@ -245,6 +245,26 @@ int main(int argc, char** argv) {
     for (const auto& d : bot.dispositivos()) CHECK(!d.contains("hash") && !d.contains("sal"), "la lista no muestra hashes");
     CHECK(bot.revocar(ap["dispositivo"]) == 1 && bot.credencialesParaGateway().empty(), "revocar");
 
+    // Los botones del guion: la plantilla «director» los trae, y un perfil hecho antes los recibe
+    // (completarGuion), una sola vez y con la herramienta permitida.
+    {
+        const auto cuantosCue = [&bot](const std::string& id) {
+            int n = 0;
+            const json perfil = bot.exportar(id); // guardado: un for sobre un pedazo de un temporal es UB
+            for (const auto& c : perfil["paginas"][0]["celdas"])
+                if (c.contains("accion") && c["accion"].value("herramienta", std::string()) == "evento_correr") ++n;
+            return n;
+        };
+        std::string dir;
+        const std::string eDir = bot.crearPerfil({{"nombre", "Escenas"}}, "director", &dir);
+        CHECK(eDir.empty() && cuantosCue(dir) == 2,
+              "la plantilla director trae «◀ Cue» y «Cue ▶»");
+        std::string viejo;
+        CHECK(bot.crearPerfil({{"nombre", "Viejo"}}, "", &viejo).empty() && cuantosCue(viejo) == 0, "un perfil sin guion");
+        CHECK(bot.completarGuion(viejo).empty() && cuantosCue(viejo) == 2, "completarGuion le suma los dos botones");
+        CHECK(bot.completarGuion(viejo).empty() && cuantosCue(viejo) == 2, "otra vez no los duplica");
+    }
+
     // Al aprobar, la persona puede elegir otro perfil que el del código (Servicios).
     {
         std::string otro;

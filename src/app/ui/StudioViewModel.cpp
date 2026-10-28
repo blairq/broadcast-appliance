@@ -876,6 +876,26 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         armarBitacora();
         // Con un evento en curso, lo que se graba va a su carpeta (H4).
         if (evento_) rt_.setCarpetaDelEvento([this]() { return evento_->carpetaEvento(); });
+        // El cue en que va el guion, al bus («evento/cue»): lo muestra la botonera entre
+        // sus botones «◀ Cue» y «Cue ▶», y cualquier superficie que lo quiera.
+        if (evento_) {
+            const auto publicarCue = [this]() {
+                if (!bus_ || !evento_) return;
+                const QVariantMap a = evento_->actual(), s = evento_->siguiente(), r = evento_->reloj();
+                const auto titulo = [](const QVariantMap& c) {
+                    const QString t = c.value("texto").toString();
+                    return (t.isEmpty() ? c.value("tipo").toString() : t).toStdString();
+                };
+                bus_->publicar("evento/cue", {{"estado", evento_->estado().toStdString()},
+                                             {"texto", a.isEmpty() ? std::string() : titulo(a)},
+                                             {"siguiente", s.isEmpty() ? std::string() : titulo(s)},
+                                             {"numero", r.value("cueNro").toInt()},
+                                             {"total", r.value("cuesTotal").toInt()}},
+                               true);
+            };
+            connect(evento_.get(), &EventoViewModel::correChanged, this, publicarCue);
+            publicarCue();
+        }
         // Cada vivo con su URL pública (sin la clave), al bus y al histórico.
         const auto alVivo = [this](const QVariantMap& m) {
             bus_->publicar("salida/vivo",

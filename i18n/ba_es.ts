@@ -337,7 +337,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+766"/>
+        <location line="+768"/>
         <source>%n persona llegó (escanearon su invitación).</source>
         <translation>
             <numerusform>%n persona llegó (escaneó su invitación).</numerusform>
@@ -1115,7 +1115,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>StudioViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4365"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4385"/>
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Hay %n persona conectada</numerusform>

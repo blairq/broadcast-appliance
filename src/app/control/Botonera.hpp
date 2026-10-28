@@ -211,6 +211,10 @@ class Botonera : public QObject {
     QVariantList solicitudesUi() const;
     Q_INVOKABLE QVariantMap paginaUi(const QString& perfil, const QString& pagina) const;
     Q_INVOKABLE QString crearPerfilUi(const QString& nombre, const QString& plantilla);
+    /// Le suma a la primera página del perfil la fila del guion («◀ Cue», el cue actual,
+    /// «Cue ▶») si no la tiene: un perfil hecho antes con la plantilla «director». "" o el error.
+    std::string completarGuion(const std::string& perfil);
+    Q_INVOKABLE QString completarGuionUi(const QString& perfil);
     Q_INVOKABLE QString editarPerfilUi(const QString& id, const QVariantMap& cambios);
     Q_INVOKABLE bool borrarPerfilUi(const QString& id);
     Q_INVOKABLE QString crearPaginaUi(const QString& perfil, const QString& nombre, int columnas, int filas);
