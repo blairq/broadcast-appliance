@@ -56,20 +56,21 @@ La primera vez tarda (libobs ~10-20 min en un M1). Si LSP falla, `deps-macos`
 sigue igual: el rack de audio funciona sin los módulos LSP (analizador y
 generador sí).
 
-## 4. Compilar y correr los tests (`make macos`)
+## 4. Compilar y correr los tests (`make compilar`, `make probar`)
 
 ```bash
-make macos
+make compilar
+make probar
 ```
 
-Configura con Ninja, compila todo y corre `ctest`. Esperado: todos los tests
+Configura con Ninja, compila todo y corre `ctest` (`make macos` hace los dos). Esperado: todos los tests
 pasan o se saltean (los que necesitan red o SDK externos). Si algo no compila,
 las primeras líneas con `error:` de la salida dicen qué.
 
-## 5. Bundle portable (`make release-macos`)
+## 5. Bundle portable y la .app (`make app`)
 
 ```bash
-make release-macos
+make app-mac-de-cero   # release/ y dist/BroadcastAppliance.app de cero (paso suelto: release-macos)
 ```
 
 Arma `release/` con el mismo layout que Linux (`BroadcastAppliance`,
@@ -79,10 +80,10 @@ macOS o de lo que viaja adentro, cada ejecutable tiene que resolver sus
 `@rpath` con sus propios rpath, y todos tienen que estar firmados (ad-hoc).
 Al final escribe `manifest.json` (la verificación de integridad del launcher).
 
-### Para probar mientras se programa: `make app-macos-rapida`
+### Para probar mientras se programa: `make app`
 
-`make app-macos` arma todo de cero (borra `release/` y la .app): unos 2,5
-minutos. Para probar un cambio, `make app-macos-rapida` hace lo mismo sin
+`make app-mac-de-cero` arma todo de cero (borra `release/` y la .app): unos 2,5
+minutos. Para probar un cambio, `make app` hace lo mismo sin
 borrar nada y tarda unos 25 segundos:
 
 - firma solo los binarios nuevos o cambiados, en paralelo
@@ -93,7 +94,7 @@ borrar nada y tarda unos 25 segundos:
 - copia a la .app solo lo que cambió (rsync);
 - el manifest reusa los hashes de lo que no cambió (`build/manifest-app-macos.txt`).
 
-Si algo se ve raro, `make app-macos` lo rehace de cero.
+Si algo se ve raro, `make app-mac-de-cero` lo rehace de cero.
 
 ## 6. Probarlo
 
@@ -165,8 +166,8 @@ Linux y Windows en Docker (`tools/ci/compilar-en-docker.sh`: Ubuntu 24.04
 x86_64, con Rosetta en una Mac), el `.dmg` si es una Mac, y sube todo a un
 release de GitHub verificando tamaño y sha256 (`tools/publicar.sh`).
 
-Por partes: `make dist-linux-docker`, `make dist-win-docker`, `make dmg-macos`
-y `make subir`. Cada archivo de `dist/` lleva al lado su `.sha256` y un
+Por partes: `make paquete-linux`, `make paquete-windows`, `make paquete-mac`
+(o los tres con `make paquetes`) y `make subir`. Cada archivo de `dist/` lleva al lado su `.sha256` y un
 `.commit` con el commit del que salió: `make subir` no sube nada que no sea del
 commit actual. El release sale del commit (`v<versión>-<commit>`): desde
 `master` queda como "Latest"; desde otra rama, como pre-release. `TAG=...` elige

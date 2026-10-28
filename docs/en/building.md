@@ -179,26 +179,46 @@ The build is **CMake** (C++20, self-contained via `FetchContent`); the
 [`Makefile`](../../Makefile) wraps it to keep the workflow simple. `ccache` is
 enabled automatically if it is on the PATH.
 
-### (a) Native Linux — development
+**The commands.** A verb and, when needed, the platform at the end (`mac`,
+`linux`, `windows`); without a platform it is the one of the machine you run it
+on. Plain `make` shows the help.
+
+| Command | What it does |
+|---|---|
+| `make deps` | the third-party pieces to build here, into `extern/` (`deps-mac`, `deps-linux`, `deps-windows`) |
+| `make compilar` | builds into `build/`, no tests |
+| `make probar` | the tests, cached (`probar-rapido` without the slow ones, `probar-todo` without cache) |
+| `make app` | the program assembled to use here (Mac: the `.app` in ~25 s; `app-mac-de-cero` rebuilds it) |
+| `make paquete-mac` / `paquete-linux` / `paquete-windows` | one package in `dist/` with its `.sha256`; Linux and Windows in Docker on a Mac |
+| `make paquetes` | all three |
+| `make publicar` | **everything**: the three packages from scratch, with all tests, uploaded to a GitHub release |
+
+The old names (`build`, `test`, `release`, `win`, `test-win`, `dist-win`,
+`macos`, `dmg-macos`…) still work: they are the individual steps the commands
+above, Docker and CI use. `make pasos` lists them.
+
+### (a) Native Linux
 
 ```bash
-make dev      # development build (Debug) in build/
-# or
-make build    # configures (idempotent) and builds (default build type: Release)
+make deps        # once
+make compilar    # configures (idempotent) and builds into build/
+make probar
+make app         # installs the portable bundle into release/
 ```
 
-### (b) Production — portable bundle
+### (b) Packages and release
 
 ```bash
-make prod     # Release + installs the §5.1 layout into release/
+make paquetes    # dist/: the .tar.gz, the .zip and (on a Mac) the .dmg
+make publicar    # the same from scratch, with all tests, uploaded to GitHub
 ```
 
 ### (c) Windows x64 from Linux (clang-cl, MSVC ABI)
 
 ```bash
-make win BA_ACCEPT_MSVC_LICENSE=1   # downloads everything and builds in build/win/
-make test-win                       # runs the Windows tests under portable Wine
-make dist-win                       # dist/BroadcastAppliance-<ver>-windows-x64.zip
+make deps-windows BA_ACCEPT_MSVC_LICENSE=1   # LLVM, MSVC CRT/SDK, Qt, GStreamer... into extern/
+make compilar-windows                        # builds into build/win/
+make paquete-windows                         # tests under portable Wine and dist/…-windows-x64.zip
 ```
 
 The whole Windows build uses the **MSVC ABI**: the prebuilt libwebrtc for
@@ -249,9 +269,11 @@ Branch `macos`. Built on the Mac (full Xcode + `brew install cmake
 ninja meson pkg-config`):
 
 ```bash
-make deps-macos        # GStreamer, Qt, libwebrtc macOS, LSP... -> extern/
-make macos             # builds and runs the tests
-make release-macos     # portable bundle in release/ (verified with otool, ad-hoc signed)
+make deps        # GStreamer, Qt, libwebrtc macOS, LSP... -> extern/
+make compilar    # builds into build/
+make probar
+make app         # dist/BroadcastAppliance.app (verified with otool, ad-hoc signed)
+make paquete-mac # dist/…-macos-arm64.dmg
 ```
 
 Full guide, what to test and what's missing: [`docs/desarrollo/MACOS.md`](../../docs/desarrollo/MACOS.md).

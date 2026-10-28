@@ -1,25 +1,29 @@
 # ============================================================================
-# Makefile — interfaz de build de Broadcast Appliance Portable v2
+# Makefile — compilar, probar, empaquetar y publicar Broadcast Appliance
 #
-# Envuelve a CMake/CTest para que el flujo de desarrollo sea simple. Este
-# archivo NO compila nada por sí solo: delega todo en CMake (el único sistema
-# de build real). ccache queda activado automáticamente vía el bloque guardado
-# del CMakeLists raíz, así que cada build nativo o cross cachea las TU.
+# No compila nada por sí solo: envuelve a CMake/CTest (el build de verdad) y a
+# los scripts de tools/. `make` a secas muestra la ayuda.
 #
-# Flujo típico:
-#   make deps     -> descarga los assets de terceros a extern/ (idempotente)
-#   make dev      -> build de desarrollo (Debug) en build/
-#   make prod     -> build de producción (Release) + bundle portable
-#   make docs     -> genera la documentación (Sphinx/HTML)
-#   make test     -> corre los tests (ctest) con caché por contenido (ver "Tests")
-#   make help     -> muestra estos targets
+# LOS NOMBRES: un verbo y, si hace falta, la plataforma al final, siempre con la
+# misma palabra (mac, linux, windows). Sin plataforma = la de esta máquina.
 #
-# Variables (sobrescribibles desde la línea de comando):
-#   BUILD_DIR  -> directorio de build (default: build)
-#   JOBS       -> paralelismo (default: nproc)
-#   BA_WEBRTC_TARGET -> artefacto de libwebrtc a bajar: windows (default) | linux
+#   make compilar        compila en build/                  (compilar-mac, -linux, -windows)
+#   make probar          los tests, con caché                (probar-rapido, probar-todo)
+#   make app             el programa armado para usarlo acá  (Mac: la .app en ~25 s)
+#   make paquete-mac     el .dmg            ┐
+#   make paquete-linux   el .tar.gz         ├ en dist/, con su .sha256 (Linux y Windows
+#   make paquete-windows el .zip            ┘ en Docker si esta máquina es una Mac)
+#   make paquetes        los tres
+#   make publicar        EL QUE HACE TODO: los tres paquetes de cero, con todos los
+#                        tests, y los sube a un release de GitHub
+#   make deps            lo de terceros para compilar acá   (deps-mac, -linux, -windows)
 #
-# Compatible con make POSIX (no usa extensiones GNU de make).
+# Los nombres de antes (build, test, win, dist-win, release-macos, dmg-macos...)
+# siguen: son los pasos sueltos que usan Docker (tools/ci/compilar-en-docker.sh)
+# y el CI (.github/workflows). `make pasos` los lista.
+#
+# Variables: BUILD_DIR (build), JOBS (los núcleos), SIN_CACHE=1 (todo de cero),
+# PERFILAR=1 (build que mide CPU y GPU; los paquetes salen con «-perfil»).
 # ============================================================================
 
 BUILD_DIR ?= build
@@ -53,7 +57,7 @@ PIP       ?= .venv/bin/pip
 
 .PHONY: test-rapido test-completo deps-win-todo deps-linux-todo dist-win-zip dist-linux-tar app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos deps-lspdsp-win deps-lspdsp-linux deps-lspdsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
         clean clean-all \
-        deps deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
+        deps deps-descargas deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-craft deps-craft-linux deps-craft-win deps-craft-mac deps-fuentes-texto \
         deps-msitools mcp-inventario deps-llamacpp deps-llamacpp-win deps-llamacpp-linux bateria-local corpus-entrenamiento \
         venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
@@ -61,77 +65,113 @@ PIP       ?= .venv/bin/pip
         corpus-descubrir \
         deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate deps-zxing deps-rostros deps-sherpa-onnx _ba_baja
 
-# --- Ayuda (target por defecto) ---------------------------------------------
-help:
-	@echo "Broadcast Appliance Portable v2 — targets de build:"
+.PHONY: ayuda pasos compilar compilar-mac compilar-linux compilar-windows probar probar-rapido probar-todo \
+        app app-mac app-mac-de-cero app-linux paquete-mac paquete-linux paquete-windows paquetes \
+        deps-mac deps-windows limpiar limpiar-todo idiomas documentacion
+
+# La plataforma de esta máquina (la de `make compilar`, `make app`, `make deps`).
+ifeq ($(shell uname -s),Darwin)
+  PLATAFORMA := mac
+else
+  PLATAFORMA := linux
+endif
+
+# --- Ayuda (lo que hace `make` a secas) -----------------------------------------
+help: ayuda
+ayuda:
+	@echo "Broadcast Appliance — make <comando>  (esta máquina: $(PLATAFORMA))"
 	@echo ""
-	@echo "  make dev        Build de desarrollo (Debug) en $(BUILD_DIR)/"
-	@echo "  make build      Configura y compila (build type por defecto de CMake)"
-	@echo "  make prod       Build de producción (Release) + bundle portable en release"
-	@echo "  make docs       Genera la documentación (Sphinx -> docs/_build/html)"
-	@echo "  make test       Corre los tests (ctest) con la caché: no repite los que ya pasaron con las mismas entradas"
-	@echo "  make test-rapido   Lo mismo sin los de la etiqueta «lento» (TESTS_SIN_LENTOS=1)"
-	@echo "  make test-completo Todos, sin caché (TESTS_SIN_CACHE=1; lo que corre make publicar)"
-	@echo "  make test-unit  Alias de 'make test'"
-	@echo "  make lint       Revisa el formato con clang-format del sistema (apt)"
-	@echo "  make release    Instala el bundle portable (layout §5.1) en release/"
-	@echo "  make win        Windows x64 desde Linux (clang-cl, ABI MSVC): baja todo y compila en build/win"
-	@echo "                  (requiere BA_ACCEPT_MSVC_LICENSE=1 la primera vez: CRT + SDK de Microsoft)"
-	@echo "  make release-win  Bundle portable de Windows en release-win/"
-	@echo "  make dist-win   dist/BroadcastAppliance-<ver>-windows-x64.zip"
-	@echo "  make test-win   Corre los tests de Windows bajo Wine portable"
-	@echo "  make dist-linux dist/BroadcastAppliance-<ver>-linux-x64.tar.gz"
-	@echo "  make deps-macos     Todo lo del build de macOS (en una Mac Apple Silicon)"
-	@echo "  make macos          macOS: compila y corre los tests"
-	@echo "  make app-macos-rapida  la .app sin rehacer todo (para probar: ~25 s)"
-	@echo "  make dmg-macos      dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app)"
-	@echo "  make publicar       TODO: Linux y Windows (Docker) + .dmg (en Mac) y los sube a GitHub"
-	@echo "  make dist-linux-docker / dist-win-docker  Un bundle en Docker (con su .sha256)"
-	@echo "  make subir          Sube lo que haya en dist/ y verifica tamaño y sha256 en GitHub"
-	@echo "  make publicar-macos / publicar-linux / publicar-win  Una plataforma, compilando aca"
-	@echo "  make deps-linux Todo lo del build completo de Linux (GStreamer y sus deps desde fuente, libwebrtc...)"
-	@echo "  make clean      Borra $(BUILD_DIR)/"
-	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
+	@echo "Todos los días:"
+	@echo "  make compilar         compila en $(BUILD_DIR)/ (sin tests)"
+	@echo "  make probar           los tests; no repite los que ya pasaron igual"
+	@echo "  make probar-rapido    sin los lentos"
+	@echo "  make probar-todo      todos, sin caché"
+	@echo "  make app              el programa armado para usarlo acá (Mac: dist/BroadcastAppliance.app, ~25 s)"
+	@echo "  make app-mac-de-cero  la .app rehecha de cero (si algo se ve raro)"
 	@echo ""
-	@echo "Dependencias de terceros (extern/, gitignored, idempotente):"
-	@echo "  make deps             Descarga TODO (runtime + fuentes de build)"
-	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2+libdeflate+zxing-cpp) -> extern/"
-	@echo "  make deps-qt          SDK Qt 6.6.3 win64_msvc2019_64 (build de Windows) -> extern/qt6"
-	@echo "  make deps-win         Todo lo del build de Windows (toolchain, Qt, GStreamer, libwebrtc...)"
-	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
-	@echo "  make deps-lwip        lwIP 2.2.0 -> extern/lwip (tunel WireGuard del gateway)"
-	@echo "  make deps-cacert      raices de Mozilla (curl.se) -> extern/cacert (HTTPS propio: YouTube)"
-	@echo "  make deps-rostros     ONNX Runtime + YuNet + SFace -> extern/rostros (reconocer caras)"
-	@echo "  make deps-sherpa-onnx sherpa-onnx (voz: reconocer, VAD, hablar) -> extern/sherpa-onnx"
-	@echo "  make deps-spout       SDK Spout2 (2.007h) -> extern/Spout2"
-	@echo "  make deps-cloudflared cloudflared 2024.11.0 -> extern/cloudflared"
-	@echo "  make deps-pinggy      libpinggy 0.3.1 (tunel de pinggy.io, la del host) -> extern/pinggy"
-	@echo "  make deps-pinggy-win  libpinggy 0.3.1 de Windows -> extern/pinggy/windows-x86_64"
-	@echo "  make deps-vcredist    Redist VC++ -> extern/vcredist"
-	@echo "  make deps-lsp         Modulos LSP 1.2.35 (CLAP, Linux) -> extern/lsp"
-	@echo "  make deps-lsp-win     Modulos LSP 1.2.35 para Windows (compilados desde fuente) -> extern/lsp"
-	@echo "  make deps-clap        Headers de CLAP 1.2.6 -> extern/clap"
-	@echo "  make deps-craft       WordCraft, DeckCraft y GridCraft (Word, PowerPoint y planillas a PDF; su MCP)"
-	@echo "  make deps-fuentes-texto las tipografías de texto de los gráficos y rótulos"
-	@echo "  make deps-msitools    abrir el .msi de Windows desde Linux (lo pide deps-gstreamer-win)"
-	@echo "  make mcp-inventario   docs/mcp.json: todas las herramientas MCP (con el aparato andando)"
-	@echo "  make deps-llamacpp    llama.cpp (CPU) para probar un modelo chico local"
-	@echo "  make bateria-local    cuanto tarda y cuanto acierta ese modelo (prefijo cacheado)"
-	@echo "  make corpus-entrenamiento  arma datos/entrenamiento desde las semillas"
-	@echo "  make modelo PERFIL=reactivo BASE=Qwen/Qwen3.5-4B   el modelo reactivo al dia con el MCP:"
-	@echo "                        inventario, equivalencias, bucle del corpus y fabrica (MLX q4 + GGUF)"
-	@echo "  make modelo-fabricar NOMBRE=x  solo entrenar/medir/cuantizar/empaquetar con el corpus actual"
-	@echo "  make venv-entrenar         el entorno para entrenar (torch, unsloth, gguf)"
-	@echo "  make vector-control MODELO=... el vector que empuja a derivar, y su curva"
-	@echo "  make corpus-descubrir      que herramientas nuevas no tienen frases"
-	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
-	@echo "  make deps-nlohmann    nlohmann/json v3.11.3 (fuente de build) -> extern/nlohmann-json"
-	@echo "  make deps-samplerate  libsamplerate 0.2.2 (fuente de build) -> extern/libsamplerate"
-	@echo "  make deps-argon2      argon2 20190702 (fuente de build) -> extern/argon2"
-	@echo "  make deps-status      Muestra qué assets hay y su estado"
-	@echo "  make deps-clean       Borra extern/"
+	@echo "Para publicar:"
+	@echo "  make publicar         TODO: los tres paquetes de cero con todos los tests, y los sube a GitHub"
+	@echo "  make paquetes         los tres paquetes en dist/, sin subir"
+	@echo "  make paquete-mac      dist/…-macos-arm64.dmg       (en una Mac)"
+	@echo "  make paquete-linux    dist/…-linux-x64.tar.gz      (en Docker si esto es una Mac)"
+	@echo "  make paquete-windows  dist/…-windows-x64.zip       (en Docker si esto es una Mac)"
+	@echo "  make subir            sube lo que haya en dist/ de esta versión (y verifica tamaño y sha256)"
 	@echo ""
-	@echo "Variables: BUILD_DIR?=$(BUILD_DIR)  JOBS?=$(JOBS)  BA_WEBRTC_TARGET?=windows"
+	@echo "Una vez por máquina (o al cambiar versiones):"
+	@echo "  make deps             lo de terceros para compilar acá, en extern/ ($(PLATAFORMA))"
+	@echo "  make deps-mac / deps-linux / deps-windows   el de una plataforma"
+	@echo ""
+	@echo "Otros:"
+	@echo "  make idiomas          pone i18n/ba_*.ts al día con el código (los textos nuevos, sin traducir)"
+	@echo "  make documentacion    la documentación HTML (docs/_build/html)"
+	@echo "  make lint             el formato del código (clang-format)"
+	@echo "  make limpiar          borra $(BUILD_DIR)/      make limpiar-todo  también release/ y docs/_build/"
+	@echo "  make pasos            los pasos sueltos (los que usan Docker y el CI) y las dependencias una por una"
+	@echo ""
+	@echo "Variables: JOBS=$(JOBS)  BUILD_DIR=$(BUILD_DIR)  SIN_CACHE=1 (de cero)  PERFILAR=1 (build que mide)"
+
+# Los pasos sueltos: los usan los comandos de arriba, Docker y el CI.
+pasos:
+	@echo "Pasos sueltos (los usan los comandos principales, Docker y el CI):"
+	@echo "  Linux:    build  test  release  dist-linux  dist-linux-docker"
+	@echo "  Windows:  win  test-win  release-win  dist-win  dist-win-docker   (desde Linux: BA_ACCEPT_MSVC_LICENSE=1)"
+	@echo "  macOS:    macos (compila y prueba)  release-macos  app-macos  app-macos-rapida  dmg-macos  dist-macos  modelo-mac"
+	@echo "  Publicar: publicar-macos / publicar-linux / publicar-win (una plataforma, compilando acá)"
+	@echo "  Tests:    test  test-rapido  test-completo  pytest"
+	@echo ""
+	@echo "Dependencias una por una (extern/, idempotente, con sha256):"
+	@echo "  deps-src (mbedtls, nlohmann, samplerate, argon2, libdeflate, zxing)  deps-qt  deps-qt-host  deps-webrtc"
+	@echo "  deps-gstreamer-macos / -linux / -win  deps-python  deps-lwip  deps-cacert  deps-rostros  deps-sherpa-onnx"
+	@echo "  deps-craft  deps-fuentes-texto  deps-cloudflared  deps-pinggy  deps-lsp  deps-clap  deps-llamacpp"
+	@echo "  deps-status (qué hay)  deps-clean (borra extern/)"
+	@echo ""
+	@echo "Modelo local: modelo  modelo-fabricar  modelo-corpus  corpus-entrenamiento  venv-entrenar  bateria-local"
+	@echo "MCP: mcp-inventario (docs/mcp.json, con el programa andando)"
+
+# --- Los comandos principales (ver la cabecera) -----------------------------------
+# Cada uno llama a los pasos de su plataforma; los pasos son los de siempre.
+compilar: compilar-$(PLATAFORMA)
+compilar-mac: modelo-mac
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
+		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
+	cmake --build $(BUILD_DIR) -j$(JOBS)
+compilar-linux: build
+compilar-windows:
+	@if [ "$$(uname -s)" = Linux ]; then $(MAKE) win; \
+	  else echo "Windows se compila desde Linux (o en Docker: make paquete-windows)" >&2; exit 1; fi
+
+probar: test
+probar-rapido: test-rapido
+probar-todo: test-completo
+
+app: app-$(PLATAFORMA)
+app-mac: app-macos-rapida
+app-mac-de-cero: app-macos
+app-linux: build release
+
+paquete-mac:
+	@[ "$$(uname -s)" = Darwin ] || { echo "El .dmg se arma en una Mac" >&2; exit 1; }
+	$(MAKE) macos
+	$(MAKE) dmg-macos
+paquete-linux:
+	@if [ "$$(uname -s)" = Linux ]; then $(MAKE) build && $(MAKE) test && $(MAKE) dist-linux; \
+	  else $(MAKE) dist-linux-docker; fi
+paquete-windows:
+	@if [ "$$(uname -s)" = Linux ]; then $(MAKE) test-win BA_ACCEPT_MSVC_LICENSE=1 && $(MAKE) dist-win BA_ACCEPT_MSVC_LICENSE=1; \
+	  else $(MAKE) dist-win-docker; fi
+# Uno detrás del otro (Docker y la Mac compiten por la máquina). En Linux, sin el .dmg.
+paquetes:
+	$(MAKE) paquete-linux
+	$(MAKE) paquete-windows
+	@if [ "$$(uname -s)" = Darwin ]; then $(MAKE) paquete-mac; \
+	  else echo "[paquetes] esto no es una Mac: el .dmg se arma en una Mac (make paquete-mac)"; fi
+
+deps-mac: deps-macos
+deps-windows: deps-win
+limpiar: clean
+limpiar-todo: clean-all
+idiomas: i18n-actualizar
+documentacion: docs
 
 # --- Desarrollo (Debug) -----------------------------------------------------
 # Build de desarrollo: configuración Debug (debug info, sin optimizar) para
@@ -398,10 +438,7 @@ deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-l
 	-$(MAKE) deps-lsp-macos
 	$(MAKE) deps-lspdsp-macos
 
-macos: modelo-mac
-	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
-		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
-	cmake --build $(BUILD_DIR) -j$(JOBS)
+macos: compilar-mac
 	$(TESTS_CACHE)
 
 # ba-modelo: el modelo local con MLX (src/modelo-mac). xcodebuild y no `swift
@@ -519,10 +556,7 @@ publicar publicar-macos publicar-linux publicar-win: export TESTS_JOBS = 1
 publicar:
 	tools/publicar.sh --solo-chequear
 	rm -f $(DIST_LINUX)* $(DIST_WIN)* $(DIST_MACOS)*
-	$(MAKE) dist-linux-docker
-	$(MAKE) dist-win-docker
-	@if [ "$$(uname -s)" = Darwin ]; then $(MAKE) macos && $(MAKE) dmg-macos; \
-	  else echo "[publicar] esto no es una Mac: el .dmg se suma despues con 'make publicar-macos' en una Mac"; fi
+	$(MAKE) paquetes
 	$(MAKE) subir
 
 # Una plataforma sola, compilando en ESTA maquina (sin Docker).
@@ -582,7 +616,8 @@ dist-linux-tar:
 # identificadores de descarga EXACTOS (tag de release, nombre de archivo) y
 # los SHA-256 viven aquí porque son metadatos de descarga, no "pins".
 #
-#   make deps             -> todo (qt + webrtc + spout + cloudflared + vcredist + lsp)
+#   make deps             -> lo de esta plataforma (deps-mac, deps-linux, deps-windows)
+#   make deps-descargas   -> las descargas sueltas de antes (qt + webrtc + spout + cloudflared + vcredist + lsp)
 #   make deps-webrtc      -> SDK libwebrtc M123 a extern/webrtc (= BA_WEBRTC_ROOT)
 #   make deps-spout       -> SDK Spout2 (tag real 2.007h) a extern/Spout2
 #   make deps-cloudflared -> cloudflared 2024.11.0 a extern/cloudflared
@@ -806,7 +841,11 @@ ARGON2_SENT := $(ARGON2_DEST)/Makefile
 # makefile y rompe el parseo).
 
 # --- deps (agregado) ---------------------------------------------------------
-deps: deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-fuentes-texto deps-craft deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
+# `make deps`: lo de esta plataforma. `deps-descargas` es el agregado de antes
+# (las descargas sueltas, sobre todo de Windows); los builds no lo usan.
+deps:
+	$(MAKE) deps-$(PLATAFORMA)
+deps-descargas: deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-fuentes-texto deps-craft deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
 
 # --- Bibliotecas de terceros de Linux (compiladas desde fuente) -------------
 # FFmpeg, x264, SRT, libva, libv4l2, cairo, libsndfile, libmicrodns... desde

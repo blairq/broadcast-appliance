@@ -99,9 +99,9 @@ Windows, macOS and Linux.
 ```bash
 git clone https://github.com/blairq/broadcast-appliance.git
 cd broadcast-appliance
-make deps      # pinned third-party dependencies (fetched, nothing system-wide)
-make dev       # development build
-make test      # the C++ test suite
+make deps      # pinned third-party dependencies for this machine (fetched, nothing system-wide)
+make compilar  # build
+make probar    # the test suite
 ```
 
 Platform builds, the portable bundle and the details are in

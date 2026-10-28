@@ -98,9 +98,9 @@ adentro de la carpeta, en Windows, macOS y Linux.
 ```bash
 git clone https://github.com/blairq/broadcast-appliance.git
 cd broadcast-appliance
-make deps      # las dependencias de terceros, fijadas (se bajan; nada en el sistema)
-make dev       # build de desarrollo
-make test      # la suite de tests C++
+make deps      # las dependencias de terceros para esta máquina, fijadas (se bajan; nada en el sistema)
+make compilar  # compila
+make probar    # los tests
 ```
 
 Los builds por plataforma, el paquete portable y los detalles están en
