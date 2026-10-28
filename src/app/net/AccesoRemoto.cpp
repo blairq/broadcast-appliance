@@ -2,6 +2,7 @@
 // src/app/net/AccesoRemoto.cpp — ver AccesoRemoto.hpp
 // ============================================================================
 
+#include "evento/EventoWeb.hpp"
 #include "net/AccesoRemoto.hpp"
 #include "sala/Direcciones.hpp"
 
@@ -622,13 +623,14 @@ void AccesoRemoto::configurarConApiKey(const QString& pedido) {
     std::string clave;
     if (!ba::security::CredentialStore::bundle().read(kApiKey, clave) || clave.empty())
         return ponerCuenta("error", tr("Falta la API key: pegala en «API key» y guardala."));
-    // Solo el nombre: «Sala-Concejo.a.pinggy.link» → «sala-concejo».
-    QString sub = pedido.trimmed().toLower();
-    sub.remove(QRegularExpression("^https?://"));
-    sub = sub.section('.', 0, 0);
-    if (!sub.isEmpty() && !QRegularExpression("^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?$").match(sub).hasMatch())
-        return ponerCuenta("error", tr("El subdominio va con letras, números y guiones (sin espacios ni acentos), "
-                                       "p. ej. sala-concejo."));
+    // Solo el nombre: «SalaConcejo.a.pinggy.link» → «salaconcejo». Pinggy acepta solo minúsculas y
+    // números: lo que traiga otra cosa se limpia igual que el del evento (evento::subdominioDe).
+    QString pedidoLimpio = pedido.trimmed();
+    pedidoLimpio.remove(QRegularExpression("^https?://", QRegularExpression::CaseInsensitiveOption));
+    const QString sub = QString::fromStdString(evento::subdominioDe(pedidoLimpio.section('.', 0, 0).toStdString()));
+    if (sub.isEmpty() && !pedidoLimpio.isEmpty())
+        return ponerCuenta("error", tr("El subdominio va solo con letras minúsculas y números (sin guiones, espacios "
+                                       "ni acentos), p. ej. salaconcejo."));
     ponerCuenta("trabajando", tr("Pidiendo los datos a tu cuenta de pinggy…"));
     if (sub.isEmpty()) return seguirConToken(clave, {});
     QPointer<AccesoRemoto> self(this);

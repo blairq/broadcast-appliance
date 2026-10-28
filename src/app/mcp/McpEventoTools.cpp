@@ -179,7 +179,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, "
             "quorum, punto (el que se trata), votaciones (las oficiales)}. La plantilla dibuja el plano de bancas "
             "(data-vivo=\"recinto\") con el color de cada bloque: a los partidos les importa dónde se sienta cada uno. "
-            "El subdominio por defecto sale del nombre del evento («Entrevista Pepito» → entrevista-pepito); con "
+            "El subdominio por defecto sale del nombre del evento («Entrevista Pepito» → entrevistapepito: pinggy acepta solo minúsculas y números); con "
             "`direccion_al_iniciar` la dirección cambia sola al poner el evento en curso. Pasale al operador la "
             "dirección con qr_mostrar.");
         t.inputSchema = {{"type", "object"},

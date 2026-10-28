@@ -53,7 +53,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+84"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+85"/>
         <source>Sin consultar todavía.</source>
         <translation>Not checked yet.</translation>
     </message>
@@ -439,9 +439,9 @@
         <translation>Missing the API key: paste it in “API key” and save it.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>El subdominio va con letras, números y guiones (sin espacios ni acentos), p. ej. sala-concejo.</source>
-        <translation>The subdomain takes letters, numbers and hyphens (no spaces or accents), e.g. sala-concejo.</translation>
+        <location line="+7"/>
+        <source>El subdominio va solo con letras minúsculas y números (sin guiones, espacios ni acentos), p. ej. salaconcejo.</source>
+        <translation>The subdomain takes only lowercase letters and digits (no hyphens, spaces or accents), e.g. salaconcejo.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -9197,8 +9197,8 @@ Turn it on from the Log.</translation>
     </message>
     <message>
         <location line="+28"/>
-        <source>El subdominio va con letras, números y guiones.</source>
-        <translation>The subdomain takes letters, numbers and hyphens.</translation>
+        <source>El subdominio va solo con letras minúsculas y números.</source>
+        <translation>The subdomain takes only lowercase letters and digits.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -18441,8 +18441,8 @@ Add images from the Files tab.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <source>entrevista-pepito</source>
-        <translation>interview-john</translation>
+        <source>entrevistapepito</source>
+        <translation>myinterview</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -27252,7 +27252,7 @@ For the base scene the others come from.</translation>
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+32"/>
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+34"/>
         <source>Imagen y sonido</source>
         <translation>Picture and sound</translation>
     </message>
@@ -27934,9 +27934,14 @@ For the base scene the others come from.</translation>
         <translation>Subdomain (optional)</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>dejalo vacío o p. ej. sala-concejo</source>
-        <translation>leave it empty or e.g. council-room</translation>
+        <location line="-621"/>
+        <source>General</source>
+        <translation>General</translation>
+    </message>
+    <message>
+        <location line="+625"/>
+        <source>dejalo vacío o p. ej. salaconcejo</source>
+        <translation>leave it empty or e.g. salaconcejo</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -35378,7 +35383,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>acceso</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="-682"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="-683"/>
         <source>Está vacío.</source>
         <translation>It&apos;s empty.</translation>
     </message>
@@ -36920,8 +36925,8 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Tal cual figura en el panel de pinggy: p. ej. sala-concejo.a.pinggy.link (subdominio fijo) o sala.miorganismo.gob.ar (dominio propio). Sin https:// ni barras.</source>
-        <translation>Exactly as shown in the pinggy dashboard: e.g. sala-concejo.a.pinggy.link (fixed subdomain) or sala.miorganismo.gob.ar (own domain). No https:// or slashes.</translation>
+        <source>Tal cual figura en el panel de pinggy: p. ej. salaconcejo.a.pinggy.link (subdominio fijo) o sala.miorganismo.gob.ar (dominio propio). Sin https:// ni barras.</source>
+        <translation>Exactly as it appears in the pinggy panel: e.g. salaconcejo.a.pinggy.link (fixed subdomain) or room.myorganization.org (custom domain). No https:// or slashes.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37174,7 +37179,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>If off, the watchdog restarts automatically without asking.</translation>
     </message>
     <message>
-        <location line="+307"/>
+        <location line="+324"/>
         <source>EN VIVO: no se aplica «%1»: reinicia el gateway o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.</source>
         <translation>LIVE: “%1” isn&apos;t applied: it restarts the gateway or the program and cuts off guests or the air. Undo those changes or wait until the stream ends.</translation>
     </message>
@@ -38296,7 +38301,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="-581"/>
+        <location filename="../src/app/ui/SettingsModel.cpp" line="-598"/>
         <source>tokens</source>
         <translation>tokens</translation>
     </message>
@@ -46565,7 +46570,7 @@ Data (from %2): %3</translation>
         <location filename="../src/app/evento/APdf.cpp" line="-117"/>
         <location line="+24"/>
         <location filename="../src/app/evento/EventoStore.cpp" line="+35"/>
-        <location filename="../src/app/evento/EventoWeb.cpp" line="+196"/>
+        <location filename="../src/app/evento/EventoWeb.cpp" line="+194"/>
         <location filename="../src/app/evento/Padron.cpp" line="+444"/>
         <source>no se pudo escribir %1</source>
         <translation>couldn&apos;t write %1</translation>
@@ -46860,12 +46865,12 @@ Data (from %2): %3</translation>
         <translation>Created automatically: there was no event in progress.</translation>
     </message>
     <message>
-        <location filename="../src/app/evento/EventoWeb.cpp" line="-113"/>
+        <location filename="../src/app/evento/EventoWeb.cpp" line="-111"/>
         <source>Sección %1</source>
         <translation>Section %1</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+88"/>
         <source>no se pudo crear %1</source>
         <translation>couldn&apos;t create %1</translation>
     </message>
@@ -56605,8 +56610,8 @@ Events are organized in folders (`grupo`, e.g. &quot;2026/Octubre&quot;); `carpe
     </message>
     <message>
         <location line="+9"/>
-        <source>`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. LA PÁGINA SE ARMA SOLA CON LOS DATOS DEL EVENTO: las plantillas del sistema no traen datos escritos; /evento/_/vivo.js pone el nombre, la fecha, las secciones, el programa, anterior/siguiente, quién habla y la gente conectada con lo que da /api/v1/evento, así que si cambia el guion la página se actualiza sola. Para personalizar, sumá contenido propio (de qué va cada sección, fotos, links) con `escribir` y dejá los atributos data-vivo (la lista completa está al principio de vivo.js; `leer` una página muestra cómo). `generar` no pisa lo editado salvo `sobrescribir`. Mantené `&lt;script src=&quot;/evento/_/vivo.js&quot; defer&gt;&lt;/script&gt;` y usá data-vivo=&quot;estado|seccion|siguiente|cuenta|transcurrido|agenda&quot; para lo que cambia en vivo (ver el comentario al final de cada página). Nunca pongas en la página instrucciones del operador ni datos privados: es pública. DÓNDE VERLO EN VIVO: el estado trae `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, Facebook: salen solos de las cuentas conectadas; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: link}}` los fija para este evento, &quot;&quot; los saca). En la página: data-vivo=&quot;reproductor&quot; (el vivo embebido) y data-vivo=&quot;vivos&quot; (botones); en JSON, GET /api/v1/evento/vivos. ASAMBLEA (si el guion tiene `asamblea: true`): el estado trae `asamblea` {cuerpo, presentes, total, integrantes [{nombre, banca, bloque, presente, lugar, habla}], bloques [{bloque, presentes, total}], recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, quorum, punto (el que se trata), votaciones (las oficiales)}. La plantilla dibuja el plano de bancas (data-vivo=&quot;recinto&quot;) con el color de cada bloque: a los partidos les importa dónde se sienta cada uno. El subdominio por defecto sale del nombre del evento («Entrevista Pepito» → entrevista-pepito); con `direccion_al_iniciar` la dirección cambia sola al poner el evento en curso. Pasale al operador la dirección con qr_mostrar.</source>
-        <translation>`pagina`: “portada”, “cierre”, the id, name or number of a section, or a custom .html/.css. THE PAGE BUILDS ITSELF FROM THE EVENT DATA: the system templates don&apos;t contain written data; /evento/_/vivo.js fills in the name, date, sections, program, previous/next, who&apos;s speaking and the people connected using what /api/v1/evento provides, so if the rundown changes the page updates itself. To customize, add your own content (what each section is about, photos, links) with `escribir` and keep the data-vivo attributes (the full list is at the start of vivo.js; `leer` on a page shows how). `generar` doesn&apos;t overwrite edits unless `sobrescribir`. Keep `&lt;script src=&quot;/evento/_/vivo.js&quot; defer&gt;&lt;/script&gt;` and use data-vivo=&quot;estado|seccion|siguiente|cuenta|transcurrido|agenda&quot; for what changes live (see the comment at the end of each page). Never put operator instructions or private data on the page: it&apos;s public. WHERE TO WATCH IT LIVE: the status includes `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, Facebook: they come automatically from the connected accounts; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: link}}` pins them for this event, &quot;&quot; removes them). On the page: data-vivo=&quot;reproductor&quot; (the embedded live stream) and data-vivo=&quot;vivos&quot; (buttons); as JSON, GET /api/v1/evento/vivos. ASSEMBLY (if the rundown has `asamblea: true`): the status includes `asamblea` {cuerpo, presentes, total, integrantes [{nombre, banca, bloque, presente, lugar, habla}], bloques [{bloque, presentes, total}], recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, quorum, punto (the one being discussed), votaciones (the official ones)}. The template draws the seating plan (data-vivo=&quot;recinto&quot;) with each caucus&apos;s color: parties care about where each person sits. The default subdomain comes from the event name (“Entrevista Pepito” → entrevista-pepito); with `direccion_al_iniciar` the address changes automatically when the event is set in progress. Give the operator the address with qr_mostrar.</translation>
+        <source>`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. LA PÁGINA SE ARMA SOLA CON LOS DATOS DEL EVENTO: las plantillas del sistema no traen datos escritos; /evento/_/vivo.js pone el nombre, la fecha, las secciones, el programa, anterior/siguiente, quién habla y la gente conectada con lo que da /api/v1/evento, así que si cambia el guion la página se actualiza sola. Para personalizar, sumá contenido propio (de qué va cada sección, fotos, links) con `escribir` y dejá los atributos data-vivo (la lista completa está al principio de vivo.js; `leer` una página muestra cómo). `generar` no pisa lo editado salvo `sobrescribir`. Mantené `&lt;script src=&quot;/evento/_/vivo.js&quot; defer&gt;&lt;/script&gt;` y usá data-vivo=&quot;estado|seccion|siguiente|cuenta|transcurrido|agenda&quot; para lo que cambia en vivo (ver el comentario al final de cada página). Nunca pongas en la página instrucciones del operador ni datos privados: es pública. DÓNDE VERLO EN VIVO: el estado trae `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, Facebook: salen solos de las cuentas conectadas; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: link}}` los fija para este evento, &quot;&quot; los saca). En la página: data-vivo=&quot;reproductor&quot; (el vivo embebido) y data-vivo=&quot;vivos&quot; (botones); en JSON, GET /api/v1/evento/vivos. ASAMBLEA (si el guion tiene `asamblea: true`): el estado trae `asamblea` {cuerpo, presentes, total, integrantes [{nombre, banca, bloque, presente, lugar, habla}], bloques [{bloque, presentes, total}], recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, quorum, punto (el que se trata), votaciones (las oficiales)}. La plantilla dibuja el plano de bancas (data-vivo=&quot;recinto&quot;) con el color de cada bloque: a los partidos les importa dónde se sienta cada uno. El subdominio por defecto sale del nombre del evento («Entrevista Pepito» → entrevistapepito: pinggy acepta solo minúsculas y números); con `direccion_al_iniciar` la dirección cambia sola al poner el evento en curso. Pasale al operador la dirección con qr_mostrar.</source>
+        <translation>`pagina`: “portada”, “cierre”, the id, name or number of a section, or a custom .html/.css. THE PAGE BUILDS ITSELF FROM THE EVENT DATA: the system templates don't contain written data; /evento/_/vivo.js fills in the name, date, sections, program, previous/next, who's speaking and the people connected using what /api/v1/evento provides, so if the rundown changes the page updates itself. To customize, add your own content (what each section is about, photos, links) with `escribir` and keep the data-vivo attributes (the full list is at the start of vivo.js; `leer` on a page shows how). `generar` doesn't overwrite edits unless `sobrescribir`. Keep `&lt;script src="/evento/_/vivo.js" defer&gt;&lt;/script&gt;` and use data-vivo="estado|seccion|siguiente|cuenta|transcurrido|agenda" for what changes live (see the comment at the end of each page). Never put operator instructions or private data on the page: it's public. WHERE TO WATCH IT LIVE: the status includes `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, Facebook: they come automatically from the connected accounts; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: link}}` pins them for this event, "" removes them). On the page: data-vivo="reproductor" (the embedded live stream) and data-vivo="vivos" (buttons); as JSON, GET /api/v1/evento/vivos. ASSEMBLY (if the rundown has `asamblea: true`): the status includes `asamblea` {cuerpo, presentes, total, integrantes [{nombre, banca, bloque, presente, lugar, habla}], bloques [{bloque, presentes, total}], recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, quorum, punto (the one being discussed), votaciones (the official ones)}. The template draws the seating plan (data-vivo="recinto") with each caucus's color: parties care about where each person sits. The default subdomain comes from the event name (“Entrevista Pepito” → entrevistapepito: pinggy only accepts lowercase letters and digits); with `direccion_al_iniciar` the address changes automatically when the event is set in progress. Give the operator the address with qr_mostrar.</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -65416,8 +65421,8 @@ If there is no free slot in the conference (`room_status` -&gt; `slotsFree`) the
     </message>
     <message>
         <location line="+3"/>
-        <source>Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su puerto TCP fijo, y prende el túnel con eso (reinicia la conferencia). Con `subdominio` (solo el nombre, p. ej. &quot;sala-concejo&quot;) primero lo cambia en la cuenta: queda sala-concejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al panel de pinggy.</source>
-        <translation>With ONLY the API key saved (acceso_remoto_clave tipo api_key) it sets up all of pinggy: asks the account for the tunnel token (stores it encrypted, never shown), its fixed subdomain and its fixed TCP port, and turns the tunnel on with that (restarts the conference). With `subdominio` (just the name, e.g. &quot;sala-concejo&quot;) it first changes it in the account: it becomes sala-concejo.a.pinggy.link; if pinggy doesn&apos;t grant it (taken), it says so. No need to go into the pinggy panel.</translation>
+        <source>Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su puerto TCP fijo, y prende el túnel con eso (reinicia la conferencia). Con `subdominio` (solo el nombre, solo minúsculas y números, p. ej. &quot;salaconcejo&quot;) primero lo cambia en la cuenta: queda salaconcejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al panel de pinggy.</source>
+        <translation>With ONLY the API key saved (acceso_remoto_clave tipo api_key) it sets up all of pinggy: asks the account for the tunnel token (stores it encrypted, never shown), its fixed subdomain and its fixed TCP port, and turns the tunnel on with that (restarts the conference). With `subdominio` (just the name, lowercase letters and digits only, e.g. "salaconcejo") it first changes it in the account: it becomes salaconcejo.a.pinggy.link; if pinggy doesn't grant it (taken), it says so. No need to go into the pinggy panel.</translation>
     </message>
     <message>
         <location line="+7"/>

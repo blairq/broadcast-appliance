@@ -4,7 +4,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message numerus="yes">
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+725"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+727"/>
         <source>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</source>
         <translation>
             <numerusform>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</numerusform>
@@ -1045,7 +1045,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SettingsPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1025"/>
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1027"/>
         <source>Entrenado con %n herramienta</source>
         <translation>
             <numerusform>Entrenado con %n herramienta</numerusform>

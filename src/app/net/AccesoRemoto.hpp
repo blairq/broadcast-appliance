@@ -113,7 +113,7 @@ class AccesoRemoto : public QObject {
     Q_INVOKABLE void verEnPinggy();
     /// Con SOLO la API key arma todo: le pide a la cuenta de pinggy el token del túnel
     /// (lo guarda cifrado), su subdominio fijo y su puerto TCP fijo; si se pide
-    /// `subdominio` (solo el nombre, p. ej. «sala-concejo») lo cambia en la cuenta; y
+    /// `subdominio` (solo el nombre, p. ej. «salaconcejo»: minúsculas y números) lo cambia en la cuenta; y
     /// prende el túnel con eso (por `aplicarPinggy`). Asíncrono: el resultado en `cuenta`.
     Q_INVOKABLE void configurarConApiKey(const QString& subdominio = QString());
     /// Corta los túneles activos de la cuenta (otro equipo con el mismo token).

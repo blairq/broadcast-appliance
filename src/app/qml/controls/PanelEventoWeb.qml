@@ -78,7 +78,7 @@ ScrollView {
                     id: subCampo
                     Layout.preferredWidth: 240
                     text: pw.sitio.subdominio || ""
-                    placeholderText: qsTr("entrevista-pepito")
+                    placeholderText: qsTr("entrevistapepito")
                     inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
                     onEditingFinished: if (text !== (pw.sitio.subdominio || "")) pw.guardar({ subdominio: text })
                 }

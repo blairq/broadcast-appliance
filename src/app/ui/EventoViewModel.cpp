@@ -239,7 +239,7 @@ QString EventoViewModel::setWebSitio(const QVariantMap& campos) {
     if (campos.contains("subdominio")) {
         const std::string sub = evento::subdominioDe(campos.value("subdominio").toString().toStdString());
         if (sub.empty() && !campos.value("subdominio").toString().trimmed().isEmpty())
-            return tr("El subdominio va con letras, números y guiones.");
+            return tr("El subdominio va solo con letras minúsculas y números.");
         s.subdominio = sub;
     }
     if (!s.guardar(dir)) return tr("No se pudo guardar sitio.json.");

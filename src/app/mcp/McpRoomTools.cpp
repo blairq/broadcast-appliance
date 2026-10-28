@@ -682,8 +682,8 @@ void McpService::registerRoomTools() {
             t.description = ba::i18n::traducir("mcp", "Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a "
                             "la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su "
                             "puerto TCP fijo, y prende el túnel con eso (reinicia la conferencia). Con `subdominio` (solo el "
-                            "nombre, p. ej. \"sala-concejo\") primero lo cambia en la cuenta: queda "
-                            "sala-concejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al "
+                            "nombre, solo minúsculas y números, p. ej. \"salaconcejo\") primero lo cambia en la cuenta: queda "
+                            "salaconcejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al "
                             "panel de pinggy.");
             t.inputSchema = {{"type", "object"},
                              {"properties", {{"subdominio", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "opcional: el nombre que se quiere")}}}}}};

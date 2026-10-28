@@ -45,7 +45,7 @@ struct SitioWeb {
     std::string bajada;     ///< una línea abajo del título
     std::string color = "#ff4d2e";
     std::string fondo = "#0b0b0c";
-    std::string subdominio; ///< «entrevista-pepito» → entrevista-pepito.a.pinggy.link
+    std::string subdominio; ///< «entrevistapepito» → entrevistapepito.a.pinggy.link
     bool barra = true;      ///< la franja «en vivo» arriba de cada página
     /// Al iniciar el evento, la dirección pública pasa a ser la de su subdominio.
     bool direccionAlIniciar = true;
@@ -63,7 +63,7 @@ struct SitioWeb {
     nlohmann::json aJson() const;
 };
 
-/// «Entrevista_Pepito 2026» → «entrevista-pepito-2026»: lo que acepta un DNS
+/// «Entrevista_Pepito 2026» → «entrevistapepito2026»: lo que acepta pinggy (solo minúsculas y números)
 /// (letras, números y guiones; sin acentos ni guiones bajos), hasta 40 letras.
 std::string subdominioDe(const std::string& nombre);
 

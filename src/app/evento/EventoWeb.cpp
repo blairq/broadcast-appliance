@@ -133,7 +133,8 @@ bool SitioWeb::guardar(const fs::path& carpetaWeb) const {
 }
 
 std::string subdominioDe(const std::string& nombre) {
-    // Las vocales con acento (UTF-8 de dos bytes) a la letra sola; el resto a guion.
+    // Pinggy acepta solo minúsculas y números en el subdominio (ni guiones ni puntos): las
+    // vocales con acento (UTF-8 de dos bytes) pasan a la letra sola y el resto se saca.
     static const std::pair<const char*, char> kAcentos[] = {
         {"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'}, {"ú", 'u'}, {"ü", 'u'}, {"ñ", 'n'},
         {"Á", 'a'}, {"É", 'e'}, {"Í", 'i'}, {"Ó", 'o'}, {"Ú", 'u'}, {"Ü", 'u'}, {"Ñ", 'n'}};
@@ -147,11 +148,8 @@ std::string subdominioDe(const std::string& nombre) {
         if (hecho) continue;
         const unsigned char c = static_cast<unsigned char>(nombre[i++]);
         if (std::isalnum(c) && c < 128) s += static_cast<char>(std::tolower(c));
-        else if (!s.empty() && s.back() != '-') s += '-';
     }
-    while (!s.empty() && s.back() == '-') s.pop_back();
     if (s.size() > 40) s.resize(40);
-    while (!s.empty() && s.back() == '-') s.pop_back();
     return s;
 }
 

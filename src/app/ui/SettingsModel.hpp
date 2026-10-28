@@ -118,6 +118,8 @@ class SettingsModel : public QAbstractListModel {
         int destino = 0; ///< avanzados: 0 app.json, 1 gateway.json, 2 launcher.json ("ajustes")
     };
     void load(); // configuracion actual -> borrador
+    /// Otro aplicó: lo guardado se relee y los campos que no se estaban editando lo toman.
+    void traerDeAfuera();
     QVariantMap current() const;
     QVariantMap currentBasicos() const; ///< los de siempre (sin los avanzados)
     int rowOfKey(const QString& key) const;

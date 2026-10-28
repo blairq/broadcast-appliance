@@ -83,9 +83,9 @@ int main() {
     CHECK(leer(dir / "portada.html") != "MIA", "sobrescribir sí pisa");
 
     // 3
-    CHECK(subdominioDe("Entrevista_Pepito Ñandú") == "entrevista-pepito-nandu", "subdominio");
-    CHECK(subdominioDe("  --Ánimo!! 2026  ") == "animo-2026", "subdominio con basura");
-    CHECK(SitioWeb::leer(dir, e).subdominio == "entrevista-pepito-nandu", "sitio.json trae el subdominio del nombre");
+    CHECK(subdominioDe("Entrevista_Pepito Ñandú") == "entrevistapepitonandu", "subdominio: solo minúsculas y números (pinggy)");
+    CHECK(subdominioDe("  --Ánimo!! 2026  ") == "animo2026", "subdominio con basura");
+    CHECK(SitioWeb::leer(dir, e).subdominio == "entrevistapepitonandu", "sitio.json trae el subdominio del nombre");
 
     // 4
     const SitioWeb s = SitioWeb::leer(dir, e);

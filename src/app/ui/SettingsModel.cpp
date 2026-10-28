@@ -259,7 +259,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
         {"pinggy.activo", "Pinggy", traducir("ajustes", "Túnel de pinggy"), "bool", {}, 0, 0, "", traducir("ajustes", "Saca todas las páginas de la conferencia (invitados, sesión remota, público, botonera) por una sola dirección pública de pinggy.io, sin abrir puertos ni tener IP pública. Necesita el token de túnel guardado acá abajo. La API de control y el MCP nunca salen por el túnel."), "gateway", false},
         {"pinggy.region", "Pinggy", traducir("ajustes", "Región del servidor"), "choice", choices({{"auto", traducir("ajustes", "Automática (la más cercana)")},{"us", traducir("ajustes", "Estados Unidos")},{"eu", traducir("ajustes", "Europa")},{"ap", traducir("ajustes", "Asia-Pacífico")}}), 0, 0, "", traducir("ajustes", "Por dónde pasa el tráfico. La automática elige la de menos demora; si se corta seguido, probá con Estados Unidos."), "gateway", "auto"},
         {"pinggy.dominioTipo", "Pinggy", traducir("ajustes", "Dirección pública"), "choice", choices({{"azar", traducir("ajustes", "La que dé pinggy (al azar, cambia cada vez)")},{"pinggy", traducir("ajustes", "Subdominio fijo de pinggy")},{"propio", traducir("ajustes", "Dominio propio")}}), 0, 0, "", traducir("ajustes", "Al azar: anda sin configurar nada, pero el enlace (y el QR) cambia cada vez que se conecta. Subdominio fijo (plan Pro): el que pinggy le asigna al token en dashboard.pinggy.io → Domains. Dominio propio (plan Pro): un nombre de la organización (p. ej. sala.miorganismo.gob.ar) cargado en el panel de pinggy y apuntado con un CNAME."), "gateway", "azar"},
-        {"pinggy.host", "Pinggy", traducir("ajustes", "Subdominio o dominio"), "text", {}, 0, 0, "", traducir("ajustes", "Tal cual figura en el panel de pinggy: p. ej. sala-concejo.a.pinggy.link (subdominio fijo) o sala.miorganismo.gob.ar (dominio propio). Sin https:// ni barras."), "gateway", ""},
+        {"pinggy.host", "Pinggy", traducir("ajustes", "Subdominio o dominio"), "text", {}, 0, 0, "", traducir("ajustes", "Tal cual figura en el panel de pinggy: p. ej. salaconcejo.a.pinggy.link (subdominio fijo) o sala.miorganismo.gob.ar (dominio propio). Sin https:// ni barras."), "gateway", ""},
         {"pinggy.cnameDestino", "Pinggy", traducir("ajustes", "Destino del CNAME"), "text", {}, 0, 0, "", traducir("ajustes", "Lo muestra el panel de pinggy al cargar el dominio propio, del estilo <id>.a.pinggy.link. Es a donde tiene que apuntar el registro CNAME del dominio (las instrucciones para el que administra el DNS están acá abajo)."), "gateway", ""},
         {"pinggy.turn", "Pinggy", traducir("ajustes", "TURN por el túnel (video de los invitados de afuera)"), "bool", {}, 0, 0, "", traducir("ajustes", "El audio y el video de los invitados que entran por internet viajan por el túnel (un servidor TURN propio dentro de este equipo). Apagado, solo pasan las páginas: el video de los de afuera puede no conectar."), "gateway", true},
         {"pinggy.turnTcpPuerto", "Pinggy", traducir("ajustes", "TURN: puerto TCP fijo"), "int", {}, 0, 65535, "", traducir("ajustes", "Con plan Pro se puede reservar un puerto TCP fijo en pinggy. 0 = el que dé pinggy."), "gateway", 0},
@@ -280,7 +280,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
         {"ui.theme", "Apariencia", traducir("ajustes", "Tema"), "choice", choices({{"dark", traducir("ajustes", "Oscuro")},{"light", traducir("ajustes", "Claro")}}), 0, 0, "", "", "live", "dark"},
         {"web.tema", "Apariencia", traducir("ajustes", "Tema de las interfaces web"), "choice", opcionesTemaWeb(), 0, 0, "", traducir("ajustes", "El de todas las páginas de control (dashboard, botonera, presidencia, rótulos, corrección): cambia en todos los aparatos sin recargar. También en Servicios → Templates."), "live", "neuro-oscuro"},
         // --- Sistema y datos -------------------------------------------------------
-        {"launcher.idioma", "Sistema y datos", etiquetaIdioma(), "choice", opcionesIdioma(), 0, 0, "", traducir("ajustes", "El del programa: la interfaz, los avisos, el registro y el asistente. El de cada evento (lo que ven y escuchan el público y los invitados) se elige en el evento. Cambia al reiniciar el programa."), "restart", QString()},
+        {"launcher.idioma", "Idioma", etiquetaIdioma(), "choice", opcionesIdioma(), 0, 0, "", traducir("ajustes", "El del programa: la interfaz, los avisos, el registro y el asistente. El de cada evento (lo que ven y escuchan el público y los invitados) se elige en el evento. Cambia al reiniciar el programa."), "restart", QString()},
         {"launcher.shadow", "Sistema y datos", traducir("ajustes", "Copia sombra"), "bool", {}, 0, 0, "", traducir("ajustes", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente)."), "restart", false},
         {"launcher.cuelgue", "Sistema y datos", traducir("ajustes", "Colgado si no responde"), "int", {}, 2, 120, "s", traducir("ajustes", "Si el programa (o la conferencia) deja de latir este tiempo, se guarda un volcado y se reinicia solo. Más corto, vuelve antes; más largo, aguanta trabas largas sin reiniciar. Rige al volver a abrir el programa."), "restart", 5},
         {"launcher.graciaArranque", "Sistema y datos", traducir("ajustes", "Gracia al arrancar"), "int", {}, 5, 600, "s", traducir("ajustes", "Recién abierto, el programa todavía no late: no se lo vigila durante este tiempo."), "restart", 20},
@@ -313,9 +313,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
     // si no tiene cambios a medio hacer, muestra lo vigente.
     observador_ = rt_.observar([this](AppRuntime::Cambio c) {
         if (c != AppRuntime::Cambio::Ajustes || aplicando_) return;
-        QMetaObject::invokeMethod(this, [this]() {
-            if (!dirty()) revert();
-        }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(this, [this]() { traerDeAfuera(); }, Qt::QueuedConnection);
     });
 }
 
@@ -523,6 +521,8 @@ QStringList SettingsModel::sections() const {
 }
 
 QString SettingsModel::seccionVisible(const QString& seccion) const {
+    // La del idioma, también en inglés: la encuentra quien lo cambió sin querer a uno que no lee.
+    if (seccion == QLatin1String("Idioma")) return etiquetaIdioma();
     const QByteArray s = seccion.toUtf8();
     for (const char* k : kSecciones)
         if (s == k) return traducir("ajustes", k);
@@ -553,6 +553,23 @@ void SettingsModel::setValue(const QString& key, const QVariant& value) {
 }
 
 QVariant SettingsModel::value(const QString& key) const { return draft_.value(key); }
+
+void SettingsModel::traerDeAfuera() {
+    // Otro aplicó (el asistente por MCP, «Configurar con la API key»): lo que el operador no
+    // estaba editando toma el valor nuevo; lo que sí estaba editando se respeta. Antes, con
+    // cualquier cambio a medio hacer, el formulario entero se quedaba con lo viejo (la
+    // dirección de pinggy corregida por el asistente no se veía).
+    const QVariantMap nuevo = current();
+    for (auto it = nuevo.begin(); it != nuevo.end(); ++it) {
+        const bool loEditaba = draft_.contains(it.key()) && saved_.contains(it.key()) &&
+                               draft_.value(it.key()) != saved_.value(it.key());
+        if (!loEditaba) draft_[it.key()] = it.value();
+    }
+    saved_ = nuevo;
+    emit dataChanged(index(0), index(rowCount() - 1), {ValueRole, ModifiedRole});
+    emit dirtyChanged();
+    emit draftChanged();
+}
 
 void SettingsModel::revert() {
     // Lo vigente se relee de la configuración: puede haber cambiado después de la

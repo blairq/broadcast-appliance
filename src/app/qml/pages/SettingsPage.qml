@@ -29,6 +29,8 @@ Rectangle {
     /// El orden de la lista de la izquierda. Las secciones del esquema
     /// (SettingsModel) y las de vista propia, juntas por tema.
     readonly property var grupos: [
+        // El idioma, primero y a la vista («Idioma · Language»: también en inglés).
+        { titulo: qsTr("General"), secciones: ["Idioma"] },
         { titulo: qsTr("Imagen y sonido"), secciones: ["Video", "Cámaras y entradas", "Audio", page.traduccionSection] },
         { titulo: qsTr("Salida"), secciones: ["Transmisión", "Grabación", "Codificación"] },
         { titulo: qsTr("Conferencia"), secciones: ["Invitados", "Conferencia", "Red de la conferencia"] },
@@ -653,7 +655,7 @@ Rectangle {
                         TextField {
                             id: subPedido
                             Layout.preferredWidth: 220
-                            placeholderText: qsTr("dejalo vacío o p. ej. sala-concejo")
+                            placeholderText: qsTr("dejalo vacío o p. ej. salaconcejo")
                             inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
                         }
                         Text { text: ".a.pinggy.link"; color: Theme.textFaint; font.pixelSize: 12 }
