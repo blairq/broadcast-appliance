@@ -415,7 +415,7 @@ endif()
 # chrome-headless-shell (Chrome for Testing, sin ventana): las fotos de las páginas web
 # del aparato (web_captura: los manuales, y el asistente para ver lo que edita). Lo baja
 # `make deps-chrome-headless` (tools/deps/chrome-headless.sh). En Linux trae en lib/ las
-# bibliotecas que no están en la base (NSS, ATK…): la app lo lanza con LD_LIBRARY_PATH.
+# bibliotecas que no están en la base (NSS, ATK…), que encuentra por su RUNPATH.
 if(APPLE)
     set(BA_CHROME_HEADLESS_DIR "${CMAKE_SOURCE_DIR}/extern/chrome-headless/mac-arm64")
 elseif(WIN32)

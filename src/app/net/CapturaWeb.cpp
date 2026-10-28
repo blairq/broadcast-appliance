@@ -75,9 +75,8 @@ void CapturaWeb::capturar(const Pedido& p, Listo listo) {
     // Como root (un contenedor, las pruebas en Docker) Chrome no arranca con su caja de arena:
     // sin ella solo en ese caso. Una máquina de verdad no corre el programa como root.
     if (::geteuid() == 0) args << "--no-sandbox";
-    // Las bibliotecas que no están en la base viajan al lado (tools/deps/chrome-headless.sh).
-    const QString lib = QFileInfo(ejecutable()).absolutePath() + "/lib";
-    env.insert("LD_LIBRARY_PATH", lib + (env.contains("LD_LIBRARY_PATH") ? ":" + env.value("LD_LIBRARY_PATH") : QString()));
+    // (Las bibliotecas que no están en la base viajan en su lib/ y se encuentran por el
+    // RUNPATH: tools/deps/chrome-headless.sh.)
 #endif
     proc->setProcessEnvironment(env);
     proc->setProcessChannelMode(QProcess::MergedChannels);

@@ -10,9 +10,10 @@
 #
 # LINUX: el binario pide bibliotecas que no están en la base permitida
 # (tools/deps/linux-baseline.txt): NSS, NSPR, ATK, Xcomposite, Xdamage, expat,
-# at-spi y sqlite. Viajan ADENTRO del bundle, en su carpeta lib/ (la app lo lanza
-# con LD_LIBRARY_PATH a esa carpeta): salen de los paquetes de Ubuntu 24.04 con
-# versión y sha256 fijados. Si Ubuntu saca una versión del archivo, la descarga
+# at-spi y sqlite. Viajan ADENTRO del bundle, en su carpeta lib/, y se encuentran
+# por el RUNPATH ($ORIGIN/lib en el ejecutable, $ORIGIN en cada biblioteca, con
+# patchelf): igual que el resto del bundle, y es lo que mira check-portable.sh. Salen
+# de los paquetes de Ubuntu 24.04 con versión y sha256 fijados. Si Ubuntu saca una versión del archivo, la descarga
 # falla con el hash: hay que poner la nueva acá.
 #
 # Uso: tools/deps/chrome-headless.sh mac-arm64|win64|linux64
@@ -46,7 +47,7 @@ DEBS=(
 
 DEST="$ROOT/extern/chrome-headless/$PLAT"
 SELLO="$VERSION $SHA"
-if [ "$PLAT" = linux64 ]; then SELLO="$SELLO $(printf '%s\n' "${DEBS[@]}" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-16)"; fi
+if [ "$PLAT" = linux64 ]; then SELLO="$SELLO runpath $(printf '%s\n' "${DEBS[@]}" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-16)"; fi
 if [ -f "$DEST/.version" ] && [ "$(cat "$DEST/.version")" = "$SELLO" ]; then
     echo "[chrome-headless] $PLAT $VERSION: al día" >&2
     exit 0
@@ -94,6 +95,14 @@ if [ "$PLAT" = linux64 ]; then
             mkdir -p "$DEST/lib/nss" && cp -a "$TMP/debs/x/usr/lib/x86_64-linux-gnu/nss/." "$DEST/lib/nss/"
         fi
     done
+    # Que se encuentren por el RUNPATH (sin LD_LIBRARY_PATH): el ejecutable, en lib/; cada
+    # biblioteca, al lado suyo (las de nss/, también en lib/).
+    command -v patchelf >/dev/null 2>&1 || { echo "[chrome-headless] ERROR: falta patchelf" >&2; exit 1; }
+    patchelf --set-rpath '$ORIGIN/lib' "$DEST/chrome-headless-shell"
+    for f in "$DEST"/lib/*.so*; do [ -L "$f" ] || patchelf --set-rpath '$ORIGIN' "$f"; done
+    if [ -d "$DEST/lib/nss" ]; then
+        for f in "$DEST"/lib/nss/*.so*; do [ -L "$f" ] || patchelf --set-rpath '$ORIGIN:$ORIGIN/..' "$f"; done
+    fi
 fi
 
 echo "$SELLO" > "$DEST/.version"
