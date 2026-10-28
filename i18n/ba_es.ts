@@ -348,7 +348,7 @@
 <context>
     <name>GraficosPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/GraficosPage.qml" line="+488"/>
+        <location filename="../src/app/qml/pages/GraficosPage.qml" line="+494"/>
         <source>%n cuadro</source>
         <translation>
             <numerusform>%n cuadro</numerusform>
@@ -1115,7 +1115,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>StudioViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4385"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4391"/>
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Hay %n persona conectada</numerusform>

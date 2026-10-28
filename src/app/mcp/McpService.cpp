@@ -3136,8 +3136,10 @@ void McpService::registerTools() {
         t.category = "evento";
         t.readOnly = true;
         t.description = ba::i18n::traducir("mcp", "Las bancas como se ven desde la cabina: {filas, columnas, bancas: [{banca, fila, columna, "
-                        "integrante: {id, nombre, bloque, preset_ptz, validado}}], sin_lugar: [bancas del cuerpo que "
-                        "no están en la grilla]}. Fila 0 = la de adelante; columna 0 = la izquierda desde la cabina.");
+                        "x?, y?, integrante: {id, nombre, bloque, preset_ptz, validado}}], presidencia?: {banca, integrante}, "
+                        "sin_lugar: [bancas del cuerpo que no están en la grilla]}. Fila 0 = la de adelante; columna 0 = "
+                        "la izquierda desde la cabina. x, y: la banca se ubicó a mano en el hemiciclo (en anchos de "
+                        "banca desde el centro de la presidencia, y negativa hacia arriba).");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.cuerpo().cuerpo().recinto())); };
         core_.addTool(std::move(t));
@@ -3152,7 +3154,10 @@ void McpService::registerTools() {
                         "sola (fila -1 la saca); `bancas: [{banca, fila, columna}]` reemplaza la lista entera. Si algo "
                         "no cierra (fuera de la grilla, dos en un lugar), no cambia nada y dice por qué. "
                         "`distribucion`: cómo se dibuja (grilla, hemiciclo —cada fila un arco alrededor de la "
-                        "presidencia— o lista).");
+                        "presidencia— o lista). `presidencia: banca` la pone en la mesa de la presidencia, fuera de "
+                        "la grilla (\"\" la saca). En el hemiciclo, `posicion: {banca, x, y}` la ubica a mano (en "
+                        "anchos de banca desde el centro de la presidencia, y negativa hacia arriba; x null la vuelve "
+                        "a su arco) y `posiciones_auto: true` las vuelve todas a su arco.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"distribucion", {{"type", "string"}, {"enum", {"grilla", "hemiciclo", "lista"}}}},
@@ -3163,8 +3168,15 @@ void McpService::registerTools() {
                             {{"type", "object"},
                              {"properties",
                               {{"banca", {{"type", "string"}}}, {"fila", {{"type", "integer"}}}, {"columna", {{"type", "integer"}}}}}}},
-                           {"bancas", {{"type", "array"}, {"items", {{"type", "object"}}}}}}}};
-        t.examples = {R"({"filas": 4, "columnas": 9, "auto": true})", R"({"mover": {"banca": "12", "fila": 0, "columna": 4}})"};
+                           {"bancas", {{"type", "array"}, {"items", {{"type", "object"}}}}},
+                           {"presidencia", {{"type", "string"}}},
+                           {"posicion",
+                            {{"type", "object"},
+                             {"properties",
+                              {{"banca", {{"type", "string"}}}, {"x", {{"type", {"number", "null"}}}}, {"y", {{"type", {"number", "null"}}}}}}}},
+                           {"posiciones_auto", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"filas": 4, "columnas": 9, "auto": true})", R"({"mover": {"banca": "12", "fila": 0, "columna": 4}})",
+                      R"({"presidencia": "1"})", R"({"posicion": {"banca": "12", "x": -3.5, "y": -4}})"};
         t.run = [&vm](const json& a, Done done) {
             const std::string e = vm.cuerpo().cuerpo().setRecinto(a);
             if (!e.empty()) return done(ToolResult::error(e));

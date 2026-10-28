@@ -185,6 +185,9 @@ function pintarRecinto() {
   const palabra = (est.fila || {}).al_aire ? est.fila.al_aire.id : "";
   let presentes = 0, total = 0;
   const ocupadas = (r.bancas || []).filter((b) => b.integrante);
+  // La de la presidencia va en la mesa, fuera de los arcos.
+  const pres = r.presidencia && r.presidencia.integrante ? r.presidencia : null;
+  if (pres) ocupadas.push(pres);
   if (!ocupadas.length) {
     const v = el("div", "recinto-vacio");
     v.appendChild(el("strong", "", t("Todavía no hay bancas")));
@@ -207,7 +210,7 @@ function pintarRecinto() {
     // Las filas de adelante (la 0) abajo, cerca de la presidencia, como en la app.
     const dx = W / cols, dy = (Hv - 60) / filas;
     escala = Math.max(0.42, Math.min(1, dx / BANCA, dy / BANCA));
-    pos = (b) => [dx * (b.columna + 0.5), Hv - 60 - dy * (b.fila + 0.5) + 10];
+    pos = (b) => b === pres ? [W / 2 + 130, Hv - 22] : [dx * (b.columna + 0.5), Hv - 60 - dy * (b.fila + 0.5) + 10];
     caja.style.setProperty("--mesa", (H - Hv + 4).toFixed(0) + "px");
   } else {
     // Cada fila un arco alrededor de la presidencia (abajo, al centro). La caja suele
@@ -219,9 +222,18 @@ function pintarRecinto() {
     const r0 = filas > 1 ? 0.5 : 1, paso = filas > 1 ? (1 - r0) / (filas - 1) : 0;
     const hueco = Math.min(Math.PI * r0 * (Rx + Ry) / 2 / cols, filas > 1 ? paso * Math.min(Rx, Ry) : Infinity);
     escala = Math.max(0.42, Math.min(1, hueco / BANCA));
+    // Una banca ubicada a mano en la app trae x, y en anchos de banca desde la
+    // presidencia (radio de adentro R0, 1,32 por fila): se pasa a estos arcos en polares.
+    const R0 = Math.max(1.4 * cols / Math.PI, 1.4);
     pos = (b) => {
-      const f = r0 + paso * b.fila;
-      const ang = Math.PI * (1 - (b.columna + 0.5) / cols);
+      if (b === pres) return [cx, cy - 46];
+      let f = r0 + paso * b.fila;
+      let ang = Math.PI * (1 - (b.columna + 0.5) / cols);
+      if (typeof b.x === "number" && typeof b.y === "number") {
+        const rho = Math.hypot(b.x, b.y);
+        f = filas > 1 ? r0 + paso * (rho - R0) / 1.32 : rho / R0;
+        ang = Math.atan2(-b.y, b.x);
+      }
       return [cx + Rx * f * Math.cos(ang), cy - Ry * f * Math.sin(ang)];
     };
     caja.style.setProperty("--mesa", (H - cy - 30).toFixed(0) + "px");

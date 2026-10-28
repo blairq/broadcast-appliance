@@ -1018,10 +1018,19 @@ json Botonera::armarPlantilla(const std::string& id) const {
         // (hasta 16 columnas y 15 filas; la última fila es la de los comandos).
         nombre = traducir("botonera", "Recinto");
         const json r = g_.recinto ? g_.recinto() : json::object();
+        // La de la presidencia en una fila propia, al centro, antes de los comandos.
+        const bool conPres = r.contains("presidencia");
         columnas = std::clamp(r.value("columnas", 0), 4, 16);
-        filas = std::clamp(r.value("filas", 0) + 1, 2, 16);
+        filas = std::clamp(r.value("filas", 0) + 1 + (conPres ? 1 : 0), 2, 16);
         if (r.value("columnas", 0) < 1) return nullptr;
-        for (const auto& b : r.value("bancas", json::array())) {
+        json bancas = r.value("bancas", json::array());
+        if (conPres) {
+            json p = r["presidencia"];
+            p["fila"] = filas - 2;
+            p["columna"] = columnas / 2;
+            bancas.push_back(p);
+        }
+        for (const auto& b : bancas) {
             const int x = b.value("columna", 0), y = b.value("fila", 0);
             if (x >= columnas || y >= filas - 1) continue;
             const std::string banca = b.value("banca", std::string());
@@ -1045,11 +1054,18 @@ json Botonera::armarPlantilla(const std::string& id) const {
         const std::set<std::string> presis = g_.presidentes ? g_.presidentes() : std::set<std::string>{};
         std::vector<std::tuple<std::string, std::string, int, int>> lugares;  // banca, nombre, x, y
         if (r.value("columnas", 0) > 0 && !r.value("bancas", json::array()).empty()) {
+            const bool conPres = r.contains("presidencia");
             columnas = std::clamp(r.value("columnas", 4), 4, 16);
-            filas = std::clamp(r.value("filas", 1) + 1, 2, 16);
+            filas = std::clamp(r.value("filas", 1) + 1 + (conPres ? 1 : 0), 2, 16);
             for (const auto& b : r["bancas"]) {
                 const std::string nom = b.contains("integrante") ? b["integrante"].value("nombre", std::string()) : "";
                 lugares.emplace_back(b.value("banca", std::string()), nom, b.value("columna", 0), b.value("fila", 0));
+            }
+            // La de la presidencia en una fila propia, al centro, antes de los comandos.
+            if (conPres) {
+                const json& p = r["presidencia"];
+                const std::string nom = p.contains("integrante") ? p["integrante"].value("nombre", std::string()) : "";
+                lugares.emplace_back(p.value("banca", std::string()), nom, columnas / 2, filas - 2);
             }
         } else {
             const auto bs = g_.bancas ? g_.bancas() : std::vector<std::pair<std::string, std::string>>{};

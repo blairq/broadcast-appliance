@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <ctime>
 #include <fstream>
 #include <sstream>
@@ -153,12 +154,13 @@ json Cuerpo::recinto(bool completo) const {
     json out{{"filas", r.value("filas", 0)}, {"columnas", r.value("columnas", 0)}, {"bancas", json::array()},
              {"distribucion", r.value("distribucion", std::string("grilla"))}};
     std::vector<std::string> ubicadas;
-    for (const auto& b : r.value("bancas", json::array())) {
-        json lugar{{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}};
-        if (const json t = toma(lugar["banca"].get<std::string>()); !t.empty()) lugar["toma"] = t;
-        ubicadas.push_back(plano(lugar["banca"].get<std::string>()));
+    // La banca con su toma y, con `completo`, quién se sienta.
+    const auto conDatos = [&](json lugar) {
+        const std::string banca = lugar["banca"].get<std::string>();
+        if (const json t = toma(banca); !t.empty()) lugar["toma"] = t;
+        ubicadas.push_back(plano(banca));
         if (completo) {
-            const json i = buscar(lugar["banca"].get<std::string>());
+            const json i = buscar(banca);
             if (!i.empty() && plano(i.value("banca", std::string())) == ubicadas.back())
                 lugar["integrante"] = {{"id", i.value("id", std::string())},
                                        {"nombre", i.value("nombre", std::string())},
@@ -166,8 +168,19 @@ json Cuerpo::recinto(bool completo) const {
                                        {"preset_ptz", i.value("preset_ptz", json::object())},
                                        {"validado", i.contains("validado_por")}};
         }
-        out["bancas"].push_back(lugar);
+        return lugar;
+    };
+    for (const auto& b : r.value("bancas", json::array())) {
+        json lugar{{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}};
+        if (b.contains("x") && b["x"].is_number() && b.contains("y") && b["y"].is_number()) {
+            lugar["x"] = b["x"];
+            lugar["y"] = b["y"];
+        }
+        out["bancas"].push_back(conDatos(lugar));
     }
+    const json pres = r.value("presidencia", json::object());
+    if (pres.is_object() && !pres.value("banca", std::string()).empty())
+        out["presidencia"] = conDatos(json{{"banca", pres.value("banca", std::string())}});
     if (completo) {
         json sin = json::array();
         for (const auto& i : datos_["integrantes"]) {
@@ -189,8 +202,7 @@ std::string Cuerpo::setRecinto(const json& c) {
         const std::string d = c.value("distribucion", std::string());
         if (d != "grilla" && d != "hemiciclo" && d != "lista") return ba::i18n::traducir("asamblea", "distribucion: grilla, hemiciclo o lista");
         r["distribucion"] = d;
-        if (!c.contains("filas") && !c.contains("columnas") && !c.contains("bancas") && !c.contains("mover") &&
-            !c.value("auto", false)) {
+        if (c.size() == 1) {
             datos_["recinto"] = r;
             guardarArchivo();
             return {};
@@ -202,15 +214,40 @@ std::string Cuerpo::setRecinto(const json& c) {
     if (c.contains("bancas")) {
         if (!c["bancas"].is_array()) return ba::i18n::traducir("asamblea", "bancas: una lista de {banca, fila, columna}");
         r["bancas"] = json::array();
-        for (const auto& b : c["bancas"])
-            r["bancas"].push_back({{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}});
+        for (const auto& b : c["bancas"]) {
+            json lugar{{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}};
+            if (b.contains("x") && b["x"].is_number() && b.contains("y") && b["y"].is_number()) {
+                lugar["x"] = b["x"];
+                lugar["y"] = b["y"];
+            }
+            r["bancas"].push_back(lugar);
+        }
+    }
+    // La presidencia va en la mesa: sale de la grilla (y de la presidencia sale la que había).
+    const auto presidencia = [&r]() {
+        return r.contains("presidencia") ? r["presidencia"].value("banca", std::string()) : std::string();
+    };
+    const auto sacarDeLaGrilla = [&r](const std::string& banca) {
+        auto& lista = r["bancas"];
+        for (auto it = lista.begin(); it != lista.end();)
+            it = plano(it->value("banca", std::string())) == plano(banca) ? lista.erase(it) : it + 1;
+    };
+    if (c.contains("presidencia")) {
+        const std::string banca = c["presidencia"].is_string() ? c["presidencia"].get<std::string>() : std::string();
+        if (plano(banca).empty()) {
+            r.erase("presidencia");
+        } else {
+            sacarDeLaGrilla(banca);
+            r["presidencia"] = {{"banca", banca}};
+        }
     }
     if (c.value("auto", false)) {
         // Las bancas del cuerpo en orden (numérico si son números), de adelante
         // para atrás y de izquierda a derecha.
         std::vector<std::string> bancas;
         for (const auto& i : datos_["integrantes"])
-            if (!i.value("banca", std::string()).empty()) bancas.push_back(i.value("banca", std::string()));
+            if (!i.value("banca", std::string()).empty() && plano(i.value("banca", std::string())) != plano(presidencia()))
+                bancas.push_back(i.value("banca", std::string()));
         std::sort(bancas.begin(), bancas.end(), [](const std::string& a, const std::string& b) {
             const bool na = !a.empty() && std::all_of(a.begin(), a.end(), ::isdigit), nb = !b.empty() && std::all_of(b.begin(), b.end(), ::isdigit);
             if (na && nb) return std::stoll(a) < std::stoll(b);
@@ -228,13 +265,34 @@ std::string Cuerpo::setRecinto(const json& c) {
         const json m = c["mover"];
         const std::string banca = m.value("banca", std::string());
         if (banca.empty()) return ba::i18n::traducir("asamblea", "mover: falta la banca");
-        auto& lista = r["bancas"];
-        for (auto it = lista.begin(); it != lista.end();)
-            it = plano(it->value("banca", std::string())) == plano(banca) ? lista.erase(it) : it + 1;
-        if (m.value("fila", 0) >= 0) lista.push_back({{"banca", banca}, {"fila", m.value("fila", 0)}, {"columna", m.value("columna", 0)}});
+        sacarDeLaGrilla(banca);
+        if (plano(presidencia()) == plano(banca)) r.erase("presidencia");
+        if (m.value("fila", 0) >= 0) r["bancas"].push_back({{"banca", banca}, {"fila", m.value("fila", 0)}, {"columna", m.value("columna", 0)}});
+    }
+    // A mano en el hemiciclo (o de vuelta a su arco).
+    if (c.value("posiciones_auto", false))
+        for (auto& b : r["bancas"]) b.erase("x"), b.erase("y");
+    if (c.contains("posicion")) {
+        const json p = c["posicion"];
+        const std::string banca = p.is_object() ? p.value("banca", std::string()) : std::string();
+        json* lugar = nullptr;
+        for (auto& b : r["bancas"])
+            if (plano(b.value("banca", std::string())) == plano(banca) && !plano(banca).empty()) lugar = &b;
+        if (!lugar)
+            return ba::i18n::llenar(ba::i18n::traducir("asamblea", "posicion: la banca «%1» no está en el recinto"), {banca});
+        if (p.contains("x") && p["x"].is_number() && p.contains("y") && p["y"].is_number()) {
+            const double x = p["x"].get<double>(), y = p["y"].get<double>();
+            if (std::abs(x) > 200 || std::abs(y) > 200) return ba::i18n::traducir("asamblea", "posicion: x e y entre -200 y 200");
+            (*lugar)["x"] = std::round(x * 100) / 100;
+            (*lugar)["y"] = std::round(y * 100) / 100;
+        } else {
+            lugar->erase("x");
+            lugar->erase("y");
+        }
     }
     // Cada banca en un lugar válido, una sola vez, y un lugar por banca.
     std::vector<std::string> vistas, lugares;
+    if (!plano(presidencia()).empty()) vistas.push_back(plano(presidencia()));
     for (const auto& b : r["bancas"]) {
         const std::string banca = b.value("banca", std::string());
         const int f = b.value("fila", -1), col = b.value("columna", -1);

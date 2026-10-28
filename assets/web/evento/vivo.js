@@ -557,16 +557,21 @@
       if (r.distribucion === "hemiciclo") {
         const r0 = Math.max(1.4 * C / Math.PI, 1.4), paso = 1.32, r1 = r0 + paso * (F - 1), m = 0.6;
         for (const b of r.bancas) {
+          // Ubicada a mano en la app: x, y ya vienen en estas unidades (anchos de banca).
+          if (typeof b.x === "number" && typeof b.y === "number") { lugar.push([b, b.x, b.y]); continue; }
           const radio = r0 + paso * b.fila, ang = Math.PI * (1 - (b.columna + 0.5) / C);
           lugar.push([b, radio * Math.cos(ang), -radio * Math.sin(ang)]);
         }
-        vb = [-(r1 + m), -(r1 + m), 2 * (r1 + m), r1 + m + 1.3];
+        vb = [-(r1 + m), -(r1 + m), 2 * (r1 + m), r1 + m + 1.3 + (r.presidencia ? 1 : 0)];
         pres = { x: -Math.min(r0 * 0.6, 3), y: 0.35, w: Math.min(r0 * 1.2, 6) };
+        if (r.presidencia) lugar.push([r.presidencia, 0, pres.y + 1.35]);
       } else {
         const paso = 1.2, arriba = 1.5;
         for (const b of r.bancas) lugar.push([b, b.columna * paso, arriba + b.fila * paso]);
         vb = [-0.6, -0.1, (C - 1) * paso + 1.2, arriba + (F - 1) * paso + 0.7];
         pres = { x: -0.5, y: 0, w: (C - 1) * paso + 1 };
+        // La de la presidencia, en la mesa (a la derecha del cartel).
+        if (r.presidencia) lugar.push([r.presidencia, (C - 1) * paso, 0.4]);
       }
       const s = svg("svg", { viewBox: vb.map((n) => n.toFixed(2)).join(" "), role: "img",
                              "aria-label": llenar(t("Plano de bancas: %1 de %2 presentes"), a.presentes || 0, a.total || 0) });

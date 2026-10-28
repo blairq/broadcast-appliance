@@ -72,6 +72,34 @@ int main() {
         CHECK(r["bancas"].size() == 1 && r["sin_lugar"].size() == 1 && r["sin_lugar"][0] == "3", "la sacada queda sin lugar");
         CHECK(!c.setRecinto({{"columnas", 2}}).empty(), "achicar la grilla con una banca afuera: error y no cambia");
         CHECK(Cuerpo(dir / "cuerpo.json").recinto()["columnas"] == 3, "el recinto se guarda");
+
+        // La presidencia va en la mesa, fuera de la grilla, y no queda «sin lugar».
+        CHECK(c.setRecinto({{"presidencia", "3"}}).empty(), "la banca 3 a la presidencia");
+        r = c.recinto();
+        CHECK(r["presidencia"].value("banca", std::string()) == "3" && r["presidencia"].contains("integrante") &&
+                  r["sin_lugar"].empty() && r["bancas"].size() == 1,
+              "la presidencia trae su integrante y sale de sin_lugar");
+        CHECK(c.setRecinto({{"presidencia", "4"}}).empty(), "otra banca a la presidencia");
+        r = c.recinto();
+        CHECK(r["presidencia"].value("banca", std::string()) == "4" && r["bancas"].empty() && r["sin_lugar"].size() == 1,
+              "la nueva sale de la grilla y la de antes queda sin lugar");
+        CHECK(c.setRecinto({{"auto", true}}).empty(), "auto con presidencia");
+        r = c.recinto();
+        CHECK(r["bancas"].size() == 1 && r["bancas"][0].value("banca", std::string()) == "3", "auto no pone la presidencia en la grilla");
+        CHECK(!c.setRecinto({{"bancas", {{{"banca", "4"}, {"fila", 0}, {"columna", 0}}}}}).empty(), "la presidencia no puede estar también en la grilla");
+
+        // A mano en el hemiciclo: se redondea, se vuelve al arco.
+        CHECK(!c.setRecinto({{"posicion", {{"banca", "9"}, {"x", 1}, {"y", 1}}}}).empty(), "posición de una banca que no está");
+        CHECK(c.setRecinto({{"posicion", {{"banca", "3"}, {"x", 1.256}, {"y", -2.5}}}}).empty(), "ubicar a mano");
+        r = c.recinto();
+        CHECK(r["bancas"][0].value("x", 0.0) == 1.26 && r["bancas"][0].value("y", 0.0) == -2.5, "la posición se guarda redondeada");
+        CHECK(c.setRecinto({{"posicion", {{"banca", "3"}, {"x", nullptr}}}}).empty() && !c.recinto()["bancas"][0].contains("x"),
+              "x null la vuelve a su arco");
+        CHECK(c.setRecinto({{"posicion", {{"banca", "3"}, {"x", 1}, {"y", 1}}}}).empty() &&
+                  c.setRecinto({{"posiciones_auto", true}}).empty() && !c.recinto()["bancas"][0].contains("x"),
+              "posiciones_auto las vuelve todas");
+        CHECK(c.setRecinto({{"mover", {{"banca", "4"}, {"fila", 0}, {"columna", 2}}}}).empty() && !c.recinto().contains("presidencia"),
+              "mover la de la presidencia a la grilla la saca de la mesa");
     }
     {
         // El Cuerpo avisa él mismo cada cambio (la vista no depende del llamador):

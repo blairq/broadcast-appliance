@@ -91,6 +91,26 @@ int main(int argc, char** argv) {
         bot.borrarPerfil(idRec);
     }
     {
+        // La de la presidencia, fuera de la grilla: en una fila propia, al centro.
+        const auto antes = g.recinto;
+        g.recinto = [] {
+            json banca{{"banca", "7"}, {"fila", 1}, {"columna", 3}};
+            return json{{"filas", 2}, {"columnas", 5}, {"bancas", json::array({banca})},
+                        {"presidencia", {{"banca", "1"}, {"integrante", {{"nombre", "Presi"}}}}}};
+        };
+        Botonera botP((dir.path() + "/bp").toStdString(), bus, g);
+        std::string idRec;
+        CHECK(botP.crearPerfil({{"nombre", "Sala"}}, "recinto", &idRec).empty(), "plantilla Recinto con presidencia");
+        const json pr = botP.perfil(idRec);
+        bool presi = false;
+        for (const auto& c : pr["paginas"][0]["celdas"])
+            if (c.value("x", -1) == 2 && c.value("y", -1) == 2 &&
+                c.value("accion", json::object()).value("args", json::object()).value("banca", std::string()) == "1")
+                presi = true;
+        CHECK(pr["paginas"][0]["filas"] == 4 && presi, "la presidencia en su fila, antes de los comandos");
+        g.recinto = antes;
+    }
+    {
         // Micrófonos de bancas: caras, borde que titila, insignia del turno, atenuado.
         g.recinto = [] {
             json b5{{"banca", "5"}, {"fila", 0}, {"columna", 1}, {"integrante", {{"nombre", "Ana Pérez"}}}};

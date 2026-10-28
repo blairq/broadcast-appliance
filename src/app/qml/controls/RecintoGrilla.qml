@@ -5,7 +5,10 @@
 //
 // TRES DISTRIBUCIONES (se elige arriba y queda guardada): la GRILLA de filas y
 // columnas, el HEMICICLO (cada fila es un arco alrededor de la presidencia) y la
-// LISTA. Los lugares se editan siempre sobre la grilla.
+// LISTA. Los lugares se editan sobre la grilla o el hemiciclo (la lista, sobre la
+// grilla). En el hemiciclo una banca también se arrastra a donde va de verdad
+// (aparece una grilla y al soltarla se acomoda a ella); la de la presidencia va en
+// la mesa: se elige y se toca «PRESIDENCIA».
 //
 // CADA BANCA muestra la cara de quien la ocupa: en vivo si está conectado por el
 // navegador (la foto de su cámara), o su foto del Cuerpo si no. Encima, lo que
@@ -31,7 +34,9 @@ ColumnLayout {
     readonly property var b: Studio.bancas.estado
     readonly property int filas: r.filas || 0
     readonly property int columnas: r.columnas || 0
-    readonly property string distribucion: rec.editando ? "grilla" : (r.distribucion || "grilla")
+    readonly property string distribucion: rec.editando && (r.distribucion || "grilla") === "lista" ? "grilla" : (r.distribucion || "grilla")
+    readonly property var pres: r.presidencia || null
+    readonly property bool hayAMano: (r.bancas || []).some(l => l.x !== undefined)
     property bool editando: false
     property bool tocarAbreMicrofono: false
     readonly property var d: Studio.dcn ? Studio.dcn.estado : ({})
@@ -80,6 +85,17 @@ ColumnLayout {
     /// Nadie cargado: en vez de una grilla vacía, qué hacer.
     readonly property bool sinNadie: !rec.editando && (Studio.cuerpo.integrantes || []).length === 0
 
+    function lugarDe(banca) {
+        const l = r.bancas || []
+        for (let i = 0; i < l.length; ++i) if (l[i].banca === banca) return l[i]
+        return null
+    }
+    // Tocar la mesa de la presidencia editando: la elegida va ahí.
+    function tocarPresidencia() {
+        if (!rec.editando || rec.elegida === "") return
+        rec.editar({presidencia: rec.elegida})
+        rec.elegida = ""
+    }
     function lugar(f, c) {
         const l = r.bancas || []
         for (let i = 0; i < l.length; ++i) if (l[i].fila === f && l[i].columna === c) return l[i]
@@ -218,8 +234,10 @@ ColumnLayout {
         color: rec.aviso !== "" ? Theme.live : Theme.textFaint
         text: rec.aviso !== "" ? rec.aviso
               : rec.filas === 0 ? qsTr("Todavía no hay grilla. A cada integrante ponele su banca (botón «Integrantes» de arriba), y tocá «Acomodar solas».")
-              : rec.elegida !== "" ? qsTr("Banca %1: tocá el lugar vacío donde va (o «Sacar»).").arg(rec.elegida)
-              : qsTr("Tocá una banca y después el lugar donde va. En el hemiciclo, las filas son los arcos (la primera, la más cerca de la presidencia).")
+              : rec.elegida !== "" ? qsTr("Banca %1: tocá el lugar vacío donde va, o «PRESIDENCIA» (o «Sacar»).").arg(rec.elegida)
+              : rec.distribucion === "hemiciclo"
+                ? qsTr("Tocá una banca y después el lugar vacío donde va, o arrastrala a donde está en la sala (aparece una grilla). Las filas son los arcos (la primera, la más cerca de la presidencia). La de la presidencia: elegila y tocá «PRESIDENCIA».")
+                : qsTr("Tocá una banca y después el lugar donde va. La de la presidencia: elegila y tocá «PRESIDENCIA».")
     }
     // Sin nadie cargado la grilla queda vacía y no dice nada: lo que hay que hacer.
     EstadoVacio {
@@ -238,8 +256,8 @@ ColumnLayout {
     Flow {
         Layout.fillWidth: true
         spacing: 6
-        visible: rec.editando && (rec.r.sin_lugar || []).length > 0
-        Text { text: qsTr("Sin lugar:"); color: Theme.textDim; font.pixelSize: 12 }
+        visible: rec.editando && ((rec.r.sin_lugar || []).length > 0 || rec.elegida !== "" || (rec.hayAMano && rec.distribucion === "hemiciclo"))
+        Text { text: qsTr("Sin lugar:"); color: Theme.textDim; font.pixelSize: 12; visible: (rec.r.sin_lugar || []).length > 0 }
         Repeater {
             model: rec.r.sin_lugar || []
             delegate: GlassButton {
@@ -248,8 +266,14 @@ ColumnLayout {
                 onClicked: rec.elegida = modelData
             }
         }
+        GlassButton { compact: true; text: qsTr("A la presidencia"); visible: rec.elegida !== "" && !(rec.pres && rec.pres.banca === rec.elegida)
+                      onClicked: rec.tocarPresidencia() }
+        GlassButton { compact: true; text: qsTr("A su arco"); visible: rec.distribucion === "hemiciclo" && rec.elegida !== "" && !!rec.lugarDe(rec.elegida) && rec.lugarDe(rec.elegida).x !== undefined
+                      onClicked: { rec.editar({posicion: {banca: rec.elegida, x: null}}); rec.elegida = "" } }
         GlassButton { compact: true; text: qsTr("Sacar"); visible: rec.elegida !== ""
                       onClicked: { rec.editar({mover: {banca: rec.elegida, fila: -1}}); rec.elegida = "" } }
+        GlassButton { compact: true; text: qsTr("Todas a su arco"); visible: rec.distribucion === "hemiciclo" && rec.hayAMano
+                      onClicked: { rec.editar({posiciones_auto: true}); rec.elegida = "" } }
     }
 
     // --- Una banca (la misma en las tres distribuciones) ---------------------------------
@@ -259,6 +283,11 @@ ColumnLayout {
         property int fila: -1
         property int columna: -1
         property bool ancha: false // en la lista: una fila larga
+        // Editando el hemiciclo: se arrastra (corrido, mientras dura) y al soltar avisa.
+        property bool arrastrable: false
+        readonly property point corrido: arrastre.active ? arrastre.activeTranslation : Qt.point(0, 0)
+        readonly property bool arrastrando: arrastre.active
+        signal soltada()
         // Chica (hemiciclo de una sala grande): la cara, el número y lo que pasa; sin nombre.
         readonly property bool chica: !ancha && width < 104
         readonly property var i: l && l.integrante ? l.integrante : null
@@ -351,21 +380,52 @@ ColumnLayout {
         }
         MouseArea {
             anchors.fill: parent
+            enabled: !celda.arrastrable
             pressAndHoldInterval: 600
             onPressAndHold: if (!rec.editando && celda.l !== null) menu.abrir(celda.l, celda)
             onClicked: rec.tocar(celda)
         }
+        Item {
+            anchors.fill: parent
+            enabled: celda.arrastrable
+            TapHandler { onTapped: rec.tocar(celda) }
+            DragHandler {
+                id: arrastre
+                target: null
+                onActiveChanged: if (!active) celda.soltada()
+            }
+        }
+    }
+
+    // La mesa de la presidencia: el cartel y, si hay, su banca encima. Editando,
+    // tocarla con una banca elegida la pone ahí.
+    component Mesa: Rectangle {
+        id: mesa
+        property real anchoBanca: 150
+        property real altoBanca: 74
+        implicitHeight: rec.pres ? altoBanca + 26 : 26
+        radius: 6
+        color: Qt.rgba(1, 1, 1, 0.05)
+        border.width: rec.editando && rec.elegida !== "" ? 1 : 0
+        border.color: Theme.accent
+        Text { anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: rec.pres ? 3 : 0 }
+               height: rec.pres ? implicitHeight : parent.height; verticalAlignment: Text.AlignVCenter
+               text: qsTr("PRESIDENCIA"); color: Theme.textFaint
+               font { pixelSize: 11; letterSpacing: 2; weight: Font.DemiBold } }
+        MouseArea { anchors.fill: parent; enabled: rec.editando && rec.elegida !== ""; onClicked: rec.tocarPresidencia() }
+        Celda {
+            visible: !!rec.pres
+            l: rec.pres
+            width: mesa.anchoBanca; height: mesa.altoBanca
+            anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 4 }
+        }
     }
 
     // --- Presidencia -----------------------------------------------------------------------
-    Rectangle {
+    Mesa {
         Layout.fillWidth: true
-        implicitHeight: 26
         visible: rec.filas > 0 && rec.distribucion === "grilla" && !rec.sinNadie
-        radius: 6
-        color: Qt.rgba(1, 1, 1, 0.05)
-        Text { anchors.centerIn: parent; text: qsTr("PRESIDENCIA"); color: Theme.textFaint
-               font { pixelSize: 11; letterSpacing: 2; weight: Font.DemiBold } }
+        anchoBanca: Math.min(220, Math.max(120, width / Math.max(1, rec.columnas)))
     }
 
     // --- Grilla ----------------------------------------------------------------------------
@@ -406,24 +466,79 @@ ColumnLayout {
         readonly property real r1: r0 + paso * Math.max(0, rec.filas - 1)
         readonly property real cx: width / 2
         readonly property real cy: r1 + ch / 2 + 6
-        implicitHeight: cy + 44
-        Rectangle {
+        readonly property real paso4: cw / 4 // la grilla de ubicar a mano: un cuarto de banca
+        property bool arrastrando: false
+        implicitHeight: cy + 4 + mesaHemi.height + 10
+        // Mientras se arrastra una banca: la grilla a la que se acomoda al soltarla.
+        Item {
+            anchors.fill: parent
+            visible: hemi.arrastrando
+            Repeater {
+                model: hemi.arrastrando ? Math.ceil(hemi.width / hemi.paso4) + 1 : 0
+                delegate: Rectangle {
+                    required property int index
+                    readonly property int k: index - Math.floor(hemi.cx / hemi.paso4)
+                    x: hemi.cx + k * hemi.paso4; width: 1; height: hemi.height
+                    color: k % 4 === 0 ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.06)
+                }
+            }
+            Repeater {
+                model: hemi.arrastrando ? Math.ceil(hemi.height / hemi.paso4) + 1 : 0
+                delegate: Rectangle {
+                    required property int index
+                    readonly property int k: index - Math.floor(hemi.cy / hemi.paso4)
+                    y: hemi.cy + k * hemi.paso4; height: 1; width: hemi.width
+                    color: k % 4 === 0 ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.06)
+                }
+            }
+        }
+        Mesa {
+            id: mesaHemi
             x: hemi.cx - width / 2; y: hemi.cy + 4
-            width: Math.min(260, hemi.r0 * 1.2); height: 32; radius: 6; color: Qt.rgba(1, 1, 1, 0.05)
-            Text { anchors.centerIn: parent; text: qsTr("PRESIDENCIA"); color: Theme.textFaint
-                   font { pixelSize: 11; letterSpacing: 2; weight: Font.DemiBold } }
+            width: Math.max(Math.min(260, hemi.r0 * 1.2), rec.pres ? hemi.cw + 24 : 0)
+            anchoBanca: hemi.cw; altoBanca: hemi.ch
+        }
+        // Editando: los lugares vacíos de los arcos, para tocarlos.
+        Repeater {
+            model: rec.editando && rec.distribucion === "hemiciclo" ? rec.filas * rec.columnas : 0
+            delegate: Celda {
+                required property int index
+                fila: Math.floor(index / rec.columnas)
+                columna: index % rec.columnas
+                readonly property real radio: hemi.r0 + hemi.paso * fila
+                readonly property real ang: Math.PI * (1 - (columna + 0.5) / Math.max(1, rec.columnas))
+                visible: rec.lugar(fila, columna) === null
+                width: hemi.cw; height: hemi.ch
+                x: hemi.cx + radio * Math.cos(ang) - width / 2
+                y: hemi.cy - radio * Math.sin(ang) - height / 2
+            }
         }
         Repeater {
             model: rec.distribucion === "hemiciclo" ? (rec.r.bancas || []) : []
             delegate: Celda {
+                id: enArco
                 required property var modelData
                 l: modelData
                 // La fila 0 (adelante) en el arco de adentro; las columnas de izquierda a derecha.
+                // Si se ubicó a mano, donde la dejaron (en anchos de banca desde la presidencia).
                 readonly property real radio: hemi.r0 + hemi.paso * modelData.fila
                 readonly property real ang: Math.PI * (1 - (modelData.columna + 0.5) / Math.max(1, rec.columnas))
+                readonly property bool aMano: modelData.x !== undefined
+                readonly property real centroX: aMano ? hemi.cx + modelData.x * hemi.cw : hemi.cx + radio * Math.cos(ang)
+                readonly property real centroY: aMano ? hemi.cy + modelData.y * hemi.cw : hemi.cy - radio * Math.sin(ang)
                 width: hemi.cw; height: hemi.ch
-                x: hemi.cx + radio * Math.cos(ang) - width / 2
-                y: hemi.cy - radio * Math.sin(ang) - height / 2
+                x: centroX - width / 2 + corrido.x
+                y: centroY - height / 2 + corrido.y
+                z: arrastrando ? 2 : 1
+                arrastrable: rec.editando
+                onArrastrandoChanged: hemi.arrastrando = arrastrando
+                // Al soltarla, a la grilla (un cuarto de banca), sin salir del dibujo.
+                onSoltada: {
+                    const cx = Math.max(width / 2, Math.min(hemi.width - width / 2, x + width / 2))
+                    const cy = Math.max(height / 2, Math.min(hemi.cy - height / 2, y + height / 2))
+                    const q = v => Math.round(v * 4) / 4
+                    rec.editar({posicion: {banca: modelData.banca, x: q((cx - hemi.cx) / hemi.cw), y: q((cy - hemi.cy) / hemi.cw)}})
+                }
             }
         }
     }

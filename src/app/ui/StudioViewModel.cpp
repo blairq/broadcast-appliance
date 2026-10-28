@@ -636,22 +636,28 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             // dibuja (grilla, hemiciclo o lista). Solo lo público: sin presets ni micrófonos.
             {
                 const nlohmann::json r = cuerpo_->cuerpo().recinto(true);
-                nlohmann::json lugares = nlohmann::json::array();
-                for (const auto& l : r.value("bancas", nlohmann::json::array())) {
+                // (x, y: ubicada a mano en el hemiciclo; la presidencia va en la mesa.)
+                const auto publico = [&porId](const nlohmann::json& l) {
                     nlohmann::json x{{"banca", l.value("banca", std::string())}, {"fila", l.value("fila", 0)},
                                      {"columna", l.value("columna", 0)}};
+                    for (const char* k : {"x", "y"})
+                        if (l.contains(k)) x[k] = l[k];
                     const std::string id = hijoObjeto(l, "integrante").value("id", std::string());
                     if (!id.empty() && porId.contains(id)) {
                         const auto& p = porId[id];
                         for (const char* k : {"nombre", "bloque", "cargo", "presente", "lugar", "habla"})
                             if (p.contains(k)) x[k] = p[k];
                     }
-                    lugares.push_back(x);
-                }
-                if (!lugares.empty())
+                    return x;
+                };
+                nlohmann::json lugares = nlohmann::json::array();
+                for (const auto& l : r.value("bancas", nlohmann::json::array())) lugares.push_back(publico(l));
+                if (!lugares.empty()) {
                     asam["recinto"] = {{"distribucion", r.value("distribucion", std::string("grilla"))},
                                        {"filas", r.value("filas", 0)}, {"columnas", r.value("columnas", 0)},
                                        {"bancas", lugares}};
+                    if (r.contains("presidencia")) asam["recinto"]["presidencia"] = publico(r["presidencia"]);
+                }
             }
             if (quorum_) {
                 const nlohmann::json q = quorum_->estado();

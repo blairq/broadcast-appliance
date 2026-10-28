@@ -109,7 +109,7 @@ def main() -> int:
 
         # El ejemplo mínimo de la ayuda MCP (help {"topic": "plugins"}, sección «Video») también anda:
         # es lo que copia el asistente cuando le piden un efecto que el grafo no trae.
-        ayuda = open(os.path.join(RAIZ, "src", "app", "mcp", "McpHelp.cpp"), encoding="utf-8").read()
+        ayuda = open(os.path.join(RAIZ, "assets", "idiomas", "es", "ayuda", "plugins.md"), encoding="utf-8").read()
         i = ayuda.find("## Video: un efecto, un filtro")
         i = ayuda.find("```python\n", i)
         j = ayuda.find("```", i + 10)

@@ -68,12 +68,18 @@ class Cuerpo {
 
     /// El recinto. Con `completo`, cada lugar trae su integrante ({id, nombre,
     /// bloque, preset_ptz, validado}) y `sin_lugar` las bancas del cuerpo que
-    /// todavía no están en la grilla.
+    /// todavía no están en la grilla. `presidencia` ({banca, toma?, integrante?},
+    /// solo si hay) es la banca de la presidencia: va en la mesa, fuera de la grilla.
+    /// Una banca con `x`, `y` se ubicó a mano en el hemiciclo: en anchos de banca
+    /// desde el centro de la presidencia (y negativa hacia arriba), las mismas
+    /// unidades que los arcos (radio de adentro max(1,4·columnas/π, 1,4), 1,32 por fila).
     json recinto(bool completo = true) const;
-    /// Cambia el recinto: {filas?, columnas?, bancas?: [{banca, fila, columna}]
+    /// Cambia el recinto: {filas?, columnas?, bancas?: [{banca, fila, columna, x?, y?}]
     /// (reemplaza la lista), mover?: {banca, fila, columna} (una sola; fila
-    /// -1 la saca), auto?: true (acomoda todas las bancas en orden, de
-    /// adelante para atrás)}. "" o el error (y no cambia nada).
+    /// -1 la saca; vuelve a su arco), auto?: true (acomoda todas las bancas en orden,
+    /// de adelante para atrás), presidencia?: banca ("" la saca), posicion?: {banca,
+    /// x, y} (en el hemiciclo; x null la vuelve a su arco), posiciones_auto?: true
+    /// (todas a su arco)}. "" o el error (y no cambia nada).
     std::string setRecinto(const json& cambios);
 
     /// Importa una planilla CSV (separada por coma o punto y coma, con
