@@ -325,7 +325,7 @@ deps-win:
 deps-win-todo: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win deps-lspdsp-win \
           deps-craft-win deps-fuentes-texto deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
-          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win
+          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win deps-chrome-headless-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -405,7 +405,7 @@ deps-linux:
 
 deps-linux-todo: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
             deps-clap deps-lsp deps-lspdsp-linux deps-craft-linux deps-fuentes-texto deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
-            deps-llamacpp-linux
+            deps-llamacpp-linux deps-chrome-headless-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -430,7 +430,7 @@ check-macos-tools:
 
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con las de terceros (deps-terceros-linux).
-deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
+deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-chrome-headless \
             deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-craft-mac deps-fuentes-texto deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
@@ -1236,6 +1236,15 @@ CLAP_SHA := 6548b5831ad9e92551c752753e535b18fead4001165ef1df8e643efefa7133b7
 # documentos, presentaciones y gráficos. Reemplazan a LibreOffice: se bajan los
 # releases oficiales (no se compilan) y viaja solo la herramienta de línea de
 # comandos de cada uno. Ver tools/deps/craft.sh.
+# chrome-headless-shell (Chrome for Testing): las fotos de las páginas web (web_captura).
+.PHONY: deps-chrome-headless deps-chrome-headless-win deps-chrome-headless-linux
+deps-chrome-headless:
+	tools/deps/chrome-headless.sh $(if $(filter Darwin,$(shell uname -s)),mac-arm64,linux64)
+deps-chrome-headless-win:
+	tools/deps/chrome-headless.sh win64
+deps-chrome-headless-linux:
+	tools/deps/chrome-headless.sh linux64
+
 deps-craft:
 	@if [ "$$(uname -s)" = Darwin ]; then tools/deps/craft.sh mac; else tools/deps/craft.sh linux; fi
 

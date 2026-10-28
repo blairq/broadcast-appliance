@@ -40,6 +40,8 @@ class ManualesViewModel : public QObject {
     /// El piso de modelo para el asistente y el recomendado (un solo lugar: también van al encargo).
     Q_PROPERTY(QString modeloMinimo READ modeloMinimo CONSTANT)
     Q_PROPERTY(QString modeloRecomendado READ modeloRecomendado CONSTANT)
+    /// "" si se pueden sacar las fotos de las páginas web (chrome-headless-shell); si no, por qué.
+    Q_PROPERTY(QString capturasWeb READ capturasWeb CONSTANT)
 
    public:
     struct Partes {
@@ -63,6 +65,7 @@ class ManualesViewModel : public QObject {
     void setAnotar(bool b);
     QString modeloMinimo() const;
     QString modeloRecomendado() const;
+    QString capturasWeb() const;
 
     /// El encargo completo (el prompt en inglés con los campos llenos).
     Q_INVOKABLE QString encargo() const;

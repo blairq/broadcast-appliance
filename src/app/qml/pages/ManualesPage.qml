@@ -107,6 +107,13 @@ Rectangle {
                     Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: Theme.textFaint; font.pixelSize: 11
                     text: qsTr("Se guardan en %1").arg(man.m.carpeta)
                 }
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 11
+                    color: man.m.capturasWeb === "" ? Theme.textFaint : Theme.amber
+                    text: man.m.capturasWeb === ""
+                          ? qsTr("Incluye las páginas web (la del evento, invitados, público, teleprompter, botonera…) como se ven en un celular, una tablet o una computadora.")
+                          : qsTr("Sin las páginas web: %1").arg(man.m.capturasWeb)
+                }
 
                 // --- Los que ya están ---------------------------------------------------
                 Text {

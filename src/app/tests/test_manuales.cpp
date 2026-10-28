@@ -26,7 +26,7 @@ int g_fallas = 0;
 
 int main(int argc, char** argv) {
     QTemporaryDir datos;
-    setenv("BA_DATA_ROOT", datos.path().toUtf8().constData(), 1);
+    qputenv("BA_DATA_ROOT", datos.path().toUtf8());
     QCoreApplication app(argc, argv);
     ba::i18n::carpetas(BA_TEST_IDIOMAS, {});
     ba::i18n::usar("en");

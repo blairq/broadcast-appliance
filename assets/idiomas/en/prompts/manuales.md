@@ -11,9 +11,10 @@ without interrupting the operator, a complete library of user manuals: real scre
 screen and Word documents (and PDFs) that explain what each screen does, how to operate the system
 by talking to the assistants, and how to prepare each kind of event.
 
-You work with two MCP servers: `broadcast` (the system: state, pages, screenshots) and `wordcraft`
-(the documents). Do NOT use the console, ffmpeg, python-docx, pandoc or any other library: the
-screenshots, their annotations and the documents all go through those two servers.
+You work with two MCP servers: `broadcast` (the system: state, pages, screenshots of the app and of
+its web pages) and `wordcraft` (the documents). Do NOT use the console, ffmpeg, python-docx, pandoc
+or any other library: the screenshots, their annotations and the documents all go through those two
+servers.
 
 ## Parameters (filled in by the app; do not ask anything, this run is not conversational)
 
@@ -79,9 +80,34 @@ If annotation is on, mark four or five key screenshots: take them again with ano
 Candidates: dashboard (going on air), scenes (adding a source), streaming (the server field),
 control surface (TAKE).
 
+## Phase 2b · Web services (the pages people open on a phone, a tablet or a browser)
+
+The system is not only the operator's screen: a lot of an event is run from web pages. Document
+them with real screenshots.
+
+1. `enlaces_listar`: every web service with its `local` link (and `remoto` only when the tunnel
+   is up). Take each one that has a link: the event's public web page, guests, audience page,
+   teleprompter (speaker view and control view), live titles, subtitle correction, control surface
+   (botonera), Companion, remote session, chair console, dashboard, TV screens.
+2. If a service is off (`activo: false`) and `activable`, turn it on with `enlace_activar` only for
+   the screenshot, and turn it off again right after. **Never turn on the tunnel.**
+3. For each link: `web_captura {url, ancho, alto, archivo: "{{idioma}}/capturas/web-NN-<service>.png"}`.
+   Phone-style pages (guests, audience, control surface, teleprompter control, titles, remote
+   session) at `ancho: 430, alto: 900`; tablet (chair console, control surface on a tablet) at
+   `1024 × 1366`; desktop (event web page, dashboard, speaker teleprompter) at `1440 × 900`. Look at
+   every capture; if it came out empty, retry with a larger `espera_ms`.
+4. **Links with a key** (`#k=…` or `?clave=`) are secrets: never write the key in a manual. Say
+   "the link or QR shown in Services" instead.
+5. Per-person services (`porPersona`) have no shared link: capture the Services page in the app
+   (`ventana_captura`) and explain how each person gets theirs.
+6. Also capture the app's Services page and one QR dialog (`ventana_captura`), so the reader knows
+   where every link comes from.
+7. If `web_captura` answers that it is not available in this installation, skip steps 3-5, keep the
+   app screenshots of step 6 and say so in the report.
+
 ## Phase 3 · The documents
 
-Twelve documents, in this order. Each is an independent file.
+Thirteen documents, in this order. Each is an independent file.
 
 1. **00-Index** (2-3 pp): what to read depending on the task. It says explicitly that the
    assistants manual (00) is read first.
@@ -117,22 +143,64 @@ Twelve documents, in this order. Each is an independent file.
    teleprompters; conference; audience, assembly, people and QR codes; recording and going on air;
    platforms; screens and multiview; control surface; event (rundown, roll, web page, documents,
    history); AI, agents and plugins; latencies and logs; a typical 11-step workflow; frequent
-   problems; an annex with the map of the {{n_paginas}} rail pages.
+   problems; an annex with the map of the {{n_paginas}} rail pages. Include a chapter **"Creating
+   content with the system"** (see below) and a short chapter on the web services that points to
+   document 11.
 4. **02-Workflows** (≈13 pp): the seven workflows together and "what changes and what does not
    from one to the next".
 5. to 11. **One manual per workflow** (4-6 pp): hybrid meeting and work · hybrid class ·
    conference, panel and webinar · deliberative session and assembly · ceremony, act and launch ·
    sports and game streaming · screens and signage. Fixed structure: what it is for / when to use
-   it / what to ask beforehand / what gets built, step by step / pre-flight check / the day of the
-   event / typical mistakes / closing and handover.
+   it / what to ask beforehand / what gets built, step by step / **the web pages and control
+   surfaces** / **content to prepare with the system** / pre-flight check / the day of the event /
+   typical mistakes / closing and handover. In each workflow manual:
+   - **The web pages and control surfaces**: which ones this kind of event uses and who holds them.
+     For example: the event's public page with the programme and the live status; the control
+     surface on a tablet for the director (scenes, cues back/next, take); the teleprompter control
+     on the phone of whoever helps the speaker; the audience page for questions and votes,
+     moderated from another phone; the titles page for a producer; the chair console on the
+     chair's tablet. Explain how each one is handed out (QR or link from Services), what the person
+     can do with it and why it frees the operator. Use the web screenshots of Phase 2b.
+   - **Content to prepare with the system**: what the assistant can produce for this event and how
+     to ask for it (see "Creating content with the system").
 12. **10-Assembly-or-Conference** (≈9 pp): a decision guide for people joining from outside. Rule:
     **conference = they are seen and heard; assembly = they are accredited, counted, vote and are
     recorded.** It includes what each one is, five differences (identity, presence, the floor, vote,
     record), six deciding questions, eight solved cases, the three layers that coexist (assembly +
     conference + audience page) and how to fix a wrong choice.
 
+13. **11-Web-Services** (≈10 pp): one section per web service: what it is, who uses it
+    (audience, guest, speaker, operator, chair, member), how it reaches them (QR, local link, outside
+    link with the tunnel), whether it needs a key or the operator's approval, what can be done from
+    it, and its screenshot (phone, tablet or desktop size). Close with a table "service → who → how
+    it gets there → key/approval".
+
 If the scope is `19`, replace documents 5-11 with one short manual per scenario returned by
-`evento_escenarios`.
+`evento_escenarios` (each one also with its web pages and its content to prepare).
+
+### Creating content with the system
+
+The assistant does not only operate the event: it also **produces the material**. Every manual that
+plans an event must say what can be prepared this way and give one or two example requests the
+operator can copy, in {{nombre_idioma}}. Check each capability against the system (`help`, the tool
+list) before describing it; mention only what exists:
+
+- **Texts**: speeches for the teleprompter (written, shortened to fit a time), rundown notes,
+  on-screen titles and lower thirds, the event's web page content, messages for the audience.
+- **Documents and PDFs**: the event's documentation (`documento_*`, attached to agenda items and
+  published on the event page), minutes and result reports (`evento_acta`, `informe_generar`), any
+  Word document through WordCraft and its PDF (`pdf_convertir`).
+- **Presentations**: slides made with DeckCraft (PowerPoint-style) or brought by the operator, turned
+  into a carousel of slides that goes on air and that a rundown cue moves to the right slide
+  (`laminas_armar`, `carrusel_*`, the `carrusel` cue). Also a PDF shown directly in a scene
+  (`pdf_escena_*`).
+- **Images**: backgrounds, title cards and illustrations the assistant creates or the operator
+  brings, placed in scenes from the event's media.
+- **Dynamic graphics**: animated lower thirds, title plates, tickers, scoreboards, vote results and
+  countdowns (`grafico_*`), which can carry GIFs, images and **video** inside (`grafico_medio_agregar`)
+  and even a **live camera** inside the graphic; they are shown from the rundown with their own
+  timing.
+- **QR codes** for each link (`qr_generar`) to print or show on screen.
 
 In **every** manual from 01 to 10: a short italic note at the top of page 2 pointing to manual 00.
 
@@ -169,8 +237,9 @@ document's number and its title in {{nombre_idioma}} (e.g. `01-...`).
 2. `render_page` of the cover and of a page with an image in each document. Look for: headings at
    the right size, images not overflowing, captions under their figure, no blank pages at the start
    and no duplicated covers at the end.
-3. Count: 12 documents, each with its `.docx` (and `.pdf` if on); the index lists exactly what
-   exists; no referenced screenshot is missing.
+3. Count: 13 documents, each with its `.docx` (and `.pdf` if on); the index lists exactly what
+   exists; no referenced screenshot is missing; every web service of `enlaces_listar` with a link
+   has its screenshot.
 4. Check there is no filler text, no repeated "Figure." without a description and no paragraph
    duplicated by a failed insertion.
 
@@ -180,7 +249,7 @@ Everything ends up in `{{carpeta}}`:
 
 ```
 {{carpeta}}/
-  capturas/      01-… (+ annotated versions)
+  capturas/      01-… (+ annotated versions), web-NN-… (the web pages)
   00-…, 01-…, …  .docx and .pdf
 ```
 
@@ -193,9 +262,10 @@ Then:
    restarts. Skip this only if it was already `{{evento}}`.
 3. Return a **one-screen report**, in plain text, in {{nombre_idioma}}:
    - documents generated, with the pages and words of each;
-   - screenshots taken (and how many annotated);
+   - screenshots taken (app screens, web pages, and how many annotated);
    - system data used (control-room model, configured assistant model, detected hardware);
-   - **limitations**: states an empty event cannot show (real guests, an open vote, being on air);
+   - **limitations**: states an empty event cannot show (real guests, an open vote, being on air)
+     and web services that could not be captured (off and not activable, tunnel needed);
    - what would be left for a second pass.
 
 ## Known errors

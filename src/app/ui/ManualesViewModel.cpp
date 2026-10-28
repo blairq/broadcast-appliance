@@ -3,6 +3,7 @@
 #include "ui/ManualesViewModel.hpp"
 
 #include "i18n/I18n.hpp"
+#include "net/CapturaWeb.hpp"
 #include "platform/Paths.hpp"
 
 #include <QDateTime>
@@ -35,6 +36,7 @@ QString ManualesViewModel::carpeta() const {
 
 QString ManualesViewModel::modeloMinimo() const { return kModeloMinimo; }
 QString ManualesViewModel::modeloRecomendado() const { return kModeloRecomendado; }
+QString ManualesViewModel::capturasWeb() const { return CapturaWeb::disponible(); }
 
 void ManualesViewModel::setAlcance(int a) {
     a = a == 19 ? 19 : 7;

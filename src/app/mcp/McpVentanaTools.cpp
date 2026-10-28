@@ -24,7 +24,10 @@
 #include <QGuiApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QHostAddress>
 #include <QImage>
+#include <QNetworkInterface>
+#include <QUrl>
 #include <QPainter>
 #include <QQuickWindow>
 #include <QScreen>
@@ -37,6 +40,8 @@
 #include <memory>
 
 #include "mcp/McpService.hpp"
+#include "net/CapturaWeb.hpp"
+#include "ui/EnlacesViewModel.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
@@ -217,6 +222,47 @@ std::string sobreWayland() { return ba::i18n::traducir("mcp", kSobreWayland); }
 std::string posTam(const QRect& q) {
     return "(" + std::to_string(q.x()) + "," + std::to_string(q.y()) + ") " + std::to_string(q.width()) + "x" +
            std::to_string(q.height());
+}
+
+/// Guarda una captura para un manual: `archivo` relativo a <Datos>/Manuales (sin «..»,
+/// .jpg o .png), achicada a `ancho` si es más grande, con `recuadros` marcados
+/// ({x, y, w, h, color: rojo|amarillo} en fracciones). Devuelve la ruta, o "" y `error`.
+QString guardarEnManuales(const QImage& img, const json& a, int anchoDeFabrica, std::string& error) {
+    const QString q = QDir::cleanPath(QString::fromStdString(a.value("archivo", std::string())));
+    const QString ext = q.section('.', -1).toLower();
+    if (q.isEmpty() || q.startsWith("..") || QDir::isAbsolutePath(q) || (ext != "jpg" && ext != "jpeg" && ext != "png")) {
+        error = ba::i18n::traducir("mcp", "`archivo` va relativo a la carpeta Manuales, sin «..», y termina en .jpg o .png.");
+        return {};
+    }
+    const QDir raiz(QString::fromStdU16String((ba::platform::dataRoot() / "Manuales").u16string()));
+    const QString destino = raiz.absoluteFilePath(q);
+    const int ancho = std::clamp(a.value("ancho", anchoDeFabrica), 320, 3840);
+    QImage guardar = img.width() > ancho ? img.scaledToWidth(ancho, Qt::SmoothTransformation) : img;
+    if (a.contains("recuadros") && a["recuadros"].is_array()) {
+        guardar = guardar.convertToFormat(QImage::Format_RGB32);
+        QPainter pintor(&guardar);
+        for (const auto& b : a["recuadros"]) {
+            const QColor color = b.value("color", std::string("rojo")) == "amarillo" ? QColor(255, 210, 0, 242) : QColor(230, 20, 20, 242);
+            pintor.setPen(QPen(color, 3));
+            pintor.drawRect(QRectF(b.value("x", 0.0) * guardar.width(), b.value("y", 0.0) * guardar.height(),
+                                   b.value("w", 0.0) * guardar.width(), b.value("h", 0.0) * guardar.height()));
+        }
+    }
+    QDir().mkpath(QFileInfo(destino).absolutePath());
+    if (!guardar.save(destino, nullptr, ext == "png" ? -1 : 90)) {
+        error = ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo guardar «%1»."), {destino.toStdString()});
+        return {};
+    }
+    return destino;
+}
+
+json esquemaRecuadros() {
+    return {{"type", "array"},
+            {"items",
+             {{"type", "object"},
+              {"properties",
+               {{"x", {{"type", "number"}}}, {"y", {{"type", "number"}}}, {"w", {{"type", "number"}}},
+                {"h", {{"type", "number"}}}, {"color", {{"type", "string"}, {"enum", {"rojo", "amarillo"}}}}}}}}};
 }
 
 } // namespace
@@ -681,13 +727,7 @@ void McpService::registerVentanaTools() {
                            {"archivo",
                             {{"type", "string"},
                              {"description", ba::i18n::traducir("mcp", "guardarla en Manuales/<archivo> (.jpg o .png)")}}},
-                           {"recuadros",
-                            {{"type", "array"},
-                             {"items",
-                              {{"type", "object"},
-                               {"properties",
-                                {{"x", {{"type", "number"}}}, {"y", {{"type", "number"}}}, {"w", {{"type", "number"}}},
-                                 {"h", {{"type", "number"}}}, {"color", {{"type", "string"}, {"enum", {"rojo", "amarillo"}}}}}}}}}}}}};
+                           {"recuadros", esquemaRecuadros()}}}};
         t.examples = {R"({})", R"({"ventana": "panel:carrusel"})",
                       R"({"ancho": 1600, "archivo": "es/capturas/01-dashboard.jpg"})",
                       R"({"ancho": 1600, "archivo": "es/capturas/01b-dashboard-anotada.jpg", "recuadros": [{"x": 0.8, "y": 0.02, "w": 0.15, "h": 0.06, "color": "rojo"}]})"};
@@ -722,36 +762,79 @@ void McpService::registerVentanaTools() {
             ToolResult r;
             r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Interfaz de «%1»."), {id.toStdString()}));
             // Guardarla para un manual: solo dentro de <Datos>/Manuales (nada de rutas sueltas).
-            if (const std::string rel = a.value("archivo", std::string()); !rel.empty()) {
-                const QString q = QDir::cleanPath(QString::fromStdString(rel));
-                const QString ext = q.section('.', -1).toLower();
-                if (q.startsWith("..") || QDir::isAbsolutePath(q) || (ext != "jpg" && ext != "jpeg" && ext != "png"))
-                    return done(ToolResult::error(ba::i18n::traducir(
-                        "mcp", "`archivo` va relativo a la carpeta Manuales, sin «..», y termina en .jpg o .png.")));
-                const QDir raiz(QString::fromStdU16String((ba::platform::dataRoot() / "Manuales").u16string()));
-                const QString destino = raiz.absoluteFilePath(q);
-                const int ancho = std::clamp(a.value("ancho", 1600), 320, 3840);
-                QImage guardar = img.width() > ancho ? img.scaledToWidth(ancho, Qt::SmoothTransformation) : img;
-                if (a.contains("recuadros") && a["recuadros"].is_array()) {
-                    guardar = guardar.convertToFormat(QImage::Format_RGB32);
-                    QPainter pintor(&guardar);
-                    for (const auto& b : a["recuadros"]) {
-                        const QColor color = b.value("color", std::string("rojo")) == "amarillo" ? QColor(255, 210, 0, 242)
-                                                                                               : QColor(230, 20, 20, 242);
-                        pintor.setPen(QPen(color, 3));
-                        pintor.drawRect(QRectF(b.value("x", 0.0) * guardar.width(), b.value("y", 0.0) * guardar.height(),
-                                               b.value("w", 0.0) * guardar.width(), b.value("h", 0.0) * guardar.height()));
-                    }
-                }
-                QDir().mkpath(QFileInfo(destino).absolutePath());
-                if (!guardar.save(destino, nullptr, ext == "png" ? -1 : 90))
-                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo guardar «%1»."), {destino.toStdString()})));
-                r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada en %1 (%2x%3)."),
-                                        {destino.toStdString(), std::to_string(guardar.width()), std::to_string(guardar.height())}));
+            if (a.contains("archivo")) {
+                std::string err;
+                const QString destino = guardarEnManuales(img, a, 1600, err);
+                if (destino.isEmpty()) return done(ToolResult::error(err));
+                r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada en %1."), {destino.toStdString()}));
                 r.structured = json{{"archivo", destino.toStdString()}};
             }
             addImage(r, img, a, 1280, core_, rt_.dataRoot());
             done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
+        t.name = "web_captura";
+        t.title = ba::i18n::traducir("mcp", "Ver una página web del aparato");
+        t.category = "interfaz";
+        t.readOnly = true;
+        t.description = ba::i18n::traducir("mcp", "Una foto de una PÁGINA WEB del aparato tal como la ve quien la abre: la web del evento, la de "
+                        "los invitados, el público, el teleprompter, los rótulos, la botonera, la sesión remota, la consola de la "
+                        "presidencia, el tablero… (los enlaces salen de `enlaces_listar`: `local` o `remoto`). Con un Chrome sin "
+                        "ventana que viene en la instalación. `ancho` × `alto`: 430×900 para cómo se ve en un celular, 1440×900 en "
+                        "una computadora, 1024×1366 en una tablet. `espera_ms` deja correr la página antes de la foto (2500). "
+                        "`archivo` y `recuadros`, como en ventana_captura (para un manual). Solo direcciones del propio aparato.");
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"url"}},
+                         {"properties",
+                          {{"url", {{"type", "string"}}},
+                           {"ancho", {{"type", "integer"}, {"minimum", 320}, {"maximum", 3840}}},
+                           {"alto", {{"type", "integer"}, {"minimum", 320}, {"maximum", 4000}}},
+                           {"espera_ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 20000}}},
+                           {"archivo", {{"type", "string"}}},
+                           {"recuadros", esquemaRecuadros()}}}};
+        t.examples = {R"({"url": "http://127.0.0.1:8787/prompter/", "ancho": 430, "alto": 900})",
+                      R"({"url": "<local de enlaces_listar>", "ancho": 1440, "alto": 900, "archivo": "es/capturas/web-01-evento.png"})"};
+        StudioViewModel* vmp = &vm_;
+        t.run = [this, vmp](const json& a, Done done) {
+            const QUrl url(QString::fromStdString(a.value("url", std::string())));
+            if (!url.isValid() || (url.scheme() != "http" && url.scheme() != "https"))
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "`url` tiene que ser http:// o https://.")));
+            // Solo las del aparato: esta máquina (sus direcciones) o las de sus servicios (Servicios).
+            QStringList hosts{"127.0.0.1", "localhost", "::1"};
+            for (const QHostAddress& h : QNetworkInterface::allAddresses()) hosts << h.toString();
+            if (EnlacesViewModel* e = vmp->enlacesVm())
+                for (const QVariant& v : e->servicios())
+                    for (const char* k : {"local", "remoto"})
+                        if (const QUrl u(v.toMap().value(k).toString()); u.isValid() && !u.host().isEmpty()) hosts << u.host();
+            if (!hosts.contains(url.host(), Qt::CaseInsensitive))
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "Solo páginas del propio aparato (las de enlaces_listar o de esta "
+                                                                        "máquina): esto no es un navegador para cualquier sitio.")));
+            if (const QString e = CapturaWeb::disponible(); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            CapturaWeb::Pedido p{url.toString(), a.value("ancho", 1440), a.value("alto", 900), a.value("espera_ms", 2500)};
+            // QProcess vive en el hilo de la interfaz (tiene su bucle de eventos).
+            QMetaObject::invokeMethod(qApp, [this, p, a, done]() {
+                auto* c = new CapturaWeb(qApp);
+                c->capturar(p, [this, c, a, done, p](const QImage& img, const QString& err) {
+                    c->deleteLater();
+                    if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                    ToolResult r;
+                    r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Página %1 (%2x%3)."),
+                                            {p.url.toStdString(), std::to_string(img.width()), std::to_string(img.height())}));
+                    if (a.contains("archivo")) {
+                        std::string e;
+                        const QString destino = guardarEnManuales(img, a, img.width(), e);
+                        if (destino.isEmpty()) return done(ToolResult::error(e));
+                        r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada en %1."), {destino.toStdString()}));
+                        r.structured = json{{"archivo", destino.toStdString()}};
+                    }
+                    addImage(r, img, a, 1280, core_, rt_.dataRoot());
+                    done(r);
+                });
+            });
         };
         core_.addTool(std::move(t));
     }

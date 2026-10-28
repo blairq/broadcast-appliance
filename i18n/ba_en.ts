@@ -13131,6 +13131,16 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
         <translation>They are saved in %1</translation>
     </message>
     <message>
+        <location line="+6" />
+        <source>Incluye las páginas web (la del evento, invitados, público, teleprompter, botonera…) como se ven en un celular, una tablet o una computadora.</source>
+        <translation>Includes the web pages (the event's, guests, audience, teleprompter, control surface…) as they look on a phone, a tablet or a computer.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sin las páginas web: %1</source>
+        <translation>Without the web pages: %1</translation>
+    </message>
+    <message>
         <location line="+5" />
         <source>Manuales generados (%1 capturas)</source>
         <translation>Generated manuals (%1 screenshots)</translation>
@@ -13144,7 +13154,7 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
 <context>
     <name>ManualesViewModel</name>
     <message>
-        <location filename="../src/app/ui/ManualesViewModel.cpp" line="+125" />
+        <location filename="../src/app/ui/ManualesViewModel.cpp" line="+127" />
         <source>Se está transmitiendo o grabando: los manuales se generan cuando termine (el asistente abre otro evento y reinicia el programa).</source>
         <translation>Streaming or recording: the manuals are generated when it ends (the assistant opens another event and restarts the program).</translation>
     </message>
@@ -43527,6 +43537,34 @@ Data (from %2): %3</translation>
     </message>
 </context>
 <context>
+    <name>captura-web</name>
+    <message>
+        <location filename="../src/app/net/CapturaWeb.cpp" line="+38" />
+        <source>Falta chrome-headless-shell en la instalación (bin/64bit/chrome-headless): este build no lo trajo.</source>
+        <translation>chrome-headless-shell is missing from the installation (bin/64bit/chrome-headless): this build did not bring it.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>No se pudo crear una carpeta temporal para la foto.</source>
+        <translation>Could not create a temporary folder for the screenshot.</translation>
+    </message>
+    <message>
+        <location line="+36" />
+        <source>Chrome no sacó la foto.</source>
+        <translation>Chrome did not take the screenshot.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>No se pudo arrancar chrome-headless-shell: </source>
+        <translation>Could not start chrome-headless-shell: </translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>La página tardó demasiado (40 s) y se cortó.</source>
+        <translation>The page took too long (40 s) and was cut off.</translation>
+    </message>
+</context>
+<context>
     <name>caras</name>
     <message>
         <location filename="../src/app/control/CarasBotonera.cpp" line="+54" />
@@ -71180,12 +71218,12 @@ The files: app.log (Process A), gateway.log (Process B), graficos.log, launcher.
         <translation>Quitting the application.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpVentanaTools.cpp" line="+205" />
+        <location filename="../src/app/mcp/McpVentanaTools.cpp" line="+210" />
         <source>Este escritorio es Wayland: ubicar las ventanas es del compositor, no del programa. El TAMAÑO se aplica; la POSICION no. No es un error de la app y no se puede forzar desde adentro. Ojo, tampoco alcanza con arrancar sobre XWayland (QT_QPA_PLATFORM=xcb): se probo, y GNOME ignora igual la posicion pedida y coloca las ventanas a su criterio. Con un escritorio que si lo respete (KDE, XFCE, un gestor de mosaico, o X11 a secas) estas herramientas funcionan enteras. Mientras tanto sirven para LEER donde esta todo, para el tamaño, y para pantalla completa en un monitor, que es lo que mas se usa.</source>
         <translation>This desktop is Wayland: placing windows is up to the compositor, not the program. SIZE is applied; POSITION isn't. It's not an app bug and it can't be forced from inside. Note, starting on XWayland (QT_QPA_PLATFORM=xcb) isn't enough either: it was tested, and GNOME still ignores the requested position and places windows as it sees fit. With a desktop that does respect it (KDE, XFCE, a tiling manager, or plain X11) these tools work fully. Meanwhile they're useful for READING where everything is, for size, and for full screen on a monitor, which is what's used most.</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+61" />
         <source>Ventanas y monitores</source>
         <translation>Windows and monitors</translation>
     </message>
@@ -71467,7 +71505,7 @@ To look at a specific page, first `ui_show_page` and then this.
         <translation>save it in Manuales/&lt;archivo&gt; (.jpg or .png)</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+10" />
         <source>No hay ninguna ventana «%1». `ventana_listar` dice cuales hay.</source>
         <translation>There's no window “%1”. `ventana_listar` says which ones there are.</translation>
     </message>
@@ -71488,6 +71526,37 @@ To look at a specific page, first `ui_show_page` and then this.
     </message>
     <message>
         <location line="+6" />
+        <location line="+62" />
+        <source>Guardada en %1.</source>
+        <translation>Saved in %1.</translation>
+    </message>
+    <message>
+        <location line="-50" />
+        <source>Ver una página web del aparato</source>
+        <translation>See one of the appliance's web pages</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Una foto de una PÁGINA WEB del aparato tal como la ve quien la abre: la web del evento, la de los invitados, el público, el teleprompter, los rótulos, la botonera, la sesión remota, la consola de la presidencia, el tablero… (los enlaces salen de `enlaces_listar`: `local` o `remoto`). Con un Chrome sin ventana que viene en la instalación. `ancho` × `alto`: 430×900 para cómo se ve en un celular, 1440×900 en una computadora, 1024×1366 en una tablet. `espera_ms` deja correr la página antes de la foto (2500). `archivo` y `recuadros`, como en ventana_captura (para un manual). Solo direcciones del propio aparato.</source>
+        <translation>A screenshot of one of the appliance's WEB PAGES as whoever opens it sees it: the event's web page, the guests', the audience, the teleprompter, the titles, the control surface, the remote session, the chair console, the dashboard… (the links come from `enlaces_listar`: `local` or `remoto`). With a windowless Chrome included in the installation. `ancho` × `alto`: 430×900 for how it looks on a phone, 1440×900 on a computer, 1024×1366 on a tablet. `espera_ms` lets the page run before the screenshot (2500). `archivo` and `recuadros`, as in ventana_captura (for a manual). Only the appliance's own addresses.</translation>
+    </message>
+    <message>
+        <location line="+21" />
+        <source>`url` tiene que ser http:// o https://.</source>
+        <translation>`url` must be http:// or https://.</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>Solo páginas del propio aparato (las de enlaces_listar o de esta máquina): esto no es un navegador para cualquier sitio.</source>
+        <translation>Only the appliance's own pages (those of enlaces_listar or of this machine): this is not a browser for any site.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Página %1 (%2x%3).</source>
+        <translation>Page %1 (%2x%3).</translation>
+    </message>
+    <message>
+        <location line="-591" />
         <source>`archivo` va relativo a la carpeta Manuales, sin «..», y termina en .jpg o .png.</source>
         <translation>`archivo` is relative to the Manuales folder, without «..», and ends in .jpg or .png.</translation>
     </message>
@@ -71497,12 +71566,7 @@ To look at a specific page, first `ui_show_page` and then this.
         <translation>Could not save «%1».</translation>
     </message>
     <message>
-        <location line="+1" />
-        <source>Guardada en %1 (%2x%3).</source>
-        <translation>Saved in %1 (%2x%3).</translation>
-    </message>
-    <message>
-        <location line="+13" />
+        <location line="+592" />
         <source>Cerrar una ventana</source>
         <translation>Close a window</translation>
     </message>

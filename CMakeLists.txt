@@ -412,6 +412,25 @@ else()
     ba_falta("Túnel de Cloudflare (cloudflared)" "falta el binario ('make deps-cloudflared-host')")
 endif()
 
+# chrome-headless-shell (Chrome for Testing, sin ventana): las fotos de las páginas web
+# del aparato (web_captura: los manuales, y el asistente para ver lo que edita). Lo baja
+# `make deps-chrome-headless` (tools/deps/chrome-headless.sh). En Linux trae en lib/ las
+# bibliotecas que no están en la base (NSS, ATK…): la app lo lanza con LD_LIBRARY_PATH.
+if(APPLE)
+    set(BA_CHROME_HEADLESS_DIR "${CMAKE_SOURCE_DIR}/extern/chrome-headless/mac-arm64")
+elseif(WIN32)
+    set(BA_CHROME_HEADLESS_DIR "${CMAKE_SOURCE_DIR}/extern/chrome-headless/win64")
+else()
+    set(BA_CHROME_HEADLESS_DIR "${CMAKE_SOURCE_DIR}/extern/chrome-headless/linux64")
+endif()
+if(EXISTS "${BA_CHROME_HEADLESS_DIR}/.version")
+    install(DIRECTORY "${BA_CHROME_HEADLESS_DIR}/" DESTINATION bin/64bit/chrome-headless USE_SOURCE_PERMISSIONS
+            PATTERN ".version" EXCLUDE)
+    message(STATUS "ba-bundle: chrome-headless-shell incluido (${BA_CHROME_HEADLESS_DIR})")
+else()
+    ba_falta("Fotos de las páginas web (chrome-headless-shell)" "falta ('make deps-chrome-headless')")
+endif()
+
 # ba-modelo (el modelo local en la Mac: MLX, ver src/modelo-mac) si se compilo
 # con `make modelo-mac`. Va con su mlx-swift_Cmlx.bundle al lado: ahi esta el
 # default.metallib (los kernels de Metal) y MLX lo busca junto al ejecutable.
