@@ -31,7 +31,8 @@ QString ManualesViewModel::idioma() const { return QString::fromStdString(ba::i1
 QString ManualesViewModel::nombreIdioma() const { return QString::fromStdString(ba::i18n::actual().nombre); }
 
 QString ManualesViewModel::carpeta() const {
-    return QString::fromStdU16String((ba::platform::dataRoot() / "Manuales").u16string()) + "/" + idioma();
+    // Con barras «/» también en Windows (la ruta nativa traía «\»: quedaba «…\Manuales/es»).
+    return QDir::fromNativeSeparators(QString::fromStdU16String((ba::platform::dataRoot() / "Manuales").u16string())) + "/" + idioma();
 }
 
 QString ManualesViewModel::modeloMinimo() const { return kModeloMinimo; }
