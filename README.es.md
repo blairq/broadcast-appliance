@@ -40,9 +40,16 @@ adentro de la carpeta, en Windows, macOS y Linux.
   <img alt="La página Asistente: elegí el asistente de eventos y su modelo, y arrancalo" src="docs/img/quick-start-assistant.jpg" width="820">
 </p>
 
-> **No hay manual de ayuda, y es a propósito.** Todo se hace desde el asistente
-> de eventos: conoce cada parte del programa (más de 700 herramientas) y ve lo
-> que está en pantalla y al aire. Si no sabés cómo hacer algo, preguntale.
+> **No viene un manual de usuario, y es a propósito.** Todo se hace desde el
+> asistente de eventos: conoce cada parte del programa (más de 700 herramientas)
+> y ve lo que está en pantalla y al aire. Si no sabés cómo hacer algo, preguntale.
+>
+> **Si querés uno, el asistente lo arma.** En la barra de la izquierda, grupo
+> *Sistema*, la página **Manuales** (arriba de *Logs del sistema*): tocá
+> **Generar los manuales con el asistente** y saca una captura de cada pantalla y
+> escribe los manuales en Word y PDF, en el idioma del programa. Quedan en
+> `BroadcastAppliance Datos/Manuales/` y se abren desde esa misma página. Conviene
+> un modelo igual o mejor que DeepSeek 4.1 Flash.
 
 ---
 

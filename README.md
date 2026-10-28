@@ -41,10 +41,17 @@ Windows, macOS and Linux.
   <img alt="The Asistente page: choose the event assistant and its model, then start it" src="docs/img/quick-start-assistant.jpg" width="820">
 </p>
 
-> **There is no user manual, on purpose.** Everything is done through the event
-> assistant: it knows every part of the program (more than 700 tools) and can
-> see what is on screen and on air. If you don't know how to do something, ask
-> it.
+> **No user manual ships with it, on purpose.** Everything is done through the
+> event assistant: it knows every part of the program (more than 700 tools) and
+> can see what is on screen and on air. If you don't know how to do something,
+> ask it.
+>
+> **If you want one, the assistant writes it.** In the left rail, *System*
+> group, the **Manuals** page (above *System logs*): press **Generate the manuals
+> with the assistant** and it takes a screenshot of every screen and writes the
+> manuals in Word and PDF, in the program's language. They end up in
+> `BroadcastAppliance Datos/Manuales/` and open from that same page. Use a model
+> equal to or better than DeepSeek 4.1 Flash.
 
 ---
 
