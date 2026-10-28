@@ -915,6 +915,7 @@ class BroadcastEngine {
 
     // Al gateway
     ba::ipc::SpoutSender programVideo_;
+    int programAncho_ = 0, programAlto_ = 0; ///< el tamaño con que se publicó programVideo_
     bool returnFeedsActive_ = false;
     bool retornoPausado_ = false;
     void pedirVistaRetorno();

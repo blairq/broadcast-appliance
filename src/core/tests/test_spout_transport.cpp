@@ -28,6 +28,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <chrono>
+#include <thread>
 #include <vector>
 
 using namespace ba::ipc;
@@ -181,12 +183,35 @@ void testRegionOpenSize() {
     CHECK(abierta.size() < bytes + 65536u);
 }
 
+// Caso 6: otro tamaño = otro sender con el mismo nombre (lo que hace el motor al
+// cambiar el lienzo: BroadcastEngine::publishReturnFeeds). Publicar dos veces el
+// mismo no se puede; reemplazarlo sí, y el lector ve que es otro y se resuscribe.
+void testRepublicarConOtroTamano() {
+    const wchar_t* name = L"BA.Test.Slot.Lienzo";
+    SpoutSender snd;
+    CHECK(snd.publish(name, SlotConfig{1920, 1080}));
+    CHECK(!snd.publish(name, SlotConfig{1280, 720})); // el mismo no se re-publica
+    SpoutReceiver rcv;
+    CHECK(rcv.subscribe(name));
+    CHECK(rcv.width() == 1920);
+
+    snd = SpoutSender();
+    CHECK(!snd.published());
+    CHECK(snd.publish(name, SlotConfig{1280, 720}));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100)); // stale() mira una vez por segundo
+    CHECK(rcv.stale());
+    SpoutReceiver otro;
+    CHECK(otro.subscribe(name));
+    CHECK(otro.width() == 1280 && otro.height() == 720);
+}
+
 int main() {
     testRegionOpenSize();
     testMetaRoundTrip();
     testSenderReceiverRoundTrip();
     testNoNewFrame();
     testPlateWhenAbsent();
+    testRepublicarConOtroTamano();
 
     if (g_failures == 0) {
         std::printf("ALL TESTS PASSED (test_spout_transport)\n");

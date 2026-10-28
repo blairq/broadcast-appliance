@@ -477,9 +477,19 @@ bool BroadcastEngine::publishReturnFeeds() {
     if (returnFeedsActive_) return true;
     // El audio (BA.Audio.ContentForReturn) lo escribe el motor desde que arranca.
     ba::ipc::SlotConfig vcfg{video_.outputWidth, video_.outputHeight};
-    if (!programVideo_.publish(kProgramVideoName, vcfg)) {
-        setError(ba::i18n::traducir("emision", "no se pudo publicar el canal de video de programa"));
-        return false;
+    // Un canal publicado no cambia de tamaño (ver SpoutSender::publish): con otro
+    // lienzo (resetVideo) se rehace, y el gateway se vuelve a suscribir solo al ver
+    // otra instancia, como con los canales de escena. Antes se intentaba publicar
+    // otra vez el mismo y fallaba: la salida al gateway quedaba colgada.
+    if (programVideo_.published() && (programAncho_ != vcfg.width || programAlto_ != vcfg.height))
+        programVideo_ = ba::ipc::SpoutSender();
+    if (!programVideo_.published()) {
+        if (!programVideo_.publish(kProgramVideoName, vcfg)) {
+            setError(ba::i18n::traducir("emision", "no se pudo publicar el canal de video de programa"));
+            return false;
+        }
+        programAncho_ = vcfg.width;
+        programAlto_ = vcfg.height;
     }
     const std::string e = motor_->verPedir("programa@gateway", video_.outputWidth, video_.outputHeight);
     if (!e.empty()) {
