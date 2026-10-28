@@ -1046,7 +1046,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SettingsPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1135"/>
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1027"/>
         <source>Entrenado con %n herramienta</source>
         <translation>
             <numerusform>Entrenado con %n herramienta</numerusform>

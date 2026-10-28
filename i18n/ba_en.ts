@@ -12572,7 +12572,7 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
         <translation>Keep as is</translation>
     </message>
     <message>
-        <location line="+141" />
+        <location line="+142" />
         <source>«%1» no se puede abrir en una ventana</source>
         <translation>“%1” can't open in a window</translation>
     </message>
@@ -12975,6 +12975,124 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
         <location line="+1" />
         <source>BAJANDO %1</source>
         <translation>DOWNLOADING %1</translation>
+    </message>
+</context>
+<context>
+    <name>ManualesPage</name>
+    <message>
+        <location filename="../src/app/qml/pages/ManualesPage.qml" line="+20" />
+        <source>Manuales</source>
+        <translation>Manuals</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>El asistente de evento arma la biblioteca de manuales de usuario: saca una captura de cada pantalla (en un evento vacío, aparte, sin tocar el tuyo) y escribe los documentos en Word y PDF: el de los asistentes y la voz, el general, los flujos de trabajo y uno por tipo de evento. Tarda bastante y usa mucho del modelo; el programa se reinicia dos veces (al ir al evento de los manuales y al volver).</source>
+        <translation>The event assistant builds the user manual library: it takes a screenshot of every screen (in a separate empty event, without touching yours) and writes the documents in Word and PDF: the assistants and voice one, the general one, the workflows and one per kind of event. It takes a while and uses a lot of the model; the program restarts twice (going to the manuals event and coming back).</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>Activá el asistente con un modelo igual o mejor que %1 (para que quede de producción, %2): es una tarea larga y con modelos más chicos los manuales salen incompletos.</source>
+        <translation>Turn on the assistant with a model equal to or better than %1 (for production quality, %2): it is a long task and with smaller models the manuals come out incomplete.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Ahora el asistente de evento usa: %1.</source>
+        <translation>The event assistant is now using: %1.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Idioma</source>
+        <translation>Language</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 (el de la interfaz)</source>
+        <translation>%1 (the interface's)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Alcance</source>
+        <translation>Scope</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Siete flujos de trabajo agrupados</source>
+        <translation>Seven grouped workflows</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Un manual por cada tipo de evento (19)</source>
+        <translation>One manual per kind of event (19)</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>PDF</source>
+        <translation>PDF</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Además del Word, en PDF</source>
+        <translation>PDF as well as Word</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Capturas</source>
+        <translation>Screenshots</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Marcar lo importante en algunas (recuadros)</source>
+        <translation>Mark the important parts in some (boxes)</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Generar los manuales con el asistente</source>
+        <translation>Generate the manuals with the assistant</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>¿Generar los manuales?</source>
+        <translation>Generate the manuals?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se lo encargo al asistente de evento (%1). Abre un evento aparte para las capturas, así que el programa se reinicia; al terminar vuelve al tuyo. No lo hagas en vivo.</source>
+        <translation>I'll hand it to the event assistant (%1). It opens a separate event for the screenshots, so the program restarts; when done it returns to yours. Don't do it live.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>sin modelo elegido</source>
+        <translation>no model chosen</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Generar</source>
+        <translation>Generate</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cancelar</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Abrir la carpeta</source>
+        <translation>Open folder</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Se guardan en %1</source>
+        <translation>They are saved in %1</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Manuales generados (%1 capturas)</source>
+        <translation>Generated manuals (%1 screenshots)</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Todavía no hay manuales en este idioma.</source>
+        <translation>There are no manuals in this language yet.</translation>
     </message>
 </context>
 <context>
@@ -27531,7 +27649,7 @@ For the base scene the others come from.</translation>
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+35" />
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+34" />
         <source>Imagen y sonido</source>
         <translation>Picture and sound</translation>
     </message>
@@ -27576,7 +27694,7 @@ For the base scene the others come from.</translation>
         <translation>System</translation>
     </message>
     <message>
-        <location line="+15" />
+        <location line="+14" />
         <source>Saca la conferencia a internet por un túnel de Cloudflare, con tu dominio (p. ej. sala.miorganismo.gob.ar). Hace falta una cuenta de Cloudflare con el dominio cargado y el token del túnel (Zero Trust → Networks → Tunnels → el túnel → token). El video de los de afuera va por la conexión directa o el TURN. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio.</source>
         <translation>Takes the conference to the internet through a Cloudflare tunnel, with your domain (e.g. room.myorg.gov). You need a Cloudflare account with the domain set up and the tunnel token (Zero Trust → Networks → Tunnels → the tunnel → token). Outside participants' video goes over the direct connection or TURN. Only one of the three paths is used: Pinggy, Cloudflare or your own tunnel.</translation>
     </message>
@@ -27677,12 +27795,12 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+703" />
+        <location line="+698" />
         <source>Seguridad</source>
         <translation>Security</translation>
     </message>
     <message>
-        <location line="-703" />
+        <location line="-698" />
         <source>Archivos</source>
         <translation>Files</translation>
     </message>
@@ -27751,11 +27869,10 @@ For the base scene the others come from.</translation>
         <location line="+1" />
         <location line="+12" />
         <location line="+136" />
-        <location line="+353" />
+        <location line="+348" />
         <location line="+81" />
         <location line="+111" />
-        <location line="+81" />
-        <location line="+360" />
+        <location line="+340" />
         <location line="+20" />
         <location line="+39" />
         <location line="+45" />
@@ -27763,7 +27880,7 @@ For the base scene the others come from.</translation>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="-1233" />
+        <location line="-1127" />
         <source>Configuración, credenciales, grabaciones y archivos no se tocan.</source>
         <translation>Settings, credentials, recordings and files are not touched.</translation>
     </message>
@@ -27809,12 +27926,12 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+2" />
-        <location line="+379" />
+        <location line="+374" />
         <source>● Guardado</source>
         <translation>● Saved</translation>
     </message>
     <message>
-        <location line="-379" />
+        <location line="-374" />
         <source>● Sin token</source>
         <translation>● No token</translation>
     </message>
@@ -27825,22 +27942,22 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+3" />
-        <location line="+379" />
+        <location line="+374" />
         <location line="+35" />
         <source>Guardar</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location line="-410" />
+        <location line="-405" />
         <source>Token de Cloudflare guardado (cifrado). Prendé el túnel y aplicá.</source>
         <translation>Cloudflare token saved (encrypted). Turn on the tunnel and apply.</translation>
     </message>
     <message>
         <location line="+4" />
-        <location line="+373" />
+        <location line="+368" />
         <location line="+4" />
         <location line="+31" />
-        <location line="+598" />
+        <location line="+497" />
         <location line="+4" />
         <location line="+59" />
         <location line="+40" />
@@ -27850,18 +27967,18 @@ For the base scene the others come from.</translation>
         <translation>Delete</translation>
     </message>
     <message>
-        <location line="-1521" />
+        <location line="-1415" />
         <source>Token de Cloudflare borrado.</source>
         <translation>Cloudflare token deleted.</translation>
     </message>
     <message>
         <location line="+7" />
-        <location line="+554" />
+        <location line="+549" />
         <source>Valores por defecto de esta sección</source>
         <translation>Defaults for this section</translation>
     </message>
     <message>
-        <location line="-543" />
+        <location line="-538" />
         <source>Reiniciar el servidor ahora</source>
         <translation>Restart the server now</translation>
     </message>
@@ -27877,12 +27994,12 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+545" />
+        <location line="+540" />
         <source>Reiniciar</source>
         <translation>Restart</translation>
     </message>
     <message>
-        <location line="-542" />
+        <location line="-537" />
         <source>El servidor se está reiniciando.</source>
         <translation>The server is restarting.</translation>
     </message>
@@ -27892,7 +28009,7 @@ For the base scene the others come from.</translation>
         <translation>Changes marked “restarts the server” restart it automatically when applied; the rest of the program keeps running.</translation>
     </message>
     <message>
-        <location line="+135" />
+        <location line="+130" />
         <source>Túnel listo: se entra desde internet</source>
         <translation>Tunnel ready: reachable from the internet</translation>
     </message>
@@ -28048,13 +28165,13 @@ For the base scene the others come from.</translation>
     </message>
     <message>
         <location line="+3" />
-        <location line="+717" />
+        <location line="+616" />
         <location line="+957" />
         <source>Actualizar</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location line="-1660" />
+        <location line="-1559" />
         <source>Copiar</source>
         <translation>Copy</translation>
     </message>
@@ -28214,12 +28331,12 @@ For the base scene the others come from.</translation>
         <translation>Subdomain (optional)</translation>
     </message>
     <message>
-        <location line="-627" />
+        <location line="-621" />
         <source>General</source>
         <translation>General</translation>
     </message>
     <message>
-        <location line="+631" />
+        <location line="+625" />
         <source>dejalo vacío o p. ej. salaconcejo</source>
         <translation>leave it empty or e.g. salaconcejo</translation>
     </message>
@@ -28339,112 +28456,7 @@ For the base scene the others come from.</translation>
         <translation>The conference is restarting.</translation>
     </message>
     <message>
-        <location line="+29" />
-        <source>El asistente de evento arma la biblioteca de manuales de usuario: saca una captura de cada pantalla (en un evento vacío, aparte, sin tocar el tuyo) y escribe los documentos en Word y PDF: el de los asistentes y la voz, el general, los flujos de trabajo y uno por tipo de evento. Tarda bastante y usa mucho del modelo; el programa se reinicia dos veces (al ir al evento de los manuales y al volver).</source>
-        <translation>The event assistant builds the user manual library: it takes a screenshot of every screen (in a separate empty event, without touching yours) and writes the documents in Word and PDF: the assistants and voice one, the general one, the workflows and one per kind of event. It takes a while and uses a lot of the model; the program restarts twice (going to the manuals event and coming back).</translation>
-    </message>
-    <message>
-        <location line="+16" />
-        <source>Activá el asistente con un modelo igual o mejor que %1 (para que quede de producción, %2): es una tarea larga y con modelos más chicos los manuales salen incompletos.</source>
-        <translation>Turn on the assistant with a model equal to or better than %1 (for production quality, %2): it is a long task and with smaller models the manuals come out incomplete.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Ahora el asistente de evento usa: %1.</source>
-        <translation>The event assistant is now using: %1.</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Idioma</source>
-        <translation>Language</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 (el de la interfaz)</source>
-        <translation>%1 (the interface's)</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Alcance</source>
-        <translation>Scope</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Siete flujos de trabajo agrupados</source>
-        <translation>Seven grouped workflows</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Un manual por cada tipo de evento (19)</source>
-        <translation>One manual per kind of event (19)</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>PDF</source>
-        <translation>PDF</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Además del Word, en PDF</source>
-        <translation>PDF as well as Word</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Capturas</source>
-        <translation>Screenshots</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Marcar lo importante en algunas (recuadros)</source>
-        <translation>Mark the important parts in some (boxes)</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Generar los manuales con el asistente</source>
-        <translation>Generate the manuals with the assistant</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>¿Generar los manuales?</source>
-        <translation>Generate the manuals?</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Se lo encargo al asistente de evento (%1). Abre un evento aparte para las capturas, así que el programa se reinicia; al terminar vuelve al tuyo. No lo hagas en vivo.</source>
-        <translation>I'll hand it to the event assistant (%1). It opens a separate event for the screenshots, so the program restarts; when done it returns to yours. Don't do it live.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>sin modelo elegido</source>
-        <translation>no model chosen</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Generar</source>
-        <translation>Generate</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Abrir la carpeta</source>
-        <translation>Open the folder</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Se guardan en %1</source>
-        <translation>They are saved in %1</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Manuales generados (%1 capturas)</source>
-        <translation>Generated manuals (%1 screenshots)</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Todavía no hay manuales en este idioma.</source>
-        <translation>There are no manuals in this language yet.</translation>
-    </message>
-    <message>
-        <location line="+41" />
+        <location line="+31" />
         <source>Le permite al asistente (Claude, Gemini, opencode) manejar el escritorio de esta máquina: ver la pantalla, mover el mouse, escribir, abrir programas, buscar archivos y acomodar ventanas. De fábrica está apagado.</source>
         <translation>Lets the assistant (Claude, Gemini, opencode) control this machine's desktop: see the screen, move the mouse, type, open programs, find files and arrange windows. Off by default.</translation>
     </message>
@@ -36322,11 +36334,6 @@ Choose something else in Outputs → Screens.</translation>
         <location line="+1" />
         <source>Control del sistema</source>
         <translation>System control</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Manuales</source>
-        <translation>Manuals</translation>
     </message>
     <message>
         <location line="+18" />
@@ -82938,6 +82945,11 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+3" />
         <source>Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR</source>
         <translation>Services: all the web links and their QR codes (guests, audience, teleprompter, lower thirds, control surface, remote session…) with their status, to enable, copy, open or show as QR</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Manuales: la biblioteca de manuales de usuario que arma el asistente (capturas y documentos Word y PDF), para generarla y abrirla</source>
+        <translation>Manuals: the user manual library the assistant builds (screenshots and Word and PDF documents), to generate and open it</translation>
     </message>
     <message>
         <location line="+3" />
