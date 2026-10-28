@@ -56,6 +56,18 @@ int main(int argc, char** argv) {
         Quorum otra(dir.path().toStdString(), [&]() { return presentes; });
         CHECK(otra.oficiales().size() == 3 && otra.regla()["miembros"] == 27, "queda guardado");
     }
+    {
+        // Sin miembros fijados, los del padrón con voto (y cambian con él).
+        QTemporaryDir otro;
+        int conVoto = 9;
+        Quorum p(otro.path().toStdString(), [&]() { return presentes; }, [&]() { return conVoto; });
+        CHECK(p.estado()["miembros"] == 9 && p.estado()["miembros_fijos"] == 0 && p.estado()["necesarios"] == 5 &&
+                  p.estado()["hay_quorum"] == true,
+              "miembros del padrón: 13 presentes de 5 necesarios");
+        conVoto = 40;
+        CHECK(p.estado()["necesarios"] == 21 && p.estado()["hay_quorum"] == false, "el padrón crece: 21 necesarios");
+        CHECK(p.setRegla({{"miembros", 20}}).empty() && p.estado()["miembros"] == 20, "fijados a mano ganan");
+    }
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;
 }

@@ -32,12 +32,16 @@ class Quorum : public QObject {
    public:
     using json = nlohmann::json;
     /// `presentes`: cuántos miembros con voto hay ahora (del padrón o del cuerpo).
-    Quorum(const std::filesystem::path& datos, std::function<int()> presentes, QObject* parent = nullptr);
+    /// `miembrosDelPadron`: cuántos tienen voto en el padrón; son los miembros mientras
+    /// no se fije la cantidad a mano (miembros 0).
+    Quorum(const std::filesystem::path& datos, std::function<int()> presentes,
+           std::function<int()> miembrosDelPadron = {}, QObject* parent = nullptr);
 
     json regla() const;
     /// {miembros?, minimo?, mayoria?}. "" o el error.
     std::string setRegla(const json& r);
-    /// {hay_quorum, presentes, necesarios, miembros, minimo, mayoria}.
+    /// {hay_quorum, presentes, necesarios, miembros, miembros_fijos (0 = los del padrón),
+    /// minimo, mayoria}.
     json estado() const;
     /// Cuántos votos afirmativos hacen falta con esta mayoría.
     static int necesarios(const std::string& mayoria, int votantes, int presentes, int miembros);
@@ -62,8 +66,10 @@ class Quorum : public QObject {
 
    private:
     void guardar() const;
+    /// Los fijados a mano o, si no, los del padrón con voto.
+    int miembros() const;
     std::filesystem::path archivoRegla_, archivoOficiales_;
-    std::function<int()> presentes_;
+    std::function<int()> presentes_, miembrosDelPadron_;
     int miembros_ = 0;
     json minimo_ = "mitad_mas_uno";
     std::string mayoria_ = "simple";

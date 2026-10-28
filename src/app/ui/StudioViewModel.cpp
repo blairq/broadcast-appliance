@@ -1512,6 +1512,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             if (ev == nullptr) return virt;
             const QVariantMap r = ev->property("resumenPadron").toMap();
             return (r.value("conVoto").toInt() > 0 ? r.value("votoPresente").toInt() : r.value("presentes").toInt()) + virt;
+        }, [this]() {
+            // Mientras no se fije a mano, los miembros son los del padrón con voto.
+            auto* ev = static_cast<EventoViewModel*>(evento());
+            return ev ? ev->property("resumenPadron").toMap().value("conVoto").toInt() : 0;
         });
         if (auto* ev = static_cast<EventoViewModel*>(evento())) {
             ev->setAnexoActa([this]() {
@@ -1651,6 +1655,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
     dcn_ = std::make_unique<asamblea::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
+    // Los presentes del quórum salen del padrón (o de la asistencia de la central): cada
+    // vez que cambian, el quórum avisa, así se recalcula mientras se marca quién está.
+    if (quorum_) {
+        if (evento_) connect(evento_.get(), &EventoViewModel::padronChanged, quorum_.get(), &asamblea::Quorum::cambio);
+        connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, quorum_.get(), &asamblea::Quorum::cambio);
+    }
     // Las votaciones (central, celulares, Quórum) son del modelo.
     if (sesionRemota_ && quorum_)
         votaciones_ = std::make_unique<asamblea::Votaciones>(*sesionRemota_, *dcn_, *quorum_, *bus_, this);

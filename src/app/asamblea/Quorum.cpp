@@ -49,11 +49,12 @@ std::string nombreMayoria(const std::string& m) {
 }
 } // namespace
 
-Quorum::Quorum(const fs::path& datos, std::function<int()> presentes, QObject* parent)
+Quorum::Quorum(const fs::path& datos, std::function<int()> presentes, std::function<int()> miembrosDelPadron, QObject* parent)
     : QObject(parent),
       archivoRegla_(datos / "Config" / "quorum.json"),
       archivoOficiales_(datos / "Config" / "votaciones-oficiales.json"),
-      presentes_(std::move(presentes)) {
+      presentes_(std::move(presentes)),
+      miembrosDelPadron_(std::move(miembrosDelPadron)) {
     {
         std::ifstream f(archivoRegla_);
         const json j = json::parse(f, nullptr, false);
@@ -104,15 +105,22 @@ std::string Quorum::setRegla(const json& r) {
     return {};
 }
 
+int Quorum::miembros() const {
+    if (miembros_ > 0) return miembros_;
+    return miembrosDelPadron_ ? std::max(0, miembrosDelPadron_()) : 0;
+}
+
 json Quorum::estado() const {
     const int presentes = presentes_ ? presentes_() : 0;
+    const int m = miembros();
     int necesarios = 0;
     if (minimo_.is_number_integer()) necesarios = minimo_.get<int>();
-    else if (miembros_ > 0) necesarios = miembros_ / 2 + 1;
+    else if (m > 0) necesarios = m / 2 + 1;
     return {{"hay_quorum", necesarios > 0 && presentes >= necesarios},
             {"presentes", presentes},
             {"necesarios", necesarios},
-            {"miembros", miembros_},
+            {"miembros", m},
+            {"miembros_fijos", miembros_},
             {"minimo", minimo_},
             {"mayoria", mayoria_},
             {"configurado", necesarios > 0}};
@@ -160,7 +168,7 @@ json Quorum::cargarOficial(const json& r) {
     const std::string may = r.value("mayoria", mayoria_);
     if (!kMayorias.count(may)) return {{"error", ba::i18n::traducir("asamblea", "mayoría desconocida")}};
     const int presentes = r.value("presentes", std::max(af + ne + ab, presentes_ ? presentes_() : 0));
-    const int nec = necesarios(may, af + ne, presentes, miembros_);
+    const int nec = necesarios(may, af + ne, presentes, miembros());
     res.update({{"afirmativos", af},
                 {"negativos", ne},
                 {"abstenciones", ab},
@@ -170,7 +178,7 @@ json Quorum::cargarOficial(const json& r) {
                 {"aprobado", af >= nec && (may != "simple" || af > ne)},
                 {"nominal", nominal},
                 {"ms", QDateTime::currentMSecsSinceEpoch()}});
-    if (may == "dos_tercios_miembros" && miembros_ <= 0)
+    if (may == "dos_tercios_miembros" && miembros() <= 0)
         res["aviso"] = ba::i18n::traducir("asamblea", "falta la cantidad de miembros del cuerpo (quorum_regla) para los dos "
                                                       "tercios de los miembros");
     oficiales_.push_back(res);
@@ -194,7 +202,7 @@ std::string Quorum::anexoActa() const {
     if (e.value("configurado", false)) {
         const std::string pres = std::to_string(e.value("presentes", 0));
         t += "## " + traducirEvento("asamblea", "Quórum") + "\n\n- " +
-             llenar(traducirEvento("asamblea", "Miembros: %1"), {std::to_string(miembros_)}) + "\n- " +
+             llenar(traducirEvento("asamblea", "Miembros: %1"), {std::to_string(e.value("miembros", 0))}) + "\n- " +
              llenar(traducirEvento("asamblea", "Necesarios para sesionar: %1"), {std::to_string(e.value("necesarios", 0))}) +
              "\n- " +
              (e.value("hay_quorum", false) ? llenar(traducirEvento("asamblea", "Presentes al cerrar el acta: %1 (hay quórum)"), {pres})

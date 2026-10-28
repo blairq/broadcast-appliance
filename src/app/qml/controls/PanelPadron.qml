@@ -55,9 +55,12 @@ Item {
             Layout.fillWidth: true
             spacing: 6
             Text { text: qsTr("Miembros"); color: Theme.textDim; font.pixelSize: 11 }
+            // 0: los del padrón con voto (se recalculan solos al anotar o sacar gente).
             SpinBox {
                 id: qMiembros; from: 0; to: 1000; editable: true; Layout.preferredWidth: 100
-                value: Studio.quorum.estado.miembros || 0
+                value: Studio.quorum.estado.miembros_fijos || 0
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: qsTr("En 0, los miembros son los del padrón con voto: %1").arg(Studio.quorum.estado.miembros || 0)
             }
             ComboBox {
                 id: qMayoria

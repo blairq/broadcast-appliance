@@ -166,7 +166,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "quorum_regla";
         t.title = ba::i18n::traducir("mcp", "Reglas de quorum y mayoria");
         t.category = "preguntas";
-        t.description = ba::i18n::traducir("mcp", "Las reglas del cuerpo: `miembros` (cuantos lo integran), `minimo` para sesionar "
+        t.description = ba::i18n::traducir("mcp", "Las reglas del cuerpo: `miembros` (cuantos lo integran; 0 = los del padron con voto), `minimo` para sesionar "
                         "(\"mitad_mas_uno\" o un numero) y la `mayoria` de fabrica para aprobar (simple, absoluta, "
                         "dos_tercios_presentes, dos_tercios_miembros). Sin argumentos, las muestra.");
         t.inputSchema = {{"type", "object"},
