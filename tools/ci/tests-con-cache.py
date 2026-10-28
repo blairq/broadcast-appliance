@@ -22,7 +22,8 @@
 # (tamaño, mtime, ctime e inodo) dice si un archivo cambió sin releerlo.
 #
 # La caché vive en <build>/.cache-tests/ (en Docker, en el volumen ba-trabajo).
-# TESTS_SIN_CACHE=1 (o SIN_CACHE=1) corre todo igual (y anota lo que pasa):
+# TESTS_SIN_CACHE=1 (o SIN_CACHE=1) corre todo, sin calcular claves ni anotar
+# (bajo Rosetta, leer las dependencias de cada test llegó a trabar el script):
 # es lo que hace `make publicar`. TESTS_SIN_LENTOS=1 deja afuera los de la
 # etiqueta `lento`.
 #
@@ -546,7 +547,13 @@ def modo_ctest(argv):
                         ignorar=productos(s))[0]
         return cache.clave(t["command"], props, decl, ignorar=ignorar, extra=extra)
 
-    claves = calcular(cache, tests, una)
+    # Sin caché (un release) no se calcula ninguna clave: corren todos igual, y leer las
+    # dependencias de cada test (ldd, otool, objdump) es lanzar cientos de procesos, que
+    # bajo Rosetta (Docker en una Mac) trabó el script entero más de una vez, aun de a uno.
+    if sin_cache() and not a.explicar:
+        claves = [(None, None)] * len(tests)
+    else:
+        claves = calcular(cache, tests, una)
     if a.explicar:
         for t, (k, partes) in zip(tests, claves):
             if t["name"] == a.explicar:
@@ -560,7 +567,7 @@ def modo_ctest(argv):
 
     usar = not sin_cache()
     if not usar:
-        log("TESTS_SIN_CACHE=1: corren todos (y se anotan los que pasan)")
+        log("TESTS_SIN_CACHE=1: corren todos, sin calcular claves ni anotar")
     en_cache, correr = [], []
     for t, (k, _) in zip(tests, claves):
         (en_cache if usar and k and cache.esta(k) else correr).append(t["name"])
@@ -629,10 +636,14 @@ def modo_wine_preparar(argv):
         k, _ = cache.clave([os.path.abspath(exe)], {}, info.get("entradas", []), entorno)
         return k, info.get("lento", False)
 
-    res = calcular(cache, exes, una)
+    # Sin caché, sin claves (ver modo_ctest): solo si es lento, que sale de tests-entradas.json.
+    if sin_cache():
+        res = [("", arbol_de(exe).get(os.path.basename(exe)[:-4], {}).get("lento", False)) for exe in exes]
+    else:
+        res = calcular(cache, exes, una)
     usar = not sin_cache()
     if not usar:
-        log("TESTS_SIN_CACHE=1: corren todos (y se anotan los que pasan)")
+        log("TESTS_SIN_CACHE=1: corren todos, sin calcular claves ni anotar")
     pend, cache_n, lentos = [], 0, 0
     os.makedirs(os.path.join(build, "wine-logs"), exist_ok=True)
     with open(os.path.join(build, "wine-logs", ".claves"), "w") as f:
