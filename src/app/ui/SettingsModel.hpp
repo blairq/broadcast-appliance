@@ -66,11 +66,15 @@ class SettingsModel : public QAbstractListModel {
 
     Q_INVOKABLE void setValue(const QString& key, const QVariant& value);
     Q_INVOKABLE QVariant value(const QString& key) const;
+    /// El valor guardado (el que rige), sin lo que está a medio editar.
+    QVariant savedValue(const QString& key) const { return saved_.value(key); }
     /// Aplica y guarda. :returns: resumen legible de lo que paso.
     Q_INVOKABLE QString apply();
     Q_INVOKABLE void revert() override;
     /// Vuelve a los valores por defecto la seccion (en el borrador).
     Q_INVOKABLE void resetSection(const QString& section);
+    /// El alcance de un ajuste (live, gateway, motor, restart; "" si no existe).
+    Q_INVOKABLE QString alcance(const QString& key) const;
     /// Si la sección tiene campos que no son avanzados (si no, se muestran siempre).
     Q_INVOKABLE bool tieneBasicos(const QString& section) const;
     /// Si la sección tiene avanzados (el interruptor se muestra solo donde sirve).
@@ -112,7 +116,7 @@ class SettingsModel : public QAbstractListModel {
         double max = 0;
         QString suffix;
         QString help;
-        QString scope;
+        QString scope; ///< live | gateway (reinicia el servidor) | motor (rearma el motor: corta lo que sale) | restart
         QVariant def;
         bool avanzado = false;
         int destino = 0; ///< avanzados: 0 app.json, 1 gateway.json, 2 launcher.json ("ajustes")

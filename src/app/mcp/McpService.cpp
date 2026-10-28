@@ -89,6 +89,13 @@
 
 namespace ba::app::mcp {
 
+std::string avisoReiniciaMotor() {
+    return ba::i18n::traducir("mcp", "OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la "
+                              "sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una "
+                              "transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: "
+                              "decíselo antes al operador y pedile que confirme.");
+}
+
 namespace {
 
 /// Lo que hay que mirar ANTES de preguntarle nada a quien espera.
@@ -3895,7 +3902,10 @@ void McpService::registerTools() {
         t.category = "config";
         t.description =
             ba::i18n::traducir("mcp", "Cambia uno o varios ajustes por clave y los aplica y guarda. Los de alcance 'gateway' "
-            "reinician la conferencia (los invitados se reconectan solos); los 'restart', al proximo arranque.");
+            "reinician la conferencia (los invitados se reconectan solos); los 'motor' (el lienzo, la salida, los "
+            "cuadros por segundo, el formato y el color: video.width, video.height, video.outputWidth, "
+            "video.outputHeight, video.fps, video.formato, video.color, video.rango) REINICIAN EL MOTOR; los "
+            "'restart', al proximo arranque.") + "\n\n" + avisoReiniciaMotor();
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -3948,9 +3958,27 @@ void McpService::registerTools() {
                 return done(
                     ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Claves desconocidas:%1. settings_list muestra las validas."), {u})));
             }
+            // Lo que rearma el motor se dice en la respuesta (y al operador, en la app).
+            std::vector<std::string> motor;
+            if (a.contains("values") && a["values"].is_object())
+                for (auto it = a["values"].begin(); it != a["values"].end(); ++it)
+                    if (settings->alcance(QString::fromStdString(it.key())) == "motor" &&
+                        settings->value(QString::fromStdString(it.key())) != settings->savedValue(QString::fromStdString(it.key())))
+                        motor.push_back(it.key());
             // La vista se recarga sola (AppRuntime avisa «Ajustes» al aplicar).
             const QString summary = settings->apply();
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Aplicado. %1"), {summary.toStdString()})));
+            std::string texto = ba::i18n::llenar(ba::i18n::traducir("mcp", "Aplicado. %1"), {summary.toStdString()});
+            if (!motor.empty()) {
+                std::string ks;
+                for (const auto& k : motor) ks += (ks.empty() ? "" : ", ") + k;
+                texto = ba::i18n::llenar(ba::i18n::traducir("mcp", "⚠ El motor se reinició por %1: se cortó por unos segundos todo lo que "
+                                                                  "sale y las cámaras se volvieron a abrir. Avisale al operador."),
+                                         {ks}) + "\n" + texto;
+                vm.notify(QString::fromStdString(ba::i18n::llenar(
+                              ba::i18n::traducir("mcp", "El asistente cambió %1: el motor se reinició (se cortó lo que sale)."), {ks})),
+                          "warn");
+            }
+            done(ToolResult::ok(texto));
         };
         core_.addTool(std::move(t));
     }

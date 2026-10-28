@@ -29,11 +29,14 @@ const std::map<std::string, std::string>& fijas() {
         {"gateway_restart", QT_TRANSLATE_NOOP("mcp", "reinicia el gateway (corta a los invitados)")},
         {"proxy_configurar", QT_TRANSLATE_NOOP("mcp", "reinicia la conferencia (corta a los invitados) con el proxy nuevo")},
         {"app_quit", QT_TRANSLATE_NOOP("mcp", "cierra el programa")},
+        {"evento_cambiar", QT_TRANSLATE_NOOP("mcp", "abre otro evento (reinicia el programa: corta todo lo que sale)")},
+        {"configuracion_cambiar", QT_TRANSLATE_NOOP("mcp", "cambia de configuración (reinicia el programa: corta todo lo que sale)")},
         {"transition_set", QT_TRANSLATE_NOOP("mcp", "cambia la transición")},
         {"speaker_on_air", QT_TRANSLATE_NOOP("mcp", "pone o saca oradores del aire")},
         {"source_remove", QT_TRANSLATE_NOOP("mcp", "borra una fuente (puede estar al aire)")},
         {"scene_delete", QT_TRANSLATE_NOOP("mcp", "borra una escena")},
-        {"settings_set", QT_TRANSLATE_NOOP("mcp", "cambia ajustes (los de gateway o reinicio cortan)")},
+        {"settings_set", QT_TRANSLATE_NOOP("mcp", "cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan)")},
+        {"video_reloj", QT_TRANSLATE_NOOP("mcp", "cambia el reloj del estudio (reinicia el motor: corta lo que sale)")},
         {"audio_set", QT_TRANSLATE_NOOP("mcp", "cambia el audio (mute del máster corta el sonido)")},
         {"ptz_mover", QT_TRANSLATE_NOOP("mcp", "mueve una cámara (si está al aire, se ve)")},
         {"ptz_preset", QT_TRANSLATE_NOOP("mcp", "lleva una cámara a un preset (si está al aire, se ve)")},
@@ -72,6 +75,12 @@ bool condicionFija(const std::string& h, const json& a) {
         }
         return false;
     }
+    if (h == "video_reloj") {
+        // Mirarlo, la latencia o publicarlo es normal; cambiar el reloj rearma el motor.
+        for (const char* k : {"tipo", "servidor", "puerto", "dominio"})
+            if (a.contains(k)) return true;
+        return false;
+    }
     if (h == "audio_set") {
         // Silenciar o bajar el máster / el programa.
         const std::string f = a.value("source", a.value("fuente", std::string()));
@@ -85,7 +94,7 @@ bool condicionFija(const std::string& h, const json& a) {
 }
 
 bool esAireSi(const std::string& h) {
-    return h == "settings_set" || h == "audio_set" || h == "speaker_on_air" || h == "aire_ftb" ||
+    return h == "settings_set" || h == "video_reloj" || h == "audio_set" || h == "speaker_on_air" || h == "aire_ftb" ||
            h == "aire_placa" || h == "chat_overlay_add" || h == "banca_al_aire" || h == "enfocar" ||
            h.rfind("ptz_", 0) == 0;
 }

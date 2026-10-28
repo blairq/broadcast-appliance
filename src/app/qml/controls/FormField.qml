@@ -28,7 +28,7 @@ Item {
     property string suffix: ""
     property string help: ""
     property bool modified: false
-    property string badge: "" // "gateway", "restart"
+    property string badge: "" // "gateway", "motor", "restart"
     signal edited(var v)
     signal pressed()
 
@@ -95,7 +95,7 @@ Item {
 
         Rectangle {
             id: insignia
-            visible: field.badge === "gateway" || field.badge === "restart"
+            visible: field.badge === "gateway" || field.badge === "motor" || field.badge === "restart"
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             radius: 8; height: 18; width: badgeText.implicitWidth + 12
@@ -103,14 +103,17 @@ Item {
             Text {
                 id: badgeText
                 anchors.centerIn: parent
-                text: field.badge === "gateway" ? qsTr("reinicia el servidor al aplicar") : qsTr("al volver a abrir el programa")
-                color: Theme.textFaint
+                text: field.badge === "gateway" ? qsTr("reinicia el servidor al aplicar")
+                      : field.badge === "motor" ? qsTr("reinicia el motor al aplicar") : qsTr("al volver a abrir el programa")
+                color: field.badge === "motor" ? Theme.amber : Theme.textFaint
                 font.pixelSize: 10
             }
             MouseArea { id: badgeMa; anchors.fill: parent; hoverEnabled: true }
             ToolTip.visible: badgeMa.containsMouse; ToolTip.delay: 300
             ToolTip.text: field.badge === "gateway"
                 ? qsTr("Al aplicar se reinicia solo el servidor (gateway: la conferencia, la sesión remota, la botonera web, las pantallas…), sin cerrar el programa: lo que está conectado se corta y vuelve a entrar. También se puede reiniciar a mano con «Reiniciar el servidor» (acá) o «Reiniciar la conferencia» (en la página Conferencia).")
+                : field.badge === "motor"
+                ? qsTr("Al aplicar se rearma el motor de video con todo lo que tenía: por unos segundos se corta todo lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica: queda para cuando terminen.")
                 : qsTr("Rige la próxima vez que se abra el programa.")
         }
     }

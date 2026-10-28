@@ -85,8 +85,9 @@ void McpService::registerConfiguracionesTools() {
         t.name = "evento_cambiar";
         t.title = ba::i18n::traducir("mcp", "Abrir otro evento");
         t.category = "eventos";
-        t.description = ba::i18n::traducir("mcp", "Pasa al evento `nombre` (sus escenas, mezclador, medios, asamblea, web…): la app se REINICIA. "
-                        "No con una transmisión o una grabación en curso; pedile confirmación al operador antes.");
+        t.description = ba::i18n::traducir("mcp", "Pasa al evento `nombre` (sus escenas, mezclador, medios, asamblea, web…): la app se REINICIA y "
+                        "se corta todo lo que sale (el programa, la sala, las pantallas, la conferencia). No con una "
+                        "transmisión o una grabación en curso; pedile confirmación al operador antes.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"nombre"}},
                          {"properties", {{"nombre", {{"type", "string"}}}, {"aunque_este_al_aire", {{"type", "boolean"}}}}}};

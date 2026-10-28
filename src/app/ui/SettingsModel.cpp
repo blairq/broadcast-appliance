@@ -15,6 +15,8 @@
 #include <QSet>
 #include <QVariantMap>
 
+#include <algorithm>
+
 #include "arranque/AppRuntime.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
@@ -164,14 +166,14 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
     // clang-format off
     fields_ = {
         // --- Video -----------------------------------------------------------------
-        {"video.width", "Video", traducir("ajustes", "Ancho del lienzo"), "int", {}, 320, 7680, "px", traducir("ajustes", "Resolución de composición."), "live", 1920},
-        {"video.height", "Video", traducir("ajustes", "Alto del lienzo"), "int", {}, 240, 4320, "px", "", "live", 1080},
-        {"video.outputWidth", "Video", traducir("ajustes", "Ancho de salida"), "int", {}, 320, 7680, "px", traducir("ajustes", "Resolución que se codifica (se escala desde el lienzo)."), "live", 1920},
-        {"video.outputHeight", "Video", traducir("ajustes", "Alto de salida"), "int", {}, 240, 4320, "px", "", "live", 1080},
-        {"video.fps", "Video", traducir("ajustes", "Cuadros por segundo"), "choice", choices({{"24000/1001","23,976"},{"24","24"},{"25","25"},{"30000/1001","29,97"},{"30","30"},{"50","50"},{"60000/1001","59,94"},{"60","60"}}), 0, 0, "fps", traducir("ajustes", "29,97 / 59,94 / 23,976: las cadencias NTSC (America, Japón)."), "live", "30"},
-        {"video.formato", "Video", traducir("ajustes", "Formato de salida"), "choice", choices({{"nv12", traducir("ajustes", "NV12 (8 bits 4:2:0, el de siempre)")},{"i420", traducir("ajustes", "I420 (8 bits 4:2:0)")},{"i444", traducir("ajustes", "I444 (8 bits 4:4:4)")},{"p010", traducir("ajustes", "P010 (10 bits 4:2:0, HDR)")},{"i010", traducir("ajustes", "I010 (10 bits 4:2:0)")}}), 0, 0, "", traducir("ajustes", "Lo que reciben los codificadores. HDR necesita 10 bits (y un codificador que lo acepte: HEVC/AV1)."), "live", "nv12"},
-        {"video.color", "Video", traducir("ajustes", "Espacio de color"), "choice", choices({{"709","Rec. 709 (HD)"},{"601","Rec. 601 (SD)"},{"srgb","sRGB"},{"2100pq","Rec. 2100 PQ (HDR)"},{"2100hlg","Rec. 2100 HLG (HDR)"}}), 0, 0, "", traducir("ajustes", "Las entradas que se normalizan se llevan a este espacio de color."), "live", "709"},
-        {"video.rango", "Video", traducir("ajustes", "Rango"), "choice", choices({{"limitado", traducir("ajustes", "Limitado (16-235, broadcast)")},{"completo", traducir("ajustes", "Completo (0-255)")}}), 0, 0, "", "", "live", "limitado"},
+        {"video.width", "Video", traducir("ajustes", "Ancho del lienzo"), "int", {}, 320, 7680, "px", traducir("ajustes", "Resolución de composición."), "motor", 1920},
+        {"video.height", "Video", traducir("ajustes", "Alto del lienzo"), "int", {}, 240, 4320, "px", "", "motor", 1080},
+        {"video.outputWidth", "Video", traducir("ajustes", "Ancho de salida"), "int", {}, 320, 7680, "px", traducir("ajustes", "Resolución que se codifica (se escala desde el lienzo)."), "motor", 1920},
+        {"video.outputHeight", "Video", traducir("ajustes", "Alto de salida"), "int", {}, 240, 4320, "px", "", "motor", 1080},
+        {"video.fps", "Video", traducir("ajustes", "Cuadros por segundo"), "choice", choices({{"24000/1001","23,976"},{"24","24"},{"25","25"},{"30000/1001","29,97"},{"30","30"},{"50","50"},{"60000/1001","59,94"},{"60","60"}}), 0, 0, "fps", traducir("ajustes", "29,97 / 59,94 / 23,976: las cadencias NTSC (America, Japón)."), "motor", "30"},
+        {"video.formato", "Video", traducir("ajustes", "Formato de salida"), "choice", choices({{"nv12", traducir("ajustes", "NV12 (8 bits 4:2:0, el de siempre)")},{"i420", traducir("ajustes", "I420 (8 bits 4:2:0)")},{"i444", traducir("ajustes", "I444 (8 bits 4:4:4)")},{"p010", traducir("ajustes", "P010 (10 bits 4:2:0, HDR)")},{"i010", traducir("ajustes", "I010 (10 bits 4:2:0)")}}), 0, 0, "", traducir("ajustes", "Lo que reciben los codificadores. HDR necesita 10 bits (y un codificador que lo acepte: HEVC/AV1)."), "motor", "nv12"},
+        {"video.color", "Video", traducir("ajustes", "Espacio de color"), "choice", choices({{"709","Rec. 709 (HD)"},{"601","Rec. 601 (SD)"},{"srgb","sRGB"},{"2100pq","Rec. 2100 PQ (HDR)"},{"2100hlg","Rec. 2100 HLG (HDR)"}}), 0, 0, "", traducir("ajustes", "Las entradas que se normalizan se llevan a este espacio de color."), "motor", "709"},
+        {"video.rango", "Video", traducir("ajustes", "Rango"), "choice", choices({{"limitado", traducir("ajustes", "Limitado (16-235, broadcast)")},{"completo", traducir("ajustes", "Completo (0-255)")}}), 0, 0, "", "", "motor", "limitado"},
         {"transition.type", "Video", traducir("ajustes", "Transición"), "choice", choices({{"cut", traducir("ajustes", "Corte")},{"fade", traducir("ajustes", "Fundido")},{"swipe", traducir("ajustes", "Barrido")},{"slide", traducir("ajustes", "Deslizar")},{"fade_to_color", traducir("ajustes", "Fundido a color")}}), 0, 0, "", "", "live", "fade"},
         {"transition.ms", "Video", traducir("ajustes", "Duración de la transición"), "int", {}, 0, 5000, "ms", "", "live", 300},
         // --- Cámaras y entradas ----------------------------------------------------
@@ -595,6 +597,12 @@ bool SettingsModel::tieneAvanzados(const QString& section) const {
     return false;
 }
 
+QString SettingsModel::alcance(const QString& key) const {
+    for (const Field& f : fields_)
+        if (f.key == key) return f.scope;
+    return {};
+}
+
 void SettingsModel::resetSection(const QString& section) {
     for (const auto& f : fields_) {
         if (f.section == section) {
@@ -608,11 +616,12 @@ QString SettingsModel::apply() {
     if (enVivo_ && enVivo_()) {
         QStringList cortan;
         for (const Field& f : fields_)
-            if ((f.scope == "gateway" || f.scope == "restart") && draft_.value(f.key) != saved_.value(f.key)) cortan << f.label;
+            if ((f.scope == "gateway" || f.scope == "restart" || f.scope == "motor") && draft_.value(f.key) != saved_.value(f.key))
+                cortan << f.label;
         if (!cortan.isEmpty()) {
             fallo_ = true;
-            return traducir("ajustes", "EN VIVO: no se aplica «%1»: reinicia el gateway o el programa y corta a los invitados o el "
-                      "aire. Volvé atrás esos cambios o esperá a terminar la transmisión.")
+            return traducir("ajustes", "EN VIVO: no se aplica «%1»: reinicia el gateway, el motor o el programa y corta a los "
+                      "invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.")
                 .arg(cortan.join("», «"));
         }
     }
@@ -649,8 +658,13 @@ QString SettingsModel::apply() {
     QStringList notes;
 
     AppConfig& c = rt_.config();
-    // Video y codificacion: en caliente si no hay salidas activas.
-    if (changed("video.")) {
+    // Video y codificacion: en caliente si no hay salidas activas. Solo los de
+    // alcance «motor» lo rearman (antes, por el prefijo «video.», también
+    // «Legalizar para TV», que no lo necesita).
+    const bool cambioMotor = std::any_of(fields_.cbegin(), fields_.cend(), [&](const Field& f) {
+        return f.scope == "motor" && draft_.value(f.key) != saved_.value(f.key);
+    });
+    if (cambioMotor) {
         VideoConfig v = c.video;
         v.baseWidth = i("video.width");
         v.baseHeight = i("video.height");
@@ -661,7 +675,7 @@ QString SettingsModel::apply() {
         v.color = s("video.color");
         v.rango = s("video.rango");
         if (rt_.applyVideo(v)) {
-            notes << traducir("ajustes", "Video aplicado.");
+            notes << traducir("ajustes", "Video aplicado: el motor se reinició (por unos segundos se cortó lo que sale).");
         } else {
             c.video = v; // se guarda igual: rige al proximo arranque
             notes << traducir("ajustes", "Video: %1 (se aplica al reiniciar).").arg(qs(rt_.lastError()));

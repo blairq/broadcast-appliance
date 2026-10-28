@@ -35,6 +35,7 @@
 #include <cstdio>
 #include <set>
 
+#include "mcp/McpAire.hpp"
 #include "mcp/McpCore.hpp"
 #include "mcp/McpHttp.hpp"
 
@@ -606,6 +607,17 @@ int main(int argc, char** argv) {
         CHECK(!r.empty(), "resumir un texto con acentos no revienta");
         CHECK(r.find("no se pudo resumir") == std::string::npos, "y no cae en el camino de emergencia");
         CHECK(json(r).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).size() > 0, "lo que sale se puede serializar");
+    }
+
+    {
+        // Lo que reinicia el motor o el programa es de aire (pide confirmación al aire).
+        ba::app::mcp::McpAire aire;
+        CHECK(aire.esDeAire("settings_set", {{"values", {{"video.width", 1280}}}}), "cambiar el lienzo es de aire");
+        CHECK(!aire.esDeAire("video_reloj", json::object()), "mirar el reloj no es de aire");
+        CHECK(!aire.esDeAire("video_reloj", {{"latencia_ms", 400}}), "la latencia no rearma el motor");
+        CHECK(aire.esDeAire("video_reloj", {{"tipo", "ntp"}}), "cambiar el reloj rearma el motor: de aire");
+        CHECK(aire.esDeAire("evento_cambiar", {{"nombre", "x"}}), "abrir otro evento reinicia el programa: de aire");
+        CHECK(aire.esDeAire("configuracion_cambiar", {{"nombre", "x"}}), "cambiar de configuración: de aire");
     }
 
     if (g_failures == 0) {

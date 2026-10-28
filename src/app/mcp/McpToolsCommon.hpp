@@ -32,4 +32,8 @@ bool resolveParticipant(const json& snapshot, const std::string& query, json& ou
 /// "backstage:K"), o vacio si A no recibe su video ahora.
 std::string personFeedKey(const json& participant);
 
+/// La advertencia de las herramientas que rearman el motor (el lienzo, los cuadros
+/// por segundo, el reloj del estudio): una sola, para todas las que lo hacen.
+std::string avisoReiniciaMotor();
+
 } // namespace ba::app::mcp

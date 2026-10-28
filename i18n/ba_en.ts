@@ -10647,14 +10647,24 @@ Turn it on from the Log.</translation>
         <translation>restarts the server on apply</translation>
     </message>
     <message>
-        <location line="+0" />
+        <location line="+1" />
         <source>al volver a abrir el programa</source>
         <translation>when the program is reopened</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>reinicia el motor al aplicar</source>
+        <translation>restarts the engine on apply</translation>
     </message>
     <message>
         <location line="+7" />
         <source>Al aplicar se reinicia solo el servidor (gateway: la conferencia, la sesión remota, la botonera web, las pantallas…), sin cerrar el programa: lo que está conectado se corta y vuelve a entrar. También se puede reiniciar a mano con «Reiniciar el servidor» (acá) o «Reiniciar la conferencia» (en la página Conferencia).</source>
         <translation>On apply only the server restarts (gateway: the conference, the remote session, the web control surface, the displays…), without closing the program: whatever is connected drops and rejoins. You can also restart it by hand with “Restart the server” (here) or “Restart the conference” (on the Conference page).</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Al aplicar se rearma el motor de video con todo lo que tenía: por unos segundos se corta todo lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica: queda para cuando terminen.</source>
+        <translation>On apply the video engine is rebuilt with everything it had: for a few seconds everything going out is cut (the program, the room, the screens, what guests see) and the cameras are reopened. With a stream or a recording running it is not applied: it waits until they finish.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -35981,7 +35991,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>ajustes</name>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="+42" />
+        <location filename="../src/app/ui/SettingsModel.cpp" line="+44" />
         <source>Video</source>
         <translation>Video</translation>
     </message>
@@ -37361,14 +37371,14 @@ Choose something else in Outputs → Screens.</translation>
         <translation>If off, the watchdog restarts automatically without asking.</translation>
     </message>
     <message>
-        <location line="+324" />
-        <source>EN VIVO: no se aplica «%1»: reinicia el gateway o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.</source>
-        <translation>LIVE: “%1” isn't applied: it restarts the gateway or the program and cuts off guests or the air. Undo those changes or wait until the stream ends.</translation>
+        <location line="+331" />
+        <source>EN VIVO: no se aplica «%1»: reinicia el gateway, el motor o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o esperá a terminar la transmisión.</source>
+        <translation>LIVE: «%1» is not applied: it restarts the gateway, the engine or the program and cuts off the guests or the air. Undo those changes or wait for the stream to end.</translation>
     </message>
     <message>
-        <location line="+50" />
-        <source>Video aplicado.</source>
-        <translation>Video applied.</translation>
+        <location line="+55" />
+        <source>Video aplicado: el motor se reinició (por unos segundos se cortó lo que sale).</source>
+        <translation>Video applied: the engine restarted (everything going out was cut for a few seconds).</translation>
     </message>
     <message>
         <location line="+3" />
@@ -38483,7 +38493,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+0" />
-        <location filename="../src/app/ui/SettingsModel.cpp" line="-598" />
+        <location filename="../src/app/ui/SettingsModel.cpp" line="-610" />
         <source>tokens</source>
         <translation>tokens</translation>
     </message>
@@ -44635,7 +44645,7 @@ Data (from %2): %3</translation>
 <context>
     <name>disco</name>
     <message>
-        <location filename="../src/app/emision/BroadcastEngine.cpp" line="+1657" />
+        <location filename="../src/app/emision/BroadcastEngine.cpp" line="+1667" />
         <source>el disco, para la grabación del programa (solo): en pausa %1</source>
         <translation>the disk, for the program recording (automatic): paused %1</translation>
     </message>
@@ -45310,7 +45320,7 @@ Data (from %2): %3</translation>
 <context>
     <name>emision</name>
     <message>
-        <location filename="../src/app/emision/BroadcastEngine.cpp" line="-1474" />
+        <location filename="../src/app/emision/BroadcastEngine.cpp" line="-1484" />
         <source>GStreamer no arrancó: %1</source>
         <translation>GStreamer didn't start: %1</translation>
     </message>
@@ -45332,12 +45342,12 @@ Data (from %2): %3</translation>
         <translation>publishReturnFeeds without startup</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+14" />
         <source>no se pudo publicar el canal de video de programa</source>
         <translation>couldn't publish the program video channel</translation>
     </message>
     <message>
-        <location line="+52" />
+        <location line="+55" />
         <source>canal de escena fuera de rango</source>
         <translation>scene channel out of range</translation>
     </message>
@@ -53072,6 +53082,16 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     </message>
     <message>
         <location line="+1" />
+        <source>abre otro evento (reinicia el programa: corta todo lo que sale)</source>
+        <translation>opens another event (restarts the program: cuts everything going out)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>cambia de configuración (reinicia el programa: corta todo lo que sale)</source>
+        <translation>switches configuration (restarts the program: cuts everything going out)</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>cambia la transición</source>
         <translation>changes the transition</translation>
     </message>
@@ -53092,8 +53112,13 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     </message>
     <message>
         <location line="+1" />
-        <source>cambia ajustes (los de gateway o reinicio cortan)</source>
-        <translation>changes settings (gateway or restart ones cause a cut)</translation>
+        <source>cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan)</source>
+        <translation>changes settings (video ones restart the engine and gateway ones the conference: they cut)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>cambia el reloj del estudio (reinicia el motor: corta lo que sale)</source>
+        <translation>changes the studio clock (restarts the engine: cuts what goes out)</translation>
     </message>
     <message>
         <location line="+1" />
@@ -53201,7 +53226,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>raises or lowers a layer (DSK) over the program</translation>
     </message>
     <message>
-        <location line="+87" />
+        <location line="+93" />
         <source>falta `herramienta`</source>
         <translation>`herramienta` is missing</translation>
     </message>
@@ -53303,7 +53328,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+404" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+268" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+1108" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+3178" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+3185" />
         <location line="+454" />
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+155" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1496" />
@@ -55395,11 +55420,11 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     </message>
     <message>
         <location line="+2" />
-        <source>Pasa al evento `nombre` (sus escenas, mezclador, medios, asamblea, web…): la app se REINICIA. No con una transmisión o una grabación en curso; pedile confirmación al operador antes.</source>
-        <translation>Switches to event `nombre` (its scenes, mixer, media, assembly, web…): the app RESTARTS. Not with a stream or recording in progress; ask the operator for confirmation first.</translation>
+        <source>Pasa al evento `nombre` (sus escenas, mezclador, medios, asamblea, web…): la app se REINICIA y se corta todo lo que sale (el programa, la sala, las pantallas, la conferencia). No con una transmisión o una grabación en curso; pedile confirmación al operador antes.</source>
+        <translation>Switches to the event `nombre` (its scenes, mixer, media, assembly, web…): the app RESTARTS and everything going out is cut (the program, the room, the screens, the conference). Not with a stream or a recording running; ask the operator for confirmation first.</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+9" />
         <source>ya es el evento abierto</source>
         <translation>it's already the open event</translation>
     </message>
@@ -64094,7 +64119,7 @@ It doesn't change anything in the event except adding the missing manual items t
     </message>
     <message>
         <location line="+22" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1412" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1433" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1554" />
         <source>Guardado.</source>
         <translation>Saved.</translation>
@@ -66715,7 +66740,7 @@ For this to answer anything, lobby recognition has to be on: `rostro_autoalta {a
         <translation>Nobody is visible on the waiting cameras.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-3859" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-3880" />
         <source>ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (%1):
 - Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el tiempo.
 - Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.
@@ -68440,12 +68465,22 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Changes the grid: `filas` and `columnas`; `auto: true` arranges all the body's seats in order (front to back, left to right); `mover: {banca, fila, columna}` just one (fila -1 removes it); `bancas: [{banca, fila, columna}]` replaces the whole list. If something doesn't fit (off the grid, two in one spot), nothing changes and it says why. `distribucion`: how it is drawn (grilla, hemiciclo —each row an arc around the chair— or lista). `presidencia: banca` puts it at the chair's table, off the grid ("" removes it). In the hemicycle, `posicion: {banca, x, y}` places it by hand (in seat widths from the center of the chair, y negative upwards; x null sends it back to its arc) and `posiciones_auto: true` sends them all back to their arcs.</translation>
     </message>
     <message>
-        <location line="-2" />
+        <location line="+651" />
+        <source>Cambia uno o varios ajustes por clave y los aplica y guarda. Los de alcance 'gateway' reinician la conferencia (los invitados se reconectan solos); los 'motor' (el lienzo, la salida, los cuadros por segundo, el formato y el color: video.width, video.height, video.outputWidth, video.outputHeight, video.fps, video.formato, video.color, video.rango) REINICIAN EL MOTOR; los 'restart', al proximo arranque.</source>
+        <translation>Changes one or more settings by key, applies and saves them. 'gateway' scope ones restart the conference (guests reconnect by themselves); 'motor' ones (the canvas, the output, the frame rate, the format and the color: video.width, video.height, video.outputWidth, video.outputHeight, video.fps, video.formato, video.color, video.rango) RESTART THE ENGINE; 'restart' ones, on the next launch.</translation>
+    </message>
+    <message>
+        <location line="-653" />
         <source>Armar la grilla del recinto</source>
         <translation>Set up the chamber grid</translation>
     </message>
     <message>
-        <location line="+40" />
+        <location line="-3158" />
+        <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
+        <translation>WARNING: RESTARTS THE ENGINE. For a few seconds EVERYTHING going out is cut (the program, the room, the screens, what guests see) and the cameras are reopened. With a stream or a recording running it is not applied. Don't use it to fix a camera: tell the operator first and ask them to confirm.</translation>
+    </message>
+    <message>
+        <location line="+3198" />
         <source>Apuntar la cámara a una banca</source>
         <translation>Point the camera at a seat</translation>
     </message>
@@ -68796,12 +68831,7 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
         <translation>Change settings</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Cambia uno o varios ajustes por clave y los aplica y guarda. Los de alcance 'gateway' reinician la conferencia (los invitados se reconectan solos); los 'restart', al proximo arranque.</source>
-        <translation>Changes one or more settings by key and applies and saves them. Those with scope 'gateway' restart the conference (guests reconnect automatically); 'restart' ones, on next startup.</translation>
-    </message>
-    <message>
-        <location line="+5" />
+        <location line="+11" />
         <source>{clave: valor} (ver settings_list).</source>
         <translation>{key: value} (see settings_list).</translation>
     </message>
@@ -68831,12 +68861,22 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
         <translation>Unknown keys:%1. settings_list shows the valid ones.</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+11" />
         <source>Aplicado. %1</source>
         <translation>Applied. %1</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+4" />
+        <source>⚠ El motor se reinició por %1: se cortó por unos segundos todo lo que sale y las cámaras se volvieron a abrir. Avisale al operador.</source>
+        <translation>⚠ The engine restarted because of %1: everything going out was cut for a few seconds and the cameras were reopened. Let the operator know.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>El asistente cambió %1: el motor se reinició (se cortó lo que sale).</source>
+        <translation>The assistant changed %1: the engine restarted (what goes out was cut).</translation>
+    </message>
+    <message>
+        <location line="+10" />
         <source>Guardar configuracion</source>
         <translation>Save configuration</translation>
     </message>
@@ -69363,15 +69403,15 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
         <location line="+40" />
         <location line="+36" />
         <location line="+29" />
-        <location line="+669" />
-        <location line="+50" />
+        <location line="+670" />
+        <location line="+63" />
         <location line="+29" />
         <source>el video no está disponible</source>
         <translation>video isn't available</translation>
     </message>
     <message>
         <location line="+2" />
-        <location filename="../src/app/mcp/McpVideoTools.cpp" line="-1897" />
+        <location filename="../src/app/mcp/McpVideoTools.cpp" line="-1911" />
         <source>GStreamer no está disponible: %1</source>
         <translation>GStreamer isn't available: %1</translation>
     </message>
@@ -72149,16 +72189,21 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     </message>
     <message>
         <location line="+2" />
-        <source>Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. Cambiarlo: `tipo` sistema (el de esta máquina; de fábrica) | ntp (`servidor`, `puerto` 123: todos los equipos del lugar contra el mismo NTP) | ptp (`dominio`; IEEE 1588, el de los equipos de estudio; necesita permisos) | red (`servidor`, `puerto`: el reloj que publica OTRO Broadcast Appliance). `latencia_ms`: el colchón de las entradas de red (más = más tolerancia a la red, más retraso). `publicar_puerto`: publica el reloj de ESTE aparato en ese puerto para que otros usen `red` contra él (0 = dejar de publicar). Se aplica a todas las entradas de GStreamer.</source>
-        <translation>Without arguments: the studio clock and its state on each network input. To change it: `tipo` sistema (this machine's; default) | ntp (`servidor`, `puerto` 123: every device on site against the same NTP) | ptp (`dominio`; IEEE 1588, used by studio equipment; needs permissions) | red (`servidor`, `puerto`: the clock published by ANOTHER Broadcast Appliance). `latencia_ms`: the network inputs' buffer (more = more network tolerance, more delay). `publicar_puerto`: publishes THIS device's clock on that port so others can use `red` against it (0 = stop publishing). Applies to all GStreamer inputs.</translation>
+        <source>Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. Cambiarlo: `tipo` sistema (el de esta máquina; de fábrica) | ntp (`servidor`, `puerto` 123: todos los equipos del lugar contra el mismo NTP) | ptp (`dominio`; IEEE 1588, el de los equipos de estudio; necesita permisos) | red (`servidor`, `puerto`: el reloj que publica OTRO Broadcast Appliance). `latencia_ms`: el colchón de las entradas de red (más = más tolerancia a la red, más retraso). `publicar_puerto`: publica el reloj de ESTE aparato en ese puerto para que otros usen `red` contra él (0 = dejar de publicar). Se aplica a todas las entradas de GStreamer. Cambiar `tipo`, `servidor`, `puerto` o `dominio`:</source>
+        <translation>Without arguments: the studio clock and its state at each network input. To change it: `tipo` sistema (this machine's; default) | ntp (`servidor`, `puerto` 123: every device on site against the same NTP) | ptp (`dominio`; IEEE 1588, the studio equipment one; needs permissions) | red (`servidor`, `puerto`: the clock published by ANOTHER Broadcast Appliance). `latencia_ms`: the network inputs' buffer (more = more network tolerance, more delay). `publicar_puerto`: publishes THIS device's clock on that port so others use `red` against it (0 = stop publishing). It applies to all GStreamer inputs. Changing `tipo`, `servidor`, `puerto` or `dominio`:</translation>
     </message>
     <message>
-        <location line="+46" />
+        <location line="+51" />
         <source>todas las entradas van con el reloj del estudio (el del motor); se alinean con video_desfase</source>
         <translation>all inputs run on the studio clock (the engine's); align them with video_desfase</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+4" />
+        <source>⚠ El motor se reinició por el cambio de reloj: se cortó por unos segundos todo lo que sale y las cámaras se volvieron a abrir. Avisale al operador.</source>
+        <translation>⚠ The engine restarted because of the clock change: everything going out was cut for a few seconds and the cameras were reopened. Let the operator know.</translation>
+    </message>
+    <message>
+        <location line="+13" />
         <source>Medir (y corregir) cuánto atrasa una entrada respecto de otra</source>
         <translation>Measure (and fix) how far one input lags behind another</translation>
     </message>

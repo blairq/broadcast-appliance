@@ -1975,7 +1975,8 @@ void McpService::registerVideoTools() {
                         "`publicar_puerto`: publica el "
                         "reloj de ESTE aparato en ese puerto para que otros usen `red` contra él (0 = dejar "
                         "de publicar). Se "
-                        "aplica a todas las entradas de GStreamer.");
+                        "aplica a todas las entradas de GStreamer. Cambiar `tipo`, `servidor`, `puerto` o `dominio`:") +
+                        " " + avisoReiniciaMotor();
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"tipo", {{"type", "string"}, {"enum", {"sistema", "ntp", "ptp", "red"}}}},
@@ -1989,7 +1990,12 @@ void McpService::registerVideoTools() {
             R"({"tipo": "red", "servidor": "10.0.0.5", "puerto": 8554})", R"({"latencia_ms": 400})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
+            // Cambiar el reloj (no la latencia ni publicarlo) rearma el motor: se dice.
+            bool reinicio = false;
             if (!a.empty()) {
+                const json antes = v->reloj();
+                for (const char* k : {"tipo", "servidor", "puerto", "dominio"})
+                    if (a.contains(k) && a[k] != antes.value(k, json())) reinicio = true;
                 const std::string err = v->configurarReloj(a);
                 if (!err.empty()) return done(ToolResult::error(err));
             }
@@ -2006,11 +2012,19 @@ void McpService::registerVideoTools() {
                                    {"edad_p50_ms", g.value("edad_p50_ms", 0.0)},
                                    {"llega_tarde", g.value("llega_tarde", false)}});
             }
-            done(ToolResult().data(
-                {{"reloj", v->reloj()},
-                 {"entradas_gstreamer", fuentes},
-                 {"nota", ba::i18n::traducir("mcp", "todas las entradas van con el reloj del estudio (el del motor); "
-                                                    "se alinean con video_desfase")}}));
+            json out{{"reloj", v->reloj()},
+                     {"entradas_gstreamer", fuentes},
+                     {"nota", ba::i18n::traducir("mcp", "todas las entradas van con el reloj del estudio (el del motor); "
+                                                        "se alinean con video_desfase")}};
+            ToolResult r;
+            if (reinicio) {
+                const std::string aviso = ba::i18n::traducir("mcp", "⚠ El motor se reinició por el cambio de reloj: se cortó por unos "
+                                                                    "segundos todo lo que sale y las cámaras se volvieron a abrir. "
+                                                                    "Avisale al operador.");
+                out["aviso"] = aviso;
+                r.text(aviso);
+            }
+            done(r.data(out));
         };
         core_.addTool(std::move(t));
     }
