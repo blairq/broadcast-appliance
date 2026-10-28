@@ -26,20 +26,28 @@ def _is_native_executable(path: Path) -> bool:
 
     The CMake tree also carries a Windows cross-compile output (``build/win/``)
     whose ``.exe`` targets keep the executable bit but are Windows PE binaries;
-    running them on a non-Windows hosts fails with "exec format error".
+    running them on a non-Windows host fails with "exec format error". So do the
+    linker's leftovers of an interrupted build (``test_x.exe.tmp1a2b3c``), which
+    the name alone does not reveal.
 
-    Filtering by native executability (not by a hardcoded subdir name) keeps
-    the discovery portable: on a non-Windows host any ``.exe`` is skipped, on
-    a Windows host it is kept.
+    So it looks at the file's first bytes, not at its name: ELF on Linux, Mach-O
+    on macOS, PE (``MZ``) on Windows.
 
     :param path: candidate ``test_*`` file to evaluate.
     :type path: Path
     :returns: ``True`` if the file is a native executable for the current host.
     :rtype: bool
     """
-    if os.name != "nt" and path.suffix.lower() == ".exe":
+    try:
+        with open(path, "rb") as f:
+            magia = f.read(4)
+    except OSError:
         return False
-    return True
+    if os.name == "nt":
+        return magia[:2] == b"MZ"
+    if sys.platform == "darwin":
+        return magia in (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca")
+    return magia == b"\x7fELF"
 
 
 def discover_test_binaries(build_dir: Path) -> list[Path]:
