@@ -98,6 +98,10 @@ them with real screenshots.
    every capture; if it came out empty, retry with a larger `espera_ms`.
 4. **Links with a key** (`#k=…` or `?clave=`) are secrets: never write the key in a manual. Say
    "the link or QR shown in Services" instead.
+   Control surfaces (botonera, control) and some consoles show an "unpaired" page until the device
+   is paired with the QR the app shows: that screenshot is right, use it to explain the pairing
+   step (the operator approves each new tablet or phone in Services). Do not try to pair or
+   approve anything yourself.
 5. Per-person services (`porPersona`) have no shared link: capture the Services page in the app
    (`ventana_captura`) and explain how each person gets theirs.
 6. Also capture the app's Services page and one QR dialog (`ventana_captura`), so the reader knows

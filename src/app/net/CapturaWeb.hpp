@@ -29,6 +29,7 @@ class CapturaWeb : public QObject {
         int ancho = 1440;
         int alto = 900;
         int esperaMs = 2500; ///< cuánto dejar correr la página (scripts, datos) antes de la foto
+        QString idioma;      ///< el del navegador (las páginas lo siguen); "" = el del programa
     };
     /// (imagen, "" | por qué no salió)
     using Listo = std::function<void(const QImage&, const QString&)>;

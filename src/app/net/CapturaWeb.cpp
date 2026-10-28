@@ -48,6 +48,7 @@ void CapturaWeb::capturar(const Pedido& p, Listo listo) {
     const QString perfil = QString::fromStdU16String((ba::platform::dataRoot() / "Cache" / "chrome-headless").u16string());
     QDir().mkpath(perfil);
     const int ancho = std::clamp(p.ancho, 320, 3840), alto = std::clamp(p.alto, 320, 4000);
+    const QString idioma = !p.idioma.isEmpty() ? p.idioma : QString::fromStdString(ba::i18n::actual().codigo);
     const QStringList args{"--headless",
                            "--disable-gpu",
                            "--hide-scrollbars",
@@ -58,6 +59,9 @@ void CapturaWeb::capturar(const Pedido& p, Listo listo) {
                            // Las páginas del aparato van por HTTPS con su propio certificado.
                            "--ignore-certificate-errors",
                            "--user-data-dir=" + perfil,
+                           // Las páginas eligen su idioma por el del navegador: el del manual, no el de Chrome.
+                           "--lang=" + idioma,
+                           "--accept-lang=" + idioma,
                            QString("--window-size=%1,%2").arg(ancho).arg(alto),
                            QString("--virtual-time-budget=%1").arg(std::clamp(p.esperaMs, 0, 20000)),
                            "--screenshot=" + png,
