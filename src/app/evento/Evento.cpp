@@ -26,7 +26,7 @@ constexpr NombreTipo kTipos[] = {
     {Tipo::Orador, "orador"},   {Tipo::Pantalla, "pantalla"},
     {Tipo::Audio, "audio"},     {Tipo::Pausa, "pausa"},
     {Tipo::Espera, "espera"},   {Tipo::Nota, "nota"},
-    {Tipo::Grafico, "grafico"},
+    {Tipo::Grafico, "grafico"}, {Tipo::Carrusel, "carrusel"},
 };
 
 std::string textoDe(const json& j, const char* clave) {
@@ -51,6 +51,21 @@ bool tieneTexto(const json& datos, const char* clave) {
 
 } // namespace
 
+int numeroDeLamina(const json& datos) {
+    // Número o texto con el número: la interfaz guarda lo que elige en una lista como texto.
+    const auto l = datos.find("lamina");
+    if (l == datos.end()) return 0;
+    if (l->is_number_integer()) return l->get<int>();
+    if (l->is_string()) {
+        try {
+            return std::stoi(l->get<std::string>());
+        } catch (...) {
+            return 0;
+        }
+    }
+    return 0;
+}
+
 bool ejecutable(Tipo t) {
     switch (t) {
         case Tipo::Escena:
@@ -59,6 +74,7 @@ bool ejecutable(Tipo t) {
         case Tipo::Teleprompter:
         case Tipo::Orador:
         case Tipo::Grafico:
+        case Tipo::Carrusel:
         case Tipo::Pantalla:
         case Tipo::Audio:
         case Tipo::Pausa:
@@ -137,6 +153,10 @@ std::string Cue::queLeFalta() const {
             if (!tieneTexto(datos, "grafico")) return ba::i18n::traducir("evento", "no dice que grafico sacar al aire");
             return {};
         }
+        case Tipo::Carrusel:
+            if (!tieneTexto(datos, "carrusel")) return ba::i18n::traducir("evento", "no dice qué carrusel poner");
+            if (numeroDeLamina(datos) < 1) return ba::i18n::traducir("evento", "no dice en qué lámina (desde 1)");
+            return {};
         case Tipo::Pantalla:
             if (!tieneTexto(datos, "pantalla")) return ba::i18n::traducir("evento", "no dice a que pantalla va");
             if (!tieneTexto(datos, "contenido")) return ba::i18n::traducir("evento", "no dice que mandarle");

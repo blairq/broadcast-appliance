@@ -194,6 +194,17 @@ void revision() {
     CHECK(!gSinCual.queLeFalta().empty(), "para mostrar hace falta decir cual grafico");
     Cue gOk = cue(Tipo::Grafico, "cg4", 0, json{{"fuente", "Zócalo"}, {"grafico", "zocalo"}});
     CHECK(gOk.queLeFalta().empty(), "con fuente y grafico esta completo");
+    // El cue de carrusel: fija carrusel y lámina (la lámina, como número o como texto).
+    Tipo tc{};
+    CHECK(tipoDeNombre("carrusel", tc) && tc == Tipo::Carrusel && ejecutable(Tipo::Carrusel), "el tipo carrusel existe y se ejecuta");
+    Cue cSin = cue(Tipo::Carrusel, "cc1", 0, json{{"lamina", 3}});
+    CHECK(cSin.queLeFalta().find("carrusel") != std::string::npos, "un cue de carrusel sin carrusel avisa");
+    Cue cSinLamina = cue(Tipo::Carrusel, "cc2", 0, json{{"carrusel", "Tema 1"}});
+    CHECK(!cSinLamina.queLeFalta().empty(), "sin lámina avisa");
+    Cue cOk = cue(Tipo::Carrusel, "cc3", 0, json{{"carrusel", "Tema 1"}, {"lamina", "3"}});
+    CHECK(cOk.queLeFalta().empty() && numeroDeLamina(cOk.datos) == 3, "la lámina como texto vale");
+    CHECK(numeroDeLamina(json{{"lamina", "x"}}) == 0 && numeroDeLamina(json{{"lamina", 0}}) == 0,
+          "una lámina que no es un número no vale");
 
     // Prender o apagar un rotulo automatico no necesita fuente ni grafico: el
     // vinculo ya sabe donde se ve. Lo que necesita es decir CUAL.

@@ -51,6 +51,7 @@ enum class Tipo {
     Teleprompter, ///< carga un texto y lo deja listo o lo arranca
     Orador,       ///< pone a alguien al aire, con su tiempo asignado
     Grafico,      ///< saca al aire un grafico animado (o lo esconde)
+    Carrusel,     ///< pone un carrusel en una lámina y lo muestra (fija los dos)
     Pantalla,     ///< manda contenido a una pantalla
     Audio,        ///< cambia el rack, silencia, hace ducking
     Pausa,        ///< espera N segundos
@@ -62,6 +63,8 @@ const char* nombreDeTipo(Tipo t);
 /// ¿El programa sabe ejecutar este tipo de cue? Una sola lista para el ensayo,
 /// la revisión y la ejecución (antes estaban copiadas y no coincidían).
 bool ejecutable(Tipo t);
+/// La lámina de un cue «carrusel» (desde 1; 0 si no dice o no es un número).
+int numeroDeLamina(const nlohmann::json& datos);
 /// Devuelve false si el texto no nombra ningún tipo conocido.
 bool tipoDeNombre(const std::string& s, Tipo& out);
 

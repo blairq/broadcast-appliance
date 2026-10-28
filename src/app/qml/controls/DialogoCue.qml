@@ -32,10 +32,10 @@ Dialog {
         repetir: qsTr("En bucle"), alAire: qsTr("Ponerlo al aire en su escena"), discurso: qsTr("Discurso"),
         arrancar: qsTr("Arrancarlo al cargarlo"), participante: qsTr("Quién habla"), fuente: qsTr("Fuente"),
         grafico: qsTr("Gráfico"), pantalla: qsTr("Pantalla"), contenido: qsTr("Qué muestra"), db: qsTr("Volumen (dB)"),
-        seVa: qsTr("Cuándo se va de la pantalla")
+        seVa: qsTr("Cuándo se va de la pantalla"), carrusel: qsTr("Carrusel"), lamina: qsTr("Lámina")
     })
     // Listas cerradas (no se escribe otra cosa).
-    readonly property var kCerrados: ["accion", "seVa"]
+    readonly property var kCerrados: ["accion", "seVa", "carrusel", "lamina"]
 
     function abrir(b, c) { dlg.bloque = b; dlg.cue = c; open() }
     function poner(campo, valor) {
@@ -89,7 +89,7 @@ Dialog {
                     id: campo
                     required property string modelData
                     readonly property var valor: dlg.c ? dlg.c.datos[modelData] : undefined
-                    readonly property var opciones: dlg.c ? dlg.ev.opcionesDeCampo(dlg.c.tipo, modelData) : []
+                    readonly property var opciones: dlg.c ? dlg.ev.opcionesDeCampo(dlg.c.tipo, modelData, dlg.c.datos) : []
                     readonly property bool siNo: dlg.kSiNo.indexOf(modelData) >= 0
                     Layout.fillWidth: true
                     spacing: 3

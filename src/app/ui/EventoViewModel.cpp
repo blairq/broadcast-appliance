@@ -4,6 +4,7 @@
 #include "i18n/I18n.hpp"
 
 #include <QCoreApplication>
+#include "ui/CarruselViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 
 #include "evento/Documentos.hpp"
@@ -121,6 +122,9 @@ constexpr CampoDeTipo kTipos[] = {
     {"orador", QT_TRANSLATE_NOOP("evento", "Orador"), QT_TRANSLATE_NOOP("evento", "Le da la palabra a alguien, con su tiempo."), "participante"},
     {"grafico", QT_TRANSLATE_NOOP("evento", "Gráfico"), QT_TRANSLATE_NOOP("evento", "Saca al aire un gráfico animado en una fuente de escena."),
      "fuente,grafico,accion,seVa"},
+    {"carrusel", QT_TRANSLATE_NOOP("evento", "Carrusel"),
+     QT_TRANSLATE_NOOP("evento", "Pone un carrusel en una lámina y lo muestra. Si en el medio lo cambiaste a mano desde la tarjeta, al llegar acá vuelve a esta."),
+     "carrusel,lamina"},
     {"pantalla", QT_TRANSLATE_NOOP("evento", "Pantalla"), QT_TRANSLATE_NOOP("evento", "Manda contenido a una pantalla."), "pantalla,contenido"},
     {"audio", QT_TRANSLATE_NOOP("evento", "Audio"), QT_TRANSLATE_NOOP("evento", "Silencia una fuente, la activa o le cambia el volumen."), "accion,fuente,db"},
     {"pausa", QT_TRANSLATE_NOOP("evento", "Pausa"), QT_TRANSLATE_NOOP("evento", "Espera los segundos que diga la duración."), ""},
@@ -779,7 +783,7 @@ QVariantList EventoViewModel::parametrosDeGrafico(const QString& grafico) const 
     return out;
 }
 
-QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString& campo) const {
+QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString& campo, const QVariantMap& datos) const {
     QVariantList out;
     const auto op = [&out](const QString& valor, const QString& texto = {}) {
         out.append(QVariantMap{{"valor", valor}, {"texto", texto.isEmpty() ? valor : texto}});
@@ -800,6 +804,15 @@ QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString
         }
     } else if (campo == "escena") {
         for (const std::string& e : rt_.engine().sceneNames()) op(QString::fromStdString(e));
+    } else if (campo == "carrusel" && carruseles_ != nullptr) {
+        for (const QString& n : carruseles_->nombres()) op(n);
+    } else if (campo == "lamina" && carruseles_ != nullptr) {
+        // Las del carrusel elegido en este cue, con su título: «3 · El derrumbe micénico».
+        for (const QVariant& v : carruseles_->laminasDe(datos.value("carrusel").toString())) {
+            const QVariantMap l = v.toMap();
+            op(QString::number(l.value("numero").toInt()),
+               tr("%1 · %2").arg(l.value("numero").toInt()).arg(l.value("titulo").toString()));
+        }
     } else if (campo == "archivo") {
         // Los medios del evento (Media/), con su ruta relativa, solo los del tipo.
         static const QStringList kAudio{"mp3", "wav", "ogg", "oga", "flac", "m4a", "aac", "opus", "aif", "aiff"};
@@ -2016,6 +2029,24 @@ void EventoViewModel::ejecutarActual() {
                                            : tr("Al aire el gráfico %1 en %2"))
                        .arg(grafico, fuente),
                    "ok");
+            return;
+        }
+        case evento::Tipo::Carrusel: {
+            // Fija carrusel y lámina (no «la siguiente»): si en el medio se movió a mano desde
+            // la tarjeta, el guion lo vuelve a donde dice. Las mismas operaciones que la tarjeta.
+            const QString nombre = QString::fromStdString(c->datos.value("carrusel", std::string()));
+            const int lamina = evento::numeroDeLamina(c->datos);
+            if (carruseles_ == nullptr) {
+                anotar(tr("No hay carruseles en este programa"), "error");
+                return;
+            }
+            const QString err = carruseles_->mostrar(nombre, lamina);
+            if (!err.isEmpty()) {
+                anotar(tr("No se pudo poner el carrusel: %1").arg(err), "error");
+                emit notify(tr("El cue de carrusel falló: %1").arg(err), "error");
+                return;
+            }
+            anotar(tr("Carrusel «%1», lámina %2").arg(nombre).arg(lamina), "ok");
             return;
         }
         case evento::Tipo::Espera: anotar(tr("Espera tu confirmación: %1").arg(titulo), "info"); return;

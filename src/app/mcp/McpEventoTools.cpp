@@ -1005,6 +1005,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "                                        su id y no hace falta fuente ni grafico.\n"
             "                                        Sirve para «durante las entrevistas, zocalo\n"
             "                                        automatico; en el cierre, apagado».\n"
+            "  carrusel      {carrusel, lamina}     pone ese carrusel en esa lámina (desde 1, como\n"
+            "                                        carrusel_laminas_ver) y lo muestra: su fuente\n"
+            "                                        visible y la de los otros carruseles de la escena,\n"
+            "                                        escondida. FIJA carrusel y lámina: si el operador\n"
+            "                                        la cambió a mano, al llegar acá vuelve a esta. Un\n"
+            "                                        cue por lámina que tenga que estar en pantalla.\n"
             "  pantalla      {pantalla, contenido}\n"
             "  audio         {accion, fuente, db}    accion: silenciar | activar | volumen\n"
             "  pausa         -                     espera lo que diga duracionSeg\n"
@@ -1016,7 +1022,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "algo salga solo cuando no lo esperabas es peor que llegar tarde. La revision avisa si hay "
             "seis automaticos seguidos.\n\n"
             "Sin `cue` agrega uno nuevo al final del bloque. Con `cue` actua sobre ese.\n\n"
-            "Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter, grafico, video y audio si. "
+            "Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter, grafico, carrusel, video y audio si. "
             "Pantalla todavia no: se puede dejar escrito en el guion (sirve para los tiempos y para "
             "que el operador sepa que hacer), pero cuando toquen se anotan como «todavia no se "
             "ejecutan» en vez de fallar callados.");
@@ -1029,8 +1035,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"tipo",
                {{"type", "string"},
                 {"enum",
-                 {"escena", "musica", "video", "teleprompter", "orador", "grafico", "pantalla", "audio",
-                  "pausa", "espera", "nota"}}}},
+                 {"escena", "musica", "video", "teleprompter", "orador", "grafico", "carrusel", "pantalla",
+                  "audio", "pausa", "espera", "nota"}}}},
               {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Lo que lee el operador.")}}},
               {"datos", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "Lo propio del tipo (ver la ayuda).")}}},
               {"duracionSeg", {{"type", "integer"}, {"minimum", 0}}},
@@ -1547,7 +1553,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                          {{"tipo",
                            {{"type", "string"},
                             {"description", ba::i18n::traducir("mcp", "escena, musica, video, teleprompter, orador, grafico, "
-                                            "pantalla, audio, pausa, espera o nota")}}},
+                                            "carrusel, pantalla, audio, pausa, espera o nota")}}},
                           {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que lee el operador")}}},
                           {"duracionSeg", {{"type", "integer"}}},
                           {"automatico", {{"type", "boolean"}}},

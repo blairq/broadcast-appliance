@@ -34,6 +34,7 @@
 #include "evento/Padron.hpp"
 
 namespace ba::app {
+class CarruselViewModel;
 
 class AppRuntime;
 class ConferenceViewModel;
@@ -275,7 +276,9 @@ class EventoViewModel : public QObject {
     /// vez de escribirlas: [{valor, texto}] (las escenas, los medios del evento, los
     /// discursos, los gráficos y sus fuentes, las fuentes de audio, quién está en la
     /// sala, las acciones de cada tipo). Vacía = se escribe (o es un sí/no o un número).
-    Q_INVOKABLE QVariantList opcionesDeCampo(const QString& tipo, const QString& campo) const;
+    /// `datos`: los del cue (las láminas dependen del carrusel elegido en ese mismo cue).
+    Q_INVOKABLE QVariantList opcionesDeCampo(const QString& tipo, const QString& campo,
+                                             const QVariantMap& datos = {}) const;
     /// La vista web para ver si un cue anda (el teleprompter: la pantalla del orador,
     /// que avanza sola), en esta máquina; "" si ese tipo no tiene vista.
     Q_INVOKABLE QString enlaceDeCue(const QString& tipo) const;
@@ -292,6 +295,8 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);
     /// Los vinculos se crean despues que el guion, asi que se enchufan aparte.
     void setVinculos(graficos::Vinculos* v) { vinculos_ = v; }
+    /// Los carruseles, para el cue «carrusel» (ver CarruselViewModel::mostrar).
+    void setCarruseles(CarruselViewModel* c) { carruseles_ = c; }
     /// Lo que se sabe de YouTube, Twitch y Facebook para «dónde verlo en vivo» de la
     /// página web (ver evento::armarVivos). Lo pone StudioViewModel.
     void setPlataformas(std::function<nlohmann::json()> f) { plataformas_ = std::move(f); }
@@ -474,6 +479,7 @@ class EventoViewModel : public QObject {
     /// con que se pusieron (si después se puso otra cosa ahí, no se toca).
     std::vector<std::pair<std::uint64_t, int>> alAvanzar_;
     graficos::Vinculos* vinculos_ = nullptr;
+    CarruselViewModel* carruseles_ = nullptr;
     evento::EventoStore store_;
     evento::Evento e_;
     evento::Padron padron_;

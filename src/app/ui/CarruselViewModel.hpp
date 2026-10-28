@@ -113,6 +113,17 @@ class CarruselViewModel : public QObject {
     /// El nombre de la fuente que maneja ese carrusel, o "" si no está puesto
     /// en ninguna escena todavía.
     Q_INVOKABLE QString fuenteDe(const QString& carrusel) const;
+    /// Pone el carrusel `nombre` en la lámina `numero` (desde 1) Y LO MUESTRA: su fuente
+    /// queda visible y las de los otros carruseles de las mismas escenas, escondidas (dos
+    /// carruseles a pantalla completa en una escena se tapaban). No cambia el que se está
+    /// editando en la pestaña; la tarjeta de control pasa a manejar este. Es lo que hace el
+    /// cue «carrusel» del guion: fija carrusel y lámina, así lo que se haya movido a mano
+    /// vuelve a donde dice el guion. "" o el error.
+    Q_INVOKABLE QString mostrar(const QString& nombre, int numero);
+    /// Los nombres de los carruseles de la biblioteca.
+    QStringList nombres() const;
+    /// Las láminas de un carrusel cualquiera, para elegir una: [{numero (desde 1), titulo}].
+    QVariantList laminasDe(const QString& nombre) const;
     /// true si hay un carrusel con ese nombre.
     Q_INVOKABLE bool existe(const QString& carrusel) const;
     /// Lo desvincula: la fuente queda donde está, con la lámina que tenía. Se
@@ -146,6 +157,7 @@ class CarruselViewModel : public QObject {
     void empujar(const carrusel::Carrusel& c);
 
     AppRuntime& rt_;
+    QString mostrado_; ///< el último que puso `mostrar`: la tarjeta lo prefiere en su escena
     std::unique_ptr<carrusel::Store> store_;
     std::unique_ptr<carrusel::Conversor> conv_;
     QString actual_;

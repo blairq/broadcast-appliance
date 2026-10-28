@@ -7,6 +7,7 @@
 #include <QDir>
 
 #include <algorithm>
+#include <filesystem>
 #include <QFileInfo>
 #include <QUrl>
 
@@ -269,11 +270,16 @@ void CarruselViewModel::revisarEscena() {
     QString hallado;
     if (!escena.empty()) {
         const std::vector<std::string> fuentes = rt_.engine().sceneSources(escena);
+        const auto esta = [&fuentes](const carrusel::Carrusel& c) {
+            return !c.fuente().empty() && std::find(fuentes.begin(), fuentes.end(), c.fuente()) != fuentes.end();
+        };
+        // El que puso el último cue «carrusel» (mostrar), si está en esta escena: con varios
+        // carruseles en una escena, es el que se ve.
+        if (const carrusel::Carrusel* m = store_->porNombre(mostrado_.toStdString()); m != nullptr && esta(*m))
+            hallado = mostrado_;
         for (const carrusel::Carrusel& c : store_->todos()) {
-            if (c.fuente().empty()) continue;
-            if (std::find(fuentes.begin(), fuentes.end(), c.fuente()) == fuentes.end()) continue;
-            hallado = QString::fromStdString(c.nombre());
-            break; // el primero: dos carruseles en una escena es raro y ambiguo
+            if (!hallado.isEmpty()) break;
+            if (esta(c)) hallado = QString::fromStdString(c.nombre()); // si no, el primero
         }
     }
     if (hallado == enEscena_) return;
@@ -286,6 +292,51 @@ void CarruselViewModel::revisarEscena() {
         if (const carrusel::Carrusel* c = store_->porNombre(hallado.toStdString())) empujar(*c);
     }
     emit enEscenaCambio();
+}
+
+QString CarruselViewModel::mostrar(const QString& nombre, int numero) {
+    carrusel::Carrusel* c = store_->porNombre(nombre.toStdString());
+    if (c == nullptr) return tr("No hay ningún carrusel llamado «%1».").arg(nombre);
+    if (c->fuente().empty())
+        return tr("«%1» no está en ninguna escena: aplicalo a una desde Medios › Carruseles.").arg(nombre);
+    if (!c->ir(numero - 1)) return tr("«%1» no tiene una lámina %2 (tiene %3).").arg(nombre).arg(numero).arg(c->tamano());
+    store_->persistir();
+    empujar(*c);
+    // Y SE VE: en cada escena que lo tiene, su fuente visible y las de los otros carruseles
+    // de esa escena, escondidas.
+    for (const std::string& escena : rt_.engine().sceneNames()) {
+        const std::vector<std::string> fuentes = rt_.engine().sceneSources(escena);
+        if (std::find(fuentes.begin(), fuentes.end(), c->fuente()) == fuentes.end()) continue;
+        rt_.setSourceVisible(escena, c->fuente(), true);
+        for (const carrusel::Carrusel& otro : store_->todos())
+            if (&otro != c && !otro.fuente().empty() && std::find(fuentes.begin(), fuentes.end(), otro.fuente()) != fuentes.end())
+                rt_.setSourceVisible(escena, otro.fuente(), false);
+    }
+    mostrado_ = nombre;
+    if (actual_ == nombre) emit posicionCambio();
+    // Que la tarjeta maneje este (aunque ya estuviera en otro de la misma escena).
+    enEscena_.clear();
+    revisarEscena();
+    return {};
+}
+
+QStringList CarruselViewModel::nombres() const {
+    QStringList out;
+    for (const carrusel::Carrusel& c : store_->todos()) out << QString::fromStdString(c.nombre());
+    return out;
+}
+
+QVariantList CarruselViewModel::laminasDe(const QString& nombre) const {
+    QVariantList out;
+    const carrusel::Carrusel* c = store_->porNombre(nombre.toStdString());
+    if (c == nullptr) return out;
+    int n = 0;
+    for (const carrusel::Lamina& l : c->laminas()) {
+        ++n;
+        const std::string t = l.titulo.empty() ? std::filesystem::path(l.archivo).stem().string() : l.titulo;
+        out.append(QVariantMap{{"numero", n}, {"titulo", QString::fromStdString(t)}});
+    }
+    return out;
 }
 
 bool CarruselViewModel::existe(const QString& carrusel) const {

@@ -321,7 +321,7 @@
 <context>
     <name>EventoViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1163"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1176"/>
         <source>, %n bloque vacío que no pasa</source>
         <translation>
             <numerusform>, %n bloque vacío que no pasa</numerusform>
@@ -337,7 +337,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+748"/>
+        <location line="+766"/>
         <source>%n persona llegó (escanearon su invitación).</source>
         <translation>
             <numerusform>%n persona llegó (escaneó su invitación).</numerusform>
@@ -1115,7 +1115,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>StudioViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4364"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4365"/>
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Hay %n persona conectada</numerusform>
@@ -1400,7 +1400,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1402"/>
+        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1408"/>
         <source>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</source>
         <translation>
             <numerusform>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</numerusform>

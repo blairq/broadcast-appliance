@@ -4422,7 +4422,7 @@ Scrolling the strip doesn&apos;t change what&apos;s shown.</translation>
 <context>
     <name>CarruselViewModel</name>
     <message>
-        <location filename="../src/app/ui/CarruselViewModel.cpp" line="+47"/>
+        <location filename="../src/app/ui/CarruselViewModel.cpp" line="+48"/>
         <source>Carruseles: %1</source>
         <translation>Carousels: %1</translation>
     </message>
@@ -4457,7 +4457,22 @@ Scrolling the strip doesn&apos;t change what&apos;s shown.</translation>
         <translation>That image was already in the carousel</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+76"/>
+        <source>No hay ningún carrusel llamado «%1».</source>
+        <translation>There is no carousel called “%1”.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>«%1» no está en ninguna escena: aplicalo a una desde Medios › Carruseles.</source>
+        <translation>“%1” isn&apos;t in any scene: apply it to one from Media › Carousels.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>«%1» no tiene una lámina %2 (tiene %3).</source>
+        <translation>“%1” has no slide %2 (it has %3).</translation>
+    </message>
+    <message>
+        <location line="+62"/>
         <source>No hay ningún carrusel llamado «%1»</source>
         <translation>There&apos;s no carousel named “%1”</translation>
     </message>
@@ -6358,6 +6373,16 @@ Turn it on from the Log.</translation>
         <location line="+1"/>
         <source>Cuándo se va de la pantalla</source>
         <translation>When it leaves the screen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Carrusel</source>
+        <translation>Carousel</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lámina</source>
+        <translation>Slide</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -9174,7 +9199,7 @@ Turn it on from the Log.</translation>
 <context>
     <name>EventoViewModel</name>
     <message>
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="+185"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="+189"/>
         <source>Portada (antes de empezar)</source>
         <translation>Cover page (before it starts)</translation>
     </message>
@@ -9311,7 +9336,12 @@ Turn it on from the Log.</translation>
         <translation>Change the volume</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+11"/>
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>Lo que diga el gráfico</source>
         <translation>Whatever the graphic says</translation>
     </message>
@@ -9624,12 +9654,12 @@ Turn it on from the Log.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+172"/>
+        <location line="+190"/>
         <source>El cue no se pudo ejecutar: falta «%1» en los medios del evento</source>
         <translation>The cue couldn&apos;t run: “%1” is missing from the event&apos;s media</translation>
     </message>
     <message>
-        <location line="-167"/>
+        <location line="-185"/>
         <source>No se pudo reproducir %1: %2</source>
         <translation>Couldn&apos;t play %1: %2</translation>
     </message>
@@ -9739,7 +9769,27 @@ Turn it on from the Log.</translation>
         <translation>Graphic %1 on air in %2</translation>
     </message>
     <message>
+        <location line="+11"/>
+        <source>No hay carruseles en este programa</source>
+        <translation>There are no carousels in this program</translation>
+    </message>
+    <message>
         <location line="+5"/>
+        <source>No se pudo poner el carrusel: %1</source>
+        <translation>Couldn&apos;t set the carousel: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>El cue de carrusel falló: %1</source>
+        <translation>The carousel cue failed: %1</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Carrusel «%1», lámina %2</source>
+        <translation>Carousel “%1”, slide %2</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Espera tu confirmación: %1</source>
         <translation>Waiting for your confirmation: %1</translation>
     </message>
@@ -29290,7 +29340,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The playlist continues where it was before the outage</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+59"/>
         <source>Un rótulo automático no salió: %1</source>
         <translation>An automatic lower third didn&apos;t go out: %1</translation>
     </message>
@@ -39592,7 +39642,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-683"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-684"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>startup: %1 took %2 ms</translation>
     </message>
@@ -41583,7 +41633,7 @@ Data (from %2): %3</translation>
         <translation>The list of who gets in automatically when recognized is the event roll: padron_ver {solos: true}; change it with padron_cambiar {id, dejarPasarSolo}.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="-1535"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="-1553"/>
         <source>Quiero preparar un evento nuevo: «%1». Seguí la guía de ese tipo de evento: evento_escenario {&quot;id&quot;: &quot;%2&quot;} (trae el protocolo común y lo propio de este tipo). Empezá por las preguntas, de a pocas y con opciones; no armes nada hasta que te confirme el plan. </source>
         <translation>I want to prepare a new event: “%1”. Follow the guide for that type of event: evento_escenario {&quot;id&quot;: &quot;%2&quot;} (it brings the common protocol and what&apos;s specific to this type). Start with the questions, a few at a time and with options; don&apos;t build anything until I confirm the plan. </translation>
     </message>
@@ -41608,7 +41658,7 @@ Data (from %2): %3</translation>
         <translation> What I already know: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+533"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+534"/>
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>The app restarted and the event “%1” is already open. If you were in the middle of something, continue from where you left off; if not, wait for the operator&apos;s request.</translation>
     </message>
@@ -46247,7 +46297,7 @@ Data (from %2): %3</translation>
 <context>
     <name>evento</name>
     <message>
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="-772"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="-784"/>
         <source>Escena</source>
         <translation>Scene</translation>
     </message>
@@ -46308,6 +46358,16 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+2"/>
+        <source>Carrusel</source>
+        <translation>Carousel</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pone un carrusel en una lámina y lo muestra. Si en el medio lo cambiaste a mano desde la tarjeta, al llegar acá vuelve a esta.</source>
+        <translation>Puts a carousel on a slide and shows it. If you changed it by hand from the card in the meantime, it comes back to this one when the rundown gets here.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Pantalla</source>
         <translation>Screen</translation>
     </message>
@@ -46357,7 +46417,7 @@ Data (from %2): %3</translation>
         <translation>Does nothing: it&apos;s a cue for you.</translation>
     </message>
     <message>
-        <location line="+826"/>
+        <location line="+835"/>
         <source>El del programa (%1)</source>
         <translation>The program&apos;s (%1)</translation>
     </message>
@@ -46532,7 +46592,7 @@ Data (from %2): %3</translation>
         <translation>Generated by Broadcast Appliance on %1.</translation>
     </message>
     <message>
-        <location line="+1053"/>
+        <location line="+1071"/>
         <source>PTZ probado con las cámaras reales (presets, que no se muevan al aire)</source>
         <translation>PTZ tested with the real cameras (presets, no movement on air)</translation>
     </message>
@@ -46609,7 +46669,7 @@ Data (from %2): %3</translation>
         <translation>there&apos;s no document “%1”</translation>
     </message>
     <message>
-        <location filename="../src/app/evento/Evento.cpp" line="+110"/>
+        <location filename="../src/app/evento/Evento.cpp" line="+126"/>
         <source>no dice que escena poner</source>
         <translation>it doesn&apos;t say which scene to put up</translation>
     </message>
@@ -46650,6 +46710,16 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>no dice qué carrusel poner</source>
+        <translation>doesn&apos;t say which carousel to show</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>no dice en qué lámina (desde 1)</source>
+        <translation>doesn&apos;t say which slide (from 1)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>no dice a que pantalla va</source>
         <translation>it doesn&apos;t say which screen it goes to</translation>
     </message>
@@ -46992,12 +47062,12 @@ Data (from %2): %3</translation>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4123"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4124"/>
         <source>cada evento a su carpeta: %1</source>
         <translation>each event to its folder: %1</translation>
     </message>
     <message>
-        <location line="+500"/>
+        <location line="+501"/>
         <source>[eventos] papelera: %1 con más de %2 días, borrados</source>
         <translation>[eventos] trash: %1 older than %2 days, deleted</translation>
     </message>
@@ -50946,7 +51016,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>laminas</name>
     <message>
-        <location filename="../src/app/ui/CarruselViewModel.cpp" line="-310"/>
+        <location filename="../src/app/ui/CarruselViewModel.cpp" line="-360"/>
         <source>no pude guardar el carrusel «%1»: %2</source>
         <translation>couldn&apos;t save carousel “%1”: %2</translation>
     </message>
@@ -50961,7 +51031,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
         <translation>unpack “%1”: %2</translation>
     </message>
     <message>
-        <location line="+314"/>
+        <location line="+364"/>
         <source>desarmando %1 -&gt; «%2»</source>
         <translation>unpacking %1 -&gt; “%2”</translation>
     </message>
@@ -56611,7 +56681,7 @@ Events are organized in folders (`grupo`, e.g. &quot;2026/Octubre&quot;); `carpe
     <message>
         <location line="+9"/>
         <source>`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. LA PÁGINA SE ARMA SOLA CON LOS DATOS DEL EVENTO: las plantillas del sistema no traen datos escritos; /evento/_/vivo.js pone el nombre, la fecha, las secciones, el programa, anterior/siguiente, quién habla y la gente conectada con lo que da /api/v1/evento, así que si cambia el guion la página se actualiza sola. Para personalizar, sumá contenido propio (de qué va cada sección, fotos, links) con `escribir` y dejá los atributos data-vivo (la lista completa está al principio de vivo.js; `leer` una página muestra cómo). `generar` no pisa lo editado salvo `sobrescribir`. Mantené `&lt;script src=&quot;/evento/_/vivo.js&quot; defer&gt;&lt;/script&gt;` y usá data-vivo=&quot;estado|seccion|siguiente|cuenta|transcurrido|agenda&quot; para lo que cambia en vivo (ver el comentario al final de cada página). Nunca pongas en la página instrucciones del operador ni datos privados: es pública. DÓNDE VERLO EN VIVO: el estado trae `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, Facebook: salen solos de las cuentas conectadas; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: link}}` los fija para este evento, &quot;&quot; los saca). En la página: data-vivo=&quot;reproductor&quot; (el vivo embebido) y data-vivo=&quot;vivos&quot; (botones); en JSON, GET /api/v1/evento/vivos. ASAMBLEA (si el guion tiene `asamblea: true`): el estado trae `asamblea` {cuerpo, presentes, total, integrantes [{nombre, banca, bloque, presente, lugar, habla}], bloques [{bloque, presentes, total}], recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, quorum, punto (el que se trata), votaciones (las oficiales)}. La plantilla dibuja el plano de bancas (data-vivo=&quot;recinto&quot;) con el color de cada bloque: a los partidos les importa dónde se sienta cada uno. El subdominio por defecto sale del nombre del evento («Entrevista Pepito» → entrevistapepito: pinggy acepta solo minúsculas y números); con `direccion_al_iniciar` la dirección cambia sola al poner el evento en curso. Pasale al operador la dirección con qr_mostrar.</source>
-        <translation>`pagina`: “portada”, “cierre”, the id, name or number of a section, or a custom .html/.css. THE PAGE BUILDS ITSELF FROM THE EVENT DATA: the system templates don't contain written data; /evento/_/vivo.js fills in the name, date, sections, program, previous/next, who's speaking and the people connected using what /api/v1/evento provides, so if the rundown changes the page updates itself. To customize, add your own content (what each section is about, photos, links) with `escribir` and keep the data-vivo attributes (the full list is at the start of vivo.js; `leer` on a page shows how). `generar` doesn't overwrite edits unless `sobrescribir`. Keep `&lt;script src="/evento/_/vivo.js" defer&gt;&lt;/script&gt;` and use data-vivo="estado|seccion|siguiente|cuenta|transcurrido|agenda" for what changes live (see the comment at the end of each page). Never put operator instructions or private data on the page: it's public. WHERE TO WATCH IT LIVE: the status includes `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, Facebook: they come automatically from the connected accounts; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: link}}` pins them for this event, "" removes them). On the page: data-vivo="reproductor" (the embedded live stream) and data-vivo="vivos" (buttons); as JSON, GET /api/v1/evento/vivos. ASSEMBLY (if the rundown has `asamblea: true`): the status includes `asamblea` {cuerpo, presentes, total, integrantes [{nombre, banca, bloque, presente, lugar, habla}], bloques [{bloque, presentes, total}], recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, quorum, punto (the one being discussed), votaciones (the official ones)}. The template draws the seating plan (data-vivo="recinto") with each caucus's color: parties care about where each person sits. The default subdomain comes from the event name (“Entrevista Pepito” → entrevistapepito: pinggy only accepts lowercase letters and digits); with `direccion_al_iniciar` the address changes automatically when the event is set in progress. Give the operator the address with qr_mostrar.</translation>
+        <translation>`pagina`: “portada”, “cierre”, the id, name or number of a section, or a custom .html/.css. THE PAGE BUILDS ITSELF FROM THE EVENT DATA: the system templates don&apos;t contain written data; /evento/_/vivo.js fills in the name, date, sections, program, previous/next, who&apos;s speaking and the people connected using what /api/v1/evento provides, so if the rundown changes the page updates itself. To customize, add your own content (what each section is about, photos, links) with `escribir` and keep the data-vivo attributes (the full list is at the start of vivo.js; `leer` on a page shows how). `generar` doesn&apos;t overwrite edits unless `sobrescribir`. Keep `&lt;script src=&quot;/evento/_/vivo.js&quot; defer&gt;&lt;/script&gt;` and use data-vivo=&quot;estado|seccion|siguiente|cuenta|transcurrido|agenda&quot; for what changes live (see the comment at the end of each page). Never put operator instructions or private data on the page: it&apos;s public. WHERE TO WATCH IT LIVE: the status includes `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, Facebook: they come automatically from the connected accounts; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: link}}` pins them for this event, &quot;&quot; removes them). On the page: data-vivo=&quot;reproductor&quot; (the embedded live stream) and data-vivo=&quot;vivos&quot; (buttons); as JSON, GET /api/v1/evento/vivos. ASSEMBLY (if the rundown has `asamblea: true`): the status includes `asamblea` {cuerpo, presentes, total, integrantes [{nombre, banca, bloque, presente, lugar, habla}], bloques [{bloque, presentes, total}], recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, quorum, punto (the one being discussed), votaciones (the official ones)}. The template draws the seating plan (data-vivo=&quot;recinto&quot;) with each caucus&apos;s color: parties care about where each person sits. The default subdomain comes from the event name (“Entrevista Pepito” → entrevistapepito: pinggy only accepts lowercase letters and digits); with `direccion_al_iniciar` the address changes automatically when the event is set in progress. Give the operator the address with qr_mostrar.</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -57296,6 +57366,12 @@ Without `indice` it adds a new one at the end. With `indice` (0-based) it acts o
                                         su id y no hace falta fuente ni grafico.
                                         Sirve para «durante las entrevistas, zocalo
                                         automatico; en el cierre, apagado».
+  carrusel      {carrusel, lamina}     pone ese carrusel en esa lámina (desde 1, como
+                                        carrusel_laminas_ver) y lo muestra: su fuente
+                                        visible y la de los otros carruseles de la escena,
+                                        escondida. FIJA carrusel y lámina: si el operador
+                                        la cambió a mano, al llegar acá vuelve a esta. Un
+                                        cue por lámina que tenga que estar en pantalla.
   pantalla      {pantalla, contenido}
   audio         {accion, fuente, db}    accion: silenciar | activar | volumen
   pausa         -                     espera lo que diga duracionSeg
@@ -57308,7 +57384,7 @@ Without `indice` it adds a new one at the end. With `indice` (0-based) it acts o
 
 Sin `cue` agrega uno nuevo al final del bloque. Con `cue` actua sobre ese.
 
-Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter, grafico, video y audio si. Pantalla todavia no: se puede dejar escrito en el guion (sirve para los tiempos y para que el operador sepa que hacer), pero cuando toquen se anotan como «todavia no se ejecutan» en vez de fallar callados.</source>
+Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter, grafico, carrusel, video y audio si. Pantalla todavia no: se puede dejar escrito en el guion (sirve para los tiempos y para que el operador sepa que hacer), pero cuando toquen se anotan como «todavia no se ejecutan» en vez de fallar callados.</source>
         <translation>A cue is one specific thing that happens. The types and what each one needs in `datos`:
 
   escena        {escena}              puts that scene on air
@@ -57344,6 +57420,12 @@ Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter, grafico, video
                                         its id and no fuente or grafico is needed.
                                         Useful for “during the interviews, automatic
                                         lower third; at the closing, off”.
+  carrusel      {carrusel, lamina}     puts that carousel on that slide (from 1, as
+                                        carrusel_laminas_ver gives them) and shows it: its
+                                        source visible and the other carousels&apos; sources in
+                                        the scene hidden. It SETS carousel and slide: if the
+                                        operator changed it by hand, reaching here brings it
+                                        back. One cue per slide that has to be on screen.
   pantalla      {pantalla, contenido}
   audio         {accion, fuente, db}    accion: silenciar | activar | volumen
   pausa         -                     waits for whatever duracionSeg says
@@ -57356,10 +57438,15 @@ Ojo con que se EJECUTA hoy: escena, orador, musica, teleprompter, grafico, video
 
 Without `cue` it adds a new one at the end of the block. With `cue` it acts on that one.
 
-Mind what actually RUNS today: escena, orador, musica, teleprompter, grafico, video and audio do. Pantalla not yet: it can be written in the rundown (useful for timing and so the operator knows what to do), but when they come up they&apos;re logged as “not run yet” instead of failing silently.</translation>
+Mind what actually RUNS today: escena, orador, musica, teleprompter, grafico, carrusel, video and audio do. Pantalla not yet: it can be written in the rundown (useful for timing and so the operator knows what to do), but when they come up they&apos;re logged as “not run yet” instead of failing silently.</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+581"/>
+        <source>escena, musica, video, teleprompter, orador, grafico, carrusel, pantalla, audio, pausa, espera o nota</source>
+        <translation>scene, music, video, teleprompter, speaker, graphic, screen, audio, pause, wait or note</translation>
+    </message>
+    <message>
+        <location line="-521"/>
         <source>Cual cue del bloque (base 0).</source>
         <translation>Which cue in the block (0-based).</translation>
     </message>
@@ -57784,12 +57871,7 @@ AN ASSEMBLY SESSION (body with seats, central unit, roll-call vote, remote membe
         <translation>it is an assembly session</translation>
     </message>
     <message>
-        <location line="+15"/>
-        <source>escena, musica, video, teleprompter, orador, grafico, pantalla, audio, pausa, espera o nota</source>
-        <translation>scene, music, video, teleprompter, speaker, graphic, screen, audio, pause, wait or note</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+17"/>
         <source>lo que lee el operador</source>
         <translation>what the operator reads</translation>
     </message>
@@ -65422,7 +65504,7 @@ If there is no free slot in the conference (`room_status` -&gt; `slotsFree`) the
     <message>
         <location line="+3"/>
         <source>Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su puerto TCP fijo, y prende el túnel con eso (reinicia la conferencia). Con `subdominio` (solo el nombre, solo minúsculas y números, p. ej. &quot;salaconcejo&quot;) primero lo cambia en la cuenta: queda salaconcejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al panel de pinggy.</source>
-        <translation>With ONLY the API key saved (acceso_remoto_clave tipo api_key) it sets up all of pinggy: asks the account for the tunnel token (stores it encrypted, never shown), its fixed subdomain and its fixed TCP port, and turns the tunnel on with that (restarts the conference). With `subdominio` (just the name, lowercase letters and digits only, e.g. "salaconcejo") it first changes it in the account: it becomes salaconcejo.a.pinggy.link; if pinggy doesn't grant it (taken), it says so. No need to go into the pinggy panel.</translation>
+        <translation>With ONLY the API key saved (acceso_remoto_clave tipo api_key) it sets up all of pinggy: asks the account for the tunnel token (stores it encrypted, never shown), its fixed subdomain and its fixed TCP port, and turns the tunnel on with that (restarts the conference). With `subdominio` (just the name, lowercase letters and digits only, e.g. &quot;salaconcejo&quot;) it first changes it in the account: it becomes salaconcejo.a.pinggy.link; if pinggy doesn&apos;t grant it (taken), it says so. No need to go into the pinggy panel.</translation>
     </message>
     <message>
         <location line="+7"/>

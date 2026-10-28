@@ -471,6 +471,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     vinculos_->setContexto([this]() { return contextoDeVinculos(); });
     rotulador_->setVinculos(vinculos_.get());
     evento_->setVinculos(vinculos_.get());
+    evento_->setCarruseles(carruseles_.get());
 
     {
         // Mirar la carpeta es leer disco y parsear JSON ajeno: si eso se
