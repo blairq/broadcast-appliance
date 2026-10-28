@@ -28,7 +28,7 @@ From each cue's `duracionSeg` comes the block's and the event's; with `inicio` (
 ## While it runs
 `evento_correr` with `arrancar`, `siguiente`, `atras`, `ir`, `pausar`, `reanudar`, `parar`. **It goes on air** except in rehearsal, so the operator decides.
 
-With the rundown running for real the system enters **event mode**: the app warns the operator before any risky action, and `settings_set` is blocked (a gateway-scope setting would restart the conference and kick out all the guests at the worst moment).
+Running the rundown is NOT being live: live means something is really going out (a stream or a recording), and `en_vivo` in `status` says so. While live, the app warns the operator before any risky action and `settings_set` does not apply what restarts the conference or the engine (it would kick out all the guests or cut the output at the worst moment). With the rundown running as a test, without streaming, nothing is blocked.
 
 ## Teleprompter
 The `teleprompter` cue loads a text from `Discursos/` and leaves it READY but stopped. Everything else (writing the speeches, sending them, handling the text on air) is its own category: `help {"topic": "prompter"}`.

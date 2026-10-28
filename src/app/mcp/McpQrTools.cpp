@@ -390,8 +390,8 @@ void McpService::registerQrTools() {
             if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
             // Como acceso_remoto_*: con el evento corriendo, el túnel (reinicia la sala) no lo toca el asistente.
             if (a.value("id", std::string()) == "tunel")
-                if (auto* ev = static_cast<EventoViewModel*>(vmp->evento()); ev != nullptr && ev->enVivo())
-                    return done(ToolResult::error(ba::i18n::traducir("mcp", "El evento está corriendo: el túnel no se toca hasta que termine "
+                if (vmp->alAire())
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "Se está transmitiendo o grabando: el túnel no se toca hasta que termine "
                                                   "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app.")));
             const QString err = e->activar(QString::fromStdString(a.value("id", std::string())), a.value("activo", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));

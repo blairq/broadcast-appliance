@@ -89,11 +89,11 @@ Dialog {
         width: dlg.availableWidth
         spacing: 10
 
-        // Modo evento: con el guion corriendo de verdad, cualquier cosa que se
-        // apriete sale al aire. No se bloquea nada -el operador sabe lo que
-        // hace- pero se le recuerda donde esta parado antes de decidir.
+        // En vivo (sale algo de verdad: Studio.modoVivo, no el guion corriendo sin
+        // transmitir): no se bloquea nada -el operador sabe lo que hace- pero se le
+        // recuerda donde esta parado antes de decidir.
         Rectangle {
-            visible: Studio.evento.enVivo
+            visible: Studio.modoVivo
             width: parent.width
             height: enVivoTxt.implicitHeight + 16
             radius: 6
@@ -105,8 +105,7 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.text
                 font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
-                text: qsTr("● EL EVENTO ESTÁ CORRIENDO — %1. Lo que hagas ahora sale al aire.")
-                      .arg(Studio.evento.actual.texto || Studio.evento.actual.tipo || "")
+                text: qsTr("● EN VIVO — se está transmitiendo o grabando. Lo que hagas ahora sale al aire.")
             }
         }
 

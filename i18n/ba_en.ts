@@ -131,8 +131,8 @@
     <message>
         <location line="-311" />
         <location line="+26" />
-        <source>El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
-        <translation>The event is running: the tunnel isn't touched until it ends (it restarts the conference).</translation>
+        <source>Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
+        <translation>Streaming or recording: the tunnel is not touched until it ends (it restarts the conference).</translation>
     </message>
     <message>
         <location line="-24" />
@@ -5911,11 +5911,11 @@ The previous PIN stops working for joining.</translation>
     </message>
     <message>
         <location line="+80" />
-        <source>● EL EVENTO ESTÁ CORRIENDO — %1. Lo que hagas ahora sale al aire.</source>
-        <translation>● THE EVENT IS RUNNING — %1. Whatever you do now goes on air.</translation>
+        <source>● EN VIVO — se está transmitiendo o grabando. Lo que hagas ahora sale al aire.</source>
+        <translation>● LIVE — streaming or recording. Whatever you do now goes on air.</translation>
     </message>
     <message>
-        <location line="+27" />
+        <location line="+26" />
         <source>%1 (%2)</source>
         <translation>%1 (%2)</translation>
     </message>
@@ -53328,7 +53328,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+404" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+268" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+1108" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+3185" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+3190" />
         <location line="+454" />
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+155" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1496" />
@@ -59577,7 +59577,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-1747" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-1752" />
         <source>Escenas</source>
         <translation>Scenes</translation>
     </message>
@@ -61137,7 +61137,7 @@ The operator's control card follows the scene: when this scene is on air, it con
     </message>
     <message>
         <location line="+17" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1728" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1733" />
         <source>Agregado.</source>
         <translation>Added.</translation>
     </message>
@@ -64119,7 +64119,7 @@ It doesn't change anything in the event except adding the missing manual items t
     </message>
     <message>
         <location line="+22" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+1433" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1429" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1554" />
         <source>Guardado.</source>
         <translation>Saved.</translation>
@@ -64884,8 +64884,8 @@ CAREFUL WITH STYLE: an icon in the center covers modules, so error correction go
     <message>
         <location line="+18" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-181" />
-        <source>El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia). Si hace falta, lo hace el operador desde la app.</source>
-        <translation>The event is running: the tunnel isn't touched until it ends (it restarts the conference). If needed, the operator does it from the app.</translation>
+        <source>Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia). Si hace falta, lo hace el operador desde la app.</source>
+        <translation>Streaming or recording: the tunnel is not touched until it ends (it restarts the conference). If needed, the operator does it from the app.</translation>
     </message>
     <message>
         <location line="+4" />
@@ -65825,8 +65825,8 @@ If there is no free slot in the conference (`room_status` -&gt; `slotsFree`) the
     </message>
     <message>
         <location line="+4" />
-        <source>El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
-        <translation>The event is running: the tunnel isn't touched until it ends (it restarts the conference).</translation>
+        <source>Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
+        <translation>Streaming or recording: the tunnel is not touched until it ends (it restarts the conference).</translation>
     </message>
     <message>
         <location line="+9" />
@@ -66740,7 +66740,7 @@ For this to answer anything, lobby recognition has to be on: `rostro_autoalta {a
         <translation>Nobody is visible on the waiting cameras.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-3880" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-3881" />
         <source>ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (%1):
 - Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el tiempo.
 - Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.
@@ -66925,12 +66925,7 @@ For this to answer anything, lobby recognition has to be on: `rostro_autoalta {a
         <translation>Overall status</translation>
     </message>
     <message>
-        <location line="+5" />
-        <source>Estado del appliance: escena al aire, transmision y grabacion (con tiempos), fps, cuadros perdidos, codificador, CPU, niveles del programa, gateway, conferencia y oradores al aire. Buen primer llamado.</source>
-        <translation>Appliance status: on-air scene, streaming and recording (with times), fps, dropped frames, encoder, CPU, program levels, gateway, conference and speakers on air. A good first call.</translation>
-    </message>
-    <message>
-        <location line="+45" />
+        <location line="+55" />
         <source>Fundido a negro (FTB)</source>
         <translation>Fade to black (FTB)</translation>
     </message>
@@ -68475,12 +68470,17 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Set up the chamber grid</translation>
     </message>
     <message>
-        <location line="-3158" />
+        <location line="-3163" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>WARNING: RESTARTS THE ENGINE. For a few seconds EVERYTHING going out is cut (the program, the room, the screens, what guests see) and the cameras are reopened. With a stream or a recording running it is not applied. Don't use it to fix a camera: tell the operator first and ask them to confirm.</translation>
     </message>
     <message>
-        <location line="+3198" />
+        <location line="+830" />
+        <source>Estado del appliance: escena al aire, transmision y grabacion (con tiempos), fps, cuadros perdidos, codificador, CPU, niveles del programa, gateway, conferencia y oradores al aire. `en_vivo`: si sale algo de verdad (transmisión o grabación): es LO que dice si estás en vivo; el guion del evento corriendo sin transmitir no lo es. Buen primer llamado.</source>
+        <translation>Appliance status: scene on air, stream and recording (with times), fps, dropped frames, encoder, CPU, program levels, gateway, conference and speakers on air. `en_vivo`: whether something is really going out (stream or recording): it is THE thing that says whether you are live; the event rundown running without streaming is not. A good first call.</translation>
+    </message>
+    <message>
+        <location line="+2373" />
         <source>Apuntar la cámara a una banca</source>
         <translation>Point the camera at a seat</translation>
     </message>
@@ -68841,12 +68841,7 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
         <translation>Reset a section to its defaults.</translation>
     </message>
     <message>
-        <location line="+11" />
-        <source>El evento esta corriendo: los ajustes no se tocan hasta que termine. Si de verdad hace falta, lo hace el operador desde la app.</source>
-        <translation>The event is running: settings aren't touched until it ends. If it's really needed, the operator does it from the app.</translation>
-    </message>
-    <message>
-        <location line="+6" />
+        <location line="+12" />
         <source>La seccion Asistente (MCP) solo se cambia desde la app (Configuracion).</source>
         <translation>The Assistant (MCP) section can only be changed from the app (Settings).</translation>
     </message>
@@ -68861,7 +68856,7 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
         <translation>Unknown keys:%1. settings_list shows the valid ones.</translation>
     </message>
     <message>
-        <location line="+11" />
+        <location line="+12" />
         <source>Aplicado. %1</source>
         <translation>Applied. %1</translation>
     </message>

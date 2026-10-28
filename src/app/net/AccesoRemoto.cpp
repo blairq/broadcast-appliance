@@ -146,7 +146,7 @@ QVariantList AccesoRemoto::formasDeConectar() const {
 QString AccesoRemoto::conectar(const QString& id) {
     if (!aplicarPinggy_) return tr("no disponible");
     if (enVivo_ && enVivo_())
-        return tr("El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).");
+        return tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).");
     if (id == "pinggy-cuenta") {
         if (!apiKeyGuardada()) return tr("No hay API key de pinggy guardada (Configuración → Pinggy).");
         if (rt_.gateway().tunnel)
@@ -172,7 +172,7 @@ QString AccesoRemoto::conectar(const QString& id) {
 QString AccesoRemoto::desconectar() {
     if (!aplicarPinggy_) return tr("no disponible");
     if (enVivo_ && enVivo_())
-        return tr("El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).");
+        return tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).");
     const auto& g = rt_.gateway();
     if (!g.pinggyActivo && !g.tunnel) return {};
     return aplicarPinggy_({{"pinggy.activo", false}, {"gateway.tunnel", false}});

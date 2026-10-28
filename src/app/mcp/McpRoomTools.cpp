@@ -576,8 +576,8 @@ void McpService::registerRoomTools() {
             t.examples = {R"({"activo": true, "direccion": "propio", "host": "sala.miorganismo.gob.ar", "cname_destino": "abc.a.pinggy.link"})"};
             SettingsModel* settings = settings_.get();
             t.run = [settings, &vm](const json& a, Done done) {
-                if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
-                    return done(ToolResult::error(ba::i18n::traducir("mcp", "El evento está corriendo: el túnel no se toca hasta que termine "
+                if (vm.alAire())
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "Se está transmitiendo o grabando: el túnel no se toca hasta que termine "
                                                   "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app.")));
                 static const std::vector<std::pair<const char*, const char*>> kMapa = {
                     {"activo", "pinggy.activo"},           {"region", "pinggy.region"},
@@ -689,8 +689,8 @@ void McpService::registerRoomTools() {
                              {"properties", {{"subdominio", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "opcional: el nombre que se quiere")}}}}}};
             t.run = [acc, esperar, &vm](const json& a, Done done) {
                 if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
-                if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
-                    return done(ToolResult::error(ba::i18n::traducir("mcp", "El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).")));
+                if (vm.alAire())
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).")));
                 acc->configurarConApiKey(QString::fromStdString(a.value("subdominio", std::string())));
                 esperar(&AccesoRemoto::cuentaChanged, [acc]() { return acc ? acc->cuenta() : QVariantMap{}; }, done);
             };

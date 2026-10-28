@@ -922,7 +922,8 @@ void McpService::registerTools() {
         t.description =
             ba::i18n::traducir("mcp", "Estado del appliance: escena al aire, transmision y grabacion (con tiempos), fps, cuadros "
             "perdidos, codificador, CPU, niveles del programa, gateway, conferencia y oradores al aire. "
-            "Buen primer llamado.");
+            "`en_vivo`: si sale algo de verdad (transmisión o grabación): es LO que dice si estás en vivo; "
+            "el guion del evento corriendo sin transmitir no lo es. Buen primer llamado.");
         t.run = [&rt, &vm](const json&, Done done) {
             const EngineStatus st = rt.engine().status();
             json room = json::object();
@@ -947,6 +948,10 @@ void McpService::registerTools() {
                      {"streamKeyAvailable", vm.streamKeyAvailable()},
                      {"recording", st.recording},
                      {"recordTime", vm.recordTime().toStdString()},
+                     // EN VIVO = sale algo de verdad (transmisión, señal limpia o la grabación si
+                     // el modo en vivo la cuenta): lo mismo que usan la app y los bloqueos. El
+                     // guion del evento corriendo sin transmitir NO es estar en vivo.
+                     {"en_vivo", vm.modoVivo()},
                      {"fps", st.fps},
                      {"droppedFrames", st.droppedFrames},
                      {"totalFrames", st.totalFrames},
@@ -3916,14 +3921,9 @@ void McpService::registerTools() {
                       R"({"values": {"room.lobby": false}})"};
         SettingsModel* settings = settings_.get();
         t.run = [settings, &vm](const json& a, Done done) {
-            // Modo evento: con el guion corriendo de verdad, un ajuste que
-            // reinicia la sala saca a todos los invitados en el peor momento
-            // posible. El operador puede hacerlo igual desde la app (sabe lo
-            // que hace y ve el aviso); el asistente, no.
-            if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
-                return done(
-                    ToolResult::error(ba::i18n::traducir("mcp", "El evento esta corriendo: los ajustes no se tocan hasta que termine. "
-                                      "Si de verdad hace falta, lo hace el operador desde la app.")));
+            // En vivo (sale algo de verdad: StudioViewModel::modoVivo), lo que reinicia el
+            // gateway o el motor no se aplica: lo decide apply(), igual que en la app. Correr
+            // el guion sin transmitir no es estar en vivo (antes este chequeo lo confundía).
             // La salvaguarda y el propio servidor MCP solo se tocan desde la
             // interfaz: un asistente (quiza manipulado) no puede aflojarlos.
             if (a.value("resetSection", std::string()) == "Asistente (MCP)")
@@ -3967,6 +3967,7 @@ void McpService::registerTools() {
                         motor.push_back(it.key());
             // La vista se recarga sola (AppRuntime avisa «Ajustes» al aplicar).
             const QString summary = settings->apply();
+            if (settings->fallo()) return done(ToolResult::error(summary.toStdString()));
             std::string texto = ba::i18n::llenar(ba::i18n::traducir("mcp", "Aplicado. %1"), {summary.toStdString()});
             if (!motor.empty()) {
                 std::string ks;

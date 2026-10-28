@@ -1598,7 +1598,7 @@ QString EventoViewModel::estado() const {
     }
 }
 
-bool EventoViewModel::enVivo() const {
+bool EventoViewModel::guionCorriendo() const {
     if (ensayo_ || !guionCorriendo_) return false;
     const auto e = guionCorriendo_->estado();
     // Pausado tambien cuenta: el evento esta pasando, el operador solo freno

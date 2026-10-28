@@ -28,7 +28,7 @@ De la `duracionSeg` de cada cue sale la del bloque y la del evento; con `inicio`
 ## Mientras corre
 `evento_correr` con `arrancar`, `siguiente`, `atras`, `ir`, `pausar`, `reanudar`, `parar`. **Sale al aire** salvo en ensayo, asi que lo decide el operador.
 
-Con el guion corriendo de verdad el sistema entra en **modo evento**: la app le avisa al operador antes de cualquier accion de riesgo, y `settings_set` queda bloqueado (un ajuste de alcance gateway reiniciaria la conferencia y sacaria a todos los invitados en el peor momento).
+Correr el guion NO es estar en vivo: en vivo es que salga algo de verdad (transmisión o grabación), y lo dice `en_vivo` en `status`. En vivo, la app le avisa al operador antes de cualquier accion de riesgo y `settings_set` no aplica lo que reinicia la conferencia o el motor (sacaria a todos los invitados o cortaria la salida en el peor momento). Con el guion corriendo para probar, sin transmitir, no se bloquea nada.
 
 ## Teleprompter
 El cue `teleprompter` carga un texto de `Discursos/` y lo deja LISTO pero parado. Todo lo demas (escribir los discursos, mandarlos, manejar el texto al aire) es su propia categoria: `help {"topic": "prompter"}`.
