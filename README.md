@@ -69,8 +69,12 @@ Windows, macOS and Linux.
   calibration, automixer, PFL, AFV and lip sync.
 - **Conference.** Guests join by WebRTC from a link: a private lobby, chat,
   speaker mode with timer, up to 64 guests.
-- **Assembly.** Conference systems (Bosch DCN), remote members, agenda, debates
-  and voting.
+- **Assembly.** Members in the room and remote, the chamber with its seats,
+  quorum, agenda with PDF result reports, debates and voting.
+- **Bosch DCN Next Generation (beta).** Drives the conference central unit
+  through its Open Interface (serial or TCP): seat microphones, the speaker list,
+  attendance and voting from the central unit, also from the control surfaces.
+  Tested against a simulator of the central unit, not yet with a real one.
 - **Web pages for everyone.** Each event has its public page (programme, live
   status, documents), and the appliance serves a page for each role: guests from
   the browser, the audience (questions and votes), the teleprompter on a tablet
@@ -94,6 +98,12 @@ Windows, macOS and Linux.
   photo taken.
 - **Voice.** Dictation, live subtitles and translation (Parakeet or Nemotron,
   local), synthetic voices, and the assistant answering out loud.
+- **Plugins: whatever is missing, ask for it.** What the program does not
+  include, the assistant writes as a Python plugin: a device driven in some odd
+  way (the PTZ of a USB camera, a 360 camera), a video or audio card, a new
+  control surface (some X-keys, for example) or an automation. With its own
+  portable Python and libraries inside the data folder: they survive updates and
+  install nothing on the system.
 - **Local AI.** Local language and vision models (llama.cpp / MLX) so the
   essentials work offline; online assistants (Claude, Gemini, opencode, pi)
   when you want them.

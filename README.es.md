@@ -68,8 +68,12 @@ adentro de la carpeta, en Windows, macOS y Linux.
   calibración de sala, automezclador, PFL, AFV y sincronía con los labios.
 - **Conferencia.** Los invitados entran por WebRTC con un enlace: lobby
   privado, chat, modo oradores con reloj, hasta 64 invitados.
-- **Asamblea.** Centrales de conferencia (Bosch DCN), integrantes remotos,
-  orden del día, debates y votación.
+- **Asamblea.** Integrantes presenciales y remotos, recinto con sus bancas,
+  quórum, orden del día con informes en PDF, debates y votación.
+- **Bosch DCN Next Generation (beta).** Maneja la central de conferencia por su
+  Open Interface (serie o TCP): micrófonos de banca, lista de oradores,
+  asistencia y votación desde la central, también desde la botonera. Está
+  probado contra un simulador de la central, todavía no con una de verdad.
 - **Páginas web para todos.** Cada evento tiene su página pública (programa,
   estado en vivo, documentos), y el aparato sirve las páginas de cada puesto:
   invitados desde el navegador, el público (preguntas y votaciones), el
@@ -93,6 +97,12 @@ adentro de la carpeta, en Windows, macOS y Linux.
   dorso por OCR) y se saca la foto.
 - **Voz.** Dictado, subtítulos y traducción en vivo (Parakeet o Nemotron,
   locales), voces sintéticas y el asistente contestando en voz alta.
+- **Plugins: lo que no trae, se lo pedís.** Lo que el programa no incluye lo
+  escribe el asistente como un plugin de Python: un equipo que se maneja de una
+  forma rara (el PTZ de una cámara USB, una cámara 360), una tarjeta de video o
+  de audio, una superficie de control nueva (unas X-keys, por ejemplo) o una
+  automatización. Con su Python portátil y sus bibliotecas adentro de la carpeta
+  de datos: sobreviven a las actualizaciones y no instalan nada en el sistema.
 - **IA local.** Modelos de lenguaje y de visión locales (llama.cpp / MLX) para
   que lo esencial ande sin internet; asistentes en línea (Claude, Gemini,
   opencode, pi) cuando los quieras.
