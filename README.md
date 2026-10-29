@@ -60,12 +60,17 @@ Windows, macOS and Linux.
 - **Events, start to finish.** Each event carries its own scenes, mixer, media,
   assembly setup and web page. New events from scratch, from a copy or from a
   template; a history of everything that was recorded and streamed.
-- **Video.** Scenes and transitions on its own GStreamer engine, cameras (USB,
-  network, NDI, PTZ with face tracking), animated graphics, teleprompter, QR
-  codes, multiview, AI super-resolution, panoramic stitching. Recording and
-  streaming to YouTube, Twitch, Facebook or any RTMP/SRT server.
+- **Video.** Scenes and transitions on its own
+  [GStreamer](https://gstreamer.freedesktop.org/) engine, cameras (USB, network,
+  NDI, PTZ with face tracking), animated graphics, teleprompter, QR codes,
+  multiview, AI super-resolution, panoramic stitching. Each input runs through
+  its own chain of cards: the built-in ones (chroma key, color, crop, digital
+  PTZ, image enhancement) and any GStreamer element in the installation, of
+  which there are hundreds. Recording and streaming to YouTube, Twitch,
+  Facebook or any RTMP/SRT server.
 - **Audio.** A mixer with groups that compact and a **VCA per group**, a rack of
-  LSP processors per source, a mixing matrix, EBU R128 loudness, room
+  [LSP Plugins](https://lsp-plug.in/) per source (compressors, equalizers,
+  gates, limiters…), a mixing matrix, EBU R128 loudness, room
   calibration, automixer, PFL, AFV and lip sync.
 - **Conference.** Guests join by WebRTC from a link: a private lobby, chat,
   speaker mode with timer, up to 64 guests.
@@ -100,7 +105,8 @@ Windows, macOS and Linux.
   local), synthetic voices, and the assistant answering out loud.
 - **Plugins: whatever is missing, ask for it.** What the program does not
   include, the assistant writes as a Python plugin: a device driven in some odd
-  way (the PTZ of a USB camera, a 360 camera), a video or audio card, a new
+  way (the PTZ of a USB camera, a 360 camera), a video or audio card (also as a
+  GStreamer element), a new
   control surface (some X-keys, for example) or an automation. With its own
   portable Python and libraries inside the data folder: they survive updates and
   install nothing on the system.

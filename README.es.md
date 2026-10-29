@@ -58,13 +58,17 @@ adentro de la carpeta, en Windows, macOS y Linux.
 - **Eventos, de punta a punta.** Cada evento tiene sus escenas, su mezclador,
   sus medios, su asamblea y su página web. Eventos nuevos desde cero, desde una
   copia o desde una plantilla; un histórico de todo lo que se grabó y transmitió.
-- **Video.** Escenas y transiciones sobre un motor propio de GStreamer, cámaras
-  (USB, de red, NDI, PTZ con seguimiento de caras), gráficos animados,
-  teleprompter, códigos QR, multiview, superresolución con IA y unión de
-  cámaras en panorámica. Grabación y transmisión a YouTube, Twitch, Facebook o
-  cualquier servidor RTMP/SRT.
+- **Video.** Escenas y transiciones sobre un motor propio de
+  [GStreamer](https://gstreamer.freedesktop.org/), cámaras (USB, de red, NDI,
+  PTZ con seguimiento de caras), gráficos animados, teleprompter, códigos QR,
+  multiview, superresolución con IA y unión de cámaras en panorámica. Cada
+  entrada pasa por su cadena de tarjetas: las propias (croma, color, recorte,
+  PTZ digital, mejora de imagen) y cualquier elemento de GStreamer que traiga la
+  instalación, que son cientos. Grabación y transmisión a YouTube, Twitch,
+  Facebook o cualquier servidor RTMP/SRT.
 - **Audio.** Un mezclador con grupos que se compactan y **un VCA por grupo**, un
-  rack de procesadores LSP por fuente, matriz de mezcla, loudness EBU R128,
+  rack de [LSP Plugins](https://lsp-plug.in/) por fuente (compresores,
+  ecualizadores, compuertas, limitadores…), matriz de mezcla, loudness EBU R128,
   calibración de sala, automezclador, PFL, AFV y sincronía con los labios.
 - **Conferencia.** Los invitados entran por WebRTC con un enlace: lobby
   privado, chat, modo oradores con reloj, hasta 64 invitados.
@@ -100,7 +104,7 @@ adentro de la carpeta, en Windows, macOS y Linux.
 - **Plugins: lo que no trae, se lo pedís.** Lo que el programa no incluye lo
   escribe el asistente como un plugin de Python: un equipo que se maneja de una
   forma rara (el PTZ de una cámara USB, una cámara 360), una tarjeta de video o
-  de audio, una superficie de control nueva (unas X-keys, por ejemplo) o una
+  de audio (también como elemento de GStreamer), una superficie de control nueva (unas X-keys, por ejemplo) o una
   automatización. Con su Python portátil y sus bibliotecas adentro de la carpeta
   de datos: sobreviven a las actualizaciones y no instalan nada en el sistema.
 - **IA local.** Modelos de lenguaje y de visión locales (llama.cpp / MLX) para
