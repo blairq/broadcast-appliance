@@ -70,6 +70,21 @@ adentro de la carpeta, en Windows, macOS y Linux.
   privado, chat, modo oradores con reloj, hasta 64 invitados.
 - **Asamblea.** Centrales de conferencia (Bosch DCN), integrantes remotos,
   orden del día, debates y votación.
+- **Páginas web para todos.** Cada evento tiene su página pública (programa,
+  estado en vivo, documentos), y el aparato sirve las páginas de cada puesto:
+  invitados desde el navegador, el público (preguntas y votaciones), el
+  teleprompter en una tablet o un celular, los rótulos en vivo, la corrección de
+  subtítulos, la sesión remota de los integrantes, la consola de la presidencia
+  y un tablero. Cada enlace, con su QR, en la página *Servicios*.
+- **Desde internet.** Un túnel incorporado (Pinggy) le da al evento una
+  dirección pública para que entren invitados, público e integrantes de afuera,
+  con el video de los remotos por su propio relé (TURN), sin tocar el router.
+- **Superficies de control.** Una botonera en una tablet o un celular
+  (emparejada por QR), **Stream Deck**, controladores **MIDI** (X-Touch Mini,
+  nanoKONTROL, Launchpad), superficies **OSC** (TouchOSC, Open Stage Control) y
+  los aparatos de **Bitfocus Companion Satellite** (Stream Deck, Loupedeck,
+  X-keys…). Cada puesto con sus permisos y con el estado en vivo en cada botón:
+  la escena al aire, si se graba, quién habla.
 - **Pantallas.** Los monitores de la máquina y los televisores de la red
   (Chromecast), con lo que va en cada uno.
 - **Personas.** Reconocimiento de caras, padrón con acreditación y **tótems de

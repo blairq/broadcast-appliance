@@ -71,6 +71,21 @@ Windows, macOS and Linux.
   speaker mode with timer, up to 64 guests.
 - **Assembly.** Conference systems (Bosch DCN), remote members, agenda, debates
   and voting.
+- **Web pages for everyone.** Each event has its public page (programme, live
+  status, documents), and the appliance serves a page for each role: guests from
+  the browser, the audience (questions and votes), the teleprompter on a tablet
+  or a phone, live titles, subtitle correction, the members' remote session, the
+  chair console and a dashboard. Every link, with its QR code, on the *Services*
+  page.
+- **From the internet.** A built-in tunnel (Pinggy) gives the event a public
+  address so guests, audience and members can join from outside, with the remote
+  video over its own relay (TURN), without touching the router.
+- **Control surfaces.** A control panel on a tablet or a phone (paired by QR),
+  **Stream Deck**, **MIDI** controllers (X-Touch Mini, nanoKONTROL, Launchpad),
+  **OSC** surfaces (TouchOSC, Open Stage Control) and **Bitfocus Companion
+  Satellite** devices (Stream Deck, Loupedeck, X-keys…). Each station with its
+  own permissions and live state on every button: the scene on air, recording,
+  who is speaking.
 - **Screens.** The machine's monitors and the TVs on the network (Chromecast),
   with what goes on each one.
 - **People.** Face recognition, a guest list with check-in, and **registration
