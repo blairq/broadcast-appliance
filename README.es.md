@@ -14,9 +14,30 @@ videoconferencia, asambleas, gráficos, grabación y transmisión— que se mane
 **hablándole a un asistente de IA**. Portable: todo lo que necesita viaja
 adentro de la carpeta, en Windows, macOS y Linux.
 
-[![CI](https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml/badge.svg)](https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml)
-[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B)
-[![Licencia](https://img.shields.io/badge/licencia-GPL--3.0-blue.svg)](#licencia)
+<p align="center">
+  <a href="#"><img alt="Beta" src="https://img.shields.io/badge/estado-beta-orange?style=for-the-badge"></a>
+  <a href="https://github.com/blairq/broadcast-appliance/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/blairq/broadcast-appliance?style=for-the-badge&label=release&color=ff6a2b"></a>
+  <a href="https://github.com/blairq/broadcast-appliance/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/blairq/broadcast-appliance/total?style=for-the-badge&label=descargas&color=2ea44f"></a>
+  <a href="#licencia"><img alt="License" src="https://img.shields.io/badge/licencia-GPL--3.0-blue?style=for-the-badge"></a>
+  <br>
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white">
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white">
+  <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black">
+  <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus&logoColor=white">
+  <img alt="Qt 6" src="https://img.shields.io/badge/Qt-6-41CD52?style=flat-square&logo=qt&logoColor=white">
+  <img alt="GStreamer" src="https://img.shields.io/badge/GStreamer-1.28-B5121B?style=flat-square">
+  <img alt="WebRTC" src="https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white">
+  <img alt="MCP" src="https://img.shields.io/badge/MCP-700%2B%20herramientas-7C3AED?style=flat-square">
+  <img alt="Local AI" src="https://img.shields.io/badge/IA%20local-llama.cpp%20%C2%B7%20MLX-111111?style=flat-square">
+  <img alt="Python plugins" src="https://img.shields.io/badge/plugins-Python%203.12-3776AB?style=flat-square&logo=python&logoColor=white">
+  <img alt="Languages" src="https://img.shields.io/badge/idiomas-ES%20%C2%B7%20EN-555555?style=flat-square">
+  <a href="https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml/badge.svg"></a>
+</p>
+
+> [!WARNING]
+> **Beta.** Está en desarrollo activo: cambia de una versión a otra y todavía no
+> se probó en todos los equipos y salas (por ejemplo, la central Bosch DCN).
+> Antes de un evento importante, probalo en un ensayo con los mismos equipos.
 
 ---
 
