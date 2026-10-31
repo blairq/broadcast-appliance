@@ -306,7 +306,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     seguridadAire_ = std::make_unique<emision::SeguridadAire>(rt);
     seguridadAire_->alCambiar([this]() { emit placaChanged(); });
     retornos_ = std::make_unique<emision::RetornosInvitados>(rt);
-    objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(rt.dataRoot(), rt.engine().loudness());
+    objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(rt.dataRoot(), rt.engine().loudness(),
+                                                                  [&e = rt.engine()]() { e.aplicarLoudness(); });
     // El conmutador de escenas es del modelo (uno por salida); acá solo se refleja lo
     // que cambia. La interfaz muestra el de la salida activa (salidaActiva); las
     // pantallas de tally de la sala y el monitor «armada» siguen a la por omisión; el

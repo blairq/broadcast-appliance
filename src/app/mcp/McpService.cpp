@@ -2436,17 +2436,23 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Objetivo de loudness");
         t.category = "audio";
         t.description = ba::i18n::traducir("mcp", "`perfil`: r128 (-23 LUFS / -1 dBTP, de fabrica), a85 (-24 LKFS / -2), plataforma16 (-16 / -1), "
-                        "plataforma14 (-14 / -1) o custom con `lufs` y `tp`.");
+                        "plataforma14 (-14 / -1) o custom con `lufs` y `tp`.") +
+                        " " +
+                        ba::i18n::traducir("mcp", "`agc` true: el programa se lleva solo al objetivo, despacio (1 dB por segundo como mucho, "
+                        "hasta 6 dB arriba o abajo, quieto en las pausas), antes del limitador; de fabrica no. Si una "
+                        "transmision va con AAC por debajo de 128 kbps, el techo baja a -2 dBTP.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil"}},
                          {"properties",
                           {{"perfil", {{"type", "string"}, {"enum", {"r128", "a85", "plataforma16", "plataforma14", "custom"}}}},
                            {"lufs", {{"type", "number"}}},
-                           {"tp", {{"type", "number"}}}}}};
+                           {"tp", {{"type", "number"}}},
+                           {"agc", {{"type", "boolean"}}}}}};
         t.run = [&vm, &rt](const json& a, Done done) {
             json o{{"perfil", a.value("perfil", std::string("r128"))}};
             if (a.contains("lufs")) o["lufs"] = a.value("lufs", -23.0);
             if (a.contains("tp")) o["tp"] = a.value("tp", -1.0);
+            if (a.contains("agc")) o["agc"] = a.value("agc", false);
             if (const std::string e = vm.objetivoLoudness().poner(o); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(rt.engine().loudness().json()));
         };

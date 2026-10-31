@@ -638,7 +638,8 @@ int AppRuntime::start() {
     // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,
     // gráficos) pasan por acá: así quedan también en la configuración.
     fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)); });
-    audio::ObjetivoLoudness(root_, engine_.loudness()).cargar(); // el objetivo guardado (Config/loudness.json)
+    // El objetivo guardado (Config/loudness.json), también al motor (AGC y techo).
+    audio::ObjetivoLoudness(root_, engine_.loudness(), [this]() { engine_.aplicarLoudness(); }).cargar();
     // El latido que mira los cuadros del motor (hilo propio): una traba de la
     // interfaz ya no hace que el supervisor corte el aire. Desde acá late él.
     latidoArranque.parar();

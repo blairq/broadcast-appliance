@@ -84,9 +84,11 @@ class Mezcla {
     void ponerMaster(double lineal, int ms);
     /// El limitador del máster: prendido y techo (dBTP). false si este bus no lo tiene.
     bool ponerLimitador(bool activo, double techoDb);
+    /// El AGC lento hacia el objetivo de loudness, antes del limitador (balimitador agc).
+    bool ponerAgc(bool activo, double objetivoLufs);
     /// Lo llama el motor seguido: medidores, latencia, fundidos.
     void tic();
-    /// {latencia_ms, pico_db, rms_db, limitador: {activo, techo_db, reduccion_db},
+    /// {latencia_ms, pico_db, rms_db, limitador: {activo, techo_db, reduccion_db, agc, agc_db},
     ///  loudness: {momentaneo, corto, integrado, lra, true_peak_db}, entradas: {id: {…}}}
     nlohmann::json estado() const;
     /// Su pipeline con una referencia (para el análisis por elemento); nullptr si no anda.

@@ -55,7 +55,8 @@ endif()
 # baderiva: libsamplerate (vendoreada) estática adentro del plugin.
 add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp audio/limitador.cpp audio/deriva.cpp
     "${CMAKE_SOURCE_DIR}/src/core/dsp/Automixer.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/LimitadorTP.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/dsp/Deriva.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/Resampler.cpp")
+    "${CMAKE_SOURCE_DIR}/src/core/dsp/Deriva.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/Resampler.cpp"
+    "${CMAKE_SOURCE_DIR}/src/core/dsp/AgcLoudness.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/PonderacionK.cpp")
 target_include_directories(gstbaaudio PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
 set_target_properties(samplerate PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(gstbaaudio PRIVATE samplerate)

@@ -218,6 +218,8 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
         s.mezcla.reset();
         return e;
     }
+    s.mezcla->ponerLimitador(true, s.techoDb); // el loudness que tenía (ponerLoudness)
+    s.mezcla->ponerAgc(s.agc, s.objetivoLufs);
     if (cfg_.video) {
         Composicion::Opciones vop;
         vop.gpu = cfg_.videoGpu;
@@ -455,8 +457,12 @@ Mezcla* Motor::pista(int n, bool crear) {
     if (!crear) return nullptr;
     Mezcla::Opciones op;
     op.medidores = false;
+    // Con limitador como el programa: una pista se puede publicar (otro idioma) y sin
+    // él recortaba en el códec (docs/arquitectura/03-hardware-y-sonido.md §3.5).
+    op.limitador = true;
     auto m = std::make_unique<Mezcla>(*reloj_, "pista" + std::to_string(n), op);
     Mezcla* p = m.get();
+    p->ponerLimitador(true, techoPistas_);
     pistas_[n] = std::move(m);
     return p;
 }
@@ -1560,6 +1566,23 @@ bool Motor::ponerLimitadorYa(bool activo, double techoDb, const std::string& sal
     return s != nullptr && s->mezcla && s->mezcla->ponerLimitador(activo, techoDb);
 }
 
+std::string Motor::ponerLoudnessYa(bool agc, double objetivoLufs, double techoDb, const std::string& salida) {
+    BA_CANDADO(mu_);
+    Salida* s = laSalida(salida);
+    if (s == nullptr || !s->mezcla) return noHaySalida(salida);
+    s->agc = agc;
+    s->objetivoLufs = objetivoLufs;
+    s->techoDb = techoDb;
+    if (!s->mezcla->ponerLimitador(true, techoDb) || !s->mezcla->ponerAgc(agc, objetivoLufs))
+        return traducir("motor", "el programa no tiene limitador (falta balimitador)");
+    // Las pistas 2-6 siguen a la salida por omisión: el mismo techo (si se publican como
+    // alternativa, otro idioma, pasan por el mismo códec). Sin AGC: son mezclas aparte.
+    if (s == laSalida(porOmision_))
+        for (auto& [n, p] : pistas_) p->ponerLimitador(true, techoDb);
+    techoPistas_ = techoDb;
+    return {};
+}
+
 void Motor::ponerTopeEstudio(std::int64_t ms) { reloj_->ponerTope(ms); }
 
 std::string Motor::productorDeBus(const std::string& bus, std::int64_t* latenciaNs, const std::string& salida) {
@@ -1961,6 +1984,9 @@ bool Motor::ponerLimitador(bool activo, double techoDb, const std::string& salid
     return orden("ponerLimitador", [=, this]() {
                return ponerLimitadorYa(activo, techoDb, salida) ? std::string() : traducir("motor", "no se pudo poner el limitador");
            }).empty();
+}
+std::string Motor::ponerLoudness(bool agc, double objetivoLufs, double techoDb, const std::string& salida) {
+    return orden("ponerLoudness", [=, this]() { return ponerLoudnessYa(agc, objetivoLufs, techoDb, salida); });
 }
 std::string Motor::multiview(bool activo, int ancho, int alto) {
     return orden("multiview", [=, this]() { return multiviewYa(activo, ancho, alto); });

@@ -254,6 +254,13 @@ bool Mezcla::ponerLimitador(bool activo, double techoDb) {
     return true;
 }
 
+bool Mezcla::ponerAgc(bool activo, double objetivoLufs) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (limitador_ == nullptr) return false;
+    g_object_set(limitador_, "agc", activo ? TRUE : FALSE, "objetivo-lufs", std::clamp(objetivoLufs, -40.0, -5.0), nullptr);
+    return true;
+}
+
 void Mezcla::tic() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
@@ -367,10 +374,12 @@ json Mezcla::estado() const {
         e[id] = {{"nivel", r.fader}, {"mute", r.mute}, {"escena", r.escena}, {"pico_db", r.picoDb}, {"rms_db", r.rmsDb}};
     json lim = nullptr;
     if (limitador_ != nullptr) {
-        gboolean activo = TRUE;
-        double techo = -1, red = 0;
-        g_object_get(limitador_, "activo", &activo, "techo-db", &techo, "reduccion-db", &red, nullptr);
-        lim = {{"activo", static_cast<bool>(activo)}, {"techo_db", techo}, {"reduccion_db", red}};
+        gboolean activo = TRUE, agc = FALSE;
+        double techo = -1, red = 0, agcDb = 0;
+        g_object_get(limitador_, "activo", &activo, "techo-db", &techo, "reduccion-db", &red, "agc", &agc, "agc-db", &agcDb,
+                     nullptr);
+        lim = {{"activo", static_cast<bool>(activo)}, {"techo_db", techo}, {"reduccion_db", red},
+               {"agc", static_cast<bool>(agc)}, {"agc_db", agcDb}};
     }
     return {{"bus", nombre_},
             {"limitador", lim},

@@ -9,38 +9,12 @@ namespace ba::app::audio {
 namespace {
 constexpr double kPi = 3.14159265358979323846;
 
-double aLufs(double energia) { return energia > 0 ? -0.691 + 10.0 * std::log10(energia) : -120.0; }
+double aLufs(double energia) { return ba::dsp::PonderacionK::aLufs(energia); }
 double aDb(double lineal) { return lineal > 0 ? 20.0 * std::log10(lineal) : -120.0; }
 
 } // namespace
 
-LoudnessPrograma::LoudnessPrograma(double tasa) : tasa_(tasa) {
-    // K-weighting (BS.1770-4) para cualquier tasa: estante alto y pasa altos.
-    {
-        const double f0 = 1681.974450955533, G = 3.999843853973347, Q = 0.7071752369554196;
-        const double K = std::tan(kPi * f0 / tasa_), Vh = std::pow(10.0, G / 20.0), Vb = std::pow(Vh, 0.4996667741545416);
-        const double a0 = 1.0 + K / Q + K * K;
-        Biquad b;
-        b.b0 = (Vh + Vb * K / Q + K * K) / a0;
-        b.b1 = 2.0 * (K * K - Vh) / a0;
-        b.b2 = (Vh - Vb * K / Q + K * K) / a0;
-        b.a1 = 2.0 * (K * K - 1.0) / a0;
-        b.a2 = (1.0 - K / Q + K * K) / a0;
-        estante_ = {b, b};
-    }
-    {
-        const double f0 = 38.13547087602444, Q = 0.5003270373238773;
-        const double K = std::tan(kPi * f0 / tasa_);
-        const double a0 = 1.0 + K / Q + K * K;
-        Biquad b;
-        b.b0 = 1.0;
-        b.b1 = -2.0;
-        b.b2 = 1.0;
-        b.a1 = 2.0 * (K * K - 1.0) / a0;
-        b.a2 = (1.0 - K / Q + K * K) / a0;
-        pasaAltos_ = {b, b};
-    }
-    porBloque_ = static_cast<std::uint32_t>(tasa_ / 10.0);
+LoudnessPrograma::LoudnessPrograma(double tasa) : tasa_(tasa), k_(tasa) {
     // FIR de interpolación x4: sinc con ventana de Blackman, 48 taps en 4 fases.
     for (int fase = 0; fase < 4; ++fase)
         for (int t = 0; t < kTaps; ++t) {
@@ -53,10 +27,7 @@ LoudnessPrograma::LoudnessPrograma(double tasa) : tasa_(tasa) {
 }
 
 void LoudnessPrograma::resetInterno() {
-    for (auto& b : estante_) b.z1 = b.z2 = 0;
-    for (auto& b : pasaAltos_) b.z1 = b.z2 = 0;
-    enBloque_ = 0;
-    suma_[0] = suma_[1] = 0;
+    k_.reiniciar();
     bloques_.clear();
     hist400_.fill(0);
     histCorto_.fill(0);
@@ -70,13 +41,10 @@ void LoudnessPrograma::alimentar(const float* const* datos, int canales, std::ui
     if (pedirReset_.exchange(false)) resetInterno();
     const int nc = std::clamp(canales, 1, 2);
     for (std::uint32_t k = 0; k < cuadros; ++k) {
-        for (int c = 0; c < 2; ++c) {
-            const float x = datos[std::min(c, nc - 1)][k];
-            const double y = pasaAltos_[c].paso(estante_[c].paso(x));
-            suma_[c] += y * y;
-            // True peak: la muestra y las 3 interpoladas entre la anterior y esta.
-            hist_[c][posHist_] = x;
-        }
+        const float xl = datos[0][k], xr = datos[std::min(1, nc - 1)][k];
+        // True peak: la muestra y las 3 interpoladas entre la anterior y esta.
+        hist_[0][posHist_] = xl;
+        hist_[1][posHist_] = xr;
         for (int c = 0; c < nc; ++c)
             for (int fase = 0; fase < 4; ++fase) {
                 float acc = 0;
@@ -85,15 +53,13 @@ void LoudnessPrograma::alimentar(const float* const* datos, int canales, std::ui
                 if (a > tpVentana_) tpVentana_ = a;
             }
         posHist_ = (posHist_ + 1) % kTaps;
-        if (++enBloque_ >= porBloque_) cerrarBloque();
+        double e = 0;
+        if (k_.muestra(xl, xr, e)) cerrarBloque(e);
     }
 }
 
-void LoudnessPrograma::cerrarBloque() {
-    // Energía K del bloque de 100 ms (L + R, pesos 1).
-    const double e = (suma_[0] + suma_[1]) / static_cast<double>(enBloque_);
-    suma_[0] = suma_[1] = 0;
-    enBloque_ = 0;
+void LoudnessPrograma::cerrarBloque(double e) {
+    // `e`: la energía K del bloque de 100 ms (L + R, pesos 1).
     segundos_ += 0.1;
     bloques_.push_back(e);
     while (bloques_.size() > 30) bloques_.pop_front();
@@ -107,7 +73,7 @@ void LoudnessPrograma::cerrarBloque() {
     const double s = aLufs(e3s);
     const auto bin = [](double l) { return std::clamp(static_cast<int>((l + 70.0) * 10.0), 0, kBins - 1); };
     const auto centro = [](int b) { return -70.0 + (b + 0.5) / 10.0; };
-    const auto energiaDe = [](double l) { return std::pow(10.0, (l + 0.691) / 10.0); };
+    const auto energiaDe = [](double l) { return ba::dsp::PonderacionK::aEnergia(l); };
     if (bloques_.size() >= 4 && aLufs(e400) > -70) ++hist400_[bin(aLufs(e400))];
     if (bloques_.size() >= 30 && s > -70) ++histCorto_[bin(s)];
     // Integrado: compuerta absoluta -70 LUFS (ya en el histograma) y relativa -10 LU.
@@ -182,6 +148,8 @@ std::string LoudnessPrograma::ponerObjetivo(const nlohmann::json& o) {
     const std::string p = o.value("perfil", std::string("custom"));
     Objetivo n;
     n.perfil = p;
+    // El AGC se pide aparte del perfil; si no se dice, queda como estaba.
+    n.agc = o.contains("agc") ? o.value("agc", false) : objetivo().agc;
     if (p == "r128") n.lufs = -23, n.tp = -1;
     else if (p == "a85") n.lufs = -24, n.tp = -2;
     else if (p == "plataforma16") n.lufs = -16, n.tp = -1;
@@ -210,7 +178,7 @@ nlohmann::json LoudnessPrograma::json() const {
             {"lra", r(f.lra)},
             {"segundos", std::round(f.segundos)},
             {"gr_db", r(f.grDb)},
-            {"objetivo", {{"perfil", o.perfil}, {"lufs", o.lufs}, {"tp", o.tp}}},
+            {"objetivo", {{"perfil", o.perfil}, {"lufs", o.lufs}, {"tp", o.tp}, {"agc", o.agc}}},
             {"fuera_de_objetivo", f.i > -70 && (std::abs(f.i - o.lufs) > 2.0 || f.tp > o.tp)}};
 }
 

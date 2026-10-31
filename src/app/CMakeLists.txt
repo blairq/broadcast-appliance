@@ -1256,7 +1256,7 @@ endif()
     add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp audio/ObjetivoLoudness.cpp
                    arranque/ArchivoConfig.cpp)
     target_include_directories(test_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_loudness PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_loudness PRIVATE ba_core nlohmann_json::nlohmann_json)
     add_test(NAME test_loudness COMMAND test_loudness)
     add_executable(test_alerts tests/test_alerts.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
     target_include_directories(test_alerts PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -11,10 +11,14 @@
 //   - Declara su demora en la consulta LATENCY (los sinks y los mezcladores la
 //     cuentan: el audio sigue con su video).
 //   - reduccion-db (solo lectura): cuánto está bajando ahora (≤ 0), para la GUI.
+//   - agc=true: ANTES de limitar, lleva el programa despacio hacia objetivo-lufs
+//     (dsp/AgcLoudness: ≤ 1 dB/s, ±6 dB, congelado en silencio). agc-db (solo
+//     lectura): la ganancia que está poniendo. De fábrica apagado.
 //
 //   gst-launch-1.0 audiotestsrc volume=2 ! audioconvert ! balimitador techo-db=-1 ! autoaudiosink
 // ============================================================================
 
+#include "dsp/AgcLoudness.hpp"
 #include "dsp/LimitadorTP.hpp"
 
 #include <gst/audio/audio.h>
@@ -33,14 +37,16 @@ struct _BaLimitador {
     GstAudioFilter parent;
     std::mutex* mu; ///< el limitador (propiedades contra el hilo de audio)
     ba::dsp::LimitadorTP* lim;
-    double techo, lookahead, liberacion;
-    bool activo;
+    ba::dsp::AgcLoudness* agc;
+    double techo, lookahead, liberacion, objetivo;
+    bool activo, conAgc;
     std::atomic<double>* reduccion;
+    std::atomic<double>* agcDb;
 };
 
 G_DEFINE_TYPE(BaLimitador, ba_limitador, GST_TYPE_AUDIO_FILTER)
 
-enum { PROP_0, PROP_TECHO, PROP_LOOKAHEAD, PROP_LIBERACION, PROP_ACTIVO, PROP_REDUCCION };
+enum { PROP_0, PROP_TECHO, PROP_LOOKAHEAD, PROP_LIBERACION, PROP_ACTIVO, PROP_REDUCCION, PROP_AGC, PROP_OBJETIVO, PROP_AGC_DB };
 
 static gboolean preparar(GstAudioFilter* f, const GstAudioInfo* info) {
     auto* l = BA_LIMITADOR(f);
@@ -50,6 +56,7 @@ static gboolean preparar(GstAudioFilter* f, const GstAudioInfo* info) {
     l->lim->ponerActivo(l->activo);
     l->lim->ponerLookahead(l->lookahead);
     l->lim->preparar(GST_AUDIO_INFO_CHANNELS(info), GST_AUDIO_INFO_RATE(info));
+    l->agc->preparar(GST_AUDIO_INFO_CHANNELS(info), GST_AUDIO_INFO_RATE(info));
     return TRUE;
 }
 
@@ -61,8 +68,12 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* buf) {
     if (!gst_buffer_map(buf, &map, GST_MAP_READWRITE)) return GST_FLOW_ERROR;
     {
         std::lock_guard<std::mutex> g(*l->mu);
-        l->lim->procesar(reinterpret_cast<float*>(map.data), map.size / (sizeof(float) * static_cast<size_t>(canales)));
+        auto* datos = reinterpret_cast<float*>(map.data);
+        const std::size_t frames = map.size / (sizeof(float) * static_cast<size_t>(canales));
+        l->agc->procesar(datos, frames); // primero la ganancia lenta, después los picos
+        l->lim->procesar(datos, frames);
         l->reduccion->store(l->lim->reduccionDb());
+        l->agcDb->store(l->agc->gananciaDb());
     }
     gst_buffer_unmap(buf, &map);
     // Un bloque de silencio de verdad deja de serlo (lo que sale es lo demorado).
@@ -117,6 +128,14 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
                 l->activo = g_value_get_boolean(v);
                 l->lim->ponerActivo(l->activo);
                 break;
+            case PROP_AGC:
+                l->conAgc = g_value_get_boolean(v);
+                l->agc->ponerActivo(l->conAgc);
+                break;
+            case PROP_OBJETIVO:
+                l->objetivo = g_value_get_double(v);
+                l->agc->ponerObjetivo(l->objetivo);
+                break;
             default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps); return;
         }
     }
@@ -133,6 +152,9 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_LIBERACION: g_value_set_double(v, l->liberacion); break;
         case PROP_ACTIVO: g_value_set_boolean(v, l->activo); break;
         case PROP_REDUCCION: g_value_set_double(v, l->reduccion->load()); break;
+        case PROP_AGC: g_value_set_boolean(v, l->conAgc); break;
+        case PROP_OBJETIVO: g_value_set_double(v, l->objetivo); break;
+        case PROP_AGC_DB: g_value_set_double(v, l->agcDb->load()); break;
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
     }
 }
@@ -140,8 +162,10 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
 static void finalizar(GObject* o) {
     auto* l = BA_LIMITADOR(o);
     delete l->lim;
+    delete l->agc;
     delete l->mu;
     delete l->reduccion;
+    delete l->agcDb;
     G_OBJECT_CLASS(ba_limitador_parent_class)->finalize(o);
 }
 
@@ -166,6 +190,15 @@ static void ba_limitador_class_init(BaLimitadorClass* k) {
     g_object_class_install_property(go, PROP_REDUCCION,
                                     g_param_spec_double("reduccion-db", "Reducción", "Cuánto baja ahora (dB, ≤ 0)", -120.0, 0.0, 0.0,
                                                         static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(go, PROP_AGC,
+                                    g_param_spec_boolean("agc", "AGC", "Llevar el programa despacio al objetivo de loudness (antes de limitar)",
+                                                         FALSE, vivo));
+    g_object_class_install_property(go, PROP_OBJETIVO,
+                                    g_param_spec_double("objetivo-lufs", "Objetivo", "El objetivo del AGC (LUFS, corto de 3 s)", -40.0,
+                                                        -5.0, -23.0, vivo));
+    g_object_class_install_property(go, PROP_AGC_DB,
+                                    g_param_spec_double("agc-db", "Ganancia del AGC", "La ganancia que pone el AGC ahora (dB, ±6)", -20.0,
+                                                        20.0, 0.0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(k), "Limitador true peak", "Filter/Effect/Audio",
                                           "Limitador del máster: nunca pasa el techo, picos entre muestras incluidos",
                                           "Broadcast Appliance");
@@ -182,12 +215,17 @@ static void ba_limitador_class_init(BaLimitadorClass* k) {
 static void ba_limitador_init(BaLimitador* l) {
     l->mu = new std::mutex();
     l->lim = new ba::dsp::LimitadorTP();
+    l->agc = new ba::dsp::AgcLoudness();
     l->reduccion = new std::atomic<double>(0.0);
+    l->agcDb = new std::atomic<double>(0.0);
+    l->objetivo = -23.0;
+    l->conAgc = false;
     l->techo = -1.0;
     l->lookahead = 5.0;
     l->liberacion = 100.0;
     l->activo = true;
     l->lim->preparar(2, 48000);
+    l->agc->preparar(2, 48000);
     gst_base_transform_set_in_place(GST_BASE_TRANSFORM(l), TRUE);
     gst_base_transform_set_gap_aware(GST_BASE_TRANSFORM(l), FALSE);
 }
