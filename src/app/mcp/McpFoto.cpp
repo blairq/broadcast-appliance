@@ -593,7 +593,13 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
                     last.push_back(s["chat"][i]);
                 s["chat"] = last;
             }
-            done(ToolResult().data(s));
+            // Con gente, trae sus nombres y datos: contamina. Se decide con ESTA respuesta de
+            // B, no con la copia de la interfaz (que no se lee desde el pool).
+            const bool conGente = !s.value("participants", json::array()).empty();
+            ToolResult r;
+            r.data(s);
+            r.untrusted = conGente;
+            done(r);
         };
         core.addTool(std::move(t));
     }

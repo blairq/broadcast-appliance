@@ -104,7 +104,6 @@ void McpService::registerInputTools() {
             if (!layoutOf(a, spec, err)) return done(ToolResult::error(err));
             const std::string scene = a.value("scene", e.currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
             done(ToolResult::ok(ba::i18n::llenar(
                 ba::i18n::traducir("mcp", "Agregada '%1' a '%2'. Verifica con foto_fuente (la camara tarda un "
                                           "instante en abrir)."),
@@ -161,7 +160,6 @@ void McpService::registerInputTools() {
             if (!layoutOf(a, spec, err)) return done(ToolResult::error(err));
             const std::string scene = a.value("scene", rt.engine().currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
             // Esperar un poco a que llegue imagen para contestar algo util.
             const std::string name = spec.name;
             auto* timer = new QTimer(&vm);
@@ -246,7 +244,6 @@ void McpService::registerInputTools() {
             if (!layoutOf(a, spec, err)) return done(ToolResult::error(err));
             const std::string scene = a.value("scene", rt.engine().currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
             const std::string name = spec.name;
             auto* timer = new QTimer(&vm);
             auto tries = std::make_shared<int>(0);

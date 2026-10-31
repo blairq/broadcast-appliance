@@ -8,6 +8,8 @@
 #include <QJsonObject>
 #include <QVariant>
 
+#include <functional>
+
 #include "mcp/McpCore.hpp"
 
 namespace ba::app {
@@ -28,6 +30,14 @@ json toJson(const QJsonArray& a);
 QJsonObject toQt(const json& j);
 /// Filas de un modelo Qt como JSON (cada rol con su nombre).
 json modelRows(const QAbstractItemModel& m);
+
+/// Lo pesado de una herramienta de la interfaz (escalar y codificar una imagen, leer o
+/// recorrer archivos, esperar un proceso) en un hilo aparte: `trabajo` corre en el pool
+/// del MCP («mcp-aparte», dos hilos: no compite con la copia de un evento en el pool
+/// global) y `done` vuelve en el hilo de `volver` (la interfaz: qApp). En la interfaz queda
+/// solo lo que es de ella (tomar el cuadro, leer el modelo). Una excepción de `trabajo`
+/// vuelve como error de la herramienta.
+void enPool(QObject* volver, std::function<ToolResult()> trabajo, Done done);
 
 /// Estado de la sala tal como lo publica B (snapshot vigente, sin pedirlo).
 json roomSnapshot(StudioViewModel& vm);

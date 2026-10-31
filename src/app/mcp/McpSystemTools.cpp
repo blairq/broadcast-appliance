@@ -413,7 +413,6 @@ void McpService::registerSystemTools() {
                 return done(ToolResult::error(
                     ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una entrada de audio «%1»"), {name})));
             rt.removeAudioInput(name);
-            rt.save();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Quitada: %1"), {name})));
         };
         core_.addTool(std::move(t));

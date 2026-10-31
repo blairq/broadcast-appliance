@@ -34,6 +34,7 @@
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QTimer>
+#include <QPointer>
 
 #include "fault/FallasProgramadas.hpp"
 #include <QDir>
@@ -210,21 +211,32 @@ QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, con
     return e.save(archivo, "JPG", args.value("quality", 85)) ? archivo : QString();
 }
 
-void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth) {
+namespace {
+/// La imagen EN la conversación: solo para el rol que mira (ver addImage con destino).
+void addImageEnLinea(ToolResult& r, const QImage& img, const json& args, int defaultWidth) {
     std::string mime;
     const int maxW = args.value("maxWidth", defaultWidth);
     const std::string b64 =
         encodeImage(img, args.value("format", std::string("jpeg")), maxW, args.value("quality", 85), mime);
     r.image(b64, mime);
 }
+} // namespace
+
+DestinoImagen destinoImagen(McpCore& core, const std::filesystem::path& raiz) {
+    return DestinoImagen{puedeVerImagenes(core), raiz};
+}
 
 void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth, McpCore& core,
               const std::filesystem::path& raiz) {
-    if (puedeVerImagenes(core)) {
-        addImage(r, img, args, defaultWidth);
+    addImage(r, img, args, defaultWidth, destinoImagen(core, raiz));
+}
+
+void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth, const DestinoImagen& destino) {
+    if (destino.ver) {
+        addImageEnLinea(r, img, args, defaultWidth);
         return;
     }
-    const QString archivo = guardarCaptura(img, raiz, args, defaultWidth);
+    const QString archivo = guardarCaptura(img, destino.raiz, args, defaultWidth);
     if (archivo.isEmpty()) {
         r.text(ba::i18n::traducir("mcp", "(no se pudo guardar la captura)"));
         return;
@@ -369,6 +381,29 @@ QVariant jsonToQv(const json& v) {
     if (v.is_number()) return v.get<double>();
     if (v.is_string()) return QString::fromStdString(v.get<std::string>());
     return QJsonDocument::fromJson(QByteArray::fromStdString(v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).toVariant();
+}
+
+void enPool(QObject* volver, std::function<ToolResult()> trabajo, Done done) {
+    static QThreadPool* pool = []() {
+        auto* p = new QThreadPool(); // vive lo que el proceso (lo usan herramientas hasta el final)
+        p->setObjectName("mcp-aparte");
+        p->setMaxThreadCount(2);
+        return p;
+    }();
+    QPointer<QObject> v(volver);
+    pool->start([v, trabajo = std::move(trabajo), done = std::move(done)]() mutable {
+        ba::platform::nombrarHilo("mcp-aparte");
+        ToolResult r;
+        try {
+            r = trabajo();
+        } catch (const std::exception& e) {
+            r = ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La herramienta fallo: %1"), {e.what()}));
+        }
+        if (QObject* o = v.data(); o != nullptr)
+            QMetaObject::invokeMethod(o, [done = std::move(done), r = std::move(r)]() { done(r); }, Qt::QueuedConnection);
+        else
+            done(r);
+    });
 }
 
 json modelRows(const QAbstractItemModel& m) {
@@ -673,11 +708,6 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     core_.verificarJuegos();
 }
 
-bool McpService::roomHasUntrusted() {
-    const json s = roomSnapshot(vm_);
-    return !s.value("participants", json::array()).empty();
-}
-
 void McpService::applyApprovalPolicy() {
     // De la configuración que publica el dueño (la foto): se llama en la interfaz.
     const std::string p = vm_.ventanilla().foto().configuracion.app->mcpApproval;
@@ -687,37 +717,22 @@ void McpService::applyApprovalPolicy() {
 }
 
 void McpService::applySecurity() {
-    // La salvaguarda cubre lo que viene de los invitados de la sala (WebRTC):
-    // lo que escriben, sus nombres y datos, sus archivos y su video. El chat
-    // de YouTube/Twitch/Facebook (y el Chat en vivo en pantalla) NO la dispara:
-    // es texto del publico, que el asistente trata como dato (ver la guia).
-    // Devuelven SIEMPRE archivos de invitados.
-    // (invitados_chat_leer y guest_chat_pending marcan su respuesta solo si traen mensajes.)
-    static const std::set<std::string> kAlways{"share_list", "compartida_revisar"};
-    // Devuelven nombres, datos o video de invitados cuando hay alguien en la sala.
-    static const std::set<std::string> kWithPeople{"room_status",    "remotos_fila_ver",   "foto_programa",
-                                                   "foto_fuente", "foto_todas_escenas", "capture_feed",
-                                                   "foto_invitado", "foto_todos_invitados",    "capture_sequence",
-                                                   "capture_ui",     "feeds_list",        "dashboard_list"};
-    // Su efecto lo decide una persona con un click: no necesitan aprobacion.
-    // Mediados por la persona (ella decide en la barra) o limitados a enlaces
-    // fijos de la guia: no hacen nada por si solos.
-    static const std::set<std::string> kMediated{"operator_message", "operator_ask", "guest_reply_suggest",
-                                                 "account_credentials_request", "account_open"};
-    core_.forEachTool([this](Tool& t) {
-        if (kAlways.count(t.name) != 0) t.untrustedOutput = true;
-        if (kMediated.count(t.name) != 0) t.mediated = true;
-        if (kWithPeople.count(t.name) != 0) {
-            auto orig = t.run;
-            t.run = [this, orig](const json& a, Done done) {
-                const bool people = roomHasUntrusted();
-                orig(a, [done, people](ToolResult r) {
-                    if (people) r.untrusted = true;
-                    done(r);
-                });
-            };
-        }
-    });
+    // La salvaguarda cubre lo que viene de los invitados de la sala (WebRTC) —lo que
+    // escriben, sus nombres y datos, sus archivos y su video— y el chat del público
+    // (YouTube, Twitch, Facebook, la web): texto de afuera, no instrucciones. Cada
+    // herramienta lo DECLARA en su bloque (untrustedOutput: siempre; untrustedConGente:
+    // si hay alguien en la sala; mediated: lo decide una persona con un click), así el
+    // inventario lo ve y no hay una lista aparte que se olvide de una.
+    // «Hay gente» lo sabe la interfaz (la copia de la sala de ConferenceClient avisa al
+    // cambiar); el núcleo lo lee desde el hilo de cada herramienta.
+    auto* conf = static_cast<ConferenceViewModel*>(vm_.conference());
+    const auto mirarSala = [this, conf]() {
+        const QJsonValue p = conf->client().snapshot().value("participants");
+        hayGente_.store(p.isArray() && !p.toArray().isEmpty());
+    };
+    mirarSala();
+    connect(&conf->client(), &ConferenceClient::snapshotChanged, this, mirarSala);
+    core_.setHayGente([this]() { return hayGente_.load(); });
     applyApprovalPolicy();
     connect(static_cast<SettingsModel*>(vm_.settings()), &SettingsModel::applied, this,
             [this](const QString&) { applyApprovalPolicy(); });
@@ -806,7 +821,7 @@ void McpService::applySecurity() {
             const int id = msgs->post(json{{"kind", "question"},
                                            {"approval", true},
                                            {"aire", deAire},
-                                           {"priority", deAire || t.destructive ? "critical" : "warning"},
+                                           {"priority", deAire || McpCore::esDestructiva(t, args) ? "critical" : "warning"},
                                            {"title", deAire ? ba::i18n::traducir("mcp", "ACCIÓN DE AIRE: ¿la confirmás?")
                                                             : ba::i18n::traducir("mcp", "¿Aprobás esta acción del asistente?")},
                                            {"text", t.title + " (" + t.name + ")"},
@@ -823,6 +838,8 @@ void McpService::applySecurity() {
 }
 
 McpService::~McpService() {
+    // Un cambio que todavía esperaba juntarse con otros (setSincronizador) no se pierde al cerrar.
+    if (guardadoPendiente_->exchange(false)) rt_.save();
     // El transporte vive en el hilo de control mientras el plano anda: si todavía está
     // allá (el plano sigue), se borra allá (sus sockets son de ese hilo).
     if (http_ && http_->thread() != QThread::currentThread() && plano_ != nullptr && plano_->andando()) {
@@ -1115,13 +1132,30 @@ void McpService::registerTools() {
     // Si corre con --test: de la configuración que publica el dueño (la foto), sin entrar.
     const bool modoPrueba = vm_.ventanilla().foto().configuracion.app->modoPrueba;
     StudioViewModel& vm = vm_;
-    const auto persist = [&rt]() { rt.save(); };
     // La invariante, puesta una vez y para todas: lo que se toca por MCP queda
     // guardado. El despachador la aplica a TODA herramienta que modifica algo,
-    // asi ninguna superficie nueva depende de que su autor se acuerde. La vista
-    // no se avisa desde aca: el runtime avisa sus cambios (AppRuntime::observar)
-    // y StudioViewModel se entera solo. Ver McpCore::setSincronizador.
-    core_.setSincronizador(persist);
+    // asi ninguna superficie nueva depende de que su autor se acuerde (y ninguna
+    // guarda por su cuenta: eran dos guardados por cambio). La vista no se avisa
+    // desde aca: el runtime avisa sus cambios (AppRuntime::observar) y
+    // StudioViewModel se entera solo. Ver McpCore::setSincronizador.
+    //
+    // JUNTA LOS CAMBIOS. Cada guardado reescribe app.json, gateway.json y launcher.json:
+    // un fader que el asistente mueve de a poco (audio_set) eran treinta guardados por
+    // segundo. El primer cambio arma uno en el dueño de la configuración (el plano de
+    // control) dentro de kJuntarMs; lo que llega mientras tanto va en ese.
+    core_.setSincronizador([this, pendiente = guardadoPendiente_]() {
+        constexpr int kJuntarMs = 400;
+        if (pendiente->exchange(true)) return; // ya hay uno en camino
+        // Sin `this`: el reloj puede vencer con el servicio ya cerrado (el runtime sigue).
+        const auto guardar = [&rt = rt_, pendiente]() {
+            if (!pendiente->exchange(false)) return; // ya lo guardó el cierre
+            rt.save(); // lo que cambie desde acá, en el próximo
+        };
+        if (plano_ != nullptr && plano_->andando())
+            plano_->despues(kJuntarMs, guardar);
+        else
+            guardar(); // sin plano (pruebas, consola): en el acto
+    });
     const auto sceneOr = [&rt](const json& a) {
         const std::string s = a.value("scene", std::string());
         return s.empty() ? rt.engine().currentScene() : s;
@@ -1321,7 +1355,6 @@ void McpService::registerTools() {
         t.run = [&rt](const json& a, Done done) {
             if (!rt.setSceneFolder(a.value("scene", ""), a.value("folder", "")))
                 return done(ToolResult::error(rt.lastError()));
-            rt.save();
             done(ToolResult().data(json{{"scene", a.value("scene", "")},
                                         {"folder", a.value("folder", "")},
                                         {"folders", rt.sceneFolders()}}));
@@ -1346,7 +1379,6 @@ void McpService::registerTools() {
         t.run = [&rt](const json& a, Done done) {
             if (!rt.moveScene(a.value("scene", ""), a.value("before", "")))
                 return done(ToolResult::error(rt.lastError()));
-            rt.save();
             done(ToolResult().data(json{{"orden", rt.orderedSceneNames()}}));
         };
         core_.addTool(std::move(t));
@@ -1408,9 +1440,8 @@ void McpService::registerTools() {
         t.description = QT_TRANSLATE_NOOP("mcp", "Crea una escena vacia. Para crearla con contenido de una vez, usa scene_define.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
-        t.run = [&rt, persist](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             if (!rt.addScene(a["name"].get<std::string>())) return done(ToolResult::error(rt.lastError()));
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Escena creada: %1"), {a["name"].get<std::string>()})));
         };
         core_.addTool(std::move(t));
@@ -1437,11 +1468,10 @@ void McpService::registerTools() {
                           {{"from", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La escena que se copia.")}}},
                            {"to", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre de la copia.")}}}}},
                          {"required", {"from", "to"}}};
-        t.run = [&rt, persist](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             const std::string from = a["from"].get<std::string>();
             const std::string to = a["to"].get<std::string>();
             if (!rt.copyScene(from, to)) return done(ToolResult::error(rt.lastError()));
-            persist();
             // `lastError` con la copia hecha = alguna fuente no se pudo
             // recrear. Se dice, pero no es un error: la escena existe.
             const std::string aviso = rt.lastError();
@@ -1470,11 +1500,10 @@ void McpService::registerTools() {
             {"properties",
              {{"scene", {{"type", "string"}}}, {"protected", {{"type", "boolean"}, {"default", true}}}}},
             {"required", {"scene"}}};
-        t.run = [&rt, persist](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             const std::string s = a["scene"].get<std::string>();
             const bool p = a.value("protected", true);
             if (!rt.setSceneProtected(s, p)) return done(ToolResult::error(rt.lastError()));
-            persist();
             done(ToolResult::ok(p ? ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» queda protegida: no se borra ni se renombra."), {s})
                                   : ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» ya no esta protegida."), {s})));
         };
@@ -1492,11 +1521,10 @@ void McpService::registerTools() {
         t.description = QT_TRANSLATE_NOOP("mcp", "Borra una escena (las fuentes compartidas con otras escenas siguen existiendo).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
-        t.run = [&rt, persist, sceneExists, noScene](const json& a, Done done) {
+        t.run = [&rt, sceneExists, noScene](const json& a, Done done) {
             const std::string name = a["name"];
             if (!sceneExists(name)) return done(noScene(name));
             if (!rt.removeScene(name)) return done(ToolResult::error(rt.lastError()));
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Escena borrada: %1"), {name})));
         };
         core_.addTool(std::move(t));
@@ -1512,10 +1540,9 @@ void McpService::registerTools() {
                          {"properties", {{"from", {{"type", "string"}}}, {"to", {{"type", "string"}}}}},
                          {"required", {"from", "to"}}};
         t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el nombre de una escena (de `from` a `to`). Una protegida (scene_protect) no se puede renombrar.");
-        t.run = [&rt, persist, sceneExists, noScene](const json& a, Done done) {
+        t.run = [&rt, sceneExists, noScene](const json& a, Done done) {
             if (!sceneExists(a["from"])) return done(noScene(a["from"]));
             if (!rt.renameScene(a["from"], a["to"])) return done(ToolResult::error(rt.lastError()));
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Renombrada a %1"), {a["to"].get<std::string>()})));
         };
         core_.addTool(std::move(t));
@@ -1616,7 +1643,7 @@ void McpService::registerTools() {
                       kDefaultFontFace +
                       R"(", "size": 96}}, "layout": {"x": 0.1, "y": 0.4, "w": 0.8, "h": 0.2}}
 ], "switch": true})"};
-        t.run = [this, &rt, &vm, persist, sceneExists](const json& a, Done done) {
+        t.run = [this, &rt, &vm, sceneExists](const json& a, Done done) {
             const std::string name = a["name"];
             std::vector<std::string> log;
             // Las que vienen en la lista nueva: si ya están en la escena, se
@@ -1702,7 +1729,6 @@ void McpService::registerTools() {
             if (a.value("switch", false))
                 if (const std::string e = conmutadorDe(core_, vm, a).poner(name); !e.empty()) // `switch`: en su salida
                     return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Escena armada, pero no salió al aire: %1"), {e})));
-            persist();
             std::string msg = ba::i18n::llenar(ba::i18n::traducir("mcp", "Escena '%1': %2 fuente(s)."), {name, std::to_string(added)});
             for (const auto& l : log)
                 msg += "\n- " + l;
@@ -1727,10 +1753,9 @@ void McpService::registerTools() {
              {{"type", {{"type", "string"}, {"enum", {"cut", "fade", "swipe", "slide", "fade_to_color"}}}},
               {"durationMs", {{"type", "integer"}, {"minimum", 0}, {"maximum", 5000}}}}},
             {"required", {"type"}}};
-        t.run = [&rt, persist](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             if (!rt.setTransition(a["type"], a.value("durationMs", rt.config().transition.durationMs)))
                 return done(ToolResult::error(rt.lastError()));
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Transicion: %1"), {a["type"].get<std::string>()})));
         };
         core_.addTool(std::move(t));
@@ -1819,7 +1844,7 @@ void McpService::registerTools() {
                          {"required", {"type", "name"}}};
         t.examples = {
             R"({"type": "image_source", "name": "Logo", "settings": {"file": "/home/yo/logo.png"}, "layout": "pip-tr"})"};
-        t.run = [&rt, persist, sceneOr, sceneExists, noScene](const json& a, Done done) {
+        t.run = [&rt, sceneOr, sceneExists, noScene](const json& a, Done done) {
             const std::string scene = sceneOr(a);
             if (!sceneExists(scene)) return done(noScene(scene));
             SourceSpec spec;
@@ -1837,7 +1862,6 @@ void McpService::registerTools() {
                 if (!spec.efectos.aplicar(a["efectos"], &e)) return done(ToolResult::error(e));
             }
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Agregada '%1' a '%2'."), {spec.name, scene})));
         };
         core_.addTool(std::move(t));
@@ -1881,9 +1905,8 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"scene", sceneProp}, {"name", {{"type", "string"}}}}},
                          {"required", {"name"}}};
-        t.run = [&rt, persist, sceneOr](const json& a, Done done) {
+        t.run = [&rt, sceneOr](const json& a, Done done) {
             if (!rt.removeSource(sceneOr(a), a["name"])) return done(ToolResult::error(rt.lastError()));
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Quitada: %1"), {a["name"].get<std::string>()})));
         };
         core_.addTool(std::move(t));
@@ -1954,7 +1977,7 @@ void McpService::registerTools() {
                       R"({"name": "Zocalo", "efectos": {"opacidad": 0.85, "borde": 20}})",
                       R"({"name": "Titulo principal", "settings": {"text": "Ultimo momento"}})",
                       R"({"name": "Camara", "order": "top"})"};
-        t.run = [&rt, persist, sceneOr](const json& a, Done done) {
+        t.run = [&rt, sceneOr](const json& a, Done done) {
             const std::string scene = sceneOr(a);
             std::string name = a["name"];
             const auto items = rt.engine().sceneSources(scene);
@@ -2026,7 +2049,6 @@ void McpService::registerTools() {
                     failed.push_back("nombre (" + rt.lastError() + ")");
                 }
             }
-            persist();
             std::string msg = "'" + name + "': ";
             for (const auto& d : did)
                 msg += d + " ✓ ";
@@ -2075,7 +2097,7 @@ void McpService::registerTools() {
                            {"press", {{"type", "boolean"}}}}},
                          {"required", {"source", "property"}}};
         PropertiesModel* props = props_.get();
-        t.run = [&rt, props, persist](const json& a, Done done) {
+        t.run = [&rt, props](const json& a, Done done) {
             if (rt.engine().sourceTypeId(a["source"]).empty())
                 return done(
                     ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente '%1'."), {a["source"].get<std::string>()})));
@@ -2087,7 +2109,6 @@ void McpService::registerTools() {
                 if (!a.contains("value")) return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `value` (o press=true).")));
                 props->setValue(prop, jsonToQv(a["value"]));
             }
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho. Settings ahora: %1"), {rt.engine().sourceSettingsJson(a["source"])})));
         };
         core_.addTool(std::move(t));
@@ -2110,7 +2131,7 @@ void McpService::registerTools() {
               {"kind", {{"type", "string"}, {"enum", {"camera", "screen"}}, {"default", "camera"}}},
               {"layout", layoutProp}}},
             {"required", {"slot"}}};
-        t.run = [&rt, persist, sceneOr](const json& a, Done done) {
+        t.run = [&rt, sceneOr](const json& a, Done done) {
             const int slot = a["slot"];
             if (slot > rt.config().guests)
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Hay %1 lugares de invitado (ajuste guests.count)."),
@@ -2130,7 +2151,6 @@ void McpService::registerTools() {
             } else if (!rt.addSource(scene, spec)) {
                 return done(ToolResult::error(rt.lastError()));
             }
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "'%1' en '%2'."), {spec.name, scene})));
         };
         core_.addTool(std::move(t));
@@ -2195,7 +2215,7 @@ void McpService::registerTools() {
                            {"volumeDb", {{"type", "number"}, {"minimum", -100}, {"maximum", 26}}},
                            {"muted", {{"type", "boolean"}}}}},
                          {"required", {"name"}}};
-        t.run = [this, &rt, persist](const json& a, Done done) {
+        t.run = [this, &rt](const json& a, Done done) {
             const std::string n = a["name"];
             const std::string salida = core_.salidaDe(a);
             bool ok = true;
@@ -2206,7 +2226,6 @@ void McpService::registerTools() {
             if (!ok)
                 return done(
                     ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente de audio '%1' (mixer_list las muestra)."), {n})));
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Audio de '%1' actualizado."), {n})));
         };
         core_.addTool(std::move(t));
@@ -2337,7 +2356,6 @@ void McpService::registerTools() {
                 const std::string v = a.value("balistica", std::string("pico"));
                 if ((v == "pico" || v == "ppm" || v == "vu") && v != rt.config().balistica) {
                     rt.config().balistica = v;
-                    rt.save();
                     rt.fotoSucia(FotoMotor::Mezcla); // los medidores de la vista, con la foto
                 }
             }
@@ -2370,7 +2388,7 @@ void McpService::registerTools() {
                           {{"name", {{"type", "string"}}},
                            {"ms", {{"type", "integer"}, {"minimum", -5000}, {"maximum", 5000}}}}},
                          {"required", {"name"}}};
-        t.run = [&rt, persist](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             const std::string n = a["name"];
             if (!a.contains("ms")) {
                 if (rt.engine().sourceNames().empty())
@@ -2398,7 +2416,6 @@ void McpService::registerTools() {
             ms = std::clamp(ms, -5000, 5000);
             if (!rt.engine().setSourceSyncOffset(n, ms))
                 return done(ToolResult::error(rt.engine().lastError()));
-            persist();
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "El audio de '%1' va %2 ms respecto del video."), {n, std::to_string(ms)})));
         };
         core_.addTool(std::move(t));
@@ -3751,7 +3768,6 @@ void McpService::registerTools() {
                 const std::filesystem::path c = a.value("copia_dir", std::string());
                 r.copiaDir = c.empty() || c.is_absolute() ? c.string() : (rt.dataRoot() / c).string();
             }
-            if (!a.empty()) rt.save();
             done(ToolResult().data(json{{"contenedor", r.container},
                                         {"remux_al_terminar", r.remuxAlTerminar},
                                         {"calidad", r.calidad},

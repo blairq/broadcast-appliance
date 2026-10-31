@@ -422,6 +422,7 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "dashboard_list";
+        t.untrustedConGente = true; // nombres, datos o video de invitados si hay gente
         t.title = ba::i18n::traducir("mcp", "Dashboard y ventanas de salida");
         t.category = "interfaz";
         t.clase = Clase::Lectura;
@@ -602,6 +603,7 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "feeds_list";
+        t.untrustedConGente = true; // nombres, datos o video de invitados si hay gente
         t.title = ba::i18n::traducir("mcp", "Videos disponibles");
         t.category = "sistema";
         t.clase = Clase::Lectura;

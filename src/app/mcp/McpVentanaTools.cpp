@@ -764,18 +764,21 @@ void McpService::registerVentanaTools() {
                 done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo sacar la foto de la ventana.")));
                 return;
             }
-            ToolResult r;
-            r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Interfaz de «%1»."), {id.toStdString()}));
-            // Guardarla para un manual: solo dentro de <Datos>/Manuales (nada de rutas sueltas).
-            if (a.contains("archivo")) {
-                std::string err;
-                const QString destino = guardarEnManuales(img, a, 1600, err);
-                if (destino.isEmpty()) return done(ToolResult::error(err));
-                r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada en %1."), {destino.toStdString()}));
-                r.structured = json{{"archivo", destino.toStdString()}};
-            }
-            addImage(r, img, a, 1280, core_, rt_.dataRoot());
-            done(r);
+            // En la interfaz solo la foto; marcarla, escalarla, codificarla y guardarla, aparte.
+            enPool(qApp, [img, a, id, destinoImg = destinoImagen(core_, rt_.dataRoot())]() {
+                ToolResult r;
+                r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Interfaz de «%1»."), {id.toStdString()}));
+                // Guardarla para un manual: solo dentro de <Datos>/Manuales (nada de rutas sueltas).
+                if (a.contains("archivo")) {
+                    std::string err;
+                    const QString destino = guardarEnManuales(img, a, 1600, err);
+                    if (destino.isEmpty()) return ToolResult::error(err);
+                    r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada en %1."), {destino.toStdString()}));
+                    r.structured = json{{"archivo", destino.toStdString()}};
+                }
+                addImage(r, img, a, 1280, destinoImg);
+                return r;
+            }, done);
         };
         core_.addTool(std::move(t));
     }
@@ -805,6 +808,7 @@ void McpService::registerVentanaTools() {
                       R"({"url": "<local de enlaces_listar>", "ancho": 1440, "alto": 900, "archivo": "es/capturas/web-01-evento.png"})"};
         StudioViewModel* vmp = &vm_;
         t.run = [this, vmp](const json& a, Done done) {
+            const DestinoImagen destinoImg = destinoImagen(core_, rt_.dataRoot());
             const QUrl url(QString::fromStdString(a.value("url", std::string())));
             if (!url.isValid() || (url.scheme() != "http" && url.scheme() != "https"))
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "`url` tiene que ser http:// o https://.")));
@@ -821,23 +825,25 @@ void McpService::registerVentanaTools() {
             if (const QString e = CapturaWeb::disponible(); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             CapturaWeb::Pedido p{url.toString(), a.value("ancho", 1440), a.value("alto", 900), a.value("espera_ms", 2500)};
             // QProcess vive en el hilo de la interfaz (tiene su bucle de eventos).
-            QMetaObject::invokeMethod(qApp, [this, p, a, done]() {
+            QMetaObject::invokeMethod(qApp, [p, a, done, destinoImg]() {
                 auto* c = new CapturaWeb(qApp);
-                c->capturar(p, [this, c, a, done, p](const QImage& img, const QString& err) {
+                c->capturar(p, [c, a, done, p, destinoImg](const QImage& img, const QString& err) {
                     c->deleteLater();
                     if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-                    ToolResult r;
-                    r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Página %1 (%2x%3)."),
-                                            {p.url.toStdString(), std::to_string(img.width()), std::to_string(img.height())}));
-                    if (a.contains("archivo")) {
-                        std::string e;
-                        const QString destino = guardarEnManuales(img, a, img.width(), e);
-                        if (destino.isEmpty()) return done(ToolResult::error(e));
-                        r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada en %1."), {destino.toStdString()}));
-                        r.structured = json{{"archivo", destino.toStdString()}};
-                    }
-                    addImage(r, img, a, 1280, core_, rt_.dataRoot());
-                    done(r);
+                    enPool(qApp, [img, a, p, destinoImg]() {
+                        ToolResult r;
+                        r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Página %1 (%2x%3)."),
+                                                {p.url.toStdString(), std::to_string(img.width()), std::to_string(img.height())}));
+                        if (a.contains("archivo")) {
+                            std::string e;
+                            const QString destino = guardarEnManuales(img, a, img.width(), e);
+                            if (destino.isEmpty()) return ToolResult::error(e);
+                            r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada en %1."), {destino.toStdString()}));
+                            r.structured = json{{"archivo", destino.toStdString()}};
+                        }
+                        addImage(r, img, a, 1280, destinoImg);
+                        return r;
+                    }, done);
                 });
             });
         };

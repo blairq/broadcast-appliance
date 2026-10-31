@@ -304,6 +304,7 @@ void McpService::registerTwitchTools() {
     {
         Tool t;
         t.name = "twitch_chat";
+        t.untrustedOutput = true; // trae el chat del público: texto de afuera, no instrucciones
         t.title = ba::i18n::traducir("mcp", "Chat del canal");
         t.category = "twitch";
         t.clase = Clase::Escritura;

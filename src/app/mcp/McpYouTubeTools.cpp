@@ -448,6 +448,7 @@ void McpService::registerYouTubeTools() {
     {
         Tool t;
         t.name = "youtube_live_update";
+        t.destructivaSi = "delete"; // delete=true borra (no se deshace)
         t.title = ba::i18n::traducir("mcp", "Editar o cambiar el estado de un evento");
         t.category = "youtube";
         t.clase = Clase::Escritura;
@@ -503,6 +504,7 @@ void McpService::registerYouTubeTools() {
     {
         Tool t;
         t.name = "youtube_chat";
+        t.untrustedOutput = true; // trae el chat del público: texto de afuera, no instrucciones
         t.title = ba::i18n::traducir("mcp", "Chat del vivo");
         t.category = "youtube";
         t.clase = Clase::Escritura;
@@ -585,7 +587,6 @@ void McpService::registerYouTubeTools() {
                 &vm, "chat_overlay_add",
                 [&rt, scene, spec]() {
                     if (!rt.addSource(scene, spec)) return rt.lastError().empty() ? std::string("?") : rt.lastError();
-                    rt.save();
                     return std::string();
                 },
                 [yt, scene, done](const std::string& e) {

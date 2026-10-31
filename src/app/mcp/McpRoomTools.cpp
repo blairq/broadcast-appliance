@@ -98,8 +98,8 @@ std::string personFeedKey(const json& p) {
 namespace {
 
 
-/// QR (matriz de '0'/'1') -> PNG en base64.
-std::string qrPng(const json& modules) {
+/// QR (matriz de '0'/'1') -> imagen (nula si no hay matriz).
+QImage qrImagen(const json& modules) {
     const int n = static_cast<int>(modules.size());
     if (n == 0) return {};
     const int cell = 8;
@@ -113,11 +113,7 @@ std::string qrPng(const json& modules) {
             if (row[x] == '1') p.fillRect((x + quiet) * cell, (y + quiet) * cell, cell, cell, Qt::black);
     }
     p.end();
-    QByteArray bytes;
-    QBuffer buf(&bytes);
-    buf.open(QIODevice::WriteOnly);
-    img.save(&buf, "PNG");
-    return bytes.toBase64().toStdString();
+    return img;
 }
 
 } // namespace
@@ -1041,6 +1037,7 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "share_list";
+        t.untrustedOutput = true; // siempre trae archivos de invitados
         t.title = ba::i18n::traducir("mcp", "Archivos compartidos");
         t.category = "sala";
         t.clase = Clase::Lectura;
@@ -1054,6 +1051,7 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "compartida_revisar";
+        t.untrustedOutput = true; // siempre trae archivos de invitados
         t.title = ba::i18n::traducir("mcp", "Ver un archivo compartido");
         t.category = "sala";
         t.clase = Clase::Lectura;
@@ -1065,17 +1063,21 @@ void McpService::registerRoomTools() {
             {"properties",
              {{"id", {{"type", "string"}}}, {"maxWidth", {{"type", "integer"}, {"default", 1280}}}}},
             {"required", {"id"}}};
-        t.run = [&control](const json& a, Done done) {
-            control.verArchivo(a["id"].get<std::string>(), [a, done](const std::string& err, const json& share,
-                                                                      const QByteArray& bytes) {
+        t.run = [&control, &core = core_, raiz = rt_.dataRoot()](const json& a, Done done) {
+            const DestinoImagen destino = destinoImagen(core, raiz);
+            control.verArchivo(a["id"].get<std::string>(), [a, done, destino](const std::string& err, const json& share,
+                                                                               const QByteArray& bytes) {
                 if (!err.empty()) return done(ToolResult::error(err + " " + ba::i18n::traducir("mcp", "share_list dice cuáles hay.")));
                 if (bytes.isEmpty()) return done(ToolResult().data(share)); // video o audio: sus datos
-                QImage img;
-                if (!img.loadFromData(bytes)) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo leer la imagen.")));
-                ToolResult r;
-                r.text(share.value("name", "") + " — de " + share.value("participantName", ""));
-                addImage(r, img, a, 1280);
-                done(r);
+                // Decodificar, escalar y codificar, fuera de la interfaz.
+                enPool(qApp, [a, share, bytes, destino]() {
+                    QImage img;
+                    if (!img.loadFromData(bytes)) return ToolResult::error(ba::i18n::traducir("mcp", "No se pudo leer la imagen."));
+                    ToolResult r;
+                    r.text(share.value("name", "") + " — de " + share.value("participantName", ""));
+                    addImage(r, img, a, 1280, destino);
+                    return r;
+                }, done);
             });
         };
         core_.addTool(std::move(t));
@@ -1135,9 +1137,10 @@ void McpService::registerRoomTools() {
              {{"target", {{"type", "string"}, {"enum", {"local", "remote"}}, {"default", "local"}}},
               {"withPin", {{"type", "boolean"}, {"default", false}}},
               {"board", {{"type", "boolean"}, {"default", false}}}}}};
-        t.run = [&enlaces](const json& a, Done done) {
+        t.run = [&enlaces, &core = core_, raiz = rt_.dataRoot()](const json& a, Done done) {
             const bool remoto = a.value("target", std::string("local")) == "remote";
-            const auto alVolver = [done, remoto](const sala::Enlace& e) {
+            const DestinoImagen destino = destinoImagen(core, raiz); // contesta después: se lee ya
+            const auto alVolver = [done, remoto, destino](const sala::Enlace& e) {
                 if (!e.ok) return done(ToolResult::error(e.mensaje.empty() ? ba::i18n::traducir("mcp", "sin enlace") : e.mensaje));
                 ToolResult res;
                 const std::string url = e.url;
@@ -1149,8 +1152,8 @@ void McpService::registerRoomTools() {
                                                 "room_link {\"target\": \"remote\"}.")
                                   : std::string()) + ")");
                 res.structured = json{{"url", url}, {"remoto", remoto}};
-                const std::string png = qrPng(json(e.filas));
-                if (!png.empty()) res.image(png, "image/png");
+                if (const QImage qr = qrImagen(json(e.filas)); !qr.isNull())
+                    addImage(res, qr, json{{"format", "png"}}, 0, destino); // a quien no mira, como archivo
                 done(res);
             };
             if (a.value("board", false))
@@ -1217,6 +1220,7 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "remotos_fila_ver";
+        t.untrustedConGente = true; // nombres, datos o video de invitados si hay gente
         t.title = ba::i18n::traducir("mcp", "Fila de oradores");
         t.category = "oradores";
         t.clase = Clase::Lectura;
