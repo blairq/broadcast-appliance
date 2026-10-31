@@ -182,6 +182,10 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"status", QT_TRANSLATE_NOOP("mcp-etiquetas", "estado general resumen como esta todo panorama salud")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"status", QT_TRANSLATE_NOOP("mcp-etiquetas", "como venimos cpu fps cuadros perdidos perdiendo cuadros codificador encoder cuanto llevamos "
+               "transmitiendo cuanto lleva la grabacion se congelo sigue vivo procesador ventilador ahogando chequeo "
+               "general")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"mcp_aire_lista", QT_TRANSLATE_NOOP("mcp-etiquetas", "aire guardas confirmar acciones peligrosas en vivo transmision bloqueo seguridad")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"mcp_aire_ajustar", QT_TRANSLATE_NOOP("mcp-etiquetas", "aire guardas agregar sacar herramienta confirmar en vivo")},
@@ -422,6 +426,9 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"publico_chat_leer", QT_TRANSLATE_NOOP("mcp-etiquetas", "chat mensajes recientes publico destacar" " comentarios del publico chat del vivo leer el chat lo que escribe la gente")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"publico_chat_leer", QT_TRANSLATE_NOOP("mcp-etiquetas", "youtube facebook twitch espectadores audiencia que dijeron que escribieron el chat de la transmision "
+                          "ultimos minutos spam saludan reaccionando")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"chat_destacar", QT_TRANSLATE_NOOP("mcp-etiquetas", "destacar mensaje chat aire pantalla publico pregunta")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"chat_quitar_destacado", QT_TRANSLATE_NOOP("mcp-etiquetas", "sacar destacado chat")},
@@ -435,6 +442,9 @@ const Fila kPropias[] = {
     {"banca_al_aire", QT_TRANSLATE_NOOP("mcp-etiquetas", "banca al aire orador presencial preset camara microfono zocalo consejero habla")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"recinto_orador_terminar", QT_TRANSLATE_NOOP("mcp-etiquetas", "terminar orador presencial banca" " cortar quitar la palabra terminar el turno del que habla en el recinto concejal")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"recinto_orador_terminar", QT_TRANSLATE_NOOP("mcp-etiquetas", "terminar la intervencion sacarlo del aire cerrar el micro del orador del que tiene la palabra cerrar "
+                                "la banca que esta hablando concluyo")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"entrada_respaldo", QT_TRANSLATE_NOOP("mcp-etiquetas", "sin senal entrada caida respaldo escena cortar armar camara perdida")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -763,6 +773,9 @@ const Fila kPropias[] = {
     {"audio_editor", QT_TRANSLATE_NOOP("mcp-etiquetas", "editar audio abrir editor")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"mixer_list", QT_TRANSLATE_NOOP("mcp-etiquetas", "consola mesa canales faders niveles")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"mixer_list", QT_TRANSLATE_NOOP("mcp-etiquetas", "mezclador foto del mezclador lectura del mezclador niveles volumenes silencios picos pica en rojo "
+                   "fader bajado volumen mas alto nivel de cada fuente mostrame el mezclador leer los niveles")},
 
     // --- Transmision y grabacion -------------------------------------------
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -777,6 +790,9 @@ const Fila kPropias[] = {
     {"record_stop", QT_TRANSLATE_NOOP("mcp-etiquetas", "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar "
                     "de grabar frena la grabacion "
                     "cortar la grabacion terminar de grabar" " detener terminar la grabacion stop")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"record_stop", QT_TRANSLATE_NOOP("mcp-etiquetas", "cortar el rec cortar el grabado cerrar la grabacion finalizar la grabacion fin de la grabacion dejar "
+                    "de escribir en disco sigue grabando dejar de grabar")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"grabacion_individual", QT_TRANSLATE_NOOP("mcp-etiquetas", "grabar por separado pista aislada isos cada camara")},
 
@@ -1046,7 +1062,13 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"participant_requeue", QT_TRANSLATE_NOOP("mcp-etiquetas", "devolver mandar atras de nuevo al final de la fila el que ya hablo")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"participant_requeue", QT_TRANSLATE_NOOP("mcp-etiquetas", "reencolar de nuevo otra vez esperando al final al fondo ultimo lugar ya tuvo su turno ya expuso "
+                            "volver a anotar reingresar quiere volver a hablar replicar detras de todos")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"participant_admit_all", QT_TRANSLATE_NOOP("mcp-etiquetas", "dejar entrar a todos admitir todos vaciar lobby")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"participant_admit_all", QT_TRANSLATE_NOOP("mcp-etiquetas", "hacer pasar a todos que pasen todos todo el mundo dar paso a todos aceptar a todos toda la cola de "
+                              "espera que entren todos que no quede ninguno afuera")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"participant_talk", QT_TRANSLATE_NOOP("mcp-etiquetas", "hablarle privado audio al invitado susurrar")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1055,11 +1077,17 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"participant_profile", QT_TRANSLATE_NOOP("mcp-etiquetas", "ficha datos nombre cargo informacion de la persona" " perfil del invitado cambiarle el nombre")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"participant_profile", QT_TRANSLATE_NOOP("mcp-etiquetas", "info informacion cargo contacto telefono mail correo editar el perfil corregir los datos actualizar "
+                            "la info ponerle de nombre sin cargo cargo viejo sumar un dato agregar un dato")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"chat_send",
      QT_TRANSLATE_NOOP("mcp-etiquetas", "mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"invitados_chat_leer", QT_TRANSLATE_NOOP("mcp-etiquetas", "que me dijo que dijo que escribio leer lo que mandaron que contesto historial "
                      "conversacion que dijeron leer chat")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"invitados_chat_leer", QT_TRANSLATE_NOOP("mcp-etiquetas", "chat interno mensajes recientes ultimos mensajes quien mando a que hora produccion mando algo algun "
+                            "invitado aviso por chat confirmo saludo escribieron")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"chat_wait", QT_TRANSLATE_NOOP("mcp-etiquetas", "esperar mensaje quedarse esperando a que escriban avisame cuando escriba el invitado")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1080,6 +1108,10 @@ const Fila kPropias[] = {
     {"network_status", QT_TRANSLATE_NOOP("mcp-etiquetas", "se esta cortando se corta entrecortado se cae la transmision va lento red internet "
                        "conexion ancho de banda tunel calidad")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"network_status", QT_TRANSLATE_NOOP("mcp-etiquetas", "https certificado sitio no seguro conexion no segura aviso de seguridad wireguard tunel puertos "
+                       "webrtc ip local estado de la red revisar la red chequear la red mirar la red los remotos no pueden "
+                       "conectarse queda cargando el link")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"gateway_restart",
      QT_TRANSLATE_NOOP("mcp-etiquetas", "reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada reiniciar conferencia la conferencia no responde")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1095,10 +1127,19 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"speaker_on_air", QT_TRANSLATE_NOOP("mcp-etiquetas", "poner orador al aire darle el aire a quien habla" " dar el aire al orador remoto")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"speaker_on_air", QT_TRANSLATE_NOOP("mcp-etiquetas", "sacar del aire bajar del aire sacarlo que vuelva a esperar darle el aire arrancar su reloj entrar al "
+                       "aire habilitar al aire sigue en pantalla salteando la fila")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"speaker_next", QT_TRANSLATE_NOOP("mcp-etiquetas", "pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador "
                      "pasar al que sigue avanzar la fila")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"speaker_next", QT_TRANSLATE_NOOP("mcp-etiquetas", "que pase el que sigue el proximo dale al siguiente largar al siguiente el que viene adelante que "
+                     "entre otro dale aire al que sigue")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"speaker_move", QT_TRANSLATE_NOOP("mcp-etiquetas", "mover en la fila reordenar oradores pasar a alguien al primer lugar de la fila")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"speaker_move", QT_TRANSLATE_NOOP("mcp-etiquetas", "puesto en la fila adelantar atrasar lugares segunda tercera cuarta quinta sexta orden de la fila "
+                     "cambiar de puesto")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"speaker_queue", QT_TRANSLATE_NOOP("mcp-etiquetas", "fila cola de oradores agregar sacar" " anotar en la lista de oradores remotos cola")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1338,6 +1379,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"ptz_mover", QT_TRANSLATE_NOOP("mcp-etiquetas", "mover camara paneo pan tilt zoom acercar alejar girar subir bajar la camara")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"ptz_mover", QT_TRANSLATE_NOOP("mcp-etiquetas", "girar panear inclinar izquierda derecha arriba abajo mucho techo se corrio")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"ptz_parar", QT_TRANSLATE_NOOP("mcp-etiquetas", "parar la camara frenar el movimiento" " detener stop dejar quieta la camara frenar ptz")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"ptz_preset", QT_TRANSLATE_NOOP("mcp-etiquetas", "preset posicion guardada ir a la posicion guardar posicion de camara plano")},
@@ -1363,6 +1406,9 @@ const Fila kPropias[] = {
     {"banca_toma", QT_TRANSLATE_NOOP("mcp-etiquetas", "camara de la banca posicion de la banca toma asociar banca camara preset de la banca configurar bancas")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"ptz_caras_ubicar", QT_TRANSLATE_NOOP("mcp-etiquetas", "caras que ve la camara quien esta en cuadro detectar rostros ptz")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"ptz_caras_ubicar", QT_TRANSLATE_NOOP("mcp-etiquetas", "cara caras donde esta la cara cuantas caras cara mas grande cara chiquita tamano de la cara altura "
+                         "de la cara apunta a la pared tomando alguna cara mas de una cara")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"ptz_seguir", QT_TRANSLATE_NOOP("mcp-etiquetas", "seguir a una persona tracking seguimiento ptz que la camara siga a alguien centrar cara")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1556,6 +1602,10 @@ const Fila kPropias[] = {
     {"prompter_cargar", QT_TRANSLATE_NOOP("mcp-etiquetas", "poner un texto en el teleprompter cargar discurso")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"prompter_control", QT_TRANSLATE_NOOP("mcp-etiquetas", "arrancar parar velocidad del teleprompter avanzar")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prompter_control", QT_TRANSLATE_NOOP("mcp-etiquetas", "velocidad palabras por minuto parrafo saltar al parrafo ir al parrafo avisarle al orador aviso al "
+                         "orador que cierre tapar destapar panico scroll detener el scroll que siga corriendo el texto espejo "
+                         "invertir")},
 
     // --- Pantallas ---------------------------------------------------------------
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1720,6 +1770,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"debate_turno", QT_TRANSLATE_NOOP("mcp-etiquetas", "turno del debate darle la palabra a uno callar al otro ambos")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"debate_turno", QT_TRANSLATE_NOOP("mcp-etiquetas", "dar la palabra los dos juntos que nadie hable nadie con la palabra replica")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"debate_terminar", QT_TRANSLATE_NOOP("mcp-etiquetas", "terminar el debate cortar debate")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"debate_config", QT_TRANSLATE_NOOP("mcp-etiquetas", "escena del debate tiempo de cada turno configurar debate")},
@@ -1833,6 +1885,9 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"evento_correr", QT_TRANSLATE_NOOP("mcp-etiquetas", "correr el guion arrancar avanzar pausar el evento" " ejecutar siguiente cue"
                       " hold frenar retener que no pase solo automatico")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"evento_correr", QT_TRANSLATE_NOOP("mcp-etiquetas", "proximo cue ir al bloque saltar al bloque reanudar el guion seguir el guion desde donde quedo parar "
+                      "el guion terminar el guion se cancela el acto pasada de prueba")},
 
     // --- Ventanas -------------------------------------------------------------------
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
@@ -1852,6 +1907,9 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"imagen_preguntar", QT_TRANSLATE_NOOP("mcp-etiquetas", "mirar la imagen que se ve ahi que hay en camara revisar visualmente "
                         "analizar captura vision hay alguien cuadro negro se lee el rotulo" " preguntarle a la imagen contar personas leer el texto de la imagen")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"imagen_preguntar", QT_TRANSLATE_NOOP("mcp-etiquetas", "contestame mirando respondeme mirando fijate y contestame que dice el cartel oscura buena luz "
+                         "corbata camisa tapada hombre o mujer torcida que hora marca no quiero la foto")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"audio_plugin_buscar", QT_TRANSLATE_NOOP("mcp-etiquetas", "que filtros hay que plugins tengo hay algun filtro para buscar "
                             "un efecto autotune reverb eco delay coro que la musica baje cuando "
@@ -2090,6 +2148,18 @@ const Fila kPropias[] = {
     {"settings_list", QT_TRANSLATE_NOOP("mcp-etiquetas", "que se puede configurar opciones disponibles")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"settings_set", QT_TRANSLATE_NOOP("mcp-etiquetas", "cambiar una configuracion ajustar opcion")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"chat_send", QT_TRANSLATE_NOOP("mcp-etiquetas", "escribirle recordarle por chat poner en el chat tirar un mensaje mensaje a la sala chat general "
+                  "mandar al chat")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"audio_mezclador_grupos", QT_TRANSLATE_NOOP("mcp-etiquetas", "grupos del mezclador tiras compactar desplegar compacto agrupar las tiras todo el grupo grupo mudo "
+                               "abrir el grupo")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"evento_tema", QT_TRANSLATE_NOOP("mcp-etiquetas", "tema colores tipografia letra logo favicon marca modo oscuro claro aspecto de las paginas web "
+                    "apariencia identidad visual personalizar la web")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prompter_lista", QT_TRANSLATE_NOOP("mcp-etiquetas", "teleprompters varios prompters agregar un teleprompter otro prompter cual prompter lista de "
+                       "teleprompters")},
 };
 
 void partirTexto(const std::string& s, std::vector<std::string>& out) {
@@ -2151,6 +2221,13 @@ std::vector<std::string> etiquetasDe(const std::string& nombre, const std::vecto
             for (const char* terminos : it->second) partir(terminos, out);
     std::sort(out.begin(), out.end());
     out.erase(std::unique(out.begin(), out.end()), out.end());
+    return out;
+}
+
+std::string palabrasClave(const std::string& nombre) {
+    std::string out;
+    if (const auto it = tabla().find(nombre); it != tabla().end())
+        for (const char* terminos : it->second) out += (out.empty() ? "" : " ") + std::string(terminos);
     return out;
 }
 

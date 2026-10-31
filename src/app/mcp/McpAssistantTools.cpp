@@ -219,7 +219,8 @@ void McpService::registerAssistantTools() {
         t.title = ba::i18n::traducir("mcp", "Arrancar / detener el asistente");
         t.category = "asistente";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "action: start | stop | restart.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización "
+                                                 "(`asistente`).");
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"action", {{"type", "string"}, {"enum", {"start", "stop", "restart"}}}}, {"asistente", propAsistente}}},

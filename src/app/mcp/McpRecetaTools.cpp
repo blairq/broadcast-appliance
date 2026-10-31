@@ -97,7 +97,8 @@ void McpService::registerRecetaTools() {
         t.title = ba::i18n::traducir("mcp", "Recetas que hay");
         t.category = "recetas";
         t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Que recetas hay disponibles para correr, con su nombre.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las recetas guardadas (secuencias de pasos para repetir igual, receta_guardar) que se pueden correr, con "
+                                                 "su id y su nombre.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
                     "despues nadie sabe cual es la buena.");
         t.run = [&rt](const json&, Done done) { done(ToolResult().data(json{{"recetas", leer(rt)}})); };
@@ -185,7 +186,7 @@ void McpService::registerRecetaTools() {
         t.category = "recetas";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Saca una receta de la lista.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra una receta guardada (`id`, de receta_listar): esa secuencia de pasos deja de estar para correrla.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&rt](const json& a, Done done) {
@@ -208,7 +209,8 @@ void McpService::registerRecetaTools() {
         t.title = ba::i18n::traducir("mcp", "Correr una receta");
         t.category = "recetas";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Ejecuta los pasos de una receta, en orden.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Ejecuta en orden los pasos de una receta guardada (`id`), con `parametros` para sus `{...}`; si un paso "
+                                                 "falla, se frena ahí.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Si un paso falla, SE FRENA AHI y te dice cual y por que: en vivo, seguir dejaria el "
                     "sistema a mitad de camino y sin que nadie sepa donde.\n\n"
                     "`parametros` reemplaza los `{...}` de los pasos.\n\n"

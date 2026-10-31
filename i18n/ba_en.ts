@@ -57467,6 +57467,10 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>removes a guest from the conference</translation>
     </message>
     <message>
+        <source>Borra del gateway de la conferencia un archivo que compartió un invitado (`id`, de share_list).</source>
+        <translation>Deletes from the conference gateway a file a guest shared (`id`, from share_list).</translation>
+    </message>
+    <message>
         <location line="+863" />
         <source>reinicia el gateway (corta a los invitados)</source>
         <translation>restarts the gateway (drops the guests)</translation>
@@ -57510,6 +57514,10 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location line="-379" />
         <source>borra una escena</source>
         <translation>deletes a scene</translation>
+    </message>
+    <message>
+        <source>Graba entradas sueltas (cámaras, invitados) cada una en su propio archivo, además del programa; sin argumentos, dice qué se graba.</source>
+        <translation>Records individual inputs (cameras, guests) each to its own file, besides the program; with no arguments, says what is being recorded.</translation>
     </message>
     <message>
         <location line="+2671" />
@@ -57713,9 +57721,8 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>Delete a notifier</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Borra el notificador `id` (y su secreto guardado).</source>
-        <translation>Deletes notifier `id` (and its stored secret).</translation>
+        <source>Borra el notificador `id` (de notificador_listar) y su secreto guardado: las alertas dejan de avisar por ese webhook, Telegram o correo.</source>
+        <translation>Deletes notifier `id` (from notificador_listar) and its stored secret: alerts stop going out through that webhook, Telegram or email.</translation>
     </message>
     <message>
         <location line="+3" />
@@ -57848,9 +57855,8 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <translation>Delete triggers</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra un disparador (`id`) o todos (`all`: true).</source>
-        <translation>Deletes a trigger (`id`) or all of them (`all`: true).</translation>
+        <source>Borra un disparador de alertas (`id`, de alert_list) o todos (`all`: true): esa condición deja de vigilarse.</source>
+        <translation>Deletes an alert trigger (`id`, from alert_list) or all of them (`all`: true): that condition is no longer watched.</translation>
     </message>
     <message>
         <location line="+7" />
@@ -58319,9 +58325,8 @@ None of this can be done while the assistant or an agent job is running.</transl
         <translation>Start / stop the assistant</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>action: start | stop | restart.</source>
-        <translation>action: start | stop | restart.</translation>
+        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`).</source>
+        <translation>Starts (`start`), stops (`stop`) or restarts (`restart`) the event assistant or the automation assistant (`asistente`).</translation>
     </message>
     <message>
         <location line="+22" />
@@ -59155,9 +59160,8 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <translation>Edit a page</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Cambia `nombre`, `columnas` o `filas` de la `pagina`.</source>
-        <translation>Changes `nombre`, `columnas` or `filas` of the `pagina`.</translation>
+        <source>Saca el atajo de teclado de `tecla` (o el de la acción con ese id; atajos_listar los muestra): esa tecla deja de hacer algo.</source>
+        <translation>Removes the keyboard shortcut on `tecla` (or the one for the action with that id; atajos_listar shows them): that key no longer does anything.</translation>
     </message>
     <message>
         <location line="+23" />
@@ -59258,11 +59262,6 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <location line="+9" />
         <source>Borrar una celda</source>
         <translation>Delete a cell</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Saca la celda en (`x`, `y`).</source>
-        <translation>Removes the cell at (`x`, `y`).</translation>
     </message>
     <message>
         <location line="+11" />
@@ -59391,6 +59390,14 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <translation>Define a DSK layer</translation>
     </message>
     <message>
+        <source>Cambia el `nombre` o el tamaño de la grilla (`columnas`, `filas`, de 1 a 16) de una `pagina` de un `perfil` de la botonera.</source>
+        <translation>Changes the `nombre` or the grid size (`columnas`, `filas`, 1 to 16) of a `pagina` of a control surface `perfil`.</translation>
+    </message>
+    <message>
+        <source>Saca el botón de la celda (`x`, `y`) de una `pagina` de un `perfil` de la botonera: la celda queda vacía.</source>
+        <translation>Removes the button in cell (`x`, `y`) of a `pagina` of a control surface `perfil`: the cell is left empty.</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>Arma la `capa` (1-4) con `contenido` (nombres de escenas o fuentes, apiladas en ese orden), `recuadro` opcional {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|arriba_izquierda, tamano: 0..1 del ancho, margen}, `fijo` y `transicion_ms`. Con `lsa_entrada`, la plantilla «Interprete LSA»: esa entrada en un recuadro abajo a la derecha, fija. No la sube: dsk_mostrar.</source>
         <translation>Builds `capa` (1-4) with `contenido` (scene or source names, stacked in that order), optional `recuadro` {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|arriba_izquierda, tamano: 0..1 of the width, margen}, `fijo` and `transicion_ms`. With `lsa_entrada`, the “LSA interpreter” template: that input in a box at the bottom right, fixed. Doesn't bring it up: dsk_mostrar.</translation>
@@ -59449,11 +59456,6 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <location line="+19" />
         <source>Quitar un atajo</source>
         <translation>Remove a shortcut</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Saca el atajo de `tecla` (o de la accion con ese id).</source>
-        <translation>Removes the shortcut for `tecla` (or for the action with that id).</translation>
     </message>
     <message>
         <location line="+3" />
@@ -60723,11 +60725,6 @@ You're the `%1` role: this is your WHOLE toolset. What isn't here you can't do y
     </message>
     <message>
         <location line="+1" />
-        <source>Deja de controlar la central. La sala sigue andando sola.</source>
-        <translation>Stops controlling the central unit. The room keeps working on its own.</translation>
-    </message>
-    <message>
-        <location line="+1" />
         <source>Abrir o cerrar el micrófono de una banca</source>
         <translation>Open or close a seat's microphone</translation>
     </message>
@@ -60782,9 +60779,12 @@ You're the `%1` role: this is your WHOLE toolset. What isn't here you can't do y
         <translation>Clear the request list</translation>
     </message>
     <message>
-        <location line="+1" />
-        <source>Borra todos los pedidos de palabra de la central.</source>
-        <translation>Deletes all requests to speak from the central unit.</translation>
+        <source>Deja de controlar la central de conferencias: la sala sigue andando sola con sus micrófonos; dcn_conectar la retoma.</source>
+        <translation>Stops controlling the conference central unit: the room keeps working on its own with its microphones; dcn_conectar takes it back.</translation>
+    </message>
+    <message>
+        <source>Borra todos los pedidos de palabra de la central (los de dcn_pedidos): nadie queda esperando para hablar.</source>
+        <translation>Deletes all floor requests in the central unit (the ones in dcn_pedidos): nobody is left waiting to speak.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -62150,6 +62150,10 @@ While the rundown runs without rehearsal, the system enters EVENT MODE: the app 
         <translation>scene, music, video, teleprompter, speaker, graphic, screen, audio, pause, wait or note</translation>
     </message>
     <message>
+        <source>Borra a una persona (`id`, de padron_ver) del padrón del evento abierto. No toca su ficha de rostros.</source>
+        <translation>Deletes a person (`id`, from padron_ver) from the roll of the open event. Doesn't touch their face registry profile.</translation>
+    </message>
+    <message>
         <location line="-540" />
         <source>Cual cue del bloque (base 0).</source>
         <translation>Which cue in the block (0-based).</translation>
@@ -63084,11 +63088,6 @@ If the event has no date, the invitation goes out without one and a warning is g
         <translation>Remove someone from the roll</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Borra a una persona de la lista del evento abierto.</source>
-        <translation>Deletes a person from the open event's list.</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>Es para el que se anoto dos veces o el que no venia a este evento. Para el que aviso que no viene, mejor dejarlo con `estado` en invitado: el que no esta en la lista no se distingue del que nunca se invito, y eso se nota al armar el evento siguiente.
 
@@ -63569,9 +63568,8 @@ LIVE VIDEO INSIDE (the speaker's camera in the lower third, “Lower third with 
         <translation>Take a graphic off</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Deja la fuente transparente.</source>
-        <translation>Makes the source transparent.</translation>
+        <source>Saca del aire un gráfico animado: deja la fuente (`fuente`, el id de grafico_en_escena) transparente, sin borrarla de la escena.</source>
+        <translation>Takes an animated graphic off air: leaves the source (`fuente`, the id from grafico_en_escena) transparent, without removing it from the scene.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -63843,9 +63841,8 @@ LIVE FIELDS: with `vivo: true`, when what it resolves to changes and the graphic
         <translation>Remove or disable a binding</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Quita un vinculo, o lo apaga sin borrarlo.</source>
-        <translation>Removes a binding, or disables it without deleting it.</translation>
+        <source>Quita un vínculo de rótulo (`id`, de rotulo_vinculos) o, con `activo`, lo apaga o lo prende sin borrarlo.</source>
+        <translation>Removes a lower third link (`id`, from rotulo_vinculos) or, with `activo`, turns it off or on without deleting it.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69408,9 +69405,8 @@ CAREFUL WITH STYLE: an icon in the center covers modules, so error correction go
         <translation>Available recipes</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Que recetas hay disponibles para correr, con su nombre.</source>
-        <translation>Which recipes are available to run, with their name.</translation>
+        <source>Las recetas guardadas (secuencias de pasos para repetir igual, receta_guardar) que se pueden correr, con su id y su nombre.</source>
+        <translation>The saved recipes (sequences of steps to repeat the same way, receta_guardar) that can be run, with their id and name.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69500,9 +69496,12 @@ There are NO conditions, loops or recipes calling recipes: that's already a prog
         <translation>Delete a recipe</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Saca una receta de la lista.</source>
-        <translation>Removes a recipe from the list.</translation>
+        <source>Borra una receta guardada (`id`, de receta_listar): esa secuencia de pasos deja de estar para correrla.</source>
+        <translation>Deletes a saved recipe (`id`, from receta_listar): that sequence of steps is no longer available to run.</translation>
+    </message>
+    <message>
+        <source>Ejecuta en orden los pasos de una receta guardada (`id`), con `parametros` para sus `{...}`; si un paso falla, se frena ahí.</source>
+        <translation>Runs the steps of a saved recipe (`id`) in order, with `parametros` for its `{...}`; if a step fails, it stops there.</translation>
     </message>
     <message>
         <location line="+10" />
@@ -69519,11 +69518,6 @@ There are NO conditions, loops or recipes calling recipes: that's already a prog
         <location line="+8" />
         <source>Correr una receta</source>
         <translation>Run a recipe</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Ejecuta los pasos de una receta, en orden.</source>
-        <translation>Runs a recipe's steps, in order.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69829,9 +69823,16 @@ The change is noted in the log itself, with who made it, so that tomorrow nobody
         <translation>Extension cards</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Las tarjetas que viven en Extensiones/, con su estado.</source>
-        <translation>The cards that live in Extensiones/, with their status.</translation>
+        <source>Las extensiones (tarjetas QML del dashboard, en Extensiones/) con su estado: si les falta algo o si el arranque las apagó.</source>
+        <translation>The extensions (QML dashboard cards, in Extensiones/) with their status: whether something is missing or startup turned them off.</translation>
+    </message>
+    <message>
+        <source>Vuelve a cargar una extensión (tarjeta QML del dashboard) que el arranque apagó porque colgaba la app; antes, arreglá el QML.</source>
+        <translation>Loads again an extension (QML dashboard card) that startup turned off because it hung the app; fix the QML first.</translation>
+    </message>
+    <message>
+        <source>Escribe una línea propia (`texto`) en el registro de la app, para marcar desde dónde mirar después lo que pasó.</source>
+        <translation>Writes a line of your own (`texto`) to the app log, to mark where to look later at what happened.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69862,11 +69863,6 @@ After writing one, `ext_listar` again: `problema` says if something is missing, 
         <translation>Turn on a disabled extension</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Vuelve a cargar una tarjeta que el arranque habia apagado.</source>
-        <translation>Reloads a card that startup had disabled.</translation>
-    </message>
-    <message>
         <location line="+1" />
         <source>Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola y vas a haber gastado dos reinicios del programa.</source>
         <translation>Fix the QML FIRST. If it keeps hanging startup, it disables itself again and you'll have wasted two program restarts.</translation>
@@ -69880,11 +69876,6 @@ After writing one, `ext_listar` again: `problema` says if something is missing, 
         <location line="+8" />
         <source>Dejar una marca</source>
         <translation>Leave a marker</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Escribe una línea propia en el registro.</source>
-        <translation>Writes a line of your own to the log.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -70045,9 +70036,8 @@ After writing one, `ext_listar` again: `problema` says if something is missing, 
         <translation>Back to the queue</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Orador que ya hablo: vuelve al final de la fila.</source>
-        <translation>A speaker who already spoke: goes back to the end of the queue.</translation>
+        <source>Un orador que ya habló vuelve a la fila de oradores, al final, para hablar otra vez (`participant`: nombre o id).</source>
+        <translation>A speaker who already spoke goes back to the speakers queue, at the end, to speak again (`participant`: name or id).</translation>
     </message>
     <message>
         <location line="+7" />
@@ -70547,11 +70537,6 @@ If there is no free slot in the conference (`room_status` -&gt; `slotsFree`) the
         <location line="+7" />
         <source>Borrar archivo compartido</source>
         <translation>Delete shared file</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Borra un archivo compartido del gateway.</source>
-        <translation>Deletes a shared file from the gateway.</translation>
     </message>
     <message>
         <location line="+13" />
@@ -71684,11 +71669,6 @@ Having the shot that LEAVES the air stay loaded is how any switcher works: after
         <translation>Copy a scene</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Crea una escena nueva con todas las fuentes de otra.</source>
-        <translation>Creates a new scene with all the sources of another.</translation>
-    </message>
-    <message>
         <location line="+1" />
         <source>Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y cambiarle lo que difiere.
 
@@ -71725,11 +71705,6 @@ The copy is never protected, even if the original is: that's why you copy. If a 
         <location line="+8" />
         <source>Proteger una escena</source>
         <translation>Protect a scene</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Una escena protegida no se puede borrar ni renombrar.</source>
-        <translation>A protected scene can't be deleted or renamed.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -71769,11 +71744,6 @@ It can still be copied, and its sources edited: what's protected is it disappear
         <location line="+7" />
         <source>Renombrar escena</source>
         <translation>Rename scene</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Cambia el nombre de una escena.</source>
-        <translation>Changes a scene's name.</translation>
     </message>
     <message>
         <location line="+5" />
@@ -71874,11 +71844,6 @@ It can still be copied, and its sources edited: what's protected is it disappear
         <location line="+8" />
         <source>Transicion entre escenas</source>
         <translation>Transition between scenes</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Tipo y duracion de la transicion al cambiar de escena.</source>
-        <translation>Type and duration of the transition when switching scenes.</translation>
     </message>
     <message>
         <location line="+11" />
@@ -72390,11 +72355,6 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
     </message>
     <message>
         <location line="+3" />
-        <source>Deja de mandar subtitulos ocultos.</source>
-        <translation>Stops sending closed captions.</translation>
-    </message>
-    <message>
-        <location line="+3" />
         <source>Apagados.</source>
         <translation>Off.</translation>
     </message>
@@ -72445,11 +72405,6 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Remove a term from the vocabulary</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Saca el `termino` (de cualquier grupo).</source>
-        <translation>Removes the `termino` (from any group).</translation>
-    </message>
-    <message>
         <location line="+4" />
         <source>no esta en el vocabulario</source>
         <translation>not in the vocabulary</translation>
@@ -72493,11 +72448,6 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <location line="+8" />
         <source>Sumar o sacar una banca de la fila</source>
         <translation>Add or remove a seat from the queue</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>`agregar` o `quitar`: banca, id o nombre del cuerpo.</source>
-        <translation>`agregar` or `quitar`: seat, id or name from the body.</translation>
     </message>
     <message>
         <location line="+16" />
@@ -72820,11 +72770,6 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>View a member of the body</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Busca por id, banca o nombre.</source>
-        <translation>Searches by id, seat or name.</translation>
-    </message>
-    <message>
         <location line="+4" />
         <source>no hay nadie con esa banca, id o nombre (cuerpo_listar)</source>
         <translation>nobody with that seat, id or name (cuerpo_listar)</translation>
@@ -72854,11 +72799,6 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <location line="+7" />
         <source>Sacar a un integrante del cuerpo</source>
         <translation>Remove a member from the body</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Borra un integrante (`id`).</source>
-        <translation>Deletes a member (`id`).</translation>
     </message>
     <message>
         <location line="+12" />
@@ -72979,6 +72919,42 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <location line="-3370" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>WARNING: RESTARTS THE ENGINE. For a few seconds EVERYTHING going out is cut (the program, the room, the screens, what guests see) and the cameras are reopened. With a stream or a recording running it is not applied. Don't use it to fix a camera: tell the operator first and ask them to confirm.</translation>
+    </message>
+    <message>
+        <source>Crea una escena nueva (`to`) con todas las fuentes de otra (`from`), recreadas: las dos quedan independientes.</source>
+        <translation>Creates a new scene (`to`) with all the sources of another (`from`), recreated: the two stay independent.</translation>
+    </message>
+    <message>
+        <source>Protege una escena (o la desprotege, con `protected`: false): protegida no se puede borrar ni renombrar.</source>
+        <translation>Protects a scene (or unprotects it, with `protected`: false): a protected scene can't be deleted or renamed.</translation>
+    </message>
+    <message>
+        <source>Cambia el nombre de una escena (de `from` a `to`). Una protegida (scene_protect) no se puede renombrar.</source>
+        <translation>Changes a scene's name (from `from` to `to`). A protected one (scene_protect) can't be renamed.</translation>
+    </message>
+    <message>
+        <source>Tipo (corte, fundido, barrido, deslizamiento o fundido a un color) y duración en ms de la transición al cambiar de escena.</source>
+        <translation>Type (cut, fade, swipe, slide or fade to a color) and duration in ms of the transition when changing scenes.</translation>
+    </message>
+    <message>
+        <source>Deja de mandar subtítulos ocultos (CEA-608 en la transmisión y la API de subtítulos de YouTube): lo contrario de cc_activar.</source>
+        <translation>Stops sending closed captions (CEA-608 in the stream and the YouTube captions API): the opposite of cc_activar.</translation>
+    </message>
+    <message>
+        <source>Saca un `termino` del vocabulario de la transcripción, de cualquier grupo (voz_vocabulario los muestra).</source>
+        <translation>Removes a `termino` from the transcription vocabulary, from any group (voz_vocabulario shows them).</translation>
+    </message>
+    <message>
+        <source>Suma (`agregar`) o saca (`quitar`) una banca de la fila de oradores presenciales: por número de banca, id o nombre del integrante.</source>
+        <translation>Adds (`agregar`) or removes (`quitar`) a seat from the in-person speakers queue: by seat number, id or member name.</translation>
+    </message>
+    <message>
+        <source>La ficha de un integrante del cuerpo, buscado por `clave`: su id, su número de banca o su nombre.</source>
+        <translation>The profile of a member of the Body, looked up by `clave`: their id, their seat number or their name.</translation>
+    </message>
+    <message>
+        <source>Borra un integrante del cuerpo (`id`, de cuerpo_listar): su nombre, su cargo y su banca dejan de estar en el cuerpo.</source>
+        <translation>Deletes a member of the Body (`id`, from cuerpo_listar): their name, title and seat are no longer in the Body.</translation>
     </message>
     <message>
         <location line="+3411" />
@@ -73199,11 +73175,6 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <location line="+9" />
         <source>Grabar cada entrada por separado</source>
         <translation>Record each input separately</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Graba una entrada a su propio archivo, ademas del programa.</source>
-        <translation>Records an input to its own file, in addition to the program.</translation>
     </message>
     <message>
         <location line="+2" />
@@ -74820,9 +74791,8 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
         <translation>Delete VODs</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra uno o mas videos del canal (no se puede deshacer).</source>
-        <translation>Deletes one or more channel videos (can't be undone).</translation>
+        <source>Borra de uno a cinco videos (VODs) del canal de Twitch (`ids`, de twitch_videos). No se puede deshacer.</source>
+        <translation>Deletes one to five videos (VODs) from the Twitch channel (`ids`, from twitch_videos). Can't be undone.</translation>
     </message>
     <message>
         <location line="+14" />
@@ -75129,9 +75099,8 @@ The operator does the same with the panel's ⧉ button.</translation>
         <translation>On-screen notice</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Muestra un aviso (toast) al operador en la app.</source>
-        <translation>Shows a notice (toast) to the operator in the app.</translation>
+        <source>Muestra un aviso corto (toast) en la app del operador, con un nivel: info, ok, warn o error.</source>
+        <translation>Shows a short notice (toast) in the operator's app, with a level: info, ok, warn or error.</translation>
     </message>
     <message>
         <location line="+18" />
@@ -76910,11 +76879,6 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>The browser opened: the person has to choose the account and accept. Then, youtube_status.</translation>
     </message>
     <message>
-        <location line="+18" />
-        <source>Revoca el acceso en Google y borra el token guardado.</source>
-        <translation>Revokes access in Google and deletes the saved token.</translation>
-    </message>
-    <message>
         <location line="+3" />
         <source>Cuenta desconectada.</source>
         <translation>Account disconnected.</translation>
@@ -76950,9 +76914,12 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>Delete a video</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra un video del canal (no se puede deshacer).</source>
-        <translation>Deletes a video from the channel (can't be undone).</translation>
+        <source>Desconecta la cuenta de YouTube de este aparato: revoca el acceso en Google y borra el token guardado.</source>
+        <translation>Disconnects the YouTube account from this device: revokes access in Google and deletes the stored token.</translation>
+    </message>
+    <message>
+        <source>Borra un video del canal de YouTube (`id`, de youtube_videos). No se puede deshacer.</source>
+        <translation>Deletes a video from the YouTube channel (`id`, from youtube_videos). Can't be undone.</translation>
     </message>
     <message>
         <location line="+5" />
@@ -78478,6 +78445,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>overall status summary how is everything overview health</translation>
     </message>
     <message>
+        <source>como venimos cpu fps cuadros perdidos perdiendo cuadros codificador encoder cuanto llevamos transmitiendo cuanto lleva la grabacion se congelo sigue vivo procesador ventilador ahogando chequeo general</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>how are we doing cpu fps dropped frames losing frames encoder how long have we been streaming how long is the recording frozen still alive processor fan choking general check</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>aire guardas confirmar acciones peligrosas en vivo transmision bloqueo seguridad</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -79198,6 +79170,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>chat recent messages audience highlight audience comments live chat read the chat what people write</translation>
     </message>
     <message>
+        <source>youtube facebook twitch espectadores audiencia que dijeron que escribieron el chat de la transmision ultimos minutos spam saludan reaccionando</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>youtube facebook twitch viewers audience what did they say what did they write stream chat last minutes spam greetings reacting</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>destacar mensaje chat aire pantalla publico pregunta</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -79238,6 +79215,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <source>terminar orador presencial banca cortar quitar la palabra terminar el turno del que habla en el recinto concejal</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>end in-person speaker seat cut off take the floor away end the turn of whoever is speaking in the chamber councilor</translation>
+    </message>
+    <message>
+        <source>terminar la intervencion sacarlo del aire cerrar el micro del orador del que tiene la palabra cerrar la banca que esta hablando concluyo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>end the speech take them off air close the speaker's mic of whoever has the floor close the seat that is speaking finished</translation>
     </message>
     <message>
         <location line="+2" />
@@ -80074,6 +80056,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>console desk channels faders levels</translation>
     </message>
     <message>
+        <source>mezclador foto del mezclador lectura del mezclador niveles volumenes silencios picos pica en rojo fader bajado volumen mas alto nivel de cada fuente mostrame el mezclador leer los niveles</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>mixer mixer snapshot mixer reading levels volumes mutes peaks peaking in the red fader down loudest volume level of each source show me the mixer read the levels</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir empezar arrancar salir al aire comenzar transmision</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -80096,6 +80083,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <source>para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar de grabar frena la grabacion cortar la grabacion terminar de grabar detener terminar la grabacion stop</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>stop halt the recording stop recording end recording finish recording stop</translation>
+    </message>
+    <message>
+        <source>cortar el rec cortar el grabado cerrar la grabacion finalizar la grabacion fin de la grabacion dejar de escribir en disco sigue grabando dejar de grabar</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>stop the rec cut the recording close the recording finish the recording end of recording stop writing to disk still recording stop recording</translation>
     </message>
     <message>
         <location line="+4" />
@@ -80864,10 +80856,20 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>send back move back to the end of the queue the one who already spoke</translation>
     </message>
     <message>
+        <source>reencolar de nuevo otra vez esperando al final al fondo ultimo lugar ya tuvo su turno ya expuso volver a anotar reingresar quiere volver a hablar replicar detras de todos</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>requeue again back of the line at the end last place already had their turn already spoke sign up again rejoin wants to speak again reply behind everyone</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>dejar entrar a todos admitir todos vaciar lobby</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>let everyone in admit all empty lobby</translation>
+    </message>
+    <message>
+        <source>hacer pasar a todos que pasen todos todo el mundo dar paso a todos aceptar a todos toda la cola de espera que entren todos que no quede ninguno afuera</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>let everyone in everybody in let them all through accept everyone the whole waiting queue everyone come in nobody left waiting outside</translation>
     </message>
     <message>
         <location line="+2" />
@@ -80888,6 +80890,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>profile details name title person info guest profile rename</translation>
     </message>
     <message>
+        <source>info informacion cargo contacto telefono mail correo editar el perfil corregir los datos actualizar la info ponerle de nombre sin cargo cargo viejo sumar un dato agregar un dato</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>info information job title role contact phone email edit profile fix the details update the info set the name no title old title add a detail</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -80898,6 +80905,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <source>que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>what did they say what did they write read what they sent what they answered history conversation read chat</translation>
+    </message>
+    <message>
+        <source>chat interno mensajes recientes ultimos mensajes quien mando a que hora produccion mando algo algun invitado aviso por chat confirmo saludo escribieron</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>internal chat recent messages latest messages who sent at what time production sent something did any guest say in chat confirmed said hello they wrote</translation>
     </message>
     <message>
         <location line="+3" />
@@ -80954,6 +80966,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>it's cutting out choppy breaking up stream drops slow network internet connection bandwidth tunnel quality</translation>
     </message>
     <message>
+        <source>https certificado sitio no seguro conexion no segura aviso de seguridad wireguard tunel puertos webrtc ip local estado de la red revisar la red chequear la red mirar la red los remotos no pueden conectarse queda cargando el link</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>https certificate site not secure connection not secure security warning wireguard tunnel ports webrtc local ip network status check the network look at the network remote guests can't connect link keeps loading</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada reiniciar conferencia la conferencia no responde</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -80984,16 +81001,31 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>put speaker on air give air to whoever is speaking give air to the remote speaker</translation>
     </message>
     <message>
+        <source>sacar del aire bajar del aire sacarlo que vuelva a esperar darle el aire arrancar su reloj entrar al aire habilitar al aire sigue en pantalla salteando la fila</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>take off air take them off air pull off air send back to wait give them the air start their timer go on air put on air right now skip the queue still on screen</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador pasar al que sigue avanzar la fila</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go to the next one next speaker upcoming speaker next turn move to the next advance the queue</translation>
     </message>
     <message>
+        <source>que pase el que sigue el proximo dale al siguiente largar al siguiente el que viene adelante que entre otro dale aire al que sigue</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>next one please who's next go to the next let the next one go the one coming up next one on someone else give the air to the next</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>mover en la fila reordenar oradores pasar a alguien al primer lugar de la fila</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>move in the queue reorder speakers move someone to the front of the queue</translation>
+    </message>
+    <message>
+        <source>puesto en la fila adelantar atrasar lugares segunda tercera cuarta quinta sexta orden de la fila cambiar de puesto</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>position in the queue move up move down places second third fourth fifth sixth order of the queue change position</translation>
     </message>
     <message>
         <location line="+2" />
@@ -81638,6 +81670,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>move camera pan tilt zoom in zoom out rotate raise lower the camera</translation>
     </message>
     <message>
+        <source>girar panear inclinar izquierda derecha arriba abajo mucho techo se corrio</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>turn pan tilt left right up down too much ceiling they moved</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>parar la camara frenar el movimiento detener stop dejar quieta la camara frenar ptz</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -81714,6 +81751,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <source>caras que ve la camara quien esta en cuadro detectar rostros ptz</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>faces the camera sees who is in frame detect faces ptz</translation>
+    </message>
+    <message>
+        <source>cara caras donde esta la cara cuantas caras cara mas grande cara chiquita tamano de la cara altura de la cara apunta a la pared tomando alguna cara mas de una cara</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>face faces where is the face how many faces biggest face small face face size face height pointing at the wall catching any face more than one face</translation>
     </message>
     <message>
         <location line="+2" />
@@ -82178,6 +82220,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>start stop teleprompter speed scroll advance</translation>
     </message>
     <message>
+        <source>velocidad palabras por minuto parrafo saltar al parrafo ir al parrafo avisarle al orador aviso al orador que cierre tapar destapar panico scroll detener el scroll que siga corriendo el texto espejo invertir</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>speed words per minute paragraph jump to paragraph go to paragraph tell the speaker message to the speaker wrap up cover uncover panic scroll stop scrolling keep the text rolling mirror flip</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>que televisores hay pantallas conocidas estado</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82586,6 +82633,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>debate turn give the floor to one mute the other both</translation>
     </message>
     <message>
+        <source>dar la palabra los dos juntos que nadie hable nadie con la palabra replica</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>give the floor both together nobody speaks no one has the floor rebuttal</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>terminar el debate cortar debate</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82790,6 +82842,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>run rundown start advance pause event execute next cue hold stop retain don't advance automatically automatic</translation>
     </message>
     <message>
+        <source>proximo cue ir al bloque saltar al bloque reanudar el guion seguir el guion desde donde quedo parar el guion terminar el guion se cancela el acto pasada de prueba</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>next cue go to block jump to block resume the rundown continue the rundown from where it stopped stop the rundown end the rundown the event is cancelled dry run</translation>
+    </message>
+    <message>
         <location line="+5" />
         <source>que ventanas hay abiertas donde esta cada una en que monitor geometria</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82830,6 +82887,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <source>mirar la imagen que se ve ahi que hay en camara revisar visualmente analizar captura vision hay alguien cuadro negro se lee el rotulo preguntarle a la imagen contar personas leer el texto de la imagen</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>look at the image what is visible there what is on camera visual check analyze screenshot vision is anyone there black frame is the lower third readable ask the image count people read text in the image</translation>
+    </message>
+    <message>
+        <source>contestame mirando respondeme mirando fijate y contestame que dice el cartel oscura buena luz corbata camisa tapada hombre o mujer torcida que hora marca no quiero la foto</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>answer by looking look and tell me tell me by looking what does the sign say dark good lighting tie shirt covered man or woman crooked what time does it show I don't want the photo</translation>
     </message>
     <message>
         <location line="+3" />
@@ -83401,7 +83463,27 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>change a setting adjust option configure</translation>
     </message>
-</context>
+<message>
+        <source>escribirle recordarle por chat poner en el chat tirar un mensaje mensaje a la sala chat general mandar al chat</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>write to remind by chat post in the chat drop a message message to the room general chat send to the chat</translation>
+    </message>
+    <message>
+        <source>grupos del mezclador tiras compactar desplegar compacto agrupar las tiras todo el grupo grupo mudo abrir el grupo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>mixer groups strips collapse expand compact group the strips whole group group mute open the group</translation>
+    </message>
+    <message>
+        <source>tema colores tipografia letra logo favicon marca modo oscuro claro aspecto de las paginas web apariencia identidad visual personalizar la web</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>theme colors typography font logo favicon brand dark mode light look of the web pages appearance visual identity customize the web</translation>
+    </message>
+    <message>
+        <source>teleprompters varios prompters agregar un teleprompter otro prompter cual prompter lista de teleprompters</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>teleprompters several prompters add a teleprompter another prompter which prompter list of teleprompters</translation>
+    </message>
+    </context>
 <context>
     <name>medios</name>
     <message>

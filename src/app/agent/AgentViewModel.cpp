@@ -1451,6 +1451,9 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         // solo la ayuda y lo que mira sin tocar; las más de 400 restantes, con
         // tool_search. Poco contexto y nada que lo tiente a actuar solo.
         servidores["broadcast"]["exposure"] = "deferred";
+        // tool_search busca por nombre y descripción: con las palabras de búsqueda
+        // al final de cada descripción encuentra mucho más (McpCore::toolListEntry).
+        servidores["broadcast"]["args"].push_back("--palabras-clave");
         json directas = json::object();
         for (const char* n : {"help", "help_search", "status", "scene_list", "escena_fuentes_ver", "mixer_list",
                               "input_status", "audio_devices", "video_devices", "stream_salud", "record_disco",

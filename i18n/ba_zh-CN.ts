@@ -57277,6 +57277,22 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>使用 `sigue_video` 时，当包含该 `fuente` 的场景进入在播时，它会升高（到其音量），离开时降为零，持续时间与转场相同。不带 `sigue_video` 时，列出启用了该功能的来源。按输出设置：移动的是该 `salida` 混音中该来源的推子。</translation>
     </message>
     <message>
+        <source>Crea una escena nueva (`to`) con todas las fuentes de otra (`from`), recreadas: las dos quedan independientes.</source>
+        <translation>用另一个场景（`from`）的全部来源新建一个场景（`to`），来源会重新创建：两个场景互相独立。</translation>
+    </message>
+    <message>
+        <source>Protege una escena (o la desprotege, con `protected`: false): protegida no se puede borrar ni renombrar.</source>
+        <translation>保护一个场景（或用 `protected`: false 取消保护）：受保护的场景不能删除也不能改名。</translation>
+    </message>
+    <message>
+        <source>Cambia el nombre de una escena (de `from` a `to`). Una protegida (scene_protect) no se puede renombrar.</source>
+        <translation>修改场景名称（从 `from` 改为 `to`）。受保护的场景（scene_protect）不能改名。</translation>
+    </message>
+    <message>
+        <source>Tipo (corte, fundido, barrido, deslizamiento o fundido a un color) y duración en ms de la transición al cambiar de escena.</source>
+        <translation>切换场景时转场的类型（切换、淡入淡出、擦除、滑动或淡入某种颜色）和时长（毫秒）。</translation>
+    </message>
+    <message>
         <location line="+775" />
         <source>Foto de los niveles del mezclador, para leer. Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor (`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del programa. -100 = silencio; cerca de 0 = saturando. Cada salida tiene su mezcla: con `salida`, la de esa.</source>
         <translation>调音台电平的快照，只读。各音频来源的音量（dB）、静音、是否正在通过监听收听（`escuchando`，见 audio_escuchar）以及当前峰值电平（dBFS），另加节目电平。-100 = 静音；接近 0 = 过载。每个输出有自己的混音：带 `salida` 时返回该输出的混音。</translation>
@@ -57312,6 +57328,14 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>「节目」的响度（送往推流和录制的混音），EBU R128 / BS.1770-4：`m` 瞬时（400 ms），`s` 短期（3 s），`i` 自重置起的综合响度（推流或录制时自动开始），`tp` 最大真峰值（dBTP），`lra` 响度范围，`gr_db` 主输出限幅器的衰减量，`objetivo` 和 `fuera_de_objetivo`（综合响度偏离超过 2 LU 或 TP 超过上限）。audio_measure 按来源测量；这里测的是输出的内容。每个输出有自己的（`salida`）。</translation>
     </message>
     <message>
+        <source>La ficha de un integrante del cuerpo, buscado por `clave`: su id, su número de banca o su nombre.</source>
+        <translation>议事机构某位成员的资料，按 `clave` 查找：其 id、席位号或姓名。</translation>
+    </message>
+    <message>
+        <source>Borra un integrante del cuerpo (`id`, de cuerpo_listar): su nombre, su cargo y su banca dejan de estar en el cuerpo.</source>
+        <translation>从议事机构中删除一名成员（`id`，来自 cuerpo_listar）：其姓名、职务和席位不再属于议事机构。</translation>
+    </message>
+    <message>
         <location line="+1114" />
         <source>Cuanto disco queda y para cuantas horas alcanza al bitrate de todo lo que se graba (grabación, copia, señal limpia e ISO de todas las salidas, repartido por disco: manda el que antes se llena; sin grabar, lo que sumaría arrancar la grabación); si alguna copia va al mismo disco que su grabación (`copia_mismo_volumen`, `mismo_volumen`); y el estado del ultimo pase a MP4 (remux).</source>
         <translation>剩余磁盘空间，以及按所有录制内容（所有输出的录制、副本、干净信号和 ISO，按磁盘分摊：以最先写满的磁盘为准；未录制时，按开始录制后会增加的量）的码率还够用几小时；是否有副本与其录制在同一磁盘（`copia_mismo_volumen`、`mismo_volumen`）；以及最近一次转换为 MP4（remux）的状态。</translation>
@@ -57340,6 +57364,10 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+371" />
         <source>saca a un invitado de la conferencia</source>
         <translation>将嘉宾移出会议</translation>
+    </message>
+    <message>
+        <source>Borra del gateway de la conferencia un archivo que compartió un invitado (`id`, de share_list).</source>
+        <translation>从会议网关删除嘉宾共享的文件（`id`，来自 share_list）。</translation>
     </message>
     <message>
         <location line="+863" />
@@ -57593,9 +57621,8 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>删除通知器</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Borra el notificador `id` (y su secreto guardado).</source>
-        <translation>删除通知器 `id`（及其已保存的密钥）。</translation>
+        <source>Borra el notificador `id` (de notificador_listar) y su secreto guardado: las alertas dejan de avisar por ese webhook, Telegram o correo.</source>
+        <translation>删除通知器 `id`（来自 notificador_listar）及其已保存的密钥：警报不再通过该 webhook、Telegram 或邮件发送。</translation>
     </message>
     <message>
         <location line="+3" />
@@ -57728,9 +57755,8 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>删除触发器</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra un disparador (`id`) o todos (`all`: true).</source>
-        <translation>删除一个触发器（`id`）或全部（`all`: true）。</translation>
+        <source>Borra un disparador de alertas (`id`, de alert_list) o todos (`all`: true): esa condición deja de vigilarse.</source>
+        <translation>删除一个警报触发器（`id`，来自 alert_list）或全部（`all`: true）：该条件不再被监视。</translation>
     </message>
     <message>
         <location line="+7" />
@@ -58198,9 +58224,8 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
         <translation>启动 / 停止助手</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>action: start | stop | restart.</source>
-        <translation>action：start | stop | restart。</translation>
+        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`).</source>
+        <translation>启动（`start`）、停止（`stop`）或重启（`restart`）活动助手或自动化助手（`asistente`）。</translation>
     </message>
     <message>
         <location line="+22" />
@@ -59034,9 +59059,8 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>编辑页面</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Cambia `nombre`, `columnas` o `filas` de la `pagina`.</source>
-        <translation>修改 `pagina` 的 `nombre`、`columnas` 或 `filas`。</translation>
+        <source>Saca el atajo de teclado de `tecla` (o el de la acción con ese id; atajos_listar los muestra): esa tecla deja de hacer algo.</source>
+        <translation>移除 `tecla` 上的键盘快捷键（或该 id 动作的快捷键；atajos_listar 会列出）：该键不再执行任何操作。</translation>
     </message>
     <message>
         <location line="+23" />
@@ -59136,11 +59160,6 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <location line="+9" />
         <source>Borrar una celda</source>
         <translation>删除单元格</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Saca la celda en (`x`, `y`).</source>
-        <translation>移除 (`x`, `y`) 处的单元格。</translation>
     </message>
     <message>
         <location line="+11" />
@@ -59269,6 +59288,14 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>定义 DSK 图层</translation>
     </message>
     <message>
+        <source>Cambia el `nombre` o el tamaño de la grilla (`columnas`, `filas`, de 1 a 16) de una `pagina` de un `perfil` de la botonera.</source>
+        <translation>修改控制台 `perfil` 中某个 `pagina` 页的 `nombre` 或网格大小（`columnas`、`filas`，1 到 16）。</translation>
+    </message>
+    <message>
+        <source>Saca el botón de la celda (`x`, `y`) de una `pagina` de un `perfil` de la botonera: la celda queda vacía.</source>
+        <translation>移除控制台 `perfil` 中 `pagina` 页上单元格（`x`, `y`）的按钮：该单元格变为空。</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>Arma la `capa` (1-4) con `contenido` (nombres de escenas o fuentes, apiladas en ese orden), `recuadro` opcional {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|arriba_izquierda, tamano: 0..1 del ancho, margen}, `fijo` y `transicion_ms`. Con `lsa_entrada`, la plantilla «Interprete LSA»: esa entrada en un recuadro abajo a la derecha, fija. No la sube: dsk_mostrar.</source>
         <translation>用 `contenido`（场景或来源的名称，按此顺序叠放）搭建 `capa`（1-4），可选 `recuadro` {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|arriba_izquierda, tamano: 宽度的 0..1, margen}、`fijo` 和 `transicion_ms`。使用 `lsa_entrada` 时为「Interprete LSA」模板：该输入位于右下角的画框中，固定。不会叠加：用 dsk_mostrar。</translation>
@@ -59327,11 +59354,6 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <location line="+19" />
         <source>Quitar un atajo</source>
         <translation>移除快捷键</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Saca el atajo de `tecla` (o de la accion con ese id).</source>
-        <translation>移除 `tecla` 的快捷键（或具有该 id 的操作的快捷键）。</translation>
     </message>
     <message>
         <location line="+3" />
@@ -60601,11 +60623,6 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+1" />
-        <source>Deja de controlar la central. La sala sigue andando sola.</source>
-        <translation>停止控制中央单元。会场继续独立运行。</translation>
-    </message>
-    <message>
-        <location line="+1" />
         <source>Abrir o cerrar el micrófono de una banca</source>
         <translation>打开或关闭席位麦克风</translation>
     </message>
@@ -60660,9 +60677,12 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
         <translation>清空申请列表</translation>
     </message>
     <message>
-        <location line="+1" />
-        <source>Borra todos los pedidos de palabra de la central.</source>
-        <translation>删除中央单元上的所有发言申请。</translation>
+        <source>Deja de controlar la central de conferencias: la sala sigue andando sola con sus micrófonos; dcn_conectar la retoma.</source>
+        <translation>停止控制会议中央单元：会场继续用自己的麦克风独立运行；dcn_conectar 可重新接管。</translation>
+    </message>
+    <message>
+        <source>Borra todos los pedidos de palabra de la central (los de dcn_pedidos): nadie queda esperando para hablar.</source>
+        <translation>删除中央单元中的所有发言申请（dcn_pedidos 中的）：不再有人等待发言。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -62958,9 +62978,8 @@ Sin fecha en el evento la invitacion sale sin fecha y se avisa: una invitacion q
         <translation>将某人移出名册</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Borra a una persona de la lista del evento abierto.</source>
-        <translation>从已打开活动的名单中删除某人。</translation>
+        <source>Borra a una persona (`id`, de padron_ver) del padrón del evento abierto. No toca su ficha de rostros.</source>
+        <translation>从当前活动的名册中删除一人（`id`，来自 padron_ver）。不影响其人脸登记资料。</translation>
     </message>
     <message>
         <location line="+2" />
@@ -63443,9 +63462,8 @@ VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámar
         <translation>撤下图形</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Deja la fuente transparente.</source>
-        <translation>使来源变为透明。</translation>
+        <source>Saca del aire un gráfico animado: deja la fuente (`fuente`, el id de grafico_en_escena) transparente, sin borrarla de la escena.</source>
+        <translation>让动画图形下播：将来源（`fuente`，grafico_en_escena 中的 id）设为透明，但不从场景中删除。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -63717,9 +63735,8 @@ CAMPOS VIVOS: con `vivo: true`, cuando cambia lo que resuelve y el grafico ya es
         <translation>移除或关闭联动</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Quita un vinculo, o lo apaga sin borrarlo.</source>
-        <translation>移除联动，或关闭而不删除。</translation>
+        <source>Quita un vínculo de rótulo (`id`, de rotulo_vinculos) o, con `activo`, lo apaga o lo prende sin borrarlo.</source>
+        <translation>删除一个字幕条关联（`id`，来自 rotulo_vinculos），或用 `activo` 关闭或开启它而不删除。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69276,9 +69293,8 @@ OJO CON EL ESTILO: un icono al centro tapa modulos, asi que sube la correccion d
         <translation>现有配方</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Que recetas hay disponibles para correr, con su nombre.</source>
-        <translation>有哪些可运行的配方及其名称。</translation>
+        <source>Las recetas guardadas (secuencias de pasos para repetir igual, receta_guardar) que se pueden correr, con su id y su nombre.</source>
+        <translation>可以运行的已保存配方（可原样重复的步骤序列，receta_guardar），附带 id 和名称。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69368,9 +69384,12 @@ NO hay condiciones, bucles ni recetas que llamen a recetas: eso ya es un program
         <translation>删除配方</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Saca una receta de la lista.</source>
-        <translation>从列表中移除一个配方。</translation>
+        <source>Borra una receta guardada (`id`, de receta_listar): esa secuencia de pasos deja de estar para correrla.</source>
+        <translation>删除一个已保存的配方（`id`，来自 receta_listar）：这组步骤不能再运行。</translation>
+    </message>
+    <message>
+        <source>Ejecuta en orden los pasos de una receta guardada (`id`), con `parametros` para sus `{...}`; si un paso falla, se frena ahí.</source>
+        <translation>按顺序执行已保存配方（`id`）的步骤，用 `parametros` 填入其中的 `{...}`；某一步失败就停在那里。</translation>
     </message>
     <message>
         <location line="+10" />
@@ -69387,11 +69406,6 @@ NO hay condiciones, bucles ni recetas que llamen a recetas: eso ya es un program
         <location line="+8" />
         <source>Correr una receta</source>
         <translation>运行配方</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Ejecuta los pasos de una receta, en orden.</source>
-        <translation>按顺序执行配方的步骤。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69697,9 +69711,16 @@ El cambio queda anotado en el propio registro, con quién lo hizo, para que mañ
         <translation>扩展卡片</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Las tarjetas que viven en Extensiones/, con su estado.</source>
-        <translation>位于 Extensiones/ 中的卡片及其状态。</translation>
+        <source>Las extensiones (tarjetas QML del dashboard, en Extensiones/) con su estado: si les falta algo o si el arranque las apagó.</source>
+        <translation>扩展（仪表盘的 QML 卡片，位于 Extensiones/）及其状态：是否缺少什么，或是否被启动过程关闭。</translation>
+    </message>
+    <message>
+        <source>Vuelve a cargar una extensión (tarjeta QML del dashboard) que el arranque apagó porque colgaba la app; antes, arreglá el QML.</source>
+        <translation>重新加载一个因卡住应用而被启动过程关闭的扩展（仪表盘 QML 卡片）；先修好 QML。</translation>
+    </message>
+    <message>
+        <source>Escribe una línea propia (`texto`) en el registro de la app, para marcar desde dónde mirar después lo que pasó.</source>
+        <translation>在应用日志中写入一行自己的内容（`texto`），标记之后从哪里查看发生了什么。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69730,11 +69751,6 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <translation>开启已关闭的扩展</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Vuelve a cargar una tarjeta que el arranque habia apagado.</source>
-        <translation>重新加载启动时被关闭的卡片。</translation>
-    </message>
-    <message>
         <location line="+1" />
         <source>Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola y vas a haber gastado dos reinicios del programa.</source>
         <translation>「先」修复 QML。如果启动仍然卡住，它会再次自动关闭，您就白白浪费了两次程序重启。</translation>
@@ -69748,11 +69764,6 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <location line="+8" />
         <source>Dejar una marca</source>
         <translation>留下标记</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Escribe una línea propia en el registro.</source>
-        <translation>在日志中写入一行自定义内容。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69912,9 +69923,8 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <translation>回到队列</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Orador que ya hablo: vuelve al final de la fila.</source>
-        <translation>已发言的发言人：回到队列末尾。</translation>
+        <source>Un orador que ya habló vuelve a la fila de oradores, al final, para hablar otra vez (`participant`: nombre o id).</source>
+        <translation>已经发过言的发言人回到发言人队列末尾，再次发言（`participant`：姓名或 id）。</translation>
     </message>
     <message>
         <location line="+7" />
@@ -70414,11 +70424,6 @@ Si no hay lugar libre en la conferencia (`room_status` -&gt; `slotsFree`) el gat
         <location line="+7" />
         <source>Borrar archivo compartido</source>
         <translation>删除共享文件</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Borra un archivo compartido del gateway.</source>
-        <translation>从网关删除共享文件。</translation>
     </message>
     <message>
         <location line="+13" />
@@ -71548,11 +71553,6 @@ Que el plano que SALE del aire quede armado es como funciona cualquier mesa: des
         <translation>复制场景</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Crea una escena nueva con todas las fuentes de otra.</source>
-        <translation>新建一个场景，包含另一个场景的所有来源。</translation>
-    </message>
-    <message>
         <location line="+1" />
         <source>Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y cambiarle lo que difiere.
 
@@ -71589,11 +71589,6 @@ La copia nunca queda protegida, aunque el original lo este: para eso se copia. S
         <location line="+8" />
         <source>Proteger una escena</source>
         <translation>保护场景</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Una escena protegida no se puede borrar ni renombrar.</source>
-        <translation>受保护的场景不能删除或重命名。</translation>
     </message>
     <message>
         <location line="+1" />
@@ -71633,11 +71628,6 @@ Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que des
         <location line="+7" />
         <source>Renombrar escena</source>
         <translation>重命名场景</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Cambia el nombre de una escena.</source>
-        <translation>更改场景名称。</translation>
     </message>
     <message>
         <location line="+5" />
@@ -71738,11 +71728,6 @@ Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que des
         <location line="+8" />
         <source>Transicion entre escenas</source>
         <translation>场景之间的转场</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Tipo y duracion de la transicion al cambiar de escena.</source>
-        <translation>切换场景时转场的类型和时长。</translation>
     </message>
     <message>
         <location line="+11" />
@@ -72254,11 +72239,6 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
     </message>
     <message>
         <location line="+3" />
-        <source>Deja de mandar subtitulos ocultos.</source>
-        <translation>停止发送隐藏字幕。</translation>
-    </message>
-    <message>
-        <location line="+3" />
         <source>Apagados.</source>
         <translation>已关闭。</translation>
     </message>
@@ -72309,11 +72289,6 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>从词汇表中移除术语</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Saca el `termino` (de cualquier grupo).</source>
-        <translation>移除 `termino`（任何组中的）。</translation>
-    </message>
-    <message>
         <location line="+4" />
         <source>no esta en el vocabulario</source>
         <translation>不在词汇表中</translation>
@@ -72359,9 +72334,16 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>将席位加入或移出队列</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>`agregar` o `quitar`: banca, id o nombre del cuerpo.</source>
-        <translation>`agregar` 或 `quitar`：席位、id 或议事机构中的姓名。</translation>
+        <source>Deja de mandar subtítulos ocultos (CEA-608 en la transmisión y la API de subtítulos de YouTube): lo contrario de cc_activar.</source>
+        <translation>停止发送隐藏字幕（直播中的 CEA-608 和 YouTube 字幕 API）：与 cc_activar 相反。</translation>
+    </message>
+    <message>
+        <source>Saca un `termino` del vocabulario de la transcripción, de cualquier grupo (voz_vocabulario los muestra).</source>
+        <translation>从转写词汇表的任一分组中移除一个 `termino`（voz_vocabulario 会列出）。</translation>
+    </message>
+    <message>
+        <source>Suma (`agregar`) o saca (`quitar`) una banca de la fila de oradores presenciales: por número de banca, id o nombre del integrante.</source>
+        <translation>在现场发言人队列中加入（`agregar`）或移除（`quitar`）一个席位：按席位号、id 或成员姓名。</translation>
     </message>
     <message>
         <location line="+16" />
@@ -72684,9 +72666,8 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>查看议事机构成员</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Busca por id, banca o nombre.</source>
-        <translation>按 id、席位或姓名查找。</translation>
+        <source>Graba entradas sueltas (cámaras, invitados) cada una en su propio archivo, además del programa; sin argumentos, dice qué se graba.</source>
+        <translation>将单独的输入（摄像机、嘉宾）各自录到独立文件，节目照常录制；不带参数时说明正在录制什么。</translation>
     </message>
     <message>
         <location line="+4" />
@@ -72718,11 +72699,6 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <location line="+7" />
         <source>Sacar a un integrante del cuerpo</source>
         <translation>将成员移出议事机构</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Borra un integrante (`id`).</source>
-        <translation>删除成员（`id`）。</translation>
     </message>
     <message>
         <location line="+12" />
@@ -73028,11 +73004,6 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <location line="+9" />
         <source>Grabar cada entrada por separado</source>
         <translation>分别录制每个输入</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Graba una entrada a su propio archivo, ademas del programa.</source>
-        <translation>除节目外，将某个输入录制到其单独的文件中。</translation>
     </message>
     <message>
         <location line="+2" />
@@ -74652,9 +74623,8 @@ EL DORSO: los tipos con `dorso: true` (el DNI y `mrz-td1`) se leen también por 
         <translation>删除 VOD</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra uno o mas videos del canal (no se puede deshacer).</source>
-        <translation>删除频道中的一个或多个视频（不可撤销）。</translation>
+        <source>Borra de uno a cinco videos (VODs) del canal de Twitch (`ids`, de twitch_videos). No se puede deshacer.</source>
+        <translation>从 Twitch 频道删除一到五个视频（VOD）（`ids`，来自 twitch_videos）。无法撤销。</translation>
     </message>
     <message>
         <location line="+14" />
@@ -74961,9 +74931,8 @@ El operador hace lo mismo con el boton ⧉ del panel.</source>
         <translation>屏幕通知</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Muestra un aviso (toast) al operador en la app.</source>
-        <translation>在应用中向操作员显示通知（toast）。</translation>
+        <source>Muestra un aviso corto (toast) en la app del operador, con un nivel: info, ok, warn o error.</source>
+        <translation>在操作员的应用中显示一条简短通知（toast），带级别：info、ok、warn 或 error。</translation>
     </message>
     <message>
         <location line="+18" />
@@ -76742,11 +76711,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
         <translation>已打开浏览器：本人需要选择账户并接受。之后用 youtube_status。</translation>
     </message>
     <message>
-        <location line="+18" />
-        <source>Revoca el acceso en Google y borra el token guardado.</source>
-        <translation>在 Google 上撤销访问权限并删除已保存的令牌。</translation>
-    </message>
-    <message>
         <location line="+3" />
         <source>Cuenta desconectada.</source>
         <translation>账户已断开。</translation>
@@ -76782,9 +76746,12 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
         <translation>删除视频</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra un video del canal (no se puede deshacer).</source>
-        <translation>从频道删除视频（不可撤销）。</translation>
+        <source>Desconecta la cuenta de YouTube de este aparato: revoca el acceso en Google y borra el token guardado.</source>
+        <translation>从本设备断开 YouTube 账号：在 Google 撤销访问权限并删除已保存的令牌。</translation>
+    </message>
+    <message>
+        <source>Borra un video del canal de YouTube (`id`, de youtube_videos). No se puede deshacer.</source>
+        <translation>从 YouTube 频道删除一个视频（`id`，来自 youtube_videos）。无法撤销。</translation>
     </message>
     <message>
         <location line="+5" />
@@ -78310,6 +78277,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>总体状态 摘要 一切如何 概况 健康状况</translation>
     </message>
     <message>
+        <source>como venimos cpu fps cuadros perdidos perdiendo cuadros codificador encoder cuanto llevamos transmitiendo cuanto lleva la grabacion se congelo sigue vivo procesador ventilador ahogando chequeo general</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>情况怎么样 cpu fps 丢帧 掉帧 编码器 推流多久了 录了多久 卡住了 还活着吗 处理器 风扇 卡顿 整体检查</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>aire guardas confirmar acciones peligrosas en vivo transmision bloqueo seguridad</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -79030,6 +79002,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>聊天 最近消息 观众 突出显示 观众评论 直播聊天 读取聊天 观众写的内容</translation>
     </message>
     <message>
+        <source>youtube facebook twitch espectadores audiencia que dijeron que escribieron el chat de la transmision ultimos minutos spam saludan reaccionando</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>youtube facebook twitch 观众 听众 说了什么 写了什么 直播聊天 最近几分钟 垃圾信息 打招呼 反应</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>destacar mensaje chat aire pantalla publico pregunta</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -79070,6 +79047,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>terminar orador presencial banca cortar quitar la palabra terminar el turno del que habla en el recinto concejal</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>结束现场发言人 席位 中断 收回发言权 结束会场中发言者的轮次 议员</translation>
+    </message>
+    <message>
+        <source>terminar la intervencion sacarlo del aire cerrar el micro del orador del que tiene la palabra cerrar la banca que esta hablando concluyo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>结束发言 让他下播 关掉发言人的麦 关掉正在发言者的麦 关掉正在发言的席位 讲完了</translation>
     </message>
     <message>
         <location line="+2" />
@@ -79906,6 +79888,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>控制台 调音台 通道 推子 电平</translation>
     </message>
     <message>
+        <source>mezclador foto del mezclador lectura del mezclador niveles volumenes silencios picos pica en rojo fader bajado volumen mas alto nivel de cada fuente mostrame el mezclador leer los niveles</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>调音台 调音台快照 读调音台 电平 音量 静音 峰值 爆红 推子拉下 最大音量 每个来源的电平 给我看调音台 读电平</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir empezar arrancar salir al aire comenzar transmision</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -79928,6 +79915,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar de grabar frena la grabacion cortar la grabacion terminar de grabar detener terminar la grabacion stop</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>停止 暂停录制 停止录制 不录了 录制停止 别录了 结束录制 中断录制 录完了 停下 结束录制 stop</translation>
+    </message>
+    <message>
+        <source>cortar el rec cortar el grabado cerrar la grabacion finalizar la grabacion fin de la grabacion dejar de escribir en disco sigue grabando dejar de grabar</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>停掉录制 关掉录制 结束录制 录制结束 停止写入磁盘 还在录 不要再录了</translation>
     </message>
     <message>
         <location line="+4" />
@@ -80696,10 +80688,20 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>退回 送回 重新排到队尾 已发言的人</translation>
     </message>
     <message>
+        <source>reencolar de nuevo otra vez esperando al final al fondo ultimo lugar ya tuvo su turno ya expuso volver a anotar reingresar quiere volver a hablar replicar detras de todos</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>重新排队 再次 排到最后 队尾 最后一位 已经发过言 已经讲过 重新登记 回到队列 还想发言 答辩 排在所有人后面</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>dejar entrar a todos admitir todos vaciar lobby</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>全部放行 全部准入 清空等候室</translation>
+    </message>
+    <message>
+        <source>hacer pasar a todos que pasen todos todo el mundo dar paso a todos aceptar a todos toda la cola de espera que entren todos que no quede ninguno afuera</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>让所有人进来 全部放进来 大家都进来 全部接受 整个等候队列 别让人在外面等</translation>
     </message>
     <message>
         <location line="+2" />
@@ -80720,6 +80722,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>档案 信息 姓名 职务 人员信息 嘉宾资料 修改姓名</translation>
     </message>
     <message>
+        <source>info informacion cargo contacto telefono mail correo editar el perfil corregir los datos actualizar la info ponerle de nombre sin cargo cargo viejo sumar un dato agregar un dato</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>信息 资料 职务 联系方式 电话 邮箱 编辑资料 修改信息 更新信息 改名字 没有职务 旧职务 补充信息</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -80730,6 +80737,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>他跟我说了什么 说了什么 写了什么 读取发来的内容 回复了什么 历史 对话 说过的话 读聊天</translation>
+    </message>
+    <message>
+        <source>chat interno mensajes recientes ultimos mensajes quien mando a que hora produccion mando algo algun invitado aviso por chat confirmo saludo escribieron</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>内部聊天 最近消息 最新消息 谁发的 几点发的 导播发了什么 有嘉宾在聊天里说 确认了 打招呼 写了</translation>
     </message>
     <message>
         <location line="+3" />
@@ -80786,6 +80798,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>卡顿 断断续续 一卡一卡 推流掉线 很慢 网络 互联网 连接 带宽 隧道 质量</translation>
     </message>
     <message>
+        <source>https certificado sitio no seguro conexion no segura aviso de seguridad wireguard tunel puertos webrtc ip local estado de la red revisar la red chequear la red mirar la red los remotos no pueden conectarse queda cargando el link</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>https 证书 网站不安全 连接不安全 安全警告 wireguard 隧道 端口 webrtc 本地 ip 网络状态 检查网络 看看网络 远程嘉宾连不上 链接一直在加载</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada reiniciar conferencia la conferencia no responde</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -80816,16 +80833,31 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>让发言人上播 给发言者上播 让远程发言人上播</translation>
     </message>
     <message>
+        <source>sacar del aire bajar del aire sacarlo que vuelva a esperar darle el aire arrancar su reloj entrar al aire habilitar al aire sigue en pantalla salteando la fila</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>下播 让他下播 撤下 回到等候 给他上播 开始计时 上播 马上上播 插队 还在画面上</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador pasar al que sigue avanzar la fila</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>下一位 下一位发言人 接下来的发言人 下一轮 推进队列</translation>
     </message>
     <message>
+        <source>que pase el que sigue el proximo dale al siguiente largar al siguiente el que viene adelante que entre otro dale aire al que sigue</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>下一位上 下一个 换下一个 让下一个上 接下来的那位 下一位请 换个人 让下一位上播</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>mover en la fila reordenar oradores pasar a alguien al primer lugar de la fila</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>在队列中移动 重排发言人 把某人排到第一位</translation>
+    </message>
+    <message>
+        <source>puesto en la fila adelantar atrasar lugares segunda tercera cuarta quinta sexta orden de la fila cambiar de puesto</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>队列位置 往前挪 往后挪 名次 第二 第三 第四 第五 第六 队列顺序 换位置</translation>
     </message>
     <message>
         <location line="+2" />
@@ -81470,6 +81502,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>移动摄像机 平移 pan tilt zoom 推近 拉远 转动 上移 下移摄像机</translation>
     </message>
     <message>
+        <source>girar panear inclinar izquierda derecha arriba abajo mucho techo se corrio</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>转动 摇镜 俯仰 向左 向右 向上 向下 拍到太多天花板 他走开了</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>parar la camara frenar el movimiento detener stop dejar quieta la camara frenar ptz</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -81546,6 +81583,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>caras que ve la camara quien esta en cuadro detectar rostros ptz</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>摄像机看到的人脸 画面里有谁 检测人脸 ptz</translation>
+    </message>
+    <message>
+        <source>cara caras donde esta la cara cuantas caras cara mas grande cara chiquita tamano de la cara altura de la cara apunta a la pared tomando alguna cara mas de una cara</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>人脸 脸 脸在哪里 有几张脸 最大的脸 小脸 脸的大小 脸的高度 对着墙 拍到人脸 不止一张脸</translation>
     </message>
     <message>
         <location line="+2" />
@@ -82010,6 +82052,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>提词器 开始 停止 速度 滚动 前进</translation>
     </message>
     <message>
+        <source>velocidad palabras por minuto parrafo saltar al parrafo ir al parrafo avisarle al orador aviso al orador que cierre tapar destapar panico scroll detener el scroll que siga corriendo el texto espejo invertir</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>速度 每分钟字数 段落 跳到段落 转到段落 提醒发言人 给发言人留言 收尾 遮住 取消遮挡 紧急 滚动 停止滚动 继续滚动 镜像 翻转</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>que televisores hay pantallas conocidas estado</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82418,6 +82465,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>辩论轮次 让一方发言 让另一方静音 双方</translation>
     </message>
     <message>
+        <source>dar la palabra los dos juntos que nadie hable nadie con la palabra replica</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>准予发言 两人同时 谁都不要说 没人发言 反驳</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>terminar el debate cortar debate</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82622,6 +82674,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>运行串联单 开始 推进 暂停活动 执行 下一个提示点 hold 冻结 保持 不自动推进 自动</translation>
     </message>
     <message>
+        <source>proximo cue ir al bloque saltar al bloque reanudar el guion seguir el guion desde donde quedo parar el guion terminar el guion se cancela el acto pasada de prueba</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>下一个提示点 去第几段 跳到段落 恢复串联单 从停下的地方继续 暂停串联单 结束串联单 活动取消 走一遍彩排</translation>
+    </message>
+    <message>
         <location line="+5" />
         <source>que ventanas hay abiertas donde esta cada una en que monitor geometria</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82662,6 +82719,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>mirar la imagen que se ve ahi que hay en camara revisar visualmente analizar captura vision hay alguien cuadro negro se lee el rotulo preguntarle a la imagen contar personas leer el texto de la imagen</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>查看那里的画面 摄像机里有什么 目视检查 分析截图 视觉 有人吗 黑屏 能读出字幕条吗 向图像提问 数人数 读取图像中的文字</translation>
+    </message>
+    <message>
+        <source>contestame mirando respondeme mirando fijate y contestame que dice el cartel oscura buena luz corbata camisa tapada hombre o mujer torcida que hora marca no quiero la foto</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>看着回答 看一下告诉我 牌子上写着什么 太暗 光线好不好 领带 衬衫 被挡住 男的还是女的 歪了 几点了 不要照片</translation>
     </message>
     <message>
         <location line="+3" />
@@ -83233,7 +83295,27 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>修改设置 调整选项 配置</translation>
     </message>
-</context>
+<message>
+        <source>escribirle recordarle por chat poner en el chat tirar un mensaje mensaje a la sala chat general mandar al chat</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>给他写 在聊天里提醒 发到聊天里 发条消息 给全场的消息 公共聊天 发送到聊天</translation>
+    </message>
+    <message>
+        <source>grupos del mezclador tiras compactar desplegar compacto agrupar las tiras todo el grupo grupo mudo abrir el grupo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>调音台分组 通道条 折叠 展开 紧凑 把通道条分组 整组 整组静音 打开分组</translation>
+    </message>
+    <message>
+        <source>tema colores tipografia letra logo favicon marca modo oscuro claro aspecto de las paginas web apariencia identidad visual personalizar la web</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>主题 颜色 字体 排版 标志 网站图标 品牌 深色模式 浅色 网页外观 外观 视觉识别 自定义网页</translation>
+    </message>
+    <message>
+        <source>teleprompters varios prompters agregar un teleprompter otro prompter cual prompter lista de teleprompters</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>提词器 多个提词器 添加提词器 另一个提词器 哪个提词器 提词器列表</translation>
+    </message>
+    </context>
 <context>
     <name>medios</name>
     <message>

@@ -281,7 +281,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Borra uno o mas videos del canal (no se puede deshacer).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra de uno a cinco videos (VODs) del canal de Twitch (`ids`, de twitch_videos). No se puede deshacer.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",

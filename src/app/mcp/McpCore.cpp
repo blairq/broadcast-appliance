@@ -761,7 +761,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
             {
                 const std::lock_guard<std::recursive_mutex> registro(registroMu_);
                 for (const Tool& t : tools_)
-                    if (permitida(t, ctx.rol)) list.push_back(toolListEntry(t));
+                    if (permitida(t, ctx.rol)) list.push_back(toolListEntry(t, ctx.palabrasClave));
             }
             reply(rpcResult(id, json{{"tools", list}}));
         } else if (method == "tools/call") {
@@ -867,15 +867,26 @@ json McpCore::initializeResult(const json& params, const CallContext& ctx) const
                 {"instructions", instructions_ + "\n" + mapaDeCategorias(ctx.rol)}};
 }
 
-json McpCore::toolListEntry(const Tool& t) const {
+json McpCore::toolListEntry(const Tool& t, bool palabrasClave) const {
     // MEDIDO Y DESCARTADO: marcar aca «[SOLO MIRA]» / «[HACE UN CAMBIO]» segun
     // `readOnly` no mejora que el modelo elija bien —dio 43/67 contra 45/67— y
     // cuesta tokens en cada pedido. Con el pensamiento apagado no razona «me
     // piden hacer algo, elijo una que hace»: empareja las palabras del pedido
     // con las de la descripcion. Lo que funciona es que las descripciones NO SE
     // PISEN, herramienta por herramienta (ver tools/entrenar/bateria-modelo.py).
-    json e{
-        {"name", t.name}, {"title", t.title}, {"description", t.description}, {"inputSchema", t.inputSchema}};
+    //
+    // LAS PALABRAS CLAVE, SOLO PARA QUIEN BUSCA. Un cliente con exposición diferida
+    // (pi, Claude Code con muchas herramientas) no le pasa el listado al modelo: lo
+    // busca con su tool_search por nombre y descripción, sin nuestras etiquetas.
+    // Sumarle a la descripción las filas propias (McpEtiquetas) lo hace encontrar
+    // mucho más (medido con tools/dev/medir-busqueda.py --sin-etiquetas
+    // --palabras-clave, primeras 8: preguntas 64 -> 85 %, cabina 63 -> 73 %). A un
+    // cliente que manda el listado entero en cada pedido le costaría ~76 KB más
+    // (+15 %) por nada: por eso lo pide el cliente (CallContext::palabrasClave).
+    std::string descripcion = t.description;
+    if (palabrasClave)
+        if (const std::string pc = ba::app::mcp::palabrasClave(t.name); !pc.empty()) descripcion += "\n\nPalabras clave: " + pc;
+    json e{{"name", t.name}, {"title", t.title}, {"description", descripcion}, {"inputSchema", t.inputSchema}};
     // Las cuatro marcas van SIEMPRE, aunque repitan el valor por defecto: en
     // el protocolo `destructiveHint` y `openWorldHint` valen true si no estan,
     // asi que omitirlas no ahorra bytes, les cambia el sentido.

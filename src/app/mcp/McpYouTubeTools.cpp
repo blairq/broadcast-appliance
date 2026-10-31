@@ -218,7 +218,7 @@ void McpService::registerYouTubeTools() {
         t.category = "youtube";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Revoca el acceso en Google y borra el token guardado.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Desconecta la cuenta de YouTube de este aparato: revoca el acceso en Google y borra el token guardado.");
         t.run = [yt](const json&, Done done) {
             yt->logout();
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Cuenta desconectada.")));
@@ -287,7 +287,7 @@ void McpService::registerYouTubeTools() {
         t.category = "youtube";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un video del canal (no se puede deshacer).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un video del canal de YouTube (`id`, de youtube_videos). No se puede deshacer.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [yt, needLogin](const json& a, Done done) {

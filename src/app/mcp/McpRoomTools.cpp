@@ -308,7 +308,8 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Volver a la fila");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Orador que ya hablo: vuelve al final de la fila.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Un orador que ya habló vuelve a la fila de oradores, al final, para hablar otra vez (`participant`: "
+                                                 "nombre o id).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.examples = {R"({"participant": "Marta"})"};
@@ -1126,7 +1127,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un archivo compartido del gateway.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra del gateway de la conferencia un archivo que compartió un invitado (`id`, de share_list).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&control](const json& a, Done done) {

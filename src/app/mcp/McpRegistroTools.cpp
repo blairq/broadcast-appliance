@@ -102,7 +102,8 @@ void McpService::registerRegistroTools() {
         t.title = ba::i18n::traducir("mcp", "Tarjetas de extension");
         t.category = "registro";
         t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Las tarjetas que viven en Extensiones/, con su estado.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las extensiones (tarjetas QML del dashboard, en Extensiones/) con su estado: si les falta algo o si el "
+                                                 "arranque las apagó.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
                     "dibuja como una tarjeta mas del dashboard. Las escribis vos: la carpeta esta en el "
                     "campo `carpeta` de la respuesta.\n\n"
@@ -137,7 +138,8 @@ void McpService::registerRegistroTools() {
         t.title = ba::i18n::traducir("mcp", "Prender una extension apagada");
         t.category = "registro";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Vuelve a cargar una tarjeta que el arranque habia apagado.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Vuelve a cargar una extensión (tarjeta QML del dashboard) que el arranque apagó porque colgaba la app; "
+                                                 "antes, arreglá el QML.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola "
                     "y vas a haber gastado dos reinicios del programa.");
         t.inputSchema = {
@@ -157,7 +159,8 @@ void McpService::registerRegistroTools() {
         t.title = ba::i18n::traducir("mcp", "Dejar una marca");
         t.category = "registro";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe una línea propia en el registro.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe una línea propia (`texto`) en el registro de la app, para marcar desde dónde mirar después lo que "
+                                                 "pasó.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Se pone ANTES de probar algo («voy a probar la camara 2»): después se busca esa marca "
                     "y todo lo que sigue es lo que pasó por eso. Es la forma barata de separar lo que "
                     "provocaste de lo que ya estaba pasando.");

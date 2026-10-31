@@ -404,7 +404,7 @@ void McpService::registerUiTools() {
         t.title = ba::i18n::traducir("mcp", "Aviso en pantalla");
         t.category = "interfaz";
         t.clase = Clase::Ui;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Muestra un aviso (toast) al operador en la app.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Muestra un aviso corto (toast) en la app del operador, con un nivel: info, ok, warn o error.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",

@@ -206,6 +206,10 @@ struct CallContext {
     /// El id de la orden (diag/Correlacion.hpp, F4-02). Vacío: lo pone el núcleo al
     /// atenderla (m-, b- de la botonera, w- del control web).
     std::string correlacion;
+    /// El cliente busca las herramientas con tool_search por nombre y descripción
+    /// (exposición diferida; cabecera X-BA-Palabras-Clave, `ba-mcp --palabras-clave`):
+    /// tools/list le suma a cada descripción sus palabras de búsqueda (toolListEntry).
+    bool palabrasClave = false;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.
@@ -545,7 +549,7 @@ class McpCore {
     /// El resultado de «la interfaz está ocupada» para `que`.
     json ocupada(const std::string& que) const;
     json initializeResult(const json& params, const CallContext& ctx) const;
-    json toolListEntry(const Tool& t) const;
+    json toolListEntry(const Tool& t, bool palabrasClave) const;
     json resourceList() const;
     json readResource(const std::string& uri, std::string& error) const;
 

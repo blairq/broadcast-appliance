@@ -220,6 +220,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
     ctx.rol = headerValue(headers, "X-BA-Rol").trimmed().toStdString();
     ctx.origen = "asistente";
     ctx.asistente = headerValue(headers, "X-BA-Asistente").trimmed().toStdString();
+    ctx.palabrasClave = headerValue(headers, "X-BA-Palabras-Clave").trimmed() == "1";
     // Un cliente puede traer su propio id de orden (F4-02); si no, lo pone McpCore.
     ctx.correlacion = headerValue(headers, ba::diag::correlacion::kCabecera).trimmed().toStdString();
     const auto isInit = [](const json& m) { return m.is_object() && m.value("method", "") == "initialize"; };

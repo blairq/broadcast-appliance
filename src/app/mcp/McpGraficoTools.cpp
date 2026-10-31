@@ -268,7 +268,8 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Sacar un gráfico");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Deja la fuente transparente.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca del aire un gráfico animado: deja la fuente (`fuente`, el id de grafico_en_escena) transparente, sin "
+                                                 "borrarla de la escena.");
         t.details = QT_TRANSLATE_NOOP("mcp", "No borra la fuente de la escena: la deja vacía. Volver a mostrarla es "
                     "grafico_mostrar de nuevo.");
         t.inputSchema = {{"type", "object"},
@@ -533,7 +534,7 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Sacar o apagar un vinculo");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Quita un vinculo, o lo apaga sin borrarlo.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Quita un vínculo de rótulo (`id`, de rotulo_vinculos) o, con `activo`, lo apaga o lo prende sin borrarlo.");
         t.details = QT_TRANSLATE_NOOP("mcp", "En vivo, APAGARLO es mas seguro que borrarlo: se vuelve a prender con una sola "
                     "cosa y no hay que acordarse de como estaba escrito. Al prenderlo otra vez sale "
                     "al aire con lo que haya en ese momento, aunque sea lo mismo de antes.");

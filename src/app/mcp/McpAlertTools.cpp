@@ -118,7 +118,8 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Borrar un notificador");
         t.category = "alertas";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Borra el notificador `id` (y su secreto guardado).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra el notificador `id` (de notificador_listar) y su secreto guardado: las alertas dejan de avisar por "
+                                                 "ese webhook, Telegram o correo.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [this](const json& a, Done done) {
             if (!vm_.notificador().borrar(a.value("id", std::string()))) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese notificador")));
@@ -308,7 +309,8 @@ void McpService::registerAlertTools() {
         t.category = "alertas";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un disparador (`id`) o todos (`all`: true).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un disparador de alertas (`id`, de alert_list) o todos (`all`: true): esa condición deja de "
+                                                 "vigilarse.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"id", {{"type", "string"}}}, {"all", {{"type", "boolean"}}}}}};
         t.run = [&eng](const json& a, Done done) {

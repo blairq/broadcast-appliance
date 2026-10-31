@@ -37,4 +37,9 @@ namespace ba::app::mcp {
 /// `antes`: los nombres que tuvo (Tool::antes); suman sus familias y etiquetas.
 std::vector<std::string> etiquetasDe(const std::string& nombre, const std::vector<std::string>& antes = {});
 
+/// Las filas propias de `nombre` (sin las de su familia), en el original y como se
+/// escribieron, separadas por espacios: lo que tools/list le suma a la descripción
+/// para un cliente que busca con tool_search (McpCore::toolListEntry). Vacío si no tiene.
+std::string palabrasClave(const std::string& nombre);
+
 } // namespace ba::app::mcp

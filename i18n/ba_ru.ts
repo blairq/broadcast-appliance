@@ -57577,6 +57577,22 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>С `sigue_video` источник `fuente` поднимается (до своей громкости), когда в эфир выходит сцена, где он есть, и опускается до нуля, когда она уходит, с длительностью перехода. Без `sigue_video` выводит список источников, где это включено. Действует для каждого выхода: двигает фейдер источника в миксе этого `salida`.</translation>
     </message>
     <message>
+        <source>Crea una escena nueva (`to`) con todas las fuentes de otra (`from`), recreadas: las dos quedan independientes.</source>
+        <translation>Создаёт новую сцену (`to`) со всеми источниками другой (`from`), созданными заново: две сцены остаются независимыми.</translation>
+    </message>
+    <message>
+        <source>Protege una escena (o la desprotege, con `protected`: false): protegida no se puede borrar ni renombrar.</source>
+        <translation>Защищает сцену (или снимает защиту, `protected`: false): защищённую сцену нельзя удалить или переименовать.</translation>
+    </message>
+    <message>
+        <source>Cambia el nombre de una escena (de `from` a `to`). Una protegida (scene_protect) no se puede renombrar.</source>
+        <translation>Меняет имя сцены (с `from` на `to`). Защищённую (scene_protect) переименовать нельзя.</translation>
+    </message>
+    <message>
+        <source>Tipo (corte, fundido, barrido, deslizamiento o fundido a un color) y duración en ms de la transición al cambiar de escena.</source>
+        <translation>Тип (склейка, наплыв, шторка, сдвиг или затемнение в цвет) и длительность в мс перехода при смене сцены.</translation>
+    </message>
+    <message>
         <location line="+775" />
         <source>Foto de los niveles del mezclador, para leer. Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor (`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del programa. -100 = silencio; cerca de 0 = saturando. Cada salida tiene su mezcla: con `salida`, la de esa.</source>
         <translation>Снимок уровней микшера, только для чтения. Аудиоисточники с громкостью (дБ), отключением звука, прослушиваются ли через монитор (`escuchando`, см. audio_escuchar) и текущим пиковым уровнем (dBFS), плюс уровень программы. -100 = тишина; около 0 = перегрузка. У каждого выхода свой микс: с `salida` — микс этого выхода.</translation>
@@ -57612,6 +57628,14 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Громкость ПРОГРАММЫ (микс, который идёт в трансляцию и запись), EBU R128 / BS.1770-4: `m` мгновенная (400 мс), `s` кратковременная (3 с), `i` интегральная с момента сброса (сбрасывается сама при начале трансляции или записи), `tp` максимальный true peak (dBTP), `lra` диапазон, `gr_db` подавление лимитера мастера, `objetivo` и `fuera_de_objetivo` (интегральная отклоняется больше чем на 2 LU или TP выше потолка). audio_measure — по источникам; это — то, что выходит. У каждого выхода своя (`salida`).</translation>
     </message>
     <message>
+        <source>La ficha de un integrante del cuerpo, buscado por `clave`: su id, su número de banca o su nombre.</source>
+        <translation>Карточка участника Состава, найденного по `clave`: его id, номер места или имя.</translation>
+    </message>
+    <message>
+        <source>Borra un integrante del cuerpo (`id`, de cuerpo_listar): su nombre, su cargo y su banca dejan de estar en el cuerpo.</source>
+        <translation>Удаляет участника из Состава (`id`, из cuerpo_listar): его имени, должности и места в Составе больше нет.</translation>
+    </message>
+    <message>
         <location line="+1114" />
         <source>Cuanto disco queda y para cuantas horas alcanza al bitrate de todo lo que se graba (grabación, copia, señal limpia e ISO de todas las salidas, repartido por disco: manda el que antes se llena; sin grabar, lo que sumaría arrancar la grabación); si alguna copia va al mismo disco que su grabación (`copia_mismo_volumen`, `mismo_volumen`); y el estado del ultimo pase a MP4 (remux).</source>
         <translation>Сколько осталось места на диске и на сколько часов его хватит при битрейте всего, что записывается (запись, копия, чистый сигнал и ISO всех выходов, с разбивкой по дискам: решает тот, что заполнится первым; без записи — сколько добавил бы запуск записи); идёт ли какая-нибудь копия на тот же диск, что и её запись (`copia_mismo_volumen`, `mismo_volumen`); и состояние последнего преобразования в MP4 (remux).</translation>
@@ -57640,6 +57664,10 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+371" />
         <source>saca a un invitado de la conferencia</source>
         <translation>удаляет гостя из конференции</translation>
+    </message>
+    <message>
+        <source>Borra del gateway de la conferencia un archivo que compartió un invitado (`id`, de share_list).</source>
+        <translation>Удаляет со шлюза конференции файл, которым поделился гость (`id`, из share_list).</translation>
     </message>
     <message>
         <location line="+863" />
@@ -57893,9 +57921,8 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Удалить уведомитель</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Borra el notificador `id` (y su secreto guardado).</source>
-        <translation>Удаляет уведомитель `id` (и его сохранённый секрет).</translation>
+        <source>Borra el notificador `id` (de notificador_listar) y su secreto guardado: las alertas dejan de avisar por ese webhook, Telegram o correo.</source>
+        <translation>Удаляет уведомитель `id` (из notificador_listar) и его сохранённый секрет: оповещения больше не уходят через этот webhook, Telegram или почту.</translation>
     </message>
     <message>
         <location line="+3" />
@@ -58028,9 +58055,8 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Удалить триггеры</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra un disparador (`id`) o todos (`all`: true).</source>
-        <translation>Удаляет триггер (`id`) или все (`all`: true).</translation>
+        <source>Borra un disparador de alertas (`id`, de alert_list) o todos (`all`: true): esa condición deja de vigilarse.</source>
+        <translation>Удаляет триггер оповещения (`id`, из alert_list) или все (`all`: true): это условие больше не отслеживается.</translation>
     </message>
     <message>
         <location line="+7" />
@@ -58500,9 +58526,8 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
         <translation>Запустить / остановить ассистента</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>action: start | stop | restart.</source>
-        <translation>action: start | stop | restart.</translation>
+        <source>Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`).</source>
+        <translation>Запускает (`start`), останавливает (`stop`) или перезапускает (`restart`) ассистента мероприятия или ассистента автоматизации (`asistente`).</translation>
     </message>
     <message>
         <location line="+22" />
@@ -59336,9 +59361,8 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>Изменить страницу</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Cambia `nombre`, `columnas` o `filas` de la `pagina`.</source>
-        <translation>Меняет `nombre`, `columnas` или `filas` у `pagina`.</translation>
+        <source>Saca el atajo de teclado de `tecla` (o el de la acción con ese id; atajos_listar los muestra): esa tecla deja de hacer algo.</source>
+        <translation>Убирает сочетание клавиш `tecla` (или сочетание действия с этим id; их показывает atajos_listar): эта клавиша больше ничего не делает.</translation>
     </message>
     <message>
         <location line="+23" />
@@ -59440,11 +59464,6 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <location line="+9" />
         <source>Borrar una celda</source>
         <translation>Удалить ячейку</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Saca la celda en (`x`, `y`).</source>
-        <translation>Убирает ячейку в (`x`, `y`).</translation>
     </message>
     <message>
         <location line="+11" />
@@ -59573,6 +59592,14 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>Задать слой DSK</translation>
     </message>
     <message>
+        <source>Cambia el `nombre` o el tamaño de la grilla (`columnas`, `filas`, de 1 a 16) de una `pagina` de un `perfil` de la botonera.</source>
+        <translation>Меняет `nombre` или размер сетки (`columnas`, `filas`, от 1 до 16) страницы `pagina` профиля `perfil` пульта управления.</translation>
+    </message>
+    <message>
+        <source>Saca el botón de la celda (`x`, `y`) de una `pagina` de un `perfil` de la botonera: la celda queda vacía.</source>
+        <translation>Убирает кнопку из ячейки (`x`, `y`) страницы `pagina` профиля `perfil` пульта управления: ячейка остаётся пустой.</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>Arma la `capa` (1-4) con `contenido` (nombres de escenas o fuentes, apiladas en ese orden), `recuadro` opcional {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|arriba_izquierda, tamano: 0..1 del ancho, margen}, `fijo` y `transicion_ms`. Con `lsa_entrada`, la plantilla «Interprete LSA»: esa entrada en un recuadro abajo a la derecha, fija. No la sube: dsk_mostrar.</source>
         <translation>Собирает `capa` (1-4) из `contenido` (имена сцен или источников, сложенные в этом порядке), необязательного `recuadro` {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|arriba_izquierda, tamano: 0..1 от ширины, margen}, `fijo` и `transicion_ms`. С `lsa_entrada` — шаблон «Сурдопереводчик»: этот вход в окне справа внизу, закреплённый. Не поднимает его: dsk_mostrar.</translation>
@@ -59631,11 +59658,6 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <location line="+19" />
         <source>Quitar un atajo</source>
         <translation>Убрать сочетание</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Saca el atajo de `tecla` (o de la accion con ese id).</source>
-        <translation>Убирает сочетание для `tecla` (или для действия с этим id).</translation>
     </message>
     <message>
         <location line="+3" />
@@ -60905,11 +60927,6 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+1" />
-        <source>Deja de controlar la central. La sala sigue andando sola.</source>
-        <translation>Прекращает управлять центральным блоком. Зал продолжает работать сам.</translation>
-    </message>
-    <message>
-        <location line="+1" />
         <source>Abrir o cerrar el micrófono de una banca</source>
         <translation>Включить или выключить микрофон места</translation>
     </message>
@@ -60964,9 +60981,12 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
         <translation>Очистить список запросов</translation>
     </message>
     <message>
-        <location line="+1" />
-        <source>Borra todos los pedidos de palabra de la central.</source>
-        <translation>Удаляет все запросы слова в центральном блоке.</translation>
+        <source>Deja de controlar la central de conferencias: la sala sigue andando sola con sus micrófonos; dcn_conectar la retoma.</source>
+        <translation>Прекращает управление центральным блоком конференц-системы: зал продолжает работать сам со своими микрофонами; dcn_conectar возвращает управление.</translation>
+    </message>
+    <message>
+        <source>Borra todos los pedidos de palabra de la central (los de dcn_pedidos): nadie queda esperando para hablar.</source>
+        <translation>Удаляет все заявки на слово в центральном блоке (из dcn_pedidos): никто больше не ждёт очереди выступить.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -63270,9 +63290,8 @@ QR ДЕЛАЕТ ТРИ ВЕЩИ ОДНИМ СКАНИРОВАНИЕМ:
         <translation>Убрать человека из списка участников</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Borra a una persona de la lista del evento abierto.</source>
-        <translation>Удаляет человека из списка открытого мероприятия.</translation>
+        <source>Borra a una persona (`id`, de padron_ver) del padrón del evento abierto. No toca su ficha de rostros.</source>
+        <translation>Удаляет человека (`id`, из padron_ver) из списка открытого мероприятия. Его карточку в реестре лиц не трогает.</translation>
     </message>
     <message>
         <location line="+2" />
@@ -63755,9 +63774,8 @@ VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámar
         <translation>Убрать графику</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Deja la fuente transparente.</source>
-        <translation>Делает источник прозрачным.</translation>
+        <source>Saca del aire un gráfico animado: deja la fuente (`fuente`, el id de grafico_en_escena) transparente, sin borrarla de la escena.</source>
+        <translation>Убирает анимированную графику из эфира: делает источник (`fuente`, id из grafico_en_escena) прозрачным, не удаляя его из сцены.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -64029,9 +64047,8 @@ CAMPOS VIVOS: con `vivo: true`, cuando cambia lo que resuelve y el grafico ya es
         <translation>Удалить или выключить связь</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Quita un vinculo, o lo apaga sin borrarlo.</source>
-        <translation>Удаляет связь или выключает её, не удаляя.</translation>
+        <source>Quita un vínculo de rótulo (`id`, de rotulo_vinculos) o, con `activo`, lo apaga o lo prende sin borrarlo.</source>
+        <translation>Удаляет привязку титра (`id`, из rotulo_vinculos) или, с `activo`, выключает или включает её, не удаляя.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69600,9 +69617,8 @@ OJO CON EL ESTILO: un icono al centro tapa modulos, asi que sube la correccion d
         <translation>Имеющиеся рецепты</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Que recetas hay disponibles para correr, con su nombre.</source>
-        <translation>Какие рецепты доступны для запуска, с их именами.</translation>
+        <source>Las recetas guardadas (secuencias de pasos para repetir igual, receta_guardar) que se pueden correr, con su id y su nombre.</source>
+        <translation>Сохранённые рецепты (последовательности шагов для точного повтора, receta_guardar), которые можно запустить, с их id и названием.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -69692,9 +69708,12 @@ NO hay condiciones, bucles ni recetas que llamen a recetas: eso ya es un program
         <translation>Удалить рецепт</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Saca una receta de la lista.</source>
-        <translation>Убирает рецепт из списка.</translation>
+        <source>Borra una receta guardada (`id`, de receta_listar): esa secuencia de pasos deja de estar para correrla.</source>
+        <translation>Удаляет сохранённый рецепт (`id`, из receta_listar): эта последовательность шагов больше недоступна для запуска.</translation>
+    </message>
+    <message>
+        <source>Ejecuta en orden los pasos de una receta guardada (`id`), con `parametros` para sus `{...}`; si un paso falla, se frena ahí.</source>
+        <translation>Выполняет по порядку шаги сохранённого рецепта (`id`), с `parametros` для его `{...}`; если шаг не удался, останавливается на нём.</translation>
     </message>
     <message>
         <location line="+10" />
@@ -69711,11 +69730,6 @@ NO hay condiciones, bucles ni recetas que llamen a recetas: eso ya es un program
         <location line="+8" />
         <source>Correr una receta</source>
         <translation>Запустить рецепт</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Ejecuta los pasos de una receta, en orden.</source>
-        <translation>Выполняет шаги рецепта по порядку.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -70021,9 +70035,16 @@ El cambio queda anotado en el propio registro, con quién lo hizo, para que mañ
         <translation>Карточки расширений</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Las tarjetas que viven en Extensiones/, con su estado.</source>
-        <translation>Карточки, которые лежат в Extensiones/, с их состоянием.</translation>
+        <source>Las extensiones (tarjetas QML del dashboard, en Extensiones/) con su estado: si les falta algo o si el arranque las apagó.</source>
+        <translation>Расширения (QML-карточки панели, в Extensiones/) с их состоянием: чего-то не хватает или запуск их отключил.</translation>
+    </message>
+    <message>
+        <source>Vuelve a cargar una extensión (tarjeta QML del dashboard) que el arranque apagó porque colgaba la app; antes, arreglá el QML.</source>
+        <translation>Снова загружает расширение (QML-карточку панели), которое запуск отключил, потому что оно вешало приложение; сначала исправь QML.</translation>
+    </message>
+    <message>
+        <source>Escribe una línea propia (`texto`) en el registro de la app, para marcar desde dónde mirar después lo que pasó.</source>
+        <translation>Пишет свою строку (`texto`) в журнал приложения, чтобы отметить, откуда потом смотреть, что произошло.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -70054,11 +70075,6 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <translation>Включить выключенное расширение</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Vuelve a cargar una tarjeta que el arranque habia apagado.</source>
-        <translation>Снова загружает карточку, которую выключил запуск.</translation>
-    </message>
-    <message>
         <location line="+1" />
         <source>Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola y vas a haber gastado dos reinicios del programa.</source>
         <translation>СНАЧАЛА исправьте QML. Если она продолжит вешать запуск, то снова выключится сама, а вы потратите два перезапуска программы.</translation>
@@ -70072,11 +70088,6 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <location line="+8" />
         <source>Dejar una marca</source>
         <translation>Поставить метку</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Escribe una línea propia en el registro.</source>
-        <translation>Записывает в журнал собственную строку.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -70238,9 +70249,8 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <translation>Вернуть в очередь</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Orador que ya hablo: vuelve al final de la fila.</source>
-        <translation>Выступающий, который уже говорил, возвращается в конец очереди.</translation>
+        <source>Un orador que ya habló vuelve a la fila de oradores, al final, para hablar otra vez (`participant`: nombre o id).</source>
+        <translation>Выступающий, который уже говорил, возвращается в конец очереди выступающих, чтобы выступить снова (`participant`: имя или id).</translation>
     </message>
     <message>
         <location line="+7" />
@@ -70740,11 +70750,6 @@ Si no hay lugar libre en la conferencia (`room_status` -&gt; `slotsFree`) el gat
         <location line="+7" />
         <source>Borrar archivo compartido</source>
         <translation>Удалить общий файл</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Borra un archivo compartido del gateway.</source>
-        <translation>Удаляет общий файл со шлюза.</translation>
     </message>
     <message>
         <location line="+13" />
@@ -71880,11 +71885,6 @@ Que el plano que SALE del aire quede armado es como funciona cualquier mesa: des
         <translation>Скопировать сцену</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Crea una escena nueva con todas las fuentes de otra.</source>
-        <translation>Создаёт новую сцену со всеми источниками другой.</translation>
-    </message>
-    <message>
         <location line="+1" />
         <source>Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y cambiarle lo que difiere.
 
@@ -71921,11 +71921,6 @@ La copia nunca queda protegida, aunque el original lo este: para eso se copia. S
         <location line="+8" />
         <source>Proteger una escena</source>
         <translation>Защитить сцену</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Una escena protegida no se puede borrar ni renombrar.</source>
-        <translation>Защищённую сцену нельзя удалить или переименовать.</translation>
     </message>
     <message>
         <location line="+1" />
@@ -71965,11 +71960,6 @@ Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que des
         <location line="+7" />
         <source>Renombrar escena</source>
         <translation>Переименовать сцену</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Cambia el nombre de una escena.</source>
-        <translation>Меняет имя сцены.</translation>
     </message>
     <message>
         <location line="+5" />
@@ -72070,11 +72060,6 @@ Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que des
         <location line="+8" />
         <source>Transicion entre escenas</source>
         <translation>Переход между сценами</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Tipo y duracion de la transicion al cambiar de escena.</source>
-        <translation>Тип и длительность перехода при смене сцены.</translation>
     </message>
     <message>
         <location line="+11" />
@@ -72586,11 +72571,6 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
     </message>
     <message>
         <location line="+3" />
-        <source>Deja de mandar subtitulos ocultos.</source>
-        <translation>Прекращает отправку скрытых субтитров.</translation>
-    </message>
-    <message>
-        <location line="+3" />
         <source>Apagados.</source>
         <translation>Выключено.</translation>
     </message>
@@ -72641,11 +72621,6 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>Убрать термин из словаря</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Saca el `termino` (de cualquier grupo).</source>
-        <translation>Убирает `termino` (из любой группы).</translation>
-    </message>
-    <message>
         <location line="+4" />
         <source>no esta en el vocabulario</source>
         <translation>нет в словаре</translation>
@@ -72691,9 +72666,16 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>Добавить место в очередь или убрать</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>`agregar` o `quitar`: banca, id o nombre del cuerpo.</source>
-        <translation>`agregar` или `quitar`: место, id или имя из состава.</translation>
+        <source>Deja de mandar subtítulos ocultos (CEA-608 en la transmisión y la API de subtítulos de YouTube): lo contrario de cc_activar.</source>
+        <translation>Прекращает отправку скрытых субтитров (CEA-608 в трансляции и API субтитров YouTube): противоположность cc_activar.</translation>
+    </message>
+    <message>
+        <source>Saca un `termino` del vocabulario de la transcripción, de cualquier grupo (voz_vocabulario los muestra).</source>
+        <translation>Убирает `termino` из словаря расшифровки, из любой группы (их показывает voz_vocabulario).</translation>
+    </message>
+    <message>
+        <source>Suma (`agregar`) o saca (`quitar`) una banca de la fila de oradores presenciales: por número de banca, id o nombre del integrante.</source>
+        <translation>Добавляет (`agregar`) или убирает (`quitar`) место из очереди выступающих в зале: по номеру места, id или имени участника.</translation>
     </message>
     <message>
         <location line="+16" />
@@ -73016,9 +72998,8 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>Посмотреть участника состава</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Busca por id, banca o nombre.</source>
-        <translation>Ищет по id, месту или имени.</translation>
+        <source>Graba entradas sueltas (cámaras, invitados) cada una en su propio archivo, además del programa; sin argumentos, dice qué se graba.</source>
+        <translation>Записывает отдельные входы (камеры, гостей) каждый в свой файл, помимо программы; без аргументов говорит, что записывается.</translation>
     </message>
     <message>
         <location line="+4" />
@@ -73050,11 +73031,6 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <location line="+7" />
         <source>Sacar a un integrante del cuerpo</source>
         <translation>Убрать участника из состава</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Borra un integrante (`id`).</source>
-        <translation>Удаляет участника (`id`).</translation>
     </message>
     <message>
         <location line="+12" />
@@ -73360,11 +73336,6 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <location line="+9" />
         <source>Grabar cada entrada por separado</source>
         <translation>Записывать каждый вход отдельно</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>Graba una entrada a su propio archivo, ademas del programa.</source>
-        <translation>Записывает вход в отдельный файл, помимо программы.</translation>
     </message>
     <message>
         <location line="+2" />
@@ -74988,9 +74959,8 @@ EL DORSO: los tipos con `dorso: true` (el DNI y `mrz-td1`) se leen también por 
         <translation>Удалить VOD</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra uno o mas videos del canal (no se puede deshacer).</source>
-        <translation>Удаляет одно или несколько видео канала (отменить нельзя).</translation>
+        <source>Borra de uno a cinco videos (VODs) del canal de Twitch (`ids`, de twitch_videos). No se puede deshacer.</source>
+        <translation>Удаляет от одного до пяти видео (VOD) с канала Twitch (`ids`, из twitch_videos). Отменить нельзя.</translation>
     </message>
     <message>
         <location line="+14" />
@@ -75297,9 +75267,8 @@ El operador hace lo mismo con el boton ⧉ del panel.</source>
         <translation>Уведомление на экране</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Muestra un aviso (toast) al operador en la app.</source>
-        <translation>Показывает оператору уведомление (toast) в приложении.</translation>
+        <source>Muestra un aviso corto (toast) en la app del operador, con un nivel: info, ok, warn o error.</source>
+        <translation>Показывает короткое уведомление (toast) в приложении оператора с уровнем: info, ok, warn или error.</translation>
     </message>
     <message>
         <location line="+18" />
@@ -77078,11 +77047,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
         <translation>Браузер открыт: человек должен выбрать учётную запись и согласиться. Затем — youtube_status.</translation>
     </message>
     <message>
-        <location line="+18" />
-        <source>Revoca el acceso en Google y borra el token guardado.</source>
-        <translation>Отзывает доступ в Google и удаляет сохранённый токен.</translation>
-    </message>
-    <message>
         <location line="+3" />
         <source>Cuenta desconectada.</source>
         <translation>Учётная запись отключена.</translation>
@@ -77118,9 +77082,12 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
         <translation>Удалить видео</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>Borra un video del canal (no se puede deshacer).</source>
-        <translation>Удаляет видео с канала (отменить нельзя).</translation>
+        <source>Desconecta la cuenta de YouTube de este aparato: revoca el acceso en Google y borra el token guardado.</source>
+        <translation>Отключает аккаунт YouTube от этого устройства: отзывает доступ в Google и удаляет сохранённый токен.</translation>
+    </message>
+    <message>
+        <source>Borra un video del canal de YouTube (`id`, de youtube_videos). No se puede deshacer.</source>
+        <translation>Удаляет видео с канала YouTube (`id`, из youtube_videos). Отменить нельзя.</translation>
     </message>
     <message>
         <location line="+5" />
@@ -78646,6 +78613,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>общее состояние сводка как всё обзор здоровье</translation>
     </message>
     <message>
+        <source>como venimos cpu fps cuadros perdidos perdiendo cuadros codificador encoder cuanto llevamos transmitiendo cuanto lleva la grabacion se congelo sigue vivo procesador ventilador ahogando chequeo general</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>как дела cpu fps потерянные кадры теряем кадры кодировщик энкодер сколько уже в эфире сколько идёт запись зависло ещё живой процессор вентилятор задыхается общая проверка</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>aire guardas confirmar acciones peligrosas en vivo transmision bloqueo seguridad</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -79366,6 +79338,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>чат последние сообщения аудитория выделить комментарии аудитории чат эфира прочитать чат что пишут люди</translation>
     </message>
     <message>
+        <source>youtube facebook twitch espectadores audiencia que dijeron que escribieron el chat de la transmision ultimos minutos spam saludan reaccionando</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>youtube facebook twitch зрители аудитория что сказали что написали чат трансляции последние минуты спам приветствуют реагируют</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>destacar mensaje chat aire pantalla publico pregunta</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -79406,6 +79383,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>terminar orador presencial banca cortar quitar la palabra terminar el turno del que habla en el recinto concejal</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>завершить очного выступающего место прервать лишить слова завершить выступление говорящего в зале депутат советник</translation>
+    </message>
+    <message>
+        <source>terminar la intervencion sacarlo del aire cerrar el micro del orador del que tiene la palabra cerrar la banca que esta hablando concluyo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>закончить выступление убрать из эфира выключить микрофон выступающего того у кого слово закрыть место которое говорит закончил</translation>
     </message>
     <message>
         <location line="+2" />
@@ -80242,6 +80224,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>консоль пульт каналы фейдеры уровни</translation>
     </message>
     <message>
+        <source>mezclador foto del mezclador lectura del mezclador niveles volumenes silencios picos pica en rojo fader bajado volumen mas alto nivel de cada fuente mostrame el mezclador leer los niveles</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>микшер снимок микшера показания микшера уровни громкости заглушённые пики в красной зоне фейдер опущен самая громкая уровень каждого источника покажи микшер прочитать уровни</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>salimos al aire salgamos al aire arrancamos la transmision empezar a transmitir empezar arrancar salir al aire comenzar transmision</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -80264,6 +80251,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar de grabar frena la grabacion cortar la grabacion terminar de grabar detener terminar la grabacion stop</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>стоп останови запись прекратить запись остановить запись закончить запись прекрати писать завершить запись stop</translation>
+    </message>
+    <message>
+        <source>cortar el rec cortar el grabado cerrar la grabacion finalizar la grabacion fin de la grabacion dejar de escribir en disco sigue grabando dejar de grabar</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>выключить запись остановить запись закрыть запись завершить запись конец записи перестать писать на диск всё ещё пишет хватит записывать</translation>
     </message>
     <message>
         <location line="+4" />
@@ -81032,10 +81024,20 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>вернуть отправить назад снова в конец очереди того кто уже выступил</translation>
     </message>
     <message>
+        <source>reencolar de nuevo otra vez esperando al final al fondo ultimo lugar ya tuvo su turno ya expuso volver a anotar reingresar quiere volver a hablar replicar detras de todos</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>снова в очередь ещё раз ждать в конце в хвосте последнее место уже выступал уже говорил записать снова вернуть в очередь хочет выступить ещё реплика после всех</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>dejar entrar a todos admitir todos vaciar lobby</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>впустить всех допустить всех очистить зал ожидания</translation>
+    </message>
+    <message>
+        <source>hacer pasar a todos que pasen todos todo el mundo dar paso a todos aceptar a todos toda la cola de espera que entren todos que no quede ninguno afuera</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>впустить всех пусть все заходят всех пропустить принять всех вся очередь ожидания чтобы никто не остался снаружи</translation>
     </message>
     <message>
         <location line="+2" />
@@ -81056,6 +81058,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>профиль данные имя должность сведения о человеке профиль гостя переименовать</translation>
     </message>
     <message>
+        <source>info informacion cargo contacto telefono mail correo editar el perfil corregir los datos actualizar la info ponerle de nombre sin cargo cargo viejo sumar un dato agregar un dato</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>инфо информация должность контакт телефон почта изменить профиль исправить данные обновить инфо указать имя без должности старая должность добавить данные</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -81066,6 +81073,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>что он сказал что написал прочитать что прислали что ответил история переписка что сказали прочитать чат</translation>
+    </message>
+    <message>
+        <source>chat interno mensajes recientes ultimos mensajes quien mando a que hora produccion mando algo algun invitado aviso por chat confirmo saludo escribieron</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>внутренний чат последние сообщения свежие сообщения кто отправил во сколько продакшн что-то прислал кто-то из гостей написал в чат подтвердил поздоровался написали</translation>
     </message>
     <message>
         <location line="+3" />
@@ -81122,6 +81134,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>прерывается обрывается заикается трансляция падает тормозит сеть интернет подключение пропускная способность туннель качество</translation>
     </message>
     <message>
+        <source>https certificado sitio no seguro conexion no segura aviso de seguridad wireguard tunel puertos webrtc ip local estado de la red revisar la red chequear la red mirar la red los remotos no pueden conectarse queda cargando el link</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>https сертификат небезопасный сайт небезопасное подключение предупреждение безопасности wireguard туннель порты webrtc локальный ip состояние сети проверить сеть посмотреть сеть удалённые не могут подключиться ссылка долго грузится</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada reiniciar conferencia la conferencia no responde</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -81152,16 +81169,31 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>вывести выступающего в эфир дать эфир говорящему дать эфир удалённому выступающему</translation>
     </message>
     <message>
+        <source>sacar del aire bajar del aire sacarlo que vuelva a esperar darle el aire arrancar su reloj entrar al aire habilitar al aire sigue en pantalla salteando la fila</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>убрать из эфира снять с эфира вернуть в ожидание дать эфир запустить его таймер выйти в эфир вывести в эфир без очереди всё ещё на экране</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador pasar al que sigue avanzar la fila</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>давай следующего следующий выступающий очередной выступающий следующая очередь перейти к следующему продвинуть очередь</translation>
     </message>
     <message>
+        <source>que pase el que sigue el proximo dale al siguiente largar al siguiente el que viene adelante que entre otro dale aire al que sigue</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>пусть выходит следующий следующий давай следующего запускай следующего кто дальше вперёд следующий пусть выйдет другой дай эфир следующему</translation>
+    </message>
+    <message>
         <location line="+3" />
         <source>mover en la fila reordenar oradores pasar a alguien al primer lugar de la fila</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>переместить в очереди изменить порядок выступающих поставить кого-то первым в очереди</translation>
+    </message>
+    <message>
+        <source>puesto en la fila adelantar atrasar lugares segunda tercera cuarta quinta sexta orden de la fila cambiar de puesto</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>место в очереди поднять опустить места вторая третья четвёртая пятая шестая порядок очереди поменять место</translation>
     </message>
     <message>
         <location line="+2" />
@@ -81806,6 +81838,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>двигать камеру панорамирование pan tilt зум приблизить отдалить повернуть поднять опустить камеру</translation>
     </message>
     <message>
+        <source>girar panear inclinar izquierda derecha arriba abajo mucho techo se corrio</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>повернуть панорамировать наклонить влево вправо вверх вниз много потолка он сдвинулся</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>parar la camara frenar el movimiento detener stop dejar quieta la camara frenar ptz</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -81882,6 +81919,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>caras que ve la camara quien esta en cuadro detectar rostros ptz</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>лица которые видит камера кто в кадре обнаружить лица ptz</translation>
+    </message>
+    <message>
+        <source>cara caras donde esta la cara cuantas caras cara mas grande cara chiquita tamano de la cara altura de la cara apunta a la pared tomando alguna cara mas de una cara</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>лицо лица где лицо сколько лиц самое крупное лицо маленькое лицо размер лица высота лица смотрит в стену видит лицо больше одного лица</translation>
     </message>
     <message>
         <location line="+2" />
@@ -82346,6 +82388,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>запустить остановить скорость телесуфлёра прокрутка вперёд</translation>
     </message>
     <message>
+        <source>velocidad palabras por minuto parrafo saltar al parrafo ir al parrafo avisarle al orador aviso al orador que cierre tapar destapar panico scroll detener el scroll que siga corriendo el texto espejo invertir</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>скорость слов в минуту абзац перейти к абзацу прыгнуть к абзацу предупредить выступающего сообщение выступающему закругляться закрыть открыть паника прокрутка остановить прокрутку продолжить текст зеркало отразить</translation>
+    </message>
+    <message>
         <location line="+4" />
         <source>que televisores hay pantallas conocidas estado</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82754,6 +82801,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>очередь в дебатах дать слово одному заглушить другого оба</translation>
     </message>
     <message>
+        <source>dar la palabra los dos juntos que nadie hable nadie con la palabra replica</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>предоставить слово оба вместе пусть никто не говорит ни у кого нет слова реплика</translation>
+    </message>
+    <message>
         <location line="+2" />
         <source>terminar el debate cortar debate</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82958,6 +83010,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>запустить сценарий начать продвинуть поставить на паузу мероприятие выполнить следующую команду hold остановить удержать чтобы не прошло само автоматически</translation>
     </message>
     <message>
+        <source>proximo cue ir al bloque saltar al bloque reanudar el guion seguir el guion desde donde quedo parar el guion terminar el guion se cancela el acto pasada de prueba</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>следующая команда перейти к блоку прыгнуть к блоку возобновить сценарий продолжить сценарий с места остановки остановить сценарий закончить сценарий мероприятие отменено прогон</translation>
+    </message>
+    <message>
         <location line="+5" />
         <source>que ventanas hay abiertas donde esta cada una en que monitor geometria</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
@@ -82998,6 +83055,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>mirar la imagen que se ve ahi que hay en camara revisar visualmente analizar captura vision hay alguien cuadro negro se lee el rotulo preguntarle a la imagen contar personas leer el texto de la imagen</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>посмотреть изображение что там видно что на камере визуальная проверка анализ снимка зрение есть ли кто-то чёрный кадр читается ли титр спросить у изображения посчитать людей прочитать текст на изображении</translation>
+    </message>
+    <message>
+        <source>contestame mirando respondeme mirando fijate y contestame que dice el cartel oscura buena luz corbata camisa tapada hombre o mujer torcida que hora marca no quiero la foto</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>ответь глядя посмотри и скажи что написано на табличке темно хороший свет галстук рубашка закрыт мужчина или женщина криво сколько показывают часы не нужна фотография</translation>
     </message>
     <message>
         <location line="+3" />
@@ -83569,7 +83631,27 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>изменить настройку настроить параметр сконфигурировать</translation>
     </message>
-</context>
+<message>
+        <source>escribirle recordarle por chat poner en el chat tirar un mensaje mensaje a la sala chat general mandar al chat</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>написать ему напомнить в чате написать в чат кинуть сообщение сообщение всему залу общий чат отправить в чат</translation>
+    </message>
+    <message>
+        <source>grupos del mezclador tiras compactar desplegar compacto agrupar las tiras todo el grupo grupo mudo abrir el grupo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>группы микшера линейки свернуть развернуть компактно сгруппировать линейки вся группа группа заглушена открыть группу</translation>
+    </message>
+    <message>
+        <source>tema colores tipografia letra logo favicon marca modo oscuro claro aspecto de las paginas web apariencia identidad visual personalizar la web</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>тема цвета типографика шрифт логотип фавикон бренд тёмный режим светлый вид веб-страниц внешний вид фирменный стиль оформить сайт</translation>
+    </message>
+    <message>
+        <source>teleprompters varios prompters agregar un teleprompter otro prompter cual prompter lista de teleprompters</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>телесуфлёры несколько суфлёров добавить телесуфлёр ещё один суфлёр какой суфлёр список телесуфлёров</translation>
+    </message>
+    </context>
 <context>
     <name>medios</name>
     <message>

@@ -43,7 +43,8 @@ void McpService::registerDcnTools() {
         {"dcn_puertos", "puertos", QT_TRANSLATE_NOOP("mcp", "Puertos serie del equipo"),
          QT_TRANSLATE_NOOP("mcp", "Los puertos serie (adaptadores USB-serie) para conectar la central."), json::object(), Clase::Lectura, false},
         {"dcn_desconectar", "desconectar", QT_TRANSLATE_NOOP("mcp", "Soltar la central"),
-         QT_TRANSLATE_NOOP("mcp", "Deja de controlar la central. La sala sigue andando sola."), json::object(), Clase::Escritura, true},
+         QT_TRANSLATE_NOOP("mcp", "Deja de controlar la central de conferencias: la sala sigue andando sola con sus micrófonos; dcn_conectar "
+                                  "la retoma."), json::object(), Clase::Escritura, true},
         {"dcn_microfono", "microfono", QT_TRANSLATE_NOOP("mcp", "Abrir o cerrar el micrófono de una banca"),
          QT_TRANSLATE_NOOP("mcp", "Abre (abierto=true) o cierra el micrófono de la banca en la central. Si ya está el máximo de abiertos, "
          "la central lo rechaza y se dice. El del presidente: cerrarlo pide `confirmar: true`."),
@@ -63,7 +64,7 @@ void McpService::registerDcnTools() {
           {"referencia", {{"type", "string"}}}},
          Clase::Escritura, false},
         {"dcn_pedidos_limpiar", "pedidos_limpiar", QT_TRANSLATE_NOOP("mcp", "Vaciar la lista de pedidos"),
-         QT_TRANSLATE_NOOP("mcp", "Borra todos los pedidos de palabra de la central."), json::object(), Clase::Escritura, true},
+         QT_TRANSLATE_NOOP("mcp", "Borra todos los pedidos de palabra de la central (los de dcn_pedidos): nadie queda esperando para hablar."), json::object(), Clase::Escritura, true},
         {"dcn_oradores", "oradores", QT_TRANSLATE_NOOP("mcp", "Quién tiene la palabra"),
          QT_TRANSLATE_NOOP("mcp", "La lista de oradores de la central, con el micrófono prendido o no."), json::object(), Clase::Lectura, false},
         {"dcn_orador_quitar", "orador_quitar", QT_TRANSLATE_NOOP("mcp", "Sacar a un orador"),

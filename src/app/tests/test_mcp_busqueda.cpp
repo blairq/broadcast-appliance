@@ -559,6 +559,13 @@ int main() {
     CHECK(i.buscar("xyzzy plugh", 12).empty(), "lo que no existe no trae nada");
     CHECK(i.buscar("", 12).empty(), "una consulta vacia no trae nada");
 
+    // --- La línea de palabras clave (tools/list para tool_search) -------------
+    // Las filas propias tal cual, sin las de la familia: «dejar de grabar» entero.
+    CHECK(palabrasClave("record_stop").find("dejar de grabar") != std::string::npos,
+          "palabras clave: las filas propias, como frases");
+    CHECK(palabrasClave("record_stop").find("mp4") == std::string::npos,
+          "palabras clave: sin las de la familia (record_)");
+
     otroIdioma();
 
     if (g_fallos == 0) {

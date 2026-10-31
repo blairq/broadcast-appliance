@@ -3372,7 +3372,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 145
+        "linea": 146
       },
       "roles": [
         "asistente"
@@ -3385,7 +3385,7 @@
       "nombre": "alert_delete",
       "titulo": "Borrar disparadores",
       "categoria": "alertas",
-      "descripcion": "Borra un disparador (`id`) o todos (`all`: true).",
+      "descripcion": "Borra un disparador de alertas (`id`, de alert_list) o todos (`all`: true): esa condición deja de vigilarse.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -3408,7 +3408,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 306
+        "linea": 307
       },
       "roles": [
         "asistente"
@@ -3445,7 +3445,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 326
+        "linea": 328
       },
       "roles": [
         "asistente"
@@ -3475,7 +3475,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 230
+        "linea": 231
       },
       "roles": [
         "asistente"
@@ -3501,7 +3501,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 248
+        "linea": 249
       },
       "roles": [
         "asistente"
@@ -3534,7 +3534,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 210
+        "linea": 211
       },
       "roles": [
         "asistente"
@@ -3560,7 +3560,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 131
+        "linea": 132
       },
       "roles": [
         "asistente"
@@ -3641,7 +3641,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 271
+        "linea": 272
       },
       "roles": [
         "asistente"
@@ -3678,7 +3678,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAlertTools.cpp",
-        "linea": 351
+        "linea": 353
       },
       "roles": [
         "asistente"
@@ -3750,7 +3750,7 @@
       "nombre": "notificador_borrar",
       "titulo": "Borrar un notificador",
       "categoria": "alertas",
-      "descripcion": "Borra el notificador `id` (y su secreto guardado).",
+      "descripcion": "Borra el notificador `id` (de notificador_listar) y su secreto guardado: las alertas dejan de avisar por ese webhook, Telegram o correo.",
       "esquema": {
         "type": "object",
         "required": [
@@ -3932,7 +3932,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3409
+        "linea": 3414
       },
       "roles": [
         "asistente"
@@ -4080,7 +4080,7 @@
       "nombre": "assistant_run",
       "titulo": "Arrancar / detener el asistente",
       "categoria": "asistente",
-      "descripcion": "action: start | stop | restart.",
+      "descripcion": "Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`).",
       "esquema": {
         "type": "object",
         "properties": {
@@ -4157,7 +4157,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 252
+        "linea": 253
       },
       "roles": [
         "asistente"
@@ -4358,7 +4358,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2154
+        "linea": 2156
       },
       "roles": [
         "asistente",
@@ -4391,7 +4391,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2349
+        "linea": 2351
       },
       "roles": [
         "asistente",
@@ -4447,7 +4447,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2380
+        "linea": 2382
       },
       "roles": [
         "asistente",
@@ -4481,7 +4481,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2366
+        "linea": 2368
       },
       "roles": [
         "asistente",
@@ -4571,7 +4571,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2273
+        "linea": 2275
       },
       "roles": [
         "asistente",
@@ -4618,7 +4618,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2117
+        "linea": 2119
       },
       "roles": [
         "asistente",
@@ -4664,7 +4664,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2290
+        "linea": 2292
       },
       "roles": [
         "asistente",
@@ -4705,7 +4705,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2233
+        "linea": 2235
       },
       "roles": [
         "asistente",
@@ -4781,12 +4781,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "consola mesa canales faders niveles",
+        "propias": "consola mesa canales faders niveles mezclador foto del mezclador lectura del mezclador niveles volumenes silencios picos pica en rojo fader bajado volumen mas alto nivel de cada fuente mostrame el mezclador leer los niveles",
         "porPrefijo": "mezcla audio volumen canal pista mixer"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2081
+        "linea": 2083
       },
       "roles": [
         "asistente",
@@ -5856,7 +5856,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "grupos del mezclador tiras compactar desplegar compacto agrupar las tiras todo el grupo grupo mudo abrir el grupo",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
@@ -7371,7 +7371,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 743
+        "linea": 745
       },
       "roles": [
         "asistente"
@@ -7397,7 +7397,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 683
+        "linea": 684
       },
       "roles": [
         "asistente"
@@ -7437,7 +7437,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 707
+        "linea": 708
       },
       "roles": [
         "asistente"
@@ -7447,7 +7447,7 @@
       "nombre": "atajo_quitar",
       "titulo": "Quitar un atajo",
       "categoria": "botonera",
-      "descripcion": "Saca el atajo de `tecla` (o de la accion con ese id).",
+      "descripcion": "Saca el atajo de teclado de `tecla` (o el de la acción con ese id; atajos_listar los muestra): esa tecla deja de hacer algo.",
       "esquema": {
         "type": "object",
         "required": [
@@ -7470,7 +7470,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 728
+        "linea": 729
       },
       "roles": [
         "asistente"
@@ -7496,7 +7496,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 695
+        "linea": 696
       },
       "roles": [
         "asistente"
@@ -7526,7 +7526,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 951
+        "linea": 953
       },
       "roles": [
         "asistente"
@@ -7559,7 +7559,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 573
+        "linea": 574
       },
       "roles": [
         "asistente"
@@ -7622,7 +7622,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 362
+        "linea": 363
       },
       "roles": [
         "asistente"
@@ -7632,7 +7632,7 @@
       "nombre": "botonera_celda_borrar",
       "titulo": "Borrar una celda",
       "categoria": "botonera",
-      "descripcion": "Saca la celda en (`x`, `y`).",
+      "descripcion": "Saca el botón de la celda (`x`, `y`) de una `pagina` de un `perfil` de la botonera: la celda queda vacía.",
       "esquema": {
         "type": "object",
         "required": [
@@ -7667,7 +7667,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 426
+        "linea": 427
       },
       "roles": [
         "asistente"
@@ -7757,7 +7757,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 321
+        "linea": 322
       },
       "roles": [
         "asistente"
@@ -7794,7 +7794,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 303
+        "linea": 304
       },
       "roles": [
         "asistente"
@@ -7834,7 +7834,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 504
+        "linea": 505
       },
       "roles": [
         "asistente"
@@ -7860,7 +7860,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 483
+        "linea": 484
       },
       "roles": [
         "asistente"
@@ -7898,7 +7898,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 523
+        "linea": 524
       },
       "roles": [
         "asistente"
@@ -7924,7 +7924,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 589
+        "linea": 590
       },
       "roles": [
         "asistente"
@@ -8027,7 +8027,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 285
+        "linea": 286
       },
       "roles": [
         "asistente"
@@ -8086,7 +8086,7 @@
       "nombre": "botonera_pagina_editar",
       "titulo": "Editar una pagina",
       "categoria": "botonera",
-      "descripcion": "Cambia `nombre`, `columnas` o `filas` de la `pagina`.",
+      "descripcion": "Cambia el `nombre` o el tamaño de la grilla (`columnas`, `filas`, de 1 a 16) de una `pagina` de un `perfil` de la botonera.",
       "esquema": {
         "type": "object",
         "required": [
@@ -8379,7 +8379,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 449
+        "linea": 450
       },
       "roles": [
         "asistente"
@@ -8412,7 +8412,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 556
+        "linea": 557
       },
       "roles": [
         "asistente"
@@ -8450,7 +8450,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 925
+        "linea": 927
       },
       "roles": [
         "asistente"
@@ -8476,7 +8476,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 913
+        "linea": 915
       },
       "roles": [
         "asistente"
@@ -8506,7 +8506,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 833
+        "linea": 835
       },
       "roles": [
         "asistente"
@@ -8577,7 +8577,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 464
+        "linea": 456
       },
       "roles": [
         "asistente"
@@ -8610,7 +8610,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 487
+        "linea": 479
       },
       "roles": [
         "asistente"
@@ -8636,7 +8636,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 872
+        "linea": 874
       },
       "roles": [
         "asistente"
@@ -8675,7 +8675,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 790
+        "linea": 792
       },
       "roles": [
         "asistente"
@@ -8701,7 +8701,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 779
+        "linea": 781
       },
       "roles": [
         "asistente"
@@ -8733,7 +8733,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 812
+        "linea": 814
       },
       "roles": [
         "asistente"
@@ -8773,7 +8773,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3362
+        "linea": 3367
       },
       "roles": [
         "asistente"
@@ -8923,7 +8923,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "caras que ve la camara quien esta en cuadro detectar rostros ptz",
+        "propias": "caras que ve la camara quien esta en cuadro detectar rostros ptz cara caras donde esta la cara cuantas caras cara mas grande cara chiquita tamano de la cara altura de la cara apunta a la pared tomando alguna cara mas de una cara",
         "porPrefijo": ""
       },
       "donde": {
@@ -9292,7 +9292,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "mover camara paneo pan tilt zoom acercar alejar girar subir bajar la camara",
+        "propias": "mover camara paneo pan tilt zoom acercar alejar girar subir bajar la camara girar panear inclinar izquierda derecha arriba abajo mucho techo se corrio",
         "porPrefijo": ""
       },
       "donde": {
@@ -9716,7 +9716,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3345
+        "linea": 3350
       },
       "roles": [
         "asistente"
@@ -9826,7 +9826,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -9852,7 +9852,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -9882,7 +9882,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -9916,7 +9916,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10002,7 +10002,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 240
+        "linea": 241
       },
       "roles": [
         "asistente"
@@ -10012,7 +10012,7 @@
       "nombre": "dcn_desconectar",
       "titulo": "Soltar la central",
       "categoria": "conferencia",
-      "descripcion": "Deja de controlar la central. La sala sigue andando sola.",
+      "descripcion": "Deja de controlar la central de conferencias: la sala sigue andando sola con sus micrófonos; dcn_conectar la retoma.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -10028,7 +10028,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10054,7 +10054,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10090,7 +10090,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10127,7 +10127,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10166,7 +10166,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10203,7 +10203,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10257,7 +10257,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10292,7 +10292,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10322,7 +10322,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10365,7 +10365,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10391,7 +10391,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10401,7 +10401,7 @@
       "nombre": "dcn_pedidos_limpiar",
       "titulo": "Vaciar la lista de pedidos",
       "categoria": "conferencia",
-      "descripcion": "Borra todos los pedidos de palabra de la central.",
+      "descripcion": "Borra todos los pedidos de palabra de la central (los de dcn_pedidos): nadie queda esperando para hablar.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -10417,7 +10417,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10447,7 +10447,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 225
+        "linea": 226
       },
       "roles": [
         "asistente"
@@ -10473,7 +10473,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10499,7 +10499,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10525,7 +10525,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10562,7 +10562,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10596,7 +10596,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10630,7 +10630,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10660,7 +10660,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10694,7 +10694,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10740,7 +10740,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10773,7 +10773,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10816,7 +10816,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10842,7 +10842,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10900,7 +10900,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10930,7 +10930,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 208
+        "linea": 209
       },
       "roles": [
         "asistente"
@@ -10956,7 +10956,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDcnTools.cpp",
-        "linea": 185
+        "linea": 186
       },
       "roles": [
         "asistente"
@@ -10982,7 +10982,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4083
+        "linea": 4089
       },
       "roles": [
         "asistente"
@@ -11008,7 +11008,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2432
+        "linea": 2434
       },
       "roles": [
         "asistente"
@@ -11041,7 +11041,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2449
+        "linea": 2451
       },
       "roles": [
         "asistente"
@@ -11071,7 +11071,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3963
+        "linea": 3969
       },
       "roles": [
         "asistente"
@@ -11106,7 +11106,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3997
+        "linea": 4003
       },
       "roles": [
         "asistente"
@@ -12185,7 +12185,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 609
+        "linea": 610
       },
       "roles": [
         "asistente"
@@ -12247,7 +12247,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 621
+        "linea": 622
       },
       "roles": [
         "asistente"
@@ -12293,7 +12293,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 656
+        "linea": 657
       },
       "roles": [
         "asistente"
@@ -12956,7 +12956,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 312
+        "linea": 304
       },
       "roles": [
         "asistente",
@@ -13054,7 +13054,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 233
+        "linea": 231
       },
       "roles": [
         "asistente",
@@ -13748,7 +13748,7 @@
       "nombre": "scene_copy",
       "titulo": "Copiar una escena",
       "categoria": "escenas",
-      "descripcion": "Crea una escena nueva con todas las fuentes de otra.",
+      "descripcion": "Crea una escena nueva (`to`) con todas las fuentes de otra (`from`), recreadas: las dos quedan independientes.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -13935,7 +13935,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1513
+        "linea": 1514
       },
       "roles": [
         "asistente",
@@ -13971,7 +13971,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1436
+        "linea": 1437
       },
       "roles": [
         "asistente",
@@ -14008,7 +14008,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1474
+        "linea": 1475
       },
       "roles": [
         "asistente",
@@ -14170,7 +14170,7 @@
       "nombre": "scene_protect",
       "titulo": "Proteger una escena",
       "categoria": "escenas",
-      "descripcion": "Una escena protegida no se puede borrar ni renombrar.",
+      "descripcion": "Protege una escena (o la desprotege, con `protected`: false): protegida no se puede borrar ni renombrar.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -14197,7 +14197,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1409
+        "linea": 1410
       },
       "roles": [
         "asistente",
@@ -14209,7 +14209,7 @@
       "nombre": "scene_rename",
       "titulo": "Renombrar escena",
       "categoria": "escenas",
-      "descripcion": "Cambia el nombre de una escena.",
+      "descripcion": "Cambia el nombre de una escena (de `from` a `to`). Una protegida (scene_protect) no se puede renombrar.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -14236,7 +14236,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1456
+        "linea": 1457
       },
       "roles": [
         "asistente",
@@ -14342,7 +14342,7 @@
       "nombre": "transition_set",
       "titulo": "Transicion entre escenas",
       "categoria": "escenas",
-      "descripcion": "Tipo y duracion de la transicion al cambiar de escena.",
+      "descripcion": "Tipo (corte, fundido, barrido, deslizamiento o fundido a un color) y duración en ms de la transición al cambiar de escena.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -14377,7 +14377,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1663
+        "linea": 1664
       },
       "roles": [
         "asistente",
@@ -14457,7 +14457,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 208
+        "linea": 206
       },
       "roles": [
         "asistente",
@@ -14518,7 +14518,7 @@
       "destructiva": false,
       "idempotente": true,
       "etiquetas": {
-        "propias": "estado general resumen como esta todo panorama salud",
+        "propias": "estado general resumen como esta todo panorama salud como venimos cpu fps cuadros perdidos perdiendo cuadros codificador encoder cuanto llevamos transmitiendo cuanto lleva la grabacion se congelo sigue vivo procesador ventilador ahogando chequeo general",
         "porPrefijo": ""
       },
       "donde": {
@@ -14614,7 +14614,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3117
+        "linea": 3121
       },
       "roles": [
         "asistente",
@@ -14651,7 +14651,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3131
+        "linea": 3135
       },
       "roles": [
         "asistente",
@@ -14678,7 +14678,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3105
+        "linea": 3109
       },
       "roles": [
         "asistente",
@@ -14705,7 +14705,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3149
+        "linea": 3153
       },
       "roles": [
         "asistente",
@@ -15122,7 +15122,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "correr el guion arrancar avanzar pausar el evento ejecutar siguiente cue hold frenar retener que no pase solo automatico",
+        "propias": "correr el guion arrancar avanzar pausar el evento ejecutar siguiente cue hold frenar retener que no pase solo automatico proximo cue ir al bloque saltar al bloque reanudar el guion seguir el guion desde donde quedo parar el guion terminar el guion se cancela el acto pasada de prueba",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -15657,7 +15657,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "tema colores tipografia letra logo favicon marca modo oscuro claro aspecto de las paginas web apariencia identidad visual personalizar la web",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -16191,7 +16191,7 @@
       "nombre": "integrante_borrar",
       "titulo": "Sacar a un integrante del cuerpo",
       "categoria": "evento",
-      "descripcion": "Borra un integrante (`id`).",
+      "descripcion": "Borra un integrante del cuerpo (`id`, de cuerpo_listar): su nombre, su cargo y su banca dejan de estar en el cuerpo.",
       "esquema": {
         "type": "object",
         "required": [
@@ -16214,7 +16214,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3228
+        "linea": 3232
       },
       "roles": [
         "asistente",
@@ -16281,7 +16281,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3163
+        "linea": 3167
       },
       "roles": [
         "asistente",
@@ -16324,7 +16324,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3244
+        "linea": 3249
       },
       "roles": [
         "asistente",
@@ -16358,7 +16358,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3212
+        "linea": 3216
       },
       "roles": [
         "asistente",
@@ -16369,7 +16369,7 @@
       "nombre": "integrante_ver",
       "titulo": "Ver un integrante del cuerpo",
       "categoria": "evento",
-      "descripcion": "Busca por id, banca o nombre.",
+      "descripcion": "La ficha de un integrante del cuerpo, buscado por `clave`: su id, su número de banca o su nombre.",
       "esquema": {
         "type": "object",
         "required": [
@@ -16392,7 +16392,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3197
+        "linea": 3201
       },
       "roles": [
         "asistente",
@@ -16487,7 +16487,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3304
+        "linea": 3309
       },
       "roles": [
         "asistente",
@@ -16514,7 +16514,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3289
+        "linea": 3294
       },
       "roles": [
         "asistente",
@@ -17268,7 +17268,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1789
+        "linea": 1791
       },
       "roles": [
         "asistente",
@@ -17326,7 +17326,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1736
+        "linea": 1738
       },
       "roles": [
         "asistente",
@@ -17363,7 +17363,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1706
+        "linea": 1708
       },
       "roles": [
         "asistente",
@@ -17657,7 +17657,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2037
+        "linea": 2039
       },
       "roles": [
         "asistente",
@@ -17692,7 +17692,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1981
+        "linea": 1983
       },
       "roles": [
         "asistente",
@@ -17731,7 +17731,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1815
+        "linea": 1817
       },
       "roles": [
         "asistente",
@@ -17780,7 +17780,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2003
+        "linea": 2005
       },
       "roles": [
         "asistente",
@@ -17808,7 +17808,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1687
+        "linea": 1689
       },
       "roles": [
         "asistente",
@@ -17946,7 +17946,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1834
+        "linea": 1836
       },
       "roles": [
         "asistente",
@@ -17991,7 +17991,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 311
+        "linea": 312
       },
       "roles": [
         "asistente",
@@ -18019,7 +18019,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 288
+        "linea": 289
       },
       "roles": [
         "asistente",
@@ -18102,7 +18102,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 380
+        "linea": 381
       },
       "roles": [
         "asistente",
@@ -18142,7 +18142,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 422
+        "linea": 423
       },
       "roles": [
         "asistente",
@@ -18178,7 +18178,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 358
+        "linea": 359
       },
       "roles": [
         "asistente",
@@ -18265,7 +18265,7 @@
       "nombre": "grafico_ocultar",
       "titulo": "Sacar un gráfico",
       "categoria": "graficos",
-      "descripcion": "Deja la fuente transparente.",
+      "descripcion": "Saca del aire un gráfico animado: deja la fuente (`fuente`, el id de grafico_en_escena) transparente, sin borrarla de la escena.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -18364,7 +18364,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 564
+        "linea": 565
       },
       "roles": [
         "asistente",
@@ -18376,7 +18376,7 @@
       "nombre": "rotulo_desvincular",
       "titulo": "Sacar o apagar un vinculo",
       "categoria": "graficos",
-      "descripcion": "Quita un vinculo, o lo apaga sin borrarlo.",
+      "descripcion": "Quita un vínculo de rótulo (`id`, de rotulo_vinculos) o, con `activo`, lo apaga o lo prende sin borrarlo.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -18403,7 +18403,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 532
+        "linea": 533
       },
       "roles": [
         "asistente",
@@ -18465,7 +18465,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 476
+        "linea": 477
       },
       "roles": [
         "asistente",
@@ -18493,7 +18493,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 453
+        "linea": 454
       },
       "roles": [
         "asistente",
@@ -19342,7 +19342,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "mirar la imagen que se ve ahi que hay en camara revisar visualmente analizar captura vision hay alguien cuadro negro se lee el rotulo preguntarle a la imagen contar personas leer el texto de la imagen",
+        "propias": "mirar la imagen que se ve ahi que hay en camara revisar visualmente analizar captura vision hay alguien cuadro negro se lee el rotulo preguntarle a la imagen contar personas leer el texto de la imagen contestame mirando respondeme mirando fijate y contestame que dice el cartel oscura buena luz corbata camisa tapada hombre o mujer torcida que hora marca no quiero la foto",
         "porPrefijo": ""
       },
       "donde": {
@@ -19886,7 +19886,7 @@
       "nombre": "ui_notify",
       "titulo": "Aviso en pantalla",
       "categoria": "interfaz",
-      "descripcion": "Muestra un aviso (toast) al operador en la app.",
+      "descripcion": "Muestra un aviso corto (toast) en la app del operador, con un nivel: info, ok, warn o error.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -20060,7 +20060,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSalidasTools.cpp",
-        "linea": 199
+        "linea": 193
       },
       "roles": [
         "asistente"
@@ -20728,7 +20728,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 471
+        "linea": 459
       },
       "roles": [],
       "aire": {
@@ -20765,7 +20765,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 244
+        "linea": 236
       },
       "roles": [],
       "porSalida": true
@@ -20799,7 +20799,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 445
+        "linea": 433
       },
       "roles": [],
       "porSalida": true
@@ -20828,7 +20828,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 377
+        "linea": 365
       },
       "roles": []
     },
@@ -20891,7 +20891,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 281
+        "linea": 271
       },
       "roles": [],
       "porSalida": true
@@ -20916,7 +20916,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 229
+        "linea": 221
       },
       "roles": []
     },
@@ -20954,7 +20954,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 161
+        "linea": 155
       },
       "roles": []
     },
@@ -20978,7 +20978,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 97
+        "linea": 95
       },
       "roles": []
     },
@@ -21014,7 +21014,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 502
+        "linea": 490
       },
       "roles": []
     },
@@ -21043,7 +21043,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 425
+        "linea": 413
       },
       "roles": [],
       "aire": {
@@ -21086,7 +21086,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 575
+        "linea": 559
       },
       "roles": []
     },
@@ -21118,7 +21118,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 431
+        "linea": 419
       },
       "roles": [],
       "porSalida": true
@@ -21164,7 +21164,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 534
+        "linea": 520
       },
       "roles": []
     },
@@ -21202,7 +21202,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 464
+        "linea": 452
       },
       "roles": [],
       "aire": {
@@ -21242,7 +21242,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 453
+        "linea": 441
       },
       "roles": [],
       "aire": {
@@ -21291,7 +21291,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 490
+        "linea": 478
       },
       "roles": [],
       "aire": {
@@ -21331,7 +21331,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 478
+        "linea": 466
       },
       "roles": [],
       "aire": {
@@ -21365,7 +21365,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 121
+        "linea": 117
       },
       "roles": []
     },
@@ -21394,7 +21394,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 485
+        "linea": 473
       },
       "roles": [],
       "aire": {
@@ -21428,7 +21428,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 460
+        "linea": 448
       },
       "roles": [],
       "aire": {
@@ -21465,7 +21465,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 614
+        "linea": 596
       },
       "roles": []
     },
@@ -21489,7 +21489,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 142
+        "linea": 136
       },
       "roles": []
     },
@@ -21518,7 +21518,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 450
+        "linea": 438
       },
       "roles": [],
       "porSalida": true
@@ -21552,7 +21552,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 440
+        "linea": 428
       },
       "roles": [],
       "porSalida": true
@@ -21585,7 +21585,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 640
+        "linea": 620
       },
       "roles": [],
       "aire": {
@@ -22323,7 +22323,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2685
+        "linea": 2689
       },
       "roles": [
         "asistente",
@@ -22339,7 +22339,7 @@
       "nombre": "banca_cola",
       "titulo": "Sumar o sacar una banca de la fila",
       "categoria": "oradores",
-      "descripcion": "`agregar` o `quitar`: banca, id o nombre del cuerpo.",
+      "descripcion": "Suma (`agregar`) o saca (`quitar`) una banca de la fila de oradores presenciales: por número de banca, id o nombre del integrante.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -22362,7 +22362,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2666
+        "linea": 2669
       },
       "roles": [
         "asistente",
@@ -22398,7 +22398,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2718
+        "linea": 2722
       },
       "roles": [
         "asistente",
@@ -22448,7 +22448,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3070
+        "linea": 3074
       },
       "roles": [
         "asistente",
@@ -22476,7 +22476,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2996
+        "linea": 3000
       },
       "roles": [
         "asistente",
@@ -22524,7 +22524,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3008
+        "linea": 3012
       },
       "roles": [
         "asistente",
@@ -22552,7 +22552,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3056
+        "linea": 3060
       },
       "roles": [
         "asistente",
@@ -22588,12 +22588,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "turno del debate darle la palabra a uno callar al otro ambos",
+        "propias": "turno del debate darle la palabra a uno callar al otro ambos dar la palabra los dos juntos que nadie hable nadie con la palabra replica",
         "porPrefijo": ""
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3034
+        "linea": 3038
       },
       "roles": [
         "asistente",
@@ -22628,7 +22628,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2916
+        "linea": 2920
       },
       "roles": [
         "asistente",
@@ -22669,7 +22669,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2880
+        "linea": 2884
       },
       "roles": [
         "asistente",
@@ -22701,7 +22701,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2847
+        "linea": 2851
       },
       "roles": [
         "asistente",
@@ -22736,7 +22736,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2781
+        "linea": 2785
       },
       "roles": [
         "asistente",
@@ -22785,7 +22785,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2820
+        "linea": 2824
       },
       "roles": [
         "asistente",
@@ -22813,7 +22813,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2802
+        "linea": 2806
       },
       "roles": [
         "asistente",
@@ -22825,7 +22825,7 @@
       "nombre": "participant_requeue",
       "titulo": "Volver a la fila",
       "categoria": "oradores",
-      "descripcion": "Orador que ya hablo: vuelve al final de la fila.",
+      "descripcion": "Un orador que ya habló vuelve a la fila de oradores, al final, para hablar otra vez (`participant`: nombre o id).",
       "esquema": {
         "type": "object",
         "properties": {
@@ -22844,7 +22844,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "devolver mandar atras de nuevo al final de la fila el que ya hablo",
+        "propias": "devolver mandar atras de nuevo al final de la fila el que ya hablo reencolar de nuevo otra vez esperando al final al fondo ultimo lugar ya tuvo su turno ya expuso volver a anotar reingresar quiere volver a hablar replicar detras de todos",
         "porPrefijo": "invitado participante persona asistente publico gente lobby entrar admitir"
       },
       "donde": {
@@ -22877,7 +22877,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2955
+        "linea": 2959
       },
       "roles": [
         "asistente",
@@ -22915,7 +22915,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2972
+        "linea": 2976
       },
       "roles": [
         "asistente",
@@ -22943,7 +22943,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2655
+        "linea": 2658
       },
       "roles": [
         "asistente",
@@ -22969,12 +22969,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "terminar orador presencial banca cortar quitar la palabra terminar el turno del que habla en el recinto concejal",
+        "propias": "terminar orador presencial banca cortar quitar la palabra terminar el turno del que habla en el recinto concejal terminar la intervencion sacarlo del aire cerrar el micro del orador del que tiene la palabra cerrar la banca que esta hablando concluyo",
         "porPrefijo": ""
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2941
+        "linea": 2945
       },
       "roles": [
         "asistente",
@@ -23005,7 +23005,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1252
+        "linea": 1253
       },
       "roles": [
         "asistente",
@@ -23077,7 +23077,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2747
+        "linea": 2751
       },
       "roles": [
         "asistente",
@@ -23105,7 +23105,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2736
+        "linea": 2740
       },
       "roles": [
         "asistente",
@@ -23141,12 +23141,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "mover en la fila reordenar oradores pasar a alguien al primer lugar de la fila",
+        "propias": "mover en la fila reordenar oradores pasar a alguien al primer lugar de la fila puesto en la fila adelantar atrasar lugares segunda tercera cuarta quinta sexta orden de la fila cambiar de puesto",
         "porPrefijo": "orador expositor panelista disertante fila cola turno atril escenario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1363
+        "linea": 1364
       },
       "roles": [
         "asistente",
@@ -23169,12 +23169,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador pasar al que sigue avanzar la fila",
+        "propias": "pasa al que sigue el siguiente orador proximo orador turno siguiente siguiente orador pasar al que sigue avanzar la fila que pase el que sigue el proximo dale al siguiente largar al siguiente el que viene adelante que entre otro dale aire al que sigue",
         "porPrefijo": "orador expositor panelista disertante fila cola turno atril escenario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1350
+        "linea": 1351
       },
       "roles": [
         "asistente",
@@ -23209,12 +23209,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "poner orador al aire darle el aire a quien habla dar el aire al orador remoto",
+        "propias": "poner orador al aire darle el aire a quien habla dar el aire al orador remoto sacar del aire bajar del aire sacarlo que vuelva a esperar darle el aire arrancar su reloj entrar al aire habilitar al aire sigue en pantalla salteando la fila",
         "porPrefijo": "orador expositor panelista disertante fila cola turno atril escenario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1327
+        "linea": 1328
       },
       "roles": [
         "asistente",
@@ -23257,7 +23257,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1402
+        "linea": 1403
       },
       "roles": [
         "asistente",
@@ -23293,7 +23293,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1381
+        "linea": 1382
       },
       "roles": [
         "asistente",
@@ -23336,7 +23336,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1425
+        "linea": 1426
       },
       "roles": [
         "asistente",
@@ -23395,7 +23395,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1293
+        "linea": 1294
       },
       "roles": [
         "asistente",
@@ -23698,7 +23698,7 @@
       "nombre": "padron_quitar",
       "titulo": "Sacar a alguien del padron",
       "categoria": "padron",
-      "descripcion": "Borra a una persona de la lista del evento abierto.",
+      "descripcion": "Borra a una persona (`id`, de padron_ver) del padrón del evento abierto. No toca su ficha de rostros.",
       "esquema": {
         "type": "object",
         "required": [
@@ -25743,7 +25743,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "arrancar parar velocidad del teleprompter avanzar",
+        "propias": "arrancar parar velocidad del teleprompter avanzar velocidad palabras por minuto parrafo saltar al parrafo ir al parrafo avisarle al orador aviso al orador que cierre tapar destapar panico scroll detener el scroll que siga corriendo el texto espejo invertir",
         "porPrefijo": "teleprompter prompter apuntador discurso texto orador leer guion"
       },
       "donde": {
@@ -25928,7 +25928,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "teleprompters varios prompters agregar un teleprompter otro prompter cual prompter lista de teleprompters",
         "porPrefijo": "teleprompter prompter apuntador discurso texto orador leer guion"
       },
       "donde": {
@@ -26493,7 +26493,7 @@
       "nombre": "receta_borrar",
       "titulo": "Borrar una receta",
       "categoria": "recetas",
-      "descripcion": "Saca una receta de la lista.",
+      "descripcion": "Borra una receta guardada (`id`, de receta_listar): esa secuencia de pasos deja de estar para correrla.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -26516,7 +26516,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 183
+        "linea": 184
       },
       "roles": [
         "asistente"
@@ -26526,7 +26526,7 @@
       "nombre": "receta_correr",
       "titulo": "Correr una receta",
       "categoria": "recetas",
-      "descripcion": "Ejecuta los pasos de una receta, en orden.",
+      "descripcion": "Ejecuta en orden los pasos de una receta guardada (`id`), con `parametros` para sus `{...}`; si un paso falla, se frena ahí.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -26552,7 +26552,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 207
+        "linea": 208
       },
       "roles": [
         "asistente"
@@ -26600,7 +26600,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 109
+        "linea": 110
       },
       "roles": [
         "asistente"
@@ -26610,7 +26610,7 @@
       "nombre": "receta_listar",
       "titulo": "Recetas que hay",
       "categoria": "recetas",
-      "descripcion": "Que recetas hay disponibles para correr, con su nombre.",
+      "descripcion": "Las recetas guardadas (secuencias de pasos para repetir igual, receta_guardar) que se pueden correr, con su id y su nombre.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -26636,7 +26636,7 @@
       "nombre": "ext_listar",
       "titulo": "Tarjetas de extension",
       "categoria": "registro",
-      "descripcion": "Las tarjetas que viven en Extensiones/, con su estado.",
+      "descripcion": "Las extensiones (tarjetas QML del dashboard, en Extensiones/) con su estado: si les falta algo o si el arranque las apagó.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -26669,7 +26669,7 @@
       "nombre": "ext_prender",
       "titulo": "Prender una extension apagada",
       "categoria": "registro",
-      "descripcion": "Vuelve a cargar una tarjeta que el arranque habia apagado.",
+      "descripcion": "Vuelve a cargar una extensión (tarjeta QML del dashboard) que el arranque apagó porque colgaba la app; antes, arreglá el QML.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -26692,7 +26692,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRegistroTools.cpp",
-        "linea": 136
+        "linea": 137
       },
       "roles": [
         "asistente",
@@ -26756,7 +26756,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 335
+        "linea": 327
       },
       "roles": [
         "asistente",
@@ -26773,7 +26773,7 @@
       "nombre": "log_marcar",
       "titulo": "Dejar una marca",
       "categoria": "registro",
-      "descripcion": "Escribe una línea propia en el registro.",
+      "descripcion": "Escribe una línea propia (`texto`) en el registro de la app, para marcar desde dónde mirar después lo que pasó.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -26796,7 +26796,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRegistroTools.cpp",
-        "linea": 156
+        "linea": 158
       },
       "roles": [
         "asistente",
@@ -27275,7 +27275,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 502
+        "linea": 503
       },
       "roles": [
         "asistente",
@@ -27314,7 +27314,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 715
+        "linea": 716
       },
       "roles": [
         "asistente",
@@ -27388,7 +27388,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 567
+        "linea": 568
       },
       "roles": [
         "asistente",
@@ -27421,7 +27421,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 691
+        "linea": 692
       },
       "roles": [
         "asistente",
@@ -27449,7 +27449,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 751
+        "linea": 752
       },
       "roles": [
         "asistente",
@@ -27484,7 +27484,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 620
+        "linea": 621
       },
       "roles": [
         "asistente",
@@ -27519,7 +27519,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 640
+        "linea": 641
       },
       "roles": [
         "asistente",
@@ -27547,7 +27547,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 452
+        "linea": 453
       },
       "roles": [
         "asistente",
@@ -27575,7 +27575,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 768
+        "linea": 769
       },
       "roles": [
         "asistente",
@@ -27614,7 +27614,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 661
+        "linea": 662
       },
       "roles": [
         "asistente",
@@ -27770,12 +27770,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat",
+        "propias": "mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat escribirle recordarle por chat poner en el chat tirar un mensaje mensaje a la sala chat general mandar al chat",
         "porPrefijo": "chat mensaje texto escribir conversacion comentario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 933
+        "linea": 934
       },
       "roles": [
         "asistente",
@@ -27817,7 +27817,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 999
+        "linea": 1000
       },
       "roles": [
         "asistente",
@@ -27856,7 +27856,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1076
+        "linea": 1077
       },
       "roles": [
         "asistente",
@@ -27887,7 +27887,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1230
+        "linea": 1231
       },
       "roles": [
         "asistente",
@@ -27929,7 +27929,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2412
+        "linea": 2414
       },
       "roles": [
         "asistente",
@@ -27965,7 +27965,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 833
+        "linea": 834
       },
       "roles": [
         "asistente",
@@ -28005,7 +28005,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3445
+        "linea": 3450
       },
       "roles": [
         "asistente",
@@ -28035,12 +28035,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat",
+        "propias": "que me dijo que dijo que escribio leer lo que mandaron que contesto historial conversacion que dijeron leer chat chat interno mensajes recientes ultimos mensajes quien mando a que hora produccion mando algo algun invitado aviso por chat confirmo saludo escribieron",
         "porPrefijo": "chat mensaje texto escribir conversacion comentario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 966
+        "linea": 967
       },
       "roles": [
         "asistente",
@@ -28066,12 +28066,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "se esta cortando se corta entrecortado se cae la transmision va lento red internet conexion ancho de banda tunel calidad",
+        "propias": "se esta cortando se corta entrecortado se cae la transmision va lento red internet conexion ancho de banda tunel calidad https certificado sitio no seguro conexion no segura aviso de seguridad wireguard tunel puertos webrtc ip local estado de la red revisar la red chequear la red mirar la red los remotos no pueden conectarse queda cargando el link",
         "porPrefijo": "red ip conexion internet ancho de banda"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1183
+        "linea": 1184
       },
       "roles": [
         "asistente",
@@ -28106,7 +28106,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1198
+        "linea": 1199
       },
       "roles": [
         "asistente",
@@ -28142,7 +28142,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 324
+        "linea": 325
       },
       "roles": [
         "asistente",
@@ -28165,12 +28165,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "dejar entrar a todos admitir todos vaciar lobby",
+        "propias": "dejar entrar a todos admitir todos vaciar lobby hacer pasar a todos que pasen todos todo el mundo dar paso a todos aceptar a todos toda la cola de espera que entren todos que no quede ninguno afuera",
         "porPrefijo": "invitado participante persona asistente publico gente lobby entrar admitir"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 388
+        "linea": 389
       },
       "roles": [
         "asistente",
@@ -28215,7 +28215,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 882
+        "linea": 883
       },
       "roles": [
         "asistente",
@@ -28251,7 +28251,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 367
+        "linea": 368
       },
       "roles": [
         "asistente",
@@ -28295,12 +28295,12 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "ficha datos nombre cargo informacion de la persona perfil del invitado cambiarle el nombre",
+        "propias": "ficha datos nombre cargo informacion de la persona perfil del invitado cambiarle el nombre info informacion cargo contacto telefono mail correo editar el perfil corregir los datos actualizar la info ponerle de nombre sin cargo cargo viejo sumar un dato agregar un dato",
         "porPrefijo": "invitado participante persona asistente publico gente lobby entrar admitir"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 907
+        "linea": 908
       },
       "roles": [
         "asistente",
@@ -28336,7 +28336,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 348
+        "linea": 349
       },
       "roles": [
         "asistente",
@@ -28384,7 +28384,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 855
+        "linea": 856
       },
       "roles": [
         "asistente",
@@ -28424,7 +28424,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 409
+        "linea": 410
       },
       "roles": [
         "asistente",
@@ -28475,7 +28475,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 800
+        "linea": 801
       },
       "roles": [
         "asistente",
@@ -28507,7 +28507,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 432
+        "linea": 433
       },
       "roles": [
         "asistente",
@@ -28539,7 +28539,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 786
+        "linea": 787
       },
       "roles": [
         "asistente",
@@ -28584,7 +28584,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1141
+        "linea": 1142
       },
       "roles": [
         "asistente",
@@ -28737,7 +28737,7 @@
       "nombre": "share_delete",
       "titulo": "Borrar archivo compartido",
       "categoria": "sala",
-      "descripcion": "Borra un archivo compartido del gateway.",
+      "descripcion": "Borra del gateway de la conferencia un archivo que compartió un invitado (`id`, de share_list).",
       "esquema": {
         "type": "object",
         "properties": {
@@ -28760,7 +28760,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1124
+        "linea": 1125
       },
       "roles": [
         "asistente",
@@ -28788,7 +28788,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1063
+        "linea": 1064
       },
       "roles": [
         "asistente",
@@ -28823,7 +28823,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
-        "linea": 1105
+        "linea": 1106
       },
       "roles": [
         "asistente",
@@ -28867,7 +28867,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3483
+        "linea": 3488
       },
       "roles": [
         "asistente"
@@ -28880,7 +28880,7 @@
       "nombre": "grabacion_individual",
       "titulo": "Grabar cada entrada por separado",
       "categoria": "salidas",
-      "descripcion": "Graba una entrada a su propio archivo, ademas del programa.",
+      "descripcion": "Graba entradas sueltas (cámaras, invitados) cada una en su propio archivo, además del programa; sin argumentos, dice qué se graba.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -28917,7 +28917,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3892
+        "linea": 3897
       },
       "roles": [
         "asistente"
@@ -28979,7 +28979,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3646
+        "linea": 3651
       },
       "roles": [
         "asistente"
@@ -29005,7 +29005,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3467
+        "linea": 3472
       },
       "roles": [
         "asistente"
@@ -29048,7 +29048,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3622
+        "linea": 3627
       },
       "roles": [
         "asistente"
@@ -29106,7 +29106,7 @@
       "destructiva": true,
       "idempotente": false,
       "etiquetas": {
-        "propias": "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar de grabar frena la grabacion cortar la grabacion terminar de grabar detener terminar la grabacion stop",
+        "propias": "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar de grabar frena la grabacion cortar la grabacion terminar de grabar detener terminar la grabacion stop cortar el rec cortar el grabado cerrar la grabacion finalizar la grabacion fin de la grabacion dejar de escribir en disco sigue grabando dejar de grabar",
         "porPrefijo": "grabar grabacion guardar archivo mp4 registro"
       },
       "donde": {
@@ -29152,7 +29152,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3787
+        "linea": 3792
       },
       "roles": [
         "asistente"
@@ -29187,7 +29187,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3808
+        "linea": 3813
       },
       "roles": [
         "asistente"
@@ -29226,7 +29226,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSalidasTools.cpp",
-        "linea": 167
+        "linea": 163
       },
       "roles": [
         "asistente"
@@ -29316,7 +29316,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSalidasTools.cpp",
-        "linea": 126
+        "linea": 124
       },
       "roles": [
         "asistente"
@@ -29353,7 +29353,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3841
+        "linea": 3846
       },
       "roles": [
         "asistente"
@@ -29406,7 +29406,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3869
+        "linea": 3874
       },
       "roles": [
         "asistente"
@@ -29468,7 +29468,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3708
+        "linea": 3713
       },
       "roles": [
         "asistente"
@@ -29502,7 +29502,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3770
+        "linea": 3775
       },
       "roles": [
         "asistente"
@@ -29558,7 +29558,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3742
+        "linea": 3747
       },
       "roles": [
         "asistente"
@@ -29585,7 +29585,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3693
+        "linea": 3698
       },
       "roles": [
         "asistente"
@@ -29620,7 +29620,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 893
+        "linea": 895
       },
       "roles": [
         "asistente"
@@ -30301,7 +30301,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3592
+        "linea": 3597
       },
       "roles": [
         "asistente"
@@ -30339,7 +30339,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3522
+        "linea": 3527
       },
       "roles": [
         "asistente"
@@ -30374,7 +30374,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3567
+        "linea": 3572
       },
       "roles": [
         "asistente"
@@ -30440,7 +30440,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 411
+        "linea": 403
       },
       "roles": [
         "asistente"
@@ -31562,7 +31562,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2489
+        "linea": 2491
       },
       "roles": [
         "asistente"
@@ -31572,7 +31572,7 @@
       "nombre": "cc_desactivar",
       "titulo": "Apagar los subtitulos ocultos",
       "categoria": "traduccion",
-      "descripcion": "Deja de mandar subtitulos ocultos.",
+      "descripcion": "Deja de mandar subtítulos ocultos (CEA-608 en la transmisión y la API de subtítulos de YouTube): lo contrario de cc_activar.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -31588,7 +31588,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2514
+        "linea": 2516
       },
       "roles": [
         "asistente"
@@ -31614,7 +31614,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2477
+        "linea": 2479
       },
       "roles": [
         "asistente"
@@ -31647,7 +31647,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2527
+        "linea": 2530
       },
       "roles": [
         "asistente"
@@ -32278,7 +32278,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2542
+        "linea": 2545
       },
       "roles": [
         "asistente"
@@ -32323,7 +32323,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2558
+        "linea": 2561
       },
       "roles": [
         "asistente"
@@ -32356,7 +32356,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2609
+        "linea": 2612
       },
       "roles": [
         "asistente"
@@ -32366,7 +32366,7 @@
       "nombre": "voz_vocabulario_quitar",
       "titulo": "Quitar un termino del vocabulario",
       "categoria": "traduccion",
-      "descripcion": "Saca el `termino` (de cualquier grupo).",
+      "descripcion": "Saca un `termino` del vocabulario de la transcripción, de cualquier grupo (voz_vocabulario los muestra).",
       "esquema": {
         "type": "object",
         "required": [
@@ -32389,7 +32389,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2593
+        "linea": 2596
       },
       "roles": [
         "asistente"
@@ -32694,7 +32694,7 @@
       "nombre": "twitch_video_delete",
       "titulo": "Borrar VODs",
       "categoria": "twitch",
-      "descripcion": "Borra uno o mas videos del canal (no se puede deshacer).",
+      "descripcion": "Borra de uno a cinco videos (VODs) del canal de Twitch (`ids`, de twitch_videos). No se puede deshacer.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -33076,7 +33076,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2625
+        "linea": 2628
       },
       "roles": [
         "asistente"
@@ -35313,7 +35313,7 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "chat mensajes recientes publico destacar comentarios del publico chat del vivo leer el chat lo que escribe la gente",
+        "propias": "chat mensajes recientes publico destacar comentarios del publico chat del vivo leer el chat lo que escribe la gente youtube facebook twitch espectadores audiencia que dijeron que escribieron el chat de la transmision ultimos minutos spam saludan reaccionando",
         "porPrefijo": "chat mensaje texto escribir conversacion comentario"
       },
       "donde": {
@@ -35661,7 +35661,7 @@
       "nombre": "youtube_logout",
       "titulo": "Desconectar la cuenta",
       "categoria": "youtube",
-      "descripcion": "Revoca el acceso en Google y borra el token guardado.",
+      "descripcion": "Desconecta la cuenta de YouTube de este aparato: revoca el acceso en Google y borra el token guardado.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -35755,7 +35755,7 @@
       "nombre": "youtube_video_delete",
       "titulo": "Borrar un video",
       "categoria": "youtube",
-      "descripcion": "Borra un video del canal (no se puede deshacer).",
+      "descripcion": "Borra un video del canal de YouTube (`id`, de youtube_videos). No se puede deshacer.",
       "esquema": {
         "type": "object",
         "properties": {

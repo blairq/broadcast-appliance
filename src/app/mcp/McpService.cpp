@@ -1375,7 +1375,8 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Copiar una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Crea una escena nueva con todas las fuentes de otra.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea una escena nueva (`to`) con todas las fuentes de otra (`from`), recreadas: las dos quedan "
+                                                 "independientes.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de "
                     "entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y "
                     "cambiarle lo que difiere.\n\n"
@@ -1410,7 +1411,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Proteger una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Una escena protegida no se puede borrar ni renombrar.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Protege una escena (o la desprotege, con `protected`: false): protegida no se puede borrar ni renombrar.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Para la escena BASE de la que se copian las demas —la que si alguien borra se pierde el "
                     "trabajo de todos— y para las que no se tocan en vivo.\n\n"
                     "Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que "
@@ -1460,7 +1461,7 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"from", {{"type", "string"}}}, {"to", {{"type", "string"}}}}},
                          {"required", {"from", "to"}}};
-        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el nombre de una escena.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el nombre de una escena (de `from` a `to`). Una protegida (scene_protect) no se puede renombrar.");
         t.run = [&rt, persist, sceneExists, noScene](const json& a, Done done) {
             if (!sceneExists(a["from"])) return done(noScene(a["from"]));
             if (!rt.renameScene(a["from"], a["to"])) return done(ToolResult::error(rt.lastError()));
@@ -1665,7 +1666,8 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia la transición");
-        t.description = QT_TRANSLATE_NOOP("mcp", "Tipo y duracion de la transicion al cambiar de escena.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Tipo (corte, fundido, barrido, deslizamiento o fundido a un color) y duración en ms de la transición al "
+                                                 "cambiar de escena.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -2515,7 +2517,8 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Apagar los subtitulos ocultos");
         t.category = "traduccion";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Deja de mandar subtitulos ocultos.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Deja de mandar subtítulos ocultos (CEA-608 en la transmisión y la API de subtítulos de YouTube): lo "
+                                                 "contrario de cc_activar.");
         t.run = [&vm](const json&, Done done) {
             vm.cc().desactivar();
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Apagados.")));
@@ -2595,7 +2598,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Quitar un termino del vocabulario");
         t.category = "traduccion";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Saca el `termino` (de cualquier grupo).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca un `termino` del vocabulario de la transcripción, de cualquier grupo (voz_vocabulario los muestra).");
         t.inputSchema = {{"type", "object"}, {"required", {"termino"}}, {"properties", {{"termino", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (!vm.vocabulario().quitar(a.value("termino", std::string())))
@@ -2667,7 +2670,8 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Sumar o sacar una banca de la fila");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "`agregar` o `quitar`: banca, id o nombre del cuerpo.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Suma (`agregar`) o saca (`quitar`) una banca de la fila de oradores presenciales: por número de banca, id "
+                                                 "o nombre del integrante.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"agregar", {{"type", "string"}}}, {"quitar", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
@@ -3198,7 +3202,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Ver un integrante del cuerpo");
         t.category = "evento";
         t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Busca por id, banca o nombre.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "La ficha de un integrante del cuerpo, buscado por `clave`: su id, su número de banca o su nombre.");
         t.inputSchema = {{"type", "object"}, {"required", {"clave"}}, {"properties", {{"clave", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             const json r = vm.cuerpo().cuerpo().buscar(a.value("clave", std::string()));
@@ -3230,7 +3234,8 @@ void McpService::registerTools() {
         t.category = "evento";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un integrante (`id`).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un integrante del cuerpo (`id`, de cuerpo_listar): su nombre, su cargo y su banca dejan de estar en "
+                                                 "el cuerpo.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (!vm.cuerpo().borrar(QString::fromStdString(a.value("id", std::string()))))
@@ -3893,7 +3898,8 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Grabar cada entrada por separado");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Graba una entrada a su propio archivo, ademas del programa.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Graba entradas sueltas (cámaras, invitados) cada una en su propio archivo, además del programa; sin "
+                                                 "argumentos, dice qué se graba.");
         t.details =
             QT_TRANSLATE_NOOP("mcp", "Para un evento que despues hay que EDITAR: el programa sirve para subirlo esa misma "
             "noche, y los archivos por entrada para armar la version buena sin haber perdido nada.\n\n"

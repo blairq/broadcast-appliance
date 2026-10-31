@@ -261,7 +261,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Editar una pagina");
         t.category = "botonera";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia `nombre`, `columnas` o `filas` de la `pagina`.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el `nombre` o el tamaño de la grilla (`columnas`, `filas`, de 1 a 16) de una `pagina` de un "
+                                                 "`perfil` de la botonera.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina"}},
                          {"properties",
@@ -428,7 +429,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Borrar una celda");
         t.category = "botonera";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Saca la celda en (`x`, `y`).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca el botón de la celda (`x`, `y`) de una `pagina` de un `perfil` de la botonera: la celda queda vacía.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina", "x", "y"}},
                          {"properties",
@@ -730,7 +731,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Quitar un atajo");
         t.category = "botonera";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Saca el atajo de `tecla` (o de la accion con ese id).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca el atajo de teclado de `tecla` (o el de la acción con ese id; atajos_listar los muestra): esa tecla "
+                                                 "deja de hacer algo.");
         t.inputSchema = {{"type", "object"}, {"required", {"tecla"}}, {"properties", {{"tecla", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (!vm.acciones().quitar(a.value("tecla", std::string()))) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese atajo")));

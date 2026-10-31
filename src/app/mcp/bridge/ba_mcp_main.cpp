@@ -20,6 +20,9 @@
 // `ba-mcp --rol <rol>` se presenta con ese rol en cada pedido (cabecera
 // X-BA-Rol): el servidor le muestra solo el juego de herramientas del rol.
 // Es como lanza la app a sus agentes automaticos (recepcion, tecnico...).
+// `ba-mcp --palabras-clave` pide la descripcion con las palabras de busqueda de
+// cada herramienta al final (cabecera X-BA-Palabras-Clave): para un cliente que
+// las busca con tool_search por nombre y descripcion (ver McpCore::toolListEntry).
 // ============================================================================
 
 #include <nlohmann/json.hpp>
@@ -143,6 +146,8 @@ std::string lower(std::string s) {
     return s;
 }
 
+bool g_palabrasClave = false; ///< --palabras-clave
+
 HttpReply post(const Target& t, const std::string& session, const std::string& rol, const std::string& body) {
     HttpReply r;
     const socket_t s = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -176,6 +181,7 @@ HttpReply post(const Target& t, const std::string& session, const std::string& r
                       t.token + "\r\n";
     if (!session.empty()) req += "Mcp-Session-Id: " + session + "\r\n";
     if (!rol.empty()) req += "X-BA-Rol: " + rol + "\r\n";
+    if (g_palabrasClave) req += "X-BA-Palabras-Clave: 1\r\n";
     // Qué asistente de la app lo lanzó (evento | automatizacion): la app se lo pone en el
     // entorno al agente y el agente nos lo pasa. Con eso, lo que el asistente deja para
     // después (una pregunta al operador) le vuelve a él y no al otro.
@@ -253,6 +259,8 @@ int main(int argc, char** argv) {
     std::string rol;
     for (int i = 1; i + 1 < argc; ++i)
         if (std::string(argv[i]) == "--rol") rol = argv[i + 1];
+    for (int i = 1; i < argc; ++i)
+        if (std::string(argv[i]) == "--palabras-clave") g_palabrasClave = true;
 #ifdef _WIN32
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);

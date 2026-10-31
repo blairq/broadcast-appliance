@@ -2111,7 +2111,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.title = ba::i18n::traducir("mcp", "Sacar a alguien del padron");
         t.category = "padron";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Borra a una persona de la lista del evento abierto.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra a una persona (`id`, de padron_ver) del padrón del evento abierto. No toca su ficha de rostros.");
         t.details =
             QT_TRANSLATE_NOOP("mcp", "Es para el que se anoto dos veces o el que no venia a este evento. Para el que aviso que "
             "no viene, mejor dejarlo con `estado` en invitado: el que no esta en la lista no se "
