@@ -3,6 +3,7 @@
 // ============================================================================
 #include "evento/LineaEdicion.hpp"
 
+#include "evento/Condicion.hpp"
 #include "evento/LeerJson.hpp"
 #include "i18n/I18n.hpp"
 
@@ -832,6 +833,9 @@ json vista(const Linea& l, const Resolucion& r, const std::string& salida, int64
             es.push_back(std::move(x));
         }
         out["estante"] = std::move(es);
+        // Los pulsos que espera la línea (tecla:, botonera:, web:): la escaleta web
+        // muestra un botón por cada «web:» y los atajos atienden las «tecla:».
+        out["pulsos"] = pulsosDe(l);
     }
     json hs = json::array();
     for (const HardStart& h : sr->hardStarts)
