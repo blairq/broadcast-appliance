@@ -88,7 +88,7 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_lazo_latencia gstbaaudio gstbaipc)
     add_test(NAME test_lazo_latencia COMMAND test_lazo_latencia)
-    set_tests_properties(test_lazo_latencia PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    set_tests_properties(test_lazo_latencia PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # mide latencia en tiempo real: solo
 
     add_executable(test_composicion tests/test_composicion.cpp)
     target_link_libraries(test_composicion PRIVATE ba_motor)
