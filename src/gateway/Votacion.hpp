@@ -85,6 +85,9 @@ class Votacion {
     /// lo que lo vuelve definitivo.
     /// :returns: un motivo vacío si contó; si no, por qué no.
     std::string votar(const std::string& quien, const std::string& codigo, int opcion);
+    /// El código estable de un motivo de votar() («cerrada», «sin_codigo»…), para que la
+    /// página no dependa de cómo está escrita la frase (la frase sigue yendo aparte).
+    static const char* codigoDeMotivo(const std::string& motivo);
 
     /// Lo que ve el operador: el recuento, si está abierta y quién votó (o
     /// solo cuántos, si es secreta).

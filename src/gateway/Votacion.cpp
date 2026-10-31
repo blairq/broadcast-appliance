@@ -169,6 +169,19 @@ std::string Votacion::votar(const std::string& quien, const std::string& codigo,
     return {};
 }
 
+const char* Votacion::codigoDeMotivo(const std::string& m) {
+    static const std::pair<const char*, const char*> tabla[] = {
+        {"la votacion no esta abierta", "cerrada"},
+        {"esa opcion no existe", "opcion"},
+        {"falta el codigo: en una votacion formal hay que identificarse", "sin_codigo"},
+        {"ese codigo no figura entre los que pueden votar", "codigo_invalido"},
+        {"no se de que telefono viene", "sin_telefono"},
+        {"tu voto ya esta contado", "sellado"}};
+    for (const auto& [motivo, codigo] : tabla)
+        if (m == motivo) return codigo;
+    return m.empty() ? "" : "otro";
+}
+
 json Votacion::recuentoSinLock() const {
     json conteo = json::array();
     for (std::size_t i = 0; i < opciones_.size(); ++i) {

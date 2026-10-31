@@ -1588,7 +1588,10 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             const auto q = http::parseQuery(query);
             if (q.count("k")) clave = http::urlDecode(q.at("k"));
             if (q.count("yo")) quien = http::urlDecode(q.at("yo"));
-            if (q.count("codigo")) codigo = http::urlDecode(q.at("codigo"));
+            // El código de votante va en una cabecera (no en la dirección: queda en los
+            // registros de cualquier servidor del camino); por la dirección, lo de antes.
+            codigo = http::getHeader(headers, "X-BA-Codigo");
+            if (codigo.empty() && q.count("codigo")) codigo = http::urlDecode(q.at("codigo"));
         } else if (req.is_object()) {
             clave = req.value("clave", std::string());
             quien = req.value("yo", std::string());
@@ -1620,6 +1623,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             http::sendResponse(fd, 200, "application/json",
                                json{{"ok", motivo.empty()},
                                     {"error", motivo},
+                                    {"error_codigo", Votacion::codigoDeMotivo(motivo)},
                                     {"votacion", votacion_.estadoPublico(quien, codigo)}}
                                    .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
@@ -1705,7 +1709,10 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                      "publico", quien, nowMs());
             if (id.empty()) {
                 http::sendResponse(fd, 400, "application/json",
-                                   json{{"ok", false}, {"error", QT_TRANSLATE_NOOP("web/comun", "la pregunta esta vacia")}}.dump());
+                                   json{{"ok", false},
+                                        {"error", QT_TRANSLATE_NOOP("web/comun", "la pregunta esta vacia")},
+                                        {"error_codigo", "vacia"}}
+                                       .dump());
                 return;
             }
             avisarPreguntas();
