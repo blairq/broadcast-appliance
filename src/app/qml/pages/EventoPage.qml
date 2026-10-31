@@ -24,8 +24,11 @@ Rectangle {
     /// El guion y la conducción se ven: la línea recalcula cada segundo y pide
     /// miniaturas solo entonces (y los atajos de la línea valen solo entonces).
     readonly property bool guionALaVista: page.visible && page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 0
-    Binding { target: Studio.linea; property: "mirando"; value: page.guionALaVista; when: !!Studio.linea }
-    Binding { target: Studio.linea; property: "mirandoLinea"; value: page.guionALaVista && page.vistaGuion === 3; when: !!Studio.linea }
+    // La línea la pueden mirar varias vistas a la vez (esta, la tarjeta, su ventana).
+    readonly property var miradaLinea: [page.guionALaVista, page.guionALaVista && page.vistaGuion === 3]
+    onMiradaLineaChanged: if (Studio.linea) Studio.linea.mirar("evento", miradaLinea[0], miradaLinea[1])
+    Component.onCompleted: miradaLineaChanged()
+    Component.onDestruction: if (Studio.linea) Studio.linea.mirar("evento", false, false)
     property int selC: -1
     readonly property var selCue: {
         const bs = ev.guion.bloques || []

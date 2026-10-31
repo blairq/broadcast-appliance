@@ -61,10 +61,11 @@ class BusEventos;
 
 class LineaViewModel : public QObject {
     Q_OBJECT
-    /// La vista está a la vista (la página del guion): recalcula cada segundo y pide miniaturas.
-    Q_PROPERTY(bool mirando READ mirando WRITE setMirando NOTIFY mirandoChanged)
-    /// La Línea multipista se ve (si no, no se arma `multipista`).
-    Q_PROPERTY(bool mirandoLinea READ mirandoLinea WRITE setMirandoLinea NOTIFY mirandoChanged)
+    /// Alguien la mira (la página del guion, la tarjeta, su ventana): recalcula cada segundo y
+    /// pide miniaturas. Lo dice cada vista con `mirar`.
+    Q_PROPERTY(bool mirando READ mirando NOTIFY mirandoChanged)
+    /// Alguna de esas ve la Línea multipista (si no, no se arma `multipista`).
+    Q_PROPERTY(bool mirandoLinea READ mirandoLinea NOTIFY mirandoChanged)
     /// Las salidas de la línea y la que se mira (y maneja el teclado: Ctrl+1…4).
     Q_PROPERTY(QStringList salidas READ salidas NOTIFY salidaChanged)
     Q_PROPERTY(QString salida READ salida WRITE setSalida NOTIFY salidaChanged)
@@ -107,9 +108,10 @@ class LineaViewModel : public QObject {
     ~LineaViewModel() override;
 
     bool mirando() const { return mirando_; }
-    void setMirando(bool on);
     bool mirandoLinea() const { return mirandoLinea_; }
-    void setMirandoLinea(bool on);
+    /// Cada vista dice si se la ve (`guion`) y si muestra la multipista (`linea`); `quien` la
+    /// distingue de las otras. Al cerrarse, `mirar(quien, false, false)`.
+    Q_INVOKABLE void mirar(const QString& quien, bool guion, bool linea);
     QStringList salidas() const;
     QString salida() const { return QString::fromStdString(salidaEfectiva()); }
     void setSalida(const QString& s);
@@ -208,6 +210,9 @@ class LineaViewModel : public QObject {
     control::BusEventos* bus_ = nullptr;
     std::unique_ptr<LineaProductor> productor_;
 
+    void setMirando(bool on);
+    void setMirandoLinea(bool on);
+    std::map<QString, bool> miran_; ///< quien → ve la multipista
     bool mirando_ = false;
     bool mirandoLinea_ = false;
     std::string salida_; ///< "" = la por omisión de la línea

@@ -39,6 +39,7 @@ inline constexpr Tipo kTipos[] = {
     {"carrusel", QT_TRANSLATE_NOOP("tarjetas", "Carrusel"), "⟳"},
     {"ptz", QT_TRANSLATE_NOOP("tarjetas", "Control PTZ"), "⌖"},
     {"pdf", "PDF", "▤"},
+    {"linea", QT_TRANSLATE_NOOP("tarjetas", "Línea de tiempo"), "⇥"},
 };
 
 } // namespace ba::app::tarjetas

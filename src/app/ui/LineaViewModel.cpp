@@ -104,6 +104,17 @@ LineaViewModel::~LineaViewModel() {
 
 // --- Quién mira ---------------------------------------------------------------------------
 
+void LineaViewModel::mirar(const QString& quien, bool guion, bool linea) {
+    if (guion)
+        miran_[quien] = linea;
+    else
+        miran_.erase(quien);
+    bool alguna = false;
+    for (const auto& [q, l] : miran_) alguna = alguna || l;
+    setMirando(!miran_.empty());
+    setMirandoLinea(alguna);
+}
+
 void LineaViewModel::setMirando(bool on) {
     if (on == mirando_) return;
     mirando_ = on;

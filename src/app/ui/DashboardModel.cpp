@@ -189,6 +189,8 @@ QSizeF tamanoInicial(const QString& kind) {
     if (kind == "ptz") return {0.24, 0.42};
     // La página con sus flechas, el zoom y el joystick, y abajo las carátulas de los PDF.
     if (kind == "pdf") return {0.34, 0.50};
+    // La conducción en grande o la multipista: ancha y alta.
+    if (kind == "linea") return {0.42, 0.50};
     return {0.28, 0.30};
 }
 
