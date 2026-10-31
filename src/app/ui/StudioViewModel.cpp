@@ -30,6 +30,7 @@
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AsambleaViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
+#include "ui/CuentasViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -584,58 +585,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 if (error) emit notify(tr("Un rótulo automático no salió: %1").arg(texto), "error");
             });
     connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);
-    // HTTPS propio (plataformas): raices de certificados del bundle primero.
-    net::HttpsClient::setDefaultCaSearch(
-        {(ba::platform::bundleRoot() / "data" / "cacert.pem").string(),
-         (rt.dataRoot() / "data" / "cacert.pem").string(),
-         (QCoreApplication::applicationDirPath() + "/../../data/cacert.pem").toStdString()});
-    youtube_ = std::make_unique<YouTubeViewModel>(rt);
-    marca("youtube");
-    connect(youtube_.get(), &YouTubeViewModel::notify, this, &StudioViewModel::notify);
-    twitch_ = std::make_unique<TwitchViewModel>(rt);
-    marca("twitch");
-    connect(twitch_.get(), &TwitchViewModel::notify, this, &StudioViewModel::notify);
-    facebook_ = std::make_unique<FacebookViewModel>(rt);
-    marca("facebook");
-    connect(facebook_.get(), &FacebookViewModel::notify, this, &StudioViewModel::notify);
+    // Las cuentas de las plataformas y el formulario de credenciales (ui/CuentasViewModel).
+    cuentas_ = std::make_unique<CuentasViewModel>(CuentasViewModel::Partes{.rt = rt,
+                                                                           .bus = [this]() { return bus_.get(); },
+                                                                           .red = [this]() { return red_.get(); },
+                                                                           .plugins = [this]() { return plugins_.get(); }});
+    marca("cuentas");
+    connect(cuentas_.get(), &CuentasViewModel::notify, this, &StudioViewModel::notify);
     // «Dónde verlo en vivo» de la página web del evento: lo que saben las cuentas.
-    evento_->setPlataformas([this]() {
-        nlohmann::json yt{{"liveId", youtube_->liveBroadcastId().toStdString()},
-                          {"canalId", youtube_->account().value("id").toString().toStdString()},
-                          {"handle", youtube_->account().value("customUrl").toString().toStdString()}};
-        nlohmann::json tw{{"login", twitch_->user().value("login").toString().toStdString()},
-                          {"enVivo", twitch_->streamingHere() || !twitch_->stream().isEmpty()}};
-        nlohmann::json fb{{"liveId", facebook_->liveId().toStdString()}, {"pageId", facebook_->pageId().toStdString()}};
-        return nlohmann::json{{"youtube", yt}, {"twitch", tw}, {"facebook", fb}};
-    });
-    // Las preguntas del público para la página del evento: SOLO las moderadas (la que se
-    // responde, las elegidas, las respondidas); nunca las nuevas sin revisar ni las
-    // descartadas. Mientras el evento tiene página, la cola se consulta (como si la
-    // página Público estuviera abierta).
-    evento_->setPublico(
-        [this]() {
-            nlohmann::json alAire = nlohmann::json::array(), elegidas = nlohmann::json::array(),
-                           respondidas = nlohmann::json::array();
-            for (const QVariant& v : publico_->preguntas()) {
-                const QVariantMap p = v.toMap();
-                const QString est = p.value("estado").toString();
-                nlohmann::json q{{"texto", p.value("texto").toString().toStdString()},
-                                 {"nombre", p.value("nombre").toString().toStdString()},
-                                 {"votos", p.value("votos").toInt()},
-                                 {"estado", est.toStdString()}};
-                if (est == "al_aire") alAire.push_back(q);
-                else if (est == "elegida") elegidas.push_back(q);
-                else if (est == "respondida") respondidas.push_back(q);
-            }
-            nlohmann::json out = alAire;
-            for (auto& q : elegidas) out.push_back(q);
-            for (auto& q : respondidas) out.push_back(q);
-            if (out.size() > 40) out.erase(out.begin() + 40, out.end());
-            return out;
-        },
-        [this]() {
-            return personasConectadas();
-        });
+    evento_->setPlataformas([this]() { return cuentas_->paraLaWeb(); });
+    // Las preguntas del público para la página del evento (solo las moderadas). Mientras el
+    // evento tiene página, la cola se consulta (como si la página Público estuviera abierta).
+    evento_->setPublico([this]() { return publico_->preguntasParaLaWeb(); }, [this]() { return personasConectadas(); });
     connect(publico_.get(), &PublicoViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
     // Lo que sabe el resto del sistema y es público, para la página del evento. Cada cosa
     // puede no existir (la asamblea se arma después, o no hay): la página no muestra lo que
@@ -643,35 +604,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     evento_->setSala([this]() {
         nlohmann::json sala = nlohmann::json::object();
         sala["aire"] = {{"transmitiendo", streaming_}, {"grabando", recording_}};
-        const auto publicoDe = [](const nlohmann::json& i) {
-            nlohmann::json p{{"nombre", i.value("nombre", std::string())}};
-            for (const char* k : {"bloque", "cargo"})
-                if (i.contains(k) && i[k].is_string() && !i[k].get<std::string>().empty()) p[k] = i[k];
-            return p;
-        };
         // Lo de la asamblea (oradores, orden del día, quórum, el cuerpo y el recinto).
         if (asamblea_) sala.update(asamblea_->paraLaWeb());
-        {
-            // La votación: la pregunta y si está abierta; el resultado solo cuando ya se puede
-            // mostrar (cerrada, o el operador eligió mostrarlo mientras está abierta).
-            const QVariantMap v = publico_->votacion();
-            if (v.value("hubo").toBool()) {
-                const bool abierta = v.value("abierta").toBool();
-                nlohmann::json vo{{"pregunta", v.value("pregunta").toString().toStdString()},
-                                  {"abierta", abierta},
-                                  {"modo", v.value("modo").toString().toStdString()},
-                                  {"votaron", v.value("votaron").toInt()},
-                                  {"podian", v.value("podian").toInt()}};
-                if (!abierta || v.value("enVivo").toBool()) {
-                    nlohmann::json res = nlohmann::json::array();
-                    for (const QVariant& r : v.value("resultado").toList())
-                        res.push_back({{"opcion", r.toMap().value("opcion").toString().toStdString()},
-                                       {"votos", r.toMap().value("votos").toInt()}});
-                    vo["resultado"] = res;
-                }
-                sala["votacion"] = vo;
-            }
-        }
+        if (nlohmann::json v = publico_->votacionParaLaWeb(); !v.is_null()) sala["votacion"] = std::move(v);
         return sala;
     });
     connect(evento_.get(), &EventoViewModel::webChanged, this, [this]() {
@@ -680,10 +615,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         publicoPorWeb_ = hay;
         publico_->setActivo(hay);
     });
-    connect(youtube_.get(), &YouTubeViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
-    connect(twitch_.get(), &TwitchViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
-    connect(twitch_.get(), &TwitchViewModel::channelChanged, evento_.get(), &EventoViewModel::publicarWeb);
-    connect(facebook_.get(), &FacebookViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
+    connect(cuentas_.get(), &CuentasViewModel::webCambio, evento_.get(), &EventoViewModel::publicarWeb);
     system_ = std::make_unique<SystemViewModel>();
     // Los chequeos del equipo en la tarjeta de preparación (F4-07): con lo que ya miden
     // las salidas (las sesiones de codificador), el motor (las placas) y el reloj.
@@ -750,7 +682,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         });
         cuenta->start();
     });
-    chatOverlay_ = std::make_unique<ChatOverlayRenderer>(*youtube_, *conference_, *twitch_, *facebook_);
+    chatOverlay_ = std::make_unique<ChatOverlayRenderer>(cuentas_->youtube(), *conference_, cuentas_->twitch(),
+                                                         cuentas_->facebook());
     marca("chatOverlay");
     // El corte de luz (F1-11): la energía, la alarma «en batería» y la política.
     energia_ = std::make_unique<EnergiaAire>(EnergiaAire::Acciones{[&rt]() { return rt.cerrarGrabacionesPorEnergia(); },
@@ -807,14 +740,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             connect(evento_.get(), &EventoViewModel::correChanged, this, publicarCue);
             publicarCue();
         }
-        // Cada vivo con su URL pública (sin la clave), al bus y al histórico.
-        const auto alVivo = [this](const QVariantMap& m) {
-            bus_->publicar("salida/vivo",
-                           nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(m)).toJson().toStdString(),
-                                                 nullptr, false),
-                           true);
-        };
-        connect(youtube_.get(), &YouTubeViewModel::vivo, this, alVivo);
         // El vivo a mano (GUI o MCP: AppRuntime::salirAlAireManual). El servidor sí
         // (es público); la clave nunca.
         rt_.alVivoManual([this](const std::string& servidor) {
@@ -822,8 +747,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 if (bus_) bus_->publicar("salida/vivo", {{"plataforma", "manual"}, {"servidor", servidor}}, true);
             });
         });
-        connect(twitch_.get(), &TwitchViewModel::vivo, this, alVivo);
-        connect(facebook_.get(), &FacebookViewModel::vivo, this, alVivo);
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
         // La interfaz trabada con aire: la detecta el latido en su hilo y la lleva
         // AvisoFueraDeUi en el suyo (esta vista, la que se traba, no interviene).
@@ -962,7 +885,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return QString();
         });
         messages_->setCredentialSink([this](const QString& platform, const QVariantMap& values) {
-            return saveAccountCredential(platform, values);
+            return cuentas_->saveAccountCredential(platform, values);
         });
         messages_->setLateAnswerSink([this](const nlohmann::json& item) {
             const std::string kind = item.value("kind", "");
@@ -1862,9 +1785,13 @@ QObject* StudioViewModel::settings() const { return settings_.get(); }
 QObject* StudioViewModel::dashboard() const { return dashboard_.get(); }
 QObject* StudioViewModel::frames() const { return frames_.get(); }
 QObject* StudioViewModel::properties() const { return props_.get(); }
-QObject* StudioViewModel::youtube() const { return youtube_.get(); }
-QObject* StudioViewModel::twitch() const { return twitch_.get(); }
-QObject* StudioViewModel::facebook() const { return facebook_.get(); }
+QObject* StudioViewModel::youtube() const { return cuentas_->youtubeQml(); }
+QObject* StudioViewModel::twitch() const { return cuentas_->twitchQml(); }
+QObject* StudioViewModel::facebook() const { return cuentas_->facebookQml(); }
+QObject* StudioViewModel::cuentasQml() const {
+    QQmlEngine::setObjectOwnership(cuentas_.get(), QQmlEngine::CppOwnership);
+    return cuentas_.get();
+}
 QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
 QObject* StudioViewModel::manualesQml() const { return manuales_.get(); }
@@ -1914,74 +1841,6 @@ QObject* StudioViewModel::audio() const {
 #endif
 }
 
-QVariantMap StudioViewModel::accountGuide(const QString& platform) const {
-    const nlohmann::json g = accounts::guide(platform.toStdString(), facebook_->redirectUri().toStdString());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(g.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-}
-
-QString StudioViewModel::saveAccountCredential(const QString& platform, const QVariantMap& v) {
-    // Una cámara de la red (camara:<ip>): usuario y clave, cifrados.
-    if (platform.startsWith("camara:")) {
-        if (!red_) return tr("El escáner de red no está disponible.");
-        return red_->guardarCredenciales(platform.mid(7), v.value("usuario").toString(),
-                                         v.value("clave").toString());
-    }
-    // Varias cámaras en un formulario: «usuario|<ip>» y «clave|<ip>». Las que
-    // quedan sin clave se saltean (se pueden completar después).
-    if (platform.startsWith("camaras:")) {
-        if (!red_) return tr("El escáner de red no está disponible.");
-        int guardadas = 0;
-        for (const QString& ip : platform.mid(8).split(',', Qt::SkipEmptyParts)) {
-            const QString clave = v.value("clave|" + ip).toString();
-            if (clave.isEmpty()) continue;
-            QString usuario = v.value("usuario|" + ip).toString().trimmed();
-            if (usuario.isEmpty())
-                usuario = QString::fromStdString(
-                    red_->equipo(ip.toStdString()).value("usuario_de_fabrica", std::string("admin")));
-            const QString e = red_->guardarCredenciales(ip, usuario, clave);
-            if (!e.isEmpty()) return ip + ": " + e;
-            ++guardadas;
-        }
-        return guardadas == 0 ? tr("No escribiste ninguna clave.") : QString();
-    }
-    // Las claves de un plugin (plugin:<id>): un campo por cada una que declara.
-    if (platform.startsWith("plugin:")) {
-        if (!plugins_) return tr("Los plugins no están disponibles.");
-        int guardadas = 0;
-        for (auto it = v.begin(); it != v.end(); ++it) {
-            const QString valor = it.value().toString();
-            if (valor.isEmpty()) continue;
-            const QString e = plugins_->guardarSecreto(platform.mid(7), it.key(), valor);
-            if (!e.isEmpty()) return e;
-            ++guardadas;
-        }
-        return guardadas == 0 ? tr("No escribiste ninguna clave.") : QString();
-    }
-    const std::string p = accounts::normalize(platform.toStdString());
-    if (p == "youtube") {
-        QString path = v.value("importFile").toString();
-        if (v.value("fromDownloads").toBool()) {
-            QString why;
-            path = accounts::findGoogleClientJson(&why);
-            if (path.isEmpty()) return why;
-        }
-        if (!path.isEmpty()) {
-            const QUrl u(path);
-            QFile f(u.isLocalFile() ? u.toLocalFile() : path);
-            if (!f.open(QIODevice::ReadOnly)) return tr("No se pudo leer %1.").arg(f.fileName());
-            return youtube_->saveClient(QString::fromUtf8(f.readAll()));
-        }
-        return youtube_->saveClient(v.value("clientId").toString().trimmed(),
-                                    v.value("clientSecret").toString().trimmed());
-    }
-    if (p == "twitch")
-        return twitch_->saveClient(v.value("clientId").toString().trimmed(),
-                                   v.value("clientSecret").toString().trimmed());
-    if (p == "facebook")
-        return facebook_->saveClient(v.value("appId").toString().trimmed(),
-                                     v.value("appSecret").toString().trimmed(), facebook_->client().port());
-    return tr("Plataforma desconocida: %1.").arg(platform);
-}
 QObject* StudioViewModel::inputs() const { return inputs_.get(); }
 QObject* StudioViewModel::conference() const { return conference_.get(); }
 QObject* StudioViewModel::evento() const { return evento_.get(); }

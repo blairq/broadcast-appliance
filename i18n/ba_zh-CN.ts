@@ -29953,33 +29953,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>推流已恢复</translation>
     </message>
     <message>
-        <location line="+134" />
-        <location line="+7" />
-        <source>El escáner de red no está disponible.</source>
-        <translation>网络扫描器不可用。</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <location line="+13" />
-        <source>No escribiste ninguna clave.</source>
-        <translation>未输入任何密钥。</translation>
-    </message>
-    <message>
-        <location line="-9" />
-        <source>Los plugins no están disponibles.</source>
-        <translation>插件不可用。</translation>
-    </message>
-    <message>
-        <location line="+22" />
-        <source>No se pudo leer %1.</source>
-        <translation>无法读取 %1。</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>Plataforma desconocida: %1.</source>
-        <translation>未知平台：%1。</translation>
-    </message>
-    <message>
         <location line="+17" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>没有名为「%1」的显示器：请提供其编号、名称或 ID。</translation>
@@ -30281,6 +30254,29 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>CuentasViewModel</name>
+    <message>
+        <source>El escáner de red no está disponible.</source>
+        <translation>网络扫描器不可用。</translation>
+    </message>
+    <message>
+        <source>No escribiste ninguna clave.</source>
+        <translation>未输入任何密钥。</translation>
+    </message>
+    <message>
+        <source>Los plugins no están disponibles.</source>
+        <translation>插件不可用。</translation>
+    </message>
+    <message>
+        <source>No se pudo leer %1.</source>
+        <translation>无法读取 %1。</translation>
+    </message>
+    <message>
+        <source>Plataforma desconocida: %1.</source>
+        <translation>未知平台：%1。</translation>
     </message>
 </context>
 <context>

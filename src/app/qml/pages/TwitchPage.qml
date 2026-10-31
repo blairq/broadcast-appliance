@@ -65,7 +65,7 @@ Rectangle {
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 14
                        text: qsTr("Para que la app (y el asistente por MCP) pueda cambiar el título y la categoría del canal, tomar la clave de transmisión, leer y escribir el chat y administrar los VODs, registrá una app en Twitch (una sola vez, unos 3 minutos):") }
                 Repeater {
-                    model: Studio.accountGuide("twitch").steps
+                    model: Studio.cuentas.accountGuide("twitch").steps
                     delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true

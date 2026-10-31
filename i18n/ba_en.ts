@@ -30072,33 +30072,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Stream recovered</translation>
     </message>
     <message>
-        <location line="+134" />
-        <location line="+7" />
-        <source>El escáner de red no está disponible.</source>
-        <translation>The network scanner is not available.</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <location line="+13" />
-        <source>No escribiste ninguna clave.</source>
-        <translation>You didn't type any key.</translation>
-    </message>
-    <message>
-        <location line="-9" />
-        <source>Los plugins no están disponibles.</source>
-        <translation>Plugins are not available.</translation>
-    </message>
-    <message>
-        <location line="+22" />
-        <source>No se pudo leer %1.</source>
-        <translation>Couldn't read %1.</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>Plataforma desconocida: %1.</source>
-        <translation>Unknown platform: %1.</translation>
-    </message>
-    <message>
         <location line="+17" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>There's no monitor “%1”: give its number, name or id.</translation>
@@ -30403,6 +30376,29 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
+    </message>
+</context>
+<context>
+    <name>CuentasViewModel</name>
+    <message>
+        <source>El escáner de red no está disponible.</source>
+        <translation>The network scanner is not available.</translation>
+    </message>
+    <message>
+        <source>No escribiste ninguna clave.</source>
+        <translation>You didn't type any key.</translation>
+    </message>
+    <message>
+        <source>Los plugins no están disponibles.</source>
+        <translation>Plugins are not available.</translation>
+    </message>
+    <message>
+        <source>No se pudo leer %1.</source>
+        <translation>Couldn't read %1.</translation>
+    </message>
+    <message>
+        <source>Plataforma desconocida: %1.</source>
+        <translation>Unknown platform: %1.</translation>
     </message>
 </context>
 <context>

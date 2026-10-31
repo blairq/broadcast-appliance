@@ -185,9 +185,7 @@ namespace graficos {
 class Emisor;
 class Vinculos;
 } // namespace graficos
-class YouTubeViewModel;
-class TwitchViewModel;
-class FacebookViewModel;
+class CuentasViewModel;
 class SystemViewModel;
 class RecursosViewModel;
 class Configuraciones;
@@ -423,6 +421,8 @@ class StudioViewModel : public QObject {
     /// QML para que se pueda llevar al operador derecho a una seccion ("andá a
     /// la de audio") en vez de decirle donde tiene que hacer clic.
     Q_PROPERTY(QString seccionConfig READ seccionConfig WRITE setSeccionConfig NOTIFY seccionConfigChanged)
+    /// Las cuentas de las plataformas (ui/CuentasViewModel): las guías y el formulario de credenciales.
+    Q_PROPERTY(QObject* cuentas READ cuentasQml CONSTANT)
     Q_PROPERTY(QObject* youtube READ youtube CONSTANT)
     Q_PROPERTY(QObject* twitch READ twitch CONSTANT)
     Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
@@ -792,6 +792,8 @@ class StudioViewModel : public QObject {
     /// el rotulador y el MCP: si cada uno tuviera el suyo, lo que uno saca al
     /// aire no se veria en la pantalla del otro.
     graficos::Emisor* emisor() { return emisor_.get(); }
+    QObject* cuentasQml() const;
+    CuentasViewModel& cuentas() { return *cuentas_; }
     QObject* youtube() const;
     QObject* twitch() const;
     QObject* facebook() const;
@@ -854,11 +856,6 @@ class StudioViewModel : public QObject {
     QObject* despachadorQml() const;
 
     // --- Comandos ---------------------------------------------------------------
-    /// Pasos para conectar una plataforma (misma fuente que el MCP: AccountGuides).
-    Q_INVOKABLE QVariantMap accountGuide(const QString& platform) const;
-    /// Guarda la credencial de una plataforma desde el formulario seguro: campos
-    /// del formulario, {"importFile": ruta} o {"fromDownloads": true}. "" o el error.
-    Q_INVOKABLE QString saveAccountCredential(const QString& platform, const QVariantMap& values);
     Q_INVOKABLE void toggleRecording();
     /// Graba aunque quede poco disco (lo confirmó el operador).
     Q_INVOKABLE void grabarIgual();
@@ -1156,9 +1153,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<video::BancoSuperRes> bancoSr_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
-    std::unique_ptr<YouTubeViewModel> youtube_;
-    std::unique_ptr<TwitchViewModel> twitch_;
-    std::unique_ptr<FacebookViewModel> facebook_;
+    std::unique_ptr<CuentasViewModel> cuentas_; ///< YouTube, Twitch y Facebook (ui/CuentasViewModel)
     std::unique_ptr<SystemViewModel> system_;
     std::unique_ptr<Configuraciones> configuraciones_;
     QVariantMap reinicio_;     ///< ver la propiedad reinicio
