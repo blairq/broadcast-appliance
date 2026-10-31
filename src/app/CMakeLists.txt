@@ -565,6 +565,12 @@ endif()
     target_link_libraries(test_recinto_model PRIVATE Qt6::Core)
     set_target_properties(test_recinto_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_recinto_model COMMAND test_recinto_model)
+    # Los formularios por esquema: el tipo de cada campo y sus errores (ui/Formulario).
+    add_executable(test_formulario tests/test_formulario.cpp ui/Formulario.cpp)
+    target_include_directories(test_formulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_formulario PRIVATE Qt6::Core)
+    set_target_properties(test_formulario PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_formulario COMMAND test_formulario)
     # El registro de dispositivos de la máquina: nombres del operador, ausentes, persistencia.
     add_executable(test_dispositivos tests/test_dispositivos.cpp dispositivos/Dispositivos.cpp dispositivos/Conocidos.cpp ui/Formulario.cpp)
     target_include_directories(test_dispositivos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

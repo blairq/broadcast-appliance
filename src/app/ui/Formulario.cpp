@@ -5,6 +5,8 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 
+#include <cmath>
+
 namespace ba::app::formulario {
 
 namespace {
@@ -51,12 +53,14 @@ QString convertir(const QVariantMap& c, const QVariant& crudo, QVariant* out) {
     }
     if (kind == "int" || kind == "float" || kind == "number") {
         bool ok = false;
-        const double d = crudo.toString().trimmed().replace(',', '.').toDouble(&ok);
-        if (!ok) return tr("«%1» tiene que ser un número").arg(etiqueta(c));
-        // Entero si se escribió entero (un puerto, una cantidad): así le llega al que lo lee.
-        *out = kind == "int" || (d == static_cast<double>(static_cast<qint64>(d)) && !crudo.toString().contains('.'))
-                   ? QVariant(static_cast<qint64>(d))
-                   : QVariant(d);
+        const bool yaNumero = crudo.typeId() == QMetaType::Double || crudo.typeId() == QMetaType::Int ||
+                              crudo.typeId() == QMetaType::LongLong || crudo.typeId() == QMetaType::Float;
+        const QString escrito = crudo.toString().trimmed().replace(',', '.');
+        const double d = yaNumero ? crudo.toDouble(&ok) : escrito.toDouble(&ok);
+        if (!ok || !std::isfinite(d)) return tr("«%1» tiene que ser un número").arg(etiqueta(c));
+        // Entero si es entero (un puerto, una cantidad): así le llega al que lo lee.
+        const bool entero = kind == "int" || (std::floor(d) == d && std::fabs(d) < 1e15 && (yaNumero || !escrito.contains('.')));
+        *out = entero ? QVariant(static_cast<qint64>(d)) : QVariant(d);
         return {};
     }
     if (kind == "json") {
