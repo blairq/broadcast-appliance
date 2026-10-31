@@ -33,6 +33,7 @@
 #include "ui/AsistenteViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
 #include "ui/EmisionViewModel.hpp"
+#include "ui/EscenasViewModel.hpp"
 #include "ui/ImagenViewModel.hpp"
 #include "ui/MezclaViewModel.hpp"
 #include "ui/SalaViewModel.hpp"
@@ -286,8 +287,9 @@ class StudioViewModel : public QObject {
     /// Grabar, transmitir y lo que los rodea (ui/EmisionViewModel): destinos, señal limpia,
     /// ISO, disco, loudness, retornos y la salud de cada destino.
     Q_PROPERTY(QObject* emision READ emisionQml CONSTANT)
-    /// El botón de cada escena del editor corta directo (si no, la arma en preview).
-    Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
+    /// Los mandos de las escenas (ui/EscenasViewModel): armarlas y ordenarlas, el preview y
+    /// el TAKE de la activa, el AFV, la repetición.
+    Q_PROPERTY(QObject* escenas READ escenasQml CONSTANT)
     /// La transmision se corto y se esta reintentando.
     Q_PROPERTY(bool reconnecting READ reconnecting NOTIFY statusChanged)
     /// Por que se corto, en castellano. Vacio si no hubo problema.
@@ -495,7 +497,6 @@ class StudioViewModel : public QObject {
     bool alAire() const;
     /// Se transmite algo (la principal, una extra o la señal limpia).
     bool transmitiendo() const;
-    bool corteDirectoEditor() const;
     QObject* cuerpoQml() const;
     QStringList sinSenal() const;
     /// El respaldo de entradas (modelo).
@@ -602,16 +603,9 @@ class StudioViewModel : public QObject {
     /// El área del audio (los racks, la matriz, el Mezclador, el PFL, el retardo).
     MezclaViewModel& mezcla() { return *mezcla_; }
     QObject* mezclaQml() const;
-    /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
-    /// en la escena «Repetición» (lista para el take). "" o el error.
-    Q_INVOKABLE QString repetirUi();
-    /// Pone `archivo` en la escena «Repetición» (la crea si falta) y la deja armada
-    /// en la `salida` ("" = la por omisión).
-    QString armarRepeticion(const QString& archivo, const std::string& salida = {});
-    /// Espera (hasta `ms`) a que haya un clip nuevo de la `salida` distinto de `antes`
-    /// y llama a `listo` con él ("" si no llegó).
-    void esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo,
-                       const std::string& salida = {});
+    /// El área de las escenas (armarlas, el TAKE de la activa, el AFV, la repetición).
+    EscenasViewModel& escenas() { return *escenas_; }
+    QObject* escenasQml() const;
     control::SatelliteServidor& satellite() { return control_->satellite(); }
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
@@ -758,36 +752,6 @@ class StudioViewModel : public QObject {
     QObject* despachadorQml() const;
 
     // --- Comandos ---------------------------------------------------------------
-    // --- Bus de preview y TAKE ------------------------------------------------
-    // Una mesa de switcher tiene DOS buses: lo que esta al aire (programa) y lo
-    // que va a salir (preview). El operador arma el proximo plano, lo MIRA, y
-    // recien ahi hace TAKE. Sin eso, cada cambio de plano es a ciegas y en
-    // vivo: lo que esta roto se descubre cuando ya salio.
-    //
-    // `takeScene` sigue estando y sigue yendo directo al aire: hay momentos en
-    // los que hay que cortar YA y pedir dos pasos seria peor.
-    Q_INVOKABLE void takeScene(const QString& name);
-    /// Arma una escena en el bus de preview (NO la pone al aire).
-    Q_INVOKABLE void armarEscena(const QString& name);
-    /// Pone al aire la escena armada, con la transicion configurada.
-    ///
-    /// Y deja armada la que SALIO del aire, como cualquier mesa: despues de un
-    /// take, el bus de preview queda con el plano anterior, listo para volver.
-    Q_INVOKABLE void take();
-    /// AUTO con otra transición solo esta vez («cut» = CUT). `ms` < 0: la duración global.
-    Q_INVOKABLE void takeCon(const QString& tipo, int ms);
-    /// T-bar hacia la escena armada: `t` de 0 a 1; `soltar` termina (pasada la mitad, queda al aire).
-    Q_INVOKABLE void tbar(double t, bool soltar);
-    /// La transición con la que ENTRA una escena (vacío = la global). {tipo, ms}.
-    Q_INVOKABLE QVariantMap transicionEntrada(const QString& escena) const;
-    Q_INVOKABLE QString setTransicionEntrada(const QString& escena, const QString& tipo, int ms);
-    /// Audio que sigue al video (AFV): la fuente sube cuando su escena entra al aire y baja cuando sale.
-    Q_INVOKABLE bool afv(const QString& fuente) const;
-    Q_INVOKABLE void setAfv(const QString& fuente, bool sigue);
-    /// Las fuentes con AFV, para enlazar en la vista (afv() es una llamada: no se
-    /// reevalúa y el botón no se enteraba de un cambio hecho en otra vista o por MCP).
-    Q_PROPERTY(QStringList afvFuentes READ afvFuentes NOTIFY afvChanged)
-    QStringList afvFuentes() const;
     QString escenaArmada() const;
     /// El conmutador de escenas de la salida por omisión (modelo): la GUI y el MCP
     /// cambian de escena por ahí.
@@ -805,16 +769,6 @@ class StudioViewModel : public QObject {
     emision::RetornosInvitados& retornos() { return emision_->retornos(); }
     /// El objetivo de loudness guardado (modelo, Config/loudness.json).
     audio::ObjetivoLoudness& objetivoLoudness() { return emision_->objetivoLoudness(); }
-
-    /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
-    /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
-    ///
-    /// Esto se arma acá y no en QML porque desde QML no se puede recorrer un
-    /// QAbstractListModel. Devuelve SOLO la agrupación, sin decir cuál está al
-    /// aire ni cuál armada: esas dos salen de `currentScene` y `escenaArmada`,
-    /// que ya avisan cuando cambian. Metiéndolas acá habría que reconstruir la
-    /// lista entera en cada corte, y la lista no cambió.
-    Q_INVOKABLE QVariantList escenasPorCarpeta() const;
 
     /// Muestra un cartel grande en CADA monitor con su número y su nombre,
     /// unos segundos. Es la única forma de saber cuál es «DP-1» sin ponerse a
@@ -843,31 +797,12 @@ class StudioViewModel : public QObject {
     void publicarTally();
 
    public:
-    Q_INVOKABLE void addScene(const QString& name);
-    Q_INVOKABLE void removeScene(const QString& name);
-    Q_INVOKABLE void renameScene(const QString& from, const QString& to);
-    /// Copia una escena entera con sus fuentes. Devuelve el nombre que le
-    /// quedo (le agrega un numero si el que se pidio ya existia), o vacio si
-    /// no se pudo.
-    Q_INVOKABLE QString copyScene(const QString& from, const QString& to = {});
-    Q_INVOKABLE void setSceneProtected(const QString& name, bool protegida);
-    Q_INVOKABLE bool sceneProtected(const QString& name) const;
-    /// Mueve la escena a una carpeta ("" la saca). Solo ordena la lista.
-    Q_INVOKABLE void setSceneFolder(const QString& name, const QString& folder);
-    /// Carpetas que ya existen (para ofrecerlas al mover una escena).
-    Q_INVOKABLE QStringList sceneFolders() const;
-    /// Reordena: deja `name` justo antes de `before` (vacio = al final), en la
-    /// carpeta de `before`.
-    Q_INVOKABLE void moveScene(const QString& name, const QString& before);
     /// Copia un texto al portapapeles y lo avisa.
     ///
     /// Vive acá y no en la sala: copiar un enlace no tiene nada que ver con una
     /// videoconferencia. Estaba en ConferenceViewModel y por eso el diálogo de
     /// QR —que lo usan el teleprompter y los rótulos— no podía copiar nada.
     Q_INVOKABLE void copiar(const QString& texto);
-    /// Escena que muestra el lienzo del editor ("" = ninguna). Se renderiza
-    /// aunque no este al aire, asi una escena vacia se ve vacia.
-    Q_INVOKABLE void setScenePreview(const QString& name);
     Q_INVOKABLE void save();
     /// Relee escenas, fuentes y mezclador del motor (algo los cambio por
     /// fuera de la vista, p. ej. el servidor MCP).
@@ -899,13 +834,11 @@ class StudioViewModel : public QObject {
     /// (ui_abrir_panel {page, panel}): lo que el operador abre con un botón.
     void abrirPanel(const QString& pagina, const QString& panel);
     void canvasChanged();
-    void afvChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
     void notify(const QString& message, const QString& level);
     /// El launcher (o una señal) pidio cerrar.
     void quitRequested();
-    void escenasAjustesChanged();
     void senalChanged();
 
    private slots:
@@ -992,6 +925,7 @@ class StudioViewModel : public QObject {
     /// (ui/SalidasViewModel). Lo que usa sus conmutadores (el respaldo de entradas) va
     /// más abajo.
     std::unique_ptr<SalidasViewModel> salidas_;
+    std::unique_ptr<EscenasViewModel> escenas_; ///< los mandos de las escenas (ui/EscenasViewModel): usa las salidas
     /// La interfaz pasa a mostrar lo de la activa: escenas, fuentes, mezcla, tally.
     void reflejarSalidaActiva();
     double peakActivaL_ = -100; ///< el vúmetro del programa de la activa (si no es la por omisión)
@@ -1011,7 +945,6 @@ class StudioViewModel : public QObject {
     int observadorRt_ = 0;
     std::atomic<unsigned> avisosPendientes_{0};
     void refrescarAvisos();
-    std::unique_ptr<escenas::AjustesEscenas> ajustesEscenas_; ///< Config/escenas.json (modelo)
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     unsigned vigiaTicks_ = 0;
     std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa los grafos de video y el conmutador de la por omisión

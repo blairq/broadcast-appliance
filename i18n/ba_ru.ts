@@ -30075,36 +30075,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Монитор «%1» не подключён.</translation>
     </message>
     <message>
-        <location line="+140" />
-        <source>%1 (copia)</source>
-        <translation>%1 (копия)</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1 (copia %2)</source>
-        <translation>%1 (копия %2)</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Escena copiada: %1</source>
-        <translation>Сцена скопирована: %1</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Escena copiada, pero %1</source>
-        <translation>Сцена скопирована, но %1</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>«%1» protegida: no se puede borrar ni renombrar</source>
-        <translation>«%1» защищена: её нельзя удалить или переименовать</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>«%1» ya no está protegida</source>
-        <translation>«%1» больше не защищена</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>Сохранено</translation>
@@ -30119,13 +30089,38 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Восстановлено то, что было в эфире до сбоя (заставка или чёрный)</translation>
     </message>
+</context>
+<context>
+    <name>EscenasViewModel</name>
     <message>
-        <location line="+20" />
+        <source>%1 (copia)</source>
+        <translation>%1 (копия)</translation>
+    </message>
+    <message>
+        <source>%1 (copia %2)</source>
+        <translation>%1 (копия %2)</translation>
+    </message>
+    <message>
+        <source>Escena copiada: %1</source>
+        <translation>Сцена скопирована: %1</translation>
+    </message>
+    <message>
+        <source>Escena copiada, pero %1</source>
+        <translation>Сцена скопирована, но %1</translation>
+    </message>
+    <message>
+        <source>«%1» protegida: no se puede borrar ni renombrar</source>
+        <translation>«%1» защищена: её нельзя удалить или переименовать</translation>
+    </message>
+    <message>
+        <source>«%1» ya no está protegida</source>
+        <translation>«%1» больше не защищена</translation>
+    </message>
+    <message>
         <source>La repetición no llegó a escribirse.</source>
         <translation>Повтор не успел записаться.</translation>
     </message>
     <message>
-        <location line="+2" />
         <source>Repetición armada: dale TAKE.</source>
         <translation>Повтор загружен: нажмите TAKE.</translation>
     </message>

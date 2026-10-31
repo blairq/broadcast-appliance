@@ -95,9 +95,9 @@ Item {
                            font { family: Theme.font; pixelSize: 14; weight: Font.DemiBold } }
                 }
             }
-            GlassButton { text: qsTr("CUT"); enabled: Studio.escenaArmada !== ""; onClicked: Studio.takeCon("cut", 0)
+            GlassButton { text: qsTr("CUT"); enabled: Studio.escenaArmada !== ""; onClicked: Studio.escenas.takeCon("cut", 0)
                           ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Corte seco a la armada") }
-            GlassButton { text: qsTr("AUTO"); active: true; enabled: Studio.escenaArmada !== ""; onClicked: Studio.take()
+            GlassButton { text: qsTr("AUTO"); active: true; enabled: Studio.escenaArmada !== ""; onClicked: Studio.escenas.take()
                           ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("TAKE con la transición") }
         }
 

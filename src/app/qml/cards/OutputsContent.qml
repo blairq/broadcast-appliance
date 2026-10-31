@@ -216,7 +216,7 @@ Item {
                 compact: true
                 visible: grab.g.replay && grab.g.replay.activa
                 text: qsTr("⟲ Repetir %1 s").arg(grab.g.replay ? grab.g.replay.segundos : 0)
-                onClicked: { const e = Studio.repetirUi(); if (e !== "") Studio.notify(e, "error") }
+                onClicked: { const e = Studio.escenas.repetirUi(); if (e !== "") Studio.notify(e, "error") }
             }
         }
         // El disco a este bitrate y el pase a MP4 al terminar.

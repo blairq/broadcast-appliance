@@ -66,9 +66,9 @@ Rectangle {
 
     // El motor renderiza la escena que se edita solo mientras esta pagina esta
     // a la vista: fuera de aca no se gasta GPU en ella.
-    onEditSceneChanged: if (visible) Studio.setScenePreview(editScene)
-    onVisibleChanged: Studio.setScenePreview(visible ? editScene : "")
-    Component.onCompleted: if (visible) Studio.setScenePreview(editScene)
+    onEditSceneChanged: if (visible) Studio.escenas.setScenePreview(editScene)
+    onVisibleChanged: Studio.escenas.setScenePreview(visible ? editScene : "")
+    Component.onCompleted: if (visible) Studio.escenas.setScenePreview(editScene)
 
     onSelectedChanged: Studio.properties.sourceName = selected
 
@@ -96,8 +96,8 @@ Rectangle {
                 }
                 CheckBox {
                     text: qsTr("Corte directo (sin preview)")
-                    checked: Studio.corteDirectoEditor
-                    onToggled: Studio.corteDirectoEditor = checked
+                    checked: Studio.escenas.corteDirectoEditor
+                    onToggled: Studio.escenas.corteDirectoEditor = checked
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: qsTr("Apagado (recomendado): el botón de cada escena la ARMA en el preview y sale con TAKE. Prendido: corta directo (al aire pide confirmación).")
                 }
@@ -133,7 +133,7 @@ Rectangle {
                                 // `escena` dice cual es).
                                 onDropped: (ev) => {
                                     if (ev.source && ev.source.escena !== undefined)
-                                        Studio.setSceneFolder(ev.source.escena, folderName)
+                                        Studio.escenas.setSceneFolder(ev.source.escena, folderName)
                                 }
                             }
                             RowLayout {
@@ -181,18 +181,18 @@ Rectangle {
                                     readonly property string esc: parent.parent.name
                                     visible: !parent.parent.live
                                     compact: true
-                                    text: Studio.corteDirectoEditor ? qsTr("Al aire") : (Studio.escenaArmada === esc ? qsTr("Armada") : qsTr("Armar"))
-                                    active: !Studio.corteDirectoEditor
+                                    text: Studio.escenas.corteDirectoEditor ? qsTr("Al aire") : (Studio.escenaArmada === esc ? qsTr("Armada") : qsTr("Armar"))
+                                    active: !Studio.escenas.corteDirectoEditor
                                     activeColor: "#16a34a"
                                     onClicked: {
-                                        if (!Studio.corteDirectoEditor) { Studio.armarEscena(esc); return }
-                                        if (!Studio.salidas.aire.alAire) { Studio.takeScene(esc); return } // el aire de la salida que maneja
+                                        if (!Studio.escenas.corteDirectoEditor) { Studio.escenas.armarEscena(esc); return }
+                                        if (!Studio.salidas.aire.alAire) { Studio.escenas.takeScene(esc); return } // el aire de la salida que maneja
                                         const n = esc
                                         ApplicationWindow.window.confirm({
                                             title: qsTr("¿Cortar a «%1» al aire?").arg(n),
                                             text: qsTr("Es un corte directo, sin pasar por el preview."),
                                             accept: qsTr("Cortar"), reject: qsTr("Cancelar"),
-                                            action: function() { Studio.takeScene(n) }
+                                            action: function() { Studio.escenas.takeScene(n) }
                                         })
                                     }
                                 }
@@ -231,7 +231,7 @@ Rectangle {
                                 anchors.fill: parent
                                 onDropped: (ev) => {
                                     if (ev.source && ev.source.escena !== undefined)
-                                        Studio.moveScene(ev.source.escena, parent.name)
+                                        Studio.escenas.moveScene(ev.source.escena, parent.name)
                                 }
                             }
                             // Linea que marca donde va a caer.
@@ -269,7 +269,7 @@ Rectangle {
                         // UNA bien y las demás salen de copiarla. El nombre lo
                         // propone solo; renombrar es un clic más.
                         onClicked: {
-                            const nueva = Studio.copyScene(page.editScene, "")
+                            const nueva = Studio.escenas.copyScene(page.editScene, "")
                             if (nueva !== "") page.editScene = nueva
                         }
                         ToolTip.visible: hovered; ToolTip.delay: 400
@@ -277,18 +277,18 @@ Rectangle {
                     }
                     GlassButton {
                         text: qsTr("Renombrar"); compact: true
-                        enabled: !Studio.sceneProtected(page.editScene)
+                        enabled: !Studio.escenas.sceneProtected(page.editScene)
                         onClicked: { renameDlg.from = page.editScene; renameDlg.open() }
                         ToolTip.visible: hovered && !enabled
                         ToolTip.text: qsTr("«%1» está protegida").arg(page.editScene)
                     }
                     GlassButton {
-                        text: Studio.sceneProtected(page.editScene) ? qsTr("Protegida") : qsTr("Proteger")
-                        icon: Studio.sceneProtected(page.editScene) ? "🔒" : "🔓"
+                        text: Studio.escenas.sceneProtected(page.editScene) ? qsTr("Protegida") : qsTr("Proteger")
+                        icon: Studio.escenas.sceneProtected(page.editScene) ? "🔒" : "🔓"
                         compact: true
-                        active: Studio.sceneProtected(page.editScene)
-                        onClicked: Studio.setSceneProtected(page.editScene,
-                                                            !Studio.sceneProtected(page.editScene))
+                        active: Studio.escenas.sceneProtected(page.editScene)
+                        onClicked: Studio.escenas.setSceneProtected(page.editScene,
+                                                            !Studio.escenas.sceneProtected(page.editScene))
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Una escena protegida no se borra ni se renombra. Copiarla sí.\n" +
                                       "Para la escena base de la que salen las demás.")
@@ -301,13 +301,13 @@ Rectangle {
                     }
                     GlassButton {
                         text: qsTr("Borrar"); compact: true
-                        enabled: !Studio.sceneProtected(page.editScene)
+                        enabled: !Studio.escenas.sceneProtected(page.editScene)
                         ToolTip.visible: hovered && !enabled
                         ToolTip.text: qsTr("«%1» está protegida: sacale el candado primero").arg(page.editScene)
                         onClicked: {
                             const escena = page.editScene
                             // La unica escena no se puede borrar: el motor lo avisa, sin preguntar antes.
-                            if (sceneList.count < 2) { Studio.removeScene(escena); return }
+                            if (sceneList.count < 2) { Studio.escenas.removeScene(escena); return }
                             // El motor deja borrar la escena al aire: corta en seco a otra.
                             const alAire = escena === Studio.currentScene
                             ApplicationWindow.window.confirm({
@@ -317,7 +317,7 @@ Rectangle {
                                       + qsTr("Se pierden su disposición y las fuentes que solo están en ella."),
                                 accept: qsTr("Borrar"),
                                 reject: qsTr("Cancelar"),
-                                action: function() { Studio.removeScene(escena) }
+                                action: function() { Studio.escenas.removeScene(escena) }
                             })
                         }
                     }
@@ -670,7 +670,7 @@ Rectangle {
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         TextField { id: newSceneName; width: 280; placeholderText: qsTr("Nombre de la escena") }
-        onAccepted: { if (newSceneName.text) Studio.addScene(newSceneName.text); newSceneName.text = "" }
+        onAccepted: { if (newSceneName.text) Studio.escenas.addScene(newSceneName.text); newSceneName.text = "" }
     }
     // Mover una escena a una carpeta (o sacarla, dejando el nombre vacio).
     Dialog {
@@ -681,7 +681,7 @@ Rectangle {
         title: qsTr("Carpeta de «%1»").arg(scene)
         onOpened: folderField.forceActiveFocus()
         footer: DialogButtonBox {
-            GlassButton { text: qsTr("Guardar"); active: true; onClicked: { Studio.setSceneFolder(folderDlg.scene, folderField.text); folderDlg.close() } }
+            GlassButton { text: qsTr("Guardar"); active: true; onClicked: { Studio.escenas.setSceneFolder(folderDlg.scene, folderField.text); folderDlg.close() } }
             GlassButton { text: qsTr("Cancelar"); onClicked: folderDlg.close() }
         }
         ColumnLayout {
@@ -691,13 +691,13 @@ Rectangle {
                 id: folderField
                 Layout.preferredWidth: 320
                 placeholderText: qsTr("p. ej. Bloque 1, Invitados, Placas")
-                onAccepted: { Studio.setSceneFolder(folderDlg.scene, text); folderDlg.close() }
+                onAccepted: { Studio.escenas.setSceneFolder(folderDlg.scene, text); folderDlg.close() }
             }
             Flow {
                 Layout.preferredWidth: 320
                 spacing: 6
                 Repeater {
-                    model: Studio.sceneFolders()
+                    model: Studio.escenas.sceneFolders()
                     delegate: GlassButton {
                         required property string modelData
                         compact: true
@@ -718,6 +718,6 @@ Rectangle {
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: renameField.text = from
         TextField { id: renameField; width: 280 }
-        onAccepted: if (renameField.text && renameField.text !== from) Studio.renameScene(from, renameField.text)
+        onAccepted: if (renameField.text && renameField.text !== from) Studio.escenas.renameScene(from, renameField.text)
     }
 }

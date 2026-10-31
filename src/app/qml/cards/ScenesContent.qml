@@ -66,12 +66,12 @@ Item {
             case Qt.Key_End:   tarjeta.elegida = tarjeta.planas.length - 1; e.accepted = true; break
             case Qt.Key_Return:
             case Qt.Key_Enter:
-                if (tarjeta.elegida >= 0) Studio.armarEscena(tarjeta.planas[tarjeta.elegida])
+                if (tarjeta.elegida >= 0) Studio.escenas.armarEscena(tarjeta.planas[tarjeta.elegida])
                 e.accepted = true
                 break
             case Qt.Key_T:
                 if (Studio.focoEnTexto()) break // escribiendo: no es TAKE
-                if (Studio.escenaArmada !== "") Studio.take()
+                if (Studio.escenaArmada !== "") Studio.escenas.take()
                 e.accepted = true
                 break
         }
@@ -80,10 +80,10 @@ Item {
     // Se rearma solo cuando cambia la LISTA (se agregó, borró, renombró o
     // cambió de carpeta una escena), no en cada corte: al aire y armada salen
     // de dos propiedades que avisan por su cuenta.
-    property var grupos: Studio.escenasPorCarpeta()
+    property var grupos: Studio.escenas.escenasPorCarpeta()
     Connections {
         target: Studio
-        function onEscenasCambiaron() { tarjeta.grupos = Studio.escenasPorCarpeta() }
+        function onEscenasCambiaron() { tarjeta.grupos = Studio.escenas.escenasPorCarpeta() }
     }
 
     // El botón de una escena, uno solo para todo el árbol.
@@ -123,8 +123,8 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Studio.armarEscena(parent.nombre)
-                onDoubleClicked: Studio.takeScene(parent.nombre) // corte directo
+                onClicked: Studio.escenas.armarEscena(parent.nombre)
+                onDoubleClicked: Studio.escenas.takeScene(parent.nombre) // corte directo
                 ToolTip.visible: containsMouse
                 ToolTip.text: parent.live ? qsTr("Está al aire")
                                           : qsTr("Clic: armar para el TAKE\nDoble clic: cortar al aire ya")
@@ -175,7 +175,7 @@ Item {
             GlassButton {
                 text: qsTr("TAKE"); active: true
                 enabled: Studio.escenaArmada !== ""
-                onClicked: Studio.take()
+                onClicked: Studio.escenas.take()
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Saca al aire la escena armada.\nLa que sale queda armada, para volver.")
             }

@@ -29837,36 +29837,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>显示器「%1」未连接。</translation>
     </message>
     <message>
-        <location line="+140" />
-        <source>%1 (copia)</source>
-        <translation>%1（副本）</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1 (copia %2)</source>
-        <translation>%1（副本 %2）</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Escena copiada: %1</source>
-        <translation>场景已复制：%1</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Escena copiada, pero %1</source>
-        <translation>场景已复制，但 %1</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>«%1» protegida: no se puede borrar ni renombrar</source>
-        <translation>「%1」已受保护：无法删除或重命名</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>«%1» ya no está protegida</source>
-        <translation>「%1」已取消保护</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>已保存</translation>
@@ -29881,13 +29851,38 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
     </message>
+</context>
+<context>
+    <name>EscenasViewModel</name>
     <message>
-        <location line="+20" />
+        <source>%1 (copia)</source>
+        <translation>%1（副本）</translation>
+    </message>
+    <message>
+        <source>%1 (copia %2)</source>
+        <translation>%1（副本 %2）</translation>
+    </message>
+    <message>
+        <source>Escena copiada: %1</source>
+        <translation>场景已复制：%1</translation>
+    </message>
+    <message>
+        <source>Escena copiada, pero %1</source>
+        <translation>场景已复制，但 %1</translation>
+    </message>
+    <message>
+        <source>«%1» protegida: no se puede borrar ni renombrar</source>
+        <translation>「%1」已受保护：无法删除或重命名</translation>
+    </message>
+    <message>
+        <source>«%1» ya no está protegida</source>
+        <translation>「%1」已取消保护</translation>
+    </message>
+    <message>
         <source>La repetición no llegó a escribirse.</source>
         <translation>回放未能及时写入。</translation>
     </message>
     <message>
-        <location line="+2" />
         <source>Repetición armada: dale TAKE.</source>
         <translation>回放已载入：请按 TAKE。</translation>
     </message>

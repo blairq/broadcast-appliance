@@ -235,8 +235,8 @@ Item {
                         alTocar: () => { Studio.mixer.setMuted(t.nombre, !t.st.mute); m.leerTiras() } }
                 Boton { texto: "PFL"; on: !!t.st.pfl; colorOn: Theme.canalPfl; textoOn: "#1a1a1a"; ayuda: qsTr("Escucharla en los auriculares (se suma a lo que ya va ahí, como la voz del asistente)")
                         alTocar: () => { const e = Studio.mezcla.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error"); m.leerTiras() } }
-                Boton { texto: "AFV"; on: Studio.afvFuentes.indexOf(t.nombre) >= 0; colorOn: Theme.canalAfv; ayuda: qsTr("Sigue al video: sube cuando su escena sale al aire")
-                        alTocar: () => Studio.setAfv(t.nombre, Studio.afvFuentes.indexOf(t.nombre) < 0) }
+                Boton { texto: "AFV"; on: Studio.escenas.afvFuentes.indexOf(t.nombre) >= 0; colorOn: Theme.canalAfv; ayuda: qsTr("Sigue al video: sube cuando su escena sale al aire")
+                        alTocar: () => Studio.escenas.setAfv(t.nombre, Studio.escenas.afvFuentes.indexOf(t.nombre) < 0) }
             }
             // Sincronizar con el video (sincro labios): el retardo del canal.
             Boton {

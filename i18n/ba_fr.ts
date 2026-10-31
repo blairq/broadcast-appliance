@@ -29956,36 +29956,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>L'écran « %1 » n'est pas connecté.</translation>
     </message>
     <message>
-        <location line="+140" />
-        <source>%1 (copia)</source>
-        <translation>%1 (copie)</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1 (copia %2)</source>
-        <translation>%1 (copie %2)</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Escena copiada: %1</source>
-        <translation>Scène copiée : %1</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Escena copiada, pero %1</source>
-        <translation>Scène copiée, mais %1</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>«%1» protegida: no se puede borrar ni renombrar</source>
-        <translation>« %1 » protégée : impossible de la supprimer ou de la renommer</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>«%1» ya no está protegida</source>
-        <translation>« %1 » n'est plus protégée</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>Enregistré</translation>
@@ -30000,13 +29970,38 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Ce qui était à l'antenne avant la coupure a été rétabli (carton ou noir)</translation>
     </message>
+</context>
+<context>
+    <name>EscenasViewModel</name>
     <message>
-        <location line="+20" />
+        <source>%1 (copia)</source>
+        <translation>%1 (copie)</translation>
+    </message>
+    <message>
+        <source>%1 (copia %2)</source>
+        <translation>%1 (copie %2)</translation>
+    </message>
+    <message>
+        <source>Escena copiada: %1</source>
+        <translation>Scène copiée : %1</translation>
+    </message>
+    <message>
+        <source>Escena copiada, pero %1</source>
+        <translation>Scène copiée, mais %1</translation>
+    </message>
+    <message>
+        <source>«%1» protegida: no se puede borrar ni renombrar</source>
+        <translation>« %1 » protégée : impossible de la supprimer ou de la renommer</translation>
+    </message>
+    <message>
+        <source>«%1» ya no está protegida</source>
+        <translation>« %1 » n'est plus protégée</translation>
+    </message>
+    <message>
         <source>La repetición no llegó a escribirse.</source>
         <translation>Le ralenti n'a pas pu être écrit à temps.</translation>
     </message>
     <message>
-        <location line="+2" />
         <source>Repetición armada: dale TAKE.</source>
         <translation>Ralenti prêt : faites TAKE.</translation>
     </message>

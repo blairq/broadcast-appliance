@@ -1144,8 +1144,8 @@ void McpService::registerTools() {
                         "en el preview para salir con TAKE (false, de fábrica). Sin argumentos, los muestra.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"corte_directo_editor", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            if (a.contains("corte_directo_editor")) vm.setCorteDirectoEditor(a.value("corte_directo_editor", false));
-            done(ToolResult().data(json{{"corte_directo_editor", vm.corteDirectoEditor()}}));
+            if (a.contains("corte_directo_editor")) vm.escenas().setCorteDirectoEditor(a.value("corte_directo_editor", false));
+            done(ToolResult().data(json{{"corte_directo_editor", vm.escenas().corteDirectoEditor()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -3990,14 +3990,14 @@ void McpService::registerTools() {
             const std::string antes = rt.engine().ultimoReplay(salida);
             if (!rt.engine().guardarReplay(salida)) return done(ToolResult::error(rt.engine().lastError()));
             const bool armar = a.value("y_armar", false);
-            vm.esperarReplay(
+            vm.escenas().esperarReplay(
                 antes, 8000,
                 [&vm, armar, done, salida](const QString& f) {
                     if (f.isEmpty())
                         return done(ToolResult::error(ba::i18n::traducir("mcp", "el clip no llegó a escribirse en 8 s")));
                     json r{{"archivo", f.toStdString()}};
                     if (armar) {
-                        const QString e = vm.armarRepeticion(f, salida);
+                        const QString e = vm.escenas().armarRepeticion(f, salida);
                         r["armada"] = e.isEmpty();
                         if (!e.isEmpty()) r["error_al_armar"] = e.toStdString();
                     }
