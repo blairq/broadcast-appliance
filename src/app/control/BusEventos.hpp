@@ -21,11 +21,15 @@
 //   votacion/estado                               {estado: sin|abierta|pausada|cerrada, numero, tema}
 //   votacion/abierta, votacion/cerrada            true/false (las condiciones de la línea de tiempo)
 //   sala/participantes                            la sala de invitados
-//   linea/<salida>/estado                         la línea de tiempo de esa salida: {estado, hold,
+//   linea/<salida>/estado                        la línea de tiempo de esa salida: {estado, hold,
 //                                                  alAire{paso, nombre}, proximo{paso, nombre,
 //                                                  automatico, entraSoloEnSeg}, overUnderSeg,
 //                                                  proximoHardStart?} (LineaViewModel)
 //   linea/<salida>/proximo                        solo el próximo (o null)
+//   linea/<salida>/overunder                      {seg, fin, finPlaneado, corrida} (cada segundo
+//                                                  mientras se pasa: una medición)
+//   linea/<salida>/propuesta                      lo que propone el productor para llegar a
+//                                                  horario (ui/LineaProductor), o null
 //
 // Cada tema guarda su último valor (para que el que se conecta tarde se ponga
 // al día). Publicar el mismo valor no avisa a nadie.
@@ -84,7 +88,8 @@ class BusEventos : public QObject {
     void setMediciones(std::vector<std::string> patrones);
     /// Las de fábrica: lo que se publica muchas veces por segundo (o cada segundo) y no es un hecho.
     static std::vector<std::string> medicionesDeFabrica() {
-        return {"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally", "aire/+/tally"};
+        return {"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally", "aire/+/tally",
+                "linea/+/overunder"};
     }
     /// El tema de `tema` para la salida `salida` (su id): «aire/tally» → «aire/<salida>/tally»
     /// (lo mismo con escena, armada, salida/stream y salida/grabacion) y «{{salida}}» → el

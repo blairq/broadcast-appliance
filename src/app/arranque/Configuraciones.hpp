@@ -202,4 +202,10 @@ class Configuraciones : public QObject {
     std::function<QString()> reiniciar_;
 };
 
+/// El evento de la plantilla del programa de un escenario (el `escenario` de su
+/// plantillaDatos, el id de su guía: datos/escenarios, evento_escenario), en el
+/// idioma del operador: el evento.json de su carpeta Eventos/. null si no hay. Con
+/// esto el asistente arma la línea de un evento desde la guía (linea_desde_plantilla).
+nlohmann::json eventoDeEscenario(const std::string& escenario);
+
 } // namespace ba::app

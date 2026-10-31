@@ -76,6 +76,10 @@
 //   salidas → stream_salud + record_disco (1 s)    latencias → tiempos_mapa (1 s)
 //   estado → status (2 s)                  sala → room_status (1 s)
 //   oradores → remotos_fila_ver (1 s)       graficos → dsk_capas_ver + grafico_en_escena (1 s)
+//   linea → linea_estado + linea_ver (1 s; la escaleta y el presentador, de la salida del aparato)
+//   linea-camaras → linea_camaras (1 s; la pantalla de cámara, todas las salidas)
+// El perfil «solo mirar» de una categoría es «<categoría>:ver» (p. ej. «linea:ver»): ve
+// los temas y llama solo las de lectura (para el productor o la producción).
 // Un tema cuyas herramientas no estén todas en el perfil se rechaza. Un tema
 // que nadie mira no se consulta. Se consulta una vez por salida que lo mira (las
 // herramientas de salida, Tool::porSalida, con la de esos aparatos).
@@ -183,7 +187,11 @@ class ControlWeb : public QObject {
     /// ¿`despues` permite algo que `antes` no?
     static bool amplia(const json& antes, const json& despues);
     /// ¿El perfil deja usar esta herramienta? (nunca las de administrar el control web)
-    static bool permite(const json& perfil, const std::string& categoria);
+    /// «<categoría>:ver» en el perfil deja solo las de lectura de esa categoría
+    /// (`lectura`: la herramienta es de solo lectura): el perfil «solo mirar».
+    static bool permite(const json& perfil, const std::string& categoria, bool lectura = false);
+    /// El sufijo del perfil «solo mirar» de una categoría («linea:ver»).
+    static constexpr const char* kSoloMirar = ":ver";
     static const std::vector<Tema>& temas();
 
     // --- Lo que llega del gateway -------------------------------------------------------

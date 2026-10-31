@@ -1,5 +1,8 @@
 // src/app/ui/LineaViewModel.cpp — ver LineaViewModel.hpp
 #include "ui/LineaViewModel.hpp"
+#include "ui/LineaProductor.hpp"
+
+#include <QQmlEngine>
 
 #include "control/Acciones.hpp"
 #include "control/BusEventos.hpp"
@@ -71,7 +74,16 @@ LineaViewModel::LineaViewModel(EventoViewModel& evento, BroadcastEngine& engine,
         connect(acciones_, &control::Acciones::cambio, this, &LineaViewModel::rehacerTeclas);
     }
     rehacerTeclas();
+    // El productor (L9): vigila linea/+/overunder y propone, sin ejecutar.
+    if (bus_) productor_ = std::make_unique<LineaProductor>(ev_, *bus_);
+    if (productor_)
+        connect(productor_.get(), &LineaProductor::aviso, this, [this](const QString& t) { emit ev_.notify(t, "warning"); });
     pedirRecalculo();
+}
+
+QObject* LineaViewModel::productorQml() const {
+    if (productor_) QQmlEngine::setObjectOwnership(productor_.get(), QQmlEngine::CppOwnership);
+    return productor_.get();
 }
 
 LineaViewModel::~LineaViewModel() {
@@ -315,6 +327,12 @@ void LineaViewModel::publicarBus(const json& estado) {
             v["proximoHardStart"] = {{"paso", h.value("paso", "")}, {"hora", h.value("hora", json())}, {"gapSeg", h.value("gapSeg", 0)}};
         bus_->publicar("linea/" + s + "/estado", v);
         bus_->publicar("linea/" + s + "/proximo", v["proximo"]);
+        // El over/under aparte: lo vigila el productor (ui/LineaProductor) y lo puede
+        // mirar un disparador sin despertarse con cada cambio del estado.
+        bus_->publicar("linea/" + s + "/overunder", {{"seg", x.value("overUnderSeg", 0)},
+                                                      {"fin", x.value("fin", json())},
+                                                      {"finPlaneado", x.value("finPlaneado", json())},
+                                                      {"corrida", estado.value("estado", std::string())}});
     }
 }
 

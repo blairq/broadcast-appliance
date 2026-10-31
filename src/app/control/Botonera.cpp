@@ -971,6 +971,10 @@ json Botonera::plantillas() const {
          {{"id", "salidas"}, {"nombre", traducir("botonera", "Salidas")},
           {"descripcion", traducir("botonera", "Una celda por salida (su color, lo que tiene al aire, si sale): tocarla "
                                                "elige cuál maneja el aparato; TAKE, FTB, REC y AIRE de esa")}},
+         {{"id", "linea"}, {"nombre", traducir("botonera", "Línea de tiempo")},
+          {"descripcion", traducir("botonera", "La línea de la salida que maneja el aparato: lo que está al aire y lo que "
+                                               "viene, GO, HOLD, mover el próximo, saltar y el over/under (sirve en "
+                                               "Companion y en un Stream Deck)")}},
          {{"id", "pdf"}, {"nombre", "PDF"},
           {"descripcion", traducir("botonera", "Pasar las páginas del PDF de la escena, elegir otro de la documentación del "
                                                "evento y poner la escena «PDF» al aire")}}});
@@ -1246,6 +1250,34 @@ json Botonera::armarPlantilla(const std::string& id) const {
         usar(boton(0, 2, traducir("botonera", "Sacar aviso"), herr("prompter_control", {{"aviso", ""}})));
         usar(boton(3, 0, traducir("botonera", "PÁNICO"), herr("prompter_control", {{"panico", true}}), json::array(),
                    "#b71c1c"));
+    } else if (id == "linea") {
+        // La línea de tiempo (PLAN-LINEA-DE-TIEMPO.md 3.5 D): las acciones de vivo y su
+        // feedback del bus (linea/<salida>/estado, lo publica LineaViewModel). Con
+        // «{{salida}}» cada aparato ve la salida que maneja.
+        nombre = traducir("botonera", "Línea de tiempo");
+        columnas = 5;
+        filas = 3;
+        const std::string est = "linea/{{salida}}/estado";
+        usar(json{{"x", 0}, {"y", 0}, {"ancho", 3}, {"tipo", "texto"},
+                  {"estilo", {{"texto", traducir("botonera", "Nada al aire")}, {"fondo", "#3a1010"}, {"color", "#fff"}}},
+                  {"estado", {lig(est, "alAire.nombre", "existe", nullptr, "texto", traducir("botonera", "AL AIRE\n{{v}}")),
+                              lig(est, "hold", "==", true, "fondo", "#8a6d00")}}});
+        usar(json{{"x", 3}, {"y", 0}, {"ancho", 2}, {"tipo", "texto"},
+                  {"estilo", {{"texto", "—"}, {"fondo", "#1f3f1f"}, {"color", "#fff"}}},
+                  {"estado", {lig(est, "proximo.nombre", "existe", nullptr, "texto", traducir("botonera", "PRÓXIMO\n{{v}}")),
+                              lig(est, "proximo.entraSoloEnSeg", ">", 0, "titilar", true)}}});
+        usar(boton(0, 1, traducir("botonera", "◀ Próximo"), herr("linea_anterior")));
+        usar(boton(1, 1, traducir("botonera", "Próximo ▶"), herr("linea_siguiente")));
+        usar(boton(2, 1, traducir("botonera", "Saltar"), herr("linea_saltar")));
+        usar(boton(3, 1, "HOLD", herr("linea_hold"),
+                   {lig(est, "hold", "==", true, "fondo", "#c49000"), lig(est, "hold", "==", true, "activo", true)}, "#5a4a10"));
+        usar(json{{"x", 4}, {"y", 1}, {"tipo", "texto"},
+                  {"estilo", {{"texto", "±0"}, {"fondo", "#111"}, {"color", "#9ad"}}},
+                  {"estado", {lig(est, "overUnderSeg", "existe", nullptr, "texto", traducir("botonera", "{{v}} s")),
+                              lig(est, "overUnderSeg", ">", 0, "color", "#ff5252")}}});
+        usar(json{{"x", 0}, {"y", 2}, {"ancho", 5}, {"tipo", "boton"},
+                  {"estilo", {{"texto", "GO"}, {"fondo", "#8e1b1b"}, {"color", "#ffffff"}}},
+                  {"accion", herr("linea_go")}, {"estado", json::array()}});
     } else if (id == "pdf") {
         // La fuente PDF de la escena (pdf_escena_*): páginas y, abajo, un botón por cada
         // PDF de la documentación del evento.

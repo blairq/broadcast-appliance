@@ -8,10 +8,10 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 806,
+  "cuantas": 808,
   "por_clase": {
-    "lectura": 267,
-    "escritura": 477,
+    "lectura": 268,
+    "escritura": 478,
     "aire": 47,
     "ui": 15
   },
@@ -654,6 +654,8 @@
         "linea_adlib",
         "linea_ajustar",
         "linea_anterior",
+        "linea_camaras",
+        "linea_desde_plantilla",
         "linea_deshacer",
         "linea_editar",
         "linea_estado",
@@ -1326,7 +1328,7 @@
       "id": "evento",
       "titulo": "Guion del evento (storyboard)",
       "resumen": "Bloques, cues, tiempos previstos, revision previa, ensayo y teleprompter.",
-      "texto": "## Que es\nUn **evento** es el guion de lo que va a pasar: **bloques** (Apertura, Palabras del intendente, Cierre) y dentro de cada uno los **cues** concretos. El evento tiene TODO lo suyo (escenas, mezclador, medios, asamblea, web): la carpeta del evento entera se puede llevar a otra máquina. Los archivos de los cues de música y video son los **medios del evento** (la página Medios, `media_list`); los discursos van en `Discursos/` del guion.\n\n## Los tipos de cue y que necesita cada uno en `datos`\n| Tipo | `datos` | ¿Se ejecuta hoy? |\n|---|---|---|\n| `escena` | `{escena, transicion, ms}` — entra por el PVW con TAKE; `transicion`/`ms` opcionales (si no, la de entrada de la escena) | si |\n| `orador` | `{participante}` + `duracionSeg > 0` | si |\n| `musica` | `{archivo, accion, repetir}` — un archivo de los medios del evento (`media_list`) | si |\n| `teleprompter` | `{discurso, arrancar}` — texto en `Discursos/` | si |\n| `audio` | `{accion: silenciar\\|activar\\|volumen, fuente, db}` | si |\n| `video` | `{archivo, alTerminar}` | todavia no |\n| `pantalla` | `{pantalla, contenido}` | todavia no |\n| `pausa` | espera lo que diga `duracionSeg` y sigue sola | si |\n| `espera` | frena hasta que el operador confirme | si |\n| `nota` | no hace nada: es una indicacion | si |\n\nLos que todavia no se ejecutan igual se pueden dejar escritos: cuentan para los tiempos y le dicen al operador que hacer. Cuando les toca el turno, el sistema lo anota en vez de fallar callado.\n\n## Tiempos\nDe la `duracionSeg` de cada cue sale la del bloque y la del evento; con `inicio` (HH:MM) sale la hora prevista de cada cosa, y con `fecha` (YYYY-MM-DD) mas `huso` (nombre IANA) sale `cuando`, el arranque como instante absoluto para el que esta en otro huso. Mientras corre, lo que importa es el **desvio**: `desvioSeg` positivo = vamos tarde. Lo pausado no cuenta como atraso.\n\n## Antes del evento\n- `evento_revisar`: cues incompletos, escenas que no existen, archivos que faltan o estan vacios.\n- `evento_ensayo_rapido`: recorre el guion ENTERO de una, sin tocar nada, y dice de cada cue si se podria ejecutar. Es lo que conviene correr despues de armar un guion largo.\n- El interruptor de **ensayo** (`evento_correr {\"ensayo\": true}`) recorre el guion en tiempo real sin salir al aire.\n\n## Mientras corre\n`evento_correr` con `arrancar`, `siguiente`, `atras`, `ir`, `pausar`, `reanudar`, `hold`, `parar`. **Sale al aire** salvo en ensayo, asi que lo decide el operador.\n\nUn cue con `automatico: true` pasa **solo** al siguiente cuando se cumple su `duracionSeg` (sin duracion, en el acto: sirve para encadenar escena + zocalo); una `pausa` con duracion, tambien. Las `espera` nunca, y el ultimo cue tampoco. Los ultimos 5 s antes de que entre solo el paso siguiente se avisan (`reloj.entraSoloEnSeg`). `hold` frena ese avance del paso al aire (la cuenta sigue y el atraso corre: no es una pausa); otro `hold` lo suelta, o `{\"accion\": \"hold\", \"hold\": false}`.\n\nPor debajo, el guion es una **línea de tiempo** (ver abajo): cada cue de escena, orador, video, pausa o espera abre un **paso**, y los cues que lo siguen son **piezas** de ese paso. `siguiente` dispara la pieza siguiente del paso si todavía no salió y, si no queda ninguna, hace entrar el paso siguiente. Un gráfico que «se va al avanzar» se va cuando entra el paso siguiente.\n\nEl cue de escena que sigue queda **armado en el PVW** de antemano, asi el operador ve lo que va a entrar y el TAKE es inmediato.\n\nCorrer el guion NO es estar en vivo: en vivo es que salga algo de verdad (transmisión o grabación), y lo dice `en_vivo` en `status`. En vivo, la app le avisa al operador antes de cualquier accion de riesgo y `settings_set` no aplica lo que reinicia la conferencia o el motor (sacaria a todos los invitados o cortaria la salida en el peor momento). Con el guion corriendo para probar, sin transmitir, no se bloquea nada.\n\n## Teleprompter\nEl cue `teleprompter` carga un texto de `Discursos/` y lo deja LISTO pero parado. Todo lo demas (escribir los discursos, mandarlos, manejar el texto al aire) es su propia categoria: `help {\"topic\": \"prompter\"}`.\n## La cara del evento en la web (tema)\nCada evento tiene su **tema**: acento, fondo, letra, logo y nombre, en **todas** las páginas web del sistema: la del evento, la de invitados, la sesión remota (donde votan los integrantes), las consultas del público, el tótem de registro y las pantallas de la sala. Las consolas de los operadores (control, botonera, presidencia, rótulos, corrección) toman lo que diga el `alcance`: por omisión, solo el acento y el logo. Nunca cambian los colores con significado: tally, al aire y armado, vúmetros, sí y no de la votación.\n\n- `evento_tema {\"accion\": \"ver\"}`: el tema, los colores que van a salir (`resuelto`) y los `avisos` de contraste. Si hay avisos, decíselo al operador y proponé otro color.\n- `evento_tema {\"accion\": \"cambiar\", \"colores\": {\"acento\": \"#00a86b\"}, \"marca\": {\"nombre\": \"Foro 2026\"}}`: lo que no se pone se calcula (el texto encima del acento sale del contraste).\n- `evento_tema {\"accion\": \"logo\", \"archivo\": \"<ruta>\", \"cual\": \"logo\"}` (SVG, PNG o WebP, hasta 2 MB; `logoClaro` para fondos oscuros, `favicon` para la pestaña) y `{\"accion\": \"fuente\", \"archivo\": \"<ruta>\", \"familia\": \"…\"}` (WOFF2, WOFF, TTF u OTF, hasta 4 MB). Sin internet: nada de Google Fonts, la letra viaja con el evento.\n- `alcance`: `{\"publico\": \"todo\", \"control\": \"acento\"}` (cada uno nada, acento o todo).\n- Un sitio generado antes del tema: `evento_tema {\"accion\": \"migrar_sitio\"}` (respeta lo cambiado a mano en `estilo.css`).\n\nSe guarda en la carpeta del evento (`tema.json` y `Tema/`). Sin tema propio, el acento y el fondo salen de los del sitio (`evento_web sitio {color, fondo}`). En la app: Servicios → Aspecto de las páginas web → Tema del evento.\n\n## La línea de tiempo (`linea_*`)\nEl plan del evento es su **línea de tiempo**; el guion de cues es una manera de leerla y editarla (lo que no tocás en los cues queda exacto en la línea). La línea sabe más que los cues: **pasos** que entran con GO o solos (`tras` otro, `con` otro, a una `hora` fija con política avisar/esperar/cortar, `ancla`dos a otra salida), **piezas** con su tiempo dentro del paso (`{ms}`, `{antesDelFin}`, `{manual:true}`) y su `vida` (paso, bloque, hasta que se saque, evento), un **estante** de adlibs y pasos para insertar, y el pronóstico con back time y over/under.\n\n- **Mirar**: `linea_ver` (compacto; `nivel`: bloques, pasos o piezas; `desde`/`hasta` \"HH:MM\") y `linea_estado` (al aire, próximo, HOLD, over/under, próximo hard start). `linea_revisar` dice lo que está mal armado.\n- **Cambiar**: `linea_editar {ops, probar}`: un lote que entra entero o nada. **Probá primero** (`probar: true`), mostrá el diff y el pronóstico, y aplicalo cuando la persona confirme. Cada cambio aplicado deja la línea anterior en `Respaldos/linea-<n>.json`; `linea_deshacer` vuelve. En vivo solo se toca lo que viene.\n- **Llegar a horario**: `linea_ajustar {hasta: \"21:00\"}` propone recortar los pasos con etiqueta `recortable` y saltear los `opcional`; nunca aplica.\n- **En vivo**: `linea_go`, `linea_hold`, `linea_siguiente`/`linea_anterior` (mueven el próximo sin tocar el aire), `linea_saltar`, `linea_ir {paso}` (entra con el estado que corresponde: repone música y gráficos de vida larga), `linea_repetir`, `linea_insertar {item}` (un paso del estante), `linea_adlib {pieza}`. Las que cambian el aire las confirma la persona.\n- **Lo que pasó**: `linea_recorrido` (también en `Eventos/<evento>/recorrido.jsonl`).\n\n## Si se corta la luz\nLa línea vuelve con el aire como estaba pero **en HOLD**, y la conducción pregunta **«¿Qué está pasando?»**. Cuando la persona te lo cuente (escrito o dictado): `linea_estado` (mirá `retoma.resumen`: cuánto duró el corte, qué estaba al aire, qué iría según el plan, qué se repuso y qué se perdió), pasá la descripción con `linea_retomar {descripcion}`, y **proponé** cómo seguir (dónde reenganchar, qué saltear, qué recortar) con `linea_editar` o `linea_ajustar` con `probar`. Cuando confirme, aplicalo y soltá con `linea_soltar {decision}`. Si dice que siga como estaba, `linea_soltar` sin cambiar nada. Sin respuesta, queda en HOLD. Para probar el flujo sin cortar nada: `linea_retomar {\"simular\": true}` con la línea corriendo."
+      "texto": "## Que es\nUn **evento** es el guion de lo que va a pasar: **bloques** (Apertura, Palabras del intendente, Cierre) y dentro de cada uno los **cues** concretos. El evento tiene TODO lo suyo (escenas, mezclador, medios, asamblea, web): la carpeta del evento entera se puede llevar a otra máquina. Los archivos de los cues de música y video son los **medios del evento** (la página Medios, `media_list`); los discursos van en `Discursos/` del guion.\n\n## Los tipos de cue y que necesita cada uno en `datos`\n| Tipo | `datos` | ¿Se ejecuta hoy? |\n|---|---|---|\n| `escena` | `{escena, transicion, ms}` — entra por el PVW con TAKE; `transicion`/`ms` opcionales (si no, la de entrada de la escena) | si |\n| `orador` | `{participante}` + `duracionSeg > 0` | si |\n| `musica` | `{archivo, accion, repetir}` — un archivo de los medios del evento (`media_list`) | si |\n| `teleprompter` | `{discurso, arrancar}` — texto en `Discursos/` | si |\n| `audio` | `{accion: silenciar\\|activar\\|volumen, fuente, db}` | si |\n| `video` | `{archivo, alTerminar}` | todavia no |\n| `pantalla` | `{pantalla, contenido}` | todavia no |\n| `pausa` | espera lo que diga `duracionSeg` y sigue sola | si |\n| `espera` | frena hasta que el operador confirme | si |\n| `nota` | no hace nada: es una indicacion | si |\n\nLos que todavia no se ejecutan igual se pueden dejar escritos: cuentan para los tiempos y le dicen al operador que hacer. Cuando les toca el turno, el sistema lo anota en vez de fallar callado.\n\n## Tiempos\nDe la `duracionSeg` de cada cue sale la del bloque y la del evento; con `inicio` (HH:MM) sale la hora prevista de cada cosa, y con `fecha` (YYYY-MM-DD) mas `huso` (nombre IANA) sale `cuando`, el arranque como instante absoluto para el que esta en otro huso. Mientras corre, lo que importa es el **desvio**: `desvioSeg` positivo = vamos tarde. Lo pausado no cuenta como atraso.\n\n## Antes del evento\n- `evento_revisar`: cues incompletos, escenas que no existen, archivos que faltan o estan vacios.\n- `evento_ensayo_rapido`: recorre el guion ENTERO de una, sin tocar nada, y dice de cada cue si se podria ejecutar. Es lo que conviene correr despues de armar un guion largo.\n- El interruptor de **ensayo** (`evento_correr {\"ensayo\": true}`) recorre el guion en tiempo real sin salir al aire.\n\n## Mientras corre\n`evento_correr` con `arrancar`, `siguiente`, `atras`, `ir`, `pausar`, `reanudar`, `hold`, `parar`. **Sale al aire** salvo en ensayo, asi que lo decide el operador.\n\nUn cue con `automatico: true` pasa **solo** al siguiente cuando se cumple su `duracionSeg` (sin duracion, en el acto: sirve para encadenar escena + zocalo); una `pausa` con duracion, tambien. Las `espera` nunca, y el ultimo cue tampoco. Los ultimos 5 s antes de que entre solo el paso siguiente se avisan (`reloj.entraSoloEnSeg`). `hold` frena ese avance del paso al aire (la cuenta sigue y el atraso corre: no es una pausa); otro `hold` lo suelta, o `{\"accion\": \"hold\", \"hold\": false}`.\n\nPor debajo, el guion es una **línea de tiempo** (ver abajo): cada cue de escena, orador, video, pausa o espera abre un **paso**, y los cues que lo siguen son **piezas** de ese paso. `siguiente` dispara la pieza siguiente del paso si todavía no salió y, si no queda ninguna, hace entrar el paso siguiente. Un gráfico que «se va al avanzar» se va cuando entra el paso siguiente.\n\nEl cue de escena que sigue queda **armado en el PVW** de antemano, asi el operador ve lo que va a entrar y el TAKE es inmediato.\n\nCorrer el guion NO es estar en vivo: en vivo es que salga algo de verdad (transmisión o grabación), y lo dice `en_vivo` en `status`. En vivo, la app le avisa al operador antes de cualquier accion de riesgo y `settings_set` no aplica lo que reinicia la conferencia o el motor (sacaria a todos los invitados o cortaria la salida en el peor momento). Con el guion corriendo para probar, sin transmitir, no se bloquea nada.\n\n## Teleprompter\nEl cue `teleprompter` carga un texto de `Discursos/` y lo deja LISTO pero parado. Todo lo demas (escribir los discursos, mandarlos, manejar el texto al aire) es su propia categoria: `help {\"topic\": \"prompter\"}`.\n## La cara del evento en la web (tema)\nCada evento tiene su **tema**: acento, fondo, letra, logo y nombre, en **todas** las páginas web del sistema: la del evento, la de invitados, la sesión remota (donde votan los integrantes), las consultas del público, el tótem de registro y las pantallas de la sala. Las consolas de los operadores (control, botonera, presidencia, rótulos, corrección) toman lo que diga el `alcance`: por omisión, solo el acento y el logo. Nunca cambian los colores con significado: tally, al aire y armado, vúmetros, sí y no de la votación.\n\n- `evento_tema {\"accion\": \"ver\"}`: el tema, los colores que van a salir (`resuelto`) y los `avisos` de contraste. Si hay avisos, decíselo al operador y proponé otro color.\n- `evento_tema {\"accion\": \"cambiar\", \"colores\": {\"acento\": \"#00a86b\"}, \"marca\": {\"nombre\": \"Foro 2026\"}}`: lo que no se pone se calcula (el texto encima del acento sale del contraste).\n- `evento_tema {\"accion\": \"logo\", \"archivo\": \"<ruta>\", \"cual\": \"logo\"}` (SVG, PNG o WebP, hasta 2 MB; `logoClaro` para fondos oscuros, `favicon` para la pestaña) y `{\"accion\": \"fuente\", \"archivo\": \"<ruta>\", \"familia\": \"…\"}` (WOFF2, WOFF, TTF u OTF, hasta 4 MB). Sin internet: nada de Google Fonts, la letra viaja con el evento.\n- `alcance`: `{\"publico\": \"todo\", \"control\": \"acento\"}` (cada uno nada, acento o todo).\n- Un sitio generado antes del tema: `evento_tema {\"accion\": \"migrar_sitio\"}` (respeta lo cambiado a mano en `estilo.css`).\n\nSe guarda en la carpeta del evento (`tema.json` y `Tema/`). Sin tema propio, el acento y el fondo salen de los del sitio (`evento_web sitio {color, fondo}`). En la app: Servicios → Aspecto de las páginas web → Tema del evento.\n\n## La línea de tiempo (`linea_*`)\nEl plan del evento es su **línea de tiempo**; el guion de cues es una manera de leerla y editarla (lo que no tocás en los cues queda exacto en la línea). La línea sabe más que los cues: **pasos** que entran con GO o solos (`tras` otro, `con` otro, a una `hora` fija con política avisar/esperar/cortar, `ancla`dos a otra salida), **piezas** con su tiempo dentro del paso (`{ms}`, `{antesDelFin}`, `{manual:true}`) y su `vida` (paso, bloque, hasta que se saque, evento), un **estante** de adlibs y pasos para insertar, y el pronóstico con back time y over/under.\n\n- **Mirar**: `linea_ver` (compacto; `nivel`: bloques, pasos o piezas; `desde`/`hasta` \"HH:MM\") y `linea_estado` (al aire, próximo, HOLD, over/under, próximo hard start). `linea_revisar` dice lo que está mal armado.\n- **Cambiar**: `linea_editar {ops, probar}`: un lote que entra entero o nada. **Probá primero** (`probar: true`), mostrá el diff y el pronóstico, y aplicalo cuando la persona confirme. Cada cambio aplicado deja la línea anterior en `Respaldos/linea-<n>.json`; `linea_deshacer` vuelve. En vivo solo se toca lo que viene.\n- **Llegar a horario**: `linea_ajustar {hasta: \"21:00\"}` (sin `hasta`, el fin planeado) es el solucionador del back-timing: trae **opciones ya probadas** (cada una con su `resultado`: cómo queda el fin) contra el fin y contra cada hard start que viene desfasado: **recortar** (los pasos `recortable` —hasta la mitad— o `recortable:N` —hasta el N %—, de la `prioridad:1` a la `prioridad:9`; sin etiqueta, 5), **absorber** (un solo paso se hace cargo de toda la diferencia), **saltear** los `opcional`, **mover la hora** de un hard start, y si sobra, **relleno** o **estirar**. Un paso `fijo` no se toca; a uno abierto (un orador) se le acorta lo previsto: hay que avisarle. Nunca aplica: mostrá las opciones y aplicá la que la persona elija (`linea_editar` con sus `ops`).\n- **El productor**: mientras la línea corre, si una salida se pasa de un minuto (y después cada minuto más) la conducción avisa con la mejor opción («Vamos +3:20; si se hace esto llegamos: …») y la deja a la vista para que una persona la aplique o la descarte. No ejecuta nada solo.\n- **Armar desde plantillas**: `linea_desde_plantilla` sin nada lista las plantillas (las del evento y las de fábrica: `orador`, `punto`, `votacion`) con sus campos. Con `plantilla` y `datos` (una fila por orador: `nombre`, `cargo`, `escena`, `participante`, `tiempoSeg`) arma un paso por fila; con `origen: \"orden-del-dia\"`, un bloque con un paso por punto que queda atado al orden del día (si cambia, se re-expande sin tocar lo emitido); con `escenario` (el id de `evento_escenarios`), la línea entera de la plantilla de esa guía. Siempre prueba primero; con `probar: false` aplica.\n- **En vivo**: `linea_go`, `linea_hold`, `linea_siguiente`/`linea_anterior` (mueven el próximo sin tocar el aire), `linea_saltar`, `linea_ir {paso}` (entra con el estado que corresponde: repone música y gráficos de vida larga), `linea_repetir`, `linea_insertar {item}` (un paso del estante), `linea_adlib {pieza}`. Las que cambian el aire las confirma la persona.\n- **Lo que pasó**: `linea_recorrido` (también en `Eventos/<evento>/recorrido.jsonl`).\n- **Cámaras**: `linea_camaras` dice, para cada cámara, si está al aire y qué planos vienen con ella y cuándo (de todas las salidas), y qué PTZ le toca.\n\n## La línea en otros aparatos\nAdemás de la conducción en la app, la línea se maneja y se mira desde la red local (aparatos del control web: se emparejan con el QR de **Servicios → Control** y una persona les pone un perfil):\n- **`/control/escaleta?salida=<id>`**: la escaleta para una tablet: al aire y próximo con su miniatura y su cuenta, GO, HOLD, mover el próximo, saltar, el estante y la lista de pasos (tocar uno que viene es ir a él).\n- **`/control/presentador`**: cuánto le queda al paso al aire, en grande, y qué viene después.\n- **`/control/camara?camara=<nombre o número>`**: la pantalla del camarógrafo: si su cámara está al aire y los planos que vienen con ella, con su cuenta regresiva.\n- El perfil **`linea:ver`** («solo mirar») deja ver todo eso sin poder tocar nada: para el productor, la producción, el presentador y las cámaras. Con `linea`, también se maneja.\n- En la **Botonera** (y por ella en Companion y el Stream Deck), la plantilla **«Línea de tiempo»** trae GO, HOLD, mover el próximo, saltar y lo que está al aire, de la salida que maneja cada aparato. El bus publica `linea/<salida>/estado`, `…/proximo`, `…/overunder` y `…/propuesta` para los disparadores y los plugins.\n\n## Si se corta la luz\nLa línea vuelve con el aire como estaba pero **en HOLD**, y la conducción pregunta **«¿Qué está pasando?»**. Cuando la persona te lo cuente (escrito o dictado): `linea_estado` (mirá `retoma.resumen`: cuánto duró el corte, qué estaba al aire, qué iría según el plan, qué se repuso y qué se perdió), pasá la descripción con `linea_retomar {descripcion}`, y **proponé** cómo seguir (dónde reenganchar, qué saltear, qué recortar) con `linea_editar` o `linea_ajustar` con `probar`. Cuando confirme, aplicalo y soltá con `linea_soltar {decision}`. Si dice que siga como estaba, `linea_soltar` sin cambiar nada. Sin respuesta, queda en HOLD. Para probar el flujo sin cortar nada: `linea_retomar {\"simular\": true}` con la línea corriendo."
     },
     {
       "id": "prompter",
@@ -14800,7 +14802,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1530
+        "linea": 1533
       },
       "roles": [
         "asistente",
@@ -14866,7 +14868,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 370
+        "linea": 373
       },
       "roles": [
         "asistente",
@@ -14893,7 +14895,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1699
+        "linea": 1702
       },
       "roles": [
         "asistente",
@@ -14938,7 +14940,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1272
+        "linea": 1275
       },
       "roles": [
         "asistente",
@@ -14965,7 +14967,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1298
+        "linea": 1301
       },
       "roles": [
         "asistente",
@@ -15012,7 +15014,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 429
+        "linea": 432
       },
       "roles": [
         "asistente",
@@ -15076,7 +15078,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1383
+        "linea": 1386
       },
       "roles": [
         "asistente",
@@ -15103,7 +15105,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 341
+        "linea": 344
       },
       "roles": [
         "asistente",
@@ -15130,7 +15132,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1319
+        "linea": 1322
       },
       "roles": [
         "asistente",
@@ -15161,7 +15163,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1504
+        "linea": 1507
       },
       "roles": [
         "asistente",
@@ -15188,7 +15190,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1487
+        "linea": 1490
       },
       "roles": [
         "asistente",
@@ -15232,7 +15234,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 895
+        "linea": 898
       },
       "roles": [
         "asistente",
@@ -15264,7 +15266,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 500
+        "linea": 503
       },
       "roles": [
         "asistente",
@@ -15295,7 +15297,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1350
+        "linea": 1353
       },
       "roles": [
         "asistente",
@@ -15330,7 +15332,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 807
+        "linea": 810
       },
       "roles": [
         "asistente",
@@ -15413,7 +15415,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1222
+        "linea": 1225
       },
       "roles": [
         "asistente",
@@ -15448,7 +15450,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 570
+        "linea": 573
       },
       "roles": [
         "asistente",
@@ -15647,7 +15649,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 828
+        "linea": 831
       },
       "roles": [
         "asistente",
@@ -15783,7 +15785,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 149
+        "linea": 152
       },
       "roles": [
         "asistente",
@@ -15823,7 +15825,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 293
+        "linea": 296
       },
       "roles": [
         "asistente",
@@ -15870,7 +15872,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 944
+        "linea": 947
       },
       "roles": [
         "asistente",
@@ -15913,7 +15915,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 862
+        "linea": 865
       },
       "roles": [
         "asistente",
@@ -15999,7 +16001,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 980
+        "linea": 983
       },
       "roles": [
         "asistente",
@@ -16061,7 +16063,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1153
+        "linea": 1156
       },
       "roles": [
         "asistente",
@@ -16096,7 +16098,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 96
+        "linea": 99
       },
       "roles": [
         "asistente",
@@ -16126,7 +16128,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 265
+        "linea": 268
       },
       "roles": [
         "asistente",
@@ -18483,7 +18485,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 778
+        "linea": 781
       },
       "roles": [
         "asistente"
@@ -18522,7 +18524,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 608
+        "linea": 611
       },
       "roles": [
         "asistente"
@@ -18563,7 +18565,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 744
+        "linea": 747
       },
       "roles": [
         "asistente"
@@ -18610,7 +18612,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 641
+        "linea": 644
       },
       "roles": [
         "asistente"
@@ -18640,7 +18642,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 720
+        "linea": 723
       },
       "roles": [
         "asistente"
@@ -18682,7 +18684,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 690
+        "linea": 693
       },
       "roles": [
         "asistente"
@@ -20625,7 +20627,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         },
         "required": [
@@ -20643,31 +20645,29 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 317
+        "linea": 448
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "dispara una pieza de la línea (escena, gráfico, música)"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_ajustar",
       "titulo": "Llegar a horario",
       "categoria": "linea",
-      "descripcion": "Para terminar a una hora: propone recortar los pasos que vienen con la etiqueta «recortable» y, si no alcanza, saltear los «opcional». Nunca aplica.",
+      "descripcion": "El solucionador del back-timing: para terminar a una hora (o al fin planeado) y llegar a cada hard start, propone opciones (recortar por prioridad, que un paso absorba, saltear lo opcional, mover una hora, relleno) ya probadas. Nunca aplica.",
       "esquema": {
         "type": "object",
-        "required": [
-          "hasta"
-        ],
         "properties": {
           "hasta": {
-            "description": "la hora a la que hay que terminar: \"HH:MM\" o ms"
+            "description": "la hora a la que hay que terminar: \"HH:MM\" o ms (sin esto, el fin planeado)"
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -20677,14 +20677,15 @@
       "destructiva": false,
       "idempotente": false,
       "etiquetas": {
-        "propias": "llegar a horario terminar a las recortar acortar back timing nos pasamos de tiempo",
+        "propias": "llegar a horario terminar a las recortar acortar back timing nos pasamos de tiempo arreglar relleno absorber mover la hora prioridad",
         "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 222
+        "linea": 221
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_anterior",
@@ -20700,7 +20701,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -20715,9 +20716,102 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 291
+        "linea": 422
+      },
+      "roles": [],
+      "porSalida": true
+    },
+    {
+      "nombre": "linea_camaras",
+      "titulo": "Los próximos planos de cada cámara",
+      "categoria": "linea",
+      "descripcion": "Para cada cámara (cada fuente que se ve en las escenas de la línea), los planos que la usan: el que está al aire y los que vienen, con cuánto falta, en todas las salidas. Es la pantalla del camarógrafo y del que maneja el PTZ.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "camara": {
+            "type": "string"
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "camara camarografo proximos planos ptz cuando entra mi camara pantalla de camara",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 354
       },
       "roles": []
+    },
+    {
+      "nombre": "linea_desde_plantilla",
+      "titulo": "Armar pasos desde una plantilla o una guía",
+      "categoria": "linea",
+      "descripcion": "Arma pasos de la línea desde una plantilla (orador, punto, votación o las del evento) repetida con datos (una lista de oradores, el orden del día), o la línea entera desde la guía de un escenario. Por defecto SOLO prueba.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "plantilla": {
+            "type": "string"
+          },
+          "datos": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "orden-del-dia"
+            ]
+          },
+          "escenario": {
+            "type": "string"
+          },
+          "bloque": {
+            "type": "string"
+          },
+          "nombreBloque": {
+            "type": "string"
+          },
+          "despuesDe": {
+            "type": "string"
+          },
+          "prefijo": {
+            "type": "string"
+          },
+          "probar": {
+            "type": "boolean",
+            "description": "mostrar el resultado sin aplicar (por defecto)"
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "plantilla armar pasos lista de oradores orden del dia puntos guia escenario armar la linea entera",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 258
+      },
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_deshacer",
@@ -20739,7 +20833,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 207
+        "linea": 206
       },
       "roles": []
     },
@@ -20777,7 +20871,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 159
+        "linea": 158
       },
       "roles": []
     },
@@ -20801,7 +20895,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 95
+        "linea": 94
       },
       "roles": []
     },
@@ -20815,7 +20909,7 @@
         "properties": {
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -20830,13 +20924,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 271
+        "linea": 402
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "entra el próximo paso de la línea de tiempo"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_hold",
@@ -20851,7 +20946,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -20866,9 +20961,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 277
+        "linea": 408
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_insertar",
@@ -20886,7 +20982,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         },
         "required": [
@@ -20904,13 +21000,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 310
+        "linea": 441
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "mete un paso del estante en la línea (al aire, si se pide)"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_ir",
@@ -20925,7 +21022,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         },
         "required": [
@@ -20943,13 +21040,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 299
+        "linea": 430
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "entra otro paso de la línea de tiempo"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_recorrido",
@@ -20976,7 +21074,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 119
+        "linea": 118
       },
       "roles": []
     },
@@ -20990,7 +21088,7 @@
         "properties": {
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21005,13 +21103,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 306
+        "linea": 437
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "vuelve a entrar el paso al aire"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_retomar",
@@ -21041,7 +21140,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 327
+        "linea": 458
       },
       "roles": []
     },
@@ -21065,7 +21164,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 140
+        "linea": 139
       },
       "roles": []
     },
@@ -21079,7 +21178,7 @@
         "properties": {
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21094,9 +21193,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 296
+        "linea": 427
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_siguiente",
@@ -21112,7 +21212,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21127,9 +21227,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 286
+        "linea": 417
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "linea_soltar",
@@ -21144,7 +21245,7 @@
           },
           "salida": {
             "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21159,13 +21260,14 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 353
+        "linea": 484
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "suelta el HOLD tras un corte: lo que se pasó de hora entra solo"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_ver",
@@ -21175,10 +21277,6 @@
       "esquema": {
         "type": "object",
         "properties": {
-          "salida": {
-            "type": "string",
-            "description": "la salida (principal, sala, web-en…); sin esto, la por omisión"
-          },
           "desde": {
             "description": "\"HH:MM\" o ms de época"
           },
@@ -21192,6 +21290,10 @@
               "pasos",
               "piezas"
             ]
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -21206,9 +21308,10 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 59
+        "linea": 56
       },
-      "roles": []
+      "roles": [],
+      "porSalida": true
     },
     {
       "nombre": "media_carpetas",
@@ -23008,7 +23111,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 2032
+        "linea": 2043
       },
       "roles": [
         "asistente",
@@ -23060,7 +23163,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1976
+        "linea": 1987
       },
       "roles": [
         "asistente",
@@ -23141,7 +23244,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1882
+        "linea": 1893
       },
       "roles": [
         "asistente",
@@ -23222,7 +23325,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1933
+        "linea": 1944
       },
       "roles": [
         "asistente",
@@ -23293,7 +23396,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 2098
+        "linea": 2109
       },
       "roles": [
         "asistente",
@@ -23353,7 +23456,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1826
+        "linea": 1837
       },
       "roles": [
         "asistente",

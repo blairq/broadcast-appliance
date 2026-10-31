@@ -16,7 +16,10 @@
 // ============================================================================
 #include "i18n/I18n.hpp"
 #include "mcp/McpEventoTools.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "arranque/Configuraciones.hpp"
+#include "asamblea/OrdenDelDia.hpp"
+#include "emision/BroadcastEngine.hpp"
 #include "mcp/McpAsamblea.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
@@ -1745,7 +1748,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
 
     registrarPadron(core, ev, fichaDe);
     // La línea de tiempo: el mismo plan, sin pasar por el guion de cues.
-    registerLineaTools(core, ev);
+    LineaFuentes fuentes;
+    fuentes.camarasDeEscena = [&vm](const std::string& escena) {
+        std::vector<std::string> v;
+        for (const auto& [fuente, rect] : vm.runtime().engine().itemsVisibles(escena)) v.push_back(fuente);
+        return v;
+    };
+    fuentes.ordenDelDia = [&vm]() { return vm.ordenDelDia().puntos(); };
+    fuentes.eventoDeEscenario = [](const std::string& escenario) { return eventoDeEscenario(escenario); };
+    registerLineaTools(core, ev, std::move(fuentes));
 }
 
 // ============================================================================

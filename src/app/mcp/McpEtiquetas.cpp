@@ -925,7 +925,11 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"linea_revisar", QT_TRANSLATE_NOOP("mcp-etiquetas", "revisar la linea reparos conflictos camaras compartidas hora fija imposible anclas")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
-    {"linea_ajustar", QT_TRANSLATE_NOOP("mcp-etiquetas", "llegar a horario terminar a las recortar acortar back timing nos pasamos de tiempo")},
+    {"linea_ajustar", QT_TRANSLATE_NOOP("mcp-etiquetas", "llegar a horario terminar a las recortar acortar back timing nos pasamos de tiempo arreglar relleno absorber mover la hora prioridad")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_desde_plantilla", QT_TRANSLATE_NOOP("mcp-etiquetas", "plantilla armar pasos lista de oradores orden del dia puntos guia escenario armar la linea entera")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_camaras", QT_TRANSLATE_NOOP("mcp-etiquetas", "camara camarografo proximos planos ptz cuando entra mi camara pantalla de camara")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"linea_go", QT_TRANSLATE_NOOP("mcp-etiquetas", "go take entra el siguiente paso adelante dale")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra

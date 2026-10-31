@@ -144,6 +144,9 @@ const std::vector<ControlWeb::Tema>& ControlWeb::temas() {
         {"sala", {"room_status"}, 1000},
         {"oradores", {"remotos_fila_ver"}, 1000},
         {"graficos", {"dsk_capas_ver", "grafico_en_escena"}, 1000},
+        // La línea de tiempo (L8): la escaleta, el presentador y la pantalla de cámara.
+        {"linea", {"linea_estado", "linea_ver"}, 1000},
+        {"linea-camaras", {"linea_camaras"}, 1000},
     };
     return t;
 }
@@ -235,10 +238,10 @@ bool ControlWeb::amplia(const json& antes, const json& despues) {
     return false;
 }
 
-bool ControlWeb::permite(const json& perfil, const std::string& categoria) {
+bool ControlWeb::permite(const json& perfil, const std::string& categoria, bool lectura) {
     if (categoria == kCategoriaPropia || !perfil.is_array()) return false;
     for (const auto& c : perfil)
-        if (c == "*" || c == categoria) return true;
+        if (c == "*" || c == categoria || (lectura && c == categoria + kSoloMirar)) return true;
     return false;
 }
 
@@ -496,7 +499,7 @@ void ControlWeb::enviarAuth(const std::string& cid) {
     json categorias = json::array();
     if (core_ != nullptr) {
         for (const mcp::Tool& t : core_->tools()) {
-            if (!permite(perfil, t.category)) continue;
+            if (!permite(perfil, t.category, t.readOnly)) continue;
             herramientas.push_back({{"name", t.name},
                                     {"title", t.title},
                                     {"category", t.category},
@@ -507,7 +510,7 @@ void ControlWeb::enviarAuth(const std::string& cid) {
                                     {"aire", core_->aire().clase(t.name) != mcp::ClaseAire::Normal}});
         }
         for (const auto& [id, titulo] : core_->categoryTitles())
-            if (permite(perfil, id)) categorias.push_back({{"id", id}, {"titulo", titulo}});
+            if (permite(perfil, id, true)) categorias.push_back({{"id", id}, {"titulo", titulo}});
     }
     // En tandas: el catálogo entero (con los esquemas) no entra en un solo mensaje.
     std::size_t i = 0;
@@ -598,7 +601,7 @@ void ControlWeb::llamar(const std::string& cid, const json& msg) {
         auditar(c.aparato, llenar(traducir("control-web", "pidió «%1», que no existe"), {pedida}));
         return responder(false, llenar(traducir("control-web", "No existe la herramienta «%1»."), {pedida}));
     }
-    if (!permite(a->value("perfil", json::array()), tool->category)) {
+    if (!permite(a->value("perfil", json::array()), tool->category, tool->readOnly)) {
         auditar(c.aparato, llenar(traducir("control-web", "RECHAZADA %1 (categoría «%2» fuera de su perfil)"), {h, tool->category}));
         return responder(false, llenar(traducir("control-web", "«%1» (categoría «%2») no está en el perfil de este aparato. "
                                                                "Lo amplía una persona desde la app."),
@@ -643,7 +646,7 @@ std::string ControlWeb::motivoTema(const json& perfil, const Tema& t) const {
         const mcp::Tool* tool = core_->findTool(h);
         if (tool == nullptr) continue;
         ++hay;
-        if (!permite(perfil, tool->category))
+        if (!permite(perfil, tool->category, tool->readOnly))
             return llenar(traducir("control-web", "necesita la categoría «%1», que no está en el perfil"), {tool->category});
     }
     return hay == 0 ? traducir("control-web", "no está disponible en esta app") : std::string();

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es" data-ev="control">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#22252c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title data-i18n="Cámara">Cámara</title>
+  <link rel="apple-touch-icon" href="/comun/icono-180.png" />
+  <link rel="stylesheet" href="/comun/neuro/temas.css" />
+  <link rel="stylesheet" href="/comun/neuro/neuro.css" />
+  <link rel="stylesheet" href="/control/control.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
+  <script src="/comun/i18n.js"></script>
+  <script src="/comun/tema.js"></script>
+  <script src="/comun/neuro/neuro.js"></script>
+</head>
+<body>
+  <!--
+    La pantalla de una cámara (la Camera screen de Sofie, PLAN-LINEA-DE-TIEMPO.md 3.5 D):
+    /control/camara/?camara=<nombre o número>. Si la cámara está al aire (en grande) y los
+    planos que vienen con ella, con su cuenta regresiva, de todas las salidas (las cámaras
+    se comparten), y qué PTZ le toca. Para el camarógrafo y el que maneja el PTZ; alcanza
+    con el perfil «solo mirar» (linea:ver).
+  -->
+  <header class="barra">
+    <span class="marca"><span class="punto-marca"></span><strong id="titulo" data-i18n="Cámara">Cámara</strong></span>
+    <span id="aparato" class="suave"></span>
+    <select id="camara" class="salida" title="Qué cámara" data-i18n-title="Qué cámara"></select>
+    <span class="espacio"></span>
+    <ba-chip id="conexion" estado="apagado" data-i18n="Desconectado">Desconectado</ba-chip>
+  </header>
+  <main class="superficie">
+    <div id="tally" class="camara-tally">—</div>
+    <section>
+      <h2 data-i18n="Lo que viene">Lo que viene</h2>
+      <div id="planos" class="camara-planos"></div>
+    </section>
+  </main>
+
+  <script src="/control/tarjetas/comun.js"></script>
+  <script src="/control/conexion.js"></script>
+  <script src="/control/linea.js"></script>
+  <script src="camara.js"></script>
+</body>
+</html>

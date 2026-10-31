@@ -119,6 +119,14 @@ int main() {
     // La página.
     std::string r = pedir("GET", "/control", "", "Host: x", "", lan, false, false);
     CHECK(r.find(" 301 ") != std::string::npos && r.find("Location: /control/") != std::string::npos, "/control -> /control/");
+    // Las superficies de una página (L8): sin la barra, a su carpeta con la consulta.
+    r = pedir("GET", "/control/escaleta", "salida=sala", "Host: x", "", lan, false, false);
+    CHECK(r.find(" 301 ") != std::string::npos && r.find("Location: /control/escaleta/?salida=sala\r\n") != std::string::npos,
+          "/control/escaleta?salida=… -> /control/escaleta/?salida=…");
+    r = pedir("GET", "/control/control.js", "", "Host: x", "", lan, false, false);
+    CHECK(r.find(" 301 ") == std::string::npos, "un archivo no se redirige");
+    r = pedir("GET", "/control/escaleta", "a=1\r\nX: y", "Host: x", "", lan, false, false);
+    CHECK(r.find("X: y") == std::string::npos, "una consulta con un corte de línea no llega a la cabecera");
     r = pedir("GET", "/control/", "", "Host: x", "", ip(8, 8, 8, 8), false, false);
     CHECK(r.find(" 403 ") != std::string::npos, "la página desde afuera con el túnel apagado: 403");
     r = pedir("GET", "/control/", "", "Host: x\r\nOrigin: http://malo.example", "", lan, false, false);

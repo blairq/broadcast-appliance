@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es" data-ev="control">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#22252c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title data-i18n="Escaleta">Escaleta</title>
+  <link rel="apple-touch-icon" href="/comun/icono-180.png" />
+  <link rel="stylesheet" href="/comun/neuro/temas.css" />
+  <link rel="stylesheet" href="/comun/neuro/neuro.css" />
+  <link rel="stylesheet" href="/control/control.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
+  <script src="/comun/i18n.js"></script>
+  <script src="/comun/tema.js"></script>
+  <script src="/comun/neuro/neuro.js"></script>
+</head>
+<body>
+  <!--
+    La escaleta de la línea de tiempo para una tablet (PLAN-LINEA-DE-TIEMPO.md 3.5 D):
+    /control/escaleta/?salida=<id>. Al aire y próximo con su miniatura y su cuenta, GO,
+    HOLD, mover el próximo, saltar, el estante de adlibs y la lista de pasos (tocar uno
+    que viene: ir a él, con la confirmación de lo que corta el aire).
+
+    Es un aparato del control web (se empareja con el QR de la app y la app le pone un
+    perfil). Con el perfil «solo mirar» (linea:ver) no hay botones: sirve para el
+    productor y la producción.
+  -->
+  <header class="barra">
+    <span class="marca"><span class="punto-marca"></span><strong data-i18n="Escaleta">Escaleta</strong></span>
+    <span id="aparato" class="suave"></span>
+    <span id="salidaNombre" class="salida suave"></span>
+    <span class="espacio"></span>
+    <ba-chip id="conexion" estado="apagado" data-i18n="Desconectado">Desconectado</ba-chip>
+  </header>
+  <main id="escaleta" class="superficie"></main>
+
+  <script src="/control/tarjetas/comun.js"></script>
+  <script src="/control/conexion.js"></script>
+  <script src="/control/linea.js"></script>
+  <script src="escaleta.js"></script>
+</body>
+</html>

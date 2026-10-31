@@ -45,7 +45,13 @@ Siempre, en cualquier evento:
 7. La página web del evento (evento_web): título, descripción, imagen liviana, documentos.
 8. Música (media_list, playlist_crear), logos y escudos (capas DSK: dsk_definir), traducción
    (traduccion_agregar) si hace falta.
-9. El guion con sus cues (guion_cue) y la lista de chequeo (evento_verificar).
+9. El guion con sus cues (guion_cue) y la lista de chequeo (evento_verificar). Para armar la
+   línea de tiempo de una: linea_desde_plantilla {escenario: "<el id de esta guía>"} trae la de
+   la plantilla de este tipo de evento; con {plantilla: "orador", datos: [la lista de oradores]}
+   o {origen: "orden-del-dia"}, un paso por orador o por punto. Prueba primero: mostrá el
+   resultado y aplicalo (probar: false) cuando la persona confirme. Marcá con etiquetas lo que
+   se puede acortar («recortable», «prioridad:N») o saltear («opcional»): con eso linea_ajustar
+   propone cómo llegar a horario en vivo.
 
 ## 3. Verificá ANTES de invitar a nadie
 

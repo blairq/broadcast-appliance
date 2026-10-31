@@ -1,5 +1,4 @@
-# ============================================================================
-# src/app — `ba-app` (Proceso A: motor de emisión + UI de operación)
+# =====================================================================# src/app — `ba-app` (Proceso A: motor de emisión + UI de operación)
 #
 # El Proceso A es un ejecutable GUI (sin consola en Windows) que integra
 # `ba_core` (dsp + ipc + persist) con la UI de operación (spec §6).
@@ -872,11 +871,17 @@ endif()
     # editar en lote, y la corrida (el ejecutor: GO, HOLD, lo que entra solo, saltar,
     # adlibs, insertar, la retoma). Puro como el guion: sin Qt, sin motor, sin reloj.
     add_executable(test_linea tests/test_linea.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Corrida.cpp evento/Condicion.cpp
-                   evento/LineaPlantillas.cpp
-                   evento/Evento.cpp)
+                   evento/LineaProductor.cpp evento/LineaPlantillas.cpp evento/Evento.cpp)
     target_include_directories(test_linea PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_linea PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_linea COMMAND test_linea)
+    # El asistente productor (L9): el solucionador del back-timing, las plantillas,
+    # la línea desde una guía, el vigía del over/under y lo de las superficies web.
+    add_executable(test_linea_productor tests/test_linea_productor.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Condicion.cpp
+                   evento/LineaProductor.cpp evento/LineaPlantillas.cpp evento/Evento.cpp)
+    target_include_directories(test_linea_productor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_linea_productor PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_linea_productor COMMAND test_linea_productor)
     # La línea lista para dibujar (escaleta, conducción, multipista, regla, estante y
     # el presupuesto de miniaturas): lo que ordena LineaViewModel, sin Qt ni motor.
     add_executable(test_linea_vista tests/test_linea_vista.cpp evento/LineaVista.cpp evento/Linea.cpp evento/LineaEdicion.cpp
