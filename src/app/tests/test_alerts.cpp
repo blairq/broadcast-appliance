@@ -45,6 +45,7 @@ struct World {
     json mismoVolumen = json::array();
     json prog{{"valido", true}, {"luma", 120.0}, {"quieto_s", 0.0}};
     json recursos = json::object();
+    json energia{{"en_bateria", false}};
 
     AlertInputs inputs() {
         AlertInputs in;
@@ -57,6 +58,7 @@ struct World {
         in.disco = [this]() { return json{{"libre_gb", disk}, {"horas", horas}, {"mismo_volumen", mismoVolumen}}; };
         in.programaVideo = [this]() { return prog; };
         in.recursos = [this]() { return recursos; };
+        in.energia = [this]() { return energia; };
         in.nowMs = [this]() { return now; };
         return in;
     }
@@ -360,6 +362,28 @@ int main(int argc, char** argv) {
     eng.clear();
     fired.clear();
     w.status = {};
+
+    // --- energia (el corte de luz, F1-11) --------------------------------------------------------
+    eng.create(json{{"type", "energia"}, {"params", json::object()}});
+    step(1000);
+    CHECK(fired.empty(), "energia: con red no avisa");
+    w.energia = {{"en_bateria", true}, {"porcentaje", 80}, {"minutos", 40}, {"fuente", "ups"}, {"accion", "avisar"}};
+    step(1000);
+    CHECK(fired.size() == 1 && fired[0]["type"] == "energia" && fired[0]["data"]["fuente"] == "ups", "energia: se cortó la luz");
+    step(5000);
+    CHECK(fired.size() == 1, "energia: una vez mientras sigue");
+    w.energia["porcentaje"] = 15;
+    w.energia["accion"] = "cerrar_grabaciones";
+    step(1000);
+    CHECK(fired.size() == 2, "energia: avisa otra vez al cerrar las grabaciones");
+    w.energia = {{"en_bateria", false}};
+    step(1000);
+    w.energia = {{"en_bateria", true}, {"porcentaje", 70}, {"accion", "avisar"}};
+    step(1000);
+    CHECK(fired.size() == 3, "energia: volvió y se cortó otra vez: avisa");
+    eng.clear();
+    fired.clear();
+    w.energia = {{"en_bateria", false}};
 
     // --- timer, once, persistencia, wait ----------------------------------------------------------------
     const json t1 = eng.create(json{{"type", "timer"}, {"name", "Pausa"}, {"params", {{"in", 60}}}});

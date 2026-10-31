@@ -129,6 +129,13 @@ int main(int argc, char** argv) {
     CHECK(correr(argv[0], "segv", a) == SIGSEGV, "muere por SIGSEGV");
     const std::string t = leer(a);
     revisar(t, "11");
+    {
+        // La pila del que se cayó empieza donde se cayó (main), no en el manejador.
+        const std::size_t c = t.find("== cayo ");
+        const std::size_t l = c == std::string::npos ? c : t.find('\n', c);
+        const std::string primero = l == std::string::npos ? std::string() : t.substr(l + 1, t.find('\n', l + 1) - l - 1);
+        CHECK(primero.rfind("#00 ", 0) == 0 && primero.find(" main+") != std::string::npos, "#00 es donde se cayó");
+    }
     if (g_fallos > 0) std::printf("%s\n", t.c_str());
 
     // 5

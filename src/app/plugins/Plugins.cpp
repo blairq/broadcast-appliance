@@ -1,6 +1,7 @@
 // src/app/plugins/Plugins.cpp — ver Plugins.hpp
 
 #include "plugins/Plugins.hpp"
+#include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 
@@ -355,6 +356,8 @@ json Plugins::aprobados() const {
 }
 
 void Plugins::arrancarGuardados() {
+    // Modo seguro (F1-10): ninguno arranca solo; siguen activos para el arranque normal.
+    if (ba::fault::delProceso().apagada(ba::fault::Pieza::PluginsPython)) return;
     for (const auto& id : leerActivos())
         if (id.is_string() && fs::exists(carpetaDe(id.get<std::string>()) / "plugin.json"))
             activar(id.get<std::string>(), true, [](json) {});

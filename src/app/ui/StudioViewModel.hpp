@@ -128,6 +128,7 @@ namespace medios {
 class Playlist;
 }
 class PuestoCorreccion;
+class EnergiaAire;
 namespace asamblea {
 class CuerpoViewModel;
 class Bancas;
@@ -580,6 +581,8 @@ class StudioViewModel : public QObject {
     /// El muestreador de recursos de la máquina (tarjeta «Sistema», sistema_recursos, alarmas).
     RecursosViewModel* recursos() const { return recursos_.get(); }
     QObject* recursosQml() const;
+    /// El corte de luz (F1-11): de dónde viene la energía y la política (arranque/EnergiaAire).
+    EnergiaAire* energia() const { return energia_.get(); }
     /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
     control::BotoneraGateway& botoneraGateway() { return *botoneraGw_; }
     control::CarasBotonera& carasBotonera() { return *carasBotonera_; }
@@ -1232,6 +1235,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::CarasBotonera> carasBotonera_;
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<RecursosViewModel> recursos_;
+    std::unique_ptr<EnergiaAire> energia_;
     std::unique_ptr<control::BotoneraGateway> botoneraGw_;
     std::unique_ptr<control::ControlWeb> controlWeb_;
     std::unique_ptr<control::ControlWebGateway> controlWebGw_;

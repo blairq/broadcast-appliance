@@ -422,15 +422,22 @@ void manejar(int sig, siginfo_t* si, void* ctx) {
     char nombre[64];
     std::uint64_t id = 0;
     nombreYIdPropio(nombre, sizeof nombre, &id);
+    // La pila de verdad empieza donde se cayó (pc): los dos primeros marcos de
+    // `backtrace` son este manejador y el trampolín de la señal, que no son de
+    // nadie (y confundirían la atribución: fault::atribuir).
+    void* crudos[kMarcos];
+    const int nc = backtrace(crudos, kMarcos);
     void* marcos[kMarcos];
-    const int n = backtrace(marcos, kMarcos);
+    int n = 0;
+    if (pc != 0) marcos[n++] = reinterpret_cast<void*>(pc);
+    for (int i = nc > 2 ? 2 : nc; i < nc && n < kMarcos; ++i)
+        if (!(n == 1 && reinterpret_cast<std::uintptr_t>(crudos[i]) == pc)) marcos[n++] = crudos[i];
 
     // 1) Al registro, como siempre: qué fue y la pila del que se cayó.
     {
         Esc e(g_fd);
         e.s("\n==== SE CAYO ").s(g_quien).s(": ").s(nombreDeSenal(sig)).s(" ====\n");
-        e.s("hilo ").dec(static_cast<long long>(id)).s(" ").s(nombre).s(", en ");
-        marco(e, 0, pc);
+        e.s("hilo ").dec(static_cast<long long>(id)).s(" ").s(nombre).s(":\n");
         pila(e, marcos, n);
         e.s(g_fdPilas >= 0 ? "==== fin de la pila (las de todos los hilos, en Logs/dumps) ====\n"
                            : "==== fin de la pila ====\n");
@@ -444,8 +451,7 @@ void manejar(int sig, siginfo_t* si, void* ctx) {
         e.s("pid ").dec(getpid()).s("\n");
         e.s("senal ").dec(sig).s(" ").s(nombreDeSenal(sig)).s("\n");
         e.s("direccion ").hex(si != nullptr ? reinterpret_cast<std::uintptr_t>(si->si_addr) : 0).s("\n");
-        e.s("pc ");
-        marco(e, 0, pc);
+        e.s("pc ").hex(pc).s("\n");
         e.s("== cayo ").dec(static_cast<long long>(id)).s(" ").s(nombre).s("\n");
         pila(e, marcos, n);
         e.vaciar();

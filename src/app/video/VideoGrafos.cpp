@@ -12,6 +12,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
+#include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/InputSpecs.hpp"
@@ -1439,7 +1440,10 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             nodos.erase(it);
             continue;
         }
-        if (tipo == "retardo" || tipo == "sincro") {
+        // Modo seguro (F1-10): la superresolución no entra a la cadena (pasa sin tocar).
+        // La tarjeta queda en el grafo guardado: vuelve con el arranque normal.
+        const bool srApagada = tipo == "superres" && ba::fault::delProceso().apagada(ba::fault::Pieza::Superres);
+        if (tipo == "retardo" || tipo == "sincro" || srApagada) {
             // No son elementos. Retardo: el motor corre la salida de video de la
             // entrada (desfase_video). Sincro: la medición mira lo que sale de la
             // entrada (medirDesfase).

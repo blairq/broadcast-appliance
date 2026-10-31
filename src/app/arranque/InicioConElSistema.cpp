@@ -5,6 +5,7 @@
 #include "arranque/InicioConElSistema.hpp"
 
 #include "i18n/I18n.hpp"
+#include "platform/Energia.hpp"
 #include "platform/Paths.hpp"
 
 #include <cstdlib>
@@ -150,7 +151,20 @@ nlohmann::json estado() {
     notas.push_back(ba::i18n::traducir("inicio", "Que la sesión se inicie sola: inicio de sesión automático del escritorio (GDM/LightDM/SDDM)."));
 #endif
     notas.push_back(ba::i18n::traducir("inicio", "Al volver, el programa retoma solo la transmisión y la grabación que estaban andando."));
-    return {{"activo", activo()}, {"abre", queAbrir().string()}, {"notas", notas}};
+    // La tarjeta de preparación (F1-11): lo que se pudo LEER del sistema, punto por
+    // punto, con cómo arreglar lo que falta. Primero lo del programa (arrancar con el
+    // equipo), después lo del sistema (platform::preparacion). No se cambia nada.
+    nlohmann::json prep = nlohmann::json::array();
+    const bool si = activo();
+    prep.push_back({{"id", "app_en_inicio"},
+                    {"estado", si ? "ok" : "falta"},
+                    {"titulo", ba::i18n::traducir("inicio", "El programa arranca con la sesión")},
+                    {"detalle", si ? ba::i18n::traducir("inicio", "Al iniciar la sesión, el programa se abre solo.")
+                                   : ba::i18n::traducir("inicio", "Al iniciar la sesión, el programa no se abre solo.")},
+                    {"como", si ? std::string() : ba::i18n::traducir("inicio", "Prendé «Arrancar solo al encender el equipo» acá arriba.")}});
+    for (const auto& it : ba::platform::preparacion(ba::platform::dataRoot()))
+        prep.push_back({{"id", it.id}, {"estado", it.estado}, {"titulo", it.titulo}, {"detalle", it.detalle}, {"como", it.como}});
+    return {{"activo", si}, {"abre", queAbrir().string()}, {"notas", notas}, {"preparacion", prep}};
 }
 
 } // namespace ba::app::inicio

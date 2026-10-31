@@ -34,6 +34,7 @@
 //   record_down   forSec (5): la grabación se cortó sin que nadie la parara
 //   recursos      recurso ("*"|cpu|gpu|ram|vram|red|motor), nivel (aviso|critico):
 //                 la máquina está al límite (sostenido; lo mide diag::Recursos)
+//   energia       se cortó la luz (batería/UPS) y, después, la política cerró las grabaciones
 //   timer         in (seg) | at ("HH:MM") | every (seg)
 //
 // Las reglas se guardan en Config/alertas.json (sobreviven reinicios).
@@ -98,6 +99,8 @@ struct AlertInputs {
     std::function<json()> programaVideo;
     /// Los recursos de la máquina: {cpu: {estado, valor, sostenido_s}, …} (diag::Recursos::niveles).
     std::function<json()> recursos;
+    /// La energía (arranque/EnergiaAire::estado): {en_bateria, porcentaje, minutos, fuente, accion}.
+    std::function<json()> energia;
     std::function<std::int64_t()> nowMs; ///< reloj (inyectable en tests)
 };
 

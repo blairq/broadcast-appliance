@@ -6,6 +6,8 @@
 // ============================================================================
 
 #include "McpRenombres.hpp"
+#include "arranque/EnergiaAire.hpp"
+#include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
 #include "diag/Perfil.hpp"
 #include "sala/CupoSala.hpp"
@@ -940,6 +942,9 @@ void McpService::registerTools() {
             "su armada, si transmite o graba y su negro/placa (los campos de arriba son los de la por omisión). "
             "`disco`: para cuántas horas alcanza el disco al bitrate de todo lo que se graba (grabación, copia e ISO de "
             "todas las salidas, por disco) y si alguna copia va al mismo disco que su grabación. "
+            "`modo_seguro`: si el launcher la arrancó en modo seguro tras varias caídas (nivel 1-3, qué piezas están "
+            "apagadas y si las escenas se restauraron). `energia`: si se cortó la luz (batería o UPS, % y minutos que "
+            "quedan) y si ya se cerraron las grabaciones por eso. "
             "Buen primer llamado.");
         t.run = [&rt, &vm](const json&, Done done) {
             const EngineStatus st = rt.engine().status();
@@ -954,8 +959,14 @@ void McpService::registerTools() {
             for (const QVariant& v : conf->onAir())
                 onAir.push_back(qvToJson(v));
             room["speakersOnAir"] = onAir;
+            // El modo seguro escalonado (F1-10): nivel, qué se apagó y si las escenas volvieron.
+            const ba::fault::ModoSeguro& ms = ba::fault::delProceso();
+            json apagadas = json::array();
+            for (ba::fault::Pieza p : ms.apagadas()) apagadas.push_back(ba::fault::clave(p));
             done(ToolResult().data(
                 json{{"currentScene", rt.engine().currentScene()},
+                     {"modo_seguro",
+                      {{"activo", ms.activo()}, {"nivel", ms.nivel}, {"apagadas", apagadas}, {"escenas", !ms.escenasVacias()}}},
                      {"transition",
                       {{"type", rt.config().transition.type}, {"ms", rt.config().transition.durationMs}}},
                      {"streaming", st.streaming},
@@ -982,6 +993,8 @@ void McpService::registerTools() {
                      {"latido", rt.latido().estado()},
                      {"salidas", resumenSalidas(rt, vm)},
                      {"disco", rt.discoGrabacion()},
+                     // El corte de luz (F1-11): batería/UPS, lo que queda y qué hizo la política.
+                     {"energia", vm.energia() != nullptr ? vm.energia()->estado() : json()},
                      {"room", room}}));
         };
         core_.addTool(std::move(t));

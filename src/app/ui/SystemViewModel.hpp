@@ -23,6 +23,9 @@ class SystemViewModel : public QObject {
     Q_PROPERTY(QVariantList backups READ backups NOTIFY changed)
     Q_PROPERTY(bool canRollback READ canRollback NOTIFY changed)
     Q_PROPERTY(QString version READ version CONSTANT)
+    /// La tarjeta de preparación (F1-11): qué falta para volver solo tras un corte,
+    /// leído del sistema: [{id, estado (ok|falta|revisar|no_aplica), titulo, detalle, como}].
+    Q_PROPERTY(QVariantList preparacion READ preparacion NOTIFY changed)
    public:
     explicit SystemViewModel(QObject* parent = nullptr);
 
@@ -31,6 +34,7 @@ class SystemViewModel : public QObject {
     QVariantList backups() const;
     bool canRollback() const;
     QString version() const;
+    QVariantList preparacion() const;
 
     Q_INVOKABLE void refresh();
     /// Arrancar al encender el equipo (InicioConElSistema): {activo, abre, notas}.

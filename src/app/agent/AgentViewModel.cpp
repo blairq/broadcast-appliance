@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "agent/AgentViewModel.hpp"
+#include "fault/ModoSeguro.hpp"
 #include "agent/ServidorModeloLocal.hpp"
 #include "agent/ServidorOpencode.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -1948,6 +1949,12 @@ void AgentViewModel::pararServidorLocal() {
 }
 
 void AgentViewModel::lanzarSesion() {
+    // Modo seguro (F1-10): sin agentes en esta corrida.
+    if (ba::fault::delProceso().apagada(ba::fault::Pieza::Agentes)) {
+        setError(tr("Modo seguro: los agentes están apagados hasta el arranque normal."));
+        emit runningChanged();
+        return;
+    }
     QString err;
     term::Pty::Options o = launchOptions(&err);
     if (!err.isEmpty() || o.program.isEmpty()) {

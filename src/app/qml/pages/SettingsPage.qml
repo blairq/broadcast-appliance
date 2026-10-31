@@ -2021,12 +2021,38 @@ Rectangle {
                         Text { text: qsTr("Arrancar solo al encender el equipo"); color: Theme.text; font.pixelSize: 14 }
                     }
                     Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                           text: qsTr("Si se corta la luz con la transmisión o la grabación andando, al volver el programa las retoma solo. Para que vuelva sin que nadie toque nada, además:") }
+                           text: qsTr("Si se corta la luz con la transmisión o la grabación andando, al volver el programa las retoma solo. Para que vuelva sin que nadie toque nada, la máquina tiene que estar preparada:") }
+                    // La tarjeta de preparación (F1-11): lo que se leyó del sistema, punto por
+                    // punto. No se cambia nada: cada uno dice cómo arreglarlo (suele pedir administrador).
                     Repeater {
-                        model: inicioBox.est.notas || []
-                        delegate: Text { required property var modelData; Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                         color: Theme.textDim; font.pixelSize: 12; text: "• " + modelData }
+                        model: sys.preparacion
+                        delegate: RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Rectangle {
+                                Layout.alignment: Qt.AlignTop
+                                Layout.topMargin: 5
+                                width: 8; height: 8; radius: 4
+                                color: modelData.estado === "ok" ? Theme.ok
+                                     : modelData.estado === "falta" ? Theme.live
+                                     : modelData.estado === "revisar" ? Theme.warn : Theme.textDim
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 13
+                                       text: modelData.titulo + (modelData.estado === "revisar" ? "  " + qsTr("(revisalo a mano)")
+                                                               : modelData.estado === "no_aplica" ? "  " + qsTr("(no hace falta)") : "") }
+                                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                                       text: modelData.detalle }
+                                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                                       visible: (modelData.como || "") !== "" && modelData.estado !== "ok"
+                                       text: "→ " + modelData.como }
+                            }
+                        }
                     }
+                    Button { text: qsTr("Volver a revisar"); onClicked: sys.refresh() }
                     Text { visible: inicioBox.error !== ""; text: inicioBox.error; color: Theme.live; font.pixelSize: 12 }
                 }
                 // Los del esquema (copia sombra, diálogo de recuperación): van con Aplicar.

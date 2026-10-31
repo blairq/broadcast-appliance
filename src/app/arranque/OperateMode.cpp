@@ -40,6 +40,7 @@
 #include "arranque/InicioConElSistema.hpp"
 #include "video/ElementosGst.hpp"
 #include "diag/Registro.hpp"
+#include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
 #include "Reloj.hpp" // motor: iniciarGStreamer
 #include "ipc/ControlService.hpp"
@@ -148,7 +149,11 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     c.statusEverySec = std::atoi(argValue(argc, argv, "--status-every", "5").c_str());
     c.restore = hasFlag(argc, argv, "--restore");
     c.modoPrueba = hasFlag(argc, argv, "--test") || hasFlag(argc, argv, "--debug");
-    c.safeMode = hasFlag(argc, argv, "--safe-mode");
+    // El modo seguro ESCALONADO (F1-10, lo arma el launcher: fault/ModoSeguro.hpp).
+    // Los niveles 1 y 2 apagan piezas (cada una pregunta delProceso()) y las
+    // escenas vuelven; solo el nivel 3 (o el viejo --safe-mode) es lo de abajo.
+    ba::fault::delProceso() = ba::fault::leerArgumentos(argc, argv);
+    c.safeMode = ba::fault::delProceso().escenasVacias();
     if (c.safeMode) {
         // Modo seguro (circuit breaker del launcher): lo minimo que funciona.
         //
@@ -171,6 +176,19 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     if (c.guests > ba::ipc::kMaxInvitados) {
         c.guests = ba::ipc::kMaxInvitados;
     }
+}
+
+/// Las fuentes que apaga el modo seguro (F1-10): las entradas NDI y las capturas de ventana.
+bool apagadaPorModoSeguro(const SourceSpec& src) {
+    const ba::fault::ModoSeguro& m = ba::fault::delProceso();
+    if (!m.activo()) return false;
+    if (m.apagada(ba::fault::Pieza::CapturaVentana) && src.id == video::kTipoVentana) return true;
+    if (m.apagada(ba::fault::Pieza::Ndi)) {
+        const nlohmann::json s = nlohmann::json::parse(src.settingsJson.empty() ? "{}" : src.settingsJson, nullptr, false);
+        if (inputs::tipoLogico(src.id, s.is_object() ? s : nlohmann::json::object()) == "ba_ndi_input" || src.id == "ba_ndi_input")
+            return true;
+    }
+    return false;
 }
 
 void printStatus(const BroadcastEngine& eng) {
@@ -663,6 +681,14 @@ int AppRuntime::start() {
         // se modifica, o sea que al arrancar normal vuelven todas solas.
         if (cfg_.safeMode) continue;
         for (const auto& src : sc.sources) {
+            // Modo seguro nivel 2 (o la caída atribuida): NDI y capturas de ventana
+            // no se crean. Quedan en la configuración: vuelven con el arranque normal.
+            if (apagadaPorModoSeguro(src)) {
+                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                           ba::i18n::llenar(ba::i18n::traducir("arranque", "modo seguro: «%1» (%2) no se crea"),
+                                                            {src.name, sc.name}));
+                continue;
+            }
             // Una fuente rota (camara desenchufada, id mal escrito) no tumba
             // el proceso: se avisa y la emision sigue con el resto.
             const auto t0 = std::chrono::steady_clock::now();
@@ -806,9 +832,13 @@ void AppRuntime::stop() {
         return;
     }
     started_ = false;
-    // Cierre ordenado: nada que retomar en el proximo arranque.
-    streamStopWanted_ = recordStopWanted_ = true;
-    cerrando_ = true;
+    // Cierre ordenado: nada que retomar en el proximo arranque. Salvo en un corte de
+    // luz con poca batería (F1-11): el que cierra es el sistema que se apaga, no el
+    // operador; al-aire.json queda como estaba (sin «cerrado») y al volver se retoma.
+    if (!emergenciaEnergia_) {
+        streamStopWanted_ = recordStopWanted_ = true;
+        cerrando_ = true;
+    }
     writeOnAirState();
     // Las grabaciones por entrada, ANTES que el resto: cada una tiene su vista
     // de render y su archivo abierto, y si el cierre las deja vivas el archivo
@@ -911,6 +941,29 @@ void AppRuntime::stopAllSourceRecordings() {
     avisar(Cambio::Salidas);
 }
 
+std::vector<std::string> AppRuntime::cerrarGrabacionesPorEnergia() {
+    emergenciaEnergia_ = true;
+    std::vector<std::string> cerradas;
+    for (const std::string& id : engine_.salidaIds()) {
+        const bool graba = id == salidas::kPorOmision ? !recordStopWanted_ : grabandoOtras_.count(id) > 0;
+        if (!graba) continue;
+        // Como la para el operador (EOS: el archivo queda cerrado y se abre), pero anotada.
+        porEnergia_.insert(id);
+        stopRecording(id);
+        cerradas.push_back(id);
+    }
+    if (cerradas.empty()) writeOnAirState();
+    return cerradas;
+}
+
+void AppRuntime::retomarGrabacionesPorEnergia() {
+    emergenciaEnergia_ = false;
+    const std::set<std::string> volver = std::move(porEnergia_);
+    porEnergia_.clear();
+    for (const std::string& id : volver) startRecording(id == salidas::kPorOmision ? std::string() : id);
+    writeOnAirState();
+}
+
 void AppRuntime::stopRecording(const std::string& salida) {
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) return;
@@ -966,8 +1019,9 @@ void AppRuntime::writeOnAirState() const {
     a.cerrado = cerrando_;
     for (const std::string& id : engine_.salidaIds()) {
         const bool po = id == salidas::kPorOmision;
+        // Las que cerró el corte de luz siguen pedidas: vuelven con la energía.
         a.salidas[id] = {engine_.currentScene(id), po && !streamStopWanted_,
-                         po ? !recordStopWanted_ : grabandoOtras_.count(id) > 0};
+                         (po ? !recordStopWanted_ : grabandoOtras_.count(id) > 0) || porEnergia_.count(id) > 0};
     }
     const nlohmann::json j = salidas::aJson(a);
     // Temporal + rename: un corte a mitad no deja el archivo vacío.

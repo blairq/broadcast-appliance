@@ -2,6 +2,7 @@
 // src/app/agent/ServidorModeloLocal.cpp — ver ServidorModeloLocal.hpp
 // ============================================================================
 #include "agent/ServidorModeloLocal.hpp"
+#include "fault/ModoSeguro.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -44,6 +45,11 @@ QString ServidorModeloLocal::mmprojPara(const QString& gguf) const {
 
 void ServidorModeloLocal::pedir(QObject* quien, const Pedido& pedido, std::function<void(quint16, QString)> listo,
                                 std::function<void(QString)> estado) {
+    // Modo seguro (F1-10): sin modelos locales en esta corrida.
+    if (ba::fault::delProceso().apagada(ba::fault::Pieza::Modelos)) {
+        listo(0, tr("Modo seguro: los modelos locales están apagados hasta el arranque normal."));
+        return;
+    }
     Pedido p = pedido;
     if (p.mmproj.isEmpty()) p.mmproj = mmprojPara(p.gguf);
     // Si `quien` desaparece sin soltarlo, que no quede contado. Una vez por cada uno:
