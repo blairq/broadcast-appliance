@@ -2036,12 +2036,12 @@ Rectangle {
                     id: inicioBox
                     Layout.fillWidth: true
                     spacing: 6
-                    property var est: sys.inicioEstado()
+                    readonly property var est: sys.inicio
                     property string error: ""
                     RowLayout {
                         Switch {
                             checked: inicioBox.est.activo === true
-                            onToggled: { inicioBox.error = sys.inicioPoner(checked); inicioBox.est = sys.inicioEstado() }
+                            onToggled: inicioBox.error = sys.inicioPoner(checked)
                         }
                         Text { text: qsTr("Arrancar solo al encender el equipo"); color: Theme.text; font.pixelSize: 14 }
                     }
@@ -2141,7 +2141,7 @@ Rectangle {
                 Text { text: qsTr("Diagnóstico"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 // Los elementos de GStreamer que faltan (P0.3): que no sean silencio o negro sin explicación.
                 Text {
-                    readonly property var faltan: sys.elementosQueFaltan()
+                    readonly property var faltan: sys.faltantes
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
                     color: faltan.filter(e => e.imprescindible).length > 0 ? Theme.live : Theme.textDim
                     text: faltan.length === 0 ? qsTr("GStreamer: están todos los elementos que usa el aparato.")

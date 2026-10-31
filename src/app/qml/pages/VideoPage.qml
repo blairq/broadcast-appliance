@@ -461,7 +461,7 @@ Rectangle {
                     visible: !!page.vg && page.vg.entrada !== "" && !page.nodo
                     Layout.fillWidth: true
                     spacing: 4
-                    property var r: page.vg && page.vg.entrada !== "" ? Studio.respaldoEntrada(page.vg.entrada) : ({})
+                    property var r: page.vg && page.vg.entrada !== "" ? (Studio.respaldos[page.vg.entrada] || ({})) : ({})
                     Text { text: qsTr("Si se cae"); color: Theme.textDim; font.pixelSize: 11 }
                     ComboBox {
                         id: modoResp
@@ -469,8 +469,7 @@ Rectangle {
                         model: [ { t: qsTr("Avisar"), v: "avisar" }, { t: qsTr("Armar"), v: "armar" }, { t: qsTr("Cortar"), v: "cortar" } ]
                         textRole: "t"
                         currentIndex: Math.max(0, model.findIndex(o => o.v === (respaldo.r.al_perder_aire || "avisar")))
-                        onActivated: (i) => { const e = Studio.setRespaldoEntrada(page.vg.entrada, { escena: escResp.currentText, al_perder_aire: model[i].v, ms: 1000 })
-                                              if (e !== "") Studio.notify(e, "error") }
+                        onActivated: (i) => Studio.setRespaldoEntrada(page.vg.entrada, { escena: escResp.currentText, al_perder_aire: model[i].v, ms: 1000 })
                     }
                     ComboBox {
                         id: escResp

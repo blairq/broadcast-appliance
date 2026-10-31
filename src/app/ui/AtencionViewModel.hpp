@@ -75,33 +75,33 @@ class ModelosLocales;
 class AtencionViewModel : public QObject {
     Q_OBJECT
     /// Sala: «Los atiende el asistente» (se guarda con la sala; ver ControlSala).
-    Q_PROPERTY(bool salaAtiende READ salaAtiende WRITE setSalaAtiende NOTIFY cambio)
+    Q_PROPERTY(bool salaAtiende READ salaAtiende WRITE setSalaAtiende NOTIFY interruptoresCambio)
     /// Sala: «Hablando» (solo cuenta con «Los atiende» prendido).
-    Q_PROPERTY(bool salaHablando READ salaHablando WRITE setSalaHablando NOTIFY cambio)
+    Q_PROPERTY(bool salaHablando READ salaHablando WRITE setSalaHablando NOTIFY interruptoresCambio)
     /// Asamblea: «Los atiende el asistente».
-    Q_PROPERTY(bool asambleaAtiende READ asambleaAtiende WRITE setAsambleaAtiende NOTIFY cambio)
+    Q_PROPERTY(bool asambleaAtiende READ asambleaAtiende WRITE setAsambleaAtiende NOTIFY interruptoresCambio)
     /// Asamblea: «Hablando» (solo cuenta con «Los atiende» prendido): mientras
     /// espera, su página abre el micrófono hacia el gateway.
-    Q_PROPERTY(bool asambleaHablando READ asambleaHablando WRITE setAsambleaHablando NOTIFY cambio)
+    Q_PROPERTY(bool asambleaHablando READ asambleaHablando WRITE setAsambleaHablando NOTIFY interruptoresCambio)
     /// "recepcion" | "automatizacion" | "" (nadie): quién atendería ahora.
-    Q_PROPERTY(QString quienAtiende READ quienAtiende NOTIFY cambio)
+    Q_PROPERTY(QString quienAtiende READ quienAtiende NOTIFY atendedorCambio)
     /// Lo mismo, para leer: «Atiende el rol de recepción», o por qué nadie.
-    Q_PROPERTY(QString quienAtiendeTexto READ quienAtiendeTexto NOTIFY cambio)
+    Q_PROPERTY(QString quienAtiendeTexto READ quienAtiendeTexto NOTIFY atendedorCambio)
     /// Están las dos puntas de la voz: el reconocedor (voz a texto) y la voz del atendedor.
-    Q_PROPERTY(bool puedeHablar READ puedeHablar NOTIFY cambio)
+    Q_PROPERTY(bool puedeHablar READ puedeHablar NOTIFY hablarCambio)
     /// Qué falta para poder atender hablando ("" si nada).
-    Q_PROPERTY(QString hablarFalta READ hablarFalta NOTIFY cambio)
+    Q_PROPERTY(QString hablarFalta READ hablarFalta NOTIFY hablarCambio)
     /// Los que se están atendiendo: [{id, nombre, ambito, quien, modo}].
     Q_PROPERTY(QVariantList turnos READ turnos NOTIFY turnosCambio)
     // --- La voz del atendedor -------------------------------------------------
     /// Las voces del catálogo (tipo «tts»): {repo, nombre, calidad, instalado, elegida, …}.
-    Q_PROPERTY(QVariantList voces READ voces NOTIFY cambio)
-    Q_PROPERTY(QString vozElegida READ vozElegida NOTIFY cambio)
-    Q_PROPERTY(bool vozLista READ vozLista NOTIFY cambio)
-    Q_PROPERTY(int hablante READ hablante WRITE setHablante NOTIFY cambio)
-    Q_PROPERTY(int hablantes READ hablantes NOTIFY cambio)
+    Q_PROPERTY(QVariantList voces READ voces NOTIFY vozCambio)
+    Q_PROPERTY(QString vozElegida READ vozElegida NOTIFY vozCambio)
+    Q_PROPERTY(bool vozLista READ vozLista NOTIFY vozCambio)
+    Q_PROPERTY(int hablante READ hablante WRITE setHablante NOTIFY comoHablaCambio)
+    Q_PROPERTY(int hablantes READ hablantes NOTIFY vozCambio)
     /// 0,7 (más lento) … 1,5 (más rápido).
-    Q_PROPERTY(double velocidad READ velocidad WRITE setVelocidad NOTIFY cambio)
+    Q_PROPERTY(double velocidad READ velocidad WRITE setVelocidad NOTIFY comoHablaCambio)
     /// La última prueba (sin sonar): {probando, texto, segundos, forma: [0..1], archivo, error}.
     Q_PROPERTY(QVariantMap prueba READ prueba NOTIFY pruebaCambio)
 
@@ -169,12 +169,19 @@ class AtencionViewModel : public QObject {
     QString configurar(const nlohmann::json& cambios);
 
    signals:
-    void cambio();
+    // Por grupo, y solo si cambió lo suyo (revisar).
+    void interruptoresCambio(); ///< salaAtiende, salaHablando, asambleaAtiende, asambleaHablando
+    void atendedorCambio();     ///< quienAtiende, quienAtiendeTexto
+    void hablarCambio();        ///< puedeHablar, hablarFalta
+    void vozCambio();           ///< voces, vozElegida, vozLista, hablantes
+    void comoHablaCambio();     ///< hablante, velocidad
     void turnosCambio();
     void pruebaCambio();
     void notify(const QString& texto, const QString& nivel);
 
    private:
+    /// Mira cada grupo de propiedades contra lo último avisado y avisa los que cambiaron.
+    void revisar();
     void guardar() const;
     void revisarVoz();
     /// La sala cambió: termina los turnos de quien ya no espera, pasa la voz y
@@ -219,6 +226,9 @@ class AtencionViewModel : public QObject {
     sala::Ambito vozAmbito_ = sala::Ambito::Sala; ///< dónde está
     int vozLugar_ = 0;   ///< en qué lugar del lobby se lo escucha (sala)
     int vozToma_ = 0;    ///< la toma de OperatorFeed::escucharLobby / escucharAtencionRemota
+
+    // Lo último avisado de cada grupo (revisar).
+    QVariantList interruptoresAntes_, atendedorAntes_, hablarAntes_, vozAntes_, comoHablaAntes_;
 
     // Asamblea: a quién se le pidió la foto y todavía no llegó.
     QSet<QString> esperandoFoto_;

@@ -1387,7 +1387,7 @@ Rectangle {
         width: 500
         modal: true
         title: qsTr("Evento nuevo")
-        onAboutToShow: { nombreEv.text = ""; modo = "cero"; cpsEv.currentIndex = 0; abrirlo.checked = !(Studio.streaming || Studio.recording) }
+        onAboutToShow: { nombreEv.text = ""; modo = "cero"; cpsEv.currentIndex = 0; abrirlo.checked = !(Studio.aire.streaming || Studio.aire.recording) }
         ColumnLayout {
             width: nuevoEventoDlg.availableWidth
             spacing: 8
@@ -1460,8 +1460,8 @@ Rectangle {
             }
             CheckBox {
                 id: abrirlo
-                text: (Studio.streaming || Studio.recording) ? qsTr("Abrirlo ahora (no: hay algo al aire o grabando)") : qsTr("Abrirlo ahora (la app se reinicia con él)")
-                enabled: !(Studio.streaming || Studio.recording)
+                text: (Studio.aire.streaming || Studio.aire.recording) ? qsTr("Abrirlo ahora (no: hay algo al aire o grabando)") : qsTr("Abrirlo ahora (la app se reinicia con él)")
+                enabled: !(Studio.aire.streaming || Studio.aire.recording)
             }
             RowLayout {
                 Item { Layout.fillWidth: true }
@@ -1602,7 +1602,7 @@ Rectangle {
                            text: modelData.midiendo ? qsTr("midiendo…") : page.bytesLegibles(modelData.bytes) }
                     GlassButton {
                         compact: true; text: qsTr("Abrir"); visible: !modelData.activa
-                        enabled: !(Studio.streaming || Studio.recording)
+                        enabled: !(Studio.aire.streaming || Studio.aire.recording)
                         onClicked: {
                             const n = modelData.nombre
                             abrirEventoDlg.close()
@@ -1615,7 +1615,7 @@ Rectangle {
                     }
                 }
             }
-            Text { visible: (Studio.streaming || Studio.recording); color: Theme.amber; font.pixelSize: 12
+            Text { visible: (Studio.aire.streaming || Studio.aire.recording); color: Theme.amber; font.pixelSize: 12
                    text: qsTr("Hay una transmisión o una grabación en curso: terminala para abrir otro evento.") }
             RowLayout { Item { Layout.fillWidth: true } GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: abrirEventoDlg.close() } }
         }

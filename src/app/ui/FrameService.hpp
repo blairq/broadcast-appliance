@@ -91,6 +91,9 @@ class FrameService : public QObject {
 
     /// Ultima imagen de `key` si es mas nueva que `serial` (y lo actualiza).
     bool latest(const QString& key, QImage& out, std::uint64_t& serial) const;
+    /// Si alguien pidió un cuadro en el último segundo (una vista abierta): sin nadie, el
+    /// que llama a poll lo puede espaciar.
+    bool mirado() const;
 
     /// Que escena mirar en la clave "armada" ("" = ninguna). La pone
     /// StudioViewModel cada vez que cambia el bus de preview.
@@ -162,6 +165,7 @@ class FrameService : public QObject {
     static QString clavePropia(const QString& key);
     /// Las vistas de salidas que alguien leyó (latest) y cuándo: poll las pide y las suelta.
     mutable std::map<QString, std::int64_t> salidasPedidas_;
+    mutable std::int64_t leidoUs_ = 0; ///< el último latest(), de cualquier clave (mirado)
     QJsonArray salidas_;
     QVariantMap colores_;
     std::uint64_t vueltas_ = 0;

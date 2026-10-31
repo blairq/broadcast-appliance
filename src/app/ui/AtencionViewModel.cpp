@@ -99,11 +99,11 @@ AtencionViewModel::AtencionViewModel(AppRuntime& rt, StudioViewModel& vm, agent:
 #endif
     connect(&modelos_, &agent::ModelosLocales::cambio, this, &AtencionViewModel::revisarVoz);
     // Que el reconocedor esté (o no) cambia si se puede atender hablando.
-    connect(&voz_, &agent::Voz::cambio, this, &AtencionViewModel::cambio);
+    connect(&voz_, &agent::Voz::cambio, this, &AtencionViewModel::revisar);
     // Quién atiende depende de lo que esté prendido: el rol y el de automatización.
-    connect(&vm_.despachador(), &agent::Despachador::cambio, this, &AtencionViewModel::cambio);
+    connect(&vm_.despachador(), &agent::Despachador::cambio, this, &AtencionViewModel::revisar);
     if (auto* ag = static_cast<agent::AgentViewModel*>(vm_.agenteAutomatizacion()))
-        connect(ag, &agent::AgentViewModel::runningChanged, this, &AtencionViewModel::cambio);
+        connect(ag, &agent::AgentViewModel::runningChanged, this, &AtencionViewModel::revisar);
     if (ConferenceViewModel* conf = conferencia(vm_)) {
         connect(conf, &ConferenceViewModel::roomChanged, this, &AtencionViewModel::alSala);
         // «Los atiende» también se cambia por MCP (room_set) o se apaga solo
@@ -114,7 +114,7 @@ AtencionViewModel::AtencionViewModel(AppRuntime& rt, StudioViewModel& vm, agent:
                 cerrarVoz();
                 if (!turnos_.terminarTodos(sala::Ambito::Sala).empty()) emit turnosCambio();
             }
-            emit cambio();
+            revisar();
         });
         conf->control().setAlChatear(
             [this](const std::string& para, const std::string& texto) { alChatear(para, texto); });
@@ -132,6 +132,7 @@ AtencionViewModel::AtencionViewModel(AppRuntime& rt, StudioViewModel& vm, agent:
     }
     if (PersonasViewModel* pv = personas(vm_)) pv->setLobbyPorAtencion(salaAtiende());
     revisarVoz();
+    revisar(); // lo de arranque, para comparar después
 }
 
 AtencionViewModel::~AtencionViewModel() {
@@ -160,7 +161,7 @@ void AtencionViewModel::setSalaAtiende(bool on) {
     if (conf == nullptr || on == salaAtiende()) return;
     if (on && atendedor() == sala::Atendedor::Nadie) {
         emit notify(QString::fromStdString(sala::porQueNadie(sala::Atendedor::Nadie)), "error");
-        emit cambio(); // la vista vuelve el interruptor a como estaba
+        emit interruptoresCambio(); // la vista vuelve el interruptor a como estaba
         return;
     }
     conf->setAutoIntake(on); // avisa autoIntakeChanged: el resto se hace ahí
@@ -175,7 +176,7 @@ void AtencionViewModel::setSalaHablando(bool on) {
     // apagó acá y la voz era de la sala, puede ser uno de la asamblea).
     pasarLaVoz();
     emit turnosCambio();
-    emit cambio();
+    revisar();
 }
 
 void AtencionViewModel::setAsambleaHablando(bool on) {
@@ -185,14 +186,14 @@ void AtencionViewModel::setAsambleaHablando(bool on) {
     if (!on && !turnos_.soltarLaVoz(sala::Ambito::Asamblea).empty()) cerrarVoz();
     pasarLaVoz();
     emit turnosCambio();
-    emit cambio();
+    revisar();
 }
 
 void AtencionViewModel::setAsambleaAtiende(bool on) {
     if (on == aj_.asambleaAtiende) return;
     if (on && atendedor() == sala::Atendedor::Nadie) {
         emit notify(QString::fromStdString(sala::porQueNadie(sala::Atendedor::Nadie)), "error");
-        emit cambio();
+        emit interruptoresCambio(); // la vista vuelve el interruptor a como estaba
         return;
     }
     aj_.asambleaAtiende = on;
@@ -204,8 +205,22 @@ void AtencionViewModel::setAsambleaAtiende(bool on) {
         pasarLaVoz(); // la voz quedó libre: puede ser para uno de la sala
         emit turnosCambio();
     }
-    emit cambio();
+    revisar();
     if (on) alAsamblea(); // los que ya estaban esperando también
+}
+
+void AtencionViewModel::revisar() {
+    const auto avisar = [this](QVariantList ahora, QVariantList& antes, void (AtencionViewModel::*senal)()) {
+        if (ahora == antes) return;
+        antes = std::move(ahora);
+        emit(this->*senal)();
+    };
+    avisar({salaAtiende(), aj_.salaHablando, aj_.asambleaAtiende, aj_.asambleaHablando}, interruptoresAntes_,
+           &AtencionViewModel::interruptoresCambio);
+    avisar({quienAtiendeTexto()}, atendedorAntes_, &AtencionViewModel::atendedorCambio);
+    avisar({hablarFalta()}, hablarAntes_, &AtencionViewModel::hablarCambio);
+    avisar({voces(), vozLista_, hablantes_}, vozAntes_, &AtencionViewModel::vozCambio);
+    avisar({aj_.vozHablante, aj_.vozVelocidad}, comoHablaAntes_, &AtencionViewModel::comoHablaCambio);
 }
 
 sala::Atendedor AtencionViewModel::atendedor() const {
@@ -661,18 +676,18 @@ void AtencionViewModel::revisarVoz() {
     if (d.empty()) {
         vozLista_ = false;
         vozCargada_.clear();
-        emit cambio();
+        revisar();
         return;
     }
     if (repo == vozCargada_) {
-        emit cambio(); // el catálogo cambió (otra voz bajada): la lista se rearma
+        revisar(); // el catálogo cambió (otra voz bajada): la lista se rearma
         return;
     }
     vozCargada_ = repo;
     vozLista_ = false;
     audio::Habla::Voz v;
     rutasDeVoz(modelos_, repo, v.modelo, v.tokens, v.datos);
-    emit cambio();
+    revisar();
     QPointer<AtencionViewModel> yo(this);
     habla_->cargar(v, [yo](const std::string& error) {
         QMetaObject::invokeMethod(qApp, [yo, error]() {
@@ -682,7 +697,7 @@ void AtencionViewModel::revisarVoz() {
             if (yo->aj_.vozHablante >= yo->hablantes_) yo->aj_.vozHablante = 0;
             if (!error.empty())
                 emit yo->notify(tr("La voz del atendedor no cargó: %1").arg(QString::fromStdString(error)), "warn");
-            emit yo->cambio();
+            yo->revisar();
         });
     });
 #endif
@@ -704,7 +719,7 @@ void AtencionViewModel::setHablante(int h) {
     if (h < 0 || h == aj_.vozHablante) return;
     aj_.vozHablante = h;
     guardar();
-    emit cambio();
+    revisar();
 }
 
 void AtencionViewModel::setVelocidad(double v) {
@@ -712,7 +727,7 @@ void AtencionViewModel::setVelocidad(double v) {
     if (v == aj_.vozVelocidad) return;
     aj_.vozVelocidad = v;
     guardar();
-    emit cambio();
+    revisar();
 }
 
 void AtencionViewModel::probarVoz(const QString& texto) { probar(texto, {}); }

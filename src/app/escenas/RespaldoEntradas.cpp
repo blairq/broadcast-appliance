@@ -47,6 +47,7 @@ std::string RespaldoEntradas::setRespaldo(const std::string& entrada, const std:
     nlohmann::json todos = leer();
     todos[entrada] = {{"escena", escena}, {"al_perder_aire", alPerderAire}, {"ms", std::clamp(ms, 200, 60000)}};
     config::guardar(rt_.dataRoot() / "Config" / "respaldo-entradas.json", {{"entradas", todos}});
+    emit respaldosCambio();
     return {};
 }
 

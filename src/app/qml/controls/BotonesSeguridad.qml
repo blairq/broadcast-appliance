@@ -71,7 +71,7 @@ GridLayout {
         Layout.fillWidth: true
         Layout.minimumWidth: seg.angosta ? 100 : 140
         editable: true
-        model: Studio.salidas.textosPlaca()
+        model: Studio.salidas.textosPlaca
         // Editable, el campo queda con el cursor al final y en angosto se veía
         // la cola del texto («…mos enseguida»): sin foco, que se vea el principio.
         function alPrincipio() { if (!activeFocus && contentItem) contentItem.cursorPosition = 0 }

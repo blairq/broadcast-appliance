@@ -10,6 +10,7 @@
 #include "plugins/Plugins.hpp"
 #include "red/Red.hpp"
 #include "ui/FacebookViewModel.hpp"
+#include "ui/GrabacionesModel.hpp"
 #include "ui/TwitchViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 
@@ -38,16 +39,19 @@ CuentasViewModel::CuentasViewModel(Partes p, QObject* parent) : QObject(parent),
         {(ba::platform::bundleRoot() / "data" / "cacert.pem").string(),
          (p_.rt.dataRoot() / "data" / "cacert.pem").string(),
          (QCoreApplication::applicationDirPath() + "/../../data/cacert.pem").toStdString()});
-    youtube_ = std::make_unique<YouTubeViewModel>(p_.rt, p_.ventanilla);
+    // Las grabaciones para subir: una lista para YouTube y Facebook (se lee aparte).
+    grabaciones_ = std::make_unique<GrabacionesModel>(p_.rt, p_.ventanilla);
+    youtube_ = std::make_unique<YouTubeViewModel>(p_.rt, p_.ventanilla, *grabaciones_);
     connect(youtube_.get(), &YouTubeViewModel::notify, this, &CuentasViewModel::notify);
     twitch_ = std::make_unique<TwitchViewModel>(p_.rt, p_.ventanilla);
     connect(twitch_.get(), &TwitchViewModel::notify, this, &CuentasViewModel::notify);
-    facebook_ = std::make_unique<FacebookViewModel>(p_.rt, p_.ventanilla);
+    facebook_ = std::make_unique<FacebookViewModel>(p_.rt, p_.ventanilla, *grabaciones_);
     connect(facebook_.get(), &FacebookViewModel::notify, this, &CuentasViewModel::notify);
     // La página web del evento muestra dónde verlo en vivo.
     connect(youtube_.get(), &YouTubeViewModel::stateChanged, this, &CuentasViewModel::webCambio);
     connect(twitch_.get(), &TwitchViewModel::stateChanged, this, &CuentasViewModel::webCambio);
     connect(twitch_.get(), &TwitchViewModel::channelChanged, this, &CuentasViewModel::webCambio);
+    connect(twitch_.get(), &TwitchViewModel::streamChanged, this, &CuentasViewModel::webCambio);
     connect(facebook_.get(), &FacebookViewModel::stateChanged, this, &CuentasViewModel::webCambio);
     // Cada vivo con su URL pública (sin la clave), al bus y al histórico.
     const auto alVivo = [this](const QVariantMap& m) {

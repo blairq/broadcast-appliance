@@ -27,6 +27,7 @@ class VentanillaMotor;
 class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
+class GrabacionesModel;
 } // namespace ba::app
 namespace ba::app::control {
 class BusEventos;
@@ -80,6 +81,7 @@ class CuentasViewModel : public QObject {
 
    private:
     Partes p_;
+    std::unique_ptr<GrabacionesModel> grabaciones_; ///< la comparten YouTube y Facebook (antes que ellos)
     std::unique_ptr<YouTubeViewModel> youtube_;
     std::unique_ptr<TwitchViewModel> twitch_;
     std::unique_ptr<FacebookViewModel> facebook_;

@@ -635,6 +635,14 @@ endif()
     target_link_libraries(test_plano_control PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
+    # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
+    # andaba y los avisos por grupo, con una ventanilla sintética.
+    add_executable(test_estado_aire tests/test_estado_aire.cpp ui/EstadoAireViewModel.cpp ui/EstadoAireViewModel.hpp
+                   emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp)
+    target_include_directories(test_estado_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_estado_aire PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_estado_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_estado_aire COMMAND test_estado_aire)
     add_test(NAME test_mcp COMMAND test_mcp)
     # Los servidores que lanza la app (OpenCode, llama-server) mueren con ella.
     add_executable(test_hijos_app tests/test_hijos_app.cpp agent/HijosDeLaApp.cpp agent/HijosDeLaApp.hpp)
@@ -1053,6 +1061,10 @@ endif()
     # ba_core: los tipos de documento (documentos/Documento, el DNI) del paso «documento».
     target_link_libraries(test_registro_conversacion PRIVATE nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_registro_conversacion COMMAND test_registro_conversacion)
+    # El ritmo de la conversación (fin del turno, esperas, silencio), con la hora a mano.
+    add_executable(test_registro_ritmo tests/test_registro_ritmo.cpp registro/RitmoTotem.cpp)
+    target_include_directories(test_registro_ritmo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_registro_ritmo COMMAND test_registro_ritmo)
     # La conversación atendida por una persona (la atención remota del registro).
     add_executable(test_registro_atencion tests/test_registro_atencion.cpp registro/Conversacion.cpp registro/Totems.cpp)
     target_include_directories(test_registro_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
