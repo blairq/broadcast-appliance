@@ -85,6 +85,7 @@
 #include "Log.hpp"
 #include "Pinggy.hpp"
 #include "BaWeb.hpp"
+#include "Sondeo.hpp"
 
 #include "diag/Caidas.hpp"
 #include "diag/Correlacion.hpp"
@@ -1344,6 +1345,33 @@ int main(int argc, char** argv) {
         }
     }
 
+    // El latido lo da este bucle, pero lo que importa es que la SALA atienda: un B con
+    // este hilo andando y los de HTTP/WS trabados latía igual y el launcher no se enteraba.
+    // Un vigía se pregunta a sí mismo /healthz por la API de control cada 2 s; tres sin
+    // contestar seguidas y se deja de latir (el launcher lo ve colgado, lo vuelca y lo
+    // relanza).
+    std::atomic<bool> atiende{true};
+    std::thread vigiaServicio;
+    if (server.adminPort() != 0)
+        vigiaServicio = std::thread([&atiende, puerto = server.adminPort(), &log]() {
+            ba::platform::nombrarHilo("vigia-servicio");
+            int fallas = 0;
+            while (!g_stop.load(std::memory_order_relaxed)) {
+                for (int i = 0; i < 20 && !g_stop.load(std::memory_order_relaxed); ++i)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                if (g_stop.load(std::memory_order_relaxed)) break;
+                fallas = contestaHttp(puerto, "/healthz", 1500) ? 0 : fallas + 1;
+                const bool ok = fallas < 3;
+                if (ok != atiende.load()) {
+                    if (!ok)
+                        log.error(traducir("gateway", "la sala no contesta su propio /healthz: se deja de latir"), -1);
+                    else
+                        log.info(traducir("gateway", "la sala volvió a contestar /healthz"));
+                }
+                atiende.store(ok);
+            }
+        });
+
     while (!g_stop.load(std::memory_order_relaxed)) {
         control.poll([&](const ba::ipc::Message& m) {
             if (m.type == ba::ipc::Type::Shutdown) {
@@ -1359,7 +1387,7 @@ int main(int argc, char** argv) {
             if (elapsed >= cfg.durationMs) break;
         }
         std::this_thread::sleep_for(beatPeriod);
-        health.beat(kHealthSlot);
+        if (atiende.load(std::memory_order_relaxed)) health.beat(kHealthSlot);
         hub.reapViewers(); // espectadores de las vistas web que se fueron sin avisar
         room.tick(std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch())
@@ -1375,6 +1403,7 @@ int main(int argc, char** argv) {
         room.setSinRetorno(pump.lugaresSinRetorno());
     }
 
+    if (vigiaServicio.joinable()) vigiaServicio.join();
     ba::diag::Metricas::proceso().quitarColector(colectorTransporte); // antes que se vaya el pump
     log.info(traducir("gateway", "parando: deteniendo componentes..."));
 
