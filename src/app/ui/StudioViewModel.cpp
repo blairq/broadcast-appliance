@@ -844,27 +844,18 @@ void StudioViewModel::onTick() {
         if (rt_.recordStopWanted()) {
             emit notify(tr("Grabación detenida"), "info");
         } else if (st.recordingDown) {
-            // Se cortó y el motor la rearma sola en otra parte (F1-05): NO se para, que eso
-            // la mataría. Queda la alarma record_down hasta que vuelva.
+            // Se cortó y el motor la rearma sola en otra parte (F1-05). La interfaz NUNCA
+            // la para por su cuenta: la grabación es del motor, que la vuelve a armar (y un
+            // instante sin grabar también pasa al rearmar el motor, p. ej. tras perder la GPU:
+            // pararla ahí la mataba). Queda la alarma record_down hasta que vuelva.
             dropped(tr("Se cortó la grabación"),
                     tr("La grabación se cortó y vuelve sola en otra parte del archivo. Si no vuelve, revisá el disco."));
-        } else {
-            rt_.stopRecording(); // nadie la está rearmando: no queda nada que retomar
-            dropped(tr("Se cortó la grabación"),
-                    tr("La grabación se detuvo sola. Revisá el espacio libre en el disco y volvé a grabar."));
         }
     }
-    if (streaming_ && !st.streaming) {
-        if (rt_.streamStopWanted()) {
-            emit notify(tr("Transmisión detenida"), "warn");
-        } else {
-            rt_.stopStreaming();
-            dropped(
-                tr("Se cayó la transmisión"),
-                tr("La emisión se cortó sola (internet o el servidor de destino). Revisá la conexión y volvé a "
-                   "salir al aire."));
-        }
-    }
+    // Una transmisión que se corta sin que nadie la pare la reconecta el motor solo (se
+    // avisa abajo, con «reconectando…»). La interfaz no la para: un instante sin
+    // transmitir también pasa al rearmar el motor (la GPU perdida), y pararla ahí la mataba.
+    if (streaming_ && !st.streaming && rt_.streamStopWanted()) emit notify(tr("Transmisión detenida"), "warn");
     // Si cambio el aire o la grabacion, el tally lo tiene que saber: una
     // pantalla que dice «al aire» con la transmision cortada miente, y es la
     // clase de mentira por la que alguien se confia.
