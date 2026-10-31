@@ -166,6 +166,7 @@ class PantallasViewModel;
 class CatalogoVisible;
 class MonitoresModel;
 class VentanasModel;
+class MultiviewViewModel;
 class EnlacesViewModel;
 class QrViewModel;
 class PersonasViewModel;
@@ -429,14 +430,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* modelos READ modelos CONSTANT)
     /// La cola única de descargas (Descargas, arriba a la derecha): ver net/Descargas.hpp.
     Q_PROPERTY(QObject* descargas READ descargas CONSTANT)
-    /// Las multivistas (pestañas de la página Multiview): [{id, nombre, fuentes, distribucion,
-    /// separacion, fondo, borde, colorBorde, nombres, tamNombres, tally, vumetros}]. Config/multiview.json.
-    Q_PROPERTY(QVariantList multiviews READ multiviews NOTIFY multiviewChanged)
-    Q_PROPERTY(QString multiviewActual READ multiviewActual WRITE setMultiviewActual NOTIFY multiviewChanged)
-    /// La de la pestaña elegida.
-    Q_PROPERTY(QVariantMap multiview READ multiview NOTIFY multiviewChanged)
-    /// Los ids de las multivistas que tienen una ventana abierta.
-    Q_PROPERTY(QStringList multiviewsConVentana READ multiviewsConVentana NOTIFY multiviewVentanasChanged)
+    /// Las multivistas (pestañas de la página Multiview) y sus ventanas: ui/MultiviewViewModel.
+    Q_PROPERTY(QObject* multivistas READ multivistasQml CONSTANT)
     /// Hablarle al asistente (push-to-talk): ver agent/Voz.hpp.
     Q_PROPERTY(QObject* voz READ voz CONSTANT)
     /// «Voz del teleprompter»: el guion dicho en voz alta, siguiendo al teleprompter.
@@ -826,33 +821,11 @@ class StudioViewModel : public QObject {
     QObject* agenteAutomatizacion() const;
     QObject* modelos() const;
     QObject* descargas() const;
-    QVariantMap multiview() const;
-    QVariantList multiviews() const;
-    QString multiviewActual() const;
-    void setMultiviewActual(const QString& id);
-    Q_INVOKABLE QVariantMap multiviewDe(const QString& id) const;
-    /// Cambia lo que venga en `cambios` (lo demás queda) y lo guarda: la elegida / la de `id`.
-    Q_INVOKABLE void setMultiview(const QVariantMap& cambios);
-    Q_INVOKABLE void setMultiviewDe(const QString& id, const QVariantMap& cambios);
-    /// Una pestaña nueva (de fábrica o copia de la elegida); queda elegida. Devuelve su id.
-    Q_INVOKABLE QString nuevaMultiview(const QString& nombre, bool copiarActual);
-    Q_INVOKABLE void renombrarMultiview(const QString& id, const QString& nombre);
-    /// false si es la última (siempre queda una).
-    Q_INVOKABLE bool borrarMultiview(const QString& id);
-    Q_INVOKABLE void restablecerMultiview();
+    QObject* multivistasQml() const;
+    MultiviewViewModel& multivistas() { return *multivistas_; }
     /// Los monitores conectados, en orden físico: [{id, nombre, orden, sistema,
     /// principal, ancho, alto, x, y}] (los de Salidas → Pantallas).
     QVariantList monitores() const;
-    /// Abre la ventana de esa multivista (cierra la que tuviera) en `monitor` (id,
-    /// número de orden o nombre; "" = el principal, en una ventana), en pantalla
-    /// completa si se pide.
-    Q_INVOKABLE void abrirMultiviewEnVentana(const QString& id, const QString& monitor, bool pantallaCompleta);
-    /// Una ventana por multivista: una por monitor (los que no son el principal), en
-    /// pantalla completa; si sobran o no hay otros monitores, ventanas escalonadas.
-    /// Devuelve cuántas abrió.
-    Q_INVOKABLE int abrirTodasLasMultiviews();
-    Q_INVOKABLE int cerrarVentanasMultiview();
-    QStringList multiviewsConVentana() const;
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;
@@ -1100,8 +1073,6 @@ class StudioViewModel : public QObject {
     void seccionConfigChanged();
     /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
     void mostrarSeccion(const QString& pagina, const QString& seccion);
-    void multiviewChanged();
-    void multiviewVentanasChanged();
     void monitoresChanged();
     /// qr_mostrar: abrir una ventana con el QR de `texto`, su descripción, una
     /// explicación y un color (verde, azul… o #rrggbb), con el botón de copiar.
@@ -1181,6 +1152,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<CatalogoVisible> catalogo_;
     std::unique_ptr<MonitoresModel> monitores_;
     std::unique_ptr<VentanasModel> ventanas_;
+    std::unique_ptr<MultiviewViewModel> multivistas_; ///< usa ventanas_ y monitores_: va después
     QString seccionConfig_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
@@ -1368,12 +1340,6 @@ class StudioViewModel : public QObject {
     QString firmaEstado_; ///< lo último avisado con statusChanged (onTick)
     double peakL_ = -100;
     double peakR_ = -100;
-    QVariantList multiviews_;
-    QString multiviewActual_;
-    bool multiviewLeido_ = false;
-    void leerMultiviews() const;
-    int indiceMultiview(const QString& id) const;
-    void guardarMultiviews();
     /// Lee a los demás servicios: se arma al final del constructor y, declarado
     /// último, se destruye antes que ellos.
     std::unique_ptr<EnlacesViewModel> enlaces_;

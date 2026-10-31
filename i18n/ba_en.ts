@@ -30582,9 +30582,10 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
     </message>
+</context>
+<context>
+    <name>MultiviewViewModel</name>
     <message>
-        <location line="+165" />
-        <location line="+75" />
         <source>Multiview %1</source>
         <translation>Multiview %1</translation>
     </message>

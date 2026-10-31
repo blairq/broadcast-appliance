@@ -237,7 +237,7 @@ Window {
                     id: menuVista
                     ItemsDeMenu {
                         menu: menuVista
-                        model: Studio.multiviews
+                        model: Studio.multivistas.lista
                         delegate: MenuItem {
                             required property var modelData
                             text: modelData.nombre; checkable: true

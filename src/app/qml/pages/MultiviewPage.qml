@@ -12,7 +12,7 @@ Rectangle {
     id: page
     color: Theme.bg
     property real leftInset: 92
-    readonly property var mv: Studio.multiview
+    readonly property var mv: Studio.multivistas.elegida
     readonly property var fuentes: page.mv.fuentes || []
     /// Todo lo que se puede poner: programa, armada, invitados, pantallas compartidas y las entradas.
     readonly property var disponibles: {
@@ -24,7 +24,7 @@ Rectangle {
     readonly property var colores: ["#202024", "#000000", "#ffffff", "#5a5a64", "#16a34a", "#2563eb",
                                     "#dc2626", "#eab308", "#ea580c", "#9333ea", "#0891b2"]
     function nombre(k) { return k.startsWith("entrada:") ? qsTr("Entrada · %1").arg(k.slice(8)) : Studio.frames.label(k) }
-    function poner(clave, valor) { const c = {}; c[clave] = valor; Studio.setMultiview(c) }
+    function poner(clave, valor) { const c = {}; c[clave] = valor; Studio.multivistas.cambiar(c) }
     function alternar(k) {
         const f = page.fuentes.slice(); const i = f.indexOf(k)
         if (i >= 0) f.splice(i, 1); else f.push(k)
@@ -61,17 +61,17 @@ Rectangle {
                         id: filaPestanas
                         spacing: 4
                         Repeater {
-                            model: Studio.multiviews
+                            model: Studio.multivistas.lista
                             delegate: Rectangle {
                                 required property var modelData
-                                readonly property bool elegida: modelData.id === Studio.multiviewActual
+                                readonly property bool elegida: modelData.id === Studio.multivistas.actual
                                 height: 32; radius: 8
                                 width: nombrePestana.implicitWidth + 28
                                 color: elegida ? Qt.rgba(1, 0.42, 0.17, 0.28) : (pestMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03))
                                 border.color: elegida ? Theme.accent : Theme.glassBorder
                                 // Punto: esta multivista tiene una ventana abierta.
                                 Rectangle {
-                                    visible: (Studio.multiviewsConVentana || []).indexOf(modelData.id) >= 0
+                                    visible: (Studio.multivistas.conVentana || []).indexOf(modelData.id) >= 0
                                     width: 7; height: 7; radius: 4; color: Theme.ok
                                     anchors { right: parent.right; top: parent.top; margins: 4 }
                                 }
@@ -84,8 +84,8 @@ Rectangle {
                                 }
                                 MouseArea {
                                     id: pestMa; anchors.fill: parent; hoverEnabled: true
-                                    onClicked: Studio.multiviewActual = modelData.id
-                                    onDoubleClicked: { Studio.multiviewActual = modelData.id; nombreCampo.forceActiveFocus(); nombreCampo.selectAll() }
+                                    onClicked: Studio.multivistas.actual = modelData.id
+                                    onDoubleClicked: { Studio.multivistas.actual = modelData.id; nombreCampo.forceActiveFocus(); nombreCampo.selectAll() }
                                 }
                             }
                         }
@@ -95,17 +95,17 @@ Rectangle {
                     compact: true; text: qsTr("Todas en ventanas"); icon: "⧉"
                     ToolTip.visible: hovered; ToolTip.delay: 300
                     ToolTip.text: qsTr("Una ventana por multivista: una en cada monitor (los que no son el principal), en pantalla completa; si sobran, escalonadas en el principal.")
-                    onClicked: { const n = Studio.abrirTodasLasMultiviews(); Studio.notify(qsTr("%n multivista en ventanas.", "", n), "ok") }
+                    onClicked: { const n = Studio.multivistas.abrirTodas(); Studio.notify(qsTr("%n multivista en ventanas.", "", n), "ok") }
                 }
                 GlassButton {
                     compact: true; text: qsTr("Cerrar ventanas")
-                    visible: (Studio.multiviewsConVentana || []).length > 0
-                    onClicked: Studio.cerrarVentanasMultiview()
+                    visible: (Studio.multivistas.conVentana || []).length > 0
+                    onClicked: Studio.multivistas.cerrarVentanas()
                 }
                 GlassButton {
                     compact: true; text: "+"; implicitWidth: 34
                     ToolTip.visible: hovered; ToolTip.text: qsTr("Otra multivista"); ToolTip.delay: 300
-                    onClicked: Studio.nuevaMultiview("", false)
+                    onClicked: Studio.multivistas.nueva("", false)
                 }
             }
             Item {
@@ -161,26 +161,26 @@ Rectangle {
                         Layout.fillWidth: true
                         text: page.mv.nombre || ""
                         placeholderText: qsTr("Nombre de esta multivista (p. ej. «Control», «Sala», «Cámaras»)")
-                        onEditingFinished: if (text.trim() !== "" && text !== page.mv.nombre) Studio.renombrarMultiview(page.mv.id, text)
+                        onEditingFinished: if (text.trim() !== "" && text !== page.mv.nombre) Studio.multivistas.renombrar(page.mv.id, text)
                     }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 8
                         GlassButton {
-                            text: (Studio.multiviewsConVentana || []).indexOf(page.mv.id) >= 0 ? qsTr("Llevar la ventana") : qsTr("Sacar a una ventana")
+                            text: (Studio.multivistas.conVentana || []).indexOf(page.mv.id) >= 0 ? qsTr("Llevar la ventana") : qsTr("Sacar a una ventana")
                             icon: "⧉"; active: true
-                            onClicked: Studio.abrirMultiviewEnVentana(page.mv.id, monitorCombo.monitor, completaSw.checked)
+                            onClicked: Studio.multivistas.abrirEnVentana(page.mv.id, monitorCombo.monitor, completaSw.checked)
                         }
-                        GlassButton { compact: true; text: qsTr("Duplicar"); onClicked: Studio.nuevaMultiview(qsTr("%1 (copia)").arg(page.mv.nombre || "Multiview"), true) }
-                        GlassButton { compact: true; text: qsTr("De fábrica"); onClicked: Studio.restablecerMultiview() }
+                        GlassButton { compact: true; text: qsTr("Duplicar"); onClicked: Studio.multivistas.nueva(qsTr("%1 (copia)").arg(page.mv.nombre || "Multiview"), true) }
+                        GlassButton { compact: true; text: qsTr("De fábrica"); onClicked: Studio.multivistas.restablecer() }
                         GlassButton {
                             compact: true; text: qsTr("Borrar")
-                            enabled: (Studio.multiviews || []).length > 1
+                            enabled: (Studio.multivistas.lista || []).length > 1
                             onClicked: ApplicationWindow.window.confirm({
                                 title: qsTr("¿Borrar «%1»?").arg(page.mv.nombre || ""),
                                 text: qsTr("Se borra esta multivista. Las ventanas que la mostraban pasan a mostrar otra."),
                                 accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
-                                action: function() { Studio.borrarMultiview(page.mv.id) }
+                                action: function() { Studio.multivistas.borrar(page.mv.id) }
                             })
                         }
                     }

@@ -30460,9 +30460,10 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
     </message>
+</context>
+<context>
+    <name>MultiviewViewModel</name>
     <message>
-        <location line="+165" />
-        <location line="+75" />
         <source>Multiview %1</source>
         <translation>多画面监看 %1</translation>
     </message>

@@ -27,6 +27,7 @@
 #include "pantallas/Ventanas.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/MultiviewViewModel.hpp"
 #include "ui/RielConfig.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/SystemViewModel.hpp"
@@ -114,14 +115,14 @@ void McpService::registerUiTools() {
                       R"({"vista": "Control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
         t.run = [&vm, windows](const json& a, Done done) {
             if (a.value("restablecer", false)) {
-                vm.restablecerMultiview();
+                vm.multivistas().restablecer();
                 return done(ToolResult::ok(ba::i18n::traducir("mcp", "La multivista elegida volvió a la de fábrica.")));
             }
-            QString id = vm.multiviewActual();
+            QString id = vm.multivistas().actual();
             if (a.contains("vista")) {
                 const QString q = QString::fromStdString(a.value("vista", std::string()));
                 QString hallado;
-                for (const QVariant& v : vm.multiviews()) {
+                for (const QVariant& v : vm.multivistas().lista()) {
                     const QVariantMap m = v.toMap();
                     if (m.value("id").toString() == q || m.value("nombre").toString().compare(q, Qt::CaseInsensitive) == 0)
                         hallado = m.value("id").toString();
@@ -130,30 +131,30 @@ void McpService::registerUiTools() {
                     return done(ToolResult::error(
                         ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una multivista «%1»"), {q.toStdString()})));
                 id = hallado;
-                vm.setMultiviewActual(id);
+                vm.multivistas().setActual(id);
             }
-            if (a.contains("nueva")) id = vm.nuevaMultiview(QString::fromStdString(a.value("nueva", std::string())), a.value("copiar", false));
+            if (a.contains("nueva")) id = vm.multivistas().nueva(QString::fromStdString(a.value("nueva", std::string())), a.value("copiar", false));
             if (a.value("borrar", false)) {
-                if (!vm.borrarMultiview(id)) return done(ToolResult::error(ba::i18n::traducir("mcp", "es la única multivista: siempre queda una")));
-                id = vm.multiviewActual();
+                if (!vm.multivistas().borrar(id)) return done(ToolResult::error(ba::i18n::traducir("mcp", "es la única multivista: siempre queda una")));
+                id = vm.multivistas().actual();
             }
-            if (a.contains("renombrar")) vm.renombrarMultiview(id, QString::fromStdString(a.value("renombrar", std::string())));
+            if (a.contains("renombrar")) vm.multivistas().renombrar(id, QString::fromStdString(a.value("renombrar", std::string())));
             QVariantMap cambios;
             for (const char* k : {"fuentes", "distribucion", "separacion", "fondo", "borde", "colorBorde", "nombres",
                                   "tamNombres", "tally", "vumetros", "grosorTally"})
                 if (a.contains(k)) cambios[k] = jsonToQv(a[k]);
-            if (!cambios.isEmpty()) vm.setMultiviewDe(id, cambios);
-            if (a.value("cerrar_ventanas", false)) vm.cerrarVentanasMultiview();
-            if (a.value("todas_en_ventanas", false)) vm.abrirTodasLasMultiviews();
+            if (!cambios.isEmpty()) vm.multivistas().cambiarDe(id, cambios);
+            if (a.value("cerrar_ventanas", false)) vm.multivistas().cerrarVentanas();
+            if (a.value("todas_en_ventanas", false)) vm.multivistas().abrirTodas();
             else if (a.value("ventana", false))
-                vm.abrirMultiviewEnVentana(id, QString::fromStdString(a.value("monitor", std::string())),
+                vm.multivistas().abrirEnVentana(id, QString::fromStdString(a.value("monitor", std::string())),
                                            a.value("pantalla_completa", false));
             json disp = json::array();
             for (const QString& k : static_cast<FrameService*>(vm.frames())->keys()) disp.push_back(k.toStdString());
             if (auto* vg = static_cast<video::VideoGrafos*>(vm.video()))
                 for (const QString& e : vg->entradas()) disp.push_back("entrada:" + e.toStdString());
             // La ventana de cada multivista (para ventana_mover).
-            json vistas = qvToJson(vm.multiviews());
+            json vistas = qvToJson(vm.multivistas().lista());
             for (auto& v : vistas) {
                 v["ventana"] = nullptr;
                 if (windows != nullptr)
@@ -161,7 +162,7 @@ void McpService::registerUiTools() {
                         w > 0)
                         v["ventana"] = "salida:" + std::to_string(w);
             }
-            done(ToolResult().data({{"elegida", vm.multiviewActual().toStdString()},
+            done(ToolResult().data({{"elegida", vm.multivistas().actual().toStdString()},
                                     {"multivistas", vistas},
                                     {"monitores", qvToJson(vm.monitores())},
                                     {"fuentes_disponibles", disp}}));
@@ -516,7 +517,7 @@ void McpService::registerUiTools() {
                 const QString pedida = QString::fromStdString(a.value("multiview", std::string())).trimmed();
                 QString id;
                 QStringList hay;
-                for (const QVariant& v : vm.multiviews()) {
+                for (const QVariant& v : vm.multivistas().lista()) {
                     const QVariantMap m = v.toMap();
                     hay << m.value("nombre").toString();
                     if (m.value("id").toString() == pedida || m.value("nombre").toString().compare(pedida, Qt::CaseInsensitive) == 0)

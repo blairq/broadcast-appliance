@@ -18,9 +18,9 @@ Item {
         // fuentes, distribución y estilo, en vivo), en 16:9 centrado como en sus ventanas.
         // («multiview» solo, el de antes por MCP: la elegida en la página.)
         readonly property bool esMultiview: Studio.dashboard.backgroundLayout.startsWith("multiview")
-        readonly property var mv: (Studio.multiviews, !esMultiview ? ({})
-                                   : Studio.dashboard.backgroundLayout.startsWith("multiview:") ? Studio.multiviewDe(Studio.dashboard.backgroundLayout.slice(10))
-                                   : Studio.multiview)
+        readonly property var mv: (Studio.multivistas.lista, !esMultiview ? ({})
+                                   : Studio.dashboard.backgroundLayout.startsWith("multiview:") ? Studio.multivistas.de(Studio.dashboard.backgroundLayout.slice(10))
+                                   : Studio.multivistas.elegida)
         readonly property bool mvValida: esMultiview && mv.id !== undefined
         Rectangle { anchors.fill: parent; color: "black"; visible: bgLayer.mvValida }
         VideoWall {
@@ -138,11 +138,11 @@ Item {
             Menu {
                 id: bgMenu
                 // Las multivistas armadas en la página Multiview: una de ellas como fondo.
-                MenuItem { id: tituloMultiview; text: "Multiview"; enabled: false; visible: Studio.multiviews.length > 0; height: visible ? implicitHeight : 0 }
+                MenuItem { id: tituloMultiview; text: "Multiview"; enabled: false; visible: Studio.multivistas.lista.length > 0; height: visible ? implicitHeight : 0 }
                 ItemsDeMenu {
                     menu: bgMenu
                     despuesDe: tituloMultiview
-                    model: Studio.multiviews
+                    model: Studio.multivistas.lista
                     delegate: MenuItem {
                         required property var modelData
                         text: "▥  " + modelData.nombre + "  (" + (modelData.fuentes || []).length + ")"
@@ -151,7 +151,7 @@ Item {
                         onTriggered: Studio.dashboard.backgroundLayout = "multiview:" + modelData.id
                     }
                 }
-                MenuSeparator { visible: Studio.multiviews.length > 0 }
+                MenuSeparator { visible: Studio.multivistas.lista.length > 0 }
                 MenuItem { id: tituloFuentes; text: qsTr("Fuentes"); enabled: false; height: implicitHeight }
                 ItemsDeMenu {
                     menu: bgMenu

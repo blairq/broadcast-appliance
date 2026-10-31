@@ -161,6 +161,7 @@
 #include "ui/InputsViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/MediosViewModel.hpp"
+#include "ui/MultiviewViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "pantallas/Catalogo.hpp"
@@ -1310,13 +1311,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // (Salidas → Pantallas). Después de las cámaras, las multivistas, el tablero
     // y las pantallas de la red: el catálogo los lee a todos.
     {
+        // Las multivistas antes que el catálogo (las lista) y las ventanas (las migran).
+        multivistas_ = std::make_unique<MultiviewViewModel>(rt.dataRoot() / "Config");
         CatalogoVisible::Fuentes f;
         f.escenas = [this]() {
             QStringList out;
             for (const std::string& n : rt_.orderedSceneNames()) out << QString::fromStdString(n);
             return out;
         };
-        f.multiviews = [this]() { return multiviews(); };
+        f.multiviews = [this]() { return multivistas_->lista(); };
         f.fondo = [this]() { return dashboard_ ? dashboard_->background() : QStringList{}; };
         f.fondoDistribucion = [this]() { return dashboard_ ? dashboard_->backgroundLayout() : QString("grid"); };
         f.camarasPtz = [this]() {
@@ -1349,7 +1352,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         catalogo_ = std::make_unique<CatalogoVisible>(std::move(f));
         const auto refrescar = [this]() { catalogo_->refrescar(); };
         connect(this, &StudioViewModel::escenasCambiaron, catalogo_.get(), refrescar);
-        connect(this, &StudioViewModel::multiviewChanged, catalogo_.get(), refrescar);
+        connect(multivistas_.get(), &MultiviewViewModel::cambio, catalogo_.get(), refrescar);
         if (dashboard_) connect(dashboard_.get(), &DashboardModel::backgroundChanged, catalogo_.get(), refrescar);
         connect(camaras_.get(), &ptz::ControlCamaras::cambio, catalogo_.get(), refrescar);
         connect(frames_.get(), &FrameService::keysChanged, catalogo_.get(), refrescar);
@@ -1364,10 +1367,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             ventanas_ = std::make_unique<VentanasModel>(
                 c.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "ventanas.json", catalogo_.get(),
                 monitores_.get());
-            if (!c.saltear()) ventanas_->migrarDesde(rt.dataRoot() / "Config" / "ui.json", multiviewActual());
+            if (!c.saltear()) ventanas_->migrarDesde(rt.dataRoot() / "Config" / "ui.json", multivistas_->actual());
         }
-        connect(ventanas_.get(), &VentanasModel::cambio, this, &StudioViewModel::multiviewVentanasChanged);
-        connect(ventanas_.get(), &QAbstractItemModel::dataChanged, this, &StudioViewModel::multiviewVentanasChanged);
+        multivistas_->setVentanas(ventanas_.get(), monitores_.get());
         connect(monitores_.get(), &MonitoresModel::cambio, this, &StudioViewModel::monitoresChanged);
         marca("ventanas");
     }
@@ -4728,224 +4730,16 @@ nlohmann::json StudioViewModel::saludSerie(const std::string& destino, int minut
 
 } // namespace ba::app
 
-// --- Multiview ----------------------------------------------------------------------------
-// Varias multivistas (pestañas de la página Multiview). Config/multiview.json:
-// {"vistas": [{id, nombre, fuentes, distribucion, ...}], "actual": id}. El formato
-// viejo (una sola, plana) se lee como «Multiview 1».
-
 namespace ba::app {
-
-namespace {
-QVariantMap multiviewDeFabrica() {
-    return {{"fuentes", QStringList{"program", "armada"}},
-            {"distribucion", "control"},
-            {"separacion", 8},
-            {"fondo", "#202024"},
-            {"borde", 1},
-            {"colorBorde", "#5a5a64"},
-            {"grosorTally", 2},
-            {"nombres", true},
-            {"tamNombres", 18},
-            {"tally", true},
-            {"vumetros", true}};
-}
-QString idNuevo() { return QString::number(QDateTime::currentMSecsSinceEpoch(), 36); }
-} // namespace
-
-void StudioViewModel::leerMultiviews() const {
-    if (multiviewLeido_) return;
-    auto* yo = const_cast<StudioViewModel*>(this);
-    yo->multiviewLeido_ = true;
-    QFile f(QString::fromStdWString((rt_.dataRoot() / "Config" / "multiview.json").wstring()));
-    QVariantMap raiz;
-    if (f.open(QIODevice::ReadOnly)) raiz = QJsonDocument::fromJson(f.readAll()).object().toVariantMap();
-    QVariantList vistas = raiz.value("vistas").toList();
-    if (vistas.isEmpty()) {
-        QVariantMap v = multiviewDeFabrica();
-        for (auto it = raiz.begin(); it != raiz.end(); ++it)
-            if (it.key() != "vistas" && it.key() != "actual") v[it.key()] = it.value(); // formato viejo
-        v["id"] = "1";
-        v["nombre"] = tr("Multiview %1").arg(1);
-        vistas << v;
-    }
-    // Lo que falte en una vista (de una versión vieja), de fábrica.
-    for (QVariant& x : vistas) {
-        QVariantMap v = x.toMap();
-        const QVariantMap fab = multiviewDeFabrica();
-        for (auto it = fab.begin(); it != fab.end(); ++it)
-            if (!v.contains(it.key())) v[it.key()] = it.value();
-        x = v;
-    }
-    yo->multiviews_ = vistas;
-    yo->multiviewActual_ = raiz.value("actual").toString();
-    if (indiceMultiview(multiviewActual_) < 0) yo->multiviewActual_ = vistas.first().toMap().value("id").toString();
-}
-
-int StudioViewModel::indiceMultiview(const QString& id) const {
-    for (int i = 0; i < multiviews_.size(); ++i)
-        if (multiviews_[i].toMap().value("id").toString() == id) return i;
-    return -1;
-}
-
-void StudioViewModel::guardarMultiviews() {
-    const std::filesystem::path dir = rt_.dataRoot() / "Config";
-    std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
-    QFile f(QString::fromStdWString((dir / "multiview.json").wstring()));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(QJsonObject::fromVariantMap({{"vistas", multiviews_}, {"actual", multiviewActual_}}))
-                    .toJson(QJsonDocument::Indented));
-    emit multiviewChanged();
-}
-
-QVariantList StudioViewModel::multiviews() const {
-    leerMultiviews();
-    return multiviews_;
-}
-
-QString StudioViewModel::multiviewActual() const {
-    leerMultiviews();
-    return multiviewActual_;
-}
-
-QVariantMap StudioViewModel::multiview() const { return multiviewDe(multiviewActual()); }
-
-QVariantMap StudioViewModel::multiviewDe(const QString& id) const {
-    leerMultiviews();
-    const int i = indiceMultiview(id.isEmpty() ? multiviewActual_ : id);
-    return i >= 0 ? multiviews_[i].toMap() : QVariantMap{};
-}
-
-void StudioViewModel::setMultiview(const QVariantMap& cambios) { setMultiviewDe(multiviewActual(), cambios); }
-
-void StudioViewModel::setMultiviewDe(const QString& id, const QVariantMap& cambios) {
-    leerMultiviews();
-    const int i = indiceMultiview(id);
-    if (i < 0) return;
-    QVariantMap v = multiviews_[i].toMap();
-    for (auto it = cambios.begin(); it != cambios.end(); ++it)
-        if (it.key() != "id") v[it.key()] = it.value();
-    multiviews_[i] = v;
-    guardarMultiviews();
-}
-
-void StudioViewModel::setMultiviewActual(const QString& id) {
-    leerMultiviews();
-    if (indiceMultiview(id) < 0 || id == multiviewActual_) return;
-    multiviewActual_ = id;
-    guardarMultiviews();
-}
-
-QString StudioViewModel::nuevaMultiview(const QString& nombre, bool copiarActual) {
-    leerMultiviews();
-    QVariantMap v = copiarActual ? multiview() : multiviewDeFabrica();
-    v["id"] = idNuevo();
-    v["nombre"] = nombre.trimmed().isEmpty() ? tr("Multiview %1").arg(multiviews_.size() + 1) : nombre.trimmed();
-    multiviews_ << v;
-    multiviewActual_ = v["id"].toString();
-    guardarMultiviews();
-    return multiviewActual_;
-}
-
-void StudioViewModel::renombrarMultiview(const QString& id, const QString& nombre) {
-    if (nombre.trimmed().isEmpty()) return;
-    setMultiviewDe(id, {{"nombre", nombre.trimmed()}});
-}
-
-bool StudioViewModel::borrarMultiview(const QString& id) {
-    leerMultiviews();
-    const int i = indiceMultiview(id);
-    if (i < 0 || multiviews_.size() <= 1) return false; // siempre queda una
-    multiviews_.removeAt(i);
-    if (multiviewActual_ == id) multiviewActual_ = multiviews_[std::max(0, i - 1)].toMap().value("id").toString();
-    guardarMultiviews();
-    return true;
-}
 
 QVariantList StudioViewModel::monitores() const {
     // Los de Salidas → Pantallas: orden físico e ids estables (una sola lista).
     return monitores_ ? monitores_->conectadosEnOrden() : QVariantList{};
 }
 
-QStringList StudioViewModel::multiviewsConVentana() const {
-    QStringList out;
-    if (!ventanas_) return out;
-    for (const auto& w : ventanas_->ventanas())
-        for (const QString& c : w.cosas)
-            if (c.startsWith("multiview:") && !out.contains(c.mid(10))) out << c.mid(10);
-    return out;
-}
-
-namespace {
-/// Una ventana de 16:9 centrada en el monitor `g` (o escalonada).
-QRect geometriaEn(QRect g, int escalon) {
-    if (!g.isValid()) g = QRect(0, 0, 1920, 1080);
-    const int w = std::min(1280, g.width() - 80), h = w * 9 / 16;
-    return QRect(g.x() + (g.width() - w) / 2 + escalon * 40, g.y() + (g.height() - h) / 2 + escalon * 40, w, h);
-}
-QRect rectDe(const QVariantMap& m) {
-    return QRect(m.value("x").toInt(), m.value("y").toInt(), m.value("ancho").toInt(), m.value("alto").toInt());
-}
-} // namespace
-
-void StudioViewModel::abrirMultiviewEnVentana(const QString& id, const QString& monitor, bool pantallaCompleta) {
-    if (!ventanas_ || !monitores_ || multiviewDe(id).isEmpty()) return;
-    // La ventana de esa multivista se cierra y se abre donde se pide (así «Llevar
-    // la ventana» la manda al monitor elegido aunque ya estuviera abierta).
-    ventanas_->cerrarCosa("multiview:" + id);
-    // `monitor`: id, número de orden, nombre o nombre del sistema (Monitores::resolver).
-    const QString mid = monitor.isEmpty() ? QString() : monitores_->resolver(monitor);
-    QVariantMap donde, principal;
-    for (const QVariant& v : monitores_->conectadosEnOrden()) {
-        const QVariantMap m = v.toMap();
-        if (m.value("id").toString() == mid) donde = m;
-        if (m.value("principal").toBool()) principal = m;
-    }
-    const bool hay = !donde.isEmpty();
-    ventanas_->abrirEn({"multiview:" + id}, {}, hay ? mid : principal.value("id").toString(),
-                       geometriaEn(rectDe(hay ? donde : principal), 0), pantallaCompleta && hay);
-}
-
-int StudioViewModel::abrirTodasLasMultiviews() {
-    if (!ventanas_ || !monitores_) return 0;
-    cerrarVentanasMultiview();
-    QVariantMap principal;
-    QVariantList otros;
-    for (const QVariant& v : monitores_->conectadosEnOrden()) {
-        if (v.toMap().value("principal").toBool())
-            principal = v.toMap();
-        else
-            otros << v;
-    }
-    const QVariantList vistas = multiviews();
-    int escalon = 0;
-    for (int i = 0; i < vistas.size(); ++i) {
-        const QString id = vistas[i].toMap().value("id").toString();
-        if (i < otros.size()) {
-            const QVariantMap m = otros[i].toMap(); // una por monitor, completa, en el orden físico
-            ventanas_->abrirEn({"multiview:" + id}, {}, m.value("id").toString(), geometriaEn(rectDe(m), 0), true);
-        } else {
-            ventanas_->abrirEn({"multiview:" + id}, {}, principal.value("id").toString(),
-                               geometriaEn(rectDe(principal), escalon++), false);
-        }
-    }
-    return vistas.size();
-}
-
-int StudioViewModel::cerrarVentanasMultiview() {
-    if (!ventanas_) return 0;
-    std::vector<int> cerrar;
-    for (const auto& w : ventanas_->ventanas())
-        if (w.cosas.size() == 1 && w.cosas.first().startsWith("multiview:")) cerrar.push_back(w.id);
-    for (int c : cerrar) ventanas_->cerrar(c);
-    return static_cast<int>(cerrar.size());
-}
-
-void StudioViewModel::restablecerMultiview() {
-    const QVariantMap v = multiview();
-    QVariantMap fab = multiviewDeFabrica();
-    fab["nombre"] = v.value("nombre");
-    setMultiview(fab);
+QObject* StudioViewModel::multivistasQml() const {
+    QQmlEngine::setObjectOwnership(multivistas_.get(), QQmlEngine::CppOwnership);
+    return multivistas_.get();
 }
 
 QString StudioViewModel::reiniciarPrograma(const QString& aviso) {
