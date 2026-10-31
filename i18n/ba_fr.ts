@@ -30173,31 +30173,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Impossible d'enregistrer : %1</translation>
     </message>
     <message>
-        <location line="+150" />
-        <source>Volvemos enseguida</source>
-        <translation>Nous revenons tout de suite</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Cuarto intermedio</source>
-        <translation>Suspension de séance</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Minuto de silencio</source>
-        <translation>Minute de silence</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Sesión suspendida</source>
-        <translation>Séance suspendue</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Dificultades técnicas</source>
-        <translation>Difficultés techniques</translation>
-    </message>
-    <message>
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Ce qui était à l'antenne avant la coupure a été rétabli (carton ou noir)</translation>
@@ -30376,6 +30351,29 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>SalidasViewModel</name>
+    <message>
+        <source>Volvemos enseguida</source>
+        <translation>Nous revenons tout de suite</translation>
+    </message>
+    <message>
+        <source>Cuarto intermedio</source>
+        <translation>Suspension de séance</translation>
+    </message>
+    <message>
+        <source>Minuto de silencio</source>
+        <translation>Minute de silence</translation>
+    </message>
+    <message>
+        <source>Sesión suspendida</source>
+        <translation>Séance suspendue</translation>
+    </message>
+    <message>
+        <source>Dificultades técnicas</source>
+        <translation>Difficultés techniques</translation>
     </message>
 </context>
 <context>

@@ -30054,31 +30054,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无法保存：%1</translation>
     </message>
     <message>
-        <location line="+150" />
-        <source>Volvemos enseguida</source>
-        <translation>马上回来</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Cuarto intermedio</source>
-        <translation>暂时休会</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Minuto de silencio</source>
-        <translation>默哀一分钟</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Sesión suspendida</source>
-        <translation>会议暂停</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Dificultades técnicas</source>
-        <translation>技术故障</translation>
-    </message>
-    <message>
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
@@ -30254,6 +30229,29 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>SalidasViewModel</name>
+    <message>
+        <source>Volvemos enseguida</source>
+        <translation>马上回来</translation>
+    </message>
+    <message>
+        <source>Cuarto intermedio</source>
+        <translation>暂时休会</translation>
+    </message>
+    <message>
+        <source>Minuto de silencio</source>
+        <translation>默哀一分钟</translation>
+    </message>
+    <message>
+        <source>Sesión suspendida</source>
+        <translation>会议暂停</translation>
+    </message>
+    <message>
+        <source>Dificultades técnicas</source>
+        <translation>技术故障</translation>
     </message>
 </context>
 <context>

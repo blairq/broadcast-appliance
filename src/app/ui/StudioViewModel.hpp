@@ -31,6 +31,7 @@
 #include "comun/UsoCpu.hpp"
 #include "ui/AsambleaViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
+#include "ui/SalidasViewModel.hpp"
 #include "ui/MultiviewViewModel.hpp"
 
 #include <deque>
@@ -323,13 +324,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString pfl READ pfl NOTIFY pflChanged)
     // --- Submodelos -------------------------------------------------------------
     Q_PROPERTY(QObject* scenes READ scenes CONSTANT)
-    /// Las salidas (PLAN-SALIDAS), la por omisión primera: filas con id, nombre, color,
-    /// porOmision, alAire, armada, transmitiendo, grabando, archivo (lo que graba),
-    /// destinos ([{id, nombre, activo, reconectando, respaldo}], los suyos), programa
-    /// (la clave de FrameService de su programa) y codificador (el que eligió; "" = el
-    /// de la configuración). Se rehace
-    /// sola cuando cambia algo de eso (el modelo avisa).
-    Q_PROPERTY(QObject* salidas READ salidas CONSTANT)
+    /// Las salidas (PLAN-SALIDAS) y la activa de esta interfaz: ui/SalidasViewModel
+    /// (lista, activa, activaDatos, varias, aire, placa, tope, nueva y los comandos).
+    Q_PROPERTY(QObject* salidas READ salidasQml CONSTANT)
     // --- La salida activa de la interfaz (PLAN-SALIDAS, etapa 5) ----------------
     // Cada salida es un operador completo y esta interfaz maneja UNA: la activa. Lo
     // que muestran y hacen Dirección, Escenas y el Mezclador es de ella: la escena
@@ -338,27 +335,8 @@ class StudioViewModel : public QObject {
     // de cada tira (mixer), el vúmetro del programa y el tally del multiview. Con una
     // sola salida es la por omisión y nada cambia. Lo que no es de esta interfaz (el
     // MCP, el BusEventos, las pantallas de tally de la sala, los monitores "program"
-    // y "armada") sigue con la por omisión (conmutador()).
-    /// El id de la activa. Si se la borra, vuelve sola a la por omisión.
-    Q_PROPERTY(QString salidaActiva READ salidaActiva WRITE setSalidaActiva NOTIFY salidaActivaChanged)
-    /// Su fila de `salidas` ({id, nombre, color, porOmision, …}).
-    Q_PROPERTY(QVariantMap salidaActivaDatos READ salidaActivaDatos NOTIFY salidaActivaChanged)
-    /// Hay más de una salida: el selector se muestra solo entonces.
-    Q_PROPERTY(bool variasSalidas READ variasSalidas NOTIFY salidaActivaChanged)
-    /// Lo que sale de la activa: {transmitiendo (su principal o algún destino), grabando,
-    /// reconectando, alAire (transmisión, grabación o señal limpia: lo que pide confirmar),
-    /// tiempoTransmision, tiempoGrabacion}. Con la por omisión, lo de streaming/recording.
-    Q_PROPERTY(QVariantMap aireActiva READ aireActiva NOTIFY statusChanged)
-    /// El FTB y la placa de la activa: {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
-    Q_PROPERTY(QVariantMap placa READ placaActiva NOTIFY placaChanged)
-    /// Las claves de FrameService del programa y del preview de la activa.
-    Q_PROPERTY(QString claveProgramaActiva READ claveProgramaActiva NOTIFY salidaActivaChanged)
-    Q_PROPERTY(QString claveArmadaActiva READ claveArmadaActiva NOTIFY salidaActivaChanged)
-    /// Cuántas salidas se pueden tener (Config/salidas.json).
-    Q_PROPERTY(int topeSalidas READ topeSalidas NOTIFY salidaActivaChanged)
-    /// Si se puede crear otra: {puede, aviso}. `aviso` dice por qué no (el tope) o que
-    /// la máquina está justa (el estado de `recursos`, lo mismo que sistema_recursos).
-    Q_PROPERTY(QVariantMap nuevaSalida READ nuevaSalida NOTIFY nuevaSalidaChanged)
+    // y "armada") sigue con la por omisión (conmutador()). Cuál es la activa, su aire y
+    // su placa: Studio.salidas.
     Q_PROPERTY(QObject* sources READ sources CONSTANT)
     Q_PROPERTY(QObject* mixer READ mixer CONSTANT)
     Q_PROPERTY(QObject* sourceTypes READ sourceTypes CONSTANT)
@@ -508,14 +486,6 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QString latidoPoliticaUi(const QVariantMap& cambios);
     /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
     Q_INVOKABLE bool focoEnTexto() const;
-    // --- FTB y placa de seguridad (encima de todo lo que sale) ---------------
-    // Los dos son de la salida activa (cada salida tiene su negro y su placa).
-    /// Fundido a negro; `audio`: "bajar" (de fábrica) o "mantener". "" o el error.
-    Q_INVOKABLE QString ftbUi(bool activar, int ms = 800, const QString& audio = "bajar");
-    /// La placa con `texto` (y una imagen opcional). "" o el error.
-    Q_INVOKABLE QString placaUi(bool activar, const QString& texto = {}, const QString& imagen = {}, int ms = 600);
-    /// Los textos de placa de siempre (y los que se usaron).
-    Q_INVOKABLE QStringList textosPlaca() const;
     /// Hay aire: transmitiendo o grabando.
     /// Sale algo (transmisión, grabación o señal limpia): BroadcastEngine::haySalida.
     bool alAire() const;
@@ -729,8 +699,8 @@ class StudioViewModel : public QObject {
     /// Los de la por omisión (el MCP, las alarmas).
     double programPeakL() const { return peakL_; }
     double programPeakR() const { return peakR_; }
-    double picoActivaL() const { return salidaActiva_.empty() ? peakL_ : peakActivaL_; }
-    double picoActivaR() const { return salidaActiva_.empty() ? peakR_ : peakActivaR_; }
+    double picoActivaL() const { return salidas_->activaId().empty() ? peakL_ : peakActivaL_; }
+    double picoActivaR() const { return salidas_->activaId().empty() ? peakR_ : peakActivaR_; }
     QString currentScene() const;
     QString transitionType() const;
     double canvasAspect() const;
@@ -913,38 +883,16 @@ class StudioViewModel : public QObject {
     QString escenaArmada() const;
     /// El conmutador de escenas de la salida por omisión (modelo): la GUI y el MCP
     /// cambian de escena por ahí.
-    escenas::Conmutador& conmutador() { return *conmutador_; }
+    escenas::Conmutador& conmutador() { return salidas_->conmutador(); }
     /// Los de todas las salidas (uno por salida; el de la por omisión es conmutador()).
-    escenas::Conmutadores& conmutadores() { return *conmutadores_; }
-    QObject* salidas() const;
-    /// Crear, cambiar y sacar salidas en caliente (AppRuntime): "" o por qué no.
-    Q_INVOKABLE QString crearSalida(const QString& id, const QString& nombre, const QString& color = {});
-    Q_INVOKABLE QString editarSalida(const QString& id, const QString& nombre, const QString& color);
-    /// El codificador de video de la salida ("" = el de la configuración): rige desde lo
-    /// próximo que arranque en ella.
-    Q_INVOKABLE QString setCodificadorSalida(const QString& id, const QString& codificador);
-    /// `susDestinos`: "borrar" o el id de otra salida (con destinos guardados hay que decirlo).
-    Q_INVOKABLE QString borrarSalida(const QString& id, const QString& susDestinos = {});
-    /// Una salida nueva con su nombre (el id sale del nombre, único) y su color ("" = el
-    /// que le toque). Queda como la activa. "" o por qué no.
-    Q_INVOKABLE QString crearSalidaUi(const QString& nombre, const QString& color);
-    Q_INVOKABLE QString setTopeSalidasUi(int tope);
-    /// Graba (o deja de grabar) el programa de una salida. "" o por qué no.
-    Q_INVOKABLE QString grabarSalida(const QString& id, bool grabar);
-    QString salidaActiva() const;
-    void setSalidaActiva(const QString& id);
-    QVariantMap salidaActivaDatos() const;
-    bool variasSalidas() const;
-    QVariantMap aireActiva() const;
-    QVariantMap placaActiva() const;
-    QString claveProgramaActiva() const;
-    QString claveArmadaActiva() const;
-    int topeSalidas() const { return topeSalidas_; }
-    QVariantMap nuevaSalida() const;
+    escenas::Conmutadores& conmutadores() { return salidas_->conmutadores(); }
+    /// El área de las salidas (la lista, la activa, el FTB y la placa).
+    SalidasViewModel& salidas() { return *salidas_; }
+    QObject* salidasQml() const;
     /// La grilla de personas (fuentes ba_grilla): quién va en cada una. nullptr antes de armarse.
     escenas::ControlGrillas* grillasPersonas() { return grillasPersonas_.get(); }
     /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
-    emision::SeguridadAire& seguridadAire() { return *seguridadAire_; }
+    emision::SeguridadAire& seguridadAire() { return salidas_->seguridadAire(); }
     /// Lo que oye cada invitado (modelo, Config/retornos.json).
     emision::RetornosInvitados& retornos() { return *retornos_; }
     /// El objetivo de loudness guardado (modelo, Config/loudness.json).
@@ -1058,8 +1006,6 @@ class StudioViewModel : public QObject {
     void balisticaChanged();
     void pflChanged();
     void afvChanged();
-    void salidaActivaChanged();
-    void nuevaSalidaChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
     void notify(const QString& message, const QString& level);
@@ -1067,7 +1013,6 @@ class StudioViewModel : public QObject {
     void quitRequested();
     void reinicioChanged();
     void escenasAjustesChanged();
-    void placaChanged();
     void senalChanged();
     /// Se pidió transmitir a otro destino estando al aire: que el operador confirme.
     void pedirCambioDestino(const QString& actual, const QString& nuevoServer, const QString& nuevoKey);
@@ -1199,24 +1144,16 @@ class StudioViewModel : public QObject {
     nlohmann::json saludActual_ = nlohmann::json::array();
     std::uint64_t saltadosAntes_ = 0;
     void muestrearSalud();
-    std::unique_ptr<escenas::Conmutadores> conmutadores_; ///< el aire y la armada de cada salida (modelo)
-    escenas::Conmutador* conmutador_ = nullptr;           ///< el de la por omisión (de conmutadores_)
-    std::unique_ptr<JsonListModel> salidasModelo_;        ///< ver la propiedad salidas
-    /// Rehace salidasModelo_ y le pasa la lista al gateway (ConferenceClient::ponerSalidas).
-    void publicarSalidas();
-    /// La salida activa de la interfaz (ver salidaActiva): "" = la por omisión.
-    std::string salidaActiva_;
-    int topeSalidas_ = 0;
-    /// El conmutador de la activa (el de la por omisión si todavía no hay o se fue).
-    escenas::Conmutador& conmutadorActivo() const;
+    /// Las salidas: el conmutador de escenas de cada una, el FTB y la placa, la activa
+    /// (ui/SalidasViewModel). Lo que usa sus conmutadores (el respaldo de entradas) va
+    /// más abajo.
+    std::unique_ptr<SalidasViewModel> salidas_;
     /// La interfaz pasa a mostrar lo de la activa: escenas, fuentes, mezcla, tally.
     void reflejarSalidaActiva();
-    QVariantMap nuevaSalidaAntes_; ///< lo último avisado de nuevaSalida
     double peakActivaL_ = -100; ///< el vúmetro del programa de la activa (si no es la por omisión)
     double peakActivaR_ = -100;
     /// Desde cuándo nadie mira el retorno de cada salida que no es la por omisión (ver onTick).
     QHash<QString, qint64> salidaVistaMs_;
-    std::unique_ptr<emision::SeguridadAire> seguridadAire_;     ///< FTB y placa (modelo)
     std::unique_ptr<emision::RetornosInvitados> retornos_;      ///< (modelo)
     std::unique_ptr<audio::ObjetivoLoudness> objetivoLoudness_; ///< (modelo)
     qint64 caidaMs_ = 0;
@@ -1240,7 +1177,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
-    std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y conmutador_
+    std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y el conmutador de la por omisión
     void revisarSenales();
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<ManualesViewModel> manuales_;
@@ -1268,13 +1205,6 @@ class StudioViewModel : public QObject {
     /// pared. Para los capitulos hacen falta los dos en la misma escala.
     qint64 recSinceMs_ = 0;
     std::chrono::steady_clock::time_point streamSince_{};
-    /// Lo que sale de cada una de las demás salidas y desde cuándo (los relojes de
-    /// aireActiva; la por omisión usa streaming_/recording_ y sus *Since_).
-    struct AireDeSalida {
-        bool transmite = false, graba = false, reconecta = false;
-        std::chrono::steady_clock::time_point transmiteDesde{}, grabaDesde{};
-    };
-    std::map<std::string, AireDeSalida> aireSalidas_;
     double fps_ = 0;
     QString encoder_;
     int dropped_ = 0;

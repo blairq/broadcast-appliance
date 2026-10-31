@@ -216,7 +216,7 @@ Rectangle {
                     }
                     // Con varias salidas: el programa de cada una, con su color y su nombre.
                     GlassButton {
-                        visible: Studio.variasSalidas
+                        visible: Studio.salidas.varias
                         compact: true; text: qsTr("Los programas de todas las salidas")
                         onClicked: page.poner("fuentes", Studio.frames.programas)
                         ToolTip.visible: hovered; ToolTip.delay: 400

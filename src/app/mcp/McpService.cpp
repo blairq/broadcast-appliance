@@ -1129,7 +1129,7 @@ void McpService::registerTools() {
         t.description = ba::i18n::traducir("mcp", "Los textos de placa de siempre y si ahora hay FTB o placa al aire.");
         t.run = [this, &vm](const json& a, Done done) {
             json textos = json::array();
-            for (const QString& s : vm.textosPlaca()) textos.push_back(s.toStdString());
+            for (const QString& s : vm.salidas().textosPlaca()) textos.push_back(s.toStdString());
             done(ToolResult().data(json{{"textos", textos}, {"estado", vm.seguridadAire().estado(core_.salidaDe(a))}}));
         };
         core_.addTool(std::move(t));

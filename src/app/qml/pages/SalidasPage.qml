@@ -7,7 +7,7 @@
 // sistema_recursos), se les pone nombre y color (el del tally, el multiview y las
 // superficies), se elige cuál maneja esta interfaz, se ven sus destinos y su
 // grabación, se elige su codificador y se borran (con sus destinos guardados: pasan
-// a otra salida o se borran, lo que se decida). Todo sale de Studio.salidas (el
+// a otra salida o se borran, lo que se decida). Todo sale de Studio.salidas.lista (el
 // modelo avisa); esta vista solo muestra y pide.
 import QtQuick
 import QtQuick.Controls
@@ -21,7 +21,7 @@ Rectangle {
     property real leftInset: 92
     /// Los colores para elegir (el de fábrica de cada salida es uno de estos).
     readonly property var paleta: ["#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00", "#00acc1", "#d81b60"]
-    readonly property var nueva: Studio.nuevaSalida
+    readonly property var nueva: Studio.salidas.nueva
     readonly property var rec: Studio.recursos
 
     // Elegir un color: una fila de puntos; el elegido, con borde.
@@ -56,8 +56,8 @@ Rectangle {
         property var opciones: []
         function abrir(id, n, cuantos) {
             const out = []
-            for (let i = 0; i < Studio.salidas.count; ++i) {
-                const f = Studio.salidas.fila(i)
+            for (let i = 0; i < Studio.salidas.lista.count; ++i) {
+                const f = Studio.salidas.lista.fila(i)
                 if (f.uid !== id) out.push({ value: f.uid, label: qsTr("Pasarlos a «%1»").arg(f.nombre) }) // fila(): «id» es «uid»
             }
             out.push({ value: "borrar", label: qsTr("Borrarlos (con su clave)") })
@@ -100,7 +100,7 @@ Rectangle {
                 GlassButton {
                     compact: true; active: true; activeColor: Theme.live; text: qsTr("Borrar")
                     onClicked: {
-                        const e = Studio.borrarSalida(borrarDlg.salida, borrarDlg.destinos > 0 ? aDonde.currentValue : "")
+                        const e = Studio.salidas.borrar(borrarDlg.salida, borrarDlg.destinos > 0 ? aDonde.currentValue : "")
                         if (e !== "") Studio.notify(e, "error"); else borrarDlg.close()
                     }
                 }
@@ -141,7 +141,7 @@ Rectangle {
                         enabled: page.nueva.puede === true && nombreNueva.text.trim() !== ""
                         function crear() {
                             if (!enabled) return
-                            const e = Studio.crearSalidaUi(nombreNueva.text, colorNueva.elegido)
+                            const e = Studio.salidas.crear(nombreNueva.text, colorNueva.elegido)
                             if (e !== "") { Studio.notify(e, "error"); return }
                             nombreNueva.text = ""; colorNueva.elegido = ""
                         }
@@ -150,8 +150,8 @@ Rectangle {
                     Item { Layout.fillWidth: true }
                     Text { text: qsTr("Tope"); color: Theme.textDim; font.pixelSize: 12 }
                     SpinBox {
-                        from: 1; to: 16; value: Studio.topeSalidas
-                        onValueModified: { const e = Studio.setTopeSalidasUi(value); if (e !== "") { Studio.notify(e, "error"); value = Studio.topeSalidas } }
+                        from: 1; to: 16; value: Studio.salidas.tope
+                        onValueModified: { const e = Studio.salidas.setTope(value); if (e !== "") { Studio.notify(e, "error"); value = Studio.salidas.tope } }
                         ToolTip.visible: hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Cuántas salidas se pueden tener a la vez (cada una es un programa, un preview y una mezcla más)")
                     }
@@ -190,14 +190,14 @@ Rectangle {
                 width: lista.availableWidth
                 spacing: 16
                 Repeater {
-                    model: Studio.salidas
+                    model: Studio.salidas.lista
                     delegate: Rectangle {
                         id: tarjeta
                         // Por `model`: los roles «id» y «color» chocan con los del Rectangle.
                         required property var model
                         readonly property string salida: model.id
                         readonly property bool porOmision: !!model.porOmision
-                        readonly property bool elegida: salida === Studio.salidaActiva
+                        readonly property bool elegida: salida === Studio.salidas.activa
                         readonly property var destinos: model.destinos || []
                         width: Math.max(360, Math.min(520, (lista.availableWidth - 16) / 2))
                         height: cuerpo.implicitHeight + 32
@@ -219,7 +219,7 @@ Rectangle {
                                     text: tarjeta.model.nombre
                                     font { pixelSize: 15; weight: Font.DemiBold }
                                     onEditingFinished: if (text.trim() !== "" && text !== tarjeta.model.nombre) {
-                                        const e = Studio.editarSalida(tarjeta.salida, text.trim(), "")
+                                        const e = Studio.salidas.editar(tarjeta.salida, text.trim(), "")
                                         if (e !== "") Studio.notify(e, "error")
                                     }
                                 }
@@ -228,14 +228,14 @@ Rectangle {
                                     compact: true
                                     text: tarjeta.elegida ? qsTr("La manejás vos") : qsTr("Manejar esta")
                                     active: tarjeta.elegida; activeColor: tarjeta.model.color
-                                    onClicked: Studio.salidaActiva = tarjeta.salida
+                                    onClicked: Studio.salidas.activa = tarjeta.salida
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: qsTr("Dirección, Escenas y el Mezclador pasan a mostrar y manejar esta salida")
                                 }
                             }
                             Paleta {
                                 elegido: tarjeta.model.color
-                                onElegir: (c) => { const e = Studio.editarSalida(tarjeta.salida, "", c); if (e !== "") Studio.notify(e, "error") }
+                                onElegir: (c) => { const e = Studio.salidas.editar(tarjeta.salida, "", c); if (e !== "") Studio.notify(e, "error") }
                             }
                             // Su programa, en vivo (mientras se la mira).
                             Rectangle {
@@ -268,12 +268,12 @@ Rectangle {
                                     text: tarjeta.model.grabando ? qsTr("Detener") : qsTr("Grabar")
                                     active: !!tarjeta.model.grabando; activeColor: Theme.live
                                     onClicked: {
-                                        if (!tarjeta.model.grabando) { const e = Studio.grabarSalida(tarjeta.salida, true); if (e !== "") Studio.notify(e, "error"); return }
+                                        if (!tarjeta.model.grabando) { const e = Studio.salidas.grabar(tarjeta.salida, true); if (e !== "") Studio.notify(e, "error"); return }
                                         const id = tarjeta.salida, n = tarjeta.model.nombre
                                         ApplicationWindow.window.confirm({ title: qsTr("¿Detener la grabación de «%1»?").arg(n),
                                                                            text: qsTr("El archivo se cierra y lo que siga no queda grabado."),
                                                                            accept: qsTr("Detener"), reject: qsTr("Seguir grabando"),
-                                                                           action: function() { Studio.grabarSalida(id, false) } })
+                                                                           action: function() { Studio.salidas.grabar(id, false) } })
                                     }
                                 }
                             }
@@ -297,7 +297,7 @@ Rectangle {
                                     valueRole: "value"
                                     currentIndex: Math.max(0, model.findIndex(o => o.value === (tarjeta.model.codificador || "")))
                                     onActivated: (i) => {
-                                        const e = Studio.setCodificadorSalida(tarjeta.salida, model[i].value)
+                                        const e = Studio.salidas.setCodificador(tarjeta.salida, model[i].value)
                                         if (e !== "") Studio.notify(e, "error")
                                     }
                                     ToolTip.visible: hovered; ToolTip.delay: 400

@@ -188,13 +188,13 @@ Item {
             spacing: 14
             // Los de la salida que maneja la interfaz (con una sola, la de siempre).
             StatusPill {
-                text: Studio.aireActiva.transmitiendo ? qsTr("AL AIRE · %1").arg(Studio.aireActiva.tiempoTransmision) : qsTr("fuera del aire")
-                dot: Studio.aireActiva.transmitiendo ? Theme.live : Theme.textFaint
-                pulse: !!Studio.aireActiva.transmitiendo
+                text: Studio.salidas.aire.transmitiendo ? qsTr("AL AIRE · %1").arg(Studio.salidas.aire.tiempoTransmision) : qsTr("fuera del aire")
+                dot: Studio.salidas.aire.transmitiendo ? Theme.live : Theme.textFaint
+                pulse: !!Studio.salidas.aire.transmitiendo
             }
             StatusPill {
-                visible: !!Studio.aireActiva.grabando
-                text: qsTr("REC · %1").arg(Studio.aireActiva.tiempoGrabacion)
+                visible: !!Studio.salidas.aire.grabando
+                text: qsTr("REC · %1").arg(Studio.salidas.aire.tiempoGrabacion)
                 dot: Theme.live; pulse: true
             }
             Item { Layout.fillWidth: true }

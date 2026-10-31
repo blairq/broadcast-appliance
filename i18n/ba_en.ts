@@ -30173,31 +30173,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Couldn't save: %1</translation>
     </message>
     <message>
-        <location line="+150" />
-        <source>Volvemos enseguida</source>
-        <translation>We'll be right back</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Cuarto intermedio</source>
-        <translation>Recess</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Minuto de silencio</source>
-        <translation>Minute of silence</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Sesión suspendida</source>
-        <translation>Session suspended</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Dificultades técnicas</source>
-        <translation>Technical difficulties</translation>
-    </message>
-    <message>
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>What was on air before the outage was restored (slate or black)</translation>
@@ -30376,6 +30351,29 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
+    </message>
+</context>
+<context>
+    <name>SalidasViewModel</name>
+    <message>
+        <source>Volvemos enseguida</source>
+        <translation>We'll be right back</translation>
+    </message>
+    <message>
+        <source>Cuarto intermedio</source>
+        <translation>Recess</translation>
+    </message>
+    <message>
+        <source>Minuto de silencio</source>
+        <translation>Minute of silence</translation>
+    </message>
+    <message>
+        <source>Sesión suspendida</source>
+        <translation>Session suspended</translation>
+    </message>
+    <message>
+        <source>Dificultades técnicas</source>
+        <translation>Technical difficulties</translation>
     </message>
 </context>
 <context>

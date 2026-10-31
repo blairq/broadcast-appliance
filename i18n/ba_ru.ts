@@ -30292,31 +30292,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Не удалось сохранить: %1</translation>
     </message>
     <message>
-        <location line="+150" />
-        <source>Volvemos enseguida</source>
-        <translation>Скоро вернёмся</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Cuarto intermedio</source>
-        <translation>Перерыв</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Minuto de silencio</source>
-        <translation>Минута молчания</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Sesión suspendida</source>
-        <translation>Заседание приостановлено</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Dificultades técnicas</source>
-        <translation>Технические неполадки</translation>
-    </message>
-    <message>
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Восстановлено то, что было в эфире до сбоя (заставка или чёрный)</translation>
@@ -30498,6 +30473,29 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>SalidasViewModel</name>
+    <message>
+        <source>Volvemos enseguida</source>
+        <translation>Скоро вернёмся</translation>
+    </message>
+    <message>
+        <source>Cuarto intermedio</source>
+        <translation>Перерыв</translation>
+    </message>
+    <message>
+        <source>Minuto de silencio</source>
+        <translation>Минута молчания</translation>
+    </message>
+    <message>
+        <source>Sesión suspendida</source>
+        <translation>Заседание приостановлено</translation>
+    </message>
+    <message>
+        <source>Dificultades técnicas</source>
+        <translation>Технические неполадки</translation>
     </message>
 </context>
 <context>

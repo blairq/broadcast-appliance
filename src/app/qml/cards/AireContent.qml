@@ -15,10 +15,10 @@ import "../controls"
 
 Item {
     id: t
-    readonly property var placa: Studio.placa
+    readonly property var placa: Studio.salidas.placa
     // Lo que sale de la salida que maneja la interfaz (con una sola, la de siempre).
-    readonly property var aire: Studio.aireActiva
-    readonly property bool porOmision: !Studio.salidaActivaDatos.id || !!Studio.salidaActivaDatos.porOmision
+    readonly property var aire: Studio.salidas.aire
+    readonly property bool porOmision: !Studio.salidas.activaDatos.id || !!Studio.salidas.activaDatos.porOmision
 
     // Un renglón de estado: etiqueta, reloj y el botón.
     component Fila: Rectangle {
@@ -127,7 +127,7 @@ Item {
             // La de la por omisión con lo suyo de siempre (el aviso del disco); las demás, la de su salida.
             function grabar(si) {
                 if (t.porOmision) { if (si !== Studio.recording) Studio.toggleRecording(); return }
-                const e = Studio.grabarSalida(Studio.salidaActiva, si)
+                const e = Studio.salidas.grabar(Studio.salidas.activa, si)
                 if (e !== "") Studio.notify(e, "error")
             }
             onTocar: {
