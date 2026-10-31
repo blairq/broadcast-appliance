@@ -84,6 +84,7 @@
 #include "Log.hpp"
 #include "qrcodegen.hpp"
 #include "Room.hpp"
+#include "security/Comparar.hpp"
 #include "security/CredentialStore.hpp"
 #include "security/SecretsStore.hpp"
 #include "ShareStore.hpp"
@@ -134,15 +135,6 @@ int64_t nowMsA() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::system_clock::now().time_since_epoch())
         .count();
-}
-
-/// Comparacion en tiempo constante (no filtra el prefijo correcto por timing).
-bool sameSecret(const std::string& a, const std::string& b) {
-    if (a.size() != b.size() || a.empty()) return false;
-    unsigned char diff = 0;
-    for (size_t i = 0; i < a.size(); ++i)
-        diff |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return diff == 0;
 }
 
 void sendJson(long long fd, int code, const json& j) {
@@ -236,7 +228,7 @@ void SignalingServer::aplicarConfig(long long fd, const std::string& seccion, co
 bool SignalingServer::adminAuthorized(const std::string& headers, const std::string& method) const {
     const std::string auth = http::getHeader(headers, "Authorization");
     (void)method;
-    return auth.rfind("Bearer ", 0) == 0 && sameSecret(auth.substr(7), cfg_.adminToken);
+    return auth.rfind("Bearer ", 0) == 0 && ba::security::igualesEnTiempoConstante(auth.substr(7), cfg_.adminToken);
 }
 
 std::string SignalingServer::changePin(const std::string& pin) {

@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "Registro.hpp"
+#include "security/Comparar.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -40,13 +41,6 @@ std::int64_t ahoraMs() {
 std::string ipTexto(std::uint32_t ip) {
     const auto* b = reinterpret_cast<const unsigned char*>(&ip);
     return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
-}
-
-bool igualesTiempoConstante(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
 }
 
 bool esHex64(const std::string& s) {
@@ -119,7 +113,7 @@ bool RegistroBorde::autenticar(const std::string& id, const std::string& token, 
     std::lock_guard<std::mutex> l(mu_);
     const auto it = totems_.find(id);
     if (it == totems_.end()) return false;
-    if (!igualesTiempoConstante(BotoneraBorde::sha256Hex(it->second.sal + token), it->second.hashToken)) return false;
+    if (!ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(it->second.sal + token), it->second.hashToken)) return false;
     nombre = it->second.nombre;
     return true;
 }

@@ -18,6 +18,7 @@
 
 #include "Botonera.hpp" // sha256Hex, ipLocal
 #include "HttpIo.hpp"
+#include "security/Comparar.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
 #include "Registro.hpp"
@@ -49,13 +50,6 @@ std::int64_t ahoraMs() {
 std::string ipTexto(std::uint32_t ip) {
     const auto* b = reinterpret_cast<const unsigned char*>(&ip);
     return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
-}
-
-bool igualesTiempoConstante(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
 }
 
 bool esHex64(const std::string& s) {
@@ -113,7 +107,7 @@ bool RegistroBorde::autenticarAtiende(const std::string& token) const {
     if (token.size() < 32 || token.size() > 128) return false;
     std::lock_guard<std::mutex> l(mu_);
     if (hashAtiende_.empty()) return false;
-    return igualesTiempoConstante(BotoneraBorde::sha256Hex(salAtiende_ + token), hashAtiende_);
+    return ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(salAtiende_ + token), hashAtiende_);
 }
 
 std::string RegistroBorde::nombreAtiende(const std::string& s) {

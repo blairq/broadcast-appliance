@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "Botonera.hpp"
+#include "security/Comparar.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -44,13 +45,6 @@ std::int64_t ahoraMs() {
 std::string ipTexto(std::uint32_t ip) {
     const auto* b = reinterpret_cast<const unsigned char*>(&ip);
     return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
-}
-
-bool igualesTiempoConstante(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
 }
 
 std::string minus(std::string s) {
@@ -181,7 +175,7 @@ std::string BotoneraBorde::autenticar(const std::string& token, bool soloHttp) c
     std::string encontrado;
     // Se recorren todas (sin cortar) para no revelar cuál coincidió por el tiempo.
     for (const auto& [id, c] : credenciales_)
-        if (igualesTiempoConstante(sha256Hex(c.sal + token), c.hash) && (!soloHttp || c.http)) encontrado = id;
+        if (ba::security::igualesEnTiempoConstante(sha256Hex(c.sal + token), c.hash) && (!soloHttp || c.http)) encontrado = id;
     return encontrado;
 }
 

@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "Sesion.hpp"
+#include "security/Comparar.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -41,13 +42,6 @@ std::int64_t ahoraMs() {
 std::string ipTexto(std::uint32_t ip) {
     const auto* b = reinterpret_cast<const unsigned char*>(&ip);
     return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
-}
-
-bool igualesTiempoConstante(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char d = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
-    return d == 0;
 }
 
 std::string minus(std::string s) {
@@ -207,8 +201,8 @@ std::string SesionBorde::autenticar(const std::string& id, const std::string& to
     const Credencial& c = it->second;
     // El token primero: sin él no se cuenta como PIN errado (no se puede
     // bloquear a alguien solo sabiendo su id).
-    if (!igualesTiempoConstante(BotoneraBorde::sha256Hex(c.sal + token), c.hashToken)) return {};
-    if (!igualesTiempoConstante(BotoneraBorde::sha256Hex(c.sal + ":" + pin + ":" + token), c.hashPin)) {
+    if (!ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(c.sal + token), c.hashToken)) return {};
+    if (!ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(c.sal + ":" + pin + ":" + token), c.hashPin)) {
         pinMal = true;
         return {};
     }
@@ -225,7 +219,7 @@ std::string SesionBorde::autenticarUsuario(const std::string& usuario, const std
     for (const auto& [cid, c] : credenciales_)
         if (!c.usuario.empty() && c.usuario == u && c.hashClave.size() == 64) {
             id = cid;
-            if (igualesTiempoConstante(BotoneraBorde::sha256Hex(c.sal + ":clave:" + clave), c.hashClave)) return cid;
+            if (ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(c.sal + ":clave:" + clave), c.hashClave)) return cid;
             claveMal = true;
             return {};
         }
