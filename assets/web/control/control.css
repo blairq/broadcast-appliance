@@ -99,3 +99,7 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .chat { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; padding: 10px 12px;
   border-radius: var(--radio-chico); background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
 .chat .mensaje { font-size: 14px; }
+
+/* La salida que maneja el aparato (arriba y en la tarjeta «Salidas»): el color lo pone el JS. */
+.barra .salida { width: auto; max-width: 34vw; font-weight: 650; border-width: 2px; }
+.elegir-salida { flex-wrap: wrap; }

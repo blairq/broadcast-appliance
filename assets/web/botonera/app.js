@@ -158,6 +158,7 @@
     $("perfil").textContent = e.perfil ? e.perfil.nombre : t("Botonera");
     $("pagina").textContent = e.pagina ? e.pagina.nombre : "";
     dibujarPaginas(e);
+    dibujarSalida(e);
     if (!mismaPagina) armarGrilla(e);
     for (const c of e.celdas || []) {
       const k = c.x + "," + c.y;
@@ -183,6 +184,30 @@
       nav.appendChild(b);
     }
   }
+
+  // La salida que maneja la tablet: un selector con el color de cada una (solo con
+  // varias). Elegir otra se lo pide a la app; la app manda el estado nuevo.
+  function dibujarSalida(e) {
+    const sel = $("salida");
+    const lista = e.salidas || [];
+    sel.classList.toggle("oculto", lista.length < 2);
+    const actual = e.salida ? e.salida.id : "";
+    const firma = JSON.stringify(lista) + "|" + actual;
+    if (sel.dataset.firma !== firma) {
+      sel.dataset.firma = firma;
+      sel.textContent = "";
+      for (const s of lista) {
+        const o = document.createElement("option");
+        o.value = s.id;
+        o.textContent = s.nombre || s.id;
+        o.selected = s.id === actual;
+        sel.appendChild(o);
+      }
+    }
+    sel.style.borderColor = (e.salida && e.salida.color) || "";
+    sel.style.boxShadow = e.salida && e.salida.color ? "inset 4px 0 0 " + e.salida.color : "";
+  }
+  $("salida").addEventListener("change", (ev) => mandar({ type: "salida", id: ev.target.value }));
 
   function armarGrilla(e) {
     const g = $("grilla");

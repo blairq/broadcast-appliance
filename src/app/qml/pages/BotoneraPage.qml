@@ -271,6 +271,23 @@ Rectangle {
                         text: qsTr("Se puede editar desde el aparato")
                         checked: page.perfilActual() ? page.perfilActual().puede_editar : false
                     }
+                    // Con varias salidas: cuál manejan los aparatos de este perfil (cada uno la puede cambiar).
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: page.bot.salidas.length > 1
+                        Text { text: qsTr("Salida"); color: Theme.textDim; font.pixelSize: 12 }
+                        ComboBox {
+                            id: salidaPerfil
+                            Layout.fillWidth: true
+                            model: [{ id: "", nombre: qsTr("La por omisión") }].concat(page.bot.salidas)
+                            textRole: "nombre"
+                            currentIndex: Math.max(0, model.findIndex(s => s.id === (page.perfilActual() ? page.perfilActual().salida : "")))
+                            onActivated: (i) => {
+                                const e = page.bot.editarPerfilUi(page.perfilId, { salida: model[i].id })
+                                if (e !== "") Studio.notify(e, "error")
+                            }
+                        }
+                    }
                     RowLayout {
                         GlassButton {
                             compact: true; text: qsTr("Guardar permisos")
@@ -836,6 +853,18 @@ Rectangle {
                                     if (e !== "") Studio.notify(e, "error")
                                 }
                             }
+                            // La salida que maneja el aparato (la del perfil si no eligió otra).
+                            ComboBox {
+                                Layout.preferredWidth: 160
+                                visible: page.bot.salidas.length > 1
+                                model: [{ id: "", nombre: qsTr("La del perfil") }].concat(page.bot.salidas)
+                                textRole: "nombre"
+                                currentIndex: Math.max(0, model.findIndex(s => s.id === (modelData.salida || "")))
+                                onActivated: (i) => {
+                                    const e = page.bot.elegirSalidaUi(modelData.id, model[i].id)
+                                    if (e !== "") Studio.notify(e, "error")
+                                }
+                            }
                             GlassButton {
                                 compact: true; text: qsTr("Revocar")
                                 onClicked: page.bot.revocarUi(modelData.id)
@@ -883,6 +912,18 @@ Rectangle {
                          + "el programa no esté al frente. En la Mac, «Ctrl» es la tecla Comando.")
                   : qsTr("Tocá «Asignar» y apretá la tecla (o el pedal del prompter, si manda una tecla). «Global»: funciona aunque "
                          + "el programa no esté al frente (en este sistema todavía no). En la Mac, «Ctrl» es la tecla Comando.")
+            }
+            // Con varias salidas: cuál manejan los atajos (las acciones «… — <salida>» van siempre a la suya).
+            RowLayout {
+                visible: page.bot.salidas.length > 1
+                Text { text: qsTr("Los atajos manejan la salida"); color: Theme.textDim; font.pixelSize: 12 }
+                ComboBox {
+                    Layout.preferredWidth: 200
+                    model: [{ id: "", nombre: qsTr("La por omisión") }].concat(page.bot.salidas.filter(s => !s.por_omision))
+                    textRole: "nombre"
+                    currentIndex: Math.max(0, model.findIndex(s => s.id === Studio.acciones.salida))
+                    onActivated: (i) => Studio.acciones.salida = model[i].id
+                }
             }
             ListView {
                 Layout.fillWidth: true

@@ -27,11 +27,14 @@
 
     Esta página no sabe de herramientas: dice «apretaron la celda (x, y)» y la
     app decide qué hacer según el perfil del aparato. Lo que muestra (textos,
-    colores, tally) se lo manda la app.
+    colores, tally) se lo manda la app. Con varias salidas, la tablet maneja una
+    (la elige arriba, o una celda «Salida»): lo que hace y su tally son de esa.
   -->
   <header class="barra">
     <span id="perfil" class="perfil" data-i18n="Botonera">Botonera</span>
     <span id="pagina" class="pagina"></span>
+    <!-- La salida que maneja esta tablet (con su color), si el aparato tiene varias. -->
+    <select id="salida" class="salida oculto" title="Qué salida maneja esta tablet" data-i18n-title="Qué salida maneja esta tablet"></select>
     <span class="espacio"></span>
     <span id="conexion" class="conexion apagada" title="Conexión" data-i18n-title="Conexión">●</span>
     <button id="pantallaCompleta" class="icono" title="Pantalla completa" data-i18n-title="Pantalla completa" type="button">⛶</button>

@@ -222,7 +222,10 @@ Botonera::Botonera(const fs::path& datos, BusEventos& bus, Ganchos g, QObject* p
     cargar();
     // El estado vivo: cualquier tema puede cambiar lo que muestra una celda.
     // Se recalcula a lo sumo cada 50 ms y solo se manda lo que cambió.
-    sub_ = bus_.suscribir("#", [this](const std::string&, const json&) { sucio_ = true; });
+    sub_ = bus_.suscribir("#", [this](const std::string& tema, const json&) {
+        sucio_ = true;
+        if (tema == "salidas") emit salidasCambio(); // los selectores del escritorio
+    });
     connect(&refresco_, &QTimer::timeout, this, &Botonera::refrescar);
     refresco_.start(50);
     // Faders y perillas: el último valor gana, a lo sumo 30 por segundo por control.
@@ -274,7 +277,10 @@ void Botonera::cargar() {
         const json j = json::parse(f, nullptr, false);
         disp_ = j.is_object() && j.contains("dispositivos") && j["dispositivos"].is_array() ? j["dispositivos"]
                                                                                            : json::array();
-        // Los locales (plugins, satélites) se vuelven a registrar al arrancar.
+        // Los locales (plugins, satélites) se vuelven a registrar al arrancar (con su salida).
+        if (j.is_object() && j.contains("salidas_locales") && j["salidas_locales"].is_object())
+            for (const auto& [id, sal] : j["salidas_locales"].items())
+                if (sal.is_string()) salidaLocal_[id] = sal.get<std::string>();
         disp_.erase(std::remove_if(disp_.begin(), disp_.end(),
                                    [](const json& d) { return d.value("origen", std::string("tablet")) != "tablet"; }),
                     disp_.end());
@@ -306,7 +312,7 @@ void Botonera::guardarDispositivos() const {
     const fs::path tmp = archivoDisp_.string() + ".tmp";
     {
         std::ofstream o(tmp);
-        o << json{{"dispositivos", solo}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+        o << json{{"dispositivos", solo}, {"salidas_locales", salidaLocal_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::permissions(tmp, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace, ec);
     fs::rename(tmp, archivoDisp_, ec);
@@ -389,6 +395,75 @@ std::string Botonera::origenDe(const std::string& dispositivo) const {
     return d != nullptr ? d->value("origen", std::string("tablet")) : std::string();
 }
 
+std::string Botonera::salidaValida(const std::string& salida) const {
+    if (salida.empty()) return {};
+    if (!g_.salidas) return salida; // sin la lista (pruebas sin app): se confía
+    const json lista = g_.salidas();
+    const QString pedida = QString::fromStdString(salida);
+    for (const auto& s : lista)
+        if (s.value("id", std::string()) == salida) return salida;
+    for (const auto& s : lista) // también por el nombre, sin mayúsculas
+        if (QString::fromStdString(s.value("nombre", std::string())).compare(pedida, Qt::CaseInsensitive) == 0)
+            return s.value("id", std::string());
+    return {};
+}
+
+std::string Botonera::salidaDe(const std::string& dispositivo) const {
+    const json* d = buscarDispositivo(dispositivo);
+    if (d == nullptr) return {};
+    if (const std::string s = salidaValida(d->value("salida", std::string())); !s.empty()) return s;
+    const json* p = buscarPerfil(d->value("perfil", std::string()));
+    return p != nullptr ? salidaValida(p->value("salida", std::string())) : std::string();
+}
+
+json Botonera::infoSalida(const std::string& salida) const {
+    const json lista = g_.salidas ? g_.salidas() : json::array();
+    const json* omision = nullptr;
+    for (const auto& s : lista) {
+        if (!salida.empty() && s.value("id", std::string()) == salida)
+            return {{"id", salida}, {"nombre", s.value("nombre", salida)}, {"color", s.value("color", std::string())},
+                    {"por_omision", s.value("por_omision", false)}};
+        if (omision == nullptr && s.value("por_omision", false)) omision = &s;
+    }
+    if (omision == nullptr && !lista.empty()) omision = &lista[0];
+    if (omision == nullptr) return {{"id", salida}, {"nombre", salida}, {"color", ""}, {"por_omision", salida.empty()}};
+    return {{"id", omision->value("id", std::string())}, {"nombre", omision->value("nombre", std::string())},
+            {"color", omision->value("color", std::string())}, {"por_omision", true}};
+}
+
+std::string Botonera::elegirSalida(const std::string& dispositivo, const std::string& salida) {
+    json* d = buscarDispositivo(dispositivo);
+    if (d == nullptr) return llenar(traducir("botonera", "no hay un aparato «%1»"), {dispositivo});
+    std::string nueva;
+    if (salida == "siguiente" || salida == "anterior") {
+        // En el orden de la lista, dando la vuelta.
+        const json lista = g_.salidas ? g_.salidas() : json::array();
+        if (lista.empty()) return {};
+        const std::string actual = infoSalida(salidaDe(dispositivo)).value("id", std::string());
+        int i = 0;
+        for (int k = 0; k < static_cast<int>(lista.size()); ++k)
+            if (lista[k].value("id", std::string()) == actual) i = k;
+        const int n = static_cast<int>(lista.size());
+        nueva = lista[((i + (salida == "siguiente" ? 1 : -1)) % n + n) % n].value("id", std::string());
+    } else if (!salida.empty() && salida != "perfil") {
+        nueva = salidaValida(salida);
+        if (nueva.empty()) return llenar(traducirEvento("botonera", "No hay una salida «%1»."), {salida});
+    }
+    if (nueva.empty()) d->erase("salida");
+    else (*d)["salida"] = nueva;
+    const bool local = d->value("origen", std::string("tablet")) != "tablet";
+    if (local && nueva.empty()) salidaLocal_.erase(dispositivo);
+    else if (local) salidaLocal_[dispositivo] = nueva;
+    if (d->value("origen", std::string()) != "asistente") guardarDispositivos();
+    auditar(dispositivo, "salida", nueva.empty() ? std::string("(perfil)") : nueva);
+    if (conectados_.count(dispositivo)) {
+        ultimoRender_[dispositivo] = render(dispositivo);
+        emit mensaje(QString::fromStdString(dispositivo), ultimoRender_[dispositivo]);
+    }
+    emit dispositivosCambio();
+    return {};
+}
+
 std::string Botonera::idNuevo(const char* prefijo) const { return std::string(prefijo) + "-" + hexAleatorio(4); }
 
 // ============================================================================
@@ -409,6 +484,7 @@ json Botonera::perfiles() const {
                        {"nombre", p.value("nombre", std::string())},
                        {"herramientas_permitidas", p.value("herramientas_permitidas", json::array())},
                        {"puede_editar", p.value("puede_editar", false)},
+                       {"salida", p.value("salida", std::string())},
                        {"paginas", pg}});
     }
     return out;
@@ -427,6 +503,11 @@ std::string Botonera::crearPerfil(const json& p, const std::string& plantilla, s
     if (p.contains("herramientas_permitidas")) nuevo["herramientas_permitidas"] = p["herramientas_permitidas"];
     if (!nuevo.contains("herramientas_permitidas")) nuevo["herramientas_permitidas"] = json::array();
     nuevo["puede_editar"] = p.value("puede_editar", false);
+    if (const std::string sal = p.value("salida", std::string()); !sal.empty()) {
+        const std::string id = salidaValida(sal);
+        if (id.empty()) return llenar(traducir("botonera", "no hay una salida «%1»"), {sal});
+        nuevo["salida"] = id;
+    }
     if (!nuevo.contains("paginas") || nuevo["paginas"].empty())
         nuevo["paginas"] = json::array({{{"id", "p1"}, {"nombre", traducir("botonera", "Página 1")}, {"columnas", 4}, {"filas", 3},
                                          {"celdas", json::array()}}});
@@ -467,6 +548,17 @@ std::string Botonera::editarPerfil(const std::string& id, const json& c, bool hu
         if (v && !humano && !p->value("puede_editar", false))
             return traducir("botonera", "solo una persona puede habilitar la edición desde el aparato");
         (*p)["puede_editar"] = v;
+    }
+    if (c.contains("salida")) {
+        // La salida que manejan los aparatos de este perfil ("" = la por omisión).
+        const std::string sal = c["salida"].is_string() ? c["salida"].get<std::string>() : std::string();
+        if (sal.empty()) {
+            p->erase("salida");
+        } else {
+            const std::string id = salidaValida(sal);
+            if (id.empty()) return llenar(traducir("botonera", "no hay una salida «%1»"), {sal});
+            (*p)["salida"] = id;
+        }
     }
     *orig = std::move(copia);
     guardar();
@@ -555,6 +647,14 @@ std::string Botonera::validarAccion(const json& a, int prof) const {
         return a.value("ir_a", std::string()).empty() ? traducir("botonera", "falta `ir_a` (id de página)") : std::string();
     if (t == "receta")
         return a.value("id", std::string()).empty() ? traducir("botonera", "falta el `id` de la receta") : std::string();
+    if (t == "salida") {
+        // «siguiente», «anterior» y «perfil» siempre valen; un id, si existe ahora.
+        const std::string ir = a.value("ir_a", std::string());
+        if (ir.empty()) return traducir("botonera", "falta `ir_a` (id de la salida, siguiente, anterior o perfil)");
+        if (ir != "siguiente" && ir != "anterior" && ir != "perfil" && salidaValida(ir).empty())
+            return llenar(traducir("botonera", "no hay una salida «%1»"), {ir});
+        return {};
+    }
     if (t == "secuencia") {
         if (!a.contains("pasos") || !a["pasos"].is_array() || a["pasos"].empty())
             return traducir("botonera", "una secuencia lleva `pasos`");
@@ -563,7 +663,7 @@ std::string Botonera::validarAccion(const json& a, int prof) const {
                 return llenar(traducir("botonera", "paso: %1"), {e});
         return {};
     }
-    return llenar(traducir("botonera", "tipo de acción desconocido «%1» (herramienta, pagina, receta, secuencia)"), {t});
+    return llenar(traducir("botonera", "tipo de acción desconocido «%1» (herramienta, pagina, receta, secuencia, salida)"), {t});
 }
 
 std::string Botonera::validarCelda(const json& c) const {
@@ -813,9 +913,11 @@ json Botonera::celdas(const std::string& perfil, const std::string& pagina) cons
     const json* g = buscarPagina(perfil, pagina);
     if (g == nullptr) return nullptr;
     json out = json::array();
+    const json* p = buscarPerfil(perfil);
+    const json sal = infoSalida(p != nullptr ? salidaValida(p->value("salida", std::string())) : std::string());
     for (const auto& c : g->value("celdas", json::array())) {
         json r = c;
-        r["render"] = renderCelda(c, perfil + "/" + pagina + "/" + claveCelda(c.value("x", 0), c.value("y", 0)));
+        r["render"] = renderCelda(c, perfil + "/" + pagina + "/" + claveCelda(c.value("x", 0), c.value("y", 0)), sal);
         out.push_back(r);
     }
     return out;
@@ -866,6 +968,9 @@ json Botonera::plantillas() const {
                                                "cerrar todos")}},
          {{"id", "prompter"}, {"nombre", "Prompter"},
           {"descripcion", traducir("botonera", "Correr y parar, velocidad, avisos al orador")}},
+         {{"id", "salidas"}, {"nombre", traducir("botonera", "Salidas")},
+          {"descripcion", traducir("botonera", "Una celda por salida (su color, lo que tiene al aire, si sale): tocarla "
+                                               "elige cuál maneja el aparato; TAKE, FTB, REC y AIRE de esa")}},
          {{"id", "pdf"}, {"nombre", "PDF"},
           {"descripcion", traducir("botonera", "Pasar las páginas del PDF de la escena, elegir otro de la documentación del "
                                                "evento y poner la escena «PDF» al aire")}}});
@@ -945,6 +1050,15 @@ json Botonera::armarPlantilla(const std::string& id) const {
     };
     int columnas = 6, filas = 4;
     std::string nombre;
+    const json salidas = g_.salidas ? g_.salidas() : json::array();
+    // La celda de la salida que maneja el aparato: su nombre y su color; tocarla
+    // pasa a la siguiente (con una sola salida no hace falta).
+    const auto celdaSalida = [&](int x, int y) {
+        return boton(x, y, traducir("botonera", "Salida"), {{"tipo", "salida"}, {"ir_a", "siguiente"}},
+                     {lig("superficie/salida", "nombre", "", nullptr, "texto", "{{v}}"),
+                      lig("superficie/salida", "color", "!=", "", "fondo", "{{v}}")},
+                     "#37474f");
+    };
     if (id == "director") {
         filas = 5; // la última fila: el guion (cue anterior, el actual, cue siguiente)
         nombre = traducir("botonera", "Director");
@@ -960,6 +1074,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
         usar(boton(0, 3, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
         usar(boton(1, 3, "FTB", herr("aire_ftb", {{"activar", true}}), json::array(), "#000000"));
         usar(boton(2, 3, traducir("botonera", "Volver de FTB"), herr("aire_ftb", {{"activar", false}})));
+        if (salidas.size() > 1) usar(celdaSalida(3, 3));
         usar(boton(4, 3, "REC", herr("record_start"),
                    {lig("salida/grabacion", "activo", "==", true, "fondo", "#c62828"),
                     lig("salida/grabacion", "activo", "==", true, "titilar", true),
@@ -1154,6 +1269,34 @@ json Botonera::armarPlantilla(const std::string& id) const {
             usar(boton(i % 4, 2 + i / 4, titulo, herr("pdf_escena_poner", {{"documento", docId}})));
             ++i;
         }
+    } else if (id == "salidas") {
+        // Una celda por salida: su nombre, lo que tiene al aire y su color; roja si
+        // transmite o graba; tocarla hace que el aparato maneje esa. Abajo, lo de la
+        // salida que maneja (TAKE, FTB, REC, AIRE: ligaduras sin id, siguen a la suya).
+        nombre = traducir("botonera", "Salidas");
+        const int n = std::min<int>(static_cast<int>(salidas.size()), 12);
+        columnas = 4;
+        filas = std::max(1, (n + 3) / 4) + 1;
+        for (int i = 0; i < n; ++i) {
+            const std::string sid = salidas[i].value("id", std::string());
+            const std::string est = "salida/" + sid + "/estado";
+            json c = boton(i % 4, i / 4, salidas[i].value("nombre", sid), {{"tipo", "salida"}, {"ir_a", sid}},
+                           {lig(est, "escena", "", nullptr, "texto", salidas[i].value("nombre", sid) + "\n{{v}}"),
+                            lig(est, "color", "!=", "", "fondo", "{{v}}"),
+                            lig(est, "grabando", "==", true, "borde", "#c62828"),
+                            lig(est, "transmitiendo", "==", true, "borde", "#c62828"),
+                            lig(est, "transmitiendo", "==", true, "insignia", traducir("botonera", "AIRE")),
+                            lig("superficie/salida", "id", "==", sid, "activo", true)});
+            usar(c);
+        }
+        const int y = filas - 1;
+        usar(boton(0, y, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
+        usar(boton(1, y, "FTB", herr("aire_ftb", {{"activar", true}}), json::array(), "#000000"));
+        usar(boton(2, y, "REC", herr("record_start"),
+                   {lig("salida/grabacion", "activo", "==", true, "fondo", "#c62828"),
+                    lig("salida/grabacion", "activo", "==", true, "titilar", true)}));
+        usar(boton(3, y, traducir("botonera", "AIRE"), herr("stream_start"),
+                   {lig("salida/stream", "activo", "==", true, "fondo", "#c62828")}));
     } else {
         return nullptr;
     }
@@ -1169,7 +1312,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
 // Render
 // ============================================================================
 
-json Botonera::renderCelda(const json& c, const std::string& claveValor) const {
+json Botonera::renderCelda(const json& c, const std::string& claveValor, const json& salida) const {
     const json est = c.value("estilo", json::object());
     const std::string tipo = c.value("tipo", std::string("boton"));
     json r{{"x", c.value("x", 0)},
@@ -1199,8 +1342,12 @@ json Botonera::renderCelda(const json& c, const std::string& claveValor) const {
         auto it = valores_.find(claveValor);
         r["valor"] = it != valores_.end() ? it->second : numero(v.value("inicial", json(mn)), mn);
     }
+    // Los temas de la salida que maneja el aparato (la por omisión: los de siempre).
+    const std::string salId = salida.value("id", std::string());
+    const bool salOmision = salida.value("por_omision", true);
     for (const auto& l : c.value("estado", json::array())) {
-        const json u = bus_.ultimo(l.value("tema", std::string()));
+        const std::string tema = BusEventos::temaDeSalida(l.value("tema", std::string()), salId, salOmision);
+        const json u = tema == "superficie/salida" ? json{{"valor", salida}} : bus_.ultimo(tema);
         const json val = u.is_object() ? resolver(u["valor"], l.value("ruta", std::string())) : json();
         if (!u.is_object()) continue;
         if (!cumple(l.value("op", std::string()), val, l.value("valor", json()))) continue;
@@ -1220,6 +1367,12 @@ json Botonera::renderCelda(const json& c, const std::string& claveValor) const {
             r[ef == "valor" ? "valor" : "nivel"] = numero(dato.is_null() ? val : dato, 0);
         } else if (ef == "titilar" || ef == "activo") {
             r[ef] = dato.is_null() ? true : dato.is_boolean() && dato.get<bool>();
+        } else if (dato.is_string() && dato.get<std::string>().find("{{v}}") != std::string::npos) {
+            // «{{v}}» en un color: el valor del tema (el color de la salida, por ejemplo).
+            std::string t = dato.get<std::string>();
+            const std::string v = comoTexto(val);
+            for (auto p = t.find("{{v}}"); p != std::string::npos; p = t.find("{{v}}", p + v.size())) t.replace(p, 5, v);
+            r[ef] = t;
         } else if (!dato.is_null()) {
             r[ef] = dato;
         }
@@ -1234,11 +1387,13 @@ json Botonera::renderCelda(const json& c, const std::string& claveValor) const {
     return r;
 }
 
-json Botonera::renderPagina(const json& perfil, const json& pagina, const std::string& dispositivo) const {
+json Botonera::renderPagina(const json& perfil, const json& pagina, const std::string& dispositivo,
+                            const std::string& salida) const {
     json cs = json::array();
+    const json sal = infoSalida(salida);
     const std::string base = perfil.value("id", std::string()) + "/" + pagina.value("id", std::string()) + "/";
     for (const auto& c : pagina.value("celdas", json::array()))
-        cs.push_back(renderCelda(c, base + claveCelda(c.value("x", 0), c.value("y", 0))));
+        cs.push_back(renderCelda(c, base + claveCelda(c.value("x", 0), c.value("y", 0)), sal));
     json pgs = json::array();
     for (const auto& g : perfil.value("paginas", json::array()))
         pgs.push_back({{"id", g.value("id", std::string())}, {"nombre", g.value("nombre", std::string())}});
@@ -1251,7 +1406,10 @@ json Botonera::renderPagina(const json& perfil, const json& pagina, const std::s
              {"filas", pagina.value("filas", 3)}}},
            {"paginas", pgs},
            {"celdas", cs},
-           {"puede_editar", perfil.value("puede_editar", false)}};
+           {"puede_editar", perfil.value("puede_editar", false)},
+           // La salida que maneja (con su color) y las que hay, para el selector del aparato.
+           {"salida", sal},
+           {"salidas", g_.salidas ? g_.salidas() : json::array()}};
     auto pe = pendientes_.find(dispositivo);
     if (pe != pendientes_.end() && pe->second.venceMs > ahoraMs()) r["confirmar"] = pe->second.celda;
     return r;
@@ -1267,7 +1425,7 @@ json Botonera::render(const std::string& dispositivo) const {
     const std::string pag = it != paginaDe_.end() ? it->second : d->value("pagina", std::string());
     const json* g = buscarPagina(p->value("id", std::string()), pag);
     if (g == nullptr) g = &(*p)["paginas"][0];
-    return renderPagina(*p, *g, dispositivo);
+    return renderPagina(*p, *g, dispositivo, salidaDe(dispositivo));
 }
 
 void Botonera::refrescar() {
@@ -1349,6 +1507,7 @@ void Botonera::registrarLocal(const std::string& id, const std::string& nombre, 
         if (!datos_["perfiles"].empty()) perfil = datos_["perfiles"][0].value("id", std::string());
         disp_.push_back({{"id", id}, {"nombre", nombre}, {"origen", origen}, {"perfil", perfil}, {"pagina", ""},
                          {"capacidades", capacidades}, {"creado_ms", ahoraMs()}});
+        if (auto it = salidaLocal_.find(id); it != salidaLocal_.end()) disp_.back()["salida"] = it->second;
         auditar(id, "alta", origen + " " + nombre);
     } else {
         (*d)["nombre"] = nombre;
@@ -1599,6 +1758,11 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
     }
     const json r = render(dev);
     const std::string pagId = r.contains("pagina") ? r["pagina"].value("id", std::string()) : std::string();
+    if (t == "salida") {
+        // El aparato pasa a manejar otra salida (su selector).
+        if (const std::string e = elegirSalida(dev, msg.value("id", std::string())); !e.empty()) avisar(dev, e, true);
+        return;
+    }
     if (t == "pagina") {
         const std::string id = msg.value("id", std::string());
         if (buscarPagina(p->value("id", std::string()), id) == nullptr) return;
@@ -1693,7 +1857,7 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
             return;
         }
         double nuevo;
-        const json render0 = renderCelda(*c, kv);
+        const json render0 = renderCelda(*c, kv, infoSalida(salidaDe(dev)));
         const double actual = numero(render0.value("valor", json(mn)), mn);
         if (t == "girar") nuevo = actual + numero(msg.value("delta", json(0)), 0) * paso;
         else nuevo = numero(msg.value("v", json(actual)), actual);
@@ -1734,6 +1898,10 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
         paginaDe_[dev] = id;
         ultimoRender_[dev] = render(dev);
         emit mensaje(QString::fromStdString(dev), ultimoRender_[dev]);
+        return;
+    }
+    if (tipo == "salida") {
+        if (const std::string e = elegirSalida(dev, accion.value("ir_a", std::string())); !e.empty()) avisar(dev, e, true);
         return;
     }
     // Lo que se va a ejecutar, como herramientas.
@@ -1791,16 +1959,19 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
     }
     if (!g_.ejecutar) return;
     const std::string perfilId = perfil.value("id", std::string());
+    // La salida que maneja el aparato (el escritorio prueba con la del perfil).
+    const std::string salida =
+        buscarDispositivo(dev) != nullptr ? salidaDe(dev) : salidaValida(perfil.value("salida", std::string()));
     const int espera = accion.value("espera_ms", 0);
     QPointer<Botonera> yo(this);
     // Se ejecutan en orden; una secuencia espera `espera_ms` entre pasos.
     auto siguiente = std::make_shared<std::function<void(std::size_t)>>();
-    *siguiente = [yo, pasos, dev, perfilId, espera, siguiente, esFader](std::size_t i) {
+    *siguiente = [yo, pasos, dev, perfilId, salida, espera, siguiente, esFader](std::size_t i) {
         if (!yo || i >= pasos.size()) return;
         const std::string h = pasos[i]["herramienta"];
         const json args = pasos[i]["args"];
         if (!esFader) yo->auditar(dev, "accion", h + " " + args.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-        yo->g_.ejecutar(h, args, dev, perfilId, [yo, dev, h, i, espera, siguiente](bool ok, const std::string& texto) {
+        yo->g_.ejecutar(h, args, dev, perfilId, salida, [yo, dev, h, i, espera, siguiente](bool ok, const std::string& texto) {
             if (!yo) return;
             if (!ok) {
                 yo->auditar(dev, "error", h + ": " + texto);
@@ -1842,13 +2013,14 @@ QVariantMap Botonera::paginaUi(const QString& perfil, const QString& pagina) con
         if (p->value("paginas", json::array()).empty()) return {};
         g = &(*p)["paginas"][0];
     }
-    return aQv(renderPagina(*p, *g, "escritorio")).toMap();
+    return aQv(renderPagina(*p, *g, "escritorio", salidaValida(p->value("salida", std::string())))).toMap();
 }
 
-QString Botonera::crearPerfilUi(const QString& nombre, const QString& plantilla) {
+QString Botonera::crearPerfilUi(const QString& nombre, const QString& plantilla, const QString& salida) {
     std::string id;
     json p = json::object();
     if (!nombre.isEmpty()) p["nombre"] = nombre.toStdString();
+    if (!salida.isEmpty()) p["salida"] = salida.toStdString();
     const std::string e = crearPerfil(p, plantilla.toStdString(), &id);
     return QString::fromStdString(e.empty() ? id : "error: " + e);
 }
@@ -1926,6 +2098,10 @@ QString Botonera::asignarUi(const QString& dispositivo, const QString& perfil, c
     return QString::fromStdString(asignar(dispositivo.toStdString(), perfil.toStdString(), pagina.toStdString()));
 }
 int Botonera::revocarUi(const QString& dispositivo) { return revocar(dispositivo.toStdString()); }
+QString Botonera::elegirSalidaUi(const QString& dispositivo, const QString& salida) {
+    return QString::fromStdString(elegirSalida(dispositivo.toStdString(), salida.toStdString()));
+}
+QVariantList Botonera::salidasUi() const { return aQv(g_.salidas ? g_.salidas() : json::array()).toList(); }
 
 QVariantList Botonera::auditoriaUi() const {
     QVariantList out;

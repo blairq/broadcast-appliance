@@ -757,10 +757,18 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                         "y la guarda de aire del que lo pide.");
         t.inputSchema = {{"type", "object"}, {"required", {"accion"}}, {"properties", {{"accion", {{"type", "string"}}}}}};
         t.run = [&vm, &core](const json& a, Done done) {
-            const json r = vm.acciones().resolver(a.value("accion", std::string()));
+            const std::string accion = a.value("accion", std::string());
+            const json r = vm.acciones().resolver(accion);
             if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
-            // Por el mismo camino y con el contexto de quien la pidió (la guarda de aire aplica).
-            const CallContext ctx = core.contextoEnCurso();
+            // «salida:…» cambia la salida que manejan los atajos (no corre ninguna herramienta).
+            if (r.contains("elegir_salida")) {
+                const std::string e = vm.acciones().ejecutar(accion);
+                return done(e.empty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")) : ToolResult::error(e));
+            }
+            // Por el mismo camino y con el contexto de quien la pidió (la guarda de aire aplica);
+            // una acción «…@<salida>» va a esa salida.
+            CallContext ctx = core.contextoEnCurso();
+            if (r.value("salida_pedida", false)) ctx.salida = r.value("salida", std::string());
             core.callTool({{"name", r.value("herramienta", std::string())}, {"arguments", r.value("args", json::object())}},
                           [done](json res) {
                               ToolResult tr;

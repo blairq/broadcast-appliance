@@ -94,6 +94,11 @@ struct Tool {
     /// guiones guardados con el viejo): no se listan, pero una llamada con uno de ellos
     /// es la misma llamada con `name` (callTool lo cambia al empezar).
     std::vector<std::string> antes;
+    /// Apunta a una salida (PLAN-SALIDAS): acepta `salida` (id o nombre; sin ella, la
+    /// del que llama o la por omisión). addTool le suma la propiedad al esquema;
+    /// callTool la valida (error claro si no existe) y la usa para la guarda de
+    /// aire: cuenta si sale ESA salida. La herramienta la lee con McpCore::salidaDe.
+    bool porSalida = false;
     std::function<void(const json& args, Done done)> run;
 };
 
@@ -119,6 +124,11 @@ struct CallContext {
     /// Qué asistente de la app llama (evento | automatizacion; cabecera X-BA-Asistente).
     /// Al final: hay inicializaciones por posición de los campos de arriba.
     std::string asistente;
+    /// La salida por omisión de quien llama (PLAN-SALIDAS): la de su perfil, su
+    /// aparato o su asistente. Vacía = la por omisión del aparato. Una herramienta
+    /// de salida (Tool::porSalida) usa `salida` de los argumentos si vino; si no,
+    /// esta; si no, la por omisión (ver McpCore::salidaDe). Nadie la mete en los args.
+    std::string salida;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.

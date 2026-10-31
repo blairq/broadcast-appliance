@@ -37,10 +37,15 @@
 //                                  no en el navegador (sobrevive a reinicios, a
 //                                  borrar los datos del navegador y a otra URL).
 //                                  Como mucho 8 KiB.
+//   {type:"salida", salida}        el aparato pasa a manejar esa salida (id; "" = la
+//                                  por omisión): lo que llama va con ella en el
+//                                  contexto (CallContext::salida) y los temas que mira
+//                                  son los de ella. Elegir salida no amplía el perfil.
 //   {type:"ping"}                  lo contesta el gateway con {type:"pong"}.
 //
 // app → aparato
 //   {type:"auth", ok:true, aparato, nombre, perfil, lugar, preferencias, categorias:[{id,titulo}],
+//    salida, salidas:[{id, nombre, color, por_omision}],
 //    herramientas:[{name, title, category, description, inputSchema, readOnly,
 //                   destructive, aire}], mas}
 //                                  `herramientas` va en tandas (el catálogo
@@ -49,6 +54,8 @@
 //                                  hasta mas:false. Se vuelve a mandar entero
 //                                  si cambia el perfil.
 //   {type:"auth", ok:false, error} y el gateway corta.
+//   {type:"salida", salida, salidas, error?}
+//                                  cambió la salida del aparato (o la lista de salidas).
 //   {type:"resultado", id, ok, datos | error}
 //                                  datos = structuredContent, o el texto como
 //                                  JSON si lo es, o el texto.
@@ -70,7 +77,8 @@
 //   estado → status (2 s)                  sala → room_status (1 s)
 //   oradores → remotos_fila_ver (1 s)       graficos → dsk_capas_ver + grafico_en_escena (1 s)
 // Un tema cuyas herramientas no estén todas en el perfil se rechaza. Un tema
-// que nadie mira no se consulta.
+// que nadie mira no se consulta. Se consulta una vez por salida que lo mira (las
+// herramientas de salida, Tool::porSalida, con la de esos aparatos).
 //
 // Auditoría: cada llamar (hecho, rechazado o a confirmar) queda en el registro
 // (diag, componente «control-web») con el aparato, su nombre y la herramienta.
@@ -111,6 +119,8 @@ class ControlWeb : public QObject {
     Q_PROPERTY(int conectados READ conectados NOTIFY conexionesCambio)
     /// El acceso desde afuera (por el túnel, con PIN) está habilitado.
     Q_PROPERTY(bool tunel READ tunel NOTIFY aparatosCambio)
+    /// Las salidas para el selector de cada aparato: [{id, nombre, color, por_omision}].
+    Q_PROPERTY(QVariantList salidas READ salidasUi NOTIFY aparatosCambio)
 
    public:
     using json = nlohmann::json;
@@ -119,6 +129,8 @@ class ControlWeb : public QObject {
         /// «audio», el Mezclador mide solo mientras tanto (así mezclador_estado no
         /// rehace sus listas en cada consulta).
         std::function<void(const std::string& tema, bool mirando)> mirando;
+        /// Las salidas: [{id, nombre, color, por_omision}], la por omisión primera.
+        std::function<json()> salidas;
     };
     struct Tema {
         std::string id;
@@ -148,6 +160,13 @@ class ControlWeb : public QObject {
     /// Cambia el perfil. Sin `humano` solo se puede achicar. "" o el error.
     /// `amplia`: si no se guardó porque lo ampliaba el asistente (lo decide una persona).
     std::string setPerfil(const std::string& aparato, const json& categorias, bool humano, bool* amplia = nullptr);
+    /// La salida que maneja el aparato ("" = la por omisión, también si la suya ya no está).
+    std::string salidaDe(const std::string& aparato) const;
+    /// El aparato pasa a manejar `salida` (id o nombre; "" = la por omisión). No amplía
+    /// nada: lo puede hacer el mismo aparato. "" o el error.
+    std::string setSalida(const std::string& aparato, const std::string& salida);
+    /// Cambiaron las salidas (crear, borrar, nombre, color): a los aparatos, si cambió algo.
+    void salidasCambiaron();
     /// Saca un aparato: su token deja de valer y se cortan sus conexiones.
     bool quitar(const std::string& aparato);
     /// Habilita (con un PIN de 4 a 12 cifras) o apaga el acceso desde afuera.
@@ -179,10 +198,12 @@ class ControlWeb : public QObject {
     // --- Para la interfaz (QML): lo hace una persona ------------------------------------
     QVariantList aparatosUi() const;
     QVariantList solicitudesUi() const;
+    QVariantList salidasUi() const;
     /// Aprobar con las categorías (texto: «todo», «*» o «escenas, audio»). "" o el error.
     Q_INVOKABLE QString aprobarUi(const QString& solicitud, bool aprobar, const QString& categorias);
     Q_INVOKABLE QString perfilUi(const QString& aparato, const QString& categorias);
     Q_INVOKABLE bool quitarUi(const QString& aparato);
+    Q_INVOKABLE QString salidaUi(const QString& aparato, const QString& salida);
 
    signals:
     void aparatosCambio();
@@ -215,7 +236,8 @@ class ControlWeb : public QObject {
         json perfil;
         std::int64_t ms = 0;
     };
-    struct Sondeo { ///< un tema que alguien mira
+    struct Sondeo { ///< un tema que alguien mira, en una salida (clave: claveSondeo)
+        std::string tema, salida;
         std::unique_ptr<QTimer> timer;
         bool enCurso = false;
         std::int64_t desdeMs = 0;
@@ -234,7 +256,11 @@ class ControlWeb : public QObject {
     /// "" si el aparato puede mirar el tema; si no, por qué.
     std::string motivoTema(const json& perfil, const Tema& t) const;
     void reacomodarSondeos();
-    void sondear(const std::string& tema);
+    void sondear(const std::string& clave);
+    /// {type:"salida", salida, salidas} para el aparato.
+    json mensajeSalida(const std::string& aparato) const;
+    /// La salida pedida (id o nombre) si existe; "" si no.
+    std::string salidaExistente(const std::string& salida) const;
     void auditar(const std::string& aparato, const std::string& texto) const;
 
     std::filesystem::path archivo_;
@@ -245,6 +271,7 @@ class ControlWeb : public QObject {
     std::map<std::string, Codigo> codigos_;
     std::map<std::string, Solicitud> solicitudes_;
     std::map<std::string, Sondeo> sondeos_;
+    std::string ultimasSalidas_; ///< la lista que vieron los aparatos (salidasCambiaron)
 };
 
 } // namespace ba::app::control

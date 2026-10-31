@@ -48,6 +48,19 @@ ColumnLayout {
                         color: Theme.textDim; font.pixelSize: 11
                     }
                 }
+                // La salida que maneja (con varias); el aparato también la cambia desde su pantalla.
+                ComboBox {
+                    Layout.preferredWidth: 160
+                    visible: raiz.cw.salidas.length > 1
+                    model: raiz.cw.salidas
+                    textRole: "nombre"
+                    currentIndex: Math.max(0, raiz.cw.salidas.findIndex(s => s.id === ap.modelData.salida || (!ap.modelData.salida && s.por_omision)))
+                    onActivated: (i) => {
+                        const s = raiz.cw.salidas[i]
+                        const e = raiz.cw.salidaUi(ap.modelData.id, s.por_omision ? "" : s.id)
+                        if (e !== "") Studio.notify(e, "error")
+                    }
+                }
                 Text { text: qsTr("Perfil"); color: Theme.textDim; font.pixelSize: 12 }
                 TextField {
                     id: perfilAp

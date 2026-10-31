@@ -5,8 +5,13 @@
 // plugins, los disparadores y el asistente (MCP).
 //
 // Temas (los publica la app; los de los plugins van bajo plugin/<id>/<canal>):
-//   aire/escena, aire/armada, aire/tally          lo que está al aire y armado
-//   salida/stream, salida/grabacion               transmisión y grabación
+//   aire/escena, aire/armada, aire/tally          lo que está al aire y armado (la salida por omisión)
+//   salida/stream, salida/grabacion               transmisión y grabación (la por omisión)
+//   salidas                                       {lista: [{id, nombre, color, por_omision}]}
+//   aire/<salida>/escena|armada|tally             lo mismo, de CADA salida (también la por omisión)
+//   salida/<salida>/estado                        {id, nombre, color, por_omision, escena, armada,
+//                                                  transmitiendo, grabando}
+//   salida/<salida>/stream, salida/<salida>/grabacion  {activo, …} de cada salida
 //   audio/nivel/<fuente> (10 Hz como mucho)       pico, volumen y mudo
 //   audio/loudness                                M/S/I, true peak, LRA (1 Hz)
 //   alarma/<id>                                   alarmas de los disparadores
@@ -16,6 +21,10 @@
 //
 // Cada tema guarda su último valor (para que el que se conecta tarde se ponga
 // al día). Publicar el mismo valor no avisa a nadie.
+//
+// Muchas salidas (docs/planes/PLAN-SALIDAS.md): los temas sin id siguen siendo
+// los de la salida por omisión, así lo que existe no se rompe. Una superficie que
+// maneja otra salida lee los mismos temas pasados por temaDeSalida.
 //
 // Patrones de suscripción: «+» o «*» es un nivel cualquiera; «#» (o «*» al
 // final) es todo lo que sigue. «aire/#», «audio/nivel/+», «#».
@@ -31,6 +40,7 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <set>
 #include <string>
 
 namespace ba::app::control {
@@ -66,8 +76,17 @@ class BusEventos : public QObject {
     void setMediciones(std::vector<std::string> patrones);
     /// Las de fábrica: lo que se publica muchas veces por segundo (o cada segundo) y no es un hecho.
     static std::vector<std::string> medicionesDeFabrica() {
-        return {"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally"};
+        return {"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally", "aire/+/tally"};
     }
+    /// El tema de `tema` para la salida `salida` (su id): «aire/tally» → «aire/<salida>/tally»
+    /// (lo mismo con escena, armada, salida/stream y salida/grabacion) y «{{salida}}» → el
+    /// id. Si `porOmision`, los temas sin id ya son los suyos y quedan como están. Así
+    /// una celda hecha para «la» salida sigue a la que maneje su superficie.
+    static std::string temaDeSalida(const std::string& tema, const std::string& salida, bool porOmision);
+    /// Publica los temas de cada salida (ver arriba). `salidas`: [{id, nombre, color,
+    /// por_omision, escena, armada, fuentes_programa, fuentes_preview, transmitiendo,
+    /// grabando, reconectando}]. Los de una salida que ya no está se olvidan.
+    void publicarSalidas(const json& salidas);
     Q_INVOKABLE QVariantList temasUi(const QString& filtro = {}) const;
 
    signals:
@@ -86,6 +105,7 @@ class BusEventos : public QObject {
     std::uint64_t seq_ = 0;
     std::map<int, std::pair<std::string, Oyente>> oyentes_;
     int proximo_ = 1;
+    std::set<std::string> salidasPublicadas_; ///< ver publicarSalidas
 };
 
 } // namespace ba::app::control

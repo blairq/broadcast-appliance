@@ -154,4 +154,65 @@ QVariantList BusEventos::temasUi(const QString& filtro) const {
     return out;
 }
 
+std::string BusEventos::temaDeSalida(const std::string& tema, const std::string& salida, bool porOmision) {
+    std::string t = tema;
+    const std::string k = "{{salida}}";
+    for (auto p = t.find(k); p != std::string::npos; p = t.find(k, p + salida.size())) t.replace(p, k.size(), salida);
+    if (porOmision || salida.empty()) return t;
+    // Solo los temas que son de UNA salida; los demás (audio, sala, alarmas…) son de todas.
+    static const std::set<std::string> deAire{"aire/escena", "aire/armada", "aire/tally"};
+    static const std::set<std::string> deSalida{"salida/stream", "salida/grabacion"};
+    if (deAire.count(t)) return "aire/" + salida + t.substr(4);
+    if (deSalida.count(t)) return "salida/" + salida + t.substr(6);
+    return t;
+}
+
+void BusEventos::publicarSalidas(const json& salidas) {
+    if (!salidas.is_array()) return;
+    std::set<std::string> ahora;
+    json lista = json::array();
+    for (const auto& s : salidas) {
+        const std::string id = s.value("id", std::string());
+        if (id.empty()) continue;
+        ahora.insert(id);
+        const json esc = s.value("escena", std::string()), arm = s.value("armada", std::string());
+        const bool tx = s.value("transmitiendo", false), rec = s.value("grabando", false);
+        lista.push_back({{"id", id}, {"nombre", s.value("nombre", id)}, {"color", s.value("color", std::string())},
+                         {"por_omision", s.value("por_omision", false)}});
+        publicar("aire/" + id + "/escena", {{"escena", esc}});
+        publicar("aire/" + id + "/armada", {{"escena", arm}});
+        publicar("aire/" + id + "/tally", {{"programa", esc},
+                                           {"preview", arm},
+                                           {"fuentes_programa", s.value("fuentes_programa", json::array())},
+                                           {"fuentes_preview", s.value("fuentes_preview", json::array())},
+                                           {"transmitiendo", tx},
+                                           {"grabando", rec},
+                                           {"salida", id},
+                                           {"color", s.value("color", std::string())}});
+        publicar("salida/" + id + "/stream", {{"activo", tx}, {"reconectando", s.value("reconectando", false)}});
+        publicar("salida/" + id + "/grabacion", {{"activo", rec}});
+        publicar("salida/" + id + "/estado", {{"id", id},
+                                              {"nombre", s.value("nombre", id)},
+                                              {"color", s.value("color", std::string())},
+                                              {"por_omision", s.value("por_omision", false)},
+                                              {"escena", esc},
+                                              {"armada", arm},
+                                              {"transmitiendo", tx},
+                                              {"grabando", rec}});
+    }
+    publicar("salidas", {{"lista", lista}});
+    // Una salida borrada: sus temas no quedan con el último valor (una celda que la
+    // miraba mostraría un aire que ya no existe).
+    std::vector<std::string> idas;
+    for (const auto& id : salidasPublicadas_)
+        if (!ahora.count(id)) idas.push_back(id);
+    salidasPublicadas_ = std::move(ahora);
+    if (idas.empty()) return;
+    std::lock_guard<std::mutex> l(mu_);
+    for (const auto& id : idas)
+        for (auto it = ultimos_.begin(); it != ultimos_.end();)
+            if (coincide("aire/" + id + "/#", it->first) || coincide("salida/" + id + "/#", it->first)) it = ultimos_.erase(it);
+            else ++it;
+}
+
 } // namespace ba::app::control

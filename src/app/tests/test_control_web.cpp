@@ -73,10 +73,16 @@ int main(int argc, char** argv) {
     core.setHayAire([&] { return hayAire; });
     std::string programa = "A";
     int consultasEscenas = 0, cortes = 0, audios = 0;
-    core.addTool(herramienta("scene_list", "escenas", true, [&](const json&, Done d) {
-        ++consultasEscenas;
-        d(ToolResult().data({{"programa", programa}, {"escenas", {"A", "B"}}}));
-    }));
+    {
+        // De salida (Tool::porSalida): la «cam2» tiene otro programa.
+        Tool t = herramienta("scene_list", "escenas", true, [&](const json& a, Done d) {
+            ++consultasEscenas;
+            const bool cam2 = a.value("salida", std::string()) == "cam2";
+            d(ToolResult().data({{"programa", cam2 ? std::string("C2") : programa}, {"escenas", {"A", "B"}}}));
+        });
+        t.porSalida = true;
+        core.addTool(std::move(t));
+    }
     core.addTool(herramienta("preview_al_aire", "escenas", false, [&](const json&, Done d) {
         ++cortes;
         d(ToolResult::ok("Cortado."));
@@ -253,6 +259,70 @@ int main(int argc, char** argv) {
     CHECK(audios == 1, "achicado: ya no corre");
     cw.entrada("c1", ap, {{"type", "llamar"}, {"id", 9}, {"herramienta", "control_web_perfil"}, {"args", json::object()}});
     CHECK(!ultimo("resultado").value("ok", true), "un aparato no se amplía solo (control_web, nunca)");
+
+    // --- Muchas salidas (PLAN-SALIDAS, etapa 4) ------------------------------------------------
+    {
+        cw.ganchos().salidas = [] {
+            return json::array({json{{"id", "principal"}, {"nombre", "Principal"}, {"color", "#c62828"}, {"por_omision", true}},
+                                json{{"id", "cam2"}, {"nombre", "Segunda"}, {"color", "#1565c0"}, {"por_omision", false}}});
+        };
+        enviados.clear();
+        cw.salidasCambiaron();
+        CHECK(cuantos("salida") == 2 && ultimo("salida")["salidas"].size() == 2 && ultimo("salida").value("salida", "x") == "",
+              "las salidas nuevas, a cada conexión (sin elegir: la por omisión)");
+        enviados.clear();
+        cw.salidasCambiaron();
+        CHECK(enviados.empty(), "si no cambió nada, no manda");
+        // Un segundo aparato, con la otra salida; los dos miran «escenas».
+        const json cod2 = cw.nuevoCodigo(json::array({"escenas"}), "Tablet 2");
+        cw.solicitud("s3", cod2.value("codigo", ""), "Tablet 2", "192.168.1.11");
+        const std::string ap2 = cw.resolverSolicitud("s3", true, nullptr, true).value("aparato", "");
+        cw.conexion("c3", ap2, true, "192.168.1.11", "sala");
+        CHECK(ultimo("auth")["salidas"].size() == 2, "el auth trae las salidas");
+        CHECK(!cw.setSalida(ap2, "no-hay").empty(), "una salida que no existe: error");
+        CHECK(cw.setSalida(ap2, "Segunda").empty() && cw.salidaDe(ap2) == "cam2", "elegir por nombre");
+        CHECK(cw.setSalida(ap, "principal").empty() && cw.salidaDe(ap).empty(), "la por omisión se guarda como \"\"");
+        enviados.clear();
+        cw.entrada("c1", ap, {{"type", "mirar"}, {"temas", {"escenas"}}});
+        cw.entrada("c3", ap2, {{"type", "mirar"}, {"temas", {"escenas"}}});
+        esperar(700);
+        std::string prog1, prog3;
+        for (const auto& e : enviados)
+            if (e.msg.value("type", "") == "estado" && e.msg.value("tema", "") == "escenas") {
+                for (const auto& a : e.a) {
+                    if (a == "c1") prog1 = e.msg["datos"].value("programa", "");
+                    if (a == "c3") prog3 = e.msg["datos"].value("programa", "");
+                }
+            }
+        CHECK(prog1 == "B" && prog3 == "C2", "cada aparato mira lo de su salida (una consulta por salida)");
+        // Desde el aparato: {type: salida}. Pasa a la por omisión y recibe lo de esa ya.
+        enviados.clear();
+        cw.entrada("c3", ap2, {{"type", "salida"}, {"salida", ""}});
+        esperar(50);
+        bool salidaMsg = false, estadoNuevo = false;
+        for (const auto& e : enviados) {
+            if (e.a == std::vector<std::string>{"c3"} && e.msg.value("type", "") == "salida") salidaMsg = true;
+            if (e.msg.value("type", "") == "estado" && std::find(e.a.begin(), e.a.end(), "c3") != e.a.end() &&
+                e.msg["datos"].value("programa", "") == "B")
+                estadoNuevo = true;
+        }
+        CHECK(cw.salidaDe(ap2).empty() && salidaMsg && estadoNuevo, "el aparato cambia de salida y recibe lo de la nueva");
+        enviados.clear();
+        cw.entrada("c3", ap2, {{"type", "salida"}, {"salida", "no-hay"}});
+        CHECK(ultimo("salida").contains("error"), "una que no existe: el error vuelve al aparato");
+        bool listaSalida = false;
+        cw.setSalida(ap2, "cam2");
+        for (const auto& a : cw.aparatos())
+            if (a.value("id", "") == ap2) listaSalida = a.value("salida", "") == "cam2";
+        CHECK(listaSalida, "aparatos() dice la salida de cada uno");
+        // Se borra «cam2»: el aparato vuelve a la por omisión.
+        cw.ganchos().salidas = [] { return json::array({json{{"id", "principal"}, {"nombre", "Principal"}, {"por_omision", true}}}); };
+        cw.salidasCambiaron();
+        CHECK(cw.salidaDe(ap2).empty(), "salida borrada: la por omisión");
+        cw.entrada("c1", ap, {{"type", "mirar"}, {"temas", json::array()}});
+        cw.entrada("c3", ap2, {{"type", "mirar"}, {"temas", json::array()}});
+        cw.quitar(ap2);
+    }
 
     // --- Túnel ----------------------------------------------------------------------------
     CHECK(cw.setTunel(true, "1234", false) != "" && !cw.tunel(), "habilitar desde afuera: solo una persona");

@@ -69,8 +69,11 @@ int main(int argc, char** argv) {
                                      "audio_set", "banca_al_aire", "recinto_orador_terminar", "prompter_control", "receta_correr"};
     };
     g.deAireAhora = [&](const std::string& h, const json&) { return hayAire && h == "preview_al_aire"; };
-    g.ejecutar = [&](const std::string& h, const json& a, const std::string&, const std::string&, Botonera::Listo l) {
+    std::vector<std::string> salidasLlamadas; // la salida (CallContext::salida) de cada llamada
+    g.ejecutar = [&](const std::string& h, const json& a, const std::string&, const std::string&, const std::string& sal,
+                     Botonera::Listo l) {
         llamadas.emplace_back(h, a);
+        salidasLlamadas.push_back(sal);
         l(true, "");
     };
     g.recinto = [] {
@@ -391,6 +394,101 @@ int main(int argc, char** argv) {
               "avisoPermisos: medio_poner no está en el perfil Director");
         bot.borrarPagina(pid, pg);
         bot.ganchos().herramientas = herrAntes;
+    }
+
+    // --- Muchas salidas (PLAN-SALIDAS, etapa 4) ------------------------------------
+    {
+        // Temas del bus por salida.
+        CHECK(BusEventos::temaDeSalida("aire/tally", "cam2", false) == "aire/cam2/tally", "temaDeSalida: aire/tally de otra salida");
+        CHECK(BusEventos::temaDeSalida("salida/stream", "cam2", false) == "salida/cam2/stream", "temaDeSalida: salida/stream");
+        CHECK(BusEventos::temaDeSalida("aire/tally", "principal", true) == "aire/tally", "la por omisión: los temas de siempre");
+        CHECK(BusEventos::temaDeSalida("audio/loudness", "cam2", false) == "audio/loudness", "lo que no es de una salida no cambia");
+        CHECK(BusEventos::temaDeSalida("salida/{{salida}}/estado", "cam2", false) == "salida/cam2/estado", "{{salida}} en el tema");
+        bus.publicarSalidas(json::array(
+            {json{{"id", "principal"}, {"nombre", "Principal"}, {"color", "#c62828"}, {"por_omision", true},
+                  {"escena", "Cámara 1"}, {"armada", "Cámara 2"}, {"transmitiendo", true}},
+             json{{"id", "cam2"}, {"nombre", "Segunda"}, {"color", "#1565c0"}, {"escena", "Cámara 2"}, {"armada", "Cámara 1"},
+                  {"grabando", true}}}));
+        CHECK(bus.ultimo("aire/cam2/tally")["valor"]["programa"] == "Cámara 2", "aire/<salida>/tally");
+        CHECK(bus.ultimo("salida/cam2/grabacion")["valor"]["activo"] == true, "salida/<salida>/grabacion");
+        CHECK(bus.ultimo("salida/principal/estado")["valor"]["transmitiendo"] == true, "salida/<salida>/estado");
+        CHECK(bus.ultimo("salidas")["valor"]["lista"].size() == 2, "la lista de salidas");
+
+        // Una botonera con dos salidas: cada aparato maneja la suya.
+        Botonera::Ganchos g2 = g;
+        g2.salidas = [] {
+            return json::array({json{{"id", "principal"}, {"nombre", "Principal"}, {"color", "#c62828"}, {"por_omision", true}},
+                                json{{"id", "cam2"}, {"nombre", "Segunda"}, {"color", "#1565c0"}, {"por_omision", false}}});
+        };
+        Botonera bs((dir.path() + "/salidas").toStdString(), bus, g2);
+        const std::string pd = bs.perfiles()[0]["id"];
+        int sx = -1, sy = -1;
+        const json celdasDir = bs.perfil(pd)["paginas"][0]["celdas"]; // con nombre: iterar un temporal es UB
+        for (const auto& c : celdasDir)
+            if (c.value("accion", json::object()).value("tipo", std::string()) == "salida") {
+                sx = c["x"];
+                sy = c["y"];
+            }
+        CHECK(sx >= 0, "plantilla Director con varias salidas: la celda «Salida»");
+        bs.registrarLocal("d1", "Deck A", "plugin", json::object());
+        bs.registrarLocal("d2", "Deck B", "plugin", json::object());
+        CHECK(bs.salidaDe("d1").empty() && bs.render("d1")["salida"]["id"] == "principal", "sin elegir: la por omisión");
+        CHECK(bs.elegirSalida("d2", "Segunda").empty() && bs.salidaDe("d2") == "cam2", "elegir por nombre");
+        CHECK(!bs.elegirSalida("d2", "no-hay").empty() && bs.salidaDe("d2") == "cam2", "una que no existe: error, queda la de antes");
+        // El tally de cada aparato es el de SU salida: Cámara 1 al aire en la principal, Cámara 2 en la otra.
+        bus.publicar("aire/tally", {{"programa", "Cámara 1"}, {"preview", "Cámara 2"}});
+        const auto rojaEn = [&](const std::string& dev) {
+            const json r = bs.render(dev);
+            for (const auto& c : r["celdas"])
+                if (c["fondo"] == "#c62828" && (c["texto"] == "Cámara 1" || c["texto"] == "Cámara 2"))
+                    return c["texto"].get<std::string>();
+            return std::string();
+        };
+        CHECK(rojaEn("d1") == "Cámara 1" && rojaEn("d2") == "Cámara 2", "el tally de cada aparato sigue a su salida");
+        const json r2 = bs.render("d2");
+        CHECK(r2["salida"]["color"] == "#1565c0" && r2["salidas"].size() == 2, "el estado lleva la salida (con su color) y la lista");
+        bool nombre = false;
+        for (const auto& c : r2["celdas"])
+            if (c["texto"] == "Segunda" && c["fondo"] == "#1565c0") nombre = true;
+        CHECK(nombre, "la celda «Salida» con el nombre y el color de la suya (superficie/salida)");
+        // Lo que corre va con la salida del aparato.
+        salidasLlamadas.clear();
+        bs.entrada("d1", {{"type", "presionar"}, {"x", 0}, {"y", 0}});
+        bs.entrada("d2", {{"type", "presionar"}, {"x", 0}, {"y", 0}});
+        CHECK(salidasLlamadas.size() == 2 && salidasLlamadas[0].empty() && salidasLlamadas[1] == "cam2",
+              "cada aparato corre con su salida");
+        // Cambiar de salida desde el aparato: el mensaje y la celda «Salida» (siguiente, da la vuelta).
+        bs.entrada("d2", {{"type", "salida"}, {"id", ""}});
+        CHECK(bs.salidaDe("d2").empty(), "{type: salida, id: \"\"}: vuelve a la del perfil");
+        bs.entrada("d1", {{"type", "presionar"}, {"x", sx}, {"y", sy}});
+        CHECK(bs.salidaDe("d1") == "cam2", "la celda «Salida» pasa a la siguiente");
+        bs.entrada("d1", {{"type", "presionar"}, {"x", sx}, {"y", sy}});
+        CHECK(bs.salidaDe("d1") == "principal", "y da la vuelta");
+        // La salida del perfil: la de los aparatos que no eligieron.
+        CHECK(bs.editarPerfil(pd, {{"salida", "cam2"}}, false).empty() && bs.salidaDe("d2") == "cam2", "salida del perfil");
+        CHECK(!bs.editarPerfil(pd, {{"salida", "no-hay"}}, true).empty(), "perfil con una salida que no existe: error");
+        CHECK(bs.perfiles()[0]["salida"] == "cam2", "perfiles() dice la salida");
+        const std::string pg0 = bs.perfil(pd)["paginas"][0]["id"];
+        CHECK(!bs.setCelda(pd, pg0, {{"x", 0}, {"y", 0}, {"accion", {{"tipo", "salida"}, {"ir_a", "nada"}}}}).empty(),
+              "acción salida con un id que no existe: no se acepta");
+        // Plantilla «Salidas»: una celda por salida, y el perfil con su salida.
+        std::string ps;
+        CHECK(bs.crearPerfil({{"nombre", "Salidas"}, {"salida", "cam2"}}, "salidas", &ps).empty() && bs.perfil(ps)["salida"] == "cam2",
+              "plantilla Salidas, con la salida del perfil");
+        // Un aparato local guarda su salida aunque se vaya y vuelva (y tras reiniciar la app).
+        bs.elegirSalida("d1", "cam2");
+        bs.quitarLocal("d1");
+        bs.registrarLocal("d1", "Deck A", "plugin", json::object());
+        CHECK(bs.salidaDe("d1") == "cam2", "el local vuelve con su salida");
+        Botonera bs2((dir.path() + "/salidas").toStdString(), bus, g2);
+        bs2.registrarLocal("d1", "Deck A", "plugin", json::object());
+        CHECK(bs2.salidaDe("d1") == "cam2", "y también tras reiniciar");
+        // Una salida que se borró: el aparato vuelve a la por omisión.
+        bs2.ganchos().salidas = [] { return json::array({json{{"id", "principal"}, {"nombre", "Principal"}, {"por_omision", true}}}); };
+        CHECK(bs2.salidaDe("d1").empty(), "salida borrada: la por omisión");
+        // Los temas de una salida borrada se olvidan.
+        bus.publicarSalidas(json::array({json{{"id", "principal"}, {"nombre", "Principal"}, {"por_omision", true}}}));
+        CHECK(bus.ultimo("aire/cam2/tally").is_null(), "los temas de una salida borrada se olvidan");
     }
 
     // Persistencia del modelo.

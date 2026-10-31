@@ -68,6 +68,11 @@ QVariant aQv(const json& j) {
     return QJsonDocument::fromJson(QByteArray::fromStdString(volcar(json{{"v", j}}))).object().value("v").toVariant();
 }
 
+/// Un tema en una salida: el tema solo para la por omisión, «tema@salida» para las demás.
+std::string claveSondeo(const std::string& tema, const std::string& salida) {
+    return salida.empty() ? tema : tema + "@" + salida;
+}
+
 std::string textoDe(const json& j, const char* k) {
     return j.is_object() && j.contains(k) && j[k].is_string() ? j[k].get<std::string>() : std::string();
 }
@@ -252,6 +257,7 @@ json ControlWeb::aparatos() const {
                        {"ip", a.value("ip", std::string())},
                        {"creado_ms", a.value("creado_ms", std::int64_t{0})},
                        {"ultimo_uso_ms", a.value("ultimo_uso_ms", std::int64_t{0})},
+                       {"salida", salidaDe(id)},
                        {"conectado", conectado}});
     }
     return out;
@@ -519,6 +525,8 @@ void ControlWeb::enviarAuth(const std::string& cid) {
                          {"lugar", it->second.lugar},
                          {"preferencias", a->value("preferencias", json::object())},
                          {"categorias", categorias},
+                         {"salida", salidaDe(it->second.aparato)},
+                         {"salidas", g_.salidas ? g_.salidas() : json::array()},
                          {"temas", [] {
                               json t = json::array();
                               for (const Tema& x : temas()) t.push_back(x.id);
@@ -547,6 +555,13 @@ void ControlWeb::entrada(const std::string& cid, const std::string& aparato, con
     else if (t == "mirar") mirar(cid, msg);
     else if (t == "hola") enviarAuth(cid);
     else if (t == "preferencias") preferencias(cid, msg);
+    else if (t == "salida") {
+        if (const std::string e = setSalida(conns_[cid].aparato, textoDe(msg, "salida")); !e.empty()) {
+            json m = mensajeSalida(conns_[cid].aparato);
+            m["error"] = e;
+            mandar(cid, m);
+        }
+    }
 }
 
 void ControlWeb::preferencias(const std::string& cid, const json& msg) {
@@ -605,7 +620,8 @@ void ControlWeb::llamar(const std::string& cid, const json& msg) {
                                   : llenar(traducir("control-web", "llamó %1 %2"), {h, mcp::Traza::resumir(args, 220)}));
     // Una persona apretando, como la botonera: no pasa por la aprobación del
     // asistente ni por la guarda de aire (la confirmó en su pantalla).
-    const mcp::CallContext ctx{"control-web:" + c.aparato, "", "control-web:" + c.aparato, true, {}};
+    mcp::CallContext ctx{"control-web:" + c.aparato, "", "control-web:" + c.aparato, true, {}};
+    ctx.salida = salidaDe(c.aparato); // la que maneja el aparato (PLAN-SALIDAS)
     QPointer<ControlWeb> yo(this);
     core_->callTool({{"name", h}, {"arguments", args}},
                     [yo, cid, id, h](json r) {
@@ -659,8 +675,9 @@ void ControlWeb::mirar(const std::string& cid, const json& msg) {
     mandar(cid, {{"type", "mirando"}, {"temas", lista}, {"rechazados", rechazados}});
     // Lo que ya se sabe de lo recién pedido, ya (sin esperar a que cambie). Lo
     // que nadie miraba arranca acá abajo y su primera consulta le llega a todos.
+    const std::string sal = salidaDe(c.aparato);
     for (const auto& t : agregados) {
-        const auto s = sondeos_.find(t);
+        const auto s = sondeos_.find(claveSondeo(t, sal));
         if (s != sondeos_.end() && !s->second.ultimo.empty())
             mandar(cid, {{"type", "estado"}, {"tema", t}, {"datos", s->second.datos}});
     }
@@ -668,35 +685,46 @@ void ControlWeb::mirar(const std::string& cid, const json& msg) {
 }
 
 void ControlWeb::reacomodarSondeos() {
-    std::set<std::string> mirados;
-    for (const auto& [cid, c] : conns_) mirados.insert(c.temas.begin(), c.temas.end());
-    for (auto it = sondeos_.begin(); it != sondeos_.end();) {
-        if (mirados.count(it->first)) {
-            ++it;
-            continue;
-        }
-        const std::string tema = it->first;
-        it = sondeos_.erase(it); // nadie lo mira: no se consulta más
-        if (g_.mirando) g_.mirando(tema, false);
+    // Uno por tema y salida mirados; «mirando» avisa por tema (lo mire una salida o varias).
+    std::map<std::string, std::pair<std::string, std::string>> mirados; // clave -> (tema, salida)
+    for (const auto& [cid, c] : conns_) {
+        const std::string sal = salidaDe(c.aparato);
+        for (const auto& t : c.temas) mirados[claveSondeo(t, sal)] = {t, sal};
     }
-    for (const auto& tema : mirados) {
-        if (sondeos_.count(tema)) continue;
-        const auto t = std::find_if(temas().begin(), temas().end(), [&](const Tema& y) { return y.id == tema; });
+    std::set<std::string> temasAntes, temasAhora;
+    for (const auto& [k, s] : sondeos_) temasAntes.insert(s.tema);
+    for (const auto& [k, ts] : mirados) temasAhora.insert(ts.first);
+    for (auto it = sondeos_.begin(); it != sondeos_.end();) {
+        if (mirados.count(it->first)) ++it;
+        else it = sondeos_.erase(it); // nadie lo mira: no se consulta más
+    }
+    for (const auto& tema : temasAntes)
+        if (!temasAhora.count(tema) && g_.mirando) g_.mirando(tema, false);
+    for (const auto& [clave, ts] : mirados) {
+        if (sondeos_.count(clave)) continue;
+        const auto t = std::find_if(temas().begin(), temas().end(), [&](const Tema& y) { return y.id == ts.first; });
         if (t == temas().end()) continue;
-        Sondeo& s = sondeos_[tema];
+        Sondeo& s = sondeos_[clave];
+        s.tema = ts.first;
+        s.salida = ts.second;
         s.timer = std::make_unique<QTimer>();
         s.timer->setInterval(t->periodoMs);
-        connect(s.timer.get(), &QTimer::timeout, this, [this, tema]() { sondear(tema); });
+        const std::string k = clave;
+        connect(s.timer.get(), &QTimer::timeout, this, [this, k]() { sondear(k); });
         s.timer->start();
-        if (g_.mirando) g_.mirando(tema, true);
-        sondear(tema);
+        if (!temasAntes.count(ts.first) && g_.mirando) {
+            g_.mirando(ts.first, true);
+            temasAntes.insert(ts.first); // una vez por tema
+        }
+        sondear(clave);
     }
 }
 
-void ControlWeb::sondear(const std::string& tema) {
-    auto it = sondeos_.find(tema);
+void ControlWeb::sondear(const std::string& clave) {
+    auto it = sondeos_.find(clave);
     if (it == sondeos_.end() || core_ == nullptr) return;
     Sondeo& s = it->second;
+    const std::string tema = s.tema, salida = s.salida;
     const std::int64_t ahora = ahoraMs();
     if (s.enCurso && ahora - s.desdeMs < kSondeoTrabadoMs()) return; // la consulta anterior todavía no volvió
     const auto t = std::find_if(temas().begin(), temas().end(), [&](const Tema& y) { return y.id == tema; });
@@ -717,9 +745,9 @@ void ControlWeb::sondear(const std::string& tema) {
     std::weak_ptr<std::function<void(std::size_t)>> debil = paso;
     QPointer<ControlWeb> yo(this);
     const std::int64_t desde = ahora;
-    *paso = [yo, tema, herramientas, acumulado, debil, desde](std::size_t i) {
+    *paso = [yo, clave, tema, salida, herramientas, acumulado, debil, desde](std::size_t i) {
         if (!yo) return;
-        auto si = yo->sondeos_.find(tema);
+        auto si = yo->sondeos_.find(clave);
         if (si == yo->sondeos_.end() || si->second.desdeMs != desde) return; // nadie lo mira, o vuelta vieja
         if (i >= herramientas.size()) {
             Sondeo& s = si->second;
@@ -731,7 +759,7 @@ void ControlWeb::sondear(const std::string& tema) {
             s.datos = datos;
             QStringList a;
             for (const auto& [cid, c] : yo->conns_)
-                if (c.temas.count(tema)) a << QString::fromStdString(cid);
+                if (c.temas.count(tema) && yo->salidaDe(c.aparato) == salida) a << QString::fromStdString(cid);
             if (!a.isEmpty()) emit yo->enviar(a, json{{"type", "estado"}, {"tema", tema}, {"datos", datos}});
             return;
         }
@@ -745,7 +773,9 @@ void ControlWeb::sondear(const std::string& tema) {
         const std::string h = herramientas[i];
         auto llamado = std::make_shared<bool>(false);
         try {
-            tool->run(json::object(), [fuerte, acumulado, h, i, llamado](mcp::ToolResult r) {
+            // Sin despachador no hay contexto: una herramienta de salida la recibe en los argumentos.
+            const json args = tool->porSalida && !salida.empty() ? json{{"salida", salida}} : json::object();
+            tool->run(args, [fuerte, acumulado, h, i, llamado](mcp::ToolResult r) {
                 if (*llamado) return; // una sola respuesta
                 *llamado = true;
                 (*acumulado)[h] = r.isError ? json{{"error", datosDe(nullptr, r.content)}} : datosDe(r.structured, r.content);
@@ -762,9 +792,79 @@ void ControlWeb::sondear(const std::string& tema) {
     (*paso)(0);
 }
 
+std::string ControlWeb::salidaExistente(const std::string& salida) const {
+    if (salida.empty()) return {};
+    if (!g_.salidas) return salida; // sin la lista (pruebas sin app): se confía
+    const json lista = g_.salidas();
+    for (const auto& s : lista)
+        if (s.value("id", std::string()) == salida) return salida;
+    const QString pedida = QString::fromStdString(salida);
+    for (const auto& s : lista)
+        if (QString::fromStdString(s.value("nombre", std::string())).compare(pedida, Qt::CaseInsensitive) == 0)
+            return s.value("id", std::string());
+    return {};
+}
+
+std::string ControlWeb::salidaDe(const std::string& aparato) const {
+    const json* a = buscarAparato(aparato);
+    if (a == nullptr) return {};
+    const std::string s = salidaExistente(a->value("salida", std::string()));
+    // La por omisión se maneja como "" (lo que no dice salida va a esa).
+    if (g_.salidas)
+        for (const auto& x : g_.salidas())
+            if (x.value("id", std::string()) == s && x.value("por_omision", false)) return {};
+    return s;
+}
+
+json ControlWeb::mensajeSalida(const std::string& aparato) const {
+    return {{"type", "salida"}, {"salida", salidaDe(aparato)}, {"salidas", g_.salidas ? g_.salidas() : json::array()}};
+}
+
+std::string ControlWeb::setSalida(const std::string& aparato, const std::string& salida) {
+    json* a = buscarAparato(aparato);
+    if (a == nullptr) return traducir("control-web", "no hay ese aparato");
+    std::string id;
+    if (!salida.empty()) {
+        id = salidaExistente(salida);
+        if (id.empty()) return llenar(traducir("control-web", "no hay una salida «%1»"), {salida});
+    }
+    if (id.empty()) a->erase("salida");
+    else (*a)["salida"] = id;
+    guardar();
+    auditar(aparato, llenar(traducir("control-web", "maneja la salida «%1»"), {id.empty() ? std::string("-") : id}));
+    // A todas sus conexiones: la salida nueva y, de lo que miran, lo de esa salida.
+    const json m = mensajeSalida(aparato);
+    const std::string sal = salidaDe(aparato);
+    reacomodarSondeos();
+    for (const auto& [cid, c] : conns_) {
+        if (c.aparato != aparato) continue;
+        mandar(cid, m);
+        for (const auto& t : c.temas)
+            if (const auto s = sondeos_.find(claveSondeo(t, sal)); s != sondeos_.end() && !s->second.ultimo.empty())
+                mandar(cid, {{"type", "estado"}, {"tema", t}, {"datos", s->second.datos}});
+    }
+    emit aparatosCambio();
+    return {};
+}
+
+void ControlWeb::salidasCambiaron() {
+    const std::string ahora = g_.salidas ? volcar(g_.salidas()) : std::string();
+    if (ahora == ultimasSalidas_) return;
+    ultimasSalidas_ = ahora;
+    reacomodarSondeos(); // la de un aparato puede haber dejado de existir: vuelve a la por omisión
+    for (const auto& [cid, c] : conns_) mandar(cid, mensajeSalida(c.aparato));
+    emit aparatosCambio();
+}
+
 // ============================================================================
 // Interfaz
 // ============================================================================
+
+QVariantList ControlWeb::salidasUi() const { return aQv(g_.salidas ? g_.salidas() : json::array()).toList(); }
+
+QString ControlWeb::salidaUi(const QString& aparato, const QString& salida) {
+    return QString::fromStdString(setSalida(aparato.toStdString(), salida.toStdString()));
+}
 
 QVariantList ControlWeb::aparatosUi() const {
     QVariantList out;

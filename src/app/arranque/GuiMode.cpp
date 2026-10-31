@@ -431,9 +431,11 @@ int runGui(int argc, char** argv) {
         {
             auto& g = vm.botonera().ganchos();
             g.ejecutar = [&mcpService](const std::string& h, const nlohmann::json& args, const std::string& dev,
-                                       const std::string& perfil, control::Botonera::Listo listo) {
+                                       const std::string& perfil, const std::string& salida,
+                                       control::Botonera::Listo listo) {
                 // El aparato «asistente» (botonera_presionar) no es una persona.
                 mcp::CallContext ctx{"botonera:" + dev, "", "botonera:" + perfil, dev != "asistente", {}};
+                ctx.salida = salida; // la que maneja el aparato (PLAN-SALIDAS)
                 mcpService.core().callTool({{"name", h}, {"arguments", args}},
                                            [listo](nlohmann::json r) {
                                                std::string texto;
@@ -463,8 +465,9 @@ int runGui(int argc, char** argv) {
         }
         // Los atajos de teclado: una persona apretando una tecla (como la botonera).
         vm.acciones().ganchos().ejecutar = [&mcpService, &vm](const std::string& h, const nlohmann::json& args,
-                                                              control::Acciones::Listo listo) {
+                                                              const std::string& salida, control::Acciones::Listo listo) {
             mcp::CallContext ctx{"atajo", "", "atajo", true, {}};
+            ctx.salida = salida; // la que manejan los atajos (o la que dice la acción)
             mcpService.core().callTool({{"name", h}, {"arguments", args}},
                                        [listo, &vm](nlohmann::json r) {
                                            const bool ok = !r.value("isError", false);

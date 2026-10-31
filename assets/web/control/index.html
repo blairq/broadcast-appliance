@@ -24,7 +24,9 @@
     en el primer mensaje del WebSocket (/ws?control), nunca en la URL.
 
     Cada tarjeta mira sus temas (la app empuja el estado cuando cambia) y llama
-    herramientas de la app; las que cortan el aire piden confirmación acá. Con
+    herramientas de la app; las que cortan el aire piden confirmación acá. Con varias
+    salidas, el aparato maneja una (el selector de arriba o la tarjeta «Salidas»): lo
+    que llama va a esa y lo que miran las tarjetas es de esa. Con
     #tarjeta=<id> se muestra UNA tarjeta a pantalla completa (lo que abre ⤢ en una
     pestaña nueva).
   -->
@@ -32,6 +34,8 @@
     <span class="marca"><span class="punto-marca"></span><strong data-i18n="Control">Control</strong></span>
     <span id="aparato" class="suave"></span>
     <ba-tally id="tally" estado="nada" etiqueta="Fuera del aire"></ba-tally>
+    <!-- La salida que maneja este aparato (con su color), si hay varias: lo que llama y lo que miran las tarjetas es de esa. -->
+    <select id="salida" class="salida oculto" title="Qué salida maneja este aparato" data-i18n-title="Qué salida maneja este aparato"></select>
     <span class="espacio"></span>
     <ba-chip id="conexion" estado="apagado" data-i18n="Desconectado">Desconectado</ba-chip>
     <ba-boton id="botonTarjetas" compacto title="Qué tarjetas mostrar" data-i18n-title="Qué tarjetas mostrar" data-i18n="▦ Tarjetas">▦ Tarjetas</ba-boton>

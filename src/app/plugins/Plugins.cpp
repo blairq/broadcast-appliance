@@ -1217,7 +1217,8 @@ void Plugins::recibir(const std::string& id, const json& m) {
     } else if (t == "superficie_entrada") {
         // Solo lo de un aparato que este plugin registró, y solo tipos de entrada.
         const std::string sid = "plugin:" + id + "/" + m.value("id", std::string("1"));
-        static const std::set<std::string> tipos{"hola", "presionar", "soltar", "valor", "girar", "pagina", "confirmar", "cancelar"};
+        static const std::set<std::string> tipos{"hola",      "presionar", "soltar",   "valor", "girar",
+                                                 "pagina",    "confirmar", "cancelar", "salida"};
         const json msg = m.value("msg", json::object());
         if (superficiesDe_[id].count(sid) && msg.is_object() && tipos.count(msg.value("type", std::string())) && entradaSup_)
             entradaSup_(sid, msg);

@@ -78,7 +78,7 @@ inline int kLatidoMs() { return ba::ajustes::sAMs("botoneraWeb.latidoS", 30); }
 inline int kAuthMs() { return ba::ajustes::sAMs("botoneraWeb.authS", 10); }
 inline std::int64_t kSolicitudMs() { return ba::ajustes::entero64("botoneraWeb.solicitudMin", 5) * 60 * 1000; }
 const std::set<std::string> kTipos{"hola",      "presionar", "soltar", "valor",  "girar",
-                                   "pagina",    "confirmar", "cancelar", "editar"};
+                                   "pagina",    "confirmar", "cancelar", "editar", "salida"};
 
 } // namespace
 

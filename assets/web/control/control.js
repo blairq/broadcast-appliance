@@ -73,7 +73,7 @@
   let ws = null, autenticado = false, espera = 1000, siguienteId = 1, latido = 0;
   const pendientes = new Map(); // id → {resolver, rechazar, herramienta, args}
   const temasMirados = new Set();
-  BA.control = { herramientas: [], perfil: [], estado: {} };
+  BA.control = { herramientas: [], perfil: [], estado: {}, salida: "", salidas: [] };
 
   function conectar() {
     const token = leer(CLAVE_TOKEN);
@@ -126,12 +126,17 @@
         if (m.preferencias && Array.isArray(m.preferencias.ocultas)) guardar(CLAVE_OCULTAS, JSON.stringify(m.preferencias.ocultas));
         else if (ocultas().size) ws.send(JSON.stringify({ type: "preferencias", datos: { ocultas: [...ocultas()] } })); // lo de antes, a la app
         $("aparato").textContent = m.nombre ? "· " + m.nombre : "";
+        salidaNueva(m);
         herramientasNuevas = m.herramientas || [];
         if (!m.mas) listasLasHerramientas();
         break;
       case "herramientas": // las tandas que siguen al auth (el catálogo no entra en un mensaje)
         herramientasNuevas = herramientasNuevas.concat(m.herramientas || []);
         if (!m.mas) listasLasHerramientas();
+        break;
+      case "salida": // cambió la salida que maneja el aparato (o la lista de salidas)
+        if (m.error) avisar(t(m.error), true);
+        salidaNueva(m);
         break;
       case "mirando":
         for (const r of m.rechazados || []) console.warn("tema rechazado", r.tema, r.error);
@@ -191,6 +196,41 @@
     for (const t of temas) if (!temasMirados.has(t)) { temasMirados.add(t); nuevos = true; }
     if (nuevos && autenticado) ws.send(JSON.stringify({ type: "mirar", temas: [...temasMirados] }));
   }
+
+  // --- La salida que maneja el aparato ----------------------------------------------------
+  // "" = la por omisión. Lo que llama va a esa (la app la pone en el contexto) y los temas
+  // que miran las tarjetas son de esa: al cambiarla, la app vuelve a mandar lo de la nueva.
+  function salidaNueva(m) {
+    BA.control.salida = m.salida || "";
+    BA.control.salidas = m.salidas || [];
+    const lista = BA.control.salidas;
+    const sel = $("salida");
+    sel.classList.toggle("oculto", lista.length < 2);
+    const actual = BA.control.salidaActual();
+    sel.replaceChildren(...lista.map((x) => {
+      const o = document.createElement("option");
+      o.value = x.id;
+      o.textContent = x.nombre || x.id;
+      o.selected = actual && x.id === actual.id;
+      return o;
+    }));
+    sel.style.borderColor = (actual && actual.color) || "";
+    sel.style.boxShadow = actual && actual.color ? "inset 4px 0 0 " + actual.color : "";
+    dispatchEvent(new CustomEvent("ba-salida", { detail: { salida: BA.control.salida, salidas: lista } }));
+  }
+  // La salida que maneja: {id, nombre, color, por_omision} (la por omisión si no eligió).
+  BA.control.salidaActual = () => {
+    const l = BA.control.salidas;
+    return l.find((x) => x.id === BA.control.salida) || l.find((x) => x.por_omision) || l[0] || null;
+  };
+  // Pasar a manejar otra salida (la app contesta con {type: "salida"}).
+  BA.control.elegirSalida = (id) => {
+    if (ws && ws.readyState === WebSocket.OPEN && autenticado) {
+      const x = BA.control.salidas.find((y) => y.id === id);
+      ws.send(JSON.stringify({ type: "salida", salida: x && x.por_omision ? "" : id }));
+    }
+  };
+  $("salida").addEventListener("change", (ev) => BA.control.elegirSalida(ev.target.value));
 
   // --- Confirmar ------------------------------------------------------------------------
   function pedirConfirmacion(texto) {

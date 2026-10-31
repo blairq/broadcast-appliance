@@ -9,6 +9,7 @@
 #include <QVariant>
 
 #include <algorithm>
+#include <set>
 #include <fstream>
 
 namespace ba::app::control {
@@ -26,6 +27,12 @@ QVariant aQv(const json& j) {
 json herr(const std::string& id, const std::string& nombre, const std::string& grupo, const std::string& h,
           json args = json::object()) {
     return {{"id", id}, {"nombre", nombre}, {"grupo", grupo}, {"herramienta", h}, {"args", std::move(args)}};
+}
+
+/// Las acciones de aire que se listan también para cada salida («take@cam2»).
+const std::set<std::string>& dePorSalida() {
+    static const std::set<std::string> s{"take", "ftb", "ftb_sacar", "placa", "placa_sacar", "grabar"};
+    return s;
 }
 
 /// El texto canónico de una tecla («ctrl+shift+t» -> «Ctrl+Shift+T»): así no hay dos iguales escritas distinto.
@@ -83,6 +90,31 @@ json Acciones::catalogo() const {
             c.push_back(herr("cortar:" + e, llenar(traducir("acciones", "Cortar a «%1»"), {e}), escenas, "scene_switch",
                              {{"name", e}}));
         }
+    if (g_.salidas) {
+        // Con varias salidas: cambiar la que manejan los atajos, y las de aire de cada una.
+        const json ss = g_.salidas();
+        if (ss.size() > 1) {
+            const std::string grupo = traducir("acciones", "Salidas");
+            c.push_back({{"id", "salida:siguiente"}, {"nombre", traducir("acciones", "Manejar la salida siguiente")},
+                         {"grupo", grupo}, {"interna", true}});
+            c.push_back({{"id", "salida:anterior"}, {"nombre", traducir("acciones", "Manejar la salida anterior")},
+                         {"grupo", grupo}, {"interna", true}});
+            const json base = c; // las de aire de la por omisión, para copiarlas por salida
+            for (const auto& s : ss) {
+                const std::string id = s.value("id", std::string()), nombre = s.value("nombre", id);
+                c.push_back({{"id", "salida:" + id}, {"nombre", llenar(traducir("acciones", "Manejar «%1»"), {nombre})},
+                             {"grupo", grupo}, {"interna", true}});
+                for (const auto& a : base) {
+                    if (!dePorSalida().count(a.value("id", std::string()))) continue;
+                    json x = a;
+                    x["id"] = a.value("id", std::string()) + "@" + id;
+                    x["nombre"] = a.value("nombre", std::string()) + " — " + nombre;
+                    x["grupo"] = llenar(traducir("acciones", "Salida «%1»"), {nombre});
+                    c.push_back(std::move(x));
+                }
+            }
+        }
+    }
     if (g_.fuentesAudio)
         for (const auto& f : g_.fuentesAudio())
             c.push_back({{"id", "mudo:" + f},
@@ -92,7 +124,66 @@ json Acciones::catalogo() const {
     return c;
 }
 
-json Acciones::resolver(const std::string& id) const {
+std::string Acciones::salidaExistente(const std::string& id) const {
+    if (id.empty() || !g_.salidas) return {};
+    const QString pedida = QString::fromStdString(id);
+    for (const auto& s : g_.salidas())
+        if (s.value("id", std::string()) == id ||
+            QString::fromStdString(s.value("nombre", std::string())).compare(pedida, Qt::CaseInsensitive) == 0)
+            return s.value("id", std::string());
+    return {};
+}
+
+std::string Acciones::setSalida(const std::string& salida) {
+    std::string nueva;
+    if (salida == "siguiente" || salida == "anterior") {
+        const json ss = g_.salidas ? g_.salidas() : json::array();
+        if (ss.empty()) return {};
+        int i = 0;
+        for (int k = 0; k < static_cast<int>(ss.size()); ++k)
+            if (ss[k].value("id", std::string()) == salida_ || (salida_.empty() && ss[k].value("por_omision", false))) i = k;
+        const int n = static_cast<int>(ss.size());
+        nueva = ss[((i + (salida == "siguiente" ? 1 : -1)) % n + n) % n].value("id", std::string());
+    } else if (!salida.empty()) {
+        nueva = salidaExistente(salida);
+        if (nueva.empty()) return llenar(traducir("acciones", "no hay una salida «%1»"), {salida});
+    }
+    // La por omisión se guarda como "" (lo que no dice salida va a esa).
+    if (g_.salidas)
+        for (const auto& s : g_.salidas())
+            if (s.value("id", std::string()) == nueva && s.value("por_omision", false)) nueva.clear();
+    if (nueva == salida_) return {};
+    salida_ = nueva;
+    emit salidaCambio();
+    return {};
+}
+
+json Acciones::resolver(const std::string& pedido) const {
+    // «<acción>@<salida>»: esa acción en esa salida (si lo que sigue a la @ es una salida;
+    // si no, la @ es parte del nombre, p. ej. de una escena).
+    std::string id = pedido, salida = salida_;
+    bool pedida = false;
+    if (const auto arroba = pedido.rfind('@'); arroba != std::string::npos)
+        if (const std::string s = salidaExistente(pedido.substr(arroba + 1)); !s.empty()) {
+            id = pedido.substr(0, arroba);
+            salida = s;
+            pedida = true;
+        }
+    json r = resolverSinSalida(id, salida);
+    if (!r.contains("error") && !r.contains("elegir_salida")) {
+        r["salida"] = salida;
+        r["salida_pedida"] = pedida; // la dice la acción («@<salida>»), no los atajos
+    }
+    return r;
+}
+
+json Acciones::resolverSinSalida(const std::string& id, const std::string& salida) const {
+    if (id.rfind("salida:", 0) == 0) {
+        const std::string s = id.substr(7);
+        if (s != "siguiente" && s != "anterior" && salidaExistente(s).empty())
+            return {{"error", llenar(traducir("acciones", "no hay una salida «%1»"), {s})}};
+        return {{"elegir_salida", s}};
+    }
     // Las internas: alternar algo que depende del estado.
     if (id.rfind("dsk:", 0) == 0) {
         const int capa = std::atoi(id.c_str() + 4);
@@ -102,7 +193,7 @@ json Acciones::resolver(const std::string& id) const {
     }
     if (id.rfind("mudo:", 0) == 0) {
         const std::string f = id.substr(5);
-        const bool mudo = g_.mudo && g_.mudo(f);
+        const bool mudo = g_.mudo && g_.mudo(f, salida); // el mudo es de cada salida
         return {{"herramienta", "audio_set"}, {"args", {{"name", f}, {"muted", !mudo}}}};
     }
     for (const auto& a : catalogo())
@@ -116,7 +207,13 @@ std::string Acciones::ejecutar(const std::string& id, Listo listo) {
     if (!listo) listo = [](bool, const std::string&) {};
     const json r = resolver(id);
     if (r.contains("error")) return r.value("error", std::string());
-    g_.ejecutar(r.value("herramienta", std::string()), r.value("args", json::object()), listo);
+    if (r.contains("elegir_salida")) {
+        const std::string e = setSalida(r.value("elegir_salida", std::string()));
+        listo(e.empty(), e);
+        return e;
+    }
+    g_.ejecutar(r.value("herramienta", std::string()), r.value("args", json::object()), r.value("salida", std::string()),
+                listo);
     return {};
 }
 
@@ -140,9 +237,8 @@ void Acciones::registrarGlobales() {
 std::string Acciones::asignar(const std::string& tecla, const std::string& accion, bool global) {
     const std::string t = canonica(tecla);
     if (t.empty()) return llenar(traducir("acciones", "la tecla «%1» no se entiende (p. ej. «Ctrl+Shift+T» o «F5»)"), {tecla});
-    bool existe = false;
-    for (const auto& a : catalogo()) existe = existe || a.value("id", std::string()) == accion;
-    if (!existe) return llenar(traducir("acciones", "no hay una acción «%1»"), {accion});
+    // Lo que resuelve existe (también «armar:<escena>@<salida>», que no se lista).
+    if (resolver(accion).contains("error")) return llenar(traducir("acciones", "no hay una acción «%1»"), {accion});
     // Conflicto: la misma tecla en otra acción.
     for (const auto& a : atajos_)
         if (a.value("tecla", std::string()) == t && a.value("accion", std::string()) != accion)
