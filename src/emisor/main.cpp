@@ -23,6 +23,15 @@
 // archivos y deja en su estado `cerrado` con el `seq` del pedido que tenía: al volver
 // a abrir, ESE pedido no se retoma (se espera uno nuevo de la app). No toca el
 // pedido (es de la app).
+//
+// AL CERRAR EN ORDEN, la grabación se pasa a MP4/MOV si el pedido lo dice (`remux`),
+// como hace la app al parar la suya (motor::remuxarYVerificar: el MKV se borra recién
+// con el nuevo verificado). Lo que falta pasar queda anotado en el estado
+// (`remux_pendiente`) antes de empezar: si el launcher no espera o se corta la luz, el
+// emisor que vuelve lo termina en segundo plano. El launcher espera mientras late.
+//
+// En Windows, `d3d12upload` delante del codificador (motor::ponerSubidaD3d12): el
+// video llega en NV12 de sistema y los codificadores de D3D12 lo toman de la placa.
 // ============================================================================
 
 #include "Emisor.hpp"
@@ -47,6 +56,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <thread>
@@ -88,6 +99,80 @@ std::string valorDe(const std::string& arg, const char* prefijo) {
     const std::string p(prefijo);
     return arg.rfind(p, 0) == 0 ? arg.substr(p.size()) : std::string();
 }
+
+/// Lo que falta pasar a MP4/MOV (ver AL CERRAR EN ORDEN arriba): una lista que se
+/// achica a medida que pasa cada archivo, en segundo plano al arrancar o al cerrar.
+class Remux {
+   public:
+    ~Remux() {
+        if (hilo_.joinable()) hilo_.join();
+    }
+    /// Suma {formato, archivos} (los que todavía están).
+    void anotar(const nlohmann::json& r) {
+        if (!r.is_object() || !r.contains("archivos") || !r["archivos"].is_array()) return;
+        const std::string f = r.value("formato", std::string());
+        if (f != "mp4" && f != "mov") return;
+        std::lock_guard<std::mutex> l(mu_);
+        for (const auto& a : r["archivos"]) {
+            if (!a.is_string()) continue;
+            const std::string s = a.get<std::string>();
+            std::error_code ec;
+            if (std::filesystem::exists(std::filesystem::path(std::u8string(s.begin(), s.end())), ec)) falta_.emplace_back(s, f);
+        }
+    }
+    /// {formato, archivos} de lo que falta (null si nada): el formato es el de la última
+    /// grabación (una sola por emisor).
+    nlohmann::json pendiente() const {
+        std::lock_guard<std::mutex> l(mu_);
+        if (falta_.empty()) return nullptr;
+        nlohmann::json a = nlohmann::json::array();
+        for (const auto& [archivo, f] : falta_) a.push_back(archivo);
+        return {{"formato", falta_.back().second}, {"archivos", a}};
+    }
+    /// Lo pasa en un hilo (al arrancar: no frena el aire).
+    void enSegundoPlano() {
+        if (pendiente().is_null()) return;
+        hilo_ = std::thread([this]() { pasar(nullptr); });
+    }
+    /// Lo pasa todo ya (al cerrar); `cada` después de cada archivo y cada medio segundo.
+    void terminar(const std::function<void()>& cada) {
+        if (hilo_.joinable()) hilo_.join();
+        pasar(cada);
+    }
+
+   private:
+    void pasar(const std::function<void()>& cada) {
+        for (;;) {
+            std::pair<std::string, std::string> uno;
+            {
+                std::lock_guard<std::mutex> l(mu_);
+                if (falta_.empty()) return;
+                uno = falta_.front();
+            }
+            auto ultimo = std::chrono::steady_clock::now();
+            const std::string e = ba::motor::remuxarYVerificar(uno.first, uno.second, true, [&](double) {
+                if (cada && std::chrono::steady_clock::now() - ultimo > std::chrono::milliseconds(500)) {
+                    ultimo = std::chrono::steady_clock::now();
+                    cada();
+                }
+            });
+            if (e.empty())
+                ba::motor::registrar(ba::motor::Nivel::Info, llenar(traducir("emisor", "grabación pasada a %1: %2"), {uno.second, uno.first}));
+            else
+                ba::motor::registrar(ba::motor::Nivel::Aviso,
+                                     llenar(traducir("emisor", "no se pudo pasar %1 a %2: %3 (queda el MKV)"), {uno.first, uno.second, e}));
+            {
+                std::lock_guard<std::mutex> l(mu_);
+                if (!falta_.empty()) falta_.erase(falta_.begin()); // pasado o no: no se reintenta en esta corrida
+            }
+            if (cada) cada();
+        }
+    }
+
+    mutable std::mutex mu_;
+    std::vector<std::pair<std::string, std::string>> falta_; ///< (archivo, formato)
+    std::thread hilo_;
+};
 
 /// La fecha de modificación del pedido (para no releerlo en cada vuelta).
 std::filesystem::file_time_type cuandoCambio(const std::filesystem::path& p) {
@@ -150,7 +235,11 @@ int correr(const std::vector<std::string>& args) {
     }
     // Sin GPU: lo que llega del canal ya está en memoria del sistema, y el codificador
     // de la placa lo toma de ahí (un contexto de GL o D3D12 más no ayuda en nada acá).
+    // En Windows, eso sí: lo sube d3d12upload delante de un codificador de D3D12.
     ba::motor::ponerGpuVideo(false);
+#ifdef _WIN32
+    ba::motor::ponerSubidaD3d12(ba::ajustes::siNo("emisor.d3d12upload", true));
+#endif
     ba::motor::Reloj reloj;
     if (!reloj.valido()) {
         std::fprintf(stderr, "ba-emisor: %s\n", reloj.error().c_str());
@@ -171,12 +260,24 @@ int correr(const std::vector<std::string>& args) {
     bool primero = true;
     // Si la vez anterior se cerró en orden, el pedido de entonces no se retoma.
     std::optional<std::uint64_t> seqCerrado;
+    Remux remux;
     {
         std::string txt;
         const nlohmann::json e = ba::persist::leerArchivo(rutaEstado, txt) ? nlohmann::json::parse(txt, nullptr, false) : nlohmann::json();
         if (e.is_object() && e.value("cerrado", false) && e.contains("seq_visto") && e["seq_visto"].is_number_unsigned())
             seqCerrado = e["seq_visto"].get<std::uint64_t>();
+        // Lo que quedó por pasar a MP4/MOV la vez anterior: en segundo plano, ya.
+        if (e.is_object()) remux.anotar(e.value("remux_pendiente", nlohmann::json()));
     }
+    remux.enSegundoPlano();
+    // El estado, con lo que falta pasar (si falta algo).
+    const auto escribirEstado = [&](nlohmann::json e) {
+        e["pid"] = pidPropio();
+        e["seq_visto"] = seq;
+        e["hora_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        if (nlohmann::json r = remux.pendiente(); !r.is_null()) e["remux_pendiente"] = std::move(r);
+        ba::persist::escribir(rutaEstado, e.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
+    };
     // EL LATIDO va en su hilo: parar una grabación espera que se cierre el archivo
     // (hasta 5 s, y la copia otros 5) y el launcher lo daría por colgado. Late mientras
     // el bucle dé vueltas; si el bucle se traba más de `emisor.colgadoS` (15 s), deja de
@@ -206,7 +307,7 @@ int correr(const std::vector<std::string>& args) {
         // El pedido: solo si cambió el archivo (y entonces, solo si cambió `seq`).
         if (const auto t = cuandoCambio(rutaPedido); primero || t != visto) {
             ba::emisor::Pedido p;
-            if (ba::emisor::leer(rutaPedido, p) && (primero || p.seq != seq)) {
+            if (ba::emisor::leer(runtime, id, p) && (primero || p.seq != seq)) {
                 visto = t;
                 seq = p.seq;
                 primero = false;
@@ -227,26 +328,29 @@ int correr(const std::vector<std::string>& args) {
         }
         emisor.tic();
         if (ahora >= proximoEstado) {
-            nlohmann::json e = emisor.estado();
-            e["pid"] = pidPropio();
-            e["seq_visto"] = seq;
-            e["hora_ms"] = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            ba::persist::escribir(rutaEstado, e.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
+            escribirEstado(emisor.estado());
             proximoEstado = ahora + std::chrono::seconds(1);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     ba::motor::registrar(ba::motor::Nivel::Info, traducir("emisor", "cierre ordenado: se cierran los archivos"));
     ultimaVuelta = msAhora();
-    emisor.parar();
+    const std::string formato = emisor.pedido().remux;
+    const std::vector<std::string> archivos = emisor.parar();
+    // Cerrado y con lo que falta pasar anotado ANTES de pasarlo (ver arriba).
+    if (!formato.empty()) remux.anotar({{"formato", formato}, {"archivos", archivos}});
+    nlohmann::json e = emisor.estado();
+    e["cerrado"] = true;
+    escribirEstado(e);
+    // Mientras pasa, late (el launcher espera mientras tanto) y el estado lo dice.
+    remux.terminar([&]() {
+        ultimaVuelta = msAhora();
+        escribirEstado(e);
+    });
+    escribirEstado(e);
     finLatido = true;
     if (latido.joinable()) latido.join();
     if (conSalud) salud.setState(slot, ba::ipc::ProcessState::Terminated);
-    nlohmann::json e = emisor.estado();
-    e["pid"] = pidPropio();
-    e["seq_visto"] = seq;
-    e["cerrado"] = true;
-    ba::persist::escribir(rutaEstado, e.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
     control.stop();
     return 0;
 }

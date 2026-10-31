@@ -849,8 +849,11 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
             const auto now = std::chrono::steady_clock::now();
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
                 lastRetry = now;
-                // El tamaño lo fija A al publicar (su salida), no la config de B.
-                if (receiver.subscribe(nombre.c_str())) {
+                // El tamaño lo fija A al publicar (su salida), no la config de B. Lo de acá
+                // es BGRA: un canal en otro formato (el NV12 del emisor) no se lee.
+                if (receiver.subscribe(nombre.c_str()) && receiver.formato() != ba::ipc::FormatoCanal::BGRA)
+                    receiver = SpoutReceiver{};
+                else if (receiver.width() > 0) {
                     sub = true;
                     srcW = receiver.width();
                     srcH = receiver.height();
@@ -1153,7 +1156,9 @@ void MediaPump::operatorVideoThread() {
         const auto now = std::chrono::steady_clock::now();
         if (!sub && !cfg_.operatorVideoName.empty() && now - lastRetry >= std::chrono::milliseconds(500)) {
             lastRetry = now;
-            if (receiver.subscribe(cfg_.operatorVideoName.c_str())) {
+            if (receiver.subscribe(cfg_.operatorVideoName.c_str()) && receiver.formato() != ba::ipc::FormatoCanal::BGRA)
+                receiver = SpoutReceiver{}; // solo BGRA (ver el del programa)
+            else if (receiver.width() > 0) {
                 sub = true;
                 srcW = receiver.width();
                 srcH = receiver.height();

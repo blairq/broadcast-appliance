@@ -6,7 +6,8 @@
 //   ningún puerto, así que las ESCRIBE en Runtime/metricas-launcher.prom (el mismo
 //   texto de Prometheus), cada pocos segundos y de forma atómica (persist::escribir:
 //   quien lo lee nunca ve un archivo a medias). Lo que cuenta: caídas y cuelgues de
-//   cada hijo, vueltas del supervisor y latidos del watchdog de hardware.
+//   cada hijo (app, gateway y los emisores aparte), vueltas del supervisor y latidos
+//   del watchdog de hardware.
 //
 // Modelo de threading:
 //   Lo usa solo el hilo del supervisor.
@@ -15,13 +16,15 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <string>
 
 namespace ba::launcher {
 
 class MetricasLauncher {
    public:
-    /// Una caída (`cuelgue` = el latido se quedó quieto) de A (`esApp`) o de B.
-    static void falla(bool esApp, bool cuelgue);
+    /// Una caída (`cuelgue` = el latido se quedó quieto) de un hijo: `proceso` es su
+    /// componente («app», «gateway», «emisor»), la etiqueta de la métrica.
+    static void falla(const std::string& proceso, bool cuelgue);
     /// Una vuelta del supervisor; cada `cadaMs` escribe el archivo en `runtime`.
     /// `latidosPerro`: los del watchdog de hardware (0 si está apagado).
     void vuelta(const std::filesystem::path& runtime, std::uint64_t ahoraMs, std::uint64_t latidosPerro,

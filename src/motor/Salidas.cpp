@@ -253,7 +253,7 @@ std::string elegirCodificador(const std::vector<std::string>& preferidos, const 
     // cuadro): en AMD d3d12h264enc antes que AMF (que pide D3D11), en NVIDIA
     // d3d12h264enc antes que NVENC por CUDA. Dentro de la lista pedida (si el
     // usuario eligió uno solo, ese).
-    if (gpu() == Gpu::D3D12)
+    if (gpu() == Gpu::D3D12 || subidaD3d12()) // (o el emisor, que sube a D3D12: ponerSubidaD3d12)
         for (const auto& f : lista)
             if (sirve(f) && aceptaMemoria(f, "D3D12Memory")) return f;
     for (const auto& f : lista)
@@ -707,6 +707,20 @@ std::string remuxar(const std::string& origen, const std::string& destino, const
     gst_object_unref(p);
     if (error.empty() && progreso) progreso(1.0);
     return error;
+}
+
+std::string remuxarYVerificar(const std::string& origen, const std::string& formato, bool borrarOrigen,
+                              const std::function<void(double)>& progreso) {
+    const std::string destino = std::filesystem::path(origen).replace_extension("." + formato).string();
+    const std::string e = remuxar(origen, destino, progreso);
+    if (!e.empty()) return e;
+    // Antes de borrar el MKV: que exista y que no sea mucho más chico.
+    std::error_code ec;
+    const auto tamO = std::filesystem::file_size(origen, ec);
+    const auto tamD = ec ? 0 : std::filesystem::file_size(destino, ec);
+    if (ec || tamD == 0 || tamD * 10 < tamO * 9) return traducir("motor", "el archivo nuevo no se verificó (tamaño)");
+    if (borrarOrigen) std::filesystem::remove(origen, ec);
+    return {};
 }
 
 namespace {

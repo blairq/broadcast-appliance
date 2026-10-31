@@ -170,6 +170,24 @@ int main() {
         std::printf("principal %s, B %s\n", txt(a).c_str(), txt(b).c_str());
         CHECK(igual(a, 255, 0, 0), "la principal, roja");
         CHECK(igual(b, 0, 255, 0), "la B, verde");
+        // La vista en NV12 (el canal del emisor aparte, F3-01): los dos planos, el UV
+        // después del Y; el rojo tiene el V alto y el U bajo.
+        CHECK(m.verPedir("programa@emisor", 320, 180, "NV12").empty(), "ver el programa en NV12");
+        Cuadro c;
+        std::uint64_t serie = 0;
+        for (int i = 0; i < 60 && !m.verUltimo("programa@emisor", c, serie); ++i) esperar(50);
+        CHECK(c.nv12 && c.ancho == 320 && c.alto == 180, "un cuadro NV12 del tamaño pedido");
+        CHECK(c.desdeUv >= static_cast<std::size_t>(c.stride) * 180 && c.strideUv >= 320 &&
+                  c.bgra.size() >= c.desdeUv + static_cast<std::size_t>(c.strideUv) * 90,
+              "con el plano UV después del Y");
+        if (c.nv12 && !c.bgra.empty()) {
+            const std::uint8_t* uv = c.bgra.data() + c.desdeUv + static_cast<std::size_t>(c.strideUv) * 45 + 160;
+            std::printf("NV12 en el centro: Y %d, U %d, V %d\n", c.bgra.data()[c.stride * 90 + 160], uv[0], uv[1]);
+            CHECK(uv[1] > 200 && uv[0] < 128, "el rojo en NV12");
+        }
+        m.verSoltar("programa@emisor");
+        m.pistasAlEmisor("b", {2});
+        CHECK(fallo("pistasAlEmisor"), "las pistas al emisor, solo con emisor");
         const json e = m.estado();
         CHECK(e["video"].value("al_aire", "") == "Roja", "los campos de siempre: la por omisión");
         CHECK(e["salidas"]["b"].value("al_aire", "") == "Verde", "la B dice lo suyo");

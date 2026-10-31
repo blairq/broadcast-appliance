@@ -1469,12 +1469,26 @@ bool aceptaMemoria(const std::string& fabrica, const std::string& memoria, GstPa
     return dicenMemoria(fabrica, memoria, dir, true);
 }
 
+namespace {
+std::atomic<bool> gSubidaD3d12{false};
+} // namespace
+
+void ponerSubidaD3d12(bool si) { gSubidaD3d12 = si; }
+
+bool subidaD3d12() {
+    static const bool hay = hayFabrica("d3d12upload");
+    return gSubidaD3d12.load() && hay;
+}
+
 std::string aCodificador(const std::string& codificador) {
     // Con la colorimetría del lienzo dicha: el que convierte de RGBA a NV12 usa
     // esa matriz y el codificador la escribe en el archivo (ver fijarColorSalida).
     const std::string col = ",colorimetry=" + colorSalida();
     if (gpu() == Gpu::D3D12 && aceptaMemoria(codificador, "D3D12Memory"))
         return "d3d12upload ! d3d12convert ! video/x-raw(memory:D3D12Memory),format=NV12" + col;
+    // El emisor: ya llega en NV12 (videoconvert lo deja pasar) y se sube tal cual.
+    if (!gpuVideo() && subidaD3d12() && aceptaMemoria(codificador, "D3D12Memory"))
+        return "videoconvert ! video/x-raw,format=NV12" + col + " ! d3d12upload ! video/x-raw(memory:D3D12Memory),format=NV12" + col;
     if (!gpuVideo()) return "videoconvert ! video/x-raw,format=NV12" + col;
     const std::string mem = gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory";
     return subirGpu() + " ! video/x-raw(memory:" + mem + "),format=NV12" + col + " ! " + bajarGpu() +

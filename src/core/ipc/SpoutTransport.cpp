@@ -85,6 +85,9 @@ struct VideoSlotHeader {
     TimbreCompartido timbre;     // F3-13
     alignas(kSpoutCacheLine) std::uint64_t pubCount = 0; // frames publicados (atomic_ref)
     VideoBufferHeader buffers[kVideoBuffers];
+    // Versión 3: el formato de los píxeles (FormatoCanal). Después de los buffers, dentro
+    // de la página de la cabecera: uno de antes lo deja en cero, que es BGRA.
+    std::uint32_t formato = 0;
 };
 static_assert(offsetof(VideoSlotHeader, pubCount) == kSpoutCacheLine, "el período, el envío y el timbre caben antes de pubCount");
 static_assert(sizeof(VideoBufferHeader) == kSpoutCacheLine, "la cabecera de un buffer es una línea de caché");
@@ -99,10 +102,8 @@ std::size_t alignedFrame(std::size_t bytes) {
     return (bytes + kBufferAlign - 1) / kBufferAlign * kBufferAlign;
 }
 
-// BGRA 8888 (4 bytes/pixel), lo que A y B se pasan por el canal.
-std::size_t slotBytes(const SlotConfig& cfg) {
-    return static_cast<std::size_t>(cfg.width) * static_cast<std::size_t>(cfg.height) * 4u;
-}
+// BGRA 8888 (4 bytes/pixel), lo que A y B se pasan por el canal; NV12 (1,5), el del emisor.
+std::size_t slotBytes(const SlotConfig& cfg) { return bytesDeCuadro(cfg.width, cfg.height, cfg.formato); }
 
 std::uint8_t* bufferAt(VideoSlotHeader* h, std::uint32_t i) {
     return reinterpret_cast<std::uint8_t*>(h) + headerBytes() + i * alignedFrame(h->frameBytes);
@@ -265,6 +266,9 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     if (name == nullptr || cfg.width <= 0 || cfg.height <= 0) {
         return false;
     }
+    if (cfg.formato == FormatoCanal::NV12 && ((cfg.width | cfg.height) & 1) != 0) {
+        return false; // el plano UV es de la mitad: ancho y alto pares
+    }
     if (published_) {
         return false; // la resolucion es fija por slot: no se re-publica
     }
@@ -279,7 +283,8 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     }
     // Cabecera completa ANTES del magic (release): un lector que vea el magic
     // ve el resto de los campos.
-    h->version = 2;
+    h->version = 3;
+    h->formato = static_cast<std::uint32_t>(cfg.formato);
     h->width = static_cast<std::uint32_t>(cfg.width);
     h->height = static_cast<std::uint32_t>(cfg.height);
     h->frameBytes = frame;
@@ -306,9 +311,11 @@ bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& m
     if (!published_ || header_ == nullptr || pixels == nullptr || bytes > header_->frameBytes) {
         return false;
     }
-    // Un tamaño real tiene que caber en el slot y venir entero.
+    // Un tamaño real tiene que caber en el slot y venir entero (solo en BGRA: en NV12
+    // los planos van seguidos y el cuadro es siempre el del slot).
     const bool real = meta.ancho != 0 || meta.alto != 0;
-    if (real && (meta.ancho == 0 || meta.alto == 0 || meta.ancho > header_->width || meta.alto > header_->height ||
+    if (real && (header_->formato != static_cast<std::uint32_t>(FormatoCanal::BGRA) || meta.ancho == 0 || meta.alto == 0 ||
+                 meta.ancho > header_->width || meta.alto > header_->height ||
                  bytes < static_cast<std::size_t>(meta.ancho) * meta.alto * 4u)) {
         return false;
     }
@@ -429,7 +436,8 @@ bool SpoutReceiver::receive(void* dst, std::size_t cap, FrameMeta& metaOut) {
         // es creíble (el escritor lo está cambiando), el seqlock lo descarta abajo.
         FrameMeta m{bh.frameIndex, bh.qpc, bh.contenidoQpc, bh.ancho, bh.alto};
         std::size_t usados = bytes;
-        if (m.ancho != 0 && m.alto != 0 && m.ancho <= header_->width && m.alto <= header_->height)
+        if (m.ancho != 0 && m.alto != 0 && m.ancho <= header_->width && m.alto <= header_->height &&
+            header_->formato == static_cast<std::uint32_t>(FormatoCanal::BGRA))
             usados = static_cast<std::size_t>(m.ancho) * m.alto * 4u;
         else
             m.ancho = m.alto = 0;
@@ -460,6 +468,11 @@ int SpoutReceiver::height() const { return header_ != nullptr ? static_cast<int>
 
 std::size_t SpoutReceiver::frameBytes() const {
     return header_ != nullptr ? static_cast<std::size_t>(header_->frameBytes) : 0;
+}
+
+FormatoCanal SpoutReceiver::formato() const {
+    return header_ != nullptr && header_->formato == static_cast<std::uint32_t>(FormatoCanal::NV12) ? FormatoCanal::NV12
+                                                                                                    : FormatoCanal::BGRA;
 }
 
 std::uint64_t SpoutReceiver::periodoNs() const {

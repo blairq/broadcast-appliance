@@ -100,11 +100,23 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
         c.alto = GST_VIDEO_INFO_HEIGHT(&info);
         std::size_t desde = GST_VIDEO_INFO_PLANE_OFFSET(&info, 0);
         c.stride = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
+        c.nv12 = GST_VIDEO_INFO_FORMAT(&info) == GST_VIDEO_FORMAT_NV12;
+        std::size_t uv = GST_VIDEO_INFO_PLANE_OFFSET(&info, 1);
+        c.strideUv = c.nv12 ? GST_VIDEO_INFO_PLANE_STRIDE(&info, 1) : 0;
         if (const GstVideoMeta* vm = gst_buffer_get_video_meta(b)) {
             desde = vm->offset[0];
             c.stride = vm->stride[0];
+            if (c.nv12) {
+                uv = vm->offset[1];
+                c.strideUv = vm->stride[1];
+            }
         }
-        c.bgra = Pixeles(b, desde, static_cast<std::size_t>(c.stride) * c.alto);
+        // NV12: los dos planos (el UV, alto/2 filas, después del Y).
+        c.desdeUv = c.nv12 && uv > desde ? uv - desde : 0;
+        const std::size_t bytes = c.nv12 ? c.desdeUv + static_cast<std::size_t>(c.strideUv) * static_cast<std::size_t>((c.alto + 1) / 2)
+                                         : static_cast<std::size_t>(c.stride) * c.alto;
+        c.bgra = Pixeles(b, desde, bytes);
+        if (c.nv12 && (c.desdeUv == 0 || c.bgra.size() < bytes)) c.bgra = Pixeles(); // planos que no son los esperados
         c.contenidoQpc = contenidoQpc(sink, s, b);
         std::function<void(const Cuadro&)> aviso;
         if (!c.bgra.empty()) {
@@ -183,7 +195,7 @@ void Vistas::armar(const std::string& clave, Una& u) {
     if (u.productor.empty()) return;
     const std::string d = "intersrc name=entra producer-name=" + entreComillas(u.productor) +
                           " max-buffers=2 max-time=0 ! " +
-                          aSistemaEscalado("BGRA", u.ancho, u.alto) + " ! appsink name=s max-buffers=1 drop=true sync=false";
+                          aSistemaEscalado(u.formato, u.ancho, u.alto) + " ! appsink name=s max-buffers=1 drop=true sync=false";
     GstElement* p = gst_parse_launch(d.c_str(), nullptr);
     if (p == nullptr) return;
     GstElement* s = gst_bin_get_by_name(GST_BIN(p), "s");
@@ -261,16 +273,17 @@ void Vistas::desarmar(Una& u) {
     gst_object_unref(p);
 }
 
-std::string Vistas::pedir(const std::string& clave, int ancho, int alto) {
+std::string Vistas::pedir(const std::string& clave, int ancho, int alto, const std::string& formato) {
     std::lock_guard<std::mutex> l(mu_);
     Una*& u = vistas_[clave];
     if (u == nullptr) u = new Una();
     ++u->pedidos;
     ancho = std::clamp(ancho, 16, 3840) & ~1;
     alto = std::clamp(alto, 16, 2160) & ~1;
-    if (u->pipeline == nullptr || u->ancho != ancho || u->alto != alto) {
+    if (u->pipeline == nullptr || u->ancho != ancho || u->alto != alto || u->formato != formato) {
         u->ancho = ancho;
         u->alto = alto;
+        u->formato = formato;
         armar(clave, *u);
     }
     return u->pipeline != nullptr ? std::string()

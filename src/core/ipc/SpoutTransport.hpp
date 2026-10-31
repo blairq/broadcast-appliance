@@ -185,6 +185,18 @@ class SpoutMetaBlock {
     SpoutMetaLayout* layout_ = nullptr; // puntero cacheado (valido si region_.valid())
 };
 
+/// El formato de los píxeles de un canal: lo declara el productor al publicar y lo
+/// respeta cada lector (F3-01). BGRA de fábrica (lo que se pasan A y el gateway); NV12
+/// (1,5 B/píxel: el plano Y y el UV entrelazado, seguidos, sin relleno) es el del
+/// emisor aparte, lo que toma el codificador sin convertir.
+enum class FormatoCanal : std::uint32_t { BGRA = 0, NV12 = 1 };
+
+/// Los bytes de un cuadro entero de `ancho`×`alto` en `f` (NV12 pide ancho y alto pares).
+constexpr std::size_t bytesDeCuadro(int ancho, int alto, FormatoCanal f) {
+    const std::size_t px = static_cast<std::size_t>(ancho) * static_cast<std::size_t>(alto);
+    return f == FormatoCanal::NV12 ? px + px / 2 : px * 4u;
+}
+
 /// Configuracion fija de un slot de video (spec §4.2 "Resolucion fija por
 /// slot").
 ///
@@ -198,14 +210,16 @@ struct SlotConfig {
     /// Cada cuánto publica el productor (ns), si lo sabe (el lienzo de A): el lector lo usa
     /// para dormir hasta el próximo cuadro (ipc/Mirada.hpp). 0 = se mide de lo que publica.
     std::uint64_t periodoNs = 0;
+    /// El formato de los píxeles (NV12: ancho y alto pares; los cuadros, siempre enteros).
+    FormatoCanal formato = FormatoCanal::BGRA;
 };
 
 /// Layout del slot en memoria compartida (backend CPU, definido en el .cpp).
 struct VideoSlotHeader;
 
 /// El ESCRITOR de un slot de video (spec §4.2): memoria compartida con triple
-/// buffer en las tres plataformas (ver arriba). Un frame es un buffer opaco de
-/// bytes (en la practica BGRA del tamano del slot).
+/// buffer en las tres plataformas (ver arriba). Un frame es un buffer de bytes en
+/// el formato del slot (SlotConfig::formato: BGRA, o NV12 el del emisor).
 ///
 /// Move-only. "Un sender existe siempre": el caller publica una placa si no hay
 /// invitado en el slot; esta clase no inventa frames por su cuenta.
@@ -322,6 +336,9 @@ class SpoutReceiver {
 
     /// Tamano en bytes de un frame del slot (0 si no esta suscrito).
     std::size_t frameBytes() const;
+
+    /// El formato que declaró el productor (BGRA si no está suscrito o es de antes).
+    FormatoCanal formato() const;
 
     /// Sin cuadro nuevo, cuándo volver a mirar (F2-14): justo después del próximo que el
     /// productor debería publicar, según su último envío y su período (ipc/Mirada.hpp);

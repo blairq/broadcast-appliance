@@ -10,12 +10,12 @@
 
 namespace ba::launcher {
 
-void MetricasLauncher::falla(bool esApp, bool cuelgue) {
+void MetricasLauncher::falla(const std::string& proceso, bool cuelgue) {
     ba::diag::Metricas::proceso()
         .contador(cuelgue ? "ba_launcher_cuelgues_total" : "ba_launcher_caidas_total",
                   cuelgue ? QT_TRANSLATE_NOOP("metricas", "Veces que un hijo dejó de latir y se lo relanzó")
                           : QT_TRANSLATE_NOOP("metricas", "Veces que un hijo terminó sin que se lo pidieran"),
-                  {{"proceso", esApp ? "app" : "gateway"}})
+                  {{"proceso", proceso}})
         .sumar();
 }
 

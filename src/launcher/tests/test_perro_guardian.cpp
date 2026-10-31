@@ -80,13 +80,15 @@ int main() {
 #endif
 
     // Las métricas del launcher: Runtime/metricas-launcher.prom, en el formato de Prometheus.
-    ba::launcher::MetricasLauncher::falla(true, false);
-    ba::launcher::MetricasLauncher::falla(false, true);
+    ba::launcher::MetricasLauncher::falla("app", false);
+    ba::launcher::MetricasLauncher::falla("gateway", true);
+    ba::launcher::MetricasLauncher::falla("emisor", false); // los emisores aparte también cuentan (F3-01)
     ba::launcher::MetricasLauncher m;
     m.vuelta(dir, 1'000, 7);
     const std::string prom = leer(dir / "metricas-launcher.prom");
     CHECK(prom.find("ba_launcher_caidas_total{proceso=\"app\"} 1") != std::string::npos, "la caída de A");
     CHECK(prom.find("ba_launcher_cuelgues_total{proceso=\"gateway\"} 1") != std::string::npos, "el cuelgue de B");
+    CHECK(prom.find("ba_launcher_caidas_total{proceso=\"emisor\"} 1") != std::string::npos, "la caída de un emisor");
     CHECK(prom.find("ba_launcher_perro_latidos_total 7") != std::string::npos, "los latidos del perro");
     m.vuelta(dir, 2'000, 8); // antes de los 5 s: no reescribe
     CHECK(leer(dir / "metricas-launcher.prom") == prom, "se escribe cada 5 s");
