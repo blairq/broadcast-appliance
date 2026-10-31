@@ -559,7 +559,7 @@ Rectangle {
                                     RowLayout {
                                         Layout.fillWidth: true
                                         // Su número de preset (editable).
-                                        Text { visible: !filaPos.editando; text: "N.º " + (filaPos.modelData.numero || "—"); color: Theme.accentSoft
+                                        Text { visible: !filaPos.editando; text: qsTr("N.º %1").arg(filaPos.modelData.numero || "—"); color: Theme.accentSoft
                                                font { pixelSize: 12; weight: Font.DemiBold } }
                                         SpinBox { id: edNumero; visible: filaPos.editando; from: 1; to: 999; editable: true
                                                   value: filaPos.modelData.numero || 1; Layout.preferredWidth: 96

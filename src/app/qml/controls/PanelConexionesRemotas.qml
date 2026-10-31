@@ -163,7 +163,7 @@ ColumnLayout {
             }
         }
         CanalVista { id: vA; indice: 0 }
-        Text { color: Theme.textDim; font.pixelSize: 12; text: "y" }
+        Text { color: Theme.textDim; font.pixelSize: 12; text: qsTr("y", "entre dos opciones") }
         CanalVista { id: vB; indice: 1 }
         Item { Layout.fillWidth: true }
     }

@@ -13154,7 +13154,7 @@ It's changed in its code (Plugins section, or by asking the assistant). Here you
 <context>
     <name>ManualesViewModel</name>
     <message>
-        <location filename="../src/app/ui/ManualesViewModel.cpp" line="+127" />
+        <location filename="../src/app/ui/ManualesViewModel.cpp" line="+128" />
         <source>Se está transmitiendo o grabando: los manuales se generan cuando termine (el asistente abre otro evento y reinicia el programa).</source>
         <translation>Streaming or recording: the manuals are generated when it ends (the assistant opens another event and restarts the program).</translation>
     </message>
@@ -15719,7 +15719,13 @@ They aren't deleted from the disk: if any was in a scene, it's just removed from
         <translation>Name (e.g. Main chamber)</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+2" />
+        <source>L × A × H (m)</source>
+        <comment>largo, ancho y alto de la sala</comment>
+        <translation>L × W × H (m)</translation>
+    </message>
+    <message>
+        <location line="+6" />
         <source>Crear sesión</source>
         <translation>Create session</translation>
     </message>
@@ -16448,7 +16454,13 @@ Add images from the Files tab.</translation>
         <translation>Channel name</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+11" />
+        <source>y</source>
+        <comment>entre dos opciones</comment>
+        <translation>and</translation>
+    </message>
+    <message>
+        <location line="+8" />
         <source>Cómo entran los integrantes</source>
         <translation>How members join</translation>
     </message>
@@ -24949,7 +24961,12 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <translation>no photo</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+12" />
+        <source>N.º %1</source>
+        <translation>No. %1</translation>
+    </message>
+    <message>
+        <location line="+4" />
         <source>Número de preset (único en la cámara)</source>
         <translation>Preset number (unique on the camera)</translation>
     </message>
@@ -43539,7 +43556,7 @@ Data (from %2): %3</translation>
 <context>
     <name>captura-web</name>
     <message>
-        <location filename="../src/app/net/CapturaWeb.cpp" line="+38" />
+        <location filename="../src/app/net/CapturaWeb.cpp" line="+42" />
         <source>Falta chrome-headless-shell en la instalación (bin/64bit/chrome-headless): este build no lo trajo.</source>
         <translation>chrome-headless-shell is missing from the installation (bin/64bit/chrome-headless): this build did not bring it.</translation>
     </message>
@@ -43549,7 +43566,7 @@ Data (from %2): %3</translation>
         <translation>Could not create a temporary folder for the screenshot.</translation>
     </message>
     <message>
-        <location line="+36" />
+        <location line="+41" />
         <source>Chrome no sacó la foto.</source>
         <translation>Chrome did not take the screenshot.</translation>
     </message>

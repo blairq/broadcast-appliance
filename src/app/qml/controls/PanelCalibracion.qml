@@ -282,7 +282,7 @@ Item {
                             spacing: 6
                             TextField { id: nomSala; Layout.fillWidth: true; placeholderText: qsTr("Nombre (p. ej. Recinto principal)") }
                             RowLayout {
-                                Nota { text: "L × A × H (m)" }
+                                Nota { text: qsTr("L × A × H (m)", "largo, ancho y alto de la sala") }
                                 Numero { id: nL; desdeR: 1; hastaR: 100; value: 800 }
                                 Numero { id: nA; desdeR: 1; hastaR: 100; value: 600 }
                                 Numero { id: nH; desdeR: 1; hastaR: 30; value: 300 }
