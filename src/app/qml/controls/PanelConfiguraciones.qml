@@ -79,7 +79,7 @@ ColumnLayout {
         property string desde: "cero"
         readonly property var opciones: {
             const l = [{ t: qsTr("Desde cero (de fábrica)"), v: "cero" }, { t: qsTr("Copia total del abierto"), v: "actual" }]
-            for (const d of (pc.cf ? pc.cf.plantillasUi() : [])) l.push({ t: qsTr("Plantilla: %1").arg(d.nombre), v: "plantilla:" + (d.carpeta || d.nombre) })
+            for (const d of (pc.cf ? pc.cf.plantillas : [])) l.push({ t: qsTr("Plantilla: %1").arg(d.nombre), v: "plantilla:" + (d.carpeta || d.nombre) })
             for (const c of (pc.cf ? pc.cf.lista : [])) if (!c.activa) l.push({ t: qsTr("Copia total de %1").arg(c.nombre), v: c.nombre })
             return l
         }

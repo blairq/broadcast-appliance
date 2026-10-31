@@ -55,6 +55,9 @@ class Configuraciones : public QObject {
     Q_PROPERTY(QVariantList papelera READ papeleraUi NOTIFY cambio)
     Q_PROPERTY(bool vaciando READ vaciando NOTIFY cambio)
     Q_PROPERTY(QVariantList demos READ demosUi CONSTANT)
+    /// Las plantillas visibles para un evento nuevo: [{nombre, carpeta, descripcion, demo,
+    /// escenario, icono}]. Cambian al ajustarlas, moverlas, ocultarlas o crear una.
+    Q_PROPERTY(QVariantList plantillas READ plantillasUi NOTIFY cambio)
     /// La copia que se está haciendo: {nombre, hechos, total} (bytes), o vacío.
     Q_PROPERTY(QVariantMap copia READ copia NOTIFY copiaCambio)
 
@@ -143,7 +146,7 @@ class Configuraciones : public QObject {
     /// Evento nuevo y, si `abrir`, pasar a él (reinicia).
     Q_INVOKABLE QString nuevoEventoUi(const QString& nombre, const QString& desde, bool abrir, const QString& cps = {});
     Q_INVOKABLE QString marcarPlantillaUi(const QString& nombre, bool plantilla);
-    Q_INVOKABLE QVariantList plantillasUi() const;
+    QVariantList plantillasUi() const;
     Q_INVOKABLE QVariantList plantillasAdminUi() const;
     Q_INVOKABLE QString plantillaAjustarUi(const QString& id, const QVariantMap& cambios);
     Q_INVOKABLE QString plantillaMoverUi(const QString& id, int delta);

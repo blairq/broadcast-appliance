@@ -27,7 +27,8 @@ Rectangle {
     property string vista: "resumen"     // resumen | registro | codigo | config
     property string textoVista: ""
     property var respuestas: ({})        // "id/control" -> {texto, ok}
-    property var configForm: ({})        // el "config" de plugin.json, para el formulario
+    property var configCampos: []        // el "config" de plugin.json como formulario (Plugins.esquemaConfig)
+    property var configCambios: ({})     // lo que se cambió en el formulario y no se guardó
     property bool configJson: false      // editarlo como JSON en vez de formulario
 
     function nombreDeEstado(e) {
@@ -47,8 +48,10 @@ Rectangle {
         else if (page.vista === "codigo") page.textoVista = page.pl.codigo(page.abierto)
         else if (page.vista === "config") {
             page.textoVista = page.pl.configTexto(page.abierto)
-            try { const c = JSON.parse(page.textoVista); page.configForm = (c && typeof c === "object" && !Array.isArray(c)) ? c : ({}) }
-            catch (e) { page.configForm = ({}); page.configJson = true }
+            const r = page.pl.esquemaConfig(page.abierto, "")
+            page.configCampos = r.campos
+            page.configCambios = ({})
+            if (r.error !== "") page.configJson = true
         }
     }
     function corriendo() {
@@ -479,26 +482,17 @@ Rectangle {
                                         readonly property var resp: page.respuestas[tarjeta.modelData.id + "/" + modelData.nombre]
                                         Layout.fillWidth: true
                                         spacing: 4
-                                        // Lo escrito en cada parámetro (clave -> texto); se arma el JSON al tocar.
+                                        // Lo escrito en cada parámetro (clave -> lo que dijo el campo): el tipo
+                                        // y la conversión los pone el modelo (Plugins.controlCamposUi).
                                         property var escrito: ({})
-                                        readonly property var claves: Object.keys(modelData.parametros || {})
-                                        function argumentos() {
-                                            const o = {}
-                                            for (const k of ctl.claves) {
-                                                const t = (ctl.escrito[k] || "").trim()
-                                                if (t === "") continue
-                                                // Un número, una lista o sí/no se mandan como tales; lo demás, como texto.
-                                                try { o[k] = JSON.parse(t) } catch (e) { o[k] = t }
-                                            }
-                                            return JSON.stringify(o)
-                                        }
+                                        function llamar() { page.pl.controlCamposUi(tarjeta.modelData.id, ctl.modelData.nombre, ctl.escrito) }
                                         RowLayout {
                                             Layout.fillWidth: true
                                             spacing: 8
                                             GlassButton {
                                                 compact: true; text: ctl.modelData.nombre; icon: "▶"
                                                 enabled: tarjeta.modelData.estado === "corriendo"
-                                                onClicked: page.pl.controlUi(tarjeta.modelData.id, ctl.modelData.nombre, ctl.argumentos())
+                                                onClicked: ctl.llamar()
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -506,26 +500,15 @@ Rectangle {
                                                 color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
                                             }
                                         }
-                                        Repeater {
-                                            model: ctl.claves
-                                            delegate: RowLayout {
-                                                id: par
-                                                required property string modelData
-                                                readonly property var ejemplo: ctl.modelData.parametros[modelData]
-                                                Layout.fillWidth: true
-                                                Layout.leftMargin: 24
-                                                spacing: 8
-                                                Text { text: par.modelData; color: Theme.textDim; font.pixelSize: 11; Layout.preferredWidth: 120; elide: Text.ElideRight }
-                                                TextField {
-                                                    Layout.fillWidth: true
-                                                    color: Theme.text; font.pixelSize: 11
-                                                    // Un ejemplo numérico es el valor de fábrica; un texto, cómo se escribe.
-                                                    placeholderText: typeof par.ejemplo === "string" ? par.ejemplo : JSON.stringify(par.ejemplo)
-                                                    onTextEdited: { const e = ctl.escrito; e[par.modelData] = text; ctl.escrito = e }
-                                                    onAccepted: page.pl.controlUi(tarjeta.modelData.id, ctl.modelData.nombre, ctl.argumentos())
-                                                    background: Rectangle { color: Theme.field; radius: 6 }
-                                                }
-                                            }
+                                        FormularioPropiedades {
+                                            Layout.fillWidth: true
+                                            Layout.leftMargin: 24
+                                            props: ctl.modelData.campos || []
+                                            vacio: ""
+                                            tamano: 11
+                                            etiquetaAlCostado: true
+                                            alEscribir: true
+                                            onCambio: (nombre, valor) => ctl.escrito = Object.assign({}, ctl.escrito, { [nombre]: valor })
                                         }
                                         Text {
                                             visible: !!ctl.resp
@@ -557,7 +540,8 @@ Rectangle {
                                         ComboBox {
                                             id: destino
                                             Layout.preferredWidth: 240
-                                            model: tj.audio ? page.pl.fuentesConAudio() : page.pl.entradasVideo()
+                                            // Las fuentes con audio (del rack) o las entradas de video: propiedades que avisan.
+                                            model: tj.audio ? Studio.audio.sources.map(f => f.nombre) : Studio.video.entradas
                                             displayText: currentIndex < 0 ? (tj.audio ? qsTr("¿en qué fuente?") : qsTr("¿en qué entrada?")) : currentText
                                             currentIndex: -1
                                         }
@@ -610,7 +594,7 @@ Rectangle {
                                 }
                                 Repeater {
                                     id: claves
-                                    model: page.vista === "config" && tarjeta.abierta ? page.pl.secretosUi(tarjeta.modelData.id) : []
+                                    model: page.vista === "config" && tarjeta.abierta ? (tarjeta.modelData.secretos || []) : []
                                     delegate: RowLayout {
                                         id: sec
                                         required property var modelData
@@ -645,70 +629,32 @@ Rectangle {
                                     GlassButton {
                                         compact: true; text: page.configJson ? qsTr("Como formulario") : qsTr("Como JSON")
                                         onClicked: {
-                                            if (page.configJson) { try { page.configForm = JSON.parse(configArea.text) } catch (e) { Studio.notify(qsTr("El JSON no es válido"), "error"); return } }
-                                            else configArea.text = JSON.stringify(page.configForm, null, 2)
+                                            if (page.configJson) {
+                                                const r = page.pl.esquemaConfig(tarjeta.modelData.id, configArea.text)
+                                                if (r.error !== "") { Studio.notify(r.error, "error"); return }
+                                                page.textoVista = configArea.text
+                                                page.configCampos = r.campos
+                                                page.configCambios = ({})
+                                            } else {
+                                                const r = page.pl.configConCambios(tarjeta.modelData.id, page.configCambios)
+                                                if (r.error !== "") { Studio.notify(r.error, "error"); return }
+                                                configArea.text = r.texto
+                                            }
                                             page.configJson = !page.configJson
                                         }
                                     }
                                 }
-                                // Un campo por clave, según lo que tenga: sí/no, número, texto (lo demás, en JSON).
-                                Repeater {
-                                    model: page.configJson ? [] : Object.keys(page.configForm)
-                                    delegate: RowLayout {
-                                        id: cf
-                                        required property string modelData
-                                        readonly property var v: page.configForm[modelData]
-                                        // «escena» y «dispositivo» se eligen de una lista (las escenas, las cámaras del
-                                        // equipo): escribirlos a mano era adivinar el nombre exacto.
-                                        readonly property string clase: (modelData === "escena" || modelData.endsWith("_escena")) && (typeof v === "string" || v === null) ? "escena"
-                                                                      : (modelData === "dispositivo" || modelData.endsWith("_dispositivo")) && (typeof v === "string" || v === null) ? "dispositivo"
-                                                                      : typeof v === "boolean" ? "si_no" : typeof v === "number" ? "numero" : typeof v === "string" ? "texto" : "json"
-                                        readonly property var opciones: clase === "escena" ? Studio.inputs.scenes.map(e => ({ value: e, label: e }))
-                                                                      : clase === "dispositivo" ? [{ value: "", label: qsTr("La primera que haya") }].concat(Studio.inputs.devices.map(d => ({ value: d.value, label: d.name })))
-                                                                      : []
-                                        Layout.fillWidth: true
-                                        spacing: 8
-                                        Text { text: cf.modelData; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 200; elide: Text.ElideRight }
-                                        Toggle {
-                                            visible: cf.clase === "si_no"
-                                            checked: cf.v === true
-                                            onToggled: (quiero) => { const c = page.configForm; c[cf.modelData] = quiero; page.configForm = Object.assign({}, c) }
-                                        }
-                                        ComboBox {
-                                            visible: cf.clase === "escena" || cf.clase === "dispositivo"
-                                            Layout.fillWidth: true
-                                            model: cf.opciones
-                                            textRole: "label"
-                                            valueRole: "value"
-                                            currentIndex: {
-                                                const i = cf.opciones.findIndex(o => o.value === (cf.v || ""))
-                                                return i
-                                            }
-                                            displayText: currentIndex >= 0 ? currentText : (cf.v ? qsTr("%1 (no está)").arg(cf.v) : qsTr("Elegir…"))
-                                            onActivated: { const c = page.configForm; c[cf.modelData] = currentValue; page.configForm = Object.assign({}, c) }
-                                        }
-                                        TextField {
-                                            visible: cf.clase !== "si_no" && cf.clase !== "escena" && cf.clase !== "dispositivo"
-                                            Layout.fillWidth: true
-                                            color: Theme.text; font { pixelSize: 12; family: cf.clase === "json" ? Theme.mono : Theme.font }
-                                            text: cf.clase === "json" ? JSON.stringify(cf.v) : String(cf.v)
-                                            validator: cf.clase === "numero" ? numValido : null
-                                            DoubleValidator { id: numValido; locale: "C" }
-                                            onEditingFinished: {
-                                                const c = page.configForm
-                                                if (cf.clase === "numero") c[cf.modelData] = Number(text)
-                                                else if (cf.clase === "json") { try { c[cf.modelData] = JSON.parse(text) } catch (e) { Studio.notify(qsTr("«%1»: JSON no válido").arg(cf.modelData), "error"); return } }
-                                                else c[cf.modelData] = text
-                                                page.configForm = Object.assign({}, c)
-                                            }
-                                            background: Rectangle { color: Theme.field; radius: 6 }
-                                        }
-                                    }
-                                }
-                                Text {
-                                    visible: !page.configJson && Object.keys(page.configForm).length === 0
-                                    text: qsTr("Este plugin no tiene configuración.")
-                                    color: Theme.textFaint; font.pixelSize: 12
+                                // Un campo por clave: el tipo y las opciones (escenas, cámaras) los pone el modelo.
+                                FormularioPropiedades {
+                                    visible: !page.configJson
+                                    Layout.fillWidth: true
+                                    // Lo que se va cambiando se ve en el campo hasta guardar.
+                                    props: page.configCampos.map(c => page.configCambios[c.name] !== undefined
+                                                                      ? Object.assign({}, c, { value: page.configCambios[c.name] }) : c)
+                                    vacio: qsTr("Este plugin no tiene configuración.")
+                                    etiquetaAlCostado: true
+                                    alEscribir: true
+                                    onCambio: (nombre, valor) => page.configCambios = Object.assign({}, page.configCambios, { [nombre]: valor })
                                 }
                                 ScrollView {
                                     visible: page.configJson
@@ -726,8 +672,10 @@ Rectangle {
                                     GlassButton {
                                         compact: true; text: qsTr("Guardar configuración"); active: true
                                         onClicked: {
-                                            const e = page.pl.guardarConfig(tarjeta.modelData.id, page.configJson ? configArea.text : JSON.stringify(page.configForm, null, 2))
+                                            const e = page.configJson ? page.pl.guardarConfig(tarjeta.modelData.id, configArea.text)
+                                                                      : page.pl.guardarConfigCampos(tarjeta.modelData.id, page.configCambios)
                                             Studio.notify(e !== "" ? e : qsTr("Configuración guardada"), e !== "" ? "error" : "info")
+                                            if (e === "") page.cargarVista()
                                         }
                                     }
                                 }

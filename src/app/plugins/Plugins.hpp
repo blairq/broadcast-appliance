@@ -223,20 +223,33 @@ class Plugins : public QObject {
     Q_INVOKABLE QString configTexto(const QString& id) const;
     /// Guarda `config` (JSON) en plugin.json y se la pasa al plugin si corre.
     Q_INVOKABLE QString guardarConfig(const QString& id, const QString& texto);
+    /// La configuración como formulario (ui/Formulario: lo dibuja FormularioPropiedades):
+    /// {campos, error}. El tipo de cada campo sale de su valor (sí/no, número, texto; lo
+    /// demás, JSON) y las claves `escena`/`*_escena` y `dispositivo`/`*_dispositivo` se
+    /// eligen de una lista (las escenas, las cámaras de la máquina): escribirlas a mano era
+    /// adivinar el nombre exacto. Con `texto` (el JSON que se está editando), de ese texto.
+    Q_INVOKABLE QVariantMap esquemaConfig(const QString& id, const QString& texto = {}) const;
+    /// Guarda lo que cambió en el formulario (nombre -> lo que dijo la vista), validado con
+    /// el tipo de cada campo; lo demás queda como estaba. "" o el error.
+    Q_INVOKABLE QString guardarConfigCampos(const QString& id, const QVariantMap& cambios);
+    /// El JSON con los cambios del formulario puestos, sin guardar (para seguir editándolo
+    /// como JSON): {texto, error}.
+    Q_INVOKABLE QVariantMap configConCambios(const QString& id, const QVariantMap& cambios) const;
+    /// De dónde salen las cámaras para elegir (las de Entradas: [{value, name}]).
+    void setOpcionesDispositivo(std::function<QVariantList()> f) { opcionesDispositivo_ = std::move(f); }
     /// Llama un control; la respuesta llega por `respuesta(id, control, texto, ok)`.
     Q_INVOKABLE void controlUi(const QString& id, const QString& control, const QString& argsJson);
+    /// Lo mismo con lo escrito en el formulario del control (cada control de la lista trae
+    /// sus `campos`, con el tipo del ejemplo que declara): se valida y se convierte acá.
+    Q_INVOKABLE void controlCamposUi(const QString& id, const QString& control, const QVariantMap& escrito);
     Q_INVOKABLE QString tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino,
                                   bool audio);
-    Q_INVOKABLE QStringList entradasVideo() const;
-    Q_INVOKABLE QStringList fuentesConAudio() const;
     Q_INVOKABLE void buscarEquipos();
     Q_INVOKABLE void abrirCarpeta(const QString& id) const;
     Q_INVOKABLE QString codigo(const QString& id) const;
     /// Exportar / importar desde la interfaz: el resultado llega por `aviso(texto, ok)`.
     Q_INVOKABLE void exportarUi(const QString& id);
     Q_INVOKABLE void importarUi(const QUrl& archivo);
-    /// Las claves que declara el plugin ("secretos" en plugin.json): [{clave, etiqueta, cargada}].
-    Q_INVOKABLE QVariantList secretosUi(const QString& id) const;
     /// Guarda una clave del plugin, cifrada (Credenciales/plugin-<id>-<clave>). "" o el error.
     Q_INVOKABLE QString guardarSecreto(const QString& id, const QString& nombre, const QString& valor);
     /// El panel: los valores de ahora (cambian por `valoresCambio(id)`) y mover un control.
@@ -286,7 +299,14 @@ class Plugins : public QObject {
     json& valoresDe(const std::string& id) const;
     void guardarValores();
 
+    /// Los campos de `config` y los cambios del formulario puestos encima. "" o el error.
+    QString configConCampos(const std::string& id, const json& config, const QVariantMap& cambios, json* out) const;
+    QVariantList camposDe(const json& config) const;
+    /// Los campos de los parámetros de un control ({clave: ejemplo}): el tipo, del ejemplo.
+    static QVariantList camposDeControl(const json& parametros);
+
     AppRuntime& rt_;
+    std::function<QVariantList()> opcionesDispositivo_;
     QPointer<VideoViewModel> video_;
     QPointer<ptz::ControlCamaras> camaras_;
     QPointer<OperatorMessages> mensajes_;

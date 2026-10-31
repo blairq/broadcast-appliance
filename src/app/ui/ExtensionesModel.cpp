@@ -202,6 +202,9 @@ void ExtensionesModel::tardo(const QString& id, int ms) {
                                                                                   "cargar: se cortó y quedó apagada (se "
                                                                                   "prende desde el Registro)"),
                                                 {id.toStdString(), std::to_string(ms)}));
+    // Apagada: cambia su fila y deja de ofrecerse (kinds).
+    if (rowCount() > 0) emit dataChanged(index(0), index(rowCount() - 1), {ApagadaRole});
+    emit cambio();
     emit notify(tr("La tarjeta «%1» tardaba demasiado en cargar: quedó apagada").arg(id), "error");
 }
 

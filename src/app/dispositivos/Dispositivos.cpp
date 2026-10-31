@@ -7,6 +7,7 @@
 #include <set>
 
 #include "dispositivos/Conocidos.hpp"
+#include "ui/Formulario.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -28,14 +29,24 @@ QVariantMap Parametro::mapa() const {
     return m;
 }
 
+QVariantMap Parametro::campo() const {
+    QVariantMap c = formulario::campo(clave, etiqueta.isEmpty() ? clave : etiqueta, formulario::kindDeTipo(tipo), defecto,
+                                      ayuda, formulario::opcionesDe(opciones));
+    if (obligatorio) c["obligatorio"] = true;
+    return c;
+}
+
 QVariantMap Accion::mapa() const {
-    QVariantList ps;
-    for (const auto& p : parametros)
+    QVariantList ps, campos;
+    for (const auto& p : parametros) {
         ps << p.mapa();
+        campos << p.campo();
+    }
     return {{"id", id},
             {"titulo", titulo},
             {"descripcion", descripcion},
             {"parametros", ps},
+            {"campos", campos}, // el formulario de la página Equipos (ui/Formulario)
             {"modifica", modifica}};
 }
 
@@ -333,7 +344,22 @@ void Dispositivos::escanearUi(const QString& detector) {
     escanear(detector, [](QVariantMap) {});
 }
 
-void Dispositivos::accionUi(const QString& id, const QString& accion, const QVariantMap& args) {
+void Dispositivos::accionUi(const QString& id, const QString& accion, const QVariantMap& escrito) {
+    // Lo escrito en el formulario, al tipo de cada parámetro (un JSON mal escrito o una
+    // letra en un número es un error que se dice, no un valor que se pierde).
+    QVariantList campos;
+    if (const auto it = equipos_.find(id); it != equipos_.end()) {
+        const QVariantMap e = presentar(it->second);
+        if (const auto at = acciones_.find(e.value("tipo").toString()); at != acciones_.end())
+            for (const auto& a : at->second)
+                if (a.id == accion)
+                    for (const auto& p : a.parametros) campos << p.campo();
+    }
+    QVariantMap args;
+    if (const QString e = formulario::convertirTodos(campos, escrito, &args); !e.isEmpty()) {
+        emit resultado(id, accion, {{"error", e}});
+        return;
+    }
     QPointer<Dispositivos> yo(this);
     correr(id, accion, args, [yo, id, accion](QVariantMap r) {
         if (yo) emit yo->resultado(id, accion, r);

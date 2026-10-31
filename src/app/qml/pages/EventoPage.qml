@@ -1431,7 +1431,7 @@ Rectangle {
                     Layout.fillWidth: true
                     enabled: nuevoEventoDlg.modo === "plantilla"
                     // El nombre que se ve; se crea con la carpeta (puede tener otro nombre visible).
-                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.plantillasUi() : []
+                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.plantillas : []
                     textRole: "nombre"
                     valueRole: "carpeta"
                 }
@@ -1498,7 +1498,7 @@ Rectangle {
         title: qsTr("Preparar un evento con el asistente")
         onAboutToShow: {
             elegido = ""; plantillaElegida = ""; notasEvt.text = ""
-            tipos = (Studio.configuraciones ? Studio.configuraciones.plantillasUi() : []).filter(p => p.escenario !== "")
+            tipos = (Studio.configuraciones ? Studio.configuraciones.plantillas : []).filter(p => p.escenario !== "")
         }
         ColumnLayout {
             anchors.fill: parent

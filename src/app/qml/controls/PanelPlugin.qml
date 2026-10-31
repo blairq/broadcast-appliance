@@ -137,28 +137,27 @@ ColumnLayout {
                                 }
                             }
                         }
-                        ComboBox {
+                        CampoFormulario {
                             id: combo
                             width: Math.min(parent.width, 280)
                             visible: (fila.c.opciones || []).length > 4
-                            model: fila.c.opciones || []
-                            currentIndex: model.indexOf(fila.v !== undefined ? fila.v : fila.c.defecto)
-                            onActivated: (i) => panel.poner(fila.c.clave, model[i])
+                            conEtiqueta: false
+                            c: ({ name: fila.c.clave, kind: "list", value: fila.v !== undefined ? fila.v : fila.c.defecto,
+                                  options: (fila.c.opciones || []).map(o => ({ value: o, label: o })) })
+                            onCambio: (valor) => panel.poner(fila.c.clave, valor)
                         }
                     }
                 }
                 Component {
                     id: cTexto
-                    TextField {
+                    // Lo del plugin, salvo mientras se escribe (el mismo campo que los formularios).
+                    CampoFormulario {
                         readonly property bool esNumero: fila.c.tipo === "numero"
-                        color: Theme.text; font.pixelSize: 12
-                        placeholderText: (fila.c.ayuda || "") + (esNumero && fila.c.unidad ? " (" + fila.c.unidad + ")" : "")
-                        validator: esNumero ? numeros : null
-                        DoubleValidator { id: numeros; locale: "C" }
-                        // Lo del plugin, salvo mientras se escribe.
-                        Binding on text { when: !activeFocus; value: fila.v !== undefined && fila.v !== null ? String(fila.v) : String(fila.c.defecto !== undefined ? fila.c.defecto : "") }
-                        onEditingFinished: panel.poner(fila.c.clave, esNumero ? Number(text) : text)
-                        background: Rectangle { color: Theme.field; radius: 6; border.color: parent.activeFocus ? Theme.accent : "transparent" }
+                        conEtiqueta: false
+                        c: ({ name: fila.c.clave, kind: esNumero ? "number" : "text",
+                              value: fila.v !== undefined && fila.v !== null ? fila.v : fila.c.defecto,
+                              placeholder: (fila.c.ayuda || "") + (esNumero && fila.c.unidad ? " (" + fila.c.unidad + ")" : "") })
+                        onCambio: (valor) => panel.poner(fila.c.clave, valor)
                     }
                 }
                 Component {

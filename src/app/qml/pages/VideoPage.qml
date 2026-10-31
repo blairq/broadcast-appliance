@@ -703,59 +703,14 @@ Rectangle {
                             }
                         }
 
-                        // Una tarjeta de OBS: sus controles, de las propiedades del filtro.
-                        Repeater {
-                            model: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst" || page.tipoEf === "mezcla") ? page.vg.propiedades(page.sel) : []
-                            delegate: ColumnLayout {
-                                id: prop
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text {
-                                    visible: prop.modelData.kind !== "bool"
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    text: prop.modelData.label + ((prop.modelData.kind === "float" || prop.modelData.kind === "int")
-                                          ? "  " + Number(deslP.value).toFixed(prop.modelData.kind === "int" ? 0 : 2) + (prop.modelData.suffix || "") : "")
-                                    color: prop.modelData.kind === "header" ? Theme.text : prop.modelData.kind === "info" ? Theme.textFaint : Theme.textDim
-                                    font.pixelSize: prop.modelData.kind === "header" ? 13 : 12
-                                }
-                                Slider {
-                                    id: deslP
-                                    visible: prop.modelData.kind === "float" || prop.modelData.kind === "int"
-                                    Layout.fillWidth: true
-                                    from: prop.modelData.min !== undefined ? prop.modelData.min : 0
-                                    to: prop.modelData.max !== undefined ? prop.modelData.max : 1
-                                    stepSize: prop.modelData.step || 0
-                                    value: typeof prop.modelData.value === "number" ? prop.modelData.value : 0
-                                    onMoved: page.ajustarFiltro(page.sel, prop.modelData.name, prop.modelData.kind === "int" ? Math.round(value) : value)
-                                }
-                                CheckBox {
-                                    visible: prop.modelData.kind === "bool"
-                                    text: prop.modelData.label
-                                    checked: prop.modelData.value === true
-                                    onToggled: page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, checked))
-                                }
-                                ComboBox {
-                                    visible: prop.modelData.kind === "list"
-                                    Layout.fillWidth: true
-                                    model: prop.modelData.options || []
-                                    textRole: "label"
-                                    currentIndex: {
-                                        const o = prop.modelData.options || []
-                                        for (let i = 0; i < o.length; ++i) if (o[i].value === prop.modelData.value) return i
-                                        return -1
-                                    }
-                                    onActivated: (i) => page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, prop.modelData.options[i].value))
-                                }
-                                TextField {
-                                    visible: prop.modelData.kind === "text" || prop.modelData.kind === "path" || prop.modelData.kind === "color"
-                                    Layout.fillWidth: true
-                                    text: prop.modelData.value !== undefined ? String(prop.modelData.value) : ""
-                                    placeholderText: prop.modelData.kind === "path" ? qsTr("Ruta del archivo") : prop.modelData.kind === "color" ? "#RRGGBB" : ""
-                                    onEditingFinished: if (text !== String(prop.modelData.value)) page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, text))
-                                }
-                            }
+                        // Una tarjeta de OBS (o un módulo de GStreamer): sus controles, de las
+                        // propiedades del filtro. Los deslizadores aplican mientras se mueven.
+                        FormularioPropiedades {
+                            Layout.fillWidth: true
+                            vacio: ""
+                            props: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst" || page.tipoEf === "mezcla") ? page.vg.propiedades(page.sel) : []
+                            onCambio: (nombre, valor) => typeof valor === "number" ? page.ajustarFiltro(page.sel, nombre, valor)
+                                                                                 : page.avisar(page.vg.ajustarFiltro(page.sel, nombre, valor))
                         }
 
                         // Vista 360 y Cámara 360: la vista, las lentes y la guía para calibrar.
@@ -1320,6 +1275,76 @@ Rectangle {
                                     // Las propiedades de este pad (de la introspección del módulo), con sus valores.
                                     readonly property var props: page.nodo ? page.vg.propiedadesPad(page.sel, modelData) : []
                                     Text { text: mezclaPanel.origen(padCol.modelData) + "  (" + padCol.modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
+                                    // Las posiciones y tamaños vienen con rangos enormes: hasta el doble del lienzo alcanza.
+                                    FormularioPropiedades {
+                                        Layout.fillWidth: true
+                                        props: padCol.props
+                                        piso: -8192; tope: 8192
+                                        tamano: 11
+                                        spacing: 0
+                                        vacio: qsTr("Esta entrada no tiene propiedades propias.")
+                                        onCambio: (nombre, valor) => typeof valor === "number" ? page.ajustarPad(page.sel, padCol.modelData, nombre, valor)
+                                                                                             : page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, nombre, valor))
+                                    }
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: page.nodo && page.nodo.publicada
+                                      ? qsTr("Ya es una fuente: se pone y se saca de las escenas como cualquier otra.")
+                                      : qsTr("Se ve como una fuente con este nombre en cualquier escena.")
+                                color: Theme.textFaint; font.pixelSize: 11
+                            }
+                            GlassButton {
+                                text: qsTr("Poner en la escena al aire")
+                                onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
+                            }
+                        }
+
+                        // Mezcla de GStreamer: la fuente, el lienzo y las propiedades de cada entrada
+                        // (las del módulo van arriba, con las de cualquier módulo).
+                        ColumnLayout {
+                            id: mezclaPanel
+                            visible: !!page.nodo && page.nodo.tipo === "mezcla"
+                            Layout.fillWidth: true
+                            spacing: 6
+                            // Los puertos que ya tienen algo (los fijos, siempre): el libre «+» no tiene qué ajustar.
+                            readonly property var puertos: page.nodo && page.nodo.tipo === "mezcla"
+                                ? (page.nodo.entradas || []).filter(e => !e.pedido).map(e => e.id) : []
+                            function origen(puerto) { return compPanel.origen(puerto) }
+                            Text { text: qsTr("Nombre de la fuente"); color: Theme.textDim; font.pixelSize: 12 }
+                            TextField {
+                                Layout.fillWidth: true
+                                text: page.nodo && page.nodo.params && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
+                                enabled: !!page.nodo && !page.nodo.publicada
+                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.avisar(page.vg.ajustar(page.sel, { nombre: text }))
+                            }
+                            // Lo que sale (0 = el lienzo del estudio).
+                            RowLayout {
+                                spacing: 6
+                                Text { text: qsTr("Ancho"); color: Theme.textDim; font.pixelSize: 12 }
+                                SpinBox {
+                                    from: 0; to: 8192; stepSize: 2; editable: true
+                                    value: page.nodo && page.nodo.params ? (page.nodo.params.ancho || 0) : 0
+                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { ancho: value }))
+                                }
+                                Text { text: qsTr("Alto"); color: Theme.textDim; font.pixelSize: 12 }
+                                SpinBox {
+                                    from: 0; to: 8192; stepSize: 2; editable: true
+                                    value: page.nodo && page.nodo.params ? (page.nodo.params.alto || 0) : 0
+                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { alto: value }))
+                                }
+                            }
+                            Repeater {
+                                model: mezclaPanel.puertos
+                                delegate: ColumnLayout {
+                                    id: padCol
+                                    required property string modelData
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    // Las propiedades de este pad (de la introspección del módulo), con sus valores.
+                                    readonly property var props: page.nodo ? page.vg.propiedadesPad(page.sel, modelData) : []
+                                    Text { text: mezclaPanel.origen(padCol.modelData) + "  (" + padCol.modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                                     Text {
                                         visible: padCol.props.length === 0
                                         text: qsTr("Esta entrada no tiene propiedades propias."); color: Theme.textFaint; font.pixelSize: 11
@@ -1566,7 +1591,7 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 5
                 Repeater {
-                    model: page.vg ? page.vg.virtuales() : []
+                    model: page.vg ? page.vg.virtuales : []
                     delegate: GlassButton {
                         required property var modelData
                         compact: true

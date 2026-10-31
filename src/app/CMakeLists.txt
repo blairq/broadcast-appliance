@@ -554,7 +554,7 @@ endif()
     set_target_properties(test_lista_con_clave PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_lista_con_clave COMMAND test_lista_con_clave)
     # El registro de dispositivos de la máquina: nombres del operador, ausentes, persistencia.
-    add_executable(test_dispositivos tests/test_dispositivos.cpp dispositivos/Dispositivos.cpp dispositivos/Conocidos.cpp)
+    add_executable(test_dispositivos tests/test_dispositivos.cpp dispositivos/Dispositivos.cpp dispositivos/Conocidos.cpp ui/Formulario.cpp)
     target_include_directories(test_dispositivos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_dispositivos PRIVATE ba_core Qt6::Core)
     set_target_properties(test_dispositivos PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

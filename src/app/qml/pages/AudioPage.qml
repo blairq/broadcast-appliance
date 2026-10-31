@@ -1563,10 +1563,10 @@ Rectangle {
 
             ListView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(260, 46 * Math.max(1, (page.au ? page.au.plantillas().length : 0)))
+                Layout.preferredHeight: Math.min(260, 46 * Math.max(1, (page.au ? page.au.plantillas.length : 0)))
                 clip: true
                 spacing: 4
-                model: page.au ? page.au.plantillas() : []
+                model: page.au ? page.au.plantillas : []
                 delegate: RowLayout {
                     required property var modelData
                     width: ListView.view.width
@@ -1611,7 +1611,7 @@ Rectangle {
             }
 
             Text {
-                visible: page.au && page.au.plantillas().length === 0
+                visible: page.au && page.au.plantillas.length === 0
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 text: qsTr("Todavía no guardaste ninguna.")

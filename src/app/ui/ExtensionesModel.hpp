@@ -44,6 +44,8 @@ class ExtensionesModel : public QAbstractListModel {
     Q_OBJECT
     /// Cuántas hay (para que la interfaz no muestre el menú vacío).
     Q_PROPERTY(int cuantas READ rowCount NOTIFY cambio)
+    /// Los `kind` de tarjeta que ofrecen las extensiones usables (las apagadas no).
+    Q_PROPERTY(QStringList kinds READ kinds NOTIFY cambio)
 
    public:
     /// El prefijo que distingue una tarjeta de extensión de las de fábrica.
@@ -77,7 +79,7 @@ class ExtensionesModel : public QAbstractListModel {
     /// El nombre lindo de un `kind` de tarjeta («ext:reloj» → «Reloj»).
     Q_INVOKABLE QString tituloDeKind(const QString& kind) const;
     /// Los `kind` de tarjeta que ofrecen las extensiones usables.
-    Q_INVOKABLE QStringList kinds() const;
+    QStringList kinds() const;
 
     /// Avisa que se está por cargar esa tarjeta, para que el diario de
     /// arranque sepa a quién culpar si el programa no vuelve. Lo llama el
