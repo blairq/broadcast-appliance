@@ -372,7 +372,11 @@ int runGui(int argc, char** argv) {
         {.hilo = std::this_thread::get_id(),
          .listar = [&ventanilla]() { return ventanilla.foto().fuentes; },
          .ajustes = [&ventanilla](const std::string& n) -> std::optional<nlohmann::json> {
-             if (const FotoMotor::CanalAudio* c = ventanilla.foto().mezcla.canal(n)) return c->ajustes;
+             const FotoMotor& f = ventanilla.foto();
+             if (const FotoMotor::CanalAudio* c = f.mezcla.canal(n)) return c->ajustes;
+             // Las demás (video, gráficos, la grilla): todas las fuentes van con sus ajustes.
+             if (const auto it = f.fuentesVideo.find(n); it != f.fuentesVideo.end() && it->contains("ajustes"))
+                 return (*it)["ajustes"];
              return std::nullopt;
          },
          .encargar = [&ventanilla](const char* que, std::function<void()> orden) { ventanilla.pedir(que, std::move(orden)); }});

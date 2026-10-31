@@ -24,8 +24,14 @@ Rectangle {
         color: Theme.text
         font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
     }
+    // El contenido, nunca con ancho o alto negativos: un panel que todavía no tiene lugar
+    // (una pestaña oculta que el layout no midió: ancho 0) le daba -2×padding, y un
+    // ColumnLayout con texto que se parte en líneas entraba en un bucle de polish.
     Item {
         id: body
-        anchors { fill: parent; margins: panel.padding; topMargin: panel.title !== "" ? 46 : panel.padding }
+        x: panel.padding
+        y: panel.title !== "" ? 46 : panel.padding
+        width: Math.max(0, panel.width - 2 * panel.padding)
+        height: Math.max(0, panel.height - y - panel.padding)
     }
 }

@@ -15,8 +15,15 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 #else
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <sys/select.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #endif
 
@@ -39,7 +46,85 @@ std::string q(const std::string& ruta) {
     return out + "\"";
 }
 
+/// Lo que ba-web contesta él mismo (sin el gateway): el sondeo de vida del supervisor.
+constexpr const char* kVivo = "/_ba/vivo";
+
+#ifdef _WIN32
+using Sock = SOCKET;
+constexpr Sock kSinSock = INVALID_SOCKET;
+void cerrarSock(Sock s) { closesocket(s); }
+#else
+using Sock = int;
+constexpr Sock kSinSock = -1;
+void cerrarSock(Sock s) { ::close(s); }
+#endif
+
+/// ¿El socket está listo (para escribir o leer) antes de `ms`?
+bool listo(Sock s, bool escribir, int ms) {
+    fd_set fs;
+    FD_ZERO(&fs);
+    FD_SET(s, &fs);
+    timeval tv{ms / 1000, (ms % 1000) * 1000};
+    return ::select(static_cast<int>(s) + 1, escribir ? nullptr : &fs, escribir ? &fs : nullptr, nullptr, &tv) > 0;
+}
+
 } // namespace
+
+bool WebSupervisor::contesta(uint16_t puerto, int topeMs) {
+    // Una conexión TCP no alcanza: a un ba-web frenado (SIGSTOP, colgado) el sistema le
+    // sigue aceptando conexiones en la cola de su escucha. Tiene que CONTESTAR, a tiempo.
+#ifdef _WIN32
+    WSADATA wsa{};
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return true; // sin red no se puede saber: no se lo mata
+#endif
+    bool ok = false;
+    const Sock s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s != kSinSock) {
+#ifdef _WIN32
+        u_long nb = 1;
+        ioctlsocket(s, FIONBIO, &nb);
+#else
+        ::fcntl(s, F_SETFL, ::fcntl(s, F_GETFL, 0) | O_NONBLOCK);
+#ifdef SO_NOSIGPIPE
+        const int uno = 1; // un ba-web que cierra a mitad no tiene que voltear al gateway (SIGPIPE)
+        ::setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &uno, sizeof uno);
+#endif
+#endif
+        sockaddr_in a{};
+        a.sin_family = AF_INET;
+        a.sin_port = htons(puerto);
+        inet_pton(AF_INET, "127.0.0.1", &a.sin_addr);
+        const auto hasta = std::chrono::steady_clock::now() + std::chrono::milliseconds(topeMs);
+        const auto queda = [&hasta]() {
+            return static_cast<int>(std::max<long long>(
+                0, std::chrono::duration_cast<std::chrono::milliseconds>(hasta - std::chrono::steady_clock::now()).count()));
+        };
+        ::connect(s, reinterpret_cast<sockaddr*>(&a), sizeof a);
+        if (listo(s, true, queda())) {
+            const std::string pedido = std::string("GET ") + kVivo + " HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n";
+#ifdef MSG_NOSIGNAL
+            constexpr int kSinSenal = MSG_NOSIGNAL;
+#else
+            constexpr int kSinSenal = 0;
+#endif
+            if (::send(s, pedido.data(), static_cast<int>(pedido.size()), kSinSenal) == static_cast<int>(pedido.size())) {
+                std::string r;
+                char buf[256];
+                while (r.size() < 12 && listo(s, false, queda())) {
+                    const int n = static_cast<int>(::recv(s, buf, sizeof buf, 0));
+                    if (n <= 0) break;
+                    r.append(buf, static_cast<size_t>(n));
+                }
+                ok = r.rfind("HTTP/1.", 0) == 0 && r.size() >= 12 && r.compare(9, 3, "200") == 0;
+            }
+        }
+        cerrarSock(s);
+    }
+#ifdef _WIN32
+    WSACleanup();
+#endif
+    return ok;
+}
 
 std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile, const std::string& logPath) {
     // Los workers, resueltos acá (como «auto» en ba-web: los núcleos, hasta 4): los topes
@@ -65,9 +150,13 @@ std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile,
     s += "upstream_max_conns " + std::to_string(alGateway) + ";\n";
     s += "limit_tunnels_per_ip " + std::to_string(tunelesPorIp) + ";\n";
     // El túnel. real_ip_xff: la IP real es la última de X-Forwarded-For, la que agrega pinggy (--xff).
+    // Sin el túnel, la misma escucha local igual (sin creerle a X-Forwarded-For): la usa el
+    // sondeo de vida del supervisor.
     if (c.tunel)
         s += "listen 127.0.0.1:" + std::to_string(c.puerto) + (c.proxyProtocol ? " proxy_protocol" : "") +
              " real_ip_xff;\n";
+    else
+        s += "listen 127.0.0.1:" + std::to_string(c.puerto) + ";\n";
     // La red local, por HTTPS (el certificado llega por la entrada estándar): a la escucha
     // local del gateway, no a la del túnel (allá todo es «de afuera»).
     if (c.lanPuerto && !c.tlsPem.empty())
@@ -83,6 +172,7 @@ std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile,
     s += "location = /index.html { proxy_pass; proxy_cache_valid " + cache + "; proxy_cache_key $uri; }\n";
     // La sala de invitados (los archivos del programa).
     s += "location = /invitados { return 301 /invitados/; }\n";
+    s += std::string("location = ") + kVivo + " { return 200 ok; }\n";
     if (!c.webroot.empty())
         s += "location /invitados/ { alias " + q(c.webroot + "/") +
              "; index index.html; add_header Cache-Control no-cache; try_files $uri @upstream; }\n";
@@ -198,6 +288,12 @@ void WebSupervisor::kill() {
 
 void WebSupervisor::runLoop() {
     int backoffMs = 500;
+    // El sondeo de vida: cada `cadaMs`, que conteste; `fallas` seguidas (con el proceso vivo)
+    // es un ba-web frenado o colgado, y se lo mata y relanza como si se hubiera cerrado. Lo
+    // de recién lanzado tiene su gracia (abre las escuchas en unos cientos de ms).
+    constexpr int cadaMs = 1000, topeMs = 1500, fallasMax = 3; // frenado ~7 s y se relanza
+    auto proximoSondeo = std::chrono::steady_clock::now() + std::chrono::milliseconds(cadaMs * 2);
+    int fallas = 0;
     while (!stop_.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
         bool vive;
@@ -205,11 +301,26 @@ void WebSupervisor::runLoop() {
             std::lock_guard<std::mutex> l(procLock_);
             vive = proc_.running();
         }
-        if (vive) {
-            backoffMs = 500;
+        bool colgado = false;
+        if (vive && std::chrono::steady_clock::now() >= proximoSondeo) {
+            fallas = contesta(cfg_.puerto, topeMs) ? 0 : fallas + 1;
+            colgado = fallas >= fallasMax;
+            proximoSondeo = std::chrono::steady_clock::now() + std::chrono::milliseconds(cadaMs);
+        }
+        if (vive && !colgado) {
+            if (fallas == 0) backoffMs = 500;
             continue;
         }
         alive_.store(false);
+        fallas = 0;
+        if (colgado) {
+            log_.warn(llenar(traducir("gateway", "ba-web: no contesta (%1 sondeos seguidos); se lo mata y se relanza"),
+                             {std::to_string(fallasMax)}),
+                      -1);
+            std::lock_guard<std::mutex> l(procLock_);
+            proc_.kill(); // frenado no atiende SIGTERM: SIGKILL a él y a sus workers (su grupo)
+            proc_.wait(3000);
+        }
         log_.warn(llenar(traducir("gateway", "ba-web: se cerró; se relanza en %1 ms"), {std::to_string(backoffMs)}), -1);
         for (int w = 0; w < backoffMs && !stop_.load(); w += 100) std::this_thread::sleep_for(std::chrono::milliseconds(100));
         if (stop_.load()) break;
@@ -219,6 +330,7 @@ void WebSupervisor::runLoop() {
         }
         if (spawn()) restarts_.fetch_add(1);
         if (backoffMs < 8000) backoffMs *= 2;
+        proximoSondeo = std::chrono::steady_clock::now() + std::chrono::milliseconds(cadaMs * 2);
     }
 }
 

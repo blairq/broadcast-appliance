@@ -92,7 +92,9 @@ agent::AlertInputs AlarmasViewModel::deLaInterfaz(const Fuentes& f) {
 agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
     agent::AlertInputs directas;
     AppRuntime& rt = f.rt;
-    BroadcastEngine& motor = rt.engine();
+    // Lo que se lee del motor desde cualquier hilo (los picos, la foto de las salidas, el
+    // programa en imagen, el loudness): el vigía corre en el plano de control.
+    BroadcastEngine& motor = rt.motorEntreHilos();
     // Cada entrada de audio (el silencio y la saturación de cada micrófono) y la mezcla del
     // programa (lo que sale): de lo que el motor ya publicó (la foto del dueño, con el mute
     // de la por omisión, y el canal de niveles), sin la interfaz: con ella trabada, siguen.
@@ -115,8 +117,8 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
     };
     // De la foto de las salidas que publica el hilo de salidas del motor (no de status(),
     // que recorre las salidas de la interfaz).
-    directas.status = [&rt]() {
-        const json fo = rt.engine().fotoSalidas();
+    directas.status = [&rt, &motor]() {
+        const json fo = motor.fotoSalidas();
         const json t = fo.value("principal", json::object());
         agent::AlertInputs::Status a;
         a.streaming = t.value("andando", false);
@@ -173,8 +175,8 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
         // tarda unos segundos): no hay alarmas de «sin señal» los primeros 15 s.
         if (ahora - desde < 15000) return std::vector<std::pair<std::string, bool>>{};
         video::VideoGrafos* v = video ? video() : nullptr;
-        if (v != nullptr && ahora - cache->first > 1000 && rt.engine().turno().tomarHasta(50)) {
-            const TurnoMotor& turno = rt.engine().turno();
+        if (v != nullptr && ahora - cache->first > 1000 && rt.turno().tomarHasta(50)) {
+            const TurnoMotor& turno = rt.turno();
             cache->first = ahora;
             cache->second.clear();
             for (const QString& e : v->entradas()) {
@@ -216,9 +218,9 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
     // La superresolución que no llega (el programador, también del dueño).
     directas.superres = [&rt, video = f.video, cache = std::make_shared<json>(json::object())]() {
         video::VideoGrafos* v = video ? video() : nullptr;
-        if (v != nullptr && rt.engine().turno().tomarHasta(50)) {
+        if (v != nullptr && rt.turno().tomarHasta(50)) {
             *cache = v->programador().value("entradas", json::object());
-            rt.engine().turno().soltar();
+            rt.turno().soltar();
         }
         return *cache;
     };

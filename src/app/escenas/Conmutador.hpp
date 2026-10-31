@@ -127,7 +127,8 @@ class Conmutador : public QObject {
 class Conmutadores : public QObject {
     Q_OBJECT
    public:
-    explicit Conmutadores(AppRuntime& rt, QObject* parent = nullptr);
+    /// `salidas`: los ids de las que hay ahora (de la foto del motor; la por omisión va siempre).
+    Conmutadores(AppRuntime& rt, const std::vector<std::string>& salidas, QObject* parent = nullptr);
     ~Conmutadores() override;
 
     /// El de la por omisión (existe siempre).

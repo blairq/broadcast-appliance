@@ -1245,11 +1245,18 @@ void AppRuntime::avisarPersistencia(const std::string& texto) {
 }
 
 void AppRuntime::setCarpetaDelEvento(std::function<fs::path()> fn) {
+    // Es del dueño: la lee ajustesAire() al armar la copia del plano, y desde otro hilo
+    // ajustesAire() devuelve esa copia. Puesta desde la interfaz, la grabación que se
+    // retomaba enseguida salía con la copia vieja (sin carpeta): iba a Recordings/.
+    if (!esDueno() && encolarEnDueno_)
+        return encolarEnDueno_([this, fn = std::move(fn)]() mutable { setCarpetaDelEvento(std::move(fn)); });
     carpetaDelEvento_ = std::move(fn);
+    ajustesAire(); // la copia del plano, ya con la carpeta
     if (carpetaDelEvento_) retomarGrabaciones();
 }
 
 void AppRuntime::retomarGrabaciones() {
+    if (!esDueno() && encolarEnDueno_) return encolarEnDueno_([this]() { retomarGrabaciones(); });
     const TurnoMotor::Guarda turno(engine_.turno());
     if (!grabacionesPorRetomar_) return;
     grabacionesPorRetomar_ = false;

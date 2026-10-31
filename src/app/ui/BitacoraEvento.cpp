@@ -33,6 +33,7 @@ namespace ba::app {
 BitacoraEvento::BitacoraEvento(AppRuntime& rt, VentanillaMotor& ventanilla, EventoViewModel& evento, control::BusEventos& bus,
                                QObject* parent)
     : QObject(parent), rt_(rt), ventanilla_(ventanilla), evento_(&evento), bus_(&bus) {
+    fondo_.setMaxThreadCount(1);
     armar();
 }
 
@@ -44,6 +45,8 @@ std::string BitacoraEvento::archivoGrabacion() const {
 std::string BitacoraEvento::copiaGrabacion() const { return ventanilla_.foto().grabacion.value("copia", std::string()); }
 
 BitacoraEvento::~BitacoraEvento() {
+    // La foto en el fondo usa fotos_: termina antes (su respuesta encolada ya no llega).
+    fondo_.waitForDone();
     // Un sello a medias no se escribe: se corta y se vuelve a sellar otro día.
     cancelarSellos_ = true;
     for (auto& s : selladores_)
@@ -61,13 +64,44 @@ void BitacoraEvento::revisarConfig(const std::string& carpeta, const std::string
     if (!fotos_ || !evento_) return;
     const auto dir = evento_->carpetaEvento(carpeta);
     if (dir.empty()) return;
-    const auto ahoraMs = QDateTime::currentMSecsSinceEpoch();
     nlohmann::json f;
     try {
-        f = fotos_->foto(ahoraMs);
+        const std::lock_guard<std::mutex> l(fotosMu_);
+        f = fotos_->foto(QDateTime::currentMSecsSinceEpoch());
     } catch (const std::exception&) {
         return;
     }
+    aplicarFoto(f, dir, carpeta, momento);
+}
+
+void BitacoraEvento::revisarConfigEnElFondo() {
+    if (!fotos_ || !evento_ || revisandoEnElFondo_) return;
+    const auto dir = evento_->carpetaEvento();
+    if (dir.empty()) return;
+    revisandoEnElFondo_ = true;
+    // Recorrer Config/ (y leer y resumir lo que cambió) tardaba ~50 ms en la interfaz.
+    fondo_.start([this, dir]() {
+        nlohmann::json f;
+        try {
+            const std::lock_guard<std::mutex> l(fotosMu_);
+            f = fotos_->foto(QDateTime::currentMSecsSinceEpoch());
+        } catch (const std::exception&) {
+        }
+        QMetaObject::invokeMethod(
+            this,
+            [this, dir, f = std::move(f)]() {
+                revisandoEnElFondo_ = false;
+                // Si mientras tanto cambió el evento, la foto del nuevo ya se sacó al abrirlo.
+                if (f.is_null() || !evento_ || evento_->carpetaEvento() != dir) return;
+                aplicarFoto(f, dir, {}, {});
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void BitacoraEvento::aplicarFoto(const nlohmann::json& f, const std::filesystem::path& dir, const std::string& carpeta,
+                                 const std::string& momento) {
+    const auto ahoraMs = QDateTime::currentMSecsSinceEpoch();
     const auto cfg = dir / "config";
     nlohmann::json antes = fotoUltima_;
     if (antes.is_null()) antes = evento::FotosConfig::cargar(cfg / "ultima.json");
@@ -304,7 +338,7 @@ void BitacoraEvento::armar() {
     }
     auto* tFotos = new QTimer(this);
     tFotos->setInterval(10000);
-    connect(tFotos, &QTimer::timeout, this, [this]() { revisarConfig({}, ""); });
+    connect(tFotos, &QTimer::timeout, this, &BitacoraEvento::revisarConfigEnElFondo);
     tFotos->start();
 
     auto* b = bitacora_.get();

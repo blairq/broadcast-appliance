@@ -7,8 +7,14 @@
 #include "i18n/I18n.hpp"
 
 #include <QtGlobal>
+#if !defined(_WIN32)
+#include <dlfcn.h>
+#include <execinfo.h>
+#endif
 
 #include <chrono>
+#include <cstdio>
+#include <cstring>
 #include <set>
 
 namespace ba::app {
@@ -94,6 +100,31 @@ void TurnoMotor::entrarPorVuelta(const std::source_location& donde) const {
     anotarDirecta(donde);
 }
 
+namespace {
+/// Quién llamó (módulo+desplazamiento, para `atos`/`addr2line`): cuando el lugar es un
+/// método del motor con su Guarda, el lugar no dice quién de la interfaz lo llamó.
+std::string quienLlamo() {
+#if defined(_WIN32)
+    return {};
+#else
+    void* marcos[10];
+    const int n = backtrace(marcos, 10);
+    std::string out;
+    for (int i = 3; i < n; ++i) { // sin este, anotarDirecta y entrarPorVuelta
+        Dl_info di{};
+        if (dladdr(marcos[i], &di) == 0 || di.dli_fname == nullptr) continue;
+        const char* b = std::strrchr(di.dli_fname, '/');
+        char hex[32];
+        std::snprintf(hex, sizeof hex, "+0x%lx",
+                      static_cast<unsigned long>(reinterpret_cast<std::uintptr_t>(marcos[i]) -
+                                                 reinterpret_cast<std::uintptr_t>(di.dli_fbase)));
+        out += (out.empty() ? "" : " < ") + std::string(b != nullptr ? b + 1 : di.dli_fname) + hex;
+    }
+    return out;
+#endif
+}
+} // namespace
+
 void TurnoMotor::anotarDirecta(const std::source_location& donde) const {
     const std::string l = lugar(donde);
     ++directasTotal_;
@@ -109,9 +140,11 @@ void TurnoMotor::anotarDirecta(const std::source_location& donde) const {
         .sumar();
     // La primera vez de cada lugar, al registro: lo que falta migrar a la ventanilla (F3-03).
     if (nuevo)
-        ba::diag::registro().linea(ba::diag::Nivel::Info, "motor", 0,
-                                   ba::i18n::llenar(ba::i18n::traducir("motor", "la interfaz entró directo al motor: %1 (%2:%3)"),
-                                                    {l, std::string(donde.file_name()), std::to_string(donde.line())}));
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Info, "motor", 0,
+            ba::i18n::llenar(ba::i18n::traducir("motor", "la interfaz entró directo al motor: %1 (%2:%3)"),
+                             {l, std::string(donde.file_name()), std::to_string(donde.line())}) +
+                " [" + quienLlamo() + "]");
 }
 
 void TurnoMotor::anotarEntrada() const {

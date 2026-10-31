@@ -31,12 +31,12 @@ Conmutador::Conmutador(AppRuntime& rt, Conmutadores& registro, std::string salid
 std::string Conmutador::alAire() const { return rt_.engine().currentScene(salida_); }
 
 std::string Conmutador::armada() const {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     return armada_;
 }
 
 double Conmutador::tbarPosicion() const {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     return tbarPos_;
 }
 
@@ -53,7 +53,7 @@ void Conmutador::avisar(std::function<void(Conmutador&)> emitir, unsigned partes
 }
 
 std::string Conmutador::cortar(const std::string& escena, const std::string& tipoPedido, int msPedido, const char* via) {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     const std::string antes = alAire();
     std::string tipo = tipoPedido;
     int ms = msPedido;
@@ -89,7 +89,7 @@ std::string Conmutador::poner(const std::string& escena, const std::string& tipo
 }
 
 std::string Conmutador::armar(const std::string& escena) {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     if (escena == alAire())
         // Armar lo que ya está al aire deja el TAKE sin sentido (cortaría a lo mismo).
         return ba::i18n::llenar(ba::i18n::traducir("aire", "«%1» ya está al aire: armá otra para el próximo take."), {escena});
@@ -101,7 +101,7 @@ std::string Conmutador::armar(const std::string& escena) {
 }
 
 std::string Conmutador::take(const std::string& tipo, int ms) {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     if (armada_.empty()) return ba::i18n::traducir("aire", "No hay ninguna escena armada: elegí una en el bus de preview.");
     const std::string entra = armada_;
     const std::string sale = alAire();
@@ -113,7 +113,7 @@ std::string Conmutador::take(const std::string& tipo, int ms) {
 }
 
 std::string Conmutador::tbar(double t, bool soltar) {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     if (armada_.empty()) return ba::i18n::traducir("aire", "No hay ninguna escena armada para la T-bar.");
     const std::string entra = armada_;
     const std::string sale = alAire();
@@ -168,7 +168,7 @@ std::string Conmutador::setTransicionEntrada(const std::string& escena, const st
 nlohmann::json Conmutador::transicionEntrada(const std::string& escena) const { return registro_.transicionEntrada(escena); }
 
 void Conmutador::setAfv(const std::string& fuente, bool sigue) {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     if (sigue)
         afv_.fuentes.insert(fuente);
     else
@@ -178,17 +178,17 @@ void Conmutador::setAfv(const std::string& fuente, bool sigue) {
 }
 
 bool Conmutador::afv(const std::string& fuente) const {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     return afv_.fuentes.count(fuente) > 0;
 }
 
 std::vector<std::string> Conmutador::afvFuentes() const {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     return {afv_.fuentes.begin(), afv_.fuentes.end()};
 }
 
 Afv Conmutador::afvEstado() const {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     return afv_;
 }
 
@@ -196,7 +196,8 @@ Afv Conmutador::afvEstado() const {
 // Conmutadores (el registro)
 // ============================================================================
 
-Conmutadores::Conmutadores(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+Conmutadores::Conmutadores(AppRuntime& rt, const std::vector<std::string>& salidas, QObject* parent)
+    : QObject(parent), rt_(rt) {
     const nlohmann::json j = config::leerObjeto(rt_.dataRoot() / "Config" / "transiciones.json");
     if (!j.empty()) {
         transicionesEntrada_ = j.value("entrada", nlohmann::json::object());
@@ -206,7 +207,10 @@ Conmutadores::Conmutadores(AppRuntime& rt, QObject* parent) : QObject(parent), r
             if (id != kPorOmision) afvGuardado_[id] = Afv::deJson(x);
     }
     porOmision_ = crear(kPorOmision);
-    sincronizar();
+    // Los de las salidas que ya hay (las que dice la foto): se arma en la interfaz y todavía
+    // no se mudó al dueño, así que no le pregunta al motor (sincronizar sí, ya en el dueño).
+    for (const std::string& id : salidas)
+        if (conmutadores_.count(id) == 0) crear(id);
     // Las salidas se crean y se borran en el runtime: acá se sigue lo que haya (el aviso
     // llega en el dueño, que es donde vive este registro).
     observador_ = rt_.observar([this](AppRuntime::Cambio c) {
@@ -247,13 +251,13 @@ Conmutador* Conmutadores::crear(const std::string& salida) {
 Conmutador* Conmutadores::de(const std::string& salida) {
     // Con el turno: el mapa lo cambia sincronizar, también con él (y quien usa el que
     // devuelve desde el plano de control lo tiene por toda su operación: no se le va).
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     const auto it = conmutadores_.find(salida.empty() ? std::string(kPorOmision) : salida);
     return it == conmutadores_.end() ? nullptr : it->second.get();
 }
 
 std::vector<Conmutador*> Conmutadores::todos() const {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     std::vector<Conmutador*> out;
     for (const std::string& id : rt_.engine().salidaIds())
         if (const auto it = conmutadores_.find(id); it != conmutadores_.end()) out.push_back(it->second.get());
@@ -261,7 +265,7 @@ std::vector<Conmutador*> Conmutadores::todos() const {
 }
 
 void Conmutadores::sincronizar() {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     const std::vector<std::string> ids = rt_.engine().salidaIds();
     bool cambio = false;
     for (const std::string& id : ids)
@@ -284,13 +288,13 @@ void Conmutadores::sincronizar() {
 }
 
 nlohmann::json Conmutadores::transicionEntrada(const std::string& escena) const {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     if (!transicionesEntrada_.contains(escena)) return nlohmann::json::object();
     return transicionesEntrada_[escena];
 }
 
 std::string Conmutadores::setTransicionEntrada(const std::string& escena, const std::string& tipo, int ms) {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     static const std::vector<std::string> tipos{"", "cut", "fade", "swipe", "slide", "fade_to_color"};
     if (std::find(tipos.begin(), tipos.end(), tipo) == tipos.end())
         return ba::i18n::traducir("aire", "tipo: cut, fade, swipe, slide o fade_to_color (vacío = la global)");
@@ -304,7 +308,7 @@ std::string Conmutadores::setTransicionEntrada(const std::string& escena, const 
 }
 
 void Conmutadores::guardar() const {
-    const TurnoMotor::Guarda turno(rt_.engine().turno());
+    const TurnoMotor::Guarda turno(rt_.turno());
     // El AFV de cada salida: el de las que andan y el guardado de las que no están.
     std::map<std::string, Afv> afv = afvGuardado_;
     for (const auto& [id, c] : conmutadores_) afv[id] = c->afvEstado();

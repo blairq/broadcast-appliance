@@ -327,75 +327,110 @@ QVariantMap EventoViewModel::avisoWeb() const {
 
 void EventoViewModel::publicarWeb() {
     if (sala_ == nullptr) return;
-    json cuerpo{{"activo", false}};
     const QString dir = carpetaWebAbs();
     std::error_code ec;
-    if (!dir.isEmpty() && std::filesystem::exists(std::filesystem::path(dir.toStdWString()) / "portada.html", ec)) {
-        // El estado público: en qué sección va (nada de cues ni notas).
-        std::string est = "proximo";
-        int bloque = -1;
-        if (corrida_) {
-            switch (corrida_->estado()) {
-                case evento::linea::EstadoCorrida::Corriendo: est = "en_vivo"; break;
-                case evento::linea::EstadoCorrida::Pausada: est = "pausa"; break;
-                case evento::linea::EstadoCorrida::Terminada: est = "terminado"; break;
-                default: break;
-            }
-            if (est == "en_vivo" || est == "pausa") bloque = cursor_.bloque;
+    if (dir.isEmpty() || !std::filesystem::exists(std::filesystem::path(dir.toStdWString()) / "portada.html", ec)) {
+        publicarCuerpoWeb(json{{"activo", false}});
+        return;
+    }
+    // Uno a la vez: lo que se pide mientras se arma sale cuando termina (con lo de ese momento).
+    if (webArmando_) {
+        webOtraVez_ = true;
+    } else {
+        webArmando_ = true;
+        armarWebEnElFondo(dir);
+    }
+}
+
+void EventoViewModel::armarWebEnElFondo(const QString& dir) {
+    // Lo que es de la interfaz (la corrida, el cursor, la sala, las preguntas, el padrón), acá.
+    // El estado público: en qué sección va (nada de cues ni notas).
+    std::string est = "proximo";
+    int bloque = -1;
+    if (corrida_) {
+        switch (corrida_->estado()) {
+            case evento::linea::EstadoCorrida::Corriendo: est = "en_vivo"; break;
+            case evento::linea::EstadoCorrida::Pausada: est = "pausa"; break;
+            case evento::linea::EstadoCorrida::Terminada: est = "terminado"; break;
+            default: break;
         }
-        if (ensayo_) est = "proximo"; // un ensayo no se publica
-        if (est == "proximo" && store_.datos(abierto_.toStdString()).estado == "terminado") est = "terminado";
-        if ((est == "en_vivo" || est == "pausa") && webArranqueMs_ == 0) webArranqueMs_ = QDateTime::currentMSecsSinceEpoch();
-        if (est == "proximo") webArranqueMs_ = 0;
-        qint64 inicioMs = 0;
-        if (!e_.fecha.empty() && !e_.inicio.empty()) {
-            const QTimeZone tz = e_.huso.empty() ? QTimeZone::systemTimeZone() : QTimeZone(QByteArray::fromStdString(e_.huso));
-            const QDateTime dt(QDate::fromString(QString::fromStdString(e_.fecha), "yyyy-MM-dd"),
-                               QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm"), tz.isValid() ? tz : QTimeZone::systemTimeZone());
-            if (dt.isValid()) inicioMs = dt.toMSecsSinceEpoch();
-        }
-        const evento::SitioWeb s = evento::SitioWeb::leer(dir.toStdWString(), e_);
-        evento::ExtrasVivo x;
-        x.vivos = evento::armarVivos(s, plataformas_ ? plataformas_() : json::object());
-        x.aviso = webAviso_;
-        if (preguntas_) x.preguntas = preguntas_();
-        if (enLaSala_) x.enLaSala = enLaSala_();
-        if (datosSala_) x.sala = datosSala_();
-        {
-            // La asistencia sale del padrón del evento (cuántos se anotaron y cuántos llegaron).
-            const QVariantMap r = resumenPadron();
-            if (r.value("total").toInt() > 0)
-                x.sala["asistencia"] = {{"total", r.value("total").toInt()}, {"presentes", r.value("presentes").toInt()}};
-        }
-        // Cuándo empezó de verdad cada sección (para el horario estimado de las que siguen).
-        if (est == "proximo") webInicioReal_.clear();
-        if (bloque >= 0 && !webInicioReal_.count(bloque)) webInicioReal_[bloque] = QDateTime::currentMSecsSinceEpoch();
-        for (const auto& [b, ms] : webInicioReal_) x.inicioReal[b] = ms;
-        if (corriendo() && bloque >= 0 && bloque < static_cast<int>(e_.bloques.size())) {
-            // Lo que le falta a la sección actual según lo previsto, y quién habla (si el cue
-            // que corre es de orador: el que tiene la palabra se ve al aire, no es privado).
-            const auto& cues = e_.bloques[static_cast<std::size_t>(bloque)].cues;
-            int falta = 0;
-            for (int c = cursor_.cue; c < static_cast<int>(cues.size()); ++c)
-                falta += cues[static_cast<std::size_t>(c)].duracionSeg;
-            x.restanteActualSeg = std::max(0, falta - enCueSeg(ahoraMs()));
-            if (const evento::Cue* c = cuePtrConst(cursor_.bloque, cursor_.cue); c != nullptr && c->tipo == evento::Tipo::Orador)
-                x.habla = c->datos.value("participante", std::string());
-        }
-        json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0, x);
-        estado["version"] = webVersion_;
+        if (est == "en_vivo" || est == "pausa") bloque = cursor_.bloque;
+    }
+    if (ensayo_) est = "proximo"; // un ensayo no se publica
+    if (est == "proximo" && store_.datos(abierto_.toStdString()).estado == "terminado") est = "terminado";
+    if ((est == "en_vivo" || est == "pausa") && webArranqueMs_ == 0) webArranqueMs_ = QDateTime::currentMSecsSinceEpoch();
+    if (est == "proximo") webArranqueMs_ = 0;
+    qint64 inicioMs = 0;
+    if (!e_.fecha.empty() && !e_.inicio.empty()) {
+        const QTimeZone tz = e_.huso.empty() ? QTimeZone::systemTimeZone() : QTimeZone(QByteArray::fromStdString(e_.huso));
+        const QDateTime dt(QDate::fromString(QString::fromStdString(e_.fecha), "yyyy-MM-dd"),
+                           QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm"), tz.isValid() ? tz : QTimeZone::systemTimeZone());
+        if (dt.isValid()) inicioMs = dt.toMSecsSinceEpoch();
+    }
+    evento::ExtrasVivo x;
+    x.aviso = webAviso_;
+    if (preguntas_) x.preguntas = preguntas_();
+    if (enLaSala_) x.enLaSala = enLaSala_();
+    if (datosSala_) x.sala = datosSala_();
+    {
+        // La asistencia sale del padrón del evento (cuántos se anotaron y cuántos llegaron).
+        const QVariantMap r = resumenPadron();
+        if (r.value("total").toInt() > 0)
+            x.sala["asistencia"] = {{"total", r.value("total").toInt()}, {"presentes", r.value("presentes").toInt()}};
+    }
+    // Cuándo empezó de verdad cada sección (para el horario estimado de las que siguen).
+    if (est == "proximo") webInicioReal_.clear();
+    if (bloque >= 0 && !webInicioReal_.count(bloque)) webInicioReal_[bloque] = QDateTime::currentMSecsSinceEpoch();
+    for (const auto& [b, ms] : webInicioReal_) x.inicioReal[b] = ms;
+    if (corriendo() && bloque >= 0 && bloque < static_cast<int>(e_.bloques.size())) {
+        // Lo que le falta a la sección actual según lo previsto, y quién habla (si el cue
+        // que corre es de orador: el que tiene la palabra se ve al aire, no es privado).
+        const auto& cues = e_.bloques[static_cast<std::size_t>(bloque)].cues;
+        int falta = 0;
+        for (int c = cursor_.cue; c < static_cast<int>(cues.size()); ++c)
+            falta += cues[static_cast<std::size_t>(c)].duracionSeg;
+        x.restanteActualSeg = std::max(0, falta - enCueSeg(ahoraMs()));
+        if (const evento::Cue* c = cuePtrConst(cursor_.bloque, cursor_.cue); c != nullptr && c->tipo == evento::Tipo::Orador)
+            x.habla = c->datos.value("participante", std::string());
+    }
+    // Lo que lee el disco (el sitio, la documentación) y arma el JSON, en el fondo: con un
+    // sitio armado tardaba ~50 ms en la interfaz, y se reenvía cada 10 s.
+    webFondo_.start([this, dir, e = e_, est, bloque, inicioMs, arranco = webArranqueMs_, x = std::move(x),
+                     plataformas = plataformas_ ? plataformas_() : json::object(), version = webVersion_,
+                     raiz = rt_.dataRoot()]() mutable {
+        const evento::SitioWeb s = evento::SitioWeb::leer(dir.toStdWString(), e);
+        x.vivos = evento::armarVivos(s, plataformas);
+        json estado = evento::estadoPublico(e, s, est, bloque, inicioMs, arranco, 0, x);
+        estado["version"] = version;
         // La documentación pública del evento (docs/): la web la muestra y la sala la sirve.
-        const evento::Documentos docs(rt_.dataRoot());
+        const evento::Documentos docs(raiz);
         estado["documentos"] = docs.publicos();
         // Para la sala (no se publica): el archivo de cada documento público, por su id.
         json docsArchivos = json::object();
         for (const auto& d : docs.lista())
             if (d.value("publico", true)) docsArchivos[d.value("id", std::string())] = d.value("archivo", std::string());
-        cuerpo = {{"activo", true}, {"dir", dir.toStdString()}, {"docs_archivos", docsArchivos}, {"docs_dir", [&] {
-                      const std::u8string u = docs.carpeta().u8string();
-                      return std::string(u.begin(), u.end());
-                  }()}, {"estado", estado}};
-    }
+        const std::u8string u = docs.carpeta().u8string();
+        json cuerpo = {{"activo", true},
+                       {"dir", dir.toStdString()},
+                       {"docs_archivos", docsArchivos},
+                       {"docs_dir", std::string(u.begin(), u.end())},
+                       {"estado", estado}};
+        QMetaObject::invokeMethod(
+            this,
+            [this, cuerpo = std::move(cuerpo)]() {
+                webArmando_ = false;
+                publicarCuerpoWeb(cuerpo);
+                if (webOtraVez_) {
+                    webOtraVez_ = false;
+                    publicarWeb();
+                }
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void EventoViewModel::publicarCuerpoWeb(const json& cuerpo) {
+    if (sala_ == nullptr) return;
     const QByteArray b = QByteArray::fromStdString(cuerpo.dump());
     if (b == webUltimo_) return;
     webUltimo_ = b;
@@ -405,7 +440,10 @@ void EventoViewModel::publicarWeb() {
     sala_->control().publicarEventoWeb(conHora);
 }
 
-EventoViewModel::~EventoViewModel() = default;
+EventoViewModel::~EventoViewModel() {
+    // Lo que se arma en el fondo usa this: termina antes (su respuesta encolada ya no llega).
+    webFondo_.waitForDone();
+}
 
 // --- La lista ---------------------------------------------------------------
 

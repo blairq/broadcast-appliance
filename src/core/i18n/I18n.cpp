@@ -42,8 +42,12 @@ struct Estado {
 };
 
 Estado& estado() {
-    static Estado e;
-    return e;
+    // Nunca se destruye (como diag::registro): los hilos que siguen al salir (la cola de
+    // escritura, que avisa en el idioma del operador si no pudo guardar) traducían sobre un
+    // candado ya destruido si el catálogo había nacido después que ellos («mutex lock
+    // failed» al terminar un test con escrituras pendientes).
+    static Estado* e = new Estado();
+    return *e;
 }
 
 std::string minusculas(std::string s) {

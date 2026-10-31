@@ -135,8 +135,19 @@ vuelta del motor se saltea mientras la interfaz lo tiene.
 
 Cada entrada directa se cuenta por lugar: `ba_motor_directas_total{lugar}` en
 `/metrics`, `TurnoMotor::directas()` y una línea «la interfaz entró directo al motor:
-<lugar> (<archivo>:<línea>)» en `app.log` la primera vez de cada lugar. Esa lista es lo
-que falta migrar.
+<lugar> (<archivo>:<línea>) [quién llamó]» en `app.log` la primera vez de cada lugar (quién
+llamó va como módulo+desplazamiento: `atos -o ba-app -l 0x100000000 0x100…`; sirve cuando el
+lugar es un método del motor con su Guarda y no dice qué vista lo llamó). Esa lista es lo
+que falta migrar. Desde el 2026-10-31 (E) la corrida que recorre todas las páginas da 0
+lugares: el turno queda como red de seguridad (no se toma, pero cuenta y avisa lo nuevo).
+
+Lo que es seguro entre hilos tiene su acceso sin contar: `AppRuntime::alFallarMotor` (el
+aviso de fallas, con su candado) y `AppRuntime::motorEntreHilos()` (para los métodos
+DESDE CUALQUIER HILO: las vistas, `fotoSalidas`, los picos; un método con turno llamado por
+ahí desde la interfaz igual se cuenta). Lo que es del dueño y se llama desde otro hilo se
+le encarga solo (`setCarpetaDelEvento`, `retomarGrabaciones`): desde la interfaz,
+`ajustesAire()` devuelve la copia del plano, y lo que se decidiera con ella podía ser viejo
+(la grabación retomada tras un corte iba a `Recordings/`).
 
 ## La línea de tiempo (asamblea, sala y línea)
 

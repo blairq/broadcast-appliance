@@ -87,6 +87,8 @@ void McpService::registerInputTools() {
                  QT_TRANSLATE_NOOP("mcp", "Preset (full, pip-br, left, ...) o {x,y,w,h}. Por defecto pantalla completa.")}}},
               {"modo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "«ANCHOxALTO@cps», de video_devices {device}")}}}}},
             {"required", {"device"}}};
+        // Solo el motor y la configuración: en el control, su dueño.
+        t.hilo = Hilo::Control;
         t.run = [&rt, layoutOf](const json& a, Done done) {
             BroadcastEngine& e = rt.engine();
             if (!e.sourceTypeExists(inputs::kMicType))
@@ -283,6 +285,8 @@ void McpService::registerInputTools() {
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Las fuentes de camara/capturadora y de red: tipo, dispositivo o URL (sin clave), si llega "
             "imagen y de que tamaño, y el estado de reproduccion de las de red.");
+        // Lee el motor: en el control, su dueño (con la interfaz trabada, contesta igual).
+        t.hilo = Hilo::Control;
         t.run = [&rt](const json&, Done done) {
             BroadcastEngine& e = rt.engine();
             json out = json::array();

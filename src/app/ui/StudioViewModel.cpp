@@ -136,7 +136,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     };
     // Lo que el motor no pudo hacer: sus órdenes van en cola y la interfaz no
     // espera el resultado, así que el error llega después, desde su hilo.
-    rt_.engine().alFallarMotor([vm = QPointer<StudioViewModel>(this)](const std::string& texto) {
+    rt_.alFallarMotor([vm = QPointer<StudioViewModel>(this)](const std::string& texto) {
         QMetaObject::invokeMethod(
             qApp,
             [vm, t = QString::fromStdString(texto), ok = BroadcastEngine::esAvisoDeDiscoBien(texto)]() {
@@ -148,7 +148,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // seguidas): NADA que venga del disco. Aquel apaga todo; el diario apaga al
     // culpable. Juntos cubren los dos casos: el que rompe una cosa y el que
     // rompe algo que no sabemos cual es.
-    if (rt.config().safeMode) {
+    if (ventanilla_.foto().configuracion.app && ventanilla_.foto().configuracion.app->safeMode) {
         ba::diag::diario().setModoSeguro(true);
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    ba::i18n::traducir("arranque", "modo seguro: no se carga nada del disco en esta corrida"));
@@ -177,13 +177,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     }
     // Las vistas del motor se leen sin el turno; pedirlas y soltarlas se le encarga al dueño.
     frames_ = std::make_unique<FrameService>(
-        rt.engine(),
+        rt.motorEntreHilos(),
         [this](std::function<void(BroadcastEngine&)> fn) {
             ventanilla_.pedir("vista", [&rt = rt_, fn = std::move(fn)]() { fn(rt.engine()); });
         },
         ventanilla_.foto().ajustes.invitados);
     marca("frames");
-    frames_->setLobbySlots(rt.gateway().lobbySlots);
+    if (const auto& gw = ventanilla_.foto().configuracion.gateway) frames_->setLobbySlots(gw->lobbySlots);
     // Las salidas (ui/SalidasViewModel): el conmutador de escenas de cada una, el FTB y la
     // placa, y cuál maneja esta interfaz. Acá se refleja lo de la activa (escenas, fuentes,
     // mezcla); las pantallas de tally de la sala y el monitor «armada» siguen a la por omisión.
@@ -267,9 +267,22 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
     connect(emisor_.get(), &graficos::Emisor::fallo, this, [this](const QString& m) { emit notify(m, "error"); });
     // El video en vivo dentro de un gráfico (la cámara en el zócalo) lo ponen las escenas.
-    emisor_->setCapasDeVideo({[&rt](const std::string& g, const nlohmann::json& c) { return rt.engine().ponerVideoDeGrafico(g, c); },
-                              [&rt](const std::string& g, std::int64_t ns) { rt.engine().empezarVideoDeGrafico(g, ns); },
-                              [&rt](const std::string& g) { rt.engine().quitarVideoDeGrafico(g); }});
+    // Se le piden al dueño (en orden: poner, empezar, quitar); lo que no salió llega después.
+    emisor_->setCapasDeVideo(
+        {[this](const std::string& g, const nlohmann::json& c) {
+             ventanilla_.pedir(
+                 this, "grafico_video", [&rt = rt_, g, c]() { return rt.engine().ponerVideoDeGrafico(g, c); },
+                 [this](const std::string& e) {
+                     if (!e.empty()) emit notify(tr("El video del gráfico no salió: %1").arg(qs(e)), "error");
+                 });
+             return std::string();
+         },
+         [this](const std::string& g, std::int64_t ns) {
+             ventanilla_.pedir("grafico_video", [&rt = rt_, g, ns]() { rt.engine().empezarVideoDeGrafico(g, ns); });
+         },
+         [this](const std::string& g) {
+             ventanilla_.pedir("grafico_video", [&rt = rt_, g]() { rt.engine().quitarVideoDeGrafico(g); });
+         }});
     marca("emisor");
     // El guion del evento necesita la sala para los cues de orador.
     {
@@ -480,8 +493,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         }
         // Con un evento en curso, lo que se graba va a su carpeta (H4).
         // (Y las grabaciones que esperaban, tras un corte, vuelven ahí: no a la de fábrica.)
-        if (evento_) rt_.setCarpetaDelEvento([this]() { return evento_->carpetaEvento(); });
-        else rt_.retomarGrabaciones();
+        // Es del dueño (las grabaciones arrancan ahí): se le encarga.
+        if (evento_)
+            ventanilla_.pedir("carpeta_evento", [&rt = rt_, ev = evento_.get()]() {
+                rt.setCarpetaDelEvento([ev]() { return ev->carpetaEvento(); });
+            });
+        else
+            ventanilla_.pedir("retomar_grabaciones", [&rt = rt_]() { rt.retomarGrabaciones(); });
         // El cue en que va el guion, al bus («evento/cue»): lo muestra la botonera entre
         // sus botones «◀ Cue» y «Cue ▶», y cualquier superficie que lo quiera.
         if (evento_) {
@@ -542,8 +560,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             if (asistente_) asistente_->voz().porCalor(apagar);
             return true;
         });
-        recursos_->alDegradar("vistas", [&rt](bool apagar) {
-            rt.engine().soltarVistasSinMirar(apagar);
+        recursos_->alDegradar("vistas", [this](bool apagar) {
+            ventanilla_.pedir("vistas_dormir", [&rt = rt_, apagar]() { rt.engine().soltarVistasSinMirar(apagar); });
             return true;
         });
     }
@@ -661,7 +679,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,
     // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
     grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(
-        escenas::ControlGrillas::Partes{conference_->client(), rt_.engine(), asamblea_->sesionRemota(),
+        escenas::ControlGrillas::Partes{conference_->client(), ventanilla_, asamblea_->sesionRemota(),
                                         &asamblea_->cuerpo().cuerpo()},
         this);
     marca("plugins");
@@ -788,7 +806,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
 
 StudioViewModel::~StudioViewModel() {
     videoParaVigia_.store(nullptr); // el vigía sigue un rato; el grafo se va con la imagen
-    rt_.engine().alFallarMotor(nullptr);
+    rt_.alFallarMotor(nullptr);
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
     // El runtime y los flujos de texto viven más que el evento: que no le
     // pregunten la carpeta a un EventoViewModel que ya no está.

@@ -19,7 +19,9 @@
 //     grilla, sacarlo, moverlo de una a otra, devolverlo a lo automático. Vive en
 //     memoria: las claves son de la conexión de cada uno.
 // La lógica (reparto, lugares estables, disposición) es grilla::Repartidor; acá
-// solo se juntan los datos y se manda el resultado cuando cambia.
+// solo se juntan los datos y se manda el resultado cuando cambia. Lo del motor (la
+// escena al aire, las capas DSK, las escenas y los ajustes de cada fuente) sale de la
+// foto (F3-03, emision/FotoMotor.hpp): no entra al motor.
 //
 // Lo usan la ventana Propiedades (los ajustes de la fuente y quién está en ella:
 // VistaGrillas), la Sala y la Asamblea (el resumen) y el MCP
@@ -44,8 +46,8 @@
 #include <vector>
 
 namespace ba::app {
-class BroadcastEngine;
 class ConferenceClient;
+class VentanillaMotor;
 }
 namespace ba::app::asamblea {
 class Cuerpo;
@@ -68,7 +70,7 @@ class ControlGrillas : public QObject {
     /// Lo que usa (todo vive más que este modelo). `sesion` y `cuerpo` pueden faltar.
     struct Partes {
         ConferenceClient& sala;
-        BroadcastEngine& motor;
+        VentanillaMotor& motor; ///< la foto del motor (lo que se ve, las fuentes)
         asamblea::SesionRemota* sesion = nullptr;
         const asamblea::Cuerpo* cuerpo = nullptr;
     };

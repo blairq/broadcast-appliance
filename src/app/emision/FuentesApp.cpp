@@ -138,6 +138,13 @@ void ponerCambiar(Cambiar c) {
 }
 
 bool cambiarAjustes(const std::string& nombre, const json& cambios) {
+    if (const DesdeLaInterfaz i = desdeLaInterfaz(); i.encargar && i.listar) {
+        bool existe = false;
+        for (const auto& [n, t] : i.listar()) existe = existe || n == nombre;
+        if (!existe) return false;
+        i.encargar("fuente_ajustes", [nombre, cambios]() { cambiarAjustes(nombre, cambios); });
+        return true;
+    }
     Cambiar c;
     {
         std::lock_guard<std::mutex> l(gMu);
@@ -167,8 +174,12 @@ std::vector<std::pair<std::string, std::string>> listar() {
 }
 
 json ajustesDe(const std::string& nombre) {
-    if (const DesdeLaInterfaz i = desdeLaInterfaz(); i.ajustes)
-        if (std::optional<json> a = i.ajustes(nombre)) return a->is_object() ? *a : json::object();
+    // Desde la interfaz, solo la foto: lo que no está (todavía no llegó la parte Video, o
+    // no existe) es vacío, no una entrada directa al motor.
+    if (const DesdeLaInterfaz i = desdeLaInterfaz(); i.ajustes) {
+        const std::optional<json> a = i.ajustes(nombre);
+        return a && a->is_object() ? *a : json::object();
+    }
     Consultas c;
     {
         std::lock_guard<std::mutex> l(gMu);

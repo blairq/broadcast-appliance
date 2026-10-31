@@ -60,6 +60,13 @@ class WebSupervisor {
     bool start();
     void stop();
     bool vivo() const { return alive_.load(); }
+    /// Las veces que se lo relanzó (se cerró o dejó de contestar).
+    int reinicios() const { return restarts_.load(); }
+    /// El pid del ba-web de ahora (0 si no hay): para la prueba.
+    std::uint32_t pid() {
+        std::lock_guard<std::mutex> l(procLock_);
+        return proc_.pid();
+    }
     uint16_t puerto() const { return cfg_.puerto; }
     bool atiendeTunel() const { return cfg_.tunel; }
     bool atiendeLan() const { return cfg_.lanPuerto != 0 && !cfg_.tlsPem.empty(); }
@@ -67,6 +74,8 @@ class WebSupervisor {
     void setEventoDir(const std::string& dir);
     /// La configuración que se le escribe (para la prueba y para mirarla).
     static std::string armarConf(const Cfg& c, const std::string& aliasFile, const std::string& logPath);
+    /// ¿Un ba-web en 127.0.0.1:`puerto` contesta su sondeo de vida (200) antes de `topeMs`?
+    static bool contesta(uint16_t puerto, int topeMs);
 
    private:
     bool spawn();

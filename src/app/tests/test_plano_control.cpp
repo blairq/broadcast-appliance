@@ -1708,6 +1708,76 @@ const auto tomadoM = canalM.tomarPrograma("");
               "R: el resumen vuelve después de la foto (el formulario recarga con lo nuevo)");
     }
 
+    // --- E. La carpeta del evento y la retoma de las grabaciones, del dueño ----------------
+    // Como AppRuntime (setCarpetaDelEvento, retomarGrabaciones, ajustesAire): la carpeta es
+    // del dueño; desde otro hilo, ajustesAire() devuelve la COPIA que armó el dueño. Tras un
+    // corte, la grabación que espera la carpeta se retoma al ponerla. Puesta desde la
+    // interfaz y retomada ahí, la copia todavía no tenía la carpeta: la grabación iba a
+    // Recordings/ (la regresión del banco de caos). Ahora las dos se le encargan al dueño.
+    {
+        using ba::app::VentanillaMotor;
+        struct Aire {
+            std::function<std::string()> carpeta; ///< carpetaDelEvento_
+            std::string copia;                    ///< ajustesAire_.carpetaEvento (la del plano)
+            std::mutex mu;
+            bool porRetomar = true; ///< grabacionesPorRetomar_ (un corte con la grabación andando)
+            std::vector<std::string> grabaciones; ///< dónde arrancó cada una
+            std::atomic<int> enLaInterfaz{0};
+        } a;
+        const QThread* dueno = plano.hilo();
+        const auto esDueno = [&]() { return QThread::currentThread() == dueno; };
+        const auto encolar = [&](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); };
+        // ajustesAire(): el dueño arma la copia; los demás leen la última.
+        const auto ajustesAire = [&]() {
+            std::lock_guard<std::mutex> l(a.mu);
+            if (esDueno()) a.copia = a.carpeta ? a.carpeta() : std::string();
+            return a.copia;
+        };
+        std::function<void()> retomar;
+        std::function<void(std::function<std::string()>)> ponerCarpeta;
+        retomar = [&]() {
+            if (!esDueno()) return encolar([&]() { retomar(); });
+            if (QThread::currentThread() == interfaz) ++a.enLaInterfaz;
+            if (!a.porRetomar) return;
+            a.porRetomar = false;
+            const std::string c = ajustesAire(); // startRecording → recordingPath
+            a.grabaciones.push_back(c.empty() ? "Recordings" : c + "/Grabaciones");
+        };
+        ponerCarpeta = [&](std::function<std::string()> fn) {
+            if (!esDueno()) return encolar([&, fn]() { ponerCarpeta(fn); });
+            a.carpeta = std::move(fn);
+            ajustesAire();
+            if (a.carpeta) retomar();
+        };
+        // El dueño armó la copia al arrancar, sin evento todavía (restoreOutputs).
+        std::atomic<bool> armada{false};
+        encolar([&]() {
+            ajustesAire();
+            armada = true;
+        });
+        atender(100);
+        CHECK(armada.load() && ajustesAire().empty(), "E: la copia del plano arrancó sin la carpeta del evento");
+        // La interfaz arma el evento (StudioViewModel) y se traba enseguida.
+        VentanillaMotor vE({.encolar = encolar, .alTerminarOrden = []() {}, .adoptar = [&plano](QObject* o) { plano.adoptar(o); }});
+        const auto desde = std::chrono::steady_clock::now();
+        std::atomic<double> retomadaMs{-1};
+        vE.pedir("carpeta_evento", [&]() {
+            ponerCarpeta([]() { return std::string("Eventos/ZZ caos"); });
+            retomadaMs = msDesde(desde);
+        });
+        // Y algo de la interfaz que todavía llama directo (como la consola o un test viejo).
+        ponerCarpeta([]() { return std::string("Eventos/ZZ caos"); });
+        trabarInterfaz(500);
+        std::printf("  medido: la grabación retomada en el dueño a los %.1f ms de poner la carpeta (interfaz trabada)\n",
+                    retomadaMs.load());
+        CHECK(a.grabaciones.size() == 1 && a.grabaciones.front() == "Eventos/ZZ caos/Grabaciones",
+              "E: la grabación retomada va a la carpeta del evento, no a Recordings/ (una sola vez)");
+        CHECK(retomadaMs.load() >= 0 && retomadaMs.load() < 300 && a.enLaInterfaz.load() == 0,
+              "E: se retoma en el dueño, con la interfaz trabada");
+        atender(100);
+        CHECK(ajustesAire() == "Eventos/ZZ caos", "E: la copia del plano ya tiene la carpeta");
+    }
+
     // --- I. Imagen: el grafo de video es del dueño del motor ----------------------------
     // Como en la app (video/VideoGrafos, ui/VideoViewModel, ui/AlarmasViewModel): un modelo
     // del motor que vive en el hilo de control (adoptado) con su reloj de revisión (con el

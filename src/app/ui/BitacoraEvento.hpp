@@ -19,11 +19,14 @@
 
 #include <QObject>
 #include <QString>
+#include <QThreadPool>
 
 #include <nlohmann/json.hpp>
 
 #include <atomic>
+#include <filesystem>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -65,6 +68,12 @@ class BitacoraEvento : public QObject {
     /// última. `momento`: "inicio" | "cierre" | "" (solo revisar), del evento
     /// `carpeta` (vacío = el en curso).
     void revisarConfig(const std::string& carpeta, const std::string& momento);
+    /// La revisión de cada 10 s: la foto (recorrer Config/ y leer lo que cambió) en otro
+    /// hilo; lo que cambió se anota acá al volver. Una a la vez.
+    void revisarConfigEnElFondo();
+    /// Lo que sigue a sacar la foto `f` de la carpeta `dir` (ver revisarConfig).
+    void aplicarFoto(const nlohmann::json& f, const std::filesystem::path& dir, const std::string& carpeta,
+                     const std::string& momento);
     /// grabaciones.json y transmisiones.json del evento en curso (H4): cada
     /// grabación con su archivo y desde/hasta; cada vivo con su URL y caídas.
     void indexarSalida(const std::string& tema, const nlohmann::json& valor);
@@ -88,7 +97,10 @@ class BitacoraEvento : public QObject {
     int bitacoraOyente_ = 0, bitacoraBus_ = 0;
     /// Las fotos de Config/ por evento (H3): la última vista y la revisión cada 10 s.
     std::unique_ptr<evento::FotosConfig> fotos_;
+    std::mutex fotosMu_; ///< fotos_->foto() corre en el fondo y, al cambiar de evento, acá
     nlohmann::json fotoUltima_;
+    bool revisandoEnElFondo_ = false;
+    QThreadPool fondo_; ///< un hilo; se espera al irse (antes que fotos_)
     struct Sellador {
         std::thread hilo;
         std::shared_ptr<std::atomic<bool>> listo;
