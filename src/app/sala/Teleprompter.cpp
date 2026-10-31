@@ -50,5 +50,6 @@ void Teleprompter::irA(double posicion, Listo listo) { mandar({{"posicion", std:
 void Teleprompter::irAParrafo(int n, Listo listo) { mandar({{"parrafo", std::max(0, n)}}, std::move(listo)); }
 void Teleprompter::avisar(const std::string& texto, Listo listo) { mandar({{"aviso", texto}}, std::move(listo)); }
 void Teleprompter::panico(Listo listo) { mandar({{"panico", true}}, std::move(listo)); }
+void Teleprompter::presentador(const nlohmann::json& p, Listo listo) { mandar({{"presentador", p}}, std::move(listo)); }
 
 } // namespace ba::app::sala

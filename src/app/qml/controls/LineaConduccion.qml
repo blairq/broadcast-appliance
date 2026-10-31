@@ -207,6 +207,120 @@ ColumnLayout {
         font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
     }
 
+    // --- Lo que propone el productor para llegar a horario (L9) --------------------------
+    // Studio.linea.productor vigila el over/under y propone; acá una persona elige una
+    // opción (se aplica con su revisión para deshacer) o la descarta. Nada se aplica solo.
+    Repeater {
+        model: cond.lv && cond.lv.productor ? cond.lv.productor.propuestas : []
+        delegate: Rectangle {
+            id: prop
+            required property var modelData
+            Layout.fillWidth: true
+            Layout.preferredHeight: propCol.implicitHeight + 12
+            radius: 6
+            color: Qt.rgba(0.96, 0.72, 0.24, 0.08)
+            border.color: Theme.amber
+            ColumnLayout {
+                id: propCol
+                anchors { fill: parent; margins: 6 }
+                spacing: 4
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        Layout.fillWidth: true
+                        text: (cond.lv.salidas.length > 1 ? "«" + prop.modelData.salida + "» · " : "") + prop.modelData.texto
+                        wrapMode: Text.WordWrap
+                        color: Theme.amber
+                        font { pixelSize: 12; weight: Font.DemiBold }
+                    }
+                    GlassButton {
+                        text: qsTr("Descartar"); compact: true
+                        onClicked: cond.lv.productor.descartar(prop.modelData.salida)
+                    }
+                }
+                // Cada opción ya viene probada: cómo quedaría el fin.
+                Repeater {
+                    model: prop.modelData.opciones || []
+                    delegate: RowLayout {
+                        id: op
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Text {
+                            Layout.fillWidth: true
+                            text: op.modelData.texto
+                                  + (op.modelData.resultado && op.modelData.resultado.fin
+                                     ? " · " + qsTr("termina %1").arg(op.modelData.resultado.fin) : "")
+                            wrapMode: Text.WordWrap
+                            color: Theme.text
+                            font.pixelSize: 11
+                        }
+                        GlassButton {
+                            text: qsTr("Aplicar"); compact: true
+                            onClicked: cond.hacer(cond.lv.productor.aplicar(prop.modelData.salida, op.modelData.id))
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: qsTr("Cambia la línea (queda una revisión para deshacer)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // La salida se cambió a mano fuera de la línea: volver a la escena del paso.
+    Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: aManoFila.implicitHeight + 10
+        visible: !cond.parado && !!cond.c.aMano
+        radius: 6
+        color: Qt.rgba(1, 1, 1, 0.05)
+        border.color: Theme.amber
+        RowLayout {
+            id: aManoFila
+            anchors { fill: parent; margins: 5 }
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("A mano: «%1» en vez de «%2», la del paso").arg(cond.c.aMano ? cond.c.aMano.escena : "")
+                                                                    .arg(cond.c.aMano ? cond.c.aMano.esperada : "")
+                wrapMode: Text.WordWrap
+                color: Theme.amber
+                font.pixelSize: 11
+            }
+            GlassButton {
+                text: qsTr("Reenganchar"); compact: true
+                onClicked: cond.hacer(cond.ev.reenganchar(cond.lv.salida))
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: qsTr("Vuelve a la escena del paso al aire y la salida sigue con la línea")
+            }
+        }
+    }
+
+    // Las PTZ que esperan que su cámara salga del aire.
+    Repeater {
+        model: cond.c.ptzPendientes || []
+        delegate: RowLayout {
+            id: ptz
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: 6
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("PTZ «%1» a «%2» espera: la cámara está al aire").arg(ptz.modelData.camara).arg(ptz.modelData.posicion)
+                wrapMode: Text.WordWrap
+                color: Theme.amber
+                font.pixelSize: 11
+            }
+            GlassButton {
+                text: qsTr("Mover igual"); compact: true
+                onClicked: cond.hacer(cond.ev.decidirPtz(ptz.modelData.pieza, "mover"))
+            }
+            GlassButton {
+                text: qsTr("No mover"); compact: true
+                onClicked: cond.hacer(cond.ev.decidirPtz(ptz.modelData.pieza, "saltar"))
+            }
+        }
+    }
+
     // --- Los botones de vivo -------------------------------------------------------------
     RowLayout {
         Layout.fillWidth: true
@@ -369,6 +483,74 @@ ColumnLayout {
                                  : qsTr("Ensayo apagado: los cues salen al aire de verdad")
             color: cond.ev.ensayo ? Theme.amber : Theme.textDim
             font.pixelSize: 11
+        }
+    }
+    // Grabar la línea (L10): el ensayo corre con todo a GO y lo que dura cada paso queda
+    // para guardarlo como su duración prevista.
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+        Toggle {
+            checked: cond.ev.grabarTiempos
+            enabled: cond.ev.estado === "parado" || cond.ev.estado === "terminado"
+            onToggled: (w) => cond.ev.grabarTiempos = w
+        }
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: cond.ev.grabarTiempos ? qsTr("Grabando: cada paso entra con GO y lo que dure queda como su duración")
+                                        : qsTr("Grabar los tiempos en el ensayo")
+            color: cond.ev.grabarTiempos ? Theme.amber : Theme.textDim
+            font.pixelSize: 11
+        }
+    }
+    // Lo que grabó el ensayo: una persona lo guarda o lo descarta.
+    Rectangle {
+        id: grab
+        readonly property var g: cond.ev.tiemposGrabados || ({})
+        Layout.fillWidth: true
+        Layout.preferredHeight: grabCol.implicitHeight + 12
+        visible: !!(g.pasos && g.pasos.length > 0)
+        radius: 6
+        color: Qt.rgba(1, 1, 1, 0.05)
+        border.color: Theme.accent
+        ColumnLayout {
+            id: grabCol
+            anchors { fill: parent; margins: 6 }
+            spacing: 2
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("El ensayo grabó %n paso(s): de %1 a %2 en total", "", grab.g.pasos ? grab.g.pasos.length : 0)
+                      .arg(Theme.mmss(grab.g.totalAntesSeg || 0)).arg(Theme.mmss(grab.g.totalGrabadoSeg || 0))
+                wrapMode: Text.WordWrap
+                color: Theme.text
+                font { pixelSize: 12; weight: Font.DemiBold }
+            }
+            Repeater {
+                model: grab.g.pasos || []
+                delegate: Text {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    text: modelData.nombre + ": " + Theme.mmss(modelData.antesSeg) + " → " + Theme.mmss(modelData.grabadoSeg)
+                    elide: Text.ElideRight
+                    color: Theme.textDim
+                    font { family: Theme.mono; pixelSize: 10 }
+                }
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                GlassButton {
+                    text: qsTr("Descartar"); compact: true
+                    onClicked: cond.ev.descartarTiemposGrabados()
+                }
+                GlassButton {
+                    text: qsTr("Guardar los tiempos"); compact: true
+                    active: true
+                    onClicked: cond.hacer(cond.ev.aplicarTiemposGrabados())
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: qsTr("Quedan como duraciones previstas (con una revisión para deshacer)")
+                }
+            }
         }
     }
 }

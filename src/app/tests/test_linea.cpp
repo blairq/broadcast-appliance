@@ -1514,6 +1514,58 @@ void testCorridaDisparadores() {
     CHECK(est["condiciones"].size() == 2, "las condiciones, en el estado");
 }
 
+// --- 16b. Cuándo vale un disparador (`activo` + `en`) -----------------------------------------
+
+void testDisparadoresActivos() {
+    Linea l = tresPasos();
+    Disparador enP2;
+    enP2.id = "solo-p2";
+    enP2.cuando = "tecla:F6";
+    enP2.hacer = {{"accion", "go"}};
+    enP2.activo = Vida::Paso;
+    enP2.en = "p2";
+    Disparador enB2;
+    enB2.id = "desde-b2";
+    enB2.cuando = "web:fin";
+    enB2.hacer = {{"accion", "hold"}};
+    enB2.activo = Vida::Evento;
+    enB2.en = "b2";
+    l.disparadores = {enP2, enB2};
+    CHECK(Disparador::deJson(enP2.aJson()).en == "p2" && Disparador::deJson(enP2.aJson()).activo == Vida::Paso, "`en` va y vuelve del JSON");
+    const std::vector<std::string> pulsos = pulsosDe(l);
+    CHECK(pulsos.size() == 2 && pulsos[0] != pulsos[1], "pulsosDe: las teclas y botones que espera la línea");
+    Corrida c(l, entrada(T0));
+    c.arrancar(T0);
+    auto acc = c.pulso("tecla:F6", T0 + S);
+    CHECK(!hay(acc, Accion::Que::EntraPaso, "p2"), "con p1 al aire, el de p2 no vale");
+    c.go("principal", T0 + 2 * S);
+    acc = c.pulso("tecla:F6", T0 + 3 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p3"), "con p2 al aire, sí");
+    CHECK(c.hold("principal") == false, "todavía sin HOLD");
+    c.pulso("web:fin", T0 + 4 * S);
+    CHECK(c.hold("principal"), "desde que entró el bloque b2, el de b2 vale");
+    // La revisión: un `en` que no existe.
+    Linea mal = l;
+    mal.disparadores[0].en = "nadie";
+    bool queja = false;
+    for (const Reparo& r : revisar(mal)) queja = queja || r.texto.find("nadie") != std::string::npos;
+    CHECK(queja, "un `en` que no es paso ni bloque es un reparo");
+    // Se editan por linea_editar: agregar, cambiar y quitar.
+    Edicion e = editar(l, json::parse(R"([
+        {"op":"disparador_agregar","disparador":{"id":"d3","cuando":"botonera:aplausos","hacer":{"accion":"adlib","id":"zz"},"activo":"bloque","en":"b1"}},
+        {"op":"cambiar","id":"solo-p2","campos":{"en":"p1"}},
+        {"op":"quitar","id":"desde-b2"},
+        {"op":"plantilla_agregar","plantilla":{"id":"entrevista","nombre":"Entrevista","pasos":[{"id":"e1","nombre":"Pregunta"}]}}])"));
+    CHECK(e.ok, e.error.c_str());
+    CHECK(e.ok && e.linea.disparadores.size() == 2 && e.linea.disparadores[0].en == "p1" && e.linea.disparadores[1].id == "d3" &&
+              e.linea.plantillas.size() == 1,
+          "disparadores y plantillas por lote");
+    CHECK(!editar(l, json::parse(R"([{"op":"disparador_agregar","disparador":{"id":"d4","cuando":"tecla:F1","hacer":{"accion":"volar"}}}])")).ok,
+          "un `hacer` que no se entiende no entra");
+    CHECK(!editar(l, json::parse(R"([{"op":"plantilla_agregar","plantilla":{"id":"vacia","nombre":"x"}}])")).ok,
+          "una plantilla sin pasos no entra");
+}
+
 // --- 17. Varias salidas en la corrida (L6) --------------------------------------------------
 
 void testCorridaVariasSalidas() {
@@ -1679,6 +1731,7 @@ int main() {
     testCondiciones();
     testCorridaCondiciones();
     testCorridaDisparadores();
+    testDisparadoresActivos();
     testCorridaVariasSalidas();
     testEstanteTrasCorte();
     testOrdenDelDia();

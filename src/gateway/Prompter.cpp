@@ -144,8 +144,25 @@ bool Prompter::comandar(const json& cmd) {
         avisoMs_ = ahora;
         algo = true;
     }
+    // Lo del presentador no es del texto: no cuenta como cambio de versión (las
+    // vistas no resincronizan la posición por esto).
+    const bool presentador = cmd.contains("presentador");
+    if (presentador) presentador_ = cmd["presentador"].is_object() ? cmd["presentador"] : json();
     if (algo) ++version_;
-    return algo;
+    return algo || presentador;
+}
+
+void Prompters::comandarTodos(const json& cmd) {
+    std::vector<std::shared_ptr<Prompter>> v;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        if (cmd.contains("presentador")) presentador_ = cmd["presentador"].is_object() ? cmd["presentador"] : json();
+        for (const auto& [id, p] : todos_) v.push_back(p);
+    }
+    // El principal existe siempre (aunque nadie lo haya abierto todavía).
+    if (v.empty())
+        if (auto p = de(kPrincipal)) v.push_back(p);
+    for (const auto& p : v) p->comandar(cmd);
 }
 
 void Prompter::pararEnSeco() {
@@ -178,6 +195,7 @@ json Prompter::estadoLocked() const {
                 {"aviso", aviso_},
                 {"avisoMs", avisoMs_},
                 {"version", version_},
+                {"presentador", presentador_},
                 {"duracionSeg", palabras_ > 0 && ppm_ > 0
                                     ? static_cast<int>(static_cast<double>(palabras_) * 60.0 / ppm_)
                                     : 0}};
@@ -249,7 +267,10 @@ std::shared_ptr<Prompter> Prompters::de(const std::string& id) {
     auto it = todos_.find(k);
     if (it != todos_.end()) return it->second;
     if (todos_.size() >= kMax) return nullptr;
-    return todos_.emplace(k, std::make_shared<Prompter>()).first->second;
+    auto nuevo = std::make_shared<Prompter>();
+    // Uno que se abre con la línea corriendo ya sabe lo del presentador.
+    if (!presentador_.is_null()) nuevo->comandar(json{{"presentador", presentador_}});
+    return todos_.emplace(k, std::move(nuevo)).first->second;
 }
 
 json Prompters::lista() const {

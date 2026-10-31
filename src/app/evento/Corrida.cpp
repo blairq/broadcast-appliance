@@ -727,7 +727,7 @@ void Corrida::actualizarCondiciones(int64_t ahora, std::vector<Accion>& acc) {
         if (cumple == estaba) continue;
         if (cumple) arriba_.insert(d.id);
         else arriba_.erase(d.id);
-        if (cumple && estado_ == EstadoCorrida::Corriendo && !retomando_) toca.push_back(&d);
+        if (cumple && estado_ == EstadoCorrida::Corriendo && !retomando_ && vigente(d)) toca.push_back(&d);
     }
     // Un disparador que hace algo que dispara otro, sí; uno que se dispara a sí mismo
     // en ronda, no: el flanco ya lo corta, y el tope es por las dudas.
@@ -736,6 +736,28 @@ void Corrida::actualizarCondiciones(int64_t ahora, std::vector<Accion>& acc) {
     for (const Disparador* d : toca)
         hacerDisparador(*d, ahora, acc);
     --disparando_;
+}
+
+bool Corrida::vigente(const Disparador& d) const {
+    if (d.en.empty()) return true; // todo el evento
+    // `en` es un paso o un bloque: los pasos que cuentan.
+    const Bloque* bloque = nullptr;
+    for (const Bloque& b : linea_.bloques)
+        if (b.id == d.en) bloque = &b;
+    const bool porBloque = bloque != nullptr || d.activo == Vida::Bloque;
+    if (bloque == nullptr && porBloque) bloque = linea_.bloqueDe(d.en);
+    const auto cuenta = [&](const std::string& paso) {
+        if (!porBloque) return paso == d.en;
+        const Bloque* b = linea_.bloqueDe(paso);
+        return b != nullptr && bloque != nullptr && b->id == bloque->id;
+    };
+    if (d.activo == Vida::Evento || d.activo == Vida::HastaQueSeSaque)
+        // Desde que entró, hasta el final.
+        return std::any_of(instancias_.begin(), instancias_.end(), [&](const Instancia& x) { return cuenta(x.paso); });
+    // Paso, alAvanzar o bloque: mientras esté al aire en alguna salida.
+    for (const std::string& s : linea_.salidasEfectivas())
+        if (const Instancia* x = alAire(s); x != nullptr && cuenta(x->paso)) return true;
+    return false;
 }
 
 void Corrida::hacerDisparador(const Disparador& d, int64_t ahora, std::vector<Accion>& acc) {

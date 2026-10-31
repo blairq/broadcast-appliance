@@ -105,6 +105,22 @@ nlohmann::json lineaDeGuia(const Linea& l, const ba::evento::Evento& guia);
 /// Lo mismo, con una guía que ya es una línea (una plantilla guardada con la v2).
 nlohmann::json lineaDeGuia(const Linea& l, Linea guia);
 
+// --- Grabar la línea en vivo (L10) ------------------------------------------------------
+
+/// «Grabar la línea» como ProPresenter: se corre el ensayo dando GO a mano y lo que
+/// duró cada paso queda como su duración prevista. De lo emitido (`instancias`, las de
+/// un ensayo) arma el lote para linea_editar: por cada paso de la línea que salió y
+/// terminó (el último si salió varias veces; lo insertado no cuenta), su duración real
+/// redondeada al segundo. Un paso que termina por duración cambia `fin.duracion`; uno
+/// abierto, con su medio o «mientras», solo `duracionPrevistaSeg` (cómo termina no se
+/// toca). Lo que no cambia en más de `toleranciaSeg` no va.
+/// {ops, pasos: [{paso, nombre, antesSeg, grabadoSeg}], totalAntesSeg, totalGrabadoSeg}.
+nlohmann::json tiemposGrabados(const Linea& l, const std::vector<Instancia>& instancias, int toleranciaSeg = 1);
+/// La línea con la que se corre el ensayo que graba: todo entra con GO y nada se va
+/// solo (cada paso abierto, sin seguir), así lo que dura cada uno lo dice la persona.
+/// Lo previsto queda (para la cuenta y el pronóstico) y las piezas, como estaban.
+Linea lineaParaGrabar(Linea l);
+
 // --- El rol que vigila el over/under ----------------------------------------------------
 
 /// Cuándo vale la pena avisar: el over pasó el umbral y (es la primera vez, o

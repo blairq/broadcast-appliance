@@ -141,6 +141,13 @@ class Emisor : public QObject {
     QString mostrarOCambiar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente,
                             bool repetir = false);
 
+    /// El cuadro estable de un gráfico (ms): pasada la entrada, antes de la salida.
+    static int msEstable(const QJsonObject& ficha);
+    /// El gráfico con esos valores en su cuadro estable, dibujado aparte (no sale al
+    /// aire): la miniatura «con gráficos» de la línea de tiempo. ESPERA al
+    /// renderizador: quien llama se cuida de no pedirlo seguido. Nula y `error` si no.
+    QImage dibujarQuieto(const QString& grafico, const QJsonObject& valores, QSize tam, QString* error = nullptr);
+
     /// Con qué valores se disparó esa fuente por última vez (vacío si nunca).
     QJsonObject ultimosValores(std::uint64_t fuente) const;
     /// Qué gráfico se disparó en esa fuente por última vez.

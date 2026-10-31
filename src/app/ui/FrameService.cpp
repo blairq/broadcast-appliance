@@ -253,10 +253,11 @@ void FrameService::setArmada(const QString& escena) {
 
 namespace {
 /// "entrada:X" → lo que se le pide al motor: "X"; "entrada-entera:X" → "entera:X";
-/// "escena:X" y "mini:X" → "X" (el motor compone una escena o una fuente por su nombre).
+/// "escena:X" → "X" (el motor compone una escena o una fuente por su nombre); "mini:X"
+/// queda así: la escena compuesta aparte a pocos cuadros por segundo.
 std::string vistaDeEntrada(const QString& clave) {
     if (clave.startsWith("escena:")) return clave.mid(7).toStdString();
-    if (clave.startsWith("mini:")) return clave.mid(5).toStdString();
+    if (clave.startsWith("mini:")) return clave.toStdString();
     return clave.startsWith("entrada-entera:") ? "entera:" + clave.mid(15).toStdString() : clave.mid(8).toStdString();
 }
 /// El ancho de cada vista: el monitor entero (escena), la tarjeta de apuntar (entrada) o
@@ -403,8 +404,8 @@ void FrameService::poll() {
             if (vueltas_ % 30 != 0) continue; // una vez por segundo, no a 30 Hz
             engine_.enableScenePreview(canal, vistaDeEntrada(key), anchoDe(key));
         }
-        // Las miniaturas de la línea, a ~5 cuadros por segundo (una vuelta de cada seis).
-        if (key.startsWith("mini:") && vueltas_ % 6 != 0) continue;
+        // Las miniaturas de la línea ya vienen a 5 cuadros por segundo del motor: el
+        // serial solo cambia cuando hay uno nuevo.
         if (engine_.renderScenePreview(canal, c, slots_[key].serieMotor)) tomar(key);
     }
     // El programa y el preview de las demás salidas: mientras alguien los lea; a los

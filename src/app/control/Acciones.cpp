@@ -241,6 +241,14 @@ std::string Acciones::ejecutar(const std::string& id, Listo listo) {
     return {};
 }
 
+std::string Acciones::tecla(const std::string& t) {
+    const std::string c = canonica(t);
+    if (g_.pulso) g_.pulso("tecla:" + c);
+    for (const auto& a : atajos_)
+        if (a.value("tecla", std::string()) == c) return ejecutar(a.value("accion", std::string()));
+    return {};
+}
+
 void Acciones::guardar() const {
     std::error_code ec;
     fs::create_directories(archivo_.parent_path(), ec);
@@ -253,8 +261,8 @@ void Acciones::registrarGlobales() {
     globales_->limpiar();
     for (const auto& a : atajos_) {
         if (!a.value("global", false)) continue;
-        const std::string accion = a.value("accion", std::string());
-        globales_->registrar(a.value("tecla", std::string()), [this, accion]() { ejecutar(accion); });
+        const std::string t = a.value("tecla", std::string());
+        globales_->registrar(t, [this, t]() { tecla(t); });
     }
 }
 

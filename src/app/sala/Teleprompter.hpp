@@ -63,6 +63,10 @@ class Teleprompter {
     void avisar(const std::string& texto, Listo listo = {});
     /// Para en seco donde esté, sin mover la posición.
     void panico(Listo listo = {});
+    /// Lo del presentador de la línea de tiempo ({alAire: {nombre, desdeMs, hastaMs?},
+    /// proximo?, hold}; null = no corre): la vista del orador lo muestra arriba. Con
+    /// `para("*")` va a todos los atriles.
+    void presentador(const nlohmann::json& p, Listo listo = {});
 
    private:
     void mandar(const nlohmann::json& orden, Listo listo);

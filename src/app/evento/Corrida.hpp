@@ -177,6 +177,9 @@ class Corrida {
     int64_t pausadoMs(int64_t ahora) const;
     /// Los renglones nuevos del recorrido (recorrido.jsonl), y se olvidan.
     std::vector<nlohmann::json> sacarRecorrido();
+    /// Un renglón que sabe la app y la corrida no (el tiempo real de quien habló en un
+    /// paso, que sale del orden del día): va al recorrido con lo demás.
+    void anotarDeAfuera(int64_t ahora, const std::string& que, nlohmann::json datos) { anotar(ahora, que.c_str(), std::move(datos)); }
 
     // --- Estado vivo y retoma (3.8) -----------------------------------------------------
     /// Runtime/linea-aire.json: el EstadoAire más lo que la corrida necesita para volver.
@@ -225,6 +228,9 @@ class Corrida {
     /// Vuelve a evaluar las condiciones y hace los disparadores que pasaron a cumplirse.
     void actualizarCondiciones(int64_t ahora, std::vector<Accion>& acc);
     void hacerDisparador(const Disparador& d, int64_t ahora, std::vector<Accion>& acc);
+    /// ¿El disparador vale ahora? (su `activo` + `en`: todo el evento, mientras un paso o
+    /// un bloque esté al aire, o desde que entró).
+    bool vigente(const Disparador& d) const;
 
     Linea linea_;
     Entrada base_;

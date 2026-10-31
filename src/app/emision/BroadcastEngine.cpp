@@ -1031,8 +1031,12 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
         return false;
     }
     // «entera:X»: la entrada X antes del recorte del PTZ digital (la toma entera).
+    // «mini:X»: la escena X compuesta aparte a pocos cuadros por segundo (las miniaturas
+    // de la línea de tiempo: motor::Motor::kMiniFps).
     const bool entera = name.rfind("entera:", 0) == 0 && sources_.count(name.substr(7)) > 0;
+    const bool mini = name.rfind("mini:", 0) == 0 && escena(name.substr(5)) != nullptr;
     const std::string base = entera                     ? "entrada-entera:" + name.substr(7)
+                             : mini                     ? name
                              : escena(name) != nullptr  ? "escena:" + name
                              : sources_.count(name) > 0 ? "entrada:" + name
                                                         : "";

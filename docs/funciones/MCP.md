@@ -39,7 +39,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 
 <!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
 
-**808 herramientas** en 55 categorías: 268 de lectura, 478 de escritura, 47 de aire y 15 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+**814 herramientas** en 55 categorías: 269 de lectura, 480 de escritura, 50 de aire y 15 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
 
 | Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
 |---|---:|---:|---:|---:|---:|
@@ -74,7 +74,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Imágenes y video (visión) (`imagenes`) | 11 | 10 | 1 | 0 | 0 |
 | Interfaz de la app (`interfaz`) | 13 | 3 | 2 | 0 | 8 |
 | Carruseles de láminas (`laminas`) | 10 | 4 | 6 | 0 | 0 |
-| Línea de tiempo del evento (`linea`) | 20 | 6 | 8 | 6 | 0 |
+| Línea de tiempo del evento (`linea`) | 26 | 7 | 10 | 9 | 0 |
 | Medios (imágenes, videos, música) (`medios`) | 8 | 4 | 4 | 0 | 0 |
 | Hablar con el operador (`operador`) | 5 | 2 | 3 | 0 | 0 |
 | Modo oradores (`oradores`) | 29 | 6 | 21 | 2 | 0 |
@@ -124,6 +124,9 @@ Las de **aire** (con la transmisión o la grabación andando, si las pide algo a
 | `linea_go` | siempre | entra el próximo paso de la línea de tiempo |
 | `linea_insertar` | siempre | mete un paso del estante en la línea (al aire, si se pide) |
 | `linea_ir` | siempre | entra otro paso de la línea de tiempo |
+| `linea_ptz` | siempre | puede mover una cámara que está al aire |
+| `linea_pulso` | siempre | un pulso puede hacer entrar un paso (un disparador o un paso «cuando») |
+| `linea_reenganchar` | siempre | vuelve a poner al aire la escena del paso |
 | `linea_repetir` | siempre | vuelve a entrar el paso al aire |
 | `linea_soltar` | siempre | suelta el HOLD tras un corte: lo que se pasó de hora entra solo |
 | `participant_kick` | siempre | saca a un invitado de la conferencia |

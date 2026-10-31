@@ -26,6 +26,13 @@
   <!-- ====================== Vista del orador ====================== -->
   <main id="orador" class="orador">
     <div id="aviso" class="aviso hidden"></div>
+    <!-- Lo del presentador (la línea de tiempo del evento): cuánto le queda a este
+         momento y qué viene. Lo manda la app; sin línea corriendo no aparece. -->
+    <div id="presentador" class="presentador hidden">
+      <span id="p-ahora"></span>
+      <strong id="p-queda" class="queda"></strong>
+      <span id="p-despues" class="despues"></span>
+    </div>
 
     <div id="lienzo" class="lienzo">
       <!-- La guia de lectura: el renglon donde hay que tener los ojos. -->

@@ -116,7 +116,7 @@ problemas y hay que verlos antes:
   actualizar, cambiar configuración que reinicia el gateway) piden confirmación
   extra o quedan bloqueadas.
 
-### 1.6 La línea de tiempo — **hecho L0-L3, L6 y L7** (modelo, ejecutor, MCP, varias salidas y condiciones)
+### 1.6 La línea de tiempo — **hecho L0-L10** (sin probar todavía en la app lo de L4 en adelante)
 
 El plan entero está en `docs/planes/PLAN-LINEA-DE-TIEMPO.md`. Lo hecho:
 
@@ -204,8 +204,22 @@ El plan entero está en `docs/planes/PLAN-LINEA-DE-TIEMPO.md`. Lo hecho:
 - **El estante tras un corte.** Lo disparado del estante vuelve como estaba (si
   su vida no terminó durante el corte).
 
-Falta: la escaleta y la conducción nuevas en QML (L4), la vista multipista (L5),
-las superficies web (L8) y el productor automático (L9).
+- **Pulsos, disparadores con vida, presentador (2026-10-31).** Las teclas (los atajos
+  de Botonera → Atajos y las que espera una condición), la botonera (cada celda que se
+  aprieta) y la web (un botón por cada `web:` de la línea) mandan sus pulsos por el tema
+  `linea/pulso`; `linea_pulso` por MCP. Un disparador vale todo el evento, mientras un
+  paso o un bloque está al aire, o desde que entró (`activo` + `en`). Lo que habló cada
+  orador en su paso va al recorrido (`palabra`). La vista del orador (`/prompter`)
+  muestra cuánto le queda al momento al aire y qué viene. La conducción muestra las
+  propuestas del productor (aplicar/descartar), «Reenganchar» y las PTZ que esperan.
+- **L10.** Miniaturas «con gráficos» del próximo y los dos que siguen; la escaleta en
+  CSV o MOS para afuera y desde afuera (`linea_exportar`, `linea_importar`, botones en
+  la escaleta); grabar la línea en un ensayo (`linea_grabar`, «Grabar los tiempos» en
+  la conducción). Las miniaturas vivas (`mini:`) las compone el motor a 5 cuadros/s.
+
+Hecho también L4, L5, L8 y L9 (escaleta, conducción, multipista, superficies web y el
+productor). Lo que falta está en el plan (los «Falta» de cada paso): sobre todo
+probarlo en la app y traducir.
 
 ---
 

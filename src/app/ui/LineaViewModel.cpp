@@ -7,7 +7,10 @@
 #include "control/Acciones.hpp"
 #include "control/BusEventos.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "evento/Condicion.hpp"
 #include "evento/Corrida.hpp"
+#include "evento/LineaEdicion.hpp"
+#include "graficos/Emisor.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/FrameService.hpp"
 
@@ -16,6 +19,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeySequence>
+#include <QPainter>
 #include <QPointer>
 #include <QSet>
 
@@ -71,6 +75,8 @@ LineaViewModel::LineaViewModel(EventoViewModel& evento, BroadcastEngine& engine,
             const ln::Linea& l = ev_.corridaLinea() ? ev_.corridaLinea()->linea() : ev_.linea();
             return ln::estante(l);
         };
+        // Los atajos de Botonera → Atajos también son pulsos («tecla:F5»).
+        acciones_->ganchos().pulso = [this](const std::string& clave) { pulsar(clave); };
         connect(acciones_, &control::Acciones::cambio, this, &LineaViewModel::rehacerTeclas);
     }
     rehacerTeclas();
@@ -87,7 +93,10 @@ QObject* LineaViewModel::productorQml() const {
 }
 
 LineaViewModel::~LineaViewModel() {
-    if (acciones_) acciones_->ganchos().estante = nullptr;
+    if (acciones_) {
+        acciones_->ganchos().estante = nullptr;
+        acciones_->ganchos().pulso = nullptr;
+    }
     if (frames_)
         for (const auto& [escena, ms] : vivas_) frames_->mirarMiniatura(QString::fromStdString(escena), false);
 }
@@ -265,15 +274,22 @@ void LineaViewModel::recalcular() {
     cond["hora"] = ev_.horaDe(t);
     for (const char* k : {"transcurridoSeg", "pausadaSeg", "arranque"})
         if (estado.contains(k)) cond[k] = estado[k];
+    // Las PTZ que esperan que su cámara salga del aire (de la línea entera: las
+    // cámaras se comparten), para «mover igual» o «no mover» desde la conducción.
+    cond["ptzPendientes"] = estado.value("ptzPendientes", json::array());
     if (cond != conduccionJ_) {
         conduccionJ_ = cond;
         conduccion_ = aQv(cond).toMap();
         cambio = true;
     }
     const json est2 = ln::estante(lineaReal);
-    if (est2 != estanteJ_) {
+    std::vector<std::string> pulsos;
+    for (const std::string& p : ln::pulsosDe(lineaReal))
+        if (p.rfind("tecla:", 0) == 0) pulsos.push_back(p.substr(6));
+    if (est2 != estanteJ_ || pulsos != pulsos_) {
         estanteJ_ = est2;
         estante_ = aQv(est2).toList();
+        pulsos_ = std::move(pulsos);
         rehacerTeclas();
         cambio = true;
     }
@@ -303,7 +319,10 @@ void LineaViewModel::recalcular() {
         }
     }
 
-    if (const ln::SalidaResuelta* sr = resolucionVista_.salida(s)) miniaturas(ln::presupuestoMiniaturas(lineaVista_, *sr), t);
+    if (const ln::SalidaResuelta* sr = resolucionVista_.salida(s)) {
+        miniaturas(ln::presupuestoMiniaturas(lineaVista_, *sr), t);
+        miniaturasConGraficos(*sr, t);
+    }
 }
 
 void LineaViewModel::publicarBus(const json& estado) {
@@ -396,6 +415,96 @@ void LineaViewModel::mirarFoto(const QString& escena, bool mirar) {
     if (mirar && n == 1) pedirRecalculo(); // si no tiene foto, que la saque ya
 }
 
+// --- Las miniaturas «con gráficos» (L10) ------------------------------------------------------
+//
+// «Con lo que va a tener»: la escena del paso con los gráficos que el paso pone solos
+// (no los adlibs), cada uno con sus valores y en su cuadro estable. Se dibuja APARTE,
+// nunca en el aire: la foto de la escena (la de capturarAparte, cada 20 s) y encima cada
+// gráfico dibujado por el renderizador de gráficos (Emisor::dibujarQuieto).
+//
+// EL PRESUPUESTO. Solo el próximo y los dos que siguen; cada gráfico se dibuja UNA vez
+// por (gráfico, valores) y de a uno cada 2 s (el renderizador hace esperar a quien
+// pide); componer es pintar imágenes chicas. Lo que sale del presupuesto se suelta.
+
+namespace {
+
+/// Los gráficos que un paso pone solo: [(gráfico, valores)].
+std::vector<std::pair<std::string, json>> graficosDePaso(const ln::Paso& p) {
+    std::vector<std::pair<std::string, json>> out;
+    for (const ln::Pieza& z : p.piezas) {
+        if (z.tipo != "grafico" || z.desde.modo == ln::Ancla::Modo::Manual) continue;
+        const std::string accion = z.datos.value("accion", std::string("mostrar"));
+        const std::string g = z.datos.value("grafico", std::string());
+        if (accion != "mostrar" || g.empty()) continue;
+        out.emplace_back(g, z.datos.value("valores", json::object()));
+    }
+    return out;
+}
+
+} // namespace
+
+void LineaViewModel::miniaturasConGraficos(const ln::SalidaResuelta& sr, int64_t ahora) {
+    graficos::Emisor* em = ev_.emisorGraficos();
+    std::set<std::string> quedan;
+    bool cambio = false;
+    std::size_t vistos = 0;
+    for (const ln::PasoResuelto& pr : sr.pasos) {
+        if (pr.estado != ln::EstadoPaso::Proximo && pr.estado != ln::EstadoPaso::Futuro) continue;
+        if (vistos++ >= kConGraficos) break;
+        const ln::Paso* p = lineaVista_.paso(pr.paso);
+        if (p == nullptr || em == nullptr) continue;
+        const auto gs = graficosDePaso(*p);
+        const std::string escena = ln::escenaDePaso(lineaVista_, *p);
+        if (gs.empty() || escena.empty()) continue;
+        quedan.insert(p->id);
+        // La foto de la escena: la que hay o una nueva (de a una, cada 20 s).
+        const QString qe = QString::fromStdString(escena);
+        const auto ya = fotoMs_.find(escena);
+        if (!fotoEnCurso_ && (ya == fotoMs_.end() || ahora - ya->second >= kFotoCadaMs)) tomarFoto(escena);
+        if (!fotos_.contains(qe)) continue;
+        const QImage foto = fotos_.value(qe).value<QImage>();
+        if (foto.isNull()) continue;
+        // Cada gráfico, una vez (y de a uno cada tanto).
+        std::string firma = escena + "|" + std::to_string(fotoMs_[escena]);
+        bool completos = true;
+        for (const auto& [g, valores] : gs) {
+            const std::string clave = g + "|" + valores.dump(-1, ' ', false, json::error_handler_t::replace);
+            firma += "|" + clave;
+            if (capas_.count(clave)) continue;
+            completos = false;
+            if (ahora - ultimoDibujoMs_ < kDibujoCadaMs) continue;
+            ultimoDibujoMs_ = ahora;
+            const QJsonObject qv = QJsonDocument::fromJson(QByteArray::fromStdString(valores.dump())).object();
+            // Nula si no se pudo: la compuesta va sin ese gráfico (y no se vuelve a pedir).
+            capas_[clave] = em->dibujarQuieto(QString::fromStdString(g), qv, foto.size());
+            if (capas_.size() > 64) capas_.erase(capas_.begin());
+        }
+        if (!completos || firmas_[p->id] == firma) continue;
+        QImage out = foto.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        QPainter pintor(&out);
+        pintor.setRenderHint(QPainter::SmoothPixmapTransform);
+        for (const auto& [g, valores] : gs) {
+            const QImage& capa = capas_[g + "|" + valores.dump(-1, ' ', false, json::error_handler_t::replace)];
+            if (!capa.isNull()) pintor.drawImage(out.rect(), capa);
+        }
+        pintor.end();
+        firmas_[p->id] = firma;
+        conGraficos_[QString::fromStdString(p->id)] = out;
+        cambio = true;
+    }
+    // Lo que salió del presupuesto (ya entró, se movió) se suelta.
+    for (auto it = firmas_.begin(); it != firmas_.end();) {
+        if (quedan.count(it->first)) {
+            ++it;
+            continue;
+        }
+        conGraficos_.remove(QString::fromStdString(it->first));
+        it = firmas_.erase(it);
+        cambio = true;
+    }
+    if (cambio) emit fotosChanged();
+}
+
 // --- Los atajos -----------------------------------------------------------------------------
 
 void LineaViewModel::rehacerTeclas() {
@@ -414,6 +523,8 @@ void LineaViewModel::rehacerTeclas() {
         const QVariantMap m = v.toMap();
         if (!m.value("tecla").toString().isEmpty()) suma("estante:" + m.value("id").toString(), m.value("tecla").toString());
     }
+    // Las teclas que espera una condición («tecla:F5»): un pulso, si nadie la usa.
+    for (const std::string& t : pulsos_) suma("pulso:" + QString::fromStdString(t), QString::fromStdString(t));
     QSet<QString> ocupadas;
     QSet<QString> reasignadas;
     if (acciones_)
@@ -448,7 +559,17 @@ QString LineaViewModel::atajo(const QString& accion) {
         return {};
     }
     if (accion.startsWith("estante:")) return adlib(accion.mid(8));
+    if (accion.startsWith("pulso:")) {
+        pulsar("tecla:" + accion.mid(6).toStdString());
+        return {};
+    }
     return tr("No hay un atajo «%1».").arg(accion);
+}
+
+void LineaViewModel::pulsar(const std::string& clave) {
+    // Por el bus, como la botonera: lo atiende la línea (y lo puede mirar un plugin).
+    if (bus_ != nullptr) bus_->publicar("linea/pulso", clave, true);
+    else ev_.lineaPulso(clave);
 }
 
 // --- Vivo -------------------------------------------------------------------------------------
@@ -593,6 +714,14 @@ QString LineaViewModel::moverPieza(const QString& pieza, double dx) {
                 return sumarPendiente({{"op", "cambiar"}, {"id", id}, {"campos", {{"desde", {{"ms", ms}}}}}});
             }
     return tr("No hay una pieza «%1».").arg(pieza);
+}
+
+QString LineaViewModel::reordenar(const QString& paso, const QString& bloque, const QString& detrasDe) {
+    const std::string id = paso.toStdString();
+    if (id == detrasDe.toStdString()) return {};
+    std::string porque;
+    if (intocable(id, &porque)) return QString::fromStdString(porque);
+    return sumarPendiente({{"op", "mover"}, {"id", id}, {"bloque", bloque.toStdString()}, {"despuesDe", detrasDe.toStdString()}});
 }
 
 QString LineaViewModel::confirmar() {

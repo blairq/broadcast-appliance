@@ -75,6 +75,9 @@ std::vector<std::string> temasDe(const Condicion& c);
 /// el inicio de los bloques), las piezas «cuando», los disparadores y el
 /// "medio:<pieza>.termino" de lo que termina con su medio (el resolvedor lo busca así).
 std::set<Condicion> condicionesDe(const Linea& l);
+/// Los pulsos que espera la línea ("tecla:F5", "botonera:<id>", "web:<botón>"), en
+/// orden de aparición: las teclas que hay que atender y los botones que la web muestra.
+std::vector<std::string> pulsosDe(const Linea& l);
 
 /// Cada condición en el tiempo: si se cumple y desde cuándo.
 class Seguimiento {

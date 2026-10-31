@@ -2,7 +2,9 @@
 // las cajas de la Línea). De dónde sale lo decide el presupuesto de LineaViewModel
 // (`mini`: {fuente, clave, escena}): el programa o el PVW de la salida, una vista viva
 // chica («mini:<escena>»), o una foto que se saca cada tanto SOLO si la caja se ve —
-// por eso avisa con mirarFoto al aparecer y al irse—.
+// por eso avisa con mirarFoto al aparecer y al irse—. Si el paso pone gráficos y está
+// entre los que vienen, encima va la «con gráficos» (L10): la escena con sus gráficos
+// y sus valores, dibujada aparte (Studio.linea.conGraficos).
 import QtQuick
 import BA
 
@@ -14,6 +16,9 @@ Rectangle {
     readonly property string escena: mini && mini.escena ? mini.escena : ""
     readonly property bool esFoto: fuente === "foto" && escena !== ""
     readonly property var foto: esFoto && Studio.linea ? Studio.linea.fotos[escena] : undefined
+    /// La compuesta con los gráficos del paso (no la del que está al aire: ese es el programa).
+    readonly property var conGraficos: mini && mini.paso && fuente !== "programa" && Studio.linea
+                                       ? Studio.linea.conGraficos[mini.paso] : undefined
     radius: 4
     color: "#000000"
     clip: true
@@ -30,10 +35,15 @@ Rectangle {
         active: m.esFoto && m.foto !== undefined
         sourceComponent: ImagenViva { imagen: m.foto; ajustar: false }
     }
+    Loader {
+        anchors.fill: parent
+        active: m.conGraficos !== undefined
+        sourceComponent: ImagenViva { imagen: m.conGraficos; ajustar: false }
+    }
     // Sin escena (una pausa, una espera) o la foto que todavía no llegó: el nombre.
     Text {
         anchors { fill: parent; margins: 3 }
-        visible: !video.hasFrame && m.foto === undefined
+        visible: !video.hasFrame && m.foto === undefined && m.conGraficos === undefined
         text: m.escena !== "" ? m.escena : "—"
         color: Theme.textFaint
         font.pixelSize: Math.max(8, Math.min(11, m.height / 4))

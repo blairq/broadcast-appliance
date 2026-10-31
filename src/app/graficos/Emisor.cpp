@@ -463,6 +463,35 @@ void Emisor::recibirTanda(std::uint64_t fuente, int generacion, std::vector<QIma
     graficos::agregar(fuente, std::move(cuadros), fin);
 }
 
+int Emisor::msEstable(const QJsonObject& ficha) {
+    // Pasada la animación de entrada (la duración de la ficha, o 2 s), antes de
+    // cualquier salida automática.
+    return std::clamp(ficha.value("duracionMs").toInt(2000) - 1000 / kFps, 0, kMaxSegundos * 1000);
+}
+
+QImage Emisor::dibujarQuieto(const QString& grafico, const QJsonObject& valores, QSize tam, QString* error) {
+    QString e;
+    // En un compartido: uno de plugin contesta DESPUÉS (cuando esto ya volvió) y la
+    // imagen tiene que seguir existiendo; para esto no sirve, pero no se rompe.
+    auto img = std::make_shared<QImage>();
+    if (!d_->proc.disponible()) {
+        e = tr("el renderizador de gráficos no está en este bundle");
+    } else {
+        const QJsonObject f = ficha(grafico);
+        e = conPedido(grafico, valores, tam, [this, f, tam, img](QJsonObject p) -> QString {
+            p["ancho"] = tam.width();
+            p["alto"] = tam.height();
+            QString err;
+            const auto cuadro = d_->proc.tira(p, QVector<int>{msEstable(f)}, &err);
+            if (err.isEmpty() && !cuadro.empty()) *img = cuadro.front().imagen;
+            return err;
+        });
+        if (e.isEmpty() && img->isNull()) e = tr("el gráfico es de un plugin: no se dibuja aparte");
+    }
+    if (error) *error = e;
+    return e.isEmpty() ? *img : QImage();
+}
+
 QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente) {
     if (!d_->proc.disponible()) return tr("el renderizador de gráficos no está en este bundle");
     const QSize tam = tamanoDe(fuente);
@@ -501,11 +530,8 @@ QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, s
             d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
             return {};
         }
-        // El cuadro estable: pasada la animación de entrada (la duración de la ficha,
-        // o 2 s), antes de cualquier salida automática.
         QString err;
-        const int ms = std::clamp(f.value("duracionMs").toInt(2000) - 1000 / kFps, 0, kMaxSegundos * 1000);
-        const auto cuadro = d_->proc.tira(p, QVector<int>{ms}, &err);
+        const auto cuadro = d_->proc.tira(p, QVector<int>{msEstable(f)}, &err);
         if (!err.isEmpty()) return err;
         if (cuadro.empty()) return tr("el renderizador no devolvió el cuadro");
         std::vector<QImage> uno{cuadro.front().imagen};

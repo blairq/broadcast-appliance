@@ -34,6 +34,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimeZone>
+#include <QUrl>
 
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
@@ -44,6 +45,7 @@
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
 #include "evento/Condicion.hpp"
+#include "evento/LineaIntercambio.hpp"
 #include "evento/LineaPlantillas.hpp"
 #include "medios/Playlist.hpp"
 #include "ptz/ControlCamaras.hpp"
@@ -1882,8 +1884,10 @@ void EventoViewModel::nuevaCorrida() {
     for (auto& [s, e] : ejecutores_)
         e->parar();
     ejecutores_.clear();
-    corrida_ = std::make_unique<evento::linea::Corrida>(linea_, entradaBase(true));
+    corrida_ = std::make_unique<evento::linea::Corrida>(lineaDeCorrida(), entradaBase(true));
     cursor_ = {};
+    palabras_.clear();
+    grabado_ = nullptr;
     graficosDePieza_.clear();
     musicaDePieza_.clear();
     dskDePieza_.clear();
@@ -1906,6 +1910,7 @@ void EventoViewModel::nuevaCorrida() {
 }
 
 void EventoViewModel::despachar(const std::vector<Accion>& acc) {
+    seguirPalabra(acc);
     for (const Accion& a : acc) {
         auto it = ejecutores_.find(a.salida);
         if (it == ejecutores_.end()) it = ejecutores_.find(salidaPorOmision());
@@ -1914,6 +1919,15 @@ void EventoViewModel::despachar(const std::vector<Accion>& acc) {
     for (auto& [s, e] : ejecutores_)
         e->programar();
     volcarRecorrido();
+    // Terminó el ensayo que graba: los tiempos quedan para que una persona los confirme.
+    if (!corriendo() && grabar_ && corrida_ && grabado_.is_null()) {
+        grabado_ = evento::linea::tiemposGrabados(linea_, corrida_->instancias());
+        if (!grabado_["ops"].empty())
+            emit notify(tr("El ensayo grabó los tiempos de %n paso(s): confirmalos para que queden como duraciones previstas", "",
+                           static_cast<int>(grabado_["ops"].size())),
+                        "info");
+    }
+    avisarPresentador();
     if (corriendo()) {
         escribirVivo();
         // El reloj de la vista se realinea con el cambio: así la cuenta y el aviso
@@ -2069,14 +2083,14 @@ void EventoViewModel::lineaDesdeGuion() {
     linea_ = evento::linea::reconciliar(linea_, e_.bloques);
     proyeccion_ = evento::linea::proyectar(linea_);
     e_.bloques = proyeccion_.bloques;
-    if (corrida_) corrida_->setLinea(linea_);
+    if (corrida_) corrida_->setLinea(lineaDeCorrida());
     vigilarTemas();
 }
 
 void EventoViewModel::guionDesdeLinea() {
     proyeccion_ = evento::linea::proyectar(linea_);
     e_.bloques = proyeccion_.bloques;
-    if (corrida_) corrida_->setLinea(linea_);
+    if (corrida_) corrida_->setLinea(lineaDeCorrida());
     vigilarTemas();
     if (!sucio_) {
         sucio_ = true;
@@ -2229,6 +2243,14 @@ json EventoViewModel::lineaEstado() const {
         ptz.push_back({{"pieza", x.pieza}, {"paso", x.paso}, {"salida", x.salida}, {"camara", x.camara}, {"posicion", x.posicion},
                        {"desde", horaDe(x.desdeMs)}});
     j["ptzPendientes"] = ptz;
+    // Lo que propone el productor para llegar a horario (ui/LineaProductor lo deja en el
+    // bus, linea/<salida>/propuesta): para la escaleta web y el asistente. Solo se muestra;
+    // se aplica desde la conducción.
+    if (control::BusEventos* bus = sistema().bus; bus != nullptr && j.contains("salidas"))
+        for (json& x : j["salidas"]) {
+            const json u = bus->ultimo("linea/" + x.value("salida", std::string()) + "/propuesta");
+            if (u.is_object() && u.value("valor", json()).is_object()) x["propuesta"] = u["valor"];
+        }
     return j;
 }
 
@@ -3488,6 +3510,18 @@ void EventoViewModel::enchufar() {
             playlistAndando_ = false;
             if (corriendo()) despachar(corrida_->medioTermino(pieza, ahoraMs()));
         });
+    // Los pulsos (tecla:, botonera:, web:): los publican las superficies y los atajos
+    // en «linea/pulso» (un plugin también puede). Se atienden después, en limpio, como
+    // los temas de las condiciones.
+    if (primeraVez(s.bus)) {
+        QPointer<EventoViewModel> yo(this);
+        s.bus->suscribir("linea/pulso", [yo](const std::string&, const json& valor) {
+            if (!yo || !valor.is_string()) return;
+            const std::string clave = valor.get<std::string>();
+            QMetaObject::invokeMethod(
+                yo, [yo, clave]() { if (yo && yo->corriendo()) yo->lineaPulso(clave); }, Qt::QueuedConnection);
+        });
+    }
     expandirOrdenDelDia();
 }
 
@@ -3758,6 +3792,183 @@ std::string EventoViewModel::lineaPtz(const std::string& pieza, const std::strin
         return {};
     }
     return tr("No hay ninguna PTZ «%1» esperando.").arg(QString::fromStdString(pieza)).toStdString();
+}
+
+// --- Lo que dijo cada orador, en el recorrido -----------------------------------------------
+//
+// El pronóstico usa lo previsto de la pieza `orador`; lo que habló de verdad lo sabe el
+// orden del día (OrdenDelDia::tiemposPalabra, por persona y acumulado). Mientras un paso
+// con orador está al aire se guarda cuánto llevaba cada uno al entrar; al salir, la
+// diferencia va al recorrido («palabra»): quién habló en ese paso y cuánto.
+
+std::map<std::string, int64_t> EventoViewModel::segundosDePalabra() const {
+    std::map<std::string, int64_t> m;
+    asamblea::OrdenDelDia* od = sistema().ordenDelDia;
+    if (od == nullptr) return m;
+    for (const json& o : od->tiemposPalabra(json::array()))
+        m[o.value("nombre", std::string())] = o.value("segundos", 0LL);
+    return m;
+}
+
+void EventoViewModel::seguirPalabra(const std::vector<Accion>& acc) {
+    if (!corrida_ || ensayo_) return;
+    for (const Accion& a : acc) {
+        if (a.que != Accion::Que::EntraPaso && a.que != Accion::Que::Termina) continue;
+        const std::string salida = a.salida.empty() ? salidaPorOmision() : a.salida;
+        // Se fue el que estaba: lo que habló cada uno mientras tanto.
+        if (const auto it = palabras_.find(salida); it != palabras_.end()) {
+            const Palabra antes = it->second;
+            palabras_.erase(it);
+            json hablaron = json::array();
+            int64_t total = 0;
+            for (const auto& [nombre, seg] : segundosDePalabra()) {
+                const auto a0 = antes.segundos.find(nombre);
+                const int64_t d = seg - (a0 == antes.segundos.end() ? 0 : a0->second);
+                if (d <= 0 || nombre.empty()) continue;
+                hablaron.push_back({{"nombre", nombre}, {"segundos", d}});
+                total += d;
+            }
+            if (!hablaron.empty())
+                corrida_->anotarDeAfuera(ahoraMs(), "palabra", {{"salida", salida}, {"paso", antes.paso}, {"segundos", total},
+                                                                 {"previstoSeg", antes.previstoSeg}, {"hablaron", hablaron}});
+        }
+        if (a.que != Accion::Que::EntraPaso) continue;
+        const evento::linea::Paso* p = corrida_->linea().paso(a.paso);
+        if (p == nullptr || std::none_of(p->piezas.begin(), p->piezas.end(), [](const auto& z) { return z.tipo == "orador"; })) continue;
+        palabras_[salida] = {a.paso, static_cast<int>(p->duracionPlanMs() / 1000), segundosDePalabra()};
+    }
+}
+
+// --- Lo del presentador en los atriles (/prompter) -------------------------------------------
+//
+// La vista del orador (la tablet del atril) muestra además cuánto le queda al paso al
+// aire y qué viene, como la pantalla de presentador de Sofie. No es un aparato del
+// control web: va por el gateway a TODOS los teleprompters («*»), y solo cuando cambia
+// (la cuenta la hace la página con la hora de fin y el reloj del servidor).
+
+void EventoViewModel::avisarPresentador() {
+    if (sala_ == nullptr) return;
+    json p; // null: no corre ninguna línea (o es un ensayo: el atril no se entera)
+    if (corriendo() && !ensayo_) {
+        const json est = lineaEstado();
+        for (const json& x : est.value("salidas", json::array())) {
+            if (x.value("salida", std::string()) != salidaPorOmision()) continue;
+            const json a = x.value("alAire", json()), pr = x.value("proximo", json());
+            if (!a.is_object()) break;
+            const int64_t t = ahoraMs();
+            json aire{{"nombre", a.value("nombre", std::string())}, {"desdeMs", t - a.value("llevaSeg", 0LL) * 1000}};
+            if (a.value("previstoSeg", 0) > 0) aire["hastaMs"] = t + a.value("restanteSeg", 0LL) * 1000;
+            p = {{"alAire", aire}, {"hold", x.value("hold", false)}};
+            if (pr.is_object()) p["proximo"] = {{"nombre", pr.value("nombre", std::string())}, {"automatico", pr.value("automatico", false)}};
+        }
+    }
+    // Lo que cambia de verdad (no el segundo en que se calculó): el paso, su fin al
+    // segundo, el próximo y el HOLD.
+    json firma = p;
+    if (firma.is_object()) {
+        firma["alAire"].erase("desdeMs");
+        if (firma["alAire"].contains("hastaMs")) firma["alAire"]["hastaMs"] = firma["alAire"]["hastaMs"].get<int64_t>() / 2000;
+    }
+    if (firma == presentadorEnviado_) return;
+    presentadorEnviado_ = firma;
+    sala_->teleprompter().para("*").presentador(p);
+}
+
+// --- Grabar la línea en vivo (L10) ------------------------------------------------------------
+
+evento::linea::Linea EventoViewModel::lineaDeCorrida() const {
+    return grabar_ ? evento::linea::lineaParaGrabar(linea_) : linea_;
+}
+
+void EventoViewModel::setGrabarTiempos(bool on) {
+    if (on == grabar_) return;
+    if (corriendo()) {
+        emit notify(tr("Grabar los tiempos se elige antes de arrancar el ensayo"), "error");
+        return;
+    }
+    grabar_ = on;
+    // Grabar es un ensayo: no sale nada al aire mientras se toca GO a mano.
+    if (on) setEnsayo(true);
+    grabado_ = nullptr;
+    emit correChanged();
+}
+
+QVariantMap EventoViewModel::tiemposGrabadosUi() const {
+    if (!grabado_.is_object()) return {};
+    return QJsonDocument::fromJson(QByteArray::fromStdString(grabado_.dump(-1, ' ', false, json::error_handler_t::replace)))
+        .object()
+        .toVariantMap();
+}
+
+json EventoViewModel::lineaTiemposGrabados() const {
+    if (grabado_.is_object()) return grabado_;
+    return {{"grabando", grabar_}, {"corriendo", corriendo()}, {"pasos", json::array()}};
+}
+
+QString EventoViewModel::aplicarTiemposGrabados() {
+    if (!grabado_.is_object() || grabado_["ops"].empty()) return tr("No hay tiempos grabados para guardar.");
+    const json r = lineaEditar(grabado_["ops"], false);
+    if (!r.value("ok", false)) return QString::fromStdString(r.value("error", std::string()));
+    anotar(tr("Los tiempos del ensayo quedaron como duraciones previstas"), "ok");
+    grabado_ = nullptr;
+    grabar_ = false;
+    emit correChanged();
+    return {};
+}
+
+void EventoViewModel::descartarTiemposGrabados() {
+    if (grabado_.is_null()) return;
+    grabado_ = nullptr;
+    emit correChanged();
+}
+
+// --- La escaleta para afuera y desde afuera (L10) -----------------------------------------------
+
+std::string EventoViewModel::lineaExportar(const std::string& formato) const {
+    if (formato == "mos") return evento::linea::escaletaMos(linea_, abierto_.toStdString(), e_.nombre);
+    const auto hora = [this](int64_t ms) { return horaDe(ms).substr(0, 5); };
+    const evento::linea::Resolucion r = corrida_ ? corrida_->resolver(ahoraMs())
+                                                 : evento::linea::Corrida(linea_, entradaBase(false)).resolver(ahoraMs());
+    return evento::linea::escaletaCsv(linea_, &r, salidaPorOmision(), hora);
+}
+
+json EventoViewModel::lineaImportar(const std::string& formato, const std::string& texto, bool probar, const std::string& nombreBloque) {
+    const bool mos = formato == "mos" || (formato.empty() && texto.find("<mos") != std::string::npos);
+    const evento::linea::Leida leida = mos ? evento::linea::leerMos(texto) : evento::linea::leerCsv(texto, nombreBloque);
+    const json lote = evento::linea::importar(linea_, leida);
+    if (!lote.value("ok", false)) return lote;
+    json r = lineaEditar(lote["ops"], probar);
+    if (!r.value("ok", false)) return r;
+    r["ops"] = lote["ops"];
+    r["avisos"] = lote["avisos"];
+    r["bloques"] = lote["bloques"];
+    return r;
+}
+
+namespace {
+/// Una ruta o la URL que da el diálogo de archivos («file:///…»).
+QString rutaLocal(const QString& r) {
+    const QUrl u(r);
+    return u.isLocalFile() ? u.toLocalFile() : r;
+}
+} // namespace
+
+QString EventoViewModel::exportarEscaleta(const QString& formato, const QString& rutaOUrl) {
+    if (abierto_.isEmpty()) return tr("No hay un evento abierto.");
+    const QString ruta = rutaLocal(rutaOUrl);
+    QFile f(ruta);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return tr("No se pudo escribir «%1».").arg(ruta);
+    f.write(QByteArray::fromStdString(lineaExportar(formato.toStdString())));
+    return {};
+}
+
+QVariantMap EventoViewModel::importarEscaleta(const QString& rutaOUrl, bool probar) {
+    const QString ruta = rutaLocal(rutaOUrl);
+    QFile f(ruta);
+    if (!f.open(QIODevice::ReadOnly)) return {{"ok", false}, {"error", tr("No se pudo leer «%1».").arg(ruta)}};
+    const std::string formato = ruta.endsWith(".xml", Qt::CaseInsensitive) || ruta.endsWith(".mos", Qt::CaseInsensitive) ? "mos" : "csv";
+    const json r = lineaImportar(formato, f.readAll().toStdString(), probar, QFileInfo(ruta).completeBaseName().toStdString());
+    return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, json::error_handler_t::replace))).object().toVariantMap();
 }
 
 } // namespace ba::app

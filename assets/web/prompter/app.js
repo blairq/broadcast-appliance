@@ -64,6 +64,7 @@
     tamano: 5,
     espejo: false,
     aviso: "",
+    presentador: null, // lo de la línea de tiempo: {alAire: {nombre, hastaMs?}, proximo?, hold}
     version: -1,
     desfaseMs: 0, // reloj del servidor menos el de este aparato
   };
@@ -125,6 +126,7 @@
     estado.tamano = d.tamano || 5;
     estado.espejo = !!d.espejo;
     estado.aviso = d.aviso || "";
+    estado.presentador = d.presentador || null;
     estado.duracionSeg = d.duracionSeg || 0;
     estado.version = d.version;
     if (textoNuevo) armarTexto();
@@ -193,6 +195,33 @@
     // Lo que falta, a la velocidad de ahora.
     const faltan = Math.max(0, estado.palabras - pos);
     $("reloj").textContent = estado.ppm > 0 ? mmss((faltan / estado.ppm) * 60) : "";
+  }
+
+  // Lo del presentador: cuánto le queda al momento al aire (con el reloj del servidor)
+  // y qué viene. Pasado de tiempo, «+0:42». Se pinta aunque no haya discurso cargado.
+  let presentadorPintado = "";
+  function dibujarPresentador() {
+    const p = estado.presentador;
+    const caja = $("presentador");
+    if (!caja) return;
+    let ahora = "", queda = "", despues = "", pasado = false;
+    if (p && p.alAire) {
+      ahora = p.alAire.nombre || "";
+      if (p.alAire.hastaMs) {
+        const seg = (p.alAire.hastaMs - (Date.now() + estado.desfaseMs)) / 1000;
+        pasado = seg < 0;
+        queda = (pasado ? "+" : "") + mmss(Math.abs(seg));
+      }
+      if (p.proximo && p.proximo.nombre) despues = BAi18n.llenar(t("Después: %1"), p.proximo.nombre);
+    }
+    const firma = ahora + "|" + queda + "|" + despues + "|" + pasado;
+    if (firma === presentadorPintado) return;
+    presentadorPintado = firma;
+    caja.classList.toggle("hidden", !ahora);
+    caja.classList.toggle("pasado", pasado);
+    $("p-ahora").textContent = ahora;
+    $("p-queda").textContent = queda;
+    $("p-despues").textContent = despues;
   }
 
   function pintarOrador() {
@@ -328,7 +357,10 @@
 
   (function cuadro() {
     if (esControl) dibujarControl();
-    else dibujarOrador();
+    else {
+      dibujarOrador();
+      dibujarPresentador();
+    }
     requestAnimationFrame(cuadro);
   })();
 })();

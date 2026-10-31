@@ -64,6 +64,9 @@ class Acciones : public QObject {
         std::function<bool(int capa, const std::string& salida)> dskArriba;
         /// El estante de la línea de tiempo: [{id, texto, esPaso}] (lo pone LineaViewModel).
         std::function<json()> estante;
+        /// Un pulso para las condiciones de la línea («tecla:F5»): cada atajo que se
+        /// toca lo manda (lo pone LineaViewModel).
+        std::function<void(const std::string& clave)> pulso;
     };
     Acciones(const std::filesystem::path& datos, QObject* parent = nullptr);
     ~Acciones() override;
@@ -93,6 +96,10 @@ class Acciones : public QObject {
     QVariantList atajosUi() const;
     Q_INVOKABLE QVariantList catalogoUi() const;
     Q_INVOKABLE QString ejecutarUi(const QString& id);
+    /// Tocaron la tecla de un atajo: su acción y el pulso «tecla:<tecla>» para la línea.
+    /// "" o el error.
+    std::string tecla(const std::string& tecla);
+    Q_INVOKABLE QString teclaUi(const QString& t) { return QString::fromStdString(tecla(t.toStdString())); }
     Q_INVOKABLE QString asignarUi(const QString& tecla, const QString& accion, bool global);
     Q_INVOKABLE bool quitarUi(const QString& tecla);
     /// El atajo de una acción («Ctrl+T»), para los tooltips. "" si no tiene.

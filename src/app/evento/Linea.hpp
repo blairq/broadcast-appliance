@@ -250,11 +250,17 @@ struct ItemEstante {
 ///   adlib (id: una pieza del paso al aire o del estante)
 ///   insertar (id: un paso del estante; alAire: true para que entre ya)
 ///   ir (id: el paso)
+/// `activo` + `en` dicen CUÁNDO vale (fuera de eso, el flanco pasa y no hace nada):
+///   sin `en`, todo el evento (lo de siempre);
+///   paso (o alAvanzar) + en:<paso>      mientras ese paso esté al aire (en alguna salida)
+///   bloque + en:<bloque o paso>         mientras esté al aire algún paso de ese bloque
+///   evento o hastaQueSeSaque + en:<paso o bloque>  desde que ese entró, hasta el final
 struct Disparador {
     std::string id;
     Condicion cuando;
     nlohmann::json hacer = nlohmann::json::object();
-    Vida activo = Vida::Evento; ///< por ahora vale todo el evento
+    Vida activo = Vida::Evento;
+    std::string en; ///< el paso o el bloque al que se ata `activo` (vacío: todo el evento)
 
     nlohmann::json aJson() const;
     static Disparador deJson(const nlohmann::json& j);

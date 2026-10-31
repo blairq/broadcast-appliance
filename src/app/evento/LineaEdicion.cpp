@@ -3,6 +3,7 @@
 // ============================================================================
 #include "evento/LineaEdicion.hpp"
 
+#include "evento/Condicion.hpp"
 #include "evento/LeerJson.hpp"
 #include "i18n/I18n.hpp"
 
@@ -286,7 +287,7 @@ Linea reconciliar(const Linea& vieja, const std::vector<v1::Bloque>& v1b) {
 namespace {
 
 struct Lugar {
-    enum class Que { Nada, Bloque, Paso, Pieza, Pista, Estante };
+    enum class Que { Nada, Bloque, Paso, Pieza, Pista, Estante, Disparador, Plantilla };
     Que que = Que::Nada;
     std::size_t b = 0, p = 0, z = 0;
 };
@@ -305,6 +306,10 @@ Lugar buscar(const Linea& l, const std::string& id) {
         if (l.pistas[i].id == id) return {Lugar::Que::Pista, i, 0, 0};
     for (std::size_t i = 0; i < l.estante.size(); ++i)
         if (l.estante[i].id == id) return {Lugar::Que::Estante, i, 0, 0};
+    for (std::size_t i = 0; i < l.disparadores.size(); ++i)
+        if (l.disparadores[i].id == id) return {Lugar::Que::Disparador, i, 0, 0};
+    for (std::size_t i = 0; i < l.plantillas.size(); ++i)
+        if (l.plantillas[i].id == id) return {Lugar::Que::Plantilla, i, 0, 0};
     return {};
 }
 
@@ -343,11 +348,14 @@ class Editor {
         if (que == "pieza_agregar") return piezaAgregar(op);
         if (que == "pista_agregar") return pistaAgregar(op);
         if (que == "estante_agregar") return estanteAgregar(op);
+        if (que == "disparador_agregar") return disparadorAgregar(op);
+        if (que == "plantilla_agregar") return plantillaAgregar(op);
         if (que == "mover") return mover(op);
         if (que == "quitar") return quitar(op);
         if (que == "cambiar") return cambiar(op);
         return llenar(traducir("linea", "no conozco la operación «%1» (bloque_agregar, paso_agregar, pieza_agregar, "
-                                        "pista_agregar, estante_agregar, mover, quitar, cambiar)"),
+                                        "pista_agregar, estante_agregar, disparador_agregar, plantilla_agregar, mover, quitar, "
+                                        "cambiar)"),
                       {que});
     }
 
@@ -422,6 +430,27 @@ class Editor {
         if (std::string e = idLibre(it.id); !e.empty()) return e;
         if (!it.pieza && !it.paso) return traducir("linea", "el ítem del estante lleva una `pieza` o un `paso`");
         l_.estante.push_back(std::move(it));
+        return {};
+    }
+
+    std::string disparadorAgregar(const json& op) {
+        if (!op.contains("disparador") || !op["disparador"].is_object()) return traducir("linea", "falta `disparador`");
+        Disparador d = Disparador::deJson(op["disparador"]);
+        if (std::string e = idLibre(d.id); !e.empty()) return e;
+        if (d.cuando.empty()) return traducir("linea", "el disparador lleva `cuando` (la condición)");
+        if (std::string e = errorDeHacer(d.hacer); !e.empty()) return e;
+        l_.disparadores.push_back(std::move(d));
+        return {};
+    }
+
+    /// Una plantilla de pasos para el evento (p. ej. la de fábrica con la que se armó el
+    /// orden del día: así queda con el evento y se re-expande con ella).
+    std::string plantillaAgregar(const json& op) {
+        if (!op.contains("plantilla") || !op["plantilla"].is_object()) return traducir("linea", "falta `plantilla`");
+        Plantilla t = Plantilla::deJson(op["plantilla"]);
+        if (std::string e = idLibre(t.id); !e.empty()) return e;
+        if (t.pasos.empty()) return traducir("linea", "la plantilla lleva al menos un paso");
+        l_.plantillas.push_back(std::move(t));
         return {};
     }
 
@@ -504,6 +533,12 @@ class Editor {
                 l_.pistas.erase(l_.pistas.begin() + static_cast<long>(x.b));
                 return {};
             case Lugar::Que::Estante: l_.estante.erase(l_.estante.begin() + static_cast<long>(x.b)); return {};
+            case Lugar::Que::Disparador: l_.disparadores.erase(l_.disparadores.begin() + static_cast<long>(x.b)); return {};
+            case Lugar::Que::Plantilla:
+                for (const Bloque& b : l_.bloques)
+                    if (b.plantilla == id) return llenar(traducir("linea", "la plantilla «%1» la usa el bloque «%2»"), {id, b.id});
+                l_.plantillas.erase(l_.plantillas.begin() + static_cast<long>(x.b));
+                return {};
             default: return llenar(traducir("linea", "no hay nada con el id «%1»"), {id});
         }
     }
@@ -531,6 +566,13 @@ class Editor {
             }
             case Lugar::Que::Pista: l_.pistas[x.b] = cambiado(l_.pistas[x.b], campos); return {};
             case Lugar::Que::Estante: l_.estante[x.b] = cambiado(l_.estante[x.b], campos); return {};
+            case Lugar::Que::Disparador: {
+                const Disparador d = cambiado(l_.disparadores[x.b], campos);
+                if (std::string e = errorDeHacer(d.hacer); !e.empty()) return e;
+                l_.disparadores[x.b] = d;
+                return {};
+            }
+            case Lugar::Que::Plantilla: l_.plantillas[x.b] = cambiado(l_.plantillas[x.b], campos); return {};
             default: return llenar(traducir("linea", "no hay nada con el id «%1»"), {id});
         }
     }
@@ -589,6 +631,10 @@ void aplanar(const Linea& l, std::map<std::string, Item>& m, std::map<std::strin
         m[p.id] = {"pista", "", p.aJson()};
     for (const ItemEstante& i : l.estante)
         m[i.id] = {"estante", "", i.aJson()};
+    for (const Disparador& d : l.disparadores)
+        m[d.id] = {"disparador", "", d.aJson()};
+    for (const Plantilla& t : l.plantillas)
+        m[t.id] = {"plantilla", "", t.aJson()};
 }
 
 /// Los de `a` que siguen en `b`, en el orden de cada uno.
@@ -787,6 +833,9 @@ json vista(const Linea& l, const Resolucion& r, const std::string& salida, int64
             es.push_back(std::move(x));
         }
         out["estante"] = std::move(es);
+        // Los pulsos que espera la línea (tecla:, botonera:, web:): la escaleta web
+        // muestra un botón por cada «web:» y los atajos atienden las «tecla:».
+        out["pulsos"] = pulsosDe(l);
     }
     json hs = json::array();
     for (const HardStart& h : sr->hardStarts)

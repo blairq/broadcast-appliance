@@ -878,7 +878,7 @@ endif()
     # El asistente productor (L9): el solucionador del back-timing, las plantillas,
     # la línea desde una guía, el vigía del over/under y lo de las superficies web.
     add_executable(test_linea_productor tests/test_linea_productor.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Condicion.cpp
-                   evento/LineaProductor.cpp evento/LineaPlantillas.cpp evento/Evento.cpp)
+                   evento/LineaProductor.cpp evento/LineaPlantillas.cpp evento/LineaIntercambio.cpp evento/Evento.cpp)
     target_include_directories(test_linea_productor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_linea_productor PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_linea_productor COMMAND test_linea_productor)
