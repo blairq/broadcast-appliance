@@ -6,7 +6,7 @@
 # y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp Prioridad.cpp)
+add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp Prioridad.cpp Fallas.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
 # Capturas: las ventanas de cada sistema (ver Capturas.hpp).
@@ -27,6 +27,14 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_motor gstbaaudio gstbaipc) # balimitador; baanillosink
     add_test(NAME test_motor COMMAND test_motor)
     set_tests_properties(test_motor PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    # F1-14: las fallas que inyecta el banco de caos (diag_falla, solo --test).
+    add_executable(test_fallas tests/test_fallas.cpp)
+    target_link_libraries(test_fallas PRIVATE ba_motor)
+    ba_gst_rpath(test_fallas "")
+    target_compile_definitions(test_fallas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    add_test(NAME test_fallas COMMAND test_fallas)
+    set_tests_properties(test_fallas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
 
     add_executable(test_latencia_estudio tests/test_latencia_estudio.cpp)
     target_link_libraries(test_latencia_estudio PRIVATE ba_motor)

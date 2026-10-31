@@ -31,6 +31,8 @@
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QTimer>
+
+#include "fault/FallasProgramadas.hpp"
 #include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -3578,6 +3580,36 @@ void McpService::registerTools() {
                 while (std::chrono::steady_clock::now() < fin) {
                 }
             });
+        };
+        core_.addTool(std::move(t));
+    }
+    if (rt.config().modoPrueba) {
+        // Solo con --test: el banco de caos (tools/caos/) rompe a propósito el codificador
+        // o el sumidero de una salida a los N s (FallasProgramadas → motor/Fallas.hpp).
+        Tool t;
+        t.name = "diag_falla";
+        t.title = ba::i18n::traducir("mcp", "Inyectar una falla en una salida (solo --test)");
+        t.category = "sistema";
+        t.description = ba::i18n::traducir("mcp", "SOLO EN MODO PRUEBA. Programa una falla: `pieza` codificador (deja de codificar, "
+                        "como un codificador de placa que se cae) o sumidero (no puede escribir: disco o conexión) de "
+                        "`salida` grabacion o transmision, dentro de `en_s` segundos (0 = ya). La primera de ese tipo "
+                        "que pase se la lleva, una vez. `limpiar`: borra lo programado. Siempre devuelve lo programado y lo "
+                        "ya disparado.");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"pieza", {{"type", "string"}, {"enum", {"codificador", "sumidero"}}}},
+                           {"salida", {{"type", "string"}, {"enum", {"grabacion", "transmision"}}}},
+                           {"en_s", {{"type", "number"}, {"minimum", 0}, {"maximum", 3600}}},
+                           {"limpiar", {{"type", "boolean"}}}}}};
+        t.run = [](const json& a, Done done) {
+            auto& f = ba::fault::FallasProgramadas::instancia();
+            if (a.value("limpiar", false)) f.limpiar();
+            if (a.contains("pieza") || a.contains("salida")) {
+                const std::string e = f.programar(a.value("salida", std::string()), a.value("pieza", std::string()),
+                                                  static_cast<std::int64_t>(a.value("en_s", 0.0) * 1000));
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            done(ToolResult().data(f.estado()));
         };
         core_.addTool(std::move(t));
     }
