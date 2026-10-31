@@ -116,6 +116,7 @@ const std::vector<Definicion>& registro() {
         {"sesion.latidoS", "Sesión remota", QT_TRANSLATE_NOOP("ajustes", "Sesión remota: latido"), "int", {}, 5, 300, "s", "", "live", json(30), Destino::Sala},
         {"sesion.authS", "Sesión remota", QT_TRANSLATE_NOOP("ajustes", "Sesión remota: tiempo para identificarse"), "int", {}, 5, 300, "s", "", "live", json(15), Destino::Sala},
         {"sesion.intentosPorIp", "Sesión remota", QT_TRANSLATE_NOOP("ajustes", "Sesión remota: intentos por dirección"), "int", {}, 1, 1000, "", QT_TRANSLATE_NOOP("ajustes", "Cada 10 minutos."), "live", json(10), Destino::Sala},
+        {"registro.intentosPorIp", "Tótems de registro", QT_TRANSLATE_NOOP("ajustes", "Tótems: intentos por dirección"), "int", {}, 1, 1000, "", QT_TRANSLATE_NOOP("ajustes", "Cada 10 minutos. Mientras no se cambie, vale el de la sesión remota."), "live", json(10), Destino::Sala},
         {"sesion.fallasParaBloquear", "Sesión remota", QT_TRANSLATE_NOOP("ajustes", "Sesión remota: fallas para bloquear"), "int", {}, 1, 100, "", "", "live", json(5), Destino::Sala},
         {"sesion.bloqueoMin", "Sesión remota", QT_TRANSLATE_NOOP("ajustes", "Sesión remota: bloqueo"), "int", {}, 1, 1440, "min", "", "live", json(15), Destino::Sala},
         {"sesion.fotoKB", "Sesión remota", QT_TRANSLATE_NOOP("ajustes", "Sesión remota: foto del integrante"), "int", {}, 8, 2048, "KB", "", "live", json(96), Destino::Sala},

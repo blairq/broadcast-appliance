@@ -58,11 +58,14 @@ bool esHex64(const std::string& s) {
 std::string volcar(const json& j) { return j.dump(-1, ' ', false, json::error_handler_t::replace); }
 
 // Las mismas perillas que la sesión remota (son las mismas defensas, y así se
-// ajustan juntas desde Configuración → Avanzado).
+// ajustan juntas desde Configuración → Avanzado), salvo los intentos por IP.
 inline int kMensajesPorSegundo() { return ba::ajustes::entero("sesion.mensajesPorSegundo", 20); }
 inline int kLatidoMs() { return ba::ajustes::sAMs("sesion.latidoS", 30); }
 inline int kAuthMs() { return ba::ajustes::sAMs("sesion.authS", 15); }
-inline int kIntentosPorIp() { return ba::ajustes::entero("sesion.intentosPorIp", 10); } // fallidos, cada 10 minutos
+// Los intentos fallidos por IP (cada 10 minutos) son de esta superficie: antes se leía el de
+// la sesión remota. Mientras no se cambie el propio vale el de la sesión, que es lo que regía
+// (si alguien lo había ajustado, se conserva).
+inline int kIntentosPorIp() { return ba::ajustes::entero("registro.intentosPorIp", ba::ajustes::entero("sesion.intentosPorIp", 10)); }
 // Conexiones a la vez entre todos los tótems: cada una es un hilo y un socket. Una
 // TV con su QR y la gente que lo escanea en la entrada no se acercan a esto.
 // El mensaje más grande que manda la página: una foto entera de la cámara mientras muestra
