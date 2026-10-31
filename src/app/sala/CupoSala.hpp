@@ -12,6 +12,8 @@
 //     arranque), AppRuntime ajusta las entradas de los invitados.
 //   - El resultado va a quien lo pidió (`listo`) y a los observadores
 //     (alAvisar / alCambiar): la interfaz lo muestra, el modelo no sabe de ella.
+//   - Las entradas de los invitados son del motor (del plano de control): se le piden
+//     por la ventanilla y el cupo de antes se lee de su foto (F3-03).
 // ============================================================================
 #pragma once
 
@@ -22,6 +24,7 @@
 namespace ba::app {
 class AppRuntime;
 class ConferenceClient;
+class VentanillaMotor;
 } // namespace ba::app
 
 namespace ba::app::sala {
@@ -31,7 +34,7 @@ class CupoSala {
     /// "" = hecho; si no, por qué no.
     using Listo = std::function<void(const std::string& error)>;
 
-    CupoSala(AppRuntime& rt, ConferenceClient& sala);
+    CupoSala(AppRuntime& rt, VentanillaMotor& ventanilla, ConferenceClient& sala);
 
     /// Para la interfaz: el resultado de cada pedido (texto, ¿es error?).
     void alAvisar(std::function<void(const std::string&, bool)> f) { avisar_ = std::move(f); }
@@ -45,7 +48,8 @@ class CupoSala {
     static constexpr int kMax = ba::ipc::kMaxInvitados; ///< el mismo tope que el gateway (ipc/LugaresSala)
 
    private:
-    AppRuntime& rt_;
+    AppRuntime& rt_; ///< solo para la orden que corre en el dueño
+    VentanillaMotor& ventanilla_;
     ConferenceClient& sala_;
     std::function<void(const std::string&, bool)> avisar_;
     std::function<void(int)> cambio_;

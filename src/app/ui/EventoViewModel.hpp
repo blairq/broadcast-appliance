@@ -20,6 +20,16 @@
 //
 // EL ENSAYO es la misma máquina con la ejecución apagada: se recorre el guion
 // igual, se ven los tiempos, pero no se toca lo que sale al aire.
+//
+// EL MOTOR ES DEL PLANO DE CONTROL (F3-03, docs/arquitectura/05-motor-del-plano.md). La
+// corrida (su reloj, sus EjecutorLinea) vive acá, en la interfaz: casi todo lo que hace
+// una pieza es de la interfaz (los gráficos, el carrusel, el teleprompter, los oradores de
+// la sala, los vínculos, el DSK, las PTZ, la bitácora). Lo que toca el aire —cortar y armar
+// en el conmutador de cada salida, la música, el video, el audio— se PIDE por la ventanilla
+// (corre en el dueño, en orden, sin esperar a la interfaz) y lo que se lee del motor (las
+// escenas, las fuentes, los medios que suenan) sale de su foto. Con la interfaz trabada
+// la línea no avanza (lo pendiente sale al volver, con la hora de pared: Corrida::tick),
+// pero lo que ya está al aire sigue saliendo y el documento de aire guarda en qué iba.
 // ============================================================================
 #pragma once
 #include <optional>
@@ -40,6 +50,7 @@
 #include <QVariantMap>
 
 #include "sala/ListaPrompters.hpp"
+#include "emision/FotoMotor.hpp"
 #include "evento/Corrida.hpp"
 #include "evento/Evento.hpp"
 #include "evento/LineaEdicion.hpp"
@@ -52,6 +63,7 @@ class EjecutorLinea;
 
 class AppRuntime;
 class ConferenceViewModel;
+class VentanillaMotor;
 namespace graficos {
 class Emisor;
 class Vinculos;
@@ -142,7 +154,8 @@ class EventoViewModel : public QObject {
     /// :param sinAbrirUltimo: no abre solo el ultimo evento que se toco. Lo
     ///        usa el arranque cuando ese evento se llevo puesto el arranque
     ///        anterior (ver diag/DiarioDeArranque.hpp).
-    EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graficos::Emisor* graficos,
+    /// `ventanilla`: el motor (del plano de control) se le pide y se lee su foto (F3-03).
+    EventoViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, ConferenceViewModel* sala, graficos::Emisor* graficos,
                     bool sinAbrirUltimo = false, QObject* parent = nullptr);
     ~EventoViewModel() override;
 
@@ -619,7 +632,17 @@ class EventoViewModel : public QObject {
     /// Pone al aire la escena de un cue por el PVW: la arma (si el lookahead no la
     /// dejó armada) y hace TAKE con la transición del cue o la de entrada de la
     /// escena. "" o por qué no.
-    std::string tomarEscena(const std::string& escena, const nlohmann::json& datos, const std::string& salida);
+    void tomarEscena(const std::string& escena, const nlohmann::json& datos, const std::string& salida,
+                     std::function<void(const std::string& error)> listo);
+    /// La salida del motor de una salida de la línea ("" = la por omisión; nada si no hay).
+    std::optional<std::string> salidaDelMotor(const std::string& salida) const;
+    /// Lo de esa salida en la foto del motor (al aire, armada), o nullptr.
+    const FotoMotor::Salida* aireDe(const std::string& salida) const;
+    /// `orden` en el conmutador de `salida`, en el dueño del motor; `listo` vuelve acá.
+    void pedirAlConmutador(const char* que, const std::string& salida, std::function<std::string(escenas::Conmutador&)> orden,
+                           std::function<void(const std::string& error)> listo);
+    /// La línea pidió esa escena y no se pudo: su aviso no va a llegar.
+    void olvidarEscenaDeLaLinea(const std::string& salida, const std::string& escena);
     /// Saca (con su salida) los gráficos que puso el guion y «se van al avanzar»
     /// según su ficha (títulos, placas): se llama al entrar otro paso en esa salida
     /// (vacía: en todas).
@@ -627,8 +650,6 @@ class EventoViewModel : public QObject {
 
     // --- L6/L7 (EventoViewModelLinea.cpp) ---------------------------------------------
     Sistema sistema() const { return sistema_ ? sistema_() : Sistema{}; }
-    /// El conmutador de la salida de la línea (nullptr si el motor no la tiene).
-    escenas::Conmutador* conmutador(const std::string& salida) const;
     /// Se engancha a lo que la línea mira (una vez por cosa): los temas del bus que
     /// usan las condiciones (con su último valor), el aire de cada salida (lo «a mano»
     /// y las PTZ que esperan), el orden del día y la playlist. Tras nuevaCorrida.
@@ -718,7 +739,9 @@ class EventoViewModel : public QObject {
     /// Ruta de un medio (musica o video), siempre dentro de Medios/.
     /// Se asegura de que exista la escena del video con su fuente adentro, y
     /// la deja protegida. Devuelve false si no se pudo (ya lo anoto).
-    bool prepararEscenaDeVideo(const std::string& salida);
+    /// EN EL DUEÑO DEL MOTOR: la escena protegida del video de una salida y su fuente, si
+    /// faltan. "" o el error; `creada`: se creó la escena.
+    static std::string prepararEscenaDeVideo(AppRuntime& rt, const std::string& escenaV, const std::string& fuenteV, bool* creada);
     QString medioPath(const QString& rel) const;
     /// Ruta de `rel` dentro de `sub` en la carpeta del evento, o vacia si se
     /// sale de ahi.
@@ -738,7 +761,8 @@ class EventoViewModel : public QObject {
     /// comentario de `alTerminar` en el cue).
     QString escenaPrevia_;
 
-    AppRuntime& rt_;
+    AppRuntime& rt_; ///< para lo que se pide al dueño (y la carpeta de datos, el documento de aire)
+    VentanillaMotor& ventanilla_;
     ConferenceViewModel* sala_ = nullptr;
     graficos::Emisor* graficos_ = nullptr;
     /// Los gráficos al aire que se van cuando entra otro paso: la fuente y la generación
@@ -767,7 +791,9 @@ class EventoViewModel : public QObject {
     std::set<const QObject*> enchufados_; ///< a qué ya se conectó enchufar() (una vez cada uno)
     QTimer vigiaMedios_;
     std::map<std::string, int> suscripciones_; ///< tema del bus → id
-    int cambiandoEscena_ = 0; ///< > 0: la escena la está cambiando la línea (no es «a mano»)
+    /// Las escenas que pidió poner la línea en cada salida y todavía no avisaron que están
+    /// al aire (el aviso del conmutador llega encolado, del dueño): esas no son «a mano».
+    std::map<std::string, std::multiset<std::string>> escenasDeLaLinea_;
     std::function<Sistema()> sistema_;
     graficos::Vinculos* vinculos_ = nullptr;
     CarruselViewModel* carruseles_ = nullptr;

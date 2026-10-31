@@ -6,7 +6,7 @@
 #include "net/AccesoRemoto.hpp"
 #include "sala/Direcciones.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "net/AsyncHttp.hpp"
 #include "plugins/Hijo.hpp"
 #include "security/CredentialStore.hpp"
@@ -78,26 +78,22 @@ void taparSecretos(json& j) {
 
 } // namespace
 
-AccesoRemoto::AccesoRemoto(AppRuntime& rt, ConferenceClient& cli, QObject* parent)
-    : QObject(parent), rt_(rt), cli_(cli) {
+AccesoRemoto::AccesoRemoto(VentanillaMotor& ventanilla, ConferenceClient& cli, QObject* parent)
+    : QObject(parent), ventanilla_(ventanilla), cli_(cli) {
     poll_.setInterval(5000);
     connect(&poll_, &QTimer::timeout, this, &AccesoRemoto::refrescar);
     estado_ = {{"disponible", false}, {"sala", false}, {"texto", tr("Sin consultar todavía.")}};
     // Se prendió o apagó un túnel (desde acá, Configuración o el MCP): la conexión cambió.
-    observador_ = rt_.observar([this](AppRuntime::Cambio c) {
-        if (c != AppRuntime::Cambio::Ajustes) return;
-        QMetaObject::invokeMethod(this, [this]() {
-            emit estadoChanged();
-            emit credencialesChanged();
-            refrescar();
-        }, Qt::QueuedConnection);
+    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & FotoMotor::Sala) == 0) return;
+        emit estadoChanged();
+        emit credencialesChanged();
+        refrescar();
     });
 }
 
-AccesoRemoto::~AccesoRemoto() { rt_.dejarDeObservar(observador_); }
-
 QVariantMap AccesoRemoto::conexion() const {
-    const auto& g = rt_.gateway();
+    const FotoMotor::SalaYEvento& g = ventanilla_.foto().sala;
     if (g.pinggyActivo) {
         const QVariantMap p = estado_.value("pinggy").toMap();
         const QString url = p.value("urlPublica").toString();
@@ -109,8 +105,8 @@ QVariantMap AccesoRemoto::conexion() const {
                           : estado == "error" ? tr("Pinggy no conecta: %1").arg(error)
                                               : tr("Conectando por pinggy…")}};
     }
-    if (g.tunnel) {
-        const QString host = QString::fromStdString(g.tunnelHostname);
+    if (g.tunel) {
+        const QString host = QString::fromStdString(g.tunelHost);
         const QString url = host.isEmpty() ? QString() : "https://" + host;
         return {{"activo", true}, {"via", "cloudflare"}, {"estado", url.isEmpty() ? "conectando" : "listo"}, {"url", url},
                 {"texto", url.isEmpty() ? tr("Por internet (Cloudflare)") : tr("Por internet (Cloudflare): %1").arg(url)}};
@@ -120,7 +116,7 @@ QVariantMap AccesoRemoto::conexion() const {
 }
 
 QVariantList AccesoRemoto::formasDeConectar() const {
-    const auto& g = rt_.gateway();
+    const FotoMotor::SalaYEvento& g = ventanilla_.foto().sala;
     QVariantList out;
     if (tokenGuardado()) {
         const QString host = QString::fromStdString(g.pinggyHost);
@@ -132,7 +128,7 @@ QVariantList AccesoRemoto::formasDeConectar() const {
                            {"detalle", tr("con tu API key: arma el túnel y la dirección fija de la cuenta")}};
     }
     if (tokenCloudflareGuardado()) {
-        const QString host = QString::fromStdString(g.tunnelHostname);
+        const QString host = QString::fromStdString(g.tunelHost);
         out << QVariantMap{{"id", "cloudflare"}, {"nombre", "Cloudflare"},
                            {"detalle", host.isEmpty() ? tr("con tu token") : tr("con tu token: %1").arg(host)}};
     }
@@ -149,7 +145,7 @@ QString AccesoRemoto::conectar(const QString& id) {
         return tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).");
     if (id == "pinggy-cuenta") {
         if (!apiKeyGuardada()) return tr("No hay API key de pinggy guardada (Configuración → Pinggy).");
-        if (rt_.gateway().tunnel)
+        if (ventanilla_.foto().sala.tunel)
             if (const QString e = aplicarPinggy_({{"gateway.tunnel", false}}); !e.isEmpty()) return e;
         configurarConApiKey(); // asíncrono: el resultado en `cuenta`
         return {};
@@ -173,8 +169,8 @@ QString AccesoRemoto::desconectar() {
     if (!aplicarPinggy_) return tr("no disponible");
     if (enVivo_ && enVivo_())
         return tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).");
-    const auto& g = rt_.gateway();
-    if (!g.pinggyActivo && !g.tunnel) return {};
+    const FotoMotor::SalaYEvento& g = ventanilla_.foto().sala;
+    if (!g.pinggyActivo && !g.tunel) return {};
     return aplicarPinggy_({{"pinggy.activo", false}, {"gateway.tunnel", false}});
 }
 
@@ -252,8 +248,8 @@ QString AccesoRemoto::guardarToken(const QString& token) {
 QVariantMap AccesoRemoto::guardarTokenTunel(const QString& token, bool hayCambiosSinAplicar) {
     if (const QString e = guardarToken(token); !e.isEmpty())
         return {{"error", e}, {"reiniciarAhora", false}};
-    // Lo que rige es lo guardado (rt_.gateway()), no lo que está a medio editar.
-    const bool reiniciar = cli_.online() && rt_.gateway().pinggyActivo && !hayCambiosSinAplicar;
+    // Lo que rige es lo guardado (la foto del motor), no lo que está a medio editar.
+    const bool reiniciar = cli_.online() && ventanilla_.foto().sala.pinggyActivo && !hayCambiosSinAplicar;
     return {{"error", QString()}, {"reiniciarAhora", reiniciar}};
 }
 
@@ -443,7 +439,7 @@ void AccesoRemoto::verEnPinggy() {
 }
 
 QVariantMap AccesoRemoto::configuracion() const {
-    const GatewaySettings& g = rt_.gateway();
+    const FotoMotor::SalaYEvento& g = ventanilla_.foto().sala;
     return {{"activo", g.pinggyActivo},
             {"region", QString::fromStdString(g.pinggyRegion)},
             {"dominioTipo", QString::fromStdString(g.pinggyDominioTipo)},
@@ -472,9 +468,9 @@ void AccesoRemoto::consultar(std::function<void(json)> done) {
         // Solo si está o falta: el token nunca pasa por el asistente.
         out["token_tunel"] = self->tokenGuardado() ? "guardado" : "falta";
         out["api_key"] = self->apiKeyGuardada() ? "guardada" : "falta";
-        if (self->rt_.gateway().pinggyDominioTipo == "propio")
-            out["instrucciones_dns"] = self->instruccionesDns(QString::fromStdString(self->rt_.gateway().pinggyHost),
-                                                              QString::fromStdString(self->rt_.gateway().pinggyCnameDestino))
+        if (self->ventanilla_.foto().sala.pinggyDominioTipo == "propio")
+            out["instrucciones_dns"] = self->instruccionesDns(QString::fromStdString(self->ventanilla_.foto().sala.pinggyHost),
+                                                              QString::fromStdString(self->ventanilla_.foto().sala.pinggyCnameDestino))
                                            .toStdString();
         done(out);
     });
@@ -538,7 +534,7 @@ void AccesoRemoto::probarConTunel(const QString& host) {
 #else
     const QString exe = QCoreApplication::applicationDirPath() + "/ba-pinggy";
 #endif
-    const auto& g = rt_.gateway();
+    const FotoMotor::SalaYEvento& g = ventanilla_.foto().sala;
     // Hacia el puerto del túnel (nadie lo atiende si el túnel está apagado: no importa,
     // solo se mira qué dirección da pinggy).
     const QStringList args{"--forward", QString("http=127.0.0.1:%1").arg(g.pinggyPuertoTunel > 0 ? g.pinggyPuertoTunel : 8786),
@@ -746,7 +742,7 @@ QVariantList AccesoRemoto::enlacesDeAfuera() const {
     // atienden por el túnel (la botonera nunca) y solo con el túnel listo de verdad.
     QVariantList enl;
     if (dir_ == nullptr) return enl;
-    const QString sala = QString::fromStdString(rt_.gateway().room);
+    const QString sala = QString::fromStdString(ventanilla_.foto().sala.sala);
     for (const auto& s : dir_->catalogo().value("servicios", nlohmann::json::array())) {
         const nlohmann::json& u = s["remoto"];
         if (!u.is_string()) continue;

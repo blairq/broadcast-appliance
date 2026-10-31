@@ -49,8 +49,9 @@
 
 namespace ba::app {
 
-class BroadcastEngine;
+class AppRuntime;
 class EventoViewModel;
+class VentanillaMotor;
 class FrameService;
 class LineaProductor;
 namespace control {
@@ -99,8 +100,10 @@ class LineaViewModel : public QObject {
     Q_PROPERTY(QObject* productor READ productorQml CONSTANT)
 
    public:
-    LineaViewModel(EventoViewModel& evento, BroadcastEngine& engine, FrameService* frames, control::Acciones* acciones,
-                   control::BusEventos* bus, QObject* parent = nullptr);
+    /// El motor es del plano de control (F3-03): las miniaturas se le piden por `ventanilla`
+    /// y los lugares de las fuentes salen de su foto.
+    LineaViewModel(EventoViewModel& evento, AppRuntime& rt, VentanillaMotor& ventanilla, FrameService* frames,
+                   control::Acciones* acciones, control::BusEventos* bus, QObject* parent = nullptr);
     ~LineaViewModel() override;
 
     bool mirando() const { return mirando_; }
@@ -198,7 +201,8 @@ class LineaViewModel : public QObject {
     QString resultado(const std::string& error);
 
     EventoViewModel& ev_;
-    BroadcastEngine& engine_;
+    AppRuntime& rt_; ///< solo para lo que se pide al dueño
+    VentanillaMotor& ventanilla_;
     FrameService* frames_ = nullptr;
     control::Acciones* acciones_ = nullptr;
     control::BusEventos* bus_ = nullptr;

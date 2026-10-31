@@ -77,3 +77,18 @@ Cada entrada directa se cuenta por lugar: `ba_motor_directas_total{lugar}` en
 `/metrics`, `TurnoMotor::directas()` y una línea «la interfaz entró directo al motor:
 <lugar> (<archivo>:<línea>)» en `app.log` la primera vez de cada lugar. Esa lista es lo
 que falta migrar.
+
+## La línea de tiempo (asamblea, sala y línea)
+
+La corrida de la línea (`EventoViewModel`, sus `EjecutorLinea`) se quedó en la interfaz a
+propósito: casi todo lo que hace una pieza es de la interfaz (los gráficos, el carrusel,
+el teleprompter, los oradores de la sala, los vínculos, el DSK, las PTZ, la bitácora), y
+mudarla al dueño lo haría esperar a la interfaz para eso. Lo que toca el aire (cortar y
+armar en el conmutador de cada salida, la música, el video, el audio) se pide por la
+ventanilla y lo que lee del motor sale de la foto (parte `Sala`). Con la interfaz trabada
+la línea no avanza: lo pendiente sale al volver, con la hora de pared (`Corrida::tick`), y
+lo que ya está al aire sigue saliendo. Lo «a mano» se sabe por las escenas que pidió la
+línea a cada salida (el aviso del conmutador llega encolado, después de la orden). Para el
+MCP, la copia de `linea_estado`/`linea_ver` se siembra al registrarlas y la línea la pone
+al día cuando cambia (`CopiaDeLaInterfaz::copiarYa`).
+

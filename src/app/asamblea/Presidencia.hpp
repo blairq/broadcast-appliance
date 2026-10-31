@@ -30,6 +30,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -60,6 +61,16 @@ class Presidencia : public QObject {
     /// "" = hecho; si no, por qué no (también lo que contesta la central, que llega después).
     using Listo = std::function<void(const std::string& error)>;
 
+    /// Lo que dio el reparto de los canales de escena (repartirCanales): el canal de cada
+    /// vista (-1 el programa, -2 sin canal) y las escenas que se quedaron sin canal.
+    struct Canales {
+        std::vector<int> canal;
+        std::vector<std::string> sinCanal;
+    };
+    /// En el dueño del motor: las vistas que no son el programa toman su canal (las que ya
+    /// tenían uno lo conservan; se sueltan los que ya no van). `fuentes`: la de cada vista.
+    static Canales repartirCanales(BroadcastEngine& motor, const std::vector<std::string>& fuentes, bool alguien);
+
     /// Lo que usa (todo vive más que este modelo). `debate`, `votaciones`, `quorum`
     /// y `ordenDia` pueden faltar.
     struct Partes {
@@ -73,7 +84,9 @@ class Presidencia : public QObject {
         OrdenDelDia* ordenDia = nullptr;
         ConferenceClient& sala;
         control::BusEventos& bus;
-        BroadcastEngine& motor;
+        /// Los canales de escena son del motor, que es del plano de control (F3-03): corre
+        /// `reparto` allá (con repartirCanales) y devuelve lo que dio a este hilo.
+        std::function<void(std::function<Canales(BroadcastEngine&)> reparto, std::function<void(Canales)> listo)> enMotor;
         /// ¿El operador tiene micrófono para la sala? (para hablarle a un remoto)
         std::function<bool()> microfonoOperador;
     };

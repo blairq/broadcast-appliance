@@ -14,6 +14,8 @@
 //   - DNS de un dominio propio: las instrucciones para el que administra el DNS
 //     (texto copiable) y una verificación del CNAME (QDnsLookup, sin
 //     herramientas del sistema).
+//   - Lo guardado (gateway.json: pinggy, Cloudflare, la sala) es del dueño del motor: se
+//     lee de su foto (FotoMotor::sala, F3-03) y cuando cambia, avisa.
 // ============================================================================
 #pragma once
 
@@ -28,8 +30,8 @@
 
 namespace ba::app {
 
-class AppRuntime;
 class ConferenceClient;
+class VentanillaMotor;
 namespace sala {
 class Direcciones;
 }
@@ -64,8 +66,7 @@ class AccesoRemoto : public QObject {
     /// [{id, nombre, detalle}] (ver conectar).
     Q_PROPERTY(QVariantList formasDeConectar READ formasDeConectar NOTIFY credencialesChanged)
    public:
-    AccesoRemoto(AppRuntime& rt, ConferenceClient& cli, QObject* parent = nullptr);
-    ~AccesoRemoto() override;
+    AccesoRemoto(VentanillaMotor& ventanilla, ConferenceClient& cli, QObject* parent = nullptr);
 
     QVariantMap estado() const { return estado_; }
     QVariantList enlaces() const { return enlaces_; }
@@ -148,12 +149,11 @@ class AccesoRemoto : public QObject {
     void aplicarEstado(bool ok, const QVariantMap& r);
     QVariantMap configuracion() const;
 
-    AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     ConferenceClient& cli_;
     QTimer poll_;
     bool siguiendo_ = false;
     QString ruta_ = "/api/remoto"; ///< la que contestó (o la primera a probar)
-    int observador_ = -1;          ///< AppRuntime::observar (Ajustes: cambió pinggy o Cloudflare)
     QVariantMap estado_;
     QVariantList enlaces_;
     const sala::Direcciones* dir_ = nullptr;

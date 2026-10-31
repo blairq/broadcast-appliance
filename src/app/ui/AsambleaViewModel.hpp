@@ -21,6 +21,11 @@
 // rótulos, el anexo del acta y el informe. El reloj del orador (los avisos de tiempo) y
 // las ranuras de la fuente «Banca con la palabra» también son de acá.
 //
+// El motor y los conmutadores son del plano de control (F3-03): lo que la asamblea les hace
+// (armar y cortar, abrir un micrófono, las ranuras de la banca, los canales de la sesión
+// remota, capturar una foto) se pide por la ventanilla, y lo que lee (qué escena muestra una
+// cámara, la fuente de la banca) sale de la foto del motor.
+//
 // En QML los modelos siguen en Studio (Studio.cuerpo, Studio.bancas…); lo propio del
 // área en Studio.asamblea (presidenciaHabla y los mandos del operador).
 // ============================================================================
@@ -42,6 +47,7 @@ namespace ba::app {
 class AppRuntime;
 class ConferenceViewModel;
 class EventoViewModel;
+class VentanillaMotor;
 }
 namespace ba::app::control {
 class BusEventos;
@@ -82,6 +88,7 @@ class AsambleaViewModel : public QObject {
     /// Lo que el área usa del resto de la app.
     struct Partes {
         AppRuntime& rt;
+        VentanillaMotor& ventanilla;        ///< el motor: se le pide y se lee su foto
         control::BusEventos& bus;
         ConferenceViewModel& sala;          ///< el cliente del gateway, el micrófono del operador
         sala::Direcciones& direcciones;     ///< de dónde salen los links de la banca virtual

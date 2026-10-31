@@ -37,6 +37,7 @@ namespace ba::app {
 class AppRuntime;
 class EventoViewModel;
 class HistoricoViewModel;
+class VentanillaMotor;
 namespace control {
 class BusEventos;
 }
@@ -44,8 +45,11 @@ class BusEventos;
 class BitacoraEvento : public QObject {
     Q_OBJECT
    public:
-    /// Vive menos que `evento` y `bus` (StudioViewModel la borra antes).
-    BitacoraEvento(AppRuntime& rt, EventoViewModel& evento, control::BusEventos& bus, QObject* parent = nullptr);
+    /// Vive menos que `evento` y `bus` (StudioViewModel la borra antes). Lo que sabe el motor
+    /// (el archivo que se graba, la carpeta de grabación) lo lee de la foto de `ventanilla`
+    /// (F3-03): los temas de salida los publica la interfaz, en su hilo.
+    BitacoraEvento(AppRuntime& rt, VentanillaMotor& ventanilla, EventoViewModel& evento, control::BusEventos& bus,
+                   QObject* parent = nullptr);
     /// Anota «la app se cierra», saca la última foto y corta los sellos a medias.
     ~BitacoraEvento() override;
 
@@ -68,7 +72,12 @@ class BitacoraEvento : public QObject {
     /// hilo, sellos.json. Los hilos se cancelan y esperan al cerrar la app.
     void cerrarEnHistorico(const std::string& carpeta);
 
-    AppRuntime& rt_;
+    /// El archivo que graba la por omisión y su copia (de la foto del motor).
+    std::string archivoGrabacion() const;
+    std::string copiaGrabacion() const;
+
+    AppRuntime& rt_; ///< la carpeta de datos
+    VentanillaMotor& ventanilla_;
     EventoViewModel* evento_;
     control::BusEventos* bus_;
     /// bitacora.jsonl del evento en curso.

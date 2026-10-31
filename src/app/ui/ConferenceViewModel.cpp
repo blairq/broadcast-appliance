@@ -23,6 +23,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "arranque/AppSettings.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "sala/ControlSala.hpp"
 #include "sala/EnlacesSala.hpp"
 #include "sala/OradoresSala.hpp"
@@ -115,8 +116,8 @@ void JsonListModel::append(const QJsonObject& item) {
 
 // --- ConferenceViewModel ------------------------------------------------------
 
-ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
-    : QObject(parent), rt_(rt), client_(std::make_unique<ConferenceClient>()),
+ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<ConferenceClient>()),
       waiting_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
@@ -133,7 +134,12 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     connect(client_.get(), &ConferenceClient::snapshotChanged, this, &ConferenceViewModel::onSnapshot);
     connect(client_.get(), &ConferenceClient::chatReceived, this,
             [this](const QJsonObject& m) { onChatMsg(m, true); });
-    control_ = std::make_unique<sala::ControlSala>(rt_, *client_);
+    control_ = std::make_unique<sala::ControlSala>(rt_, ventanilla_, *client_);
+    // Las fuentes, con qué aparece el operador y la atención automática vienen de la foto.
+    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & (FotoMotor::Sala | FotoMotor::Escenas)) != 0) emit operatorChanged();
+        if ((partes & FotoMotor::Sala) != 0) emit autoIntakeChanged();
+    });
     participantes_ = std::make_unique<sala::ParticipantesSala>(*client_);
     oradores_ = std::make_unique<sala::OradoresSala>(*client_);
     enlaces_ = std::make_unique<sala::EnlacesSala>(*client_);
@@ -448,8 +454,13 @@ void ConferenceViewModel::onSnapshot() {
         const int k = p.value("lobbySlot").toInt();
         if (k >= 1 && k <= 8 && p.value("talk").toBool()) monitor[static_cast<size_t>(k)] = true;
     }
-    for (int k = 1; k <= 8; ++k)
-        rt_.setLobbyMonitor(k, monitor[static_cast<size_t>(k)]);
+    // Al motor solo cuando cambia (cada foto de la sala no es una orden).
+    if (monitor != monitorLobby_) {
+        monitorLobby_ = monitor;
+        ventanilla_.pedir("lobby_monitor", [&rt = rt_, monitor]() {
+            for (int k = 1; k <= 8; ++k) rt.setLobbyMonitor(k, monitor[static_cast<size_t>(k)]);
+        });
+    }
 
     QJsonArray shares;
     const QJsonArray all = s.value("shares").toArray();
@@ -640,27 +651,22 @@ QVariantList ConferenceViewModel::slotsSinRetorno() const {
     return slotsSinRetorno_;
 }
 
-QString ConferenceViewModel::operatorVideo() const {
-    return QString::fromStdString(rt_.config().operatorVideo);
-}
-QString ConferenceViewModel::operatorAudio() const {
-    return QString::fromStdString(rt_.config().operatorAudio);
-}
+QString ConferenceViewModel::operatorVideo() const { return QString::fromStdString(ventanilla_.foto().sala.operadorVideo); }
+QString ConferenceViewModel::operatorAudio() const { return QString::fromStdString(ventanilla_.foto().sala.operadorAudio); }
 
 QStringList ConferenceViewModel::videoSourceNames() const {
     QStringList out;
-    for (const std::string& scene : rt_.engine().sceneNames()) {
-        for (const std::string& s : rt_.engine().sceneSources(scene)) {
-            const QString q = QString::fromStdString(s);
+    for (const FotoMotor::Escena& e : ventanilla_.foto().escenas)
+        for (const FotoMotor::Fuente& f : e.fuentes) {
+            const QString q = QString::fromStdString(f.nombre);
             if (!out.contains(q)) out << q;
         }
-    }
     return out;
 }
 
 QStringList ConferenceViewModel::audioSourceNames() const {
     QStringList out;
-    for (const std::string& s : rt_.engine().audioSources()) {
+    for (const std::string& s : ventanilla_.foto().sala.audio) {
         // Las voces de los invitados no son "el operador".
         if (s.rfind("Invitado", 0) == 0) continue;
         out << QString::fromStdString(s);
@@ -671,11 +677,18 @@ QStringList ConferenceViewModel::audioSourceNames() const {
 void ConferenceViewModel::talk(const QString& id, bool on) { participantes_->hablar(ss(id), on); }
 
 void ConferenceViewModel::setOperatorFeed(const QString& video, const QString& audio) {
-    if (!rt_.setOperatorFeed(video.toStdString(), audio.toStdString())) {
-        emit notify(QString::fromStdString(rt_.lastError()), "error");
-    }
-    rt_.save();
-    emit operatorChanged();
+    // Lo hace el dueño; la foto trae lo elegido (operatorChanged).
+    ventanilla_.pedir(
+        this, "operador_feed",
+        [&rt = rt_, v = video.toStdString(), a = audio.toStdString()]() {
+            const std::string e = rt.setOperatorFeed(v, a) ? std::string() : rt.lastError();
+            rt.fotoSucia(FotoMotor::Sala);
+            rt.save();
+            return e;
+        },
+        [this](const std::string& e) {
+            if (!e.empty()) emit notify(QString::fromStdString(e), "error");
+        });
 }
 
 void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const QString& publicAddress,
@@ -756,9 +769,12 @@ void ConferenceViewModel::removeShare(const QString& id) { control_->borrarArchi
 void ConferenceViewModel::takeShare(const QString& id) {
     // Las reglas (copia propia en Media/, el nombre, el tipo de fuente) son del
     // modelo, el mismo que usa el MCP (share_take).
-    const sala::ControlSala::Tomado t = control_->tomarArchivo(ss(id));
-    if (!t.error.empty()) return emit notify(qs(t.error), "error");
-    emit notify(tr("«%1» agregado a la escena %2").arg(qs(t.nombre), qs(t.escena)), "ok");
+    QPointer<ConferenceViewModel> yo(this);
+    control_->tomarArchivo(ss(id), [yo](const sala::ControlSala::Tomado& t) {
+        if (!yo) return;
+        if (!t.error.empty()) return emit yo->notify(qs(t.error), "error");
+        emit yo->notify(tr("«%1» agregado a la escena %2").arg(qs(t.nombre), qs(t.escena)), "ok");
+    });
 }
 
 QVariantList ConferenceViewModel::chatCon(const QString& uid) const {

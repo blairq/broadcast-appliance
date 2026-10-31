@@ -606,10 +606,10 @@ void McpService::registerRoomTools() {
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"host", {{"type", "string"}}}, {"cname_destino", {{"type", "string"}}}}}};
-            t.run = [acc, &rt = rt_](const json& a, Done done) {
+            t.run = [acc, &control](const json& a, Done done) {
                 if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
-                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
-                const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
+                const QString host = QString::fromStdString(a.value("host", control.guardado().pinggyHost));
+                const QString dest = QString::fromStdString(a.value("cname_destino", control.guardado().pinggyCnameDestino));
                 if (host.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta el dominio (host)")));
                 done(ToolResult::ok(acc->instruccionesDns(host, dest).toStdString()));
             };
@@ -627,10 +627,10 @@ void McpService::registerRoomTools() {
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"host", {{"type", "string"}}}, {"cname_destino", {{"type", "string"}}}}}};
-            t.run = [acc, esperar, &rt = rt_](const json& a, Done done) {
+            t.run = [acc, esperar, &control](const json& a, Done done) {
                 if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
-                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
-                const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
+                const QString host = QString::fromStdString(a.value("host", control.guardado().pinggyHost));
+                const QString dest = QString::fromStdString(a.value("cname_destino", control.guardado().pinggyCnameDestino));
                 acc->verificarDns(host, dest);
                 esperar(&AccesoRemoto::dnsChanged, [acc]() { return acc ? acc->dns() : QVariantMap{}; }, done);
             };
@@ -653,10 +653,10 @@ void McpService::registerRoomTools() {
                              {"properties",
                               {{"direccion", {{"type", "string"}, {"enum", {"pinggy", "propio"}}}},
                                {"host", {{"type", "string"}}}}}};
-            t.run = [acc, esperar, &rt = rt_](const json& a, Done done) {
+            t.run = [acc, esperar, &control](const json& a, Done done) {
                 if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
-                const QString tipo = QString::fromStdString(a.value("direccion", rt.gateway().pinggyDominioTipo));
-                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
+                const QString tipo = QString::fromStdString(a.value("direccion", control.guardado().pinggyDominioTipo));
+                const QString host = QString::fromStdString(a.value("host", control.guardado().pinggyHost));
                 acc->probarDireccion(tipo, host);
                 esperar(&AccesoRemoto::pruebaChanged, [acc]() {
                     QVariantMap m = acc ? acc->prueba() : QVariantMap{};
@@ -797,10 +797,10 @@ void McpService::registerRoomTools() {
                            {"puertoHttp", {{"type", "integer"}}},
                            {"servicios", {{"type", "array"}}},
                            {"acme", {{"type", "object"}}}}}};
-        t.run = [&control, &rt](const json& a, Done done) {
+        t.run = [&control](const json& a, Done done) {
             // La misma operación que Configuración → Proxy: mezcla, guarda y reinicia la sala.
-            const std::string e = control.configurarProxy(a, [done, &rt](const std::string& err) {
-                json r{{"proxy", rt.gateway().proxy}, {"sala_reiniciada", err.empty()}};
+            const std::string e = control.configurarProxy(a, [done, &control](const std::string& err) {
+                json r{{"proxy", control.proxyGuardado()}, {"sala_reiniciada", err.empty()}};
                 if (!err.empty()) r["error"] = err;
                 done(ToolResult().data(r));
             });
@@ -1093,9 +1093,11 @@ void McpService::registerRoomTools() {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&control](const json& a, Done done) {
             // La misma operación que el botón «Tomar» de la página Sala.
-            const sala::ControlSala::Tomado r = control.tomarArchivo(a["id"].get<std::string>());
-            if (!r.error.empty()) return done(ToolResult::error(r.error));
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» agregado a la escena «%2» como «%3»."), {r.nombre, r.escena, r.fuente})));
+            control.tomarArchivo(a["id"].get<std::string>(), [done](const sala::ControlSala::Tomado& r) {
+                if (!r.error.empty()) return done(ToolResult::error(r.error));
+                done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» agregado a la escena «%2» como «%3»."),
+                                                     {r.nombre, r.escena, r.fuente})));
+            });
         };
         core_.addTool(std::move(t));
     }

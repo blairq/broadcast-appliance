@@ -6,7 +6,8 @@
 
 #include "control/Acciones.hpp"
 #include "control/BusEventos.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "evento/Condicion.hpp"
 #include "evento/Corrida.hpp"
 #include "evento/LineaEdicion.hpp"
@@ -56,9 +57,9 @@ QString accionDe(const QString& atajo) {
 
 } // namespace
 
-LineaViewModel::LineaViewModel(EventoViewModel& evento, BroadcastEngine& engine, FrameService* frames,
+LineaViewModel::LineaViewModel(EventoViewModel& evento, AppRuntime& rt, VentanillaMotor& ventanilla, FrameService* frames,
                                control::Acciones* acciones, control::BusEventos* bus, QObject* parent)
-    : QObject(parent), ev_(evento), engine_(engine), frames_(frames), acciones_(acciones), bus_(bus) {
+    : QObject(parent), ev_(evento), rt_(rt), ventanilla_(ventanilla), frames_(frames), acciones_(acciones), bus_(bus) {
     // Todo lo que avisa el evento termina en UN recálculo (en la próxima vuelta del bucle).
     for (auto senal : {&EventoViewModel::guionChanged, &EventoViewModel::correChanged, &EventoViewModel::relojChanged,
                        &EventoViewModel::sucioChanged})
@@ -390,21 +391,24 @@ void LineaViewModel::tomarFoto(const std::string& escena) {
     fotoEnCurso_ = true;
     fotoMs_[escena] = ahoraMs();
     QPointer<LineaViewModel> yo(this);
-    // La captura espera el cuadro en otro hilo y contesta desde ahí: se vuelve a este.
-    engine_.capturarAparte(escena, 320, [yo, escena](const std::string& error, std::vector<std::uint8_t> rgba, int w, int h) {
-        QImage img;
-        if (error.empty() && w > 0 && h > 0 && rgba.size() >= static_cast<std::size_t>(w) * h * 4)
-            img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-        QMetaObject::invokeMethod(
-            QCoreApplication::instance(),
-            [yo, escena, img]() {
-                if (!yo) return;
-                yo->fotoEnCurso_ = false;
-                if (img.isNull()) return;
-                yo->fotos_[QString::fromStdString(escena)] = img;
-                emit yo->fotosChanged();
-            },
-            Qt::QueuedConnection);
+    // La captura se pide al dueño del motor, espera el cuadro en otro hilo y contesta desde
+    // ahí: se vuelve a este.
+    ventanilla_.pedir("linea_miniatura", [&rt = rt_, yo, escena]() {
+        rt.engine().capturarAparte(escena, 320, [yo, escena](const std::string& error, std::vector<std::uint8_t> rgba, int w, int h) {
+            QImage img;
+            if (error.empty() && w > 0 && h > 0 && rgba.size() >= static_cast<std::size_t>(w) * h * 4)
+                img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+            QMetaObject::invokeMethod(
+                QCoreApplication::instance(),
+                [yo, escena, img]() {
+                    if (!yo) return;
+                    yo->fotoEnCurso_ = false;
+                    if (img.isNull()) return;
+                    yo->fotos_[QString::fromStdString(escena)] = img;
+                    emit yo->fotosChanged();
+                },
+                Qt::QueuedConnection);
+        });
     });
 }
 
@@ -504,8 +508,10 @@ void LineaViewModel::miniaturasConGraficos(const ln::SalidaResuelta& sr, int64_t
         }
         if (!completos || firmas_[p->id] == firma) continue;
         // Dónde va cada uno: el lugar de su fuente en la escena (en la foto de ahora).
-        std::map<std::string, CanvasRect> lugares;
-        for (const auto& [fuente, r] : engine_.itemsVisibles(escena)) lugares[fuente] = r;
+        std::map<std::string, FotoMotor::Lugar> lugares;
+        if (const FotoMotor::Escena* e = ventanilla_.foto().escena(escena))
+            for (const FotoMotor::Fuente& f : e->fuentes)
+                if (f.visible) lugares[f.nombre] = f.lugar;
         QImage out = foto.convertToFormat(QImage::Format_ARGB32_Premultiplied);
         QPainter pintor(&out);
         pintor.setRenderHint(QPainter::SmoothPixmapTransform);

@@ -18,11 +18,14 @@
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/SesionRemota.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ptz/ControlCamaras.hpp"
 #include "ui/StudioViewModel.hpp"
+
+#include <QPointer>
 
 #include <algorithm>
 #include <map>
@@ -39,8 +42,22 @@ const char* const kRemoto2 = "Remoto con la palabra 2";
 
 bool tiene(const std::vector<std::string>& v, const std::string& x) { return std::find(v.begin(), v.end(), x) != v.end(); }
 
+/// Lo que se lee del motor, de su foto (F3-03: el motor es del plano de control; la
+/// interfaz lee su foto). Con los nombres de BroadcastEngine, para que se lea igual.
+struct Leido {
+    const FotoMotor& f;
+    std::vector<std::string> sceneNames() const { return f.nombresDeEscenas(); }
+    std::vector<std::string> sceneSources(const std::string& escena) const { return f.fuentesDe(escena); }
+    bool sourceExists(const std::string& fuente) const { return f.hayFuente(fuente); }
+    std::string sourceTypeId(const std::string& fuente) const { return f.tipoDe(fuente); }
+    std::string escenaDeRanura(int n) const {
+        return n >= 1 && n <= static_cast<int>(f.sala.escenaDeRanura.size()) ? f.sala.escenaDeRanura[static_cast<std::size_t>(n - 1)]
+                                                                           : std::string();
+    }
+};
+
 /// Las escenas que muestran una fuente.
-std::vector<std::string> escenasCon(BroadcastEngine& eng, const std::string& fuente) {
+std::vector<std::string> escenasCon(const Leido& eng, const std::string& fuente) {
     std::vector<std::string> out;
     for (const auto& sc : eng.sceneNames())
         if (tiene(eng.sceneSources(sc), fuente)) out.push_back(sc);
@@ -58,7 +75,7 @@ std::map<std::string, int> camarasDeBancas(const asamblea::Cuerpo& cuerpo) {
 }
 } // namespace
 
-nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
+nlohmann::json revisarAsamblea(StudioViewModel& vm) {
     using json = nlohmann::json;
     json faltas = json::array(), avisos = json::array();
     const auto falta = [&](const std::string& que, const std::string& detalle, const std::string& como) {
@@ -67,7 +84,7 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
     const auto aviso = [&](const std::string& que, const std::string& detalle, const std::string& como) {
         avisos.push_back({{"que", que}, {"detalle", detalle}, {"como", como}});
     };
-    BroadcastEngine& eng = rt.engine();
+    const Leido eng{vm.ventanilla().foto()};
     const auto& cuerpo = vm.cuerpo().cuerpo();
     const json integrantes = cuerpo.integrantes();
 
@@ -269,7 +286,7 @@ void McpService::registerAsambleaTools() {
                         "cámaras y al remoto con la palabra, las escenas del debate, la central (unidades por banca), la "
                         "banca virtual y el orden del día. Correla antes de dar por armado un evento de asamblea y "
                         "contale al operador lo que salga.");
-        t.run = [&vm, &rt](const json&, Done done) { done(ToolResult().data(revisarAsamblea(vm, rt))); };
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(revisarAsamblea(vm))); };
         core_.addTool(std::move(t));
     }
     {
@@ -291,7 +308,7 @@ void McpService::registerAsambleaTools() {
                           {{"general", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La cámara del plano general (de fábrica, la que más bancas tiene).")}}},
                            {"crear", {{"type", "boolean"}}}}}};
         t.run = [&vm, &rt](const json& a, Done done) {
-            BroadcastEngine& eng = rt.engine();
+            const Leido eng{vm.ventanilla().foto()};
             const auto& cuerpo = vm.cuerpo().cuerpo();
             const auto camaras = camarasDeBancas(cuerpo);
             std::string general = a.value("general", std::string());
@@ -335,47 +352,61 @@ void McpService::registerAsambleaTools() {
                                 .text(ba::i18n::traducir("mcp", "Esto es lo que crearía (las que ya existen se dejan como están). Mostraselo al "
                                       "operador y, si está de acuerdo, llamá de nuevo con crear: true."))
                                 .data({{"propuesta", plan}, {"general", general}}));
-            json creadas = json::array(), errores = json::array();
-            for (const auto& p : plan) {
-                const std::string sc = p["escena"];
-                if (p.value("existe", false)) continue;
-                if (!rt.addScene(sc)) {
-                    errores.push_back(sc + ": " + rt.lastError());
-                    continue;
-                }
-                for (const auto& f : p["fuentes"]) {
-                    SourceSpec spec;
-                    spec.name = f["nombre"];
-                    spec.id = eng.sourceTypeId(spec.name); // ya existe: se agrega la misma (compartida)
-                    spec.settingsJson = "{}";
-                    // La fuente de banca, la primera vez: ranura 1 (quien habla) o 2 (el otro del debate).
-                    if (!eng.sourceExists(spec.name) && (spec.name == kBanca1 || spec.name == kBanca2)) {
-                        spec.id = BroadcastEngine::kTipoBanca;
-                        spec.settingsJson = json{{"ranura", spec.name == kBanca1 ? 1 : 2}}.dump();
+            // Crearlas es del dueño del motor: una orden (sin esperar a la interfaz); el debate
+            // se configura cuando vuelve, con la foto ya al día.
+            QPointer<StudioViewModel> vmp(&vm);
+            vm.ventanilla().pedir(
+                &vm, "asamblea_escenas_base",
+                [&rt, plan]() {
+                    json creadas = json::array(), errores = json::array();
+                    BroadcastEngine& eng = rt.engine();
+                    for (const auto& p : plan) {
+                        const std::string sc = p["escena"];
+                        if (p.value("existe", false)) continue;
+                        if (!rt.addScene(sc)) {
+                            errores.push_back(sc + ": " + rt.lastError());
+                            continue;
+                        }
+                        for (const auto& f : p["fuentes"]) {
+                            SourceSpec spec;
+                            spec.name = f["nombre"];
+                            spec.id = eng.sourceTypeId(spec.name); // ya existe: se agrega la misma (compartida)
+                            spec.settingsJson = "{}";
+                            // La fuente de banca, la primera vez: ranura 1 (quien habla) o 2 (el otro del debate).
+                            if (!eng.sourceExists(spec.name) && (spec.name == kBanca1 || spec.name == kBanca2)) {
+                                spec.id = BroadcastEngine::kTipoBanca;
+                                spec.settingsJson = json{{"ranura", spec.name == kBanca1 ? 1 : 2}}.dump();
+                            }
+                            spec.visible = true;
+                            spec.rect = CanvasRect{f.value("x", 0.0f), f.value("y", 0.0f), f.value("w", 1.0f), f.value("h", 1.0f)};
+                            if (!rt.addSource(sc, spec)) errores.push_back(sc + " / " + spec.name + ": " + rt.lastError());
+                        }
+                        creadas.push_back(sc);
                     }
-                    spec.visible = true;
-                    spec.rect = CanvasRect{f.value("x", 0.0f), f.value("y", 0.0f), f.value("w", 1.0f), f.value("h", 1.0f)};
-                    if (!rt.addSource(sc, spec)) errores.push_back(sc + " / " + spec.name + ": " + rt.lastError());
-                }
-                creadas.push_back(sc);
-            }
-            // El debate queda configurado con las suyas (si no tenía otras).
-            if (asamblea::Debate* deb = vm.debate()) {
-                json esc = json::object();
-                const json actual = deb->config().value("escenas", json::object());
-                const auto existe = [&](const std::string& n) { return tiene(eng.sceneNames(), n); };
-                if (actual.value("remoto_remoto", std::string()).empty() && existe("Asamblea · Debate remotos"))
-                    esc["remoto_remoto"] = "Asamblea · Debate remotos";
-                if (actual.value("sala_remoto", std::string()).empty() && existe("Asamblea · Debate sala y remoto"))
-                    esc["sala_remoto"] = "Asamblea · Debate sala y remoto";
-                if (actual.value("sala_sala", std::string()).empty() && existe("Asamblea · Debate sala"))
-                    esc["sala_sala"] = "Asamblea · Debate sala";
-                if (!esc.empty()) deb->configurar({{"escenas", esc}});
-            }
-            rt.save();
-            done(ToolResult()
-                     .text(errores.empty() ? ba::i18n::traducir("mcp", "Listo.") : ba::i18n::traducir("mcp", "Hecho, con errores en algunas fuentes."))
-                     .data({{"creadas", creadas}, {"errores", errores}, {"siguiente", "asamblea_revisar"}}));
+                    rt.save();
+                    return json{{"creadas", creadas}, {"errores", errores}};
+                },
+                [vmp, done](const json& r) {
+                    // El debate queda configurado con las suyas (si no tenía otras).
+                    if (vmp)
+                        if (asamblea::Debate* deb = vmp->debate()) {
+                            const std::vector<std::string> nombres = vmp->ventanilla().foto().nombresDeEscenas();
+                            json esc = json::object();
+                            const json actual = deb->config().value("escenas", json::object());
+                            const auto existe = [&](const std::string& n) { return tiene(nombres, n); };
+                            if (actual.value("remoto_remoto", std::string()).empty() && existe("Asamblea · Debate remotos"))
+                                esc["remoto_remoto"] = "Asamblea · Debate remotos";
+                            if (actual.value("sala_remoto", std::string()).empty() && existe("Asamblea · Debate sala y remoto"))
+                                esc["sala_remoto"] = "Asamblea · Debate sala y remoto";
+                            if (actual.value("sala_sala", std::string()).empty() && existe("Asamblea · Debate sala"))
+                                esc["sala_sala"] = "Asamblea · Debate sala";
+                            if (!esc.empty()) deb->configurar({{"escenas", esc}});
+                        }
+                    const bool sinErrores = r.value("errores", json::array()).empty();
+                    done(ToolResult()
+                             .text(sinErrores ? ba::i18n::traducir("mcp", "Listo.") : ba::i18n::traducir("mcp", "Hecho, con errores en algunas fuentes."))
+                             .data({{"creadas", r["creadas"]}, {"errores", r["errores"]}, {"siguiente", "asamblea_revisar"}}));
+                });
         };
         core_.addTool(std::move(t));
     }

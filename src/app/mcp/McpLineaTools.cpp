@@ -46,6 +46,17 @@ void responderVivo(EventoViewModel& ev, const std::string& error, Done& done) {
     done(ToolResult().data(ev.lineaEstado()));
 }
 
+/// La copia sin argumentos (la que se pide casi siempre), hecha ya al registrarla (recién
+/// arrancada la app, la primera pregunta con la interfaz ocupada no tiene que esperar ni
+/// fallar) y puesta al día por la línea cada vez que cambia lo que corre o el guion: así,
+/// con la interfaz trabada, lo que se contesta es lo último que pasó (con su edad).
+void sembrarCopia(EventoViewModel& ev, const std::shared_ptr<CopiaDeLaInterfaz>& copia) {
+    copia->copiarYa();
+    const auto alDia = [copia]() { copia->copiarYa(); };
+    QObject::connect(&ev, &EventoViewModel::correChanged, &ev, alDia);
+    QObject::connect(&ev, &EventoViewModel::guionChanged, &ev, alDia);
+}
+
 } // namespace
 
 void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes) {
@@ -83,7 +94,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.examples = {R"({})", R"({"nivel": "piezas", "desde": "19:30", "hasta": "20:15"})", R"({"nivel": "bloques"})"};
         // El pronóstico lo arma la línea en la interfaz: se lee una copia (al día con ella
         // libre; trabada, la última de estos argumentos con su edad).
-        copiarDeLaInterfaz(core, t, [&ev, &core](const json& a) -> LeidoEnLaInterfaz {
+        const auto copia = copiarDeLaInterfaz(core, t, [&ev, &core](const json& a) -> LeidoEnLaInterfaz {
             if (ev.abierto().isEmpty()) return {{}, traducir("mcp", "No hay un evento abierto (guion_abrir).")};
             const int64_t desde = horaDe(ev, a, "desde"), hasta = horaDe(ev, a, "hasta");
             if (desde < 0 || hasta < 0) return {{}, traducir("mcp", "`desde` y `hasta` van como \"HH:MM\" o en ms.")};
@@ -91,6 +102,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             if (v.is_null()) return {{}, traducir("mcp", "No hay esa salida en la línea.")};
             return {std::move(v), {}};
         });
+        sembrarCopia(ev, copia);
         core.addTool(std::move(t));
     }
     {
@@ -110,10 +122,11 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             "estaba al aire y cuánto se pasó, lo que según el plan iría ahora (`segunElPlan`), lo repuesto y lo perdido. "
             "Ver linea_retomar y linea_soltar.");
         // El estado de la corrida es de la interfaz (EventoViewModel): una copia.
-        copiarDeLaInterfaz(core, t, [&ev](const json&) -> LeidoEnLaInterfaz {
+        const auto copia = copiarDeLaInterfaz(core, t, [&ev](const json&) -> LeidoEnLaInterfaz {
             if (ev.abierto().isEmpty()) return {{}, traducir("mcp", "No hay un evento abierto (guion_abrir).")};
             return {ev.lineaEstado(), {}};
         });
+        sembrarCopia(ev, copia);
         core.addTool(std::move(t));
     }
     {

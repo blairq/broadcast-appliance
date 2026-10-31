@@ -15,6 +15,11 @@
 //     la sala se limpia al reiniciarla) y entra a la escena al aire;
 //   - el proxy: solo las claves que entiende, prendido pide dominio, se guarda
 //     y la sala se reinicia (aparte: esperar el cierre trababa la interfaz).
+//
+// HILOS (F3-03): vive en la interfaz. Lo guardado de la sala (gateway.json) es del dueño
+// del motor: se lee de su foto (FotoMotor::sala) y se cambia pidiéndoselo por la
+// ventanilla (emision/VentanillaMotor.hpp); lo que se cambió, hasta que vuelve, se ve como
+// pendiente.
 // ============================================================================
 #pragma once
 
@@ -25,10 +30,12 @@
 #include <optional>
 #include <string>
 
+#include "emision/FotoMotor.hpp"
 #include "sala/Pedido.hpp"
 
 namespace ba::app {
 class AppRuntime;
+class VentanillaMotor;
 }
 
 namespace ba::app::sala {
@@ -49,7 +56,7 @@ class ControlSala {
         std::string escena; ///< la escena al aire, donde entró
     };
 
-    ControlSala(AppRuntime& rt, ConferenceClient& sala);
+    ControlSala(AppRuntime& rt, VentanillaMotor& ventanilla, ConferenceClient& sala);
     ~ControlSala();
     ControlSala(const ControlSala&) = delete;
     ControlSala& operator=(const ControlSala&) = delete;
@@ -77,8 +84,9 @@ class ControlSala {
     /// Los datos de un archivo compartido y, si es una imagen, sus bytes (para
     /// revisarla antes de ponerla al aire). Videos y audios: solo los datos.
     void verArchivo(const std::string& id, Contenido listo);
-    /// Lo copia a Media/ y lo agrega a la escena al aire (imagen, video o audio).
-    Tomado tomarArchivo(const std::string& id);
+    /// Lo copia a Media/ y lo agrega a la escena al aire (imagen, video o audio). `listo`
+    /// llega en el hilo de la interfaz cuando el motor lo agregó (o con el error).
+    void tomarArchivo(const std::string& id, std::function<void(Tomado)> listo);
     /// Avisa cada fuente nueva que entra por tomarArchivo (para que la vista
     /// recargue sus listas, venga de la GUI o del MCP).
     void setAlTomarArchivo(std::function<void()> f) { alTomarArchivo_ = std::move(f); }
@@ -94,10 +102,15 @@ class ControlSala {
     /// Lo que dice la sala del proxy, más la configuración guardada
     /// (`configuracion`), que viene siempre aunque la sala no conteste.
     void verProxy(Listo listo);
+    /// La configuración del proxy guardada (la de la foto del motor).
+    nlohmann::json proxyGuardado() const;
+    /// Lo guardado de la sala (gateway.json), como está en la foto del motor.
+    const FotoMotor::SalaYEvento& guardado() const;
     /// Pide ya el certificado de `host` (vacío = todos).
     void renovarProxy(const std::string& host, Listo listo = {});
     /// Cambia la configuración del proxy (ver sala::mezclarProxy), la guarda y
-    /// reinicia la sala. Devuelve el error inmediato o ""; el reinicio, después.
+    /// reinicia la sala. Devuelve el error inmediato o ""; lo que no se pudo guardar y el
+    /// reinicio, después (en `reiniciada`).
     std::string configurarProxy(const nlohmann::json& cambios, Reiniciada reiniciada = {});
     /// HTTPS, túnel WireGuard, IPs y puertos de la sala.
     void verRed(Listo listo);
@@ -122,8 +135,10 @@ class ControlSala {
     /// Reinicia la sala sin trabar a quien lo pide.
     void reiniciar(Reiniciada reiniciada);
 
-    AppRuntime& rt_;
+    AppRuntime& rt_;           ///< solo para las órdenes que corren en el dueño
+    VentanillaMotor& ventanilla_;
     ConferenceClient& sala_;
+    std::optional<bool> atencionPedida_; ///< la pedida, hasta que vuelve la respuesta
     QMetaObject::Connection alConectar_;
     std::function<void()> alTomarArchivo_;
     std::function<void(const std::string&, const std::string&)> alChatear_;

@@ -536,6 +536,14 @@ std::string EventoStore::enCurso() const {
     return e;
 }
 
+fs::path EventoStore::carpetaExistente(const std::string& carpeta) const {
+    const std::string c = carpeta.empty() ? enCurso() : carpeta;
+    if (c.empty() || !rutaValida(c)) return {};
+    std::error_code ec;
+    if (!fs::is_directory(carpetaDe(c), ec)) return {};
+    return carpetaDe(c);
+}
+
 bool EventoStore::iniciar(const std::string& evento, std::int64_t ahoraMs, std::string* err) {
     std::error_code ec;
     if (!rutaValida(evento) || !fs::exists(raiz_ / evento / kGuion, ec)) {
