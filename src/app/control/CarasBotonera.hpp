@@ -32,13 +32,12 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <string>
-
-namespace ba::app {
-class AppRuntime;
-}
+#include <vector>
 
 namespace ba::app::control {
 
@@ -55,7 +54,12 @@ class CarasBotonera : public QObject {
     static constexpr int kMaxSegundos = 5;
     static constexpr int kLado = 288; // nítido en una tecla de 144 px y en la tablet
 
-    CarasBotonera(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent = nullptr);
+    /// Lo que llega de una captura (BroadcastEngine::Captura): en cualquier hilo.
+    using Captura = std::function<void(const std::string& error, std::vector<std::uint8_t> rgba, int ancho, int alto)>;
+    /// Pide un cuadro de una entrada de a lo sumo `ancho` px (BroadcastEngine::capturarAparte,
+    /// que es del dueño del motor: la app lo pide por la ventanilla).
+    using Capturar = std::function<void(const std::string& entrada, int ancho, Captura listo)>;
+    CarasBotonera(Capturar capturar, std::filesystem::path dataRoot, QObject* parent = nullptr);
 
     bool ocupada() const { return enCurso_ > 0; }
     QString estado() const { return estado_; }
@@ -97,7 +101,7 @@ class CarasBotonera : public QObject {
     void empezar(const QString& texto);
     void terminar(const QString& id, const QString& error);
 
-    AppRuntime& rt_;
+    Capturar capturar_;
     std::filesystem::path raiz_;
     int enCurso_ = 0;
     QString estado_;

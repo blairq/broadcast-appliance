@@ -18,6 +18,7 @@
 // ============================================================================
 #pragma once
 
+#include <functional>
 #include <memory>
 
 #include <QObject>
@@ -33,6 +34,7 @@ class Carrusel;
 namespace ba::app {
 
 class AppRuntime;
+class VentanillaMotor;
 
 class CarruselViewModel : public QObject {
     Q_OBJECT
@@ -70,7 +72,9 @@ class CarruselViewModel : public QObject {
     Q_PROPERTY(int total READ total NOTIFY progreso)
 
    public:
-    explicit CarruselViewModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// `rt`: la carpeta de datos (y las órdenes que van al dueño del motor); `ventanilla`:
+    /// lo que se le pide al motor y su foto (F3-03: el motor es del plano de control).
+    CarruselViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~CarruselViewModel() override;
 
     QVariantList carruseles() const;
@@ -108,8 +112,11 @@ class CarruselViewModel : public QObject {
     /// lámina le cambia el archivo a esa fuente —y si la escena está al aire,
     /// sale al aire—. Sin esto el carrusel es una lista linda que no muestra
     /// nada: era el eslabón que faltaba.
-    /// :returns: false si no existe el carrusel o la escena no acepta la fuente.
+    /// :returns: false si no existe el carrusel o no tiene láminas; si la escena no acepta
+    /// la fuente, lo dice después (notify), cuando contesta el motor.
     Q_INVOKABLE bool aplicarAEscena(const QString& carrusel, const QString& escena);
+    /// Lo mismo, con la respuesta: `listo("")` si quedó, o con el error (el MCP).
+    void aplicarAEscena(const QString& carrusel, const QString& escena, std::function<void(const QString& error)> listo);
     /// El nombre de la fuente que maneja ese carrusel, o "" si no está puesto
     /// en ninguna escena todavía.
     Q_INVOKABLE QString fuenteDe(const QString& carrusel) const;
@@ -157,6 +164,7 @@ class CarruselViewModel : public QObject {
     void empujar(const carrusel::Carrusel& c);
 
     AppRuntime& rt_;
+    VentanillaMotor& v_;
     QString mostrado_; ///< el último que puso `mostrar`: la tarjeta lo prefiere en su escena
     std::unique_ptr<carrusel::Store> store_;
     std::unique_ptr<carrusel::Conversor> conv_;

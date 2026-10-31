@@ -22,6 +22,8 @@
 #include "control/ControlWebGateway.hpp"
 #include "mcp/McpCore.hpp"
 #include "i18n/I18n.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "ui/ControlViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -222,19 +224,22 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
                         "corrección): sin `tema`, el actual y los que hay; con `tema` (un id), lo cambia en todos los "
                         "aparatos sin recargar (como Servicios → Templates o Configuración).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"tema", {{"type", "string"}}}}}};
-        t.run = [&vm](const json& a, Done done) {
+        // La configuración es del dueño del motor: corre en el control (la interfaz se entera
+        // por la foto, la parte Superficies, y se lo pasa al gateway).
+        t.hilo = Hilo::Control;
+        t.run = [&rt = vm.runtime()](const json& a, Done done) {
             if (a.contains("tema")) {
                 const std::string id = a.value("tema", std::string());
                 if (!control::temaWebValido(id)) return done(ToolResult::error(ba::i18n::llenar(
                     ba::i18n::traducir("mcp", "No hay un tema «%1» (web_tema sin nada: la lista)."), {id})));
-                vm.control().setTemaWeb(QString::fromStdString(id));
+                if (const std::string e = ControlViewModel::guardarTemaWeb(rt, id); !e.empty()) return done(ToolResult::error(e));
             }
             json lista = json::array();
             for (const auto& x : control::temasWeb())
                 lista.push_back({{"id", x.id},
                                  {"nombre", QCoreApplication::translate("control-web", x.nombre).toStdString()},
                                  {"descripcion", QCoreApplication::translate("control-web", x.descripcion).toStdString()}});
-            done(ToolResult().data({{"actual", vm.control().temaWeb().toStdString()}, {"temas", lista}}));
+            done(ToolResult().data({{"actual", rt.config().temaWeb}, {"temas", lista}}));
         };
         core.addTool(std::move(t));
     }

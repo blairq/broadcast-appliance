@@ -178,7 +178,7 @@ class Botonera : public QObject {
     std::string avisoPermisos(const std::string& perfil, const json& celda) const;
     /// Las celdas de una página con su estado renderizado ahora.
     json celdas(const std::string& perfil, const std::string& pagina) const;
-    json plantillas() const;
+    static json plantillas();
     std::string importar(const json& perfil, std::string* idOut);
     json exportar(const std::string& perfil) const;
 

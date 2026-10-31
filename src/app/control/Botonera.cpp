@@ -936,7 +936,7 @@ json Botonera::exportar(const std::string& perfil) const {
 // Plantillas de fábrica
 // ============================================================================
 
-json Botonera::plantillas() const {
+json Botonera::plantillas() {
     return json::array(
         {{{"id", "director"}, {"nombre", traducir("botonera", "Director")},
           {"descripcion", traducir("botonera", "Escenas con tally (un toque arma, TAKE corta), FTB, grabación y transmisión")}},

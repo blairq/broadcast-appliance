@@ -27,6 +27,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "i18n/I18n.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ipc/CanalesEscena.hpp"
 #include "diag/Registro.hpp"
 #include "pantallas/Buscar.hpp"
@@ -205,6 +206,8 @@ struct Destino {
     int puedeMostrar = -1;
     /// El canal de escena que usa (BA.Escena.<k>) si muestra una escena; -1 si no.
     int canalEscena = -1;
+    /// Se le pidió un canal al motor y todavía no contestó (ver mostrarEscena).
+    bool pidiendoCanal = false;
 };
 
 /// Todo lo que pasa con una pantalla queda escrito: mandar algo a un televisor
@@ -283,6 +286,9 @@ QString ipParaAlcanzar(const QStringList& mias, const QString& host) {
 
 struct PantallasViewModel::Impl {
     AppRuntime* rt = nullptr;
+    VentanillaMotor* v = nullptr;
+    /// revisarCanales: hay un pedido al motor en camino; y si mientras tanto hubo otro cambio.
+    bool revisando = false, revisarOtraVez = false;
     ConferenceViewModel* sala = nullptr;
     std::filesystem::path archivo;
     std::vector<Destino> destinos;
@@ -435,10 +441,11 @@ struct PantallasViewModel::Impl {
     }
 };
 
-PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala, QObject* parent)
+PantallasViewModel::PantallasViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, ConferenceViewModel* sala, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>()) {
     d_->puerta->vista = this;
     d_->rt = &rt;
+    d_->v = &ventanilla;
     d_->sala = sala;
     if (sala != nullptr) d_->salaPantallas = std::make_unique<sala::PantallasSala>(sala->client());
     d_->archivo = rt.dataRoot() / "Config" / "pantallas.json";
@@ -1173,30 +1180,82 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     return {};
 }
 
+namespace {
+/// EN EL DUEÑO DEL MOTOR: suelta los canales de escena que no están en `usados` (ni son de
+/// las vistas de los remotos). Devuelve los soltados: {canal, escena}.
+std::vector<std::pair<int, std::string>> soltarCanales(BroadcastEngine& eng, const std::set<int>& usados) {
+    std::vector<std::pair<int, std::string>> soltados;
+    for (int k = 0; k < ipc::kCanalesEscena; ++k) {
+        const std::string escena = eng.escenaDeCanal(k);
+        if (escena.empty() || eng.canalEscenaConDuenos(k) || usados.count(k) > 0) continue; // las vistas de los remotos
+        eng.escenaACanal(k, "");
+        soltados.emplace_back(k, escena);
+    }
+    return soltados;
+}
+struct CanalPedido {
+    int canal = -1;
+    std::string error;
+    std::vector<std::pair<int, std::string>> soltados;
+};
+} // namespace
+
 QString PantallasViewModel::mostrarEscena(const QString& id, const QString& escena) {
     Destino* d = d_->porId(id);
     if (d == nullptr) return tr("No encuentro esa pantalla.");
     if (escena.isEmpty()) return tr("Elegí qué escena mostrar.");
     if (d_->sala == nullptr) return tr("El servidor no está corriendo: sin él no hay escena que mandar.");
-    BroadcastEngine& eng = d_->rt->engine();
-    const auto nombres = eng.sceneNames();
-    if (std::find(nombres.begin(), nombres.end(), escena.toStdString()) == nombres.end())
+    if (d_->v->foto().escena(escena.toStdString()) == nullptr)
         return tr("No hay ninguna escena que se llame «%1».").arg(escena);
-    // El canal: el que ya tiene esa escena (dos pantallas con la misma escena
-    // la componen una sola vez) o uno que nadie esté usando.
+    // El canal lo elige el dueño del motor, que sabe qué tiene cada uno: el que ya tiene esa
+    // escena (dos pantallas con la misma escena la componen una sola vez) o uno que nadie
+    // esté usando. Mientras tanto la pantalla queda «trabajando» y no se sueltan canales.
     d->canalEscena = -1;
-    revisarCanales();
-    int canal = -1;
-    for (int k = 0; k < ipc::kCanalesEscena && canal < 0; ++k)
-        if (QString::fromStdString(eng.escenaDeCanal(k)) == escena) canal = k;
-    for (int k = 0; k < ipc::kCanalesEscena && canal < 0; ++k)
-        if (eng.escenaDeCanal(k).empty()) canal = k;
-    if (canal < 0)
-        return tr("Ya hay %1 escenas distintas en las pantallas: pasá alguna a una escena que ya se esté mostrando, "
-                  "o pará una.")
-            .arg(ipc::kCanalesEscena);
-    if (!eng.escenaACanal(canal, escena.toStdString()))
-        return tr("No pude preparar la escena: %1").arg(QString::fromStdString(eng.lastError()));
+    d->pidiendoCanal = true;
+    d->trabajando = true;
+    std::set<int> usados = canalesUsados();
+    emit cambio();
+    d_->v->pedir(
+        this, "pantalla_canal",
+        [&rt = *d_->rt, usados, e = escena.toStdString()]() {
+            BroadcastEngine& eng = rt.engine();
+            CanalPedido r;
+            r.soltados = soltarCanales(eng, usados);
+            for (int k = 0; k < ipc::kCanalesEscena && r.canal < 0; ++k)
+                if (eng.escenaDeCanal(k) == e) r.canal = k;
+            for (int k = 0; k < ipc::kCanalesEscena && r.canal < 0; ++k)
+                if (eng.escenaDeCanal(k).empty()) r.canal = k;
+            if (r.canal < 0)
+                r.error = ba::i18n::llenar(ba::i18n::traducir("pantallas", "Ya hay %1 escenas distintas en las pantallas: pasá "
+                                                                           "alguna a una escena que ya se esté mostrando, o pará una."),
+                                           {std::to_string(ipc::kCanalesEscena)});
+            else if (!eng.escenaACanal(r.canal, e))
+                r.error = ba::i18n::llenar(ba::i18n::traducir("pantallas", "No pude preparar la escena: %1"), {eng.lastError()});
+            if (!r.error.empty()) r.canal = -1;
+            return r;
+        },
+        [this, id, escena](const CanalPedido& r) {
+            for (const auto& [k, e] : r.soltados)
+                anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "canal de escena %1 («%2») sin pantallas: se suelta"), {std::to_string(k), e}));
+            Destino* d = d_->porId(id);
+            if (d == nullptr) return;
+            d->pidiendoCanal = false;
+            if (!r.error.empty()) {
+                d->trabajando = false;
+                d->estado = "error";
+                d->error = QString::fromStdString(r.error);
+                emit notify(tr("%1: %2").arg(d->nombre, d->error), "error");
+                emit cambio();
+                return;
+            }
+            enviarEscena(id, escena, r.canal);
+        });
+    return {};
+}
+
+void PantallasViewModel::enviarEscena(const QString& id, const QString& escena, int canal) {
+    Destino* d = d_->porId(id);
+    if (d == nullptr) return;
     d->canalEscena = canal;
     d->ultimosDatos = QVariantMap{{"escena", escena}};
     d->trabajando = true;
@@ -1220,22 +1279,38 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& esce
             }
             mandarUrl(id, QString::fromStdString(e.url), "escena", tr("Escena — %1").arg(escena));
         });
-    return {};
+}
+
+std::set<int> PantallasViewModel::canalesUsados() const {
+    std::set<int> usados;
+    for (const Destino& d : d_->destinos)
+        if (d.canalEscena >= 0 && (d.trabajando || (d.contenido == "escena" && d.estado == "mostrando")))
+            usados.insert(d.canalEscena);
+    return usados;
 }
 
 void PantallasViewModel::revisarCanales() {
-    BroadcastEngine& eng = d_->rt->engine();
-    for (int k = 0; k < ipc::kCanalesEscena; ++k) {
-        if (eng.escenaDeCanal(k).empty() || eng.canalEscenaConDuenos(k)) continue; // las vistas de los remotos
-        bool usado = false;
-        for (const Destino& d : d_->destinos)
-            if (d.canalEscena == k && (d.trabajando || (d.contenido == "escena" && d.estado == "mostrando")))
-                usado = true;
-        if (!usado) {
-            anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "canal de escena %1 («%2») sin pantallas: se suelta"), {std::to_string(k), eng.escenaDeCanal(k)}));
-            eng.escenaACanal(k, "");
-        }
+    // Mientras se pide un canal, no se suelta ninguno: el pedido todavía no está en `usados`.
+    for (const Destino& d : d_->destinos)
+        if (d.pidiendoCanal) return;
+    // Un pedido por vez; los cambios que llegan mientras tanto, en uno más al volver.
+    if (d_->revisando) {
+        d_->revisarOtraVez = true;
+        return;
     }
+    d_->revisando = true;
+    d_->v->pedir(
+        this, "pantalla_soltar",
+        [&rt = *d_->rt, usados = canalesUsados()]() { return soltarCanales(rt.engine(), usados); },
+        [this](const std::vector<std::pair<int, std::string>>& soltados) {
+            for (const auto& [k, e] : soltados)
+                anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "canal de escena %1 («%2») sin pantallas: se suelta"), {std::to_string(k), e}));
+            d_->revisando = false;
+            if (d_->revisarOtraVez) {
+                d_->revisarOtraVez = false;
+                revisarCanales();
+            }
+        });
 }
 
 bool PantallasViewModel::muestraPrograma() const {

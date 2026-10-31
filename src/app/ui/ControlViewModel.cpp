@@ -16,6 +16,8 @@
 #include "control/Dsk.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "control/TemasWeb.hpp"
+#include "emision/FotoMotor.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "plugins/Plugins.hpp"
 #include "ptz/ControlCamaras.hpp"
 #include "sala/Direcciones.hpp"
@@ -23,6 +25,7 @@
 #include "ui/AsambleaViewModel.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "ui/ListModels.hpp"
 #include "ui/PdfEscena.hpp"
 
 #include <QBuffer>
@@ -53,14 +56,38 @@ QObject* deCpp(QObject* o) {
 ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent), p_(std::move(p)) {
     armarBotonera();
     satellite_ = std::make_unique<control::SatelliteServidor>(p_.rt.dataRoot(), *botonera_);
-    dsk_ = std::make_unique<control::Dsk>(p_.rt.dataRoot(), p_.rt.engine());
+    // Las capas DSK: el modelo es del dueño del motor (lo que le pide al motor corre allá);
+    // la interfaz lo ve por la foto (control::Dsk).
+    {
+        AppRuntime& rt = p_.rt;
+        control::CapasDsk::Motor m;
+        m.armar = [&rt](int capa, const std::vector<std::string>& cont, const nlohmann::json& recuadro, const std::string& salida) {
+            return rt.engine().dskArmar(capa, cont, recuadro, salida);
+        };
+        m.mostrar = [&rt](int capa, bool visible, int ms, const std::string& salida) {
+            return rt.engine().dskMostrar(capa, visible, ms, salida);
+        };
+        m.estado = [&rt](const std::string& salida) { return rt.engine().dskEstado(salida); };
+        m.error = [&rt]() { return rt.engine().lastError(); };
+        capasDsk_ = std::make_unique<control::CapasDsk>(rt.dataRoot(), std::move(m));
+        capasDsk_->setAlCambiar([&rt]() { rt.fotoSucia(FotoMotor::Superficies); });
+        // En la foto, con las capas de cada salida (se rearman con la lista de salidas y en
+        // cada vuelta del motor, que es cuando se mueve un fundido).
+        aporteDsk_ = rt.aportarALaFoto([c = capasDsk_.get()](FotoMotor& f, unsigned partes) {
+            if ((partes & (FotoMotor::Superficies | FotoMotor::Salidas)) == 0) return;
+            std::vector<std::string> ids;
+            for (const FotoMotor::Salida& s : f.salidas) ids.push_back(s.id);
+            f.dsk = c->paraLaFoto(ids);
+        });
+    }
+    dsk_ = std::make_unique<control::Dsk>(*capasDsk_, p_.ventanilla);
+    connect(dsk_.get(), &control::Dsk::fallo, this, [this](const QString& e) { emit notify(e, "error"); });
     acciones_ = std::make_unique<control::Acciones>(p_.rt.dataRoot());
     {
         auto& g = acciones_->ganchos();
-        BroadcastEngine& motor = p_.rt.engine();
-        g.escenas = [&motor]() { return motor.sceneNames(); };
-        g.fuentesAudio = [&motor]() { return motor.audioSources(); };
-        g.mudo = [&motor](const std::string& f, const std::string& salida) { return motor.sourceMuted(f, salida); };
+        g.escenas = [this]() { return escenas(); };
+        g.fuentesAudio = [this]() { return fuentesAudio(); };
+        g.mudo = [this](const std::string& f, const std::string& salida) { return mudo(f, salida); };
         g.salidas = p_.salidas;
         g.dskArriba = [this](int capa, const std::string& salida) { return dsk_->arriba(capa, salida); };
     }
@@ -68,6 +95,11 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
         p_.bus.publicar("aire/dsk", c);
         emit dskCambio(); // lo que muestra una capa también está al aire
     });
+    // Lo que el área lee de la foto: las escenas (para elegir el contenido de una capa) y
+    // el tema web.
+    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &ControlViewModel::alCambiarFoto);
+    temaWeb_ = temaWebMandado_ = p_.ventanilla.foto().temaWeb;
+    alCambiarFoto(FotoMotor::Escenas);
     ConferenceClient& cli = p_.sala.client();
     // La botonera con el gateway (tablets: eventos, credenciales, emparejar): su modelo.
     botoneraGw_ = std::make_unique<control::BotoneraGateway>(*botonera_, cli);
@@ -113,16 +145,61 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
             [this](const std::string& id, const nlohmann::json& msg) { botonera_->entrada(id, msg); });
 }
 
-ControlViewModel::~ControlViewModel() = default;
+ControlViewModel::~ControlViewModel() {
+    // Que el dueño no lo use más para la foto (espera a la que esté armando).
+    if (aporteDsk_ != 0) p_.rt.dejarDeAportar(aporteDsk_);
+}
+
+std::vector<std::string> ControlViewModel::escenas() const {
+    std::vector<std::string> out;
+    for (const FotoMotor::Escena& e : p_.ventanilla.foto().escenas) out.push_back(e.nombre);
+    return out;
+}
+
+std::vector<std::string> ControlViewModel::fuentesAudio() const {
+    std::vector<std::string> out;
+    if (p_.tiras == nullptr) return out;
+    for (int i = 0; i < p_.tiras->rowCount(); ++i)
+        out.push_back(p_.tiras->data(p_.tiras->index(i), MixerModel::NameRole).toString().toStdString());
+    return out;
+}
+
+bool ControlViewModel::mudo(const std::string& fuente, const std::string& salida) const {
+    if (p_.tiras == nullptr) return false;
+    for (int i = 0; i < p_.tiras->rowCount(); ++i)
+        if (p_.tiras->data(p_.tiras->index(i), MixerModel::NameRole).toString().toStdString() == fuente)
+            return p_.tiras->nivelEn(i, salida).value("mudo", false);
+    return false;
+}
+
+void ControlViewModel::alCambiarFoto(unsigned partes) {
+    const FotoMotor& f = p_.ventanilla.foto();
+    if ((partes & FotoMotor::Escenas) != 0) {
+        QStringList n;
+        for (const FotoMotor::Escena& e : f.escenas) n << qs(e.nombre);
+        for (const auto& [fuente, tipo] : f.fuentes)
+            if (!n.contains(qs(fuente))) n << qs(fuente);
+        if (n != nombresParaDsk_) {
+            nombresParaDsk_ = n;
+            emit nombresParaDskChanged();
+        }
+    }
+    // El tema web: lo cambie quien lo cambie (esta vista, Configuración, el MCP), se le
+    // pasa al gateway y la vista se entera.
+    if ((partes & (FotoMotor::Superficies | FotoMotor::Ajustes)) != 0 && f.temaWeb != temaWeb_) {
+        temaWeb_ = f.temaWeb;
+        if (temaWeb_ != temaWebMandado_) mandarTemaWeb();
+        emit temaWebChanged();
+    }
+}
 
 void ControlViewModel::armarBotonera() {
     // La botonera: el modelo, los permisos y la ejecución viven acá; el gateway
     // es solo el borde de red (TLS, tokens, WebSocket de las tablets).
     control::Botonera::Ganchos g;
-    BroadcastEngine& motor = p_.rt.engine();
-    g.escenas = [&motor]() { return motor.sceneNames(); };
+    g.escenas = [this]() { return escenas(); };
     g.salidas = p_.salidas;
-    g.fuentesAudio = [&motor]() { return motor.audioSources(); };
+    g.fuentesAudio = [this]() { return fuentesAudio(); };
     g.pdfs = [this]() {
         std::vector<std::pair<std::string, std::string>> out;
         if (p_.pdfEscena)
@@ -194,7 +271,14 @@ void ControlViewModel::armarBotonera() {
                 out.insert(u.value("banca", std::string()));
         return out;
     };
-    carasBotonera_ = std::make_unique<control::CarasBotonera>(p_.rt, p_.rt.dataRoot());
+    // Un cuadro de una entrada (la foto o el video corto de una cara): lo saca el dueño del motor.
+    carasBotonera_ = std::make_unique<control::CarasBotonera>(
+        [&rt = p_.rt, &v = p_.ventanilla](const std::string& entrada, int ancho, control::CarasBotonera::Captura listo) {
+            v.pedir("cara_capturar", [&rt, entrada, ancho, listo = std::move(listo)]() mutable {
+                rt.engine().capturarAparte(entrada, ancho, std::move(listo));
+            });
+        },
+        p_.rt.dataRoot());
     botonera_ = std::make_unique<control::Botonera>(p_.rt.dataRoot(), p_.bus, std::move(g));
 }
 
@@ -205,7 +289,7 @@ QObject* ControlViewModel::satelliteQml() const { return deCpp(satellite_.get())
 QObject* ControlViewModel::dskQml() const { return deCpp(dsk_.get()); }
 QObject* ControlViewModel::accionesQml() const { return deCpp(acciones_.get()); }
 
-QString ControlViewModel::temaWeb() const { return qs(p_.rt.config().temaWeb); }
+QString ControlViewModel::temaWeb() const { return qs(temaWeb_); }
 
 QVariantList ControlViewModel::temasWeb() const {
     QVariantList out;
@@ -217,22 +301,26 @@ QVariantList ControlViewModel::temasWeb() const {
     return out;
 }
 
-void ControlViewModel::setTemaWeb(const QString& id) {
-    const std::string t = id.toStdString();
-    if (!control::temaWebValido(t) || t == p_.rt.config().temaWeb) return;
-    p_.rt.config().temaWeb = t;
-    p_.rt.save();
-    p_.rt.ajustesAplicados(); // Configuración se entera (y la raíz, al refrescar los avisos, lo manda)
+std::string ControlViewModel::guardarTemaWeb(AppRuntime& rt, const std::string& id) {
+    if (!control::temaWebValido(id)) return tr("No hay un tema «%1».").arg(qs(id)).toStdString();
+    if (id == rt.config().temaWeb) return {};
+    rt.config().temaWeb = id;
+    rt.save();
+    rt.ajustesAplicados(); // Configuración se entera; la foto lo trae (la parte Superficies)
+    return {};
 }
 
-void ControlViewModel::ajustesAplicados() {
-    if (p_.rt.config().temaWeb == temaWebMandado_) return;
-    mandarTemaWeb();
-    emit temaWebChanged();
+void ControlViewModel::setTemaWeb(const QString& id) {
+    const std::string t = id.toStdString();
+    if (!control::temaWebValido(t) || t == temaWeb_) return;
+    p_.ventanilla.pedir(this, "tema_web", [&rt = p_.rt, t]() { return guardarTemaWeb(rt, t); },
+                        [this](const std::string& e) {
+                            if (!e.empty()) emit notify(qs(e), "error");
+                        });
 }
 
 void ControlViewModel::mandarTemaWeb() {
-    const std::string t = p_.rt.config().temaWeb;
+    const std::string t = temaWeb_;
     temaWebMandado_ = t;
     QPointer<ControlViewModel> yo(this);
     sala::pedir(p_.sala.client(), "POST", "/api/v1/tema", {{"tema", t}}, [yo](const std::string& err, const nlohmann::json&) {
@@ -300,14 +388,6 @@ QVariantMap ControlViewModel::crearAccesoHttpUi(const QString& perfil, const QSt
     return {{"dispositivo", qs(r.value("dispositivo", std::string()))},
             {"token", qs(r.value("token", std::string()))},
             {"url_ejemplo", urlApiRemota() + qs(r.value("ejemplo", std::string()))}};
-}
-
-QStringList ControlViewModel::nombresParaDsk() const {
-    QStringList out;
-    for (const std::string& n : p_.rt.engine().sceneNames()) out << qs(n);
-    for (const std::string& n : p_.rt.engine().sourceNames())
-        if (!out.contains(qs(n))) out << qs(n);
-    return out;
 }
 
 void ControlViewModel::alimentarEnlaces(EnlacesViewModel::Fuentes& f) {

@@ -120,7 +120,9 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Las plantillas de fabrica (director, audio, asamblea, prompter): se arman con las escenas, "
                         "fuentes y bancas que hay ahora.");
-        t.run = [&bot](const json&, Done done) { done(ToolResult().data({{"plantillas", bot.plantillas()}})); };
+        // Las de fábrica son fijas: no lee nada de la interfaz ni del motor.
+        t.hilo = Hilo::Foto;
+        t.run = [](const json&, Done done) { done(ToolResult().data({{"plantillas", control::Botonera::plantillas()}})); };
         core.addTool(std::move(t));
     }
     {
@@ -615,7 +617,11 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.description = QT_TRANSLATE_NOOP("mcp", "Las capas del DSK, por encima de todas las escenas (logo, intérprete, reloj): qué tienen y si están "
             "arriba en la `salida` (cada una sube y baja las suyas; sin ella, la por omisión).");
         t.porSalida = true;
-        t.run = [&vm, &core](const json& a, Done done) { done(ToolResult().data({{"capas", vm.dsk().capas(core.salidaDe(a))}})); };
+        // Las capas son del dueño del motor (control::CapasDsk): en el control, como las de aire.
+        t.hilo = Hilo::Control;
+        t.run = [&capas = vm.control().capasDsk(), &core](const json& a, Done done) {
+            done(ToolResult().data({{"capas", capas.capas(core.salidaDe(a))}}));
+        };
         core.addTool(std::move(t));
     }
     {
@@ -638,18 +644,19 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                            {"fijo", {{"type", "boolean"}}},
                            {"transicion_ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 5000}}},
                            {"lsa_entrada", {{"type", "string"}}}}}};
-        t.run = [&vm](const json& a, Done done) {
+        t.hilo = Hilo::Control;
+        t.run = [&capas = vm.control().capasDsk()](const json& a, Done done) {
             const int capa = a.value("capa", 1);
             std::string e;
             if (a.contains("lsa_entrada")) {
-                e = vm.dsk().plantillaLsa(capa, a.value("lsa_entrada", std::string()), "abajo_derecha", 0.28);
+                e = capas.plantillaLsa(capa, a.value("lsa_entrada", std::string()), "abajo_derecha", 0.28);
             } else {
                 json d = a;
                 d.erase("capa");
-                e = vm.dsk().definir(capa, d);
+                e = capas.definir(capa, d);
             }
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult().text(ba::i18n::traducir("mcp", "Listo (todavia abajo: dsk_mostrar para subirla).")).data({{"capas", vm.dsk().capas()}}));
+            done(ToolResult().text(ba::i18n::traducir("mcp", "Listo (todavia abajo: dsk_mostrar para subirla).")).data({{"capas", capas.capas()}}));
         };
         core.addTool(std::move(t));
     }
@@ -670,9 +677,10 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                           {{"capa", {{"type", "integer"}, {"minimum", 1}, {"maximum", 4}}},
                            {"visible", {{"type", "boolean"}}},
                            {"confirmar", {{"type", "boolean"}}}}}};
-        t.run = [&vm, &core](const json& a, Done done) {
+        t.hilo = Hilo::Control;
+        t.run = [&capas = vm.control().capasDsk(), &core](const json& a, Done done) {
             const std::string e =
-                vm.dsk().mostrar(a.value("capa", 1), a.value("visible", true), a.value("confirmar", false), core.salidaDe(a));
+                capas.mostrar(a.value("capa", 1), a.value("visible", true), a.value("confirmar", false), core.salidaDe(a));
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult::ok(a.value("visible", true) ? ba::i18n::traducir("mcp", "Arriba.") : ba::i18n::traducir("mcp", "Abajo.")));
         };

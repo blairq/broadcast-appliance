@@ -26,6 +26,9 @@
 //   Ajustes  el lienzo, la transición global, el tema, los invitados, el servidor y la clave.
 //   Medidas  lo que se mueve siempre (los medios que suenan y cuánto les queda, la salud de
 //            cada destino, el loudness de cada salida): se lee cuando se lo necesita.
+//   Superficies  lo de las superficies de control que es del dueño: las capas DSK
+//            (control::CapasDsk: sus definiciones y cómo está cada una en cada salida) y el
+//            tema de las páginas web de control.
 // ============================================================================
 #pragma once
 
@@ -47,7 +50,8 @@ struct FotoMotor {
         Emision = 1u << 3,
         Ajustes = 1u << 4,
         Medidas = 1u << 5,
-        Todas = (1u << 6) - 1,
+        Superficies = 1u << 11,
+        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Superficies,
     };
 
     // --- Escenas ---------------------------------------------------------------------
@@ -143,6 +147,12 @@ struct FotoMotor {
     nlohmann::json medios = nlohmann::json::array();   ///< [{fuente, estado, duracion_ms, tiempo_ms}]
     nlohmann::json salud = nlohmann::json::object();   ///< BroadcastEngine::saludSalidas
     nlohmann::json loudness = nlohmann::json::object(); ///< {salida: LoudnessPrograma::json}
+
+    // --- Superficies ---------------------------------------------------------------------
+    /// {capas: las definiciones (Config/dsk.json, con visible_en), salidas: {<salida>:
+    /// control::CapasDsk::capas(salida)}}: lo arma CapasDsk (un aporte del dueño).
+    nlohmann::json dsk = nlohmann::json::object();
+    std::string temaWeb; ///< el de las páginas web de control (control/TemasWeb.hpp)
 
     // --- Para leerla -----------------------------------------------------------------
     const Escena* escena(const std::string& nombre) const {

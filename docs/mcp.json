@@ -7371,7 +7371,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 746
+        "linea": 754
       },
       "roles": [
         "asistente"
@@ -7397,7 +7397,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 685
+        "linea": 693
       },
       "roles": [
         "asistente"
@@ -7437,7 +7437,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 709
+        "linea": 717
       },
       "roles": [
         "asistente"
@@ -7470,7 +7470,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 730
+        "linea": 738
       },
       "roles": [
         "asistente"
@@ -7496,7 +7496,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 697
+        "linea": 705
       },
       "roles": [
         "asistente"
@@ -7526,7 +7526,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 923
+        "linea": 931
       },
       "roles": [
         "asistente"
@@ -7559,7 +7559,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 575
+        "linea": 577
       },
       "roles": [
         "asistente"
@@ -7622,7 +7622,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 364
+        "linea": 366
       },
       "roles": [
         "asistente"
@@ -7667,7 +7667,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 428
+        "linea": 430
       },
       "roles": [
         "asistente"
@@ -7757,7 +7757,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 323
+        "linea": 325
       },
       "roles": [
         "asistente"
@@ -7794,7 +7794,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 305
+        "linea": 307
       },
       "roles": [
         "asistente"
@@ -7834,7 +7834,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 506
+        "linea": 508
       },
       "roles": [
         "asistente"
@@ -7860,7 +7860,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 485
+        "linea": 487
       },
       "roles": [
         "asistente"
@@ -7898,7 +7898,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 525
+        "linea": 527
       },
       "roles": [
         "asistente"
@@ -7924,7 +7924,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 591
+        "linea": 593
       },
       "roles": [
         "asistente"
@@ -7957,7 +7957,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 188
+        "linea": 190
       },
       "roles": [
         "asistente"
@@ -7990,7 +7990,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 203
+        "linea": 205
       },
       "roles": [
         "asistente"
@@ -8027,7 +8027,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 287
+        "linea": 289
       },
       "roles": [
         "asistente"
@@ -8076,7 +8076,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 238
+        "linea": 240
       },
       "roles": [
         "asistente"
@@ -8126,7 +8126,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 261
+        "linea": 263
       },
       "roles": [
         "asistente"
@@ -8159,7 +8159,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 222
+        "linea": 224
       },
       "roles": [
         "asistente"
@@ -8192,7 +8192,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 173
+        "linea": 175
       },
       "roles": [
         "asistente"
@@ -8225,7 +8225,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 128
+        "linea": 130
       },
       "roles": [
         "asistente"
@@ -8270,7 +8270,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 149
+        "linea": 151
       },
       "roles": [
         "asistente"
@@ -8312,7 +8312,7 @@
         "properties": {}
       },
       "clase": "lectura",
-      "hilo": "interfaz",
+      "hilo": "foto",
       "soloLectura": true,
       "destructiva": false,
       "idempotente": false,
@@ -8379,7 +8379,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 451
+        "linea": 453
       },
       "roles": [
         "asistente"
@@ -8412,7 +8412,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 558
+        "linea": 560
       },
       "roles": [
         "asistente"
@@ -8450,7 +8450,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 897
+        "linea": 905
       },
       "roles": [
         "asistente"
@@ -8476,7 +8476,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 885
+        "linea": 893
       },
       "roles": [
         "asistente"
@@ -8506,7 +8506,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 804
+        "linea": 812
       },
       "roles": [
         "asistente"
@@ -8636,7 +8636,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 843
+        "linea": 851
       },
       "roles": [
         "asistente"
@@ -8675,7 +8675,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 782
+        "linea": 790
       },
       "roles": [
         "asistente"
@@ -11289,7 +11289,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpControlWebTools.cpp",
-        "linea": 47
+        "linea": 49
       },
       "roles": [
         "asistente"
@@ -11325,7 +11325,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpControlWebTools.cpp",
-        "linea": 68
+        "linea": 70
       },
       "roles": [
         "asistente"
@@ -11365,7 +11365,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpControlWebTools.cpp",
-        "linea": 137
+        "linea": 139
       },
       "roles": [
         "asistente"
@@ -11398,7 +11398,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpControlWebTools.cpp",
-        "linea": 171
+        "linea": 173
       },
       "roles": [
         "asistente"
@@ -11441,7 +11441,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpControlWebTools.cpp",
-        "linea": 99
+        "linea": 101
       },
       "roles": [
         "asistente"
@@ -11477,7 +11477,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpControlWebTools.cpp",
-        "linea": 186
+        "linea": 188
       },
       "roles": [
         "asistente"
@@ -11497,7 +11497,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -11507,7 +11507,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpControlWebTools.cpp",
-        "linea": 217
+        "linea": 219
       },
       "roles": [
         "asistente"
@@ -12175,7 +12175,7 @@
         }
       },
       "clase": "lectura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": true,
       "destructiva": false,
       "idempotente": false,
@@ -12185,7 +12185,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 611
+        "linea": 613
       },
       "roles": [
         "asistente"
@@ -12237,7 +12237,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -12247,7 +12247,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 623
+        "linea": 629
       },
       "roles": [
         "asistente"
@@ -12283,7 +12283,7 @@
         }
       },
       "clase": "aire",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -12293,7 +12293,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 658
+        "linea": 665
       },
       "roles": [
         "asistente"
@@ -17798,7 +17798,7 @@
         "properties": {}
       },
       "clase": "lectura",
-      "hilo": "control",
+      "hilo": "foto",
       "soloLectura": true,
       "destructiva": false,
       "idempotente": true,
@@ -17991,7 +17991,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 312
+        "linea": 315
       },
       "roles": [
         "asistente",
@@ -18019,7 +18019,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 289
+        "linea": 292
       },
       "roles": [
         "asistente",
@@ -18102,7 +18102,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 381
+        "linea": 384
       },
       "roles": [
         "asistente",
@@ -18142,7 +18142,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 423
+        "linea": 426
       },
       "roles": [
         "asistente",
@@ -18178,7 +18178,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 359
+        "linea": 362
       },
       "roles": [
         "asistente",
@@ -18288,7 +18288,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 267
+        "linea": 270
       },
       "roles": [
         "asistente",
@@ -18364,7 +18364,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 565
+        "linea": 568
       },
       "roles": [
         "asistente",
@@ -18403,7 +18403,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 533
+        "linea": 536
       },
       "roles": [
         "asistente",
@@ -18465,7 +18465,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 477
+        "linea": 480
       },
       "roles": [
         "asistente",
@@ -18493,7 +18493,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 454
+        "linea": 457
       },
       "roles": [
         "asistente",
@@ -20606,7 +20606,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 472
+        "linea": 476
       },
       "roles": [
         "asistente",
@@ -20689,7 +20689,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
-        "linea": 434
+        "linea": 438
       },
       "roles": [
         "asistente",
@@ -29620,7 +29620,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 864
+        "linea": 872
       },
       "roles": [
         "asistente"

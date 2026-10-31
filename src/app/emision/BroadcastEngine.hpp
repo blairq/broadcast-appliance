@@ -554,7 +554,9 @@ class BroadcastEngine {
     std::string capturarVista(const std::string& clave, int w, int h, bool esEscena, std::vector<std::uint8_t>& rgba,
                               int& width, int& height);
     /// Tipos de fuente que el motor sabe armar.
-    std::vector<SourceType> inputTypes() const;
+    std::vector<SourceType> inputTypes() const { return tiposDeFuente(); }
+    /// Los mismos: son fijos (no miran el motor), así que se leen desde cualquier hilo.
+    static std::vector<SourceType> tiposDeFuente();
     /// Invitados: la fuente de video va en escenas; la de AUDIO es global.
     bool addGuestAudio(int slot);
     /// Entrada de audio del equipo (micrófono, línea) como fuente GLOBAL.

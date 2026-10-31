@@ -286,7 +286,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
     marca("grafico");
     // El rotulador mira la escena que está al aire, así que la sigue.
-    rotulador_ = std::make_unique<RotuladorViewModel>(rt, *emisor_, conference_.get());
+    rotulador_ = std::make_unique<RotuladorViewModel>(ventanilla_, *emisor_, conference_.get());
     marca("rotulador");
     // El teleprompter: los discursos son los del evento (los mismos que lee el
     // cue) y el estado es del gateway, así que necesita a los dos.
@@ -295,7 +295,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(prompter_.get(), &PrompterViewModel::notify, this, &StudioViewModel::notify);
     // Pantallas externas: necesita la sala para saber con qué dirección la ve
     // un televisor de la red.
-    pantallas_ = std::make_unique<PantallasViewModel>(rt, conference_.get());
+    pantallas_ = std::make_unique<PantallasViewModel>(rt, ventanilla_, conference_.get());
     marca("pantallas");
     connect(pantallas_.get(), &PantallasViewModel::notify, this, &StudioViewModel::notify);
     // Códigos QR: la biblioteca es del aparato y del evento, y los enlaces
@@ -332,7 +332,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         });
     marca("medios");
     connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
-    carruseles_ = std::make_unique<CarruselViewModel>(rt, this);
+    carruseles_ = std::make_unique<CarruselViewModel>(rt, ventanilla_, this);
     marca("carruseles");
     connect(carruseles_.get(), &CarruselViewModel::notify, this, &StudioViewModel::notify);
     // La tarjeta de control sigue a la escena: al cortar a otra escena pasa a
@@ -627,6 +627,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // Las superficies de control: la botonera, el Satellite, el control web, las capas DSK
     // y las acciones (ui/ControlViewModel).
     control_ = std::make_unique<ControlViewModel>(ControlViewModel::Partes{.rt = rt,
+                                                                           .ventanilla = ventanilla_,
                                                                            .bus = *bus_,
                                                                            .sala = *conference_,
                                                                            .direcciones = sala_->direcciones(),
@@ -634,6 +635,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                                                                            .camaras = &imagen_->camaras(),
                                                                            .plugins = plugins_.get(),
                                                                            .pdfEscena = pdfEscena_.get(),
+                                                                           .tiras = mixer_.get(),
                                                                            .salidas = [this]() { return salidas_->paraSuperficies(); }});
     connect(control_.get(), &ControlViewModel::notify, this, &StudioViewModel::notify);
     connect(control_.get(), &ControlViewModel::mostrarQr, this, &StudioViewModel::mostrarQr);
@@ -1193,7 +1195,6 @@ void StudioViewModel::refrescarAvisos() {
     const auto hubo = [b](AppRuntime::Cambio c) { return (b & (1u << static_cast<unsigned>(c))) != 0; };
     using C = AppRuntime::Cambio;
     if (hubo(C::Ajustes)) {
-        control_->ajustesAplicados(); // el tema de las páginas web, si cambió
         imagen_->ajustesAplicados(); // Mejorar imagen general y el legalizador rigen ya
     }
     if (hubo(C::Audio) && mixer_->rowCount() > 0)

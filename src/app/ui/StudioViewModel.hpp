@@ -520,6 +520,8 @@ class StudioViewModel : public QObject {
     asamblea::ConferenciaDcn& dcn() { return asamblea_->dcn(); }
     asamblea::SesionRemota* sesionRemota() { return asamblea_->sesionRemota(); }
     AppRuntime& runtime() { return rt_; }
+    /// Lo que la interfaz le pide al motor y su foto (F3-03): las herramientas que corren en la interfaz leen la foto.
+    VentanillaMotor& ventanilla() { return ventanilla_; }
     asamblea::CuerpoViewModel& cuerpo() { return asamblea_->cuerpo(); }
     /// El área de la asamblea (sus modelos, la web del evento, los vínculos, el acta).
     AsambleaViewModel& asamblea() { return *asamblea_; }

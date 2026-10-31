@@ -27,6 +27,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "i18n/I18n.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -51,7 +52,6 @@ void McpService::registerGraficoTools() {
     core_.addCategory("graficos", ba::i18n::traducir("mcp", "Gráficos animados"),
                       ba::i18n::traducir("mcp", "Zócalos, placas y tickers: escribirlos, verlos y corregirlos."));
 
-    AppRuntime& rt = rt_;
     // El MISMO emisor que usan la interfaz, el guion y el rotulador. Tenia el
     // suyo propio —otro `ba-grafico` y otra memoria de lo ultimo que salio al
     // aire— y eso hacia justo lo que no puede pasar: el asistente sacaba un
@@ -197,7 +197,7 @@ void McpService::registerGraficoTools() {
                 {"description", QT_TRANSLATE_NOOP("mcp", "Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al "
                                 "aire y la deja armada; sale con TAKE (preview_al_aire).")}}}}},
             {"required", {"fuente", "nombre"}}};
-        t.run = [em, &rt, this](const json& a, Done done) {
+        t.run = [em, this](const json& a, Done done) {
             if (em == nullptr || !em->disponible())
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "El renderizador de gráficos no está en este bundle.")));
             const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
@@ -210,12 +210,15 @@ void McpService::registerGraficoTools() {
                 if (nombreFuente.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay una fuente de gráfico con ese id (grafico_en_escena).")));
                 // La escena al aire de una salida solo frena si esa salida sale (transmite o
                 // graba); la fuente es de todas, así que cuenta cualquier salida.
+                // (De la foto: corre en la interfaz y la lee como las vistas.)
+                const FotoMotor& foto = vm_.ventanilla().foto();
                 std::set<std::string> alAireQueSale;
-                for (const std::string& id : rt.engine().salidaIds())
-                    if (rt.engine().haySalidaEn(id)) alAireQueSale.insert(rt.engine().currentScene(id));
+                for (const FotoMotor::Salida& sal : foto.salidas)
+                    if (sal.sale) alAireQueSale.insert(sal.alAire);
                 bool alAire = false;
-                for (const std::string& sc : rt.engine().sceneNames()) {
-                    const auto ss = rt.engine().sceneSources(sc);
+                for (const FotoMotor::Escena& e : foto.escenas) {
+                    const std::string& sc = e.nombre;
+                    const auto ss = foto.fuentesDe(sc);
                     if (std::find(ss.begin(), ss.end(), nombreFuente) == ss.end()) continue;
                     if (alAireQueSale.count(sc) > 0) alAire = true;
                     else if (escenaArmar.empty()) escenaArmar = sc;
@@ -240,7 +243,7 @@ void McpService::registerGraficoTools() {
                     return done(ToolResult::error(ba::i18n::llenar(
                         ba::i18n::traducir("mcp", "«%1» no lleva video en vivo (no tiene un parámetro de tipo «fuente»)."),
                         {a["nombre"].get<std::string>()})));
-                if (!rt.engine().sourceExists(video))
+                if (vm_.ventanilla().foto().tipoDe(video).empty())
                     return done(ToolResult::error(ba::i18n::llenar(
                         ba::i18n::traducir("mcp", "No hay ninguna fuente «%1» (scene_list las dice)."), {video})));
                 for (const QString& k : claves) par[k] = QString::fromStdString(video);

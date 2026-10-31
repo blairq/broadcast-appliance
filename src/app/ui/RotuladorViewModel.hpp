@@ -30,8 +30,8 @@ QT_FORWARD_DECLARE_CLASS(QJsonObject)
 
 namespace ba::app {
 
-class AppRuntime;
 class ConferenceViewModel;
+class VentanillaMotor;
 namespace graficos {
 class Emisor;
 class Vinculos;
@@ -51,7 +51,9 @@ class RotuladorViewModel : public QObject {
     Q_PROPERTY(QVariantList vinculos READ vinculos NOTIFY cambio)
 
    public:
-    RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor, ConferenceViewModel* sala,
+    /// `ventanilla`: de su foto salen las escenas y la que está al aire (el motor es del
+    /// plano de control, F3-03).
+    RotuladorViewModel(VentanillaMotor& ventanilla, graficos::Emisor& emisor, ConferenceViewModel* sala,
                        QObject* parent = nullptr);
     ~RotuladorViewModel() override;
 
