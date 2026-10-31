@@ -57,6 +57,9 @@ class ConferenceClient : public QObject {
     /// GET de bytes crudos (fotos de las tarjetas). No avisa `failed`: una
     /// foto que falta no es un error para el operador.
     void getRaw(const QString& path, std::function<void(bool ok, const QByteArray& body)> done);
+    /// Puerto y token de la API de B (Runtime/gateway-admin.json). Sin estado: lo usa
+    /// también quien habla con B desde otro hilo (AvisoFueraDeUi).
+    static bool leerAdmin(int& puerto, QString& token);
 
    signals:
     void onlineChanged(bool online);

@@ -466,11 +466,14 @@ bool ControlWebBorde::admin(long long fd, const std::string& method, const std::
             for (const auto& x : r["conexiones"])
                 if (x.is_string()) ids.insert(x.get<std::string>());
         const std::string ap = r.value("aparato", std::string());
+        // `todas`: a cada aparato conectado (una alarma que la app manda desde fuera del
+        // hilo de su interfaz y no sabe quién está). Solo para enviar: cortar a todos, no.
+        const bool todas = que == "enviar" && r.value("todas", false);
         std::vector<std::shared_ptr<Conn>> a;
         {
             std::lock_guard<std::mutex> l(mu_);
             for (const auto& c : conns_)
-                if (ids.count(c->id) || (!ap.empty() && c->aparato == ap)) a.push_back(c);
+                if (todas || ids.count(c->id) || (!ap.empty() && c->aparato == ap)) a.push_back(c);
         }
         if (que == "enviar") {
             const json msg = r.value("msg", json::object());

@@ -18,6 +18,18 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 namespace {
+/// `notificar` de supervisor.json o de ponerPolitica: ausente = todos; una lista = esos.
+void leerNotificar(const json& j, LatidoAire::Politica& p) {
+    if (!j.contains("notificar")) return;
+    p.notificar.clear();
+    p.notificarTodos = j["notificar"].is_string() && j["notificar"] == "todos";
+    if (j["notificar"].is_array())
+        for (const auto& x : j["notificar"])
+            if (x.is_string()) p.notificar.push_back(x.get<std::string>());
+}
+
+json notificarJson(const LatidoAire::Politica& p) { return p.notificarTodos ? json("todos") : json(p.notificar); }
+
 std::uint64_t ahoraNs() {
     return static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
@@ -36,6 +48,7 @@ void LatidoAire::iniciar(const fs::path& datos, std::function<void()> latir, std
             std::lock_guard<std::mutex> l(mu_);
             pol_.esperaUiS = std::clamp(j.value("espera_ui_s", pol_.esperaUiS), 10, 3600);
             pol_.matarSiUiTrabadaSinAire = j.value("matar_si_ui_trabada_sin_aire", pol_.matarSiUiTrabadaSinAire);
+            leerNotificar(j, pol_);
         }
     }
     ultimoUiNs_ = 0; // hasta el primer tick de la interfaz (carga del QML): sin "traba"
@@ -46,6 +59,16 @@ void LatidoAire::iniciar(const fs::path& datos, std::function<void()> latir, std
 void LatidoAire::detener() {
     corriendo_ = false;
     if (hilo_.joinable()) hilo_.join();
+}
+
+void LatidoAire::ponerAviso(Aviso a) {
+    std::lock_guard<std::mutex> l(avisoMu_);
+    aviso_ = std::move(a);
+}
+
+void LatidoAire::avisar(bool trabada, std::uint64_t ms, bool vivo) {
+    std::lock_guard<std::mutex> l(avisoMu_);
+    if (aviso_) aviso_(trabada, ms, vivo);
 }
 
 void LatidoAire::uiTick(bool hayAire) {
@@ -69,6 +92,8 @@ void LatidoAire::bucle() {
     std::uint64_t ultimos = cuadros_ ? cuadros_() : 0;
     std::uint64_t sinAvanceNs = 0, ultimaVueltaNs = ahoraNs();
     bool avisoTraba = false;
+    bool alarmaAire = false; // la alarma «interfaz trabada con aire» está dada
+    std::uint64_t trabaMs = 0; // lo que lleva (o llevó) la traba, para el aviso de la vuelta
     while (corriendo_) {
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
         const std::uint64_t ahora = ahoraNs();
@@ -94,6 +119,17 @@ void LatidoAire::bucle() {
         }
         if (!uiTrabada) avisoTraba = false;
         if (uiTrabada) escribirEstadoUi(true, uiNs / 1'000'000ULL);
+        // Con aire, la traba es una alarma que sale de acá (la interfaz no puede
+        // darla): una vez al empezar y otra al volver. hayAire_ lo pone el último
+        // tick de la interfaz, el de antes de trabarse.
+        if (uiTrabada) trabaMs = uiNs / 1'000'000ULL;
+        if (uiTrabada && hayAire_ && !alarmaAire) {
+            alarmaAire = true;
+            avisar(true, trabaMs, vivo);
+        } else if (!uiTrabada && alarmaAire) {
+            alarmaAire = false;
+            avisar(false, trabaMs, vivo);
+        }
         if (!vivo || !latir_) continue; // motor trabado: que el supervisor actúe
         Politica p = politica();
         const bool pasada = uiNs > static_cast<std::uint64_t>(p.esperaUiS) * 1'000'000'000ULL;
@@ -126,6 +162,11 @@ std::string LatidoAire::ponerPolitica(const json& c) {
         }
         if (c.contains("matar_si_ui_trabada_sin_aire"))
             pol_.matarSiUiTrabadaSinAire = c.value("matar_si_ui_trabada_sin_aire", true);
+        if (c.contains("notificar")) {
+            if (!c["notificar"].is_array() && c["notificar"] != "todos")
+                return ba::i18n::traducir("supervisor", "`notificar`: «todos» o una lista de ids de notificadores");
+            leerNotificar(c, pol_);
+        }
     }
     guardar();
     return {};
@@ -134,7 +175,8 @@ std::string LatidoAire::ponerPolitica(const json& c) {
 void LatidoAire::guardar() const {
     const Politica p = politica();
     config::guardar(datos_ / "Config" / "supervisor.json",
-                    json{{"espera_ui_s", p.esperaUiS}, {"matar_si_ui_trabada_sin_aire", p.matarSiUiTrabadaSinAire}});
+                    json{{"espera_ui_s", p.esperaUiS}, {"matar_si_ui_trabada_sin_aire", p.matarSiUiTrabadaSinAire},
+                         {"notificar", notificarJson(p)}});
 }
 
 json LatidoAire::estado() const {
@@ -146,7 +188,7 @@ json LatidoAire::estado() const {
             {"ui_trabada_ms", uiNs < 2'000'000'000ULL ? 0 : uiNs / 1'000'000ULL},
             {"ultima_traba_ms", ultimaTrabaMs_.load()},
             {"politica",
-             {{"espera_ui_s", p.esperaUiS}, {"matar_si_ui_trabada_sin_aire", p.matarSiUiTrabadaSinAire}}}};
+             {{"espera_ui_s", p.esperaUiS}, {"matar_si_ui_trabada_sin_aire", p.matarSiUiTrabadaSinAire}, {"notificar", notificarJson(p)}}}};
 }
 
 std::uint64_t LatidoAire::tomarTrabaTerminada() { return trabaTerminadaMs_.exchange(0); }

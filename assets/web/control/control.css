@@ -89,6 +89,9 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .aviso { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 30; padding: 13px 22px; border-radius: var(--radio-chico);
   color: var(--texto); background: var(--superficie-plana); box-shadow: var(--relieve-alto); border: 1px solid var(--borde); font-weight: 600; max-width: 90vw; }
 .aviso.error { color: #fff; background: var(--aire); }
+.alarma-sistema { position: sticky; top: 0; z-index: 25; margin: 0 clamp(16px, 3vw, 28px); padding: 12px 18px;
+  border-radius: var(--radio-chico); color: #fff; background: var(--aire); box-shadow: var(--relieve-alto); font-weight: 600; }
+.alarma-sistema.terminada { color: var(--texto); background: var(--superficie-plana); border: 1px solid var(--borde); }
 
 /* --- Sala ----------------------------------------------------------------------------------- */
 .sala-cabeza, .sala-enlace { gap: 12px; }

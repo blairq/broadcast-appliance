@@ -42,16 +42,18 @@ ConferenceClient::~ConferenceClient() {
     }
 }
 
-bool ConferenceClient::loadAdminFile() {
+bool ConferenceClient::leerAdmin(int& puerto, QString& token) {
     const auto dir = ba::platform::stateDir();
     if (dir.empty()) return false;
     QFile f(QString::fromStdString((dir / "gateway-admin.json").string()));
     if (!f.open(QIODevice::ReadOnly)) return false;
     const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
-    port_ = o.value("port").toInt();
-    token_ = o.value("token").toString();
-    return port_ > 0 && !token_.isEmpty();
+    puerto = o.value("port").toInt();
+    token = o.value("token").toString();
+    return puerto > 0 && !token.isEmpty();
 }
+
+bool ConferenceClient::loadAdminFile() { return leerAdmin(port_, token_); }
 
 void ConferenceClient::connectEvents() {
     if (sse_ != nullptr) return;

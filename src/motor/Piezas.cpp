@@ -403,13 +403,17 @@ bool mismaCamara(const std::string& a, const std::string& b) {
 #endif
 }
 
+const char* propiedadDeDispositivo() {
+#if defined(__APPLE__)
+    return "unique-id";
+#else
+    return "device";
+#endif
+}
+
 std::string idDeMicrofono(GstElement* e) {
     if (e == nullptr) return {};
-#if defined(__APPLE__)
-    const char* prop = "unique-id";
-#else
-    const char* prop = "device";
-#endif
+    const char* prop = propiedadDeDispositivo();
     if (g_object_class_find_property(G_OBJECT_GET_CLASS(e), prop) == nullptr) return {};
     gchar* v = nullptr;
     g_object_get(e, prop, &v, nullptr);
@@ -552,11 +556,12 @@ Vigia& Vigia::el() {
 void Vigia::anotar(GstDevice* dev, bool esta) {
     GstElement* e = gst_device_create_element(dev, nullptr);
     const bool esVideo = gst_device_has_classes(dev, "Video/Source");
+    const bool esSalida = gst_device_has_classes(dev, "Audio/Sink");
     const std::string id = esVideo ? (camaraUsable(e) ? idDeCamara(dev, e) : std::string()) : idDeMicrofono(e);
     if (e != nullptr) gst_object_unref(e);
     if (id.empty()) return;
     std::lock_guard<std::mutex> l(mu_);
-    auto& conjunto = esVideo ? video_ : audio_;
+    auto& conjunto = esVideo ? video_ : esSalida ? salidas_ : audio_;
     if (esta)
         conjunto.insert(id);
     else
@@ -581,6 +586,7 @@ void Vigia::vigilar() {
     GstDeviceMonitor* mon = gst_device_monitor_new();
     gst_device_monitor_add_filter(mon, "Audio/Source", nullptr);
     gst_device_monitor_add_filter(mon, "Video/Source", nullptr);
+    gst_device_monitor_add_filter(mon, "Audio/Sink", nullptr); // la escucha (vuelve a su placa)
     const bool anda = gst_device_monitor_start(mon);
     if (anda) {
         GList* lista = gst_device_monitor_get_devices(mon);
@@ -626,6 +632,12 @@ void Vigia::vigilar() {
     gst_object_unref(bus);
     gst_device_monitor_stop(mon);
     gst_object_unref(mon);
+}
+
+bool Vigia::haySalida(const std::string& id) {
+    revisar();
+    std::lock_guard<std::mutex> l(mu_);
+    return !listo_ || sinMonitor_ || salidas_.count(id) > 0;
 }
 
 bool Vigia::hay(bool esVideo, const std::string& id, bool esperar) {

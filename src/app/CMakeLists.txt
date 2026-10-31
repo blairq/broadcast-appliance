@@ -713,6 +713,16 @@ endif()
             BA_TEST_GST_DOCS="${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
         add_test(NAME test_catalogo_gst COMMAND test_catalogo_gst)
         set_tests_properties(test_catalogo_gst PROPERTIES SKIP_RETURN_CODE 77)
+        # F1-16: la placa de audio que se va y vuelve (entrada, escucha y Matriz), con un
+        # proveedor de dispositivos falso: nada abre una placa real ni suena.
+        add_executable(test_placa_que_se_va tests/test_placa_que_se_va.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
+        target_include_directories(test_placa_que_se_va PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_placa_que_se_va PRIVATE ba_motor ba_core Qt6::Core)
+        set_target_properties(test_placa_que_se_va PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+        ba_gst_rpath(test_placa_que_se_va "")
+        target_compile_definitions(test_placa_que_se_va PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+        add_test(NAME test_placa_que_se_va COMMAND test_placa_que_se_va)
+        set_tests_properties(test_placa_que_se_va PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
         # El rack como elemento de GStreamer (barack).
         add_executable(test_gst_rack tests/test_gst_rack.cpp audio/GstRack.cpp audio/GstVoz.cpp video/CatalogoGst.cpp ${CMAKE_SOURCE_DIR}/src/motor/Sondas.cpp)
         target_include_directories(test_gst_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
@@ -1215,6 +1225,15 @@ endif()
     target_link_libraries(test_notificador PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_notificador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_notificador COMMAND test_notificador)
+    # F1-13: la alarma «interfaz trabada con aire» sale del hilo del latido, sin la interfaz.
+    add_executable(test_latido_aire tests/test_latido_aire.cpp emision/LatidoAire.cpp emision/AvisoFueraDeUi.cpp
+                   agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp
+                   arranque/ArchivoConfig.cpp)
+    target_include_directories(test_latido_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_latido_aire PRIVATE ba_core Qt6::Core Qt6::Network)
+    set_target_properties(test_latido_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_latido_aire COMMAND test_latido_aire)
+    set_tests_properties(test_latido_aire PROPERTIES TIMEOUT 60)
     add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_vocabulario PRIVATE nlohmann_json::nlohmann_json)

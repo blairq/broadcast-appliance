@@ -128,6 +128,7 @@ namespace medios {
 class Playlist;
 }
 class PuestoCorreccion;
+class AvisoFueraDeUi;
 namespace asamblea {
 class CuerpoViewModel;
 class Bancas;
@@ -1242,6 +1243,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
     std::unique_ptr<agent::Notificador> notificador_;
+    /// Las alarmas que salen sin la interfaz (la interfaz trabada con aire, F1-13).
+    std::unique_ptr<AvisoFueraDeUi> avisoFueraDeUi_;
     std::unique_ptr<config::ModoVivoConfig> modoVivoCfg_; ///< Config/modo-vivo.json (modelo)
     QSet<QString> desbloqueadas_;
     bool estabaEnVivo_ = false;

@@ -48,10 +48,18 @@ class Mcp:
         self.n = 0
         self.p = subprocess.Popen([ba_mcp], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                   stderr=subprocess.DEVNULL, text=True)
+        self._arrancar()
         self._enviar({"jsonrpc": "2.0", "id": 0, "method": "initialize",
                       "params": {"capabilities": {}, "clientInfo": {"name": "asamblea-mcp", "version": "1"},
                                  "protocolVersion": "2024-11-05"}})
-        self.p.stdout.readline()
+        self._linea()
+
+    def _arrancar(self):
+        """Para una subclase que lee de otra forma (el banco de caos: con plazo)."""
+
+    def _linea(self):
+        """La próxima línea de ba-mcp ("" si se cortó)."""
+        return self.p.stdout.readline()
 
     def _enviar(self, o):
         self.p.stdin.write(json.dumps(o) + "\n")
@@ -62,7 +70,7 @@ class Mcp:
         self._enviar({"jsonrpc": "2.0", "id": self.n, "method": "tools/call",
                       "params": {"name": nombre, "arguments": args or {}}})
         while True:
-            linea = self.p.stdout.readline()
+            linea = self._linea()
             if not linea:
                 return {"_error": "sin respuesta", "_texto": "", "_isError": True}
             r = json.loads(linea)

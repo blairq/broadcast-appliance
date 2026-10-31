@@ -205,6 +205,12 @@ int main() {
         r = pedir("POST", "/api/v1/control/enviar", "", "", json{{"conexiones", {conexion}}, {"msg", {{"type", "resultado"}, {"id", 7}}}}.dump(), 0, false, true);
         CHECK(cuerpoDe(r).value("entregado", 0) == 1, "enviar: entregado a la conexión");
         CHECK(leer(10).find("resultado") != std::string::npos, "ws: el aparato recibe lo que manda la app");
+        // La alarma de la interfaz trabada (F1-13): la app no sabe quién está; va a todas.
+        r = pedir("POST", "/api/v1/control/enviar", "", "", json{{"todas", true}, {"msg", {{"type", "alarma"}, {"id", "ui_trabada"}}}}.dump(), 0, false, true);
+        CHECK(cuerpoDe(r).value("entregado", 0) == 1, "enviar a todas: entregado");
+        CHECK(leer(10).find("ui_trabada") != std::string::npos, "ws: el aparato recibe la alarma");
+        r = pedir("POST", "/api/v1/control/cortar", "", "", json{{"todas", true}}.dump(), 0, false, true);
+        CHECK(cuerpoDe(r).value("entregado", 1) == 0, "cortar a todas: no (solo enviar)");
         mandarWs("", 0x8);
         servidor.join();
         ::close(sv[0]);

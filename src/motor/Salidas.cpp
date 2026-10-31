@@ -5,6 +5,7 @@
 #include "diag/Utf8.hpp"
 #include "i18n/I18n.hpp"
 
+#include "Fallas.hpp"
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 
@@ -530,6 +531,7 @@ bool Grabacion::grabando() const {
 void Grabacion::tic() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
+    aplicarFallasProgramadas(pipeline_, "grabacion"); // --test: el banco de caos (Fallas.hpp)
     GstBus* bus = gst_element_get_bus(pipeline_);
     while (GstMessage* m = gst_bus_pop(bus)) {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
@@ -757,6 +759,7 @@ void Transmision::tic() {
         }
         return;
     }
+    aplicarFallasProgramadas(pipeline_, "transmision"); // --test: el banco de caos (Fallas.hpp)
     // Lo que sale (kbps), una vez por segundo.
     if (ahora - medidoNs_ >= 1'000'000'000LL) {
         const std::uint64_t b = bytes_.load();
