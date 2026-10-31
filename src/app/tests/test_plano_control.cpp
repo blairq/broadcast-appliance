@@ -1213,6 +1213,8 @@ int main(int argc, char** argv) {
         CHECK(!atencionPedida && atencion() && v.foto().salida({})->alAire == "Orador" && !m.mudo["Banca 3"] &&
                   (partesS & (FotoMotor::Sala | FotoMotor::Salidas)) == (FotoMotor::Sala | FotoMotor::Salidas),
               "S: al volver, la foto trae la parte Sala y el corte, y el pendiente se suelta");
+    }
+
     // --- C. Control y DSK: las capas son del dueño del motor; la interfaz pide y lee la foto --
     {
         using ba::app::FotoMotor;
