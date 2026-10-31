@@ -1,4 +1,4 @@
-// El disco en apuros (Studio.apurosDiscoUi): cuando lo grabado espera para entrar al
+// El disco en apuros (Studio.emision.apurosDiscoUi): cuando lo grabado espera para entrar al
 // disco o el registro no puede escribir. Ofrece darle el disco a la grabación
 // del programa: se pausan las ISO, la repetición, la copia (si va al mismo
 // disco) y la señal limpia a disco, y el registro se junta en memoria. Cuando

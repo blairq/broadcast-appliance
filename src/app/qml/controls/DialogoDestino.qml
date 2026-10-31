@@ -3,7 +3,7 @@
 // punto de ingest de respaldo de la plataforma (la misma clave: sale a los dos a la vez).
 // Lo usan la tarjeta «Salidas» (los de la por omisión) y la página Salidas (los de
 // cada salida: `salida`, su id; vacío = la por omisión). Guarda por
-// Studio.guardarDestinoUi: el modelo valida y avisa.
+// Studio.emision.guardarDestinoUi: el modelo valida y avisa.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
