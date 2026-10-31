@@ -160,11 +160,25 @@ Las de **aire** (con la transmisión o la grabación andando, si las pide algo a
 | `lectura` | Solo mira: no cambia el estado | Sin aprobación ni en una sesión contaminada; no refresca las vistas |
 | `escritura` | Cambia el estado de la app, no lo que sale | Al terminar persiste y avisa a la interfaz; en una sesión contaminada (o con política «siempre») la aprueba una persona |
 | `aire` | Puede cambiar lo que sale (`porQueAire`; `aireSi`: con qué argumentos cuenta) | Además, con la transmisión o la grabación andando, si la pide algo automático la confirma **siempre** una persona (ver «Seguridad → Guardas de aire») |
-| `ui` | Mueve la interfaz del operador (páginas, ventanas, avisos) | Como escritura; F3-03 la corre en el hilo de la interfaz |
+| `ui` | Mueve la interfaz del operador (páginas, ventanas, avisos) | Como escritura; corre en el hilo de la interfaz |
 
-El hilo (`foto`, `control`, `interfaz`) sale de la clase salvo que la
-herramienta lo declare (las capturas de la vista: `interfaz`). Hoy todas
-corren en el hilo de la app; F3-03 las despacha por esto.
+### Hilos (F3-03)
+
+El servidor HTTP vive en el **hilo del plano de control**: con la interfaz trabada
+(un QML pesado, un diálogo, un disco lento) sigue contestando. Cada herramienta corre
+en el hilo que declara (`hilo` en `docs/mcp.json`):
+
+| Hilo | Dónde corre | Cuáles |
+|---|---|---|
+| `interfaz` | El hilo de la interfaz (dueño del motor). Pedida desde otro hilo, con **tope**: si la interfaz no la toma en `mcp.topeInterfazMs` (5 s de fábrica), se contesta `isError` con `structuredContent.interfaz_ocupada: true` y una `foto` (el documento de aire, el latido, el plano) y **no se hace después** | Lo de fábrica: casi todas leen o mueven objetos de la interfaz o del motor |
+| `foto` | Un hilo del pool; lee solo cosas seguras entre hilos | `help`, `help_search`, `security_status`, `alert_types`, `alert_events`, `alert_wait` |
+| `control` | La cola del plano de control, en orden | (ninguna todavía) |
+
+La validación, las guardas de aire y la aprobación corren en el hilo de la
+herramienta; la tarjeta de aprobación y el guardado posterior, en la interfaz. La
+respuesta vuelve al hilo del que llamó (la botonera, una receta, el guion la reciben
+en la interfaz). `ba_mcp_interfaz_ocupada_total` cuenta lo que la interfaz no tomó a
+tiempo.
 
 Lo de abajo es un resumen por categoría, con las herramientas principales.
 
