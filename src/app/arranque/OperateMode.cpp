@@ -483,6 +483,10 @@ void AppRuntime::addGuests() {
 }
 
 int AppRuntime::start() {
+    // Lo que dejó la corrida anterior, ANTES de que nada lo pise (--record y --stream
+    // escriben el documento apenas arrancan): hasta que termine de volver como estaba,
+    // en el disco sigue diciendo lo de antes (writeOnAirState espera a aireListo_).
+    leerAireAnterior();
     // --- Salud: A late en su slot para el watchdog del launcher. Sin launcher
     // (desarrollo) se crea el bloque para poder correr solo.
     if (!ba::ipc::HealthBlock::open(ba::ipc::HealthBlock::kName, health_).ok) {
@@ -724,39 +728,17 @@ int AppRuntime::start() {
     if (cfg_.stream) {
         startStreaming();
     }
-    // VOLVER COMO ESTABA: un cierre ordenado deja al-aire.json en «nada al aire»
-    // (stop()). Si dice que se transmitía o grababa, la corrida anterior terminó
-    // sin cerrarse (corte de luz, cuelgue, la máquina se apagó): se retoma,
-    // también en un arranque normal (no solo con --restore del launcher).
-    // Con --test (pruebas: el MCP sin aprobaciones) NUNCA se arranca al aire.
-    {
-        // ¿Se cortó la anterior? Un archivo de antes de «cerrado» cuenta como cierre ordenado.
-        leerAireAnterior();
-        const salidas::AlAire& aire = aireAnterior_;
-        // La escena que estaba al aire (app.json puede tener una vieja: no se
-        // guarda en cada corte). También con --test: no sale nada al aire.
-        const std::string escena = aire.de(salidas::kPorOmision).escena;
-        if (corteAnterior_ && !escena.empty() && escena != engine_.currentScene() && setScene(escena))
-            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró: vuelve la escena «%1»"),
-                                                        {escena}));
-        // Las demás salidas: su escena solo está ahí (no van en app.json), así que vuelve siempre.
-        for (const std::string& id : engine_.salidaIds()) {
-            const std::string e = aire.de(id).escena;
-            if (id != salidas::kPorOmision && !e.empty() && !setScene(e, id))
-                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                           ba::i18n::llenar(ba::i18n::traducir("arranque", "la salida «%1» no pudo volver a «%2»: %3"),
-                                                            {id, e, lastError_}));
-        }
-    }
-    marca(ba::i18n::traducir("arranque", "las salidas"));
+    // VOLVER COMO ESTABA, todo acá y de una (F3-04): la escena de cada salida, el negro
+    // y la placa, y lo que salía. Antes la placa volvía desde un temporizador de la
+    // interfaz, un segundo y medio después y solo con interfaz.
     arranque::avisar(ba::i18n::traducir("arranque", "Volviendo a como estaba…"));
-    restoreOutputs();
+    restaurarAire();
     marca(ba::i18n::traducir("arranque", "volver como estaba"));
     if (cfg_.modoPrueba && !cfg_.retomaEnPrueba) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    ba::i18n::traducir("arranque", "modo prueba (--test): no se retoman las salidas (grabación, transmisión)"));
     }
+    aireListo_ = true;
     writeOnAirState();
     // Si arranca solo con el equipo y se movió la carpeta: la ruta nueva.
     inicio::revisar();
@@ -796,8 +778,9 @@ void AppRuntime::tick() {
         latido_.uiTick(st.streaming || st.recording);
         // (Un codificador que se cae en el aire, una grabación o una transmisión que se
         // cortan: las atiende el hilo de salidas del motor, ver BroadcastEngine::ticSalidas.)
-        // La escena al aire de cada salida, para volver a ella tras un corte (P0.10).
-        if (firmaDelAire() != escenaEscrita_) writeOnAirState();
+        // Lo que sale de cada salida (la escena, el negro y la placa), para volver tras un
+        // corte (P0.10, F3-04): el documento compara y solo se escribe si cambió algo.
+        writeOnAirState();
         // La GPU del video se perdió (F3-09): el motor no se rearma solo, lo rearma la app.
         if (ba::motor::gpuPerdida()) rearmarPorGpu();
     }
@@ -834,6 +817,7 @@ void AppRuntime::stop() {
         cerrando_ = true;
     }
     writeOnAirState();
+    documento_.volcar(); // el dueño (el plano de control) puede estar ya parado
     // Las grabaciones por entrada, ANTES que el resto: cada una tiene su vista
     // de render y su archivo abierto, y si el cierre las deja vivas el archivo
     // queda sin cerrar (o sea, sin indice y a veces sin poder abrirse).
@@ -1010,14 +994,6 @@ bool AppRuntime::streamKeySaved() const {
     return keySaved_ == 1;
 }
 
-std::string AppRuntime::firmaDelAire() const {
-    std::string f;
-    for (const std::string& id : engine_.salidaIds()) f += id + '\n' + engine_.currentScene(id) + '\n';
-    return f;
-}
-
-fs::path AppRuntime::archivoAlAire() { return ba::platform::stateDir() / "al-aire.json"; }
-
 salidas::AlAire AppRuntime::aireActual() const {
     // Cada salida con su escena, lo que transmite (la principal y sus destinos) y si
     // graba; la por omisión además en los campos de siempre (salidas::aJson), que es
@@ -1029,44 +1005,53 @@ salidas::AlAire AppRuntime::aireActual() const {
         salidas::Aire& x = a.salidas[id];
         x.escena = engine_.currentScene(id);
         x.transmitiendo = po ? !streamStopWanted_ : transmitiendoOtras_.count(id) > 0;
-        // Las que cerró el corte de luz siguen pedidas: vuelven con la energía.
-        x.grabando = (po ? !recordStopWanted_ : grabandoOtras_.count(id) > 0) || porEnergia_.count(id) > 0;
+        // Las que cerró el corte de luz siguen pedidas: vuelven con la energía; y las de un
+        // corte que esperan la carpeta del evento (retomarGrabaciones), también.
+        x.grabando = (po ? !recordStopWanted_ : grabandoOtras_.count(id) > 0) || porEnergia_.count(id) > 0 ||
+                     (grabacionesPorRetomar_ && aireAnterior_.de(id).grabando);
         for (const auto& [destino, salida] : destinosAlAire_)
             if (salida == id) x.destinos.push_back(destino);
+        x.placa = salidas::placaDeJson(engine_.estadoPlaca(po ? std::string() : id));
     }
     return a;
 }
 
-void AppRuntime::writeOnAirState() const {
-    escenaEscrita_ = firmaDelAire();
-    const salidas::AlAire a = aireActual();
-    // Al hilo escritor (este hilo no toca el disco), primero que los ajustes y en dos
-    // generaciones con F_FULLFSYNC: un corte en cualquier momento deja una entera.
-    ba::persist::cola().escribirGeneracion(archivoAlAire(),
-                                           salidas::aJson(a).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+void AppRuntime::writeOnAirState() {
+    // Mientras vuelve como estaba, el documento sigue diciendo lo de la corrida anterior:
+    // un corte en pleno arranque vuelve a eso, no a un arranque a medias.
+    if (!aireListo_) return;
+    // La sección de las salidas del documento único (F3-04). El documento compara: si no
+    // cambió nada no despierta a nadie; si cambió, lo escribe su dueño entero, en dos
+    // generaciones, primero que los ajustes.
+    documento_.ponerSalidas(aireActual().salidas, cerrando_);
 }
 
+void AppRuntime::aireCambio() { writeOnAirState(); }
+
 void AppRuntime::leerAireAnterior() {
-    const ba::persist::Lectura l = ba::persist::cola().leerGeneraciones(archivoAlAire());
-    const nlohmann::json j = nlohmann::json::parse(l.cuerpo, nullptr, false);
-    const bool sirve = j.is_object();
-    if (l.estado == ba::persist::Lectura::Estado::Nada) {
-        aireAnterior_ = {}; // primer arranque: nada que retomar
-    } else if (sirve) {
-        aireAnterior_ = salidas::leerAlAire(j);
-        if (l.descartadas > 0)
-            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                       ba::i18n::traducir("arranque", "al-aire.json: la última generación estaba rota (corte a "
-                                                                      "mitad); se retoma la anterior"));
-    } else {
+    documento_.setCarpeta(ba::platform::stateDir());
+    const salidas::DocumentoAire::Anterior l = documento_.leerAnterior();
+    aireAnterior_ = l.aire;
+    lineaDesconocida_ = l.danado || l.lineaDanada;
+    if (l.descartadas > 0 && !l.danado)
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   ba::i18n::traducir("arranque", "al-aire.json: la última generación estaba rota (corte a "
+                                                                  "mitad); se retoma la anterior"));
+    if (l.deVersionVieja)
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "arranque", 0,
+                                   ba::i18n::traducir("arranque", "al-aire.json de la versión anterior: placa.json y "
+                                                                  "linea-aire.json pasan a ser secciones del documento de aire"));
+    if (l.danado) {
         // Las dos generaciones rotas (o el archivo viejo roto): no se sabe qué había al
         // aire. Lo peor es arrancar callado con «nada al aire»: se trata como un corte
         // (la línea de tiempo vuelve en HOLD y pregunta qué está pasando) y se avisa.
-        aireAnterior_ = {};
-        aireAnterior_.cerrado = false;
         avisarPersistencia(ba::i18n::traducir("arranque", "El estado de aire guardado (al-aire.json) volvió dañado: no se "
                                                           "sabe qué había al aire. Revisá cada salida (escena, transmisión, "
                                                           "grabación) y ponela como corresponde."));
+    } else if (l.lineaDanada) {
+        avisarPersistencia(ba::i18n::traducir("arranque", "El estado de la línea de tiempo volvió dañado tras el corte: la "
+                                                          "línea quedó en HOLD sin saber en qué paso iba. Contá qué está "
+                                                          "pasando y reenganchala a mano."));
     }
     corteAnterior_ = !aireAnterior_.cerrado;
     // Un sistema de archivos sin diario (FAT, exFAT, típico de un disco USB) puede
@@ -1107,6 +1092,57 @@ void AppRuntime::retomarGrabaciones() {
             ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
                                        ba::i18n::llenar(ba::i18n::traducir("arranque", "la grabación de la salida «%1» no se pudo retomar: %2"), {id, lastError_}));
     }
+}
+
+void AppRuntime::restaurarAire() {
+    const salidas::AlAire& aire = aireAnterior_;
+    // La escena que estaba al aire (app.json puede tener una vieja: no se guarda en cada
+    // corte). También con --test: no sale nada al aire.
+    const std::string escena = aire.de(salidas::kPorOmision).escena;
+    if (corteAnterior_ && !escena.empty() && escena != engine_.currentScene() && setScene(escena))
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró: vuelve la escena «%1»"),
+                                                    {escena}));
+    // Las demás salidas: su escena solo está ahí (no van en app.json), así que vuelve siempre.
+    for (const std::string& id : engine_.salidaIds()) {
+        const std::string e = aire.de(id).escena;
+        if (id != salidas::kPorOmision && !e.empty() && !setScene(e, id))
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la salida «%1» no pudo volver a «%2»: %3"),
+                                                        {id, e, lastError_}));
+    }
+    // El negro y la placa vuelven siempre (son de la máquina, no de la corrida): si la app
+    // se cerró o se cayó con la placa puesta, vuelve con la placa puesta.
+    placaRestaurada_ = restaurarPlacas(aire);
+    // VOLVER COMO ESTABA lo que salía: un cierre ordenado deja el documento en «nada al
+    // aire» (stop()). Si dice que se transmitía o grababa, la corrida anterior terminó
+    // sin cerrarse (corte de luz, cuelgue, la máquina se apagó): se retoma, también en un
+    // arranque normal (no solo con --restore del launcher). Con --test (pruebas: el MCP
+    // sin aprobaciones) NUNCA se arranca al aire.
+    restoreOutputs();
+}
+
+bool AppRuntime::restaurarPlacas(const salidas::AlAire& aire) {
+    bool algo = false;
+    for (const auto& [id, s] : aire.salidas) {
+        if (!s.placa.puesta() || !engine_.existeSalida(id)) continue;
+        const std::string salida = id == salidas::kPorOmision ? std::string() : id;
+        if (s.placa.placa && !engine_.placa(true, s.placa.texto, s.placa.imagen, 0, salida))
+            ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la placa de la salida «%1» no volvió: %2"),
+                                                        {id, engine_.lastError()}));
+        if (s.placa.ftb && !engine_.ftb(true, 0, s.placa.ftbAudio, salida))
+            ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "el negro de la salida «%1» no volvió: %2"),
+                                                        {id, engine_.lastError()}));
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("arranque", "vuelve lo que estaba encima de la salida «%1»: %2"),
+                                                    {id, s.placa.placa && s.placa.ftb ? ba::i18n::traducir("arranque", "el negro y la placa")
+                                                         : s.placa.placa              ? ba::i18n::traducir("arranque", "la placa")
+                                                                                      : ba::i18n::traducir("arranque", "el negro")}));
+        algo = true;
+    }
+    return algo;
 }
 
 void AppRuntime::restoreOutputs(bool deEstaCorrida) {
@@ -2037,6 +2073,7 @@ void AppRuntime::rearmarPorGpu() {
     destinosAlAire_.clear();
     aireAnterior_ = aire;
     aireAnterior_.cerrado = false;
+    restaurarPlacas(aire);
     restoreOutputs(/*deEstaCorrida=*/true);
     writeOnAirState();
     avisar(Cambio::Salidas);

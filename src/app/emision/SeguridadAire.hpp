@@ -1,15 +1,15 @@
 // ============================================================================
 // src/app/emision/SeguridadAire.hpp — el fundido a negro (FTB) y la placa de seguridad (modelo)
 //
-// Encima de todo lo que sale, sin tocar las escenas. Lo que queda puesto se
-// guarda en Runtime/placa.json (es de la máquina, no de la configuración): si
-// la app se cae con la placa o el negro al aire, al volver se restaura igual.
-// Lo piden la GUI (BotonesSeguridad) y el MCP (aire_ftb, aire_placa), los dos
-// por acá; quien muestre el estado se entera con alCambiar.
+// Encima de todo lo que sale, sin tocar las escenas. Lo que queda puesto va al
+// documento de aire (F3-04: Runtime/al-aire.json, la `placa` de cada salida; antes
+// era Runtime/placa.json aparte): si la app se cae con la placa o el negro al aire,
+// al volver AppRuntime::restaurarAire lo pone igual. Lo piden la GUI
+// (BotonesSeguridad) y el MCP (aire_ftb, aire_placa), los dos por acá; quien
+// muestre el estado se entera con alCambiar.
 //
 // Cada salida tiene su negro y su placa (PLAN-SALIDAS): `salida` "" = la por
-// omisión. En placa.json lo de siempre es de la por omisión; lo de las demás va
-// en `salidas: {id: {...}}` y vuelve igual (si la salida existe al restaurar).
+// omisión; cada una vuelve igual (si la salida existe al restaurar).
 // ============================================================================
 #pragma once
 
@@ -38,8 +38,6 @@ class SeguridadAire {
                       const std::string& salida = {});
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}, de la salida.
     nlohmann::json estado(const std::string& salida = {}) const;
-    /// Vuelve a poner lo que estaba (tras una caída). true si había algo.
-    bool restaurar();
 
    private:
     void guardar();

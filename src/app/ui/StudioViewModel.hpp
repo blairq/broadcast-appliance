@@ -504,8 +504,6 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantMap estadoPlacaUi() const;
     /// Los textos de placa de siempre (y los que se usaron).
     Q_INVOKABLE QStringList textosPlaca() const;
-    /// Vuelve a poner el FTB y la placa como estaban (Runtime/placa.json): tras una caída.
-    void restaurarPlaca();
     /// Hay aire: transmitiendo o grabando.
     /// Sale algo (transmisión, grabación o señal limpia): BroadcastEngine::haySalida.
     bool alAire() const;

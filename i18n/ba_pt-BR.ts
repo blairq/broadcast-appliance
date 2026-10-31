@@ -37762,8 +37762,8 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>Tras un corte: restaurar la placa a los</source>
-        <translation>Após uma queda: restaurar a cartela após</translation>
+        <source>Al abrir: las capas fijas y los gráficos que arrancan solos, a los</source>
+        <translation>Ao abrir: camadas fixas e gráficos automáticos após</translation>
     </message>
     <message>
         <location line="+1" />

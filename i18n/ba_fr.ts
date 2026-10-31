@@ -37762,8 +37762,8 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>Tras un corte: restaurar la placa a los</source>
-        <translation>Après une coupure : restaurer le carton après</translation>
+        <source>Al abrir: las capas fijas y los gráficos que arrancan solos, a los</source>
+        <translation>À l'ouverture : calques fixes et graphismes automatiques après</translation>
     </message>
     <message>
         <location line="+1" />

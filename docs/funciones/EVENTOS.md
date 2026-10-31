@@ -148,11 +148,13 @@ El plan entero está en `docs/planes/PLAN-LINEA-DE-TIEMPO.md`. Lo hecho:
   Por ahora sale de verdad la salida por omisión; las otras se anotan.
 - **Lo emitido**: `Eventos/<x>/recorrido.jsonl` (qué entró, cuándo y cómo, las
   piezas, los HOLD, los saltos, lo insertado, los cortes, lo que se contó y lo que
-  se decidió; lo del ensayo no) y `Runtime/linea-aire.json` (el estado vivo,
-  atómico, cada segundo y en cada cambio). El informe y los capítulos salen de lo
+  se decidió; lo del ensayo no) y la sección `linea` del documento de aire
+  `Runtime/al-aire.json` (el estado vivo, junto con la escena, la placa y las
+  salidas de ese mismo momento; en dos generaciones, cada segundo y en cada
+  cambio. Hasta F3-04 era `Runtime/linea-aire.json` aparte: se lee una versión más). El informe y los capítulos salen de lo
   emitido, un renglón por paso.
 - **Corte de luz** (T47 + 3.8 del plan). Si la app arranca después de un corte
-  con `linea-aire.json` vivo, la línea vuelve con lo que estaba al aire (repone
+  con la línea viva en el documento de aire, la línea vuelve con lo que estaba al aire (repone
   música y gráficos de vida larga) pero **en HOLD en todas las salidas**, y la
   conducción pregunta **«¿Qué está pasando?»** (texto, o dictado por la barra del
   asistente). Lo contado va al asistente con el resumen de la retoma para que

@@ -44,6 +44,7 @@
 #include "ipc/HealthBlock.hpp"
 #include "emision/OperatorFeed.hpp"
 #include "emision/SalidasConfig.hpp"
+#include "emision/DocumentoAire.hpp"
 
 namespace ba::app {
 
@@ -255,9 +256,22 @@ class AppRuntime {
     /// La corrida anterior terminó sin cerrarse (corte de luz, cuelgue): hay que
     /// volver como estaba (la escena, la playlist, las salidas).
     bool corteAnterior() const { return corteAnterior_; }
-    /// Lo que había al aire en cada salida al arrancar (Runtime/al-aire.json, la
-    /// generación más nueva que sirve): lo que se retomó. Vacío si estaba dañado.
+    /// Lo que había al aire en cada salida al arrancar (el documento de aire,
+    /// Runtime/al-aire.json, la generación más nueva que sirve): lo que se retomó, con la
+    /// sección de la línea de tiempo (la retoma EventoViewModel). Vacío si estaba dañado.
     const salidas::AlAire& aireAnterior() const { return aireAnterior_; }
+    /// No se sabe en qué iba la línea de tiempo (el documento, o la línea vieja, volvió
+    /// dañado): la del evento abierto vuelve en HOLD preguntando, sin reponer nada.
+    bool lineaDesconocida() const { return lineaDesconocida_; }
+    /// Al arrancar volvió el negro o la placa de alguna salida (para avisarle al operador).
+    bool placaRestaurada() const { return placaRestaurada_; }
+    /// EL DOCUMENTO DE AIRE (F3-04, emision/DocumentoAire.hpp): una sola verdad sobre qué
+    /// está al aire. La sección de las salidas la pone el runtime (writeOnAirState); la de
+    /// la línea, la línea de tiempo (EventoViewModel); lo escribe su dueño.
+    salidas::DocumentoAire& documentoAire() { return documento_; }
+    /// Algo de lo que sale cambió por fuera del runtime (el negro, la placa: SeguridadAire):
+    /// la sección de las salidas se vuelve a poner (el documento compara).
+    void aireCambio();
     /// Lo que el operador tiene que saber de la persistencia (el estado de aire dañado,
     /// la carpeta de datos en FAT/exFAT): lo levanta la alarma «persistencia».
     std::vector<std::string> avisosPersistencia() const;
@@ -312,14 +326,13 @@ class AppRuntime {
     std::function<std::filesystem::path()> carpetaDelEvento_;
     bool grabacionesPorRetomar_ = false; ///< restoreOutputs: esperan la carpeta del evento
     void addAudioInputs();
-    /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
-    /// con --restore para retomar la emision tras una caida.
-    /// También la escena al aire y si el cierre fue ordenado. Escritura atómica.
-    void writeOnAirState() const;
-    /// Lo que sale ahora de cada salida (escena, transmisión, destinos, grabación): lo que
-    /// escribe writeOnAirState y lo que retoma el rearme por la GPU.
+    /// La sección de las salidas del documento de aire: qué salidas estaban activas, la
+    /// escena, el negro y la placa, y si el cierre fue ordenado. La lee el arranque para
+    /// retomar la emisión tras una caída. No escribe nada hasta aireListo_.
+    void writeOnAirState();
+    /// Lo que sale ahora de cada salida (escena, transmisión, destinos, grabación, negro y
+    /// placa): lo que escribe writeOnAirState y lo que retoma el rearme por la GPU.
     salidas::AlAire aireActual() const;
-    static std::filesystem::path archivoAlAire();
     /// F3-09: la GPU del video se perdió (motor/GpuPerdida.hpp; lo mira tick). Apaga el
     /// motor, prueba una GPU nueva (o la CPU, a 720p como mucho), lo vuelve a armar con lo
     /// que había y retoma las salidas que estaban saliendo.
@@ -327,15 +340,18 @@ class AppRuntime {
     /// Las ubicaciones de las fuentes son fracciones del lienzo: de nuevo en píxeles (tras
     /// rearmar el motor con otro lienzo).
     void reubicarFuentes();
-    /// Lee al-aire.json (dos generaciones; el viejo de una sola también) al arrancar:
-    /// deja aireAnterior_ y corteAnterior_, y si está dañado lo avisa (F1-03).
+    /// Lee el documento de aire (dos generaciones; la versión 1 con placa.json y
+    /// linea-aire.json aparte, también) al arrancar: deja aireAnterior_ y corteAnterior_, y
+    /// si está dañado lo avisa (F1-03).
     void leerAireAnterior();
+    /// VOLVER COMO ESTABA, en un solo lugar (F3-04): la escena de cada salida, el negro y
+    /// la placa, y lo que salía (restoreOutputs).
+    void restaurarAire();
+    /// El negro y la placa de cada salida como dice `aire`. true si había alguno.
+    bool restaurarPlacas(const salidas::AlAire& aire);
     /// Retoma lo que transmitían y grababan TODAS las salidas (F1-04). `deEstaCorrida`: lo
     /// que retoma es de esta misma corrida (el rearme por la GPU), también con --test.
     void restoreOutputs(bool deEstaCorrida = false);
-    /// Lo que se escribió por última vez en al-aire.json de las escenas al aire (para
-    /// reescribirlo solo si cambió alguna).
-    std::string firmaDelAire() const;
     /// Crea las salidas guardadas (Config/salidas.json) que el motor todavía no tiene.
     void crearSalidasGuardadas();
     /// Lo común de setScene y setSceneCon después de pedirlo al motor.
@@ -366,13 +382,16 @@ class AppRuntime {
     /// Los destinos (destinos.json) que transmiten, con su salida: vuelven tras un corte.
     std::map<std::string, std::string> destinosAlAire_;
     salidas::AlAire aireAnterior_;
+    salidas::DocumentoAire documento_;
+    bool aireListo_ = false;        ///< ya volvió como estaba: el documento se puede escribir
+    bool lineaDesconocida_ = false; ///< ver lineaDesconocida
+    bool placaRestaurada_ = false;
     mutable std::mutex avisosMu_;
     std::vector<std::string> avisosPersistencia_;
     bool corteAnterior_ = false;
     bool cerrando_ = false;           ///< stop(): al-aire.json dice «cerrado»
     bool emergenciaEnergia_ = false;  ///< cerrarGrabacionesPorEnergia: un cierre es un corte
     std::set<std::string> porEnergia_; ///< las salidas cuya grabación cerró el corte (vuelven)
-    mutable std::string escenaEscrita_; ///< lo que dice al-aire.json de las escenas (firmaDelAire)
     mutable int keySaved_ = -1;   // cache de streamKeySaved (-1 = sin consultar)
     bool safeBackupDone_ = false; // app.json resguardado antes de guardar en modo seguro
     bool started_ = false;

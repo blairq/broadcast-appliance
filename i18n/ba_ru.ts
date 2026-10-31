@@ -37905,8 +37905,8 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1" />
-        <source>Tras un corte: restaurar la placa a los</source>
-        <translation>После сбоя: восстановить заставку через</translation>
+        <source>Al abrir: las capas fijas y los gráficos que arrancan solos, a los</source>
+        <translation>При открытии: постоянные слои и автографика через</translation>
     </message>
     <message>
         <location line="+1" />

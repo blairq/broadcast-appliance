@@ -151,7 +151,7 @@ Salida {
      cerca del límite), `salida_editar` (nombre, color, `tope`), `salida_borrar` (de aire).
      `status` trae `salidas` (resumen de cada una: escena, armada, transmite, graba, destinos,
      limpia, repetición, negro/placa).
-   - App (agregados mínimos): `SeguridadAire` por salida (placa.json con `salidas: {id: …}`);
+   - App (agregados mínimos): `SeguridadAire` por salida (la `placa` de cada salida en el documento de aire `Runtime/al-aire.json`; hasta F3-04, placa.json con `salidas: {id: …}`);
      `AppRuntime::setVolume/setMuted(…, salida)` (las demás no se guardan: viven en el motor),
      `startStreaming/stopStreaming/salirAlAireManual(…, salida)` (otra salida exige servidor y
      clave; no se guarda), `ponerReplay(segundos, salida)`; `StudioViewModel::esperarReplay` y

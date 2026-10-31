@@ -233,7 +233,7 @@ const std::vector<Definicion>& registro() {
         {"supervisor.uiTrabadaMs", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Interfaz trabada a los"), "int", {}, 500, 60000, "ms", QT_TRANSLATE_NOOP("ajustes", "El aviso; lo que se hace después se ajusta en la tarjeta de salud."), "live", json(2000), Destino::App},
         {"launcher.cartelCaidaMin", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Cartel «volvimos de una caída»"), "int", {}, 1, 1440, "min", QT_TRANSLATE_NOOP("ajustes", "Se muestra si la caída fue hace menos que esto."), "live", json(10), Destino::App},
         {"arranque.retomarPlaylistMs", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Tras un corte: retomar la playlist a los"), "int", {}, 0, 60000, "ms", "", "live", json(2000), Destino::App},
-        {"arranque.restaurarPlacaMs", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Tras un corte: restaurar la placa a los"), "int", {}, 0, 60000, "ms", "", "live", json(1500), Destino::App},
+        {"arranque.restaurarPlacaMs", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Al abrir: las capas fijas y los gráficos que arrancan solos, a los"), "int", {}, 0, 60000, "ms", "", "live", json(1500), Destino::App},
         {"arranque.pluginsMs", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Arrancar los plugins a los"), "int", {}, 0, 60000, "ms", "", "live", json(3000), Destino::App},
         {"arranque.revisarElementosS", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Revisar los elementos de GStreamer a los"), "int", {}, 0, 600, "s", "", "live", json(8), Destino::App},
         {"evento.vigiaS", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Evento en curso: revisar cada"), "int", {}, 5, 3600, "s", "", "live", json(60), Destino::App},

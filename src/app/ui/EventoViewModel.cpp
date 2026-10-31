@@ -152,7 +152,7 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
     : QObject(parent), rt_(rt), sala_(sala), graficos_(graficos), store_(rt.dataRoot() / "Eventos") {
     // El reloj del evento va aparte del guion: cambia cada segundo y no tiene
     // sentido redibujar la lista de cues por eso.
-    // Y de paso deja escrito el estado vivo (linea-aire.json): «cada segundo y en
+    // Y de paso deja puesto el estado vivo (la sección `linea` del documento de aire): «cada segundo y en
     // cada cambio». Lo que entra solo lo programa cada EjecutorLinea a la hora justa.
     reloj_.setInterval(1000);
     connect(&reloj_, &QTimer::timeout, this, [this]() {
@@ -2063,43 +2063,34 @@ void EventoViewModel::guionDesdeLinea() {
     if (corrida_) despachar(corrida_->alDia(ahoraMs()));
 }
 
-std::filesystem::path EventoViewModel::archivoVivo() const { return ba::platform::dataRoot() / "Runtime" / "linea-aire.json"; }
-
 void EventoViewModel::escribirVivo() {
     // Lo que sale de verdad: el ensayo no se retoma.
     if (!corriendo() || ensayo_) return;
     json j = corrida_->aJsonVivo(ahoraMs());
     j["evento"] = abierto_.toStdString();
-    // Al hilo escritor (este es el de la UI: no toca el disco), con prioridad de aire y
-    // en dos generaciones: un corte en cualquier momento deja una entera.
-    ba::persist::cola().escribirGeneracion(archivoVivo(), j.dump(-1, ' ', false, json::error_handler_t::replace));
+    // La sección de la línea del documento único de aire (F3-04; antes, Runtime/linea-aire.json
+    // aparte): el paso de la corrida y los HOLD van en la MISMA versión que la escena, la
+    // placa y las salidas de ese momento. Lo escribe el dueño del documento, no este hilo.
+    rt_.documentoAire().ponerLinea(std::move(j));
 }
 
-void EventoViewModel::borrarVivo() { ba::persist::cola().borrar(archivoVivo(), ba::persist::Prioridad::Aire); }
+void EventoViewModel::borrarVivo() { rt_.documentoAire().ponerLinea(json()); }
 
 void EventoViewModel::retomarLinea() {
-    const ba::persist::Lectura l = ba::persist::cola().leerGeneraciones(archivoVivo());
-    if (l.estado == ba::persist::Lectura::Estado::Nada) return;
-    const json j = json::parse(l.cuerpo, nullptr, false);
-    if (!j.is_object()) {
-        // Las dos generaciones rotas: no se sabe en qué iba la línea. Nunca seguir
-        // callados: la del evento abierto vuelve en HOLD en todas las salidas, con la
-        // pregunta de siempre, sin nada repuesto (lo que estaba al aire lo dice quien
-        // opera), y suena la alarma.
-        rt_.avisarPersistencia(tr("El estado de la línea de tiempo (linea-aire.json) volvió dañado tras el corte: la "
-                                  "línea quedó en HOLD sin saber en qué paso iba. Contá qué está pasando y reenganchala "
-                                  "a mano.")
-                                   .toStdString());
+    // Lo leyó el runtime al arrancar, con el resto del documento (una sola lectura, de un
+    // solo momento): lo que había al aire y en qué iba la línea.
+    const json& j = rt_.aireAnterior().linea;
+    if (rt_.lineaDesconocida()) {
+        // El documento (o la línea de la versión anterior) volvió dañado: no se sabe en qué
+        // iba la línea. Nunca seguir callados: la del evento abierto vuelve en HOLD en
+        // todas las salidas, con la pregunta de siempre, sin nada repuesto (lo que estaba
+        // al aire lo dice quien opera). La alarma ya la levantó el runtime.
         if (abierto_.isEmpty()) return;
         const int64_t ahora = ahoraMs();
         retomarDesde(json{{"estado", "corriendo"}, {"evento", abierto_.toStdString()}, {"escritoMs", ahora}, {"arranqueMs", ahora}});
         return;
     }
-    if (l.descartadas > 0)
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "linea", 0,
-                                   tr("linea-aire.json: la última generación estaba rota (corte a mitad); se retoma la "
-                                      "anterior")
-                                       .toStdString());
+    if (!j.is_object()) return;
     const std::string est = j.value("estado", std::string());
     if (est != "corriendo" && est != "pausada") {
         borrarVivo();

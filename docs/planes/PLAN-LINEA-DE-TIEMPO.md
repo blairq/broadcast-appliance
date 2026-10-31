@@ -366,7 +366,7 @@ Va una fila por salida o con filtro de salida. Las filas al aire y próxima se m
 ### 3.8 Persistencia
 - **El plan:** `Eventos/<x>/evento.json` → `linea`, con versión 2 y migración desde la 1.
 - **Lo emitido:** `Eventos/<x>/recorrido.jsonl`, en el que se va escribiendo.
-- **El estado vivo:** `Runtime/linea-aire.json` (por salida: paso al aire con su `desdeMs`, próximo, holds, piezas activas con su arranque real), escrito de forma atómica cada 1 s y en cada cambio.
+- **El estado vivo:** la sección `linea` del documento de aire `Runtime/al-aire.json` (F3-04; antes `Runtime/linea-aire.json` aparte) (por salida: paso al aire con su `desdeMs`, próximo, holds, piezas activas con su arranque real), escrito de forma atómica cada 1 s y en cada cambio.
 - **Tras un corte de luz** (la regla T47: todo vuelve solo como estaba):
   - se reconstruye el estado con el resolvedor y se reponen las piezas de vida larga (música, gráficos fijos, DSK);
   - las piezas puntuales que se perdieron siguen su `siSePerdio` (por defecto `saltar` para las automáticas y `preguntar` para las de `asistente`);

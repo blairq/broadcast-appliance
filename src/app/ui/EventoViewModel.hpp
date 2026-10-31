@@ -552,8 +552,8 @@ class EventoViewModel : public QObject {
     /// Arranque previsto, medianoche y fin planeado, en el huso del evento. `hoy`:
     /// del día de hoy (para correr); si no, del día del evento.
     evento::linea::Entrada entradaBase(bool hoy) const;
-    /// Runtime/linea-aire.json (el estado vivo, para volver de un corte).
-    std::filesystem::path archivoVivo() const;
+    /// El estado vivo, para volver de un corte: la sección `linea` del documento de aire
+    /// (AppRuntime::documentoAire, F3-04). Borrarlo es dejar la sección vacía.
     void escribirVivo();
     void borrarVivo();
     /// Al arrancar después de un corte: si la línea estaba corriendo, vuelve en HOLD.
@@ -670,7 +670,7 @@ class EventoViewModel : public QObject {
     bool ensayo_ = false;
     QVariantList bitacora_;
     std::vector<evento::Reparo> reparos_;
-    /// Cada segundo mientras corre: la cuenta de la vista y el estado vivo (linea-aire.json).
+    /// Cada segundo mientras corre: la cuenta de la vista y el estado vivo (documento de aire).
     QTimer reloj_;
     QTimer vigiaEnCurso_; ///< cada minuto: el cambio de día y el evento automático
     bool automatico_ = true;

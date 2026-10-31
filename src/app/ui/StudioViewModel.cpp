@@ -2378,9 +2378,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     tick_.start(100);
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
     frameTick_.start(16); // hasta 60 Hz; FrameService solo avisa si hay frame nuevo
-    // Tras una caída: la placa o el negro vuelven como estaban.
+    // El negro y la placa ya volvieron con el runtime (AppRuntime::restaurarAire, F3-04):
+    // acá solo se avisa, con la interfaz ya cargada (lo encolado corre con el bucle andando).
+    if (rt_.placaRestaurada())
+        QMetaObject::invokeMethod(
+            this, [this]() { emit notify(tr("Se restauró lo que estaba al aire antes del corte (placa o negro)"), "warn"); },
+            Qt::QueuedConnection);
+    // Lo que arranca al abrir el programa: las capas fijas (DSK) y los gráficos con `alAbrir`.
     QTimer::singleShot(ba::ajustes::entero("arranque.restaurarPlacaMs", 1500), this, [this]() {
-        restaurarPlaca();
         if (dsk_) dsk_->restaurar();
         // Los gráficos que arrancan solos al abrir el evento (ajuste `alAbrir` de la
         // fuente): el logo que flamea en bucle, la placa de espera. Sin esto, una
@@ -4028,11 +4033,6 @@ QStringList StudioViewModel::textosPlaca() const {
     const QString usado = QString::fromStdString(rt_.engine().estadoPlaca().value("placa_texto", std::string()));
     if (!usado.isEmpty() && !l.contains(usado)) l.prepend(usado);
     return l;
-}
-
-void StudioViewModel::restaurarPlaca() {
-    if (seguridadAire_->restaurar())
-        emit notify(tr("Se restauró lo que estaba al aire antes del corte (placa o negro)"), "warn");
 }
 
 QObject* StudioViewModel::cuerpoQml() const { return cuerpo_.get(); }

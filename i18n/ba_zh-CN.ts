@@ -37619,8 +37619,8 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1" />
-        <source>Tras un corte: restaurar la placa a los</source>
-        <translation>中断后：恢复垫片画面的时间</translation>
+        <source>Al abrir: las capas fijas y los gráficos que arrancan solos, a los</source>
+        <translation>打开时：固定图层和自动启动的图形的时间</translation>
     </message>
     <message>
         <location line="+1" />

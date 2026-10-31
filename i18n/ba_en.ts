@@ -39217,8 +39217,8 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>Tras un corte: restaurar la placa a los</source>
-        <translation>After an outage: restore the slate after</translation>
+        <source>Al abrir: las capas fijas y los gráficos que arrancan solos, a los</source>
+        <translation>On open: fixed layers and auto-start graphics after</translation>
     </message>
     <message>
         <location line="+1" />
