@@ -134,10 +134,22 @@ const Pieza* Corrida::pieza(const std::string& paso, const std::string& id) cons
 
 // --- Moverse ---------------------------------------------------------------------------
 
+int64_t Corrida::corrimientoDePausa(const Instancia& x, int64_t ahora) const {
+    return estado_ == EstadoCorrida::Pausada ? std::max<int64_t>(0, ahora - std::max(pausadoDesdeMs_, x.desdeMs)) : 0;
+}
+
+void Corrida::cerrar(Instancia& x, int64_t ahora) {
+    // Lo pausado no cuenta, tampoco para lo que sale EN la pausa (un GO pausado, el fin
+    // del ensayo que graba sin reanudar): se corre su entrada como al reanudar, y lo que
+    // duró es lo que corrió de verdad (lo que lee tiemposGrabados).
+    x.desdeMs += corrimientoDePausa(x, ahora);
+    x.hastaMs = ahora;
+}
+
 void Corrida::entrar(const std::string& salida, const std::string& paso, ComoEntro como, int64_t ahora, std::vector<Accion>& acc) {
     if (const int i = indiceAlAire(salida); i >= 0) {
         Instancia& x = instancias_[static_cast<std::size_t>(i)];
-        x.hastaMs = ahora;
+        cerrar(x, ahora);
         anotar(ahora, "sale", {{"salida", salida}, {"paso", x.paso}, {"desdeMs", x.desdeMs}});
     }
     instancias_.push_back({salida, paso, ahora, 0, como});
@@ -260,7 +272,7 @@ std::vector<Accion> Corrida::go(const std::string& salida, int64_t ahora) {
     if (sr->proximo.empty()) {
         // No hay más: la salida termina. La corrida, cuando ya no queda nada al aire.
         if (const int i = indiceAlAire(salida); i >= 0) {
-            instancias_[static_cast<std::size_t>(i)].hastaMs = ahora;
+            cerrar(instancias_[static_cast<std::size_t>(i)], ahora);
             anotar(ahora, "sale", {{"salida", salida}, {"paso", instancias_[static_cast<std::size_t>(i)].paso}});
         }
         acc.push_back({Accion::Que::Termina, salida, {}, {}, {}, false, {}});
@@ -472,7 +484,7 @@ std::vector<Accion> Corrida::reanudar(int64_t ahora) {
     // zócalo a los 5 s) y su fin previsto no se comen la pausa.
     for (Instancia& x : instancias_) {
         if (x.hastaMs != 0) continue;
-        const int64_t corre = ahora - std::max(pausadoDesdeMs_, x.desdeMs);
+        const int64_t corre = corrimientoDePausa(x, ahora);
         x.desdeMs += corre;
         // Lo que ya arrancó adentro del paso se corre igual: sigue a la misma distancia.
         const std::string pre = x.salida + "/" + x.paso + "/";
@@ -492,7 +504,7 @@ std::vector<Accion> Corrida::terminar(int64_t ahora) {
     if (estado_ == EstadoCorrida::Pausada) pausadoMs_ += ahora - pausadoDesdeMs_;
     for (Instancia& x : instancias_)
         if (x.hastaMs == 0) {
-            x.hastaMs = ahora;
+            cerrar(x, ahora);
             anotar(ahora, "sale", {{"salida", x.salida}, {"paso", x.paso}});
         }
     estado_ = EstadoCorrida::Terminada;

@@ -469,27 +469,25 @@ int Emisor::msEstable(const QJsonObject& ficha) {
     return std::clamp(ficha.value("duracionMs").toInt(2000) - 1000 / kFps, 0, kMaxSegundos * 1000);
 }
 
-QImage Emisor::dibujarQuieto(const QString& grafico, const QJsonObject& valores, QSize tam, QString* error) {
-    QString e;
-    // En un compartido: uno de plugin contesta DESPUÉS (cuando esto ya volvió) y la
-    // imagen tiene que seguir existiendo; para esto no sirve, pero no se rompe.
-    auto img = std::make_shared<QImage>();
-    if (!d_->proc.disponible()) {
-        e = tr("el renderizador de gráficos no está en este bundle");
-    } else {
-        const QJsonObject f = ficha(grafico);
-        e = conPedido(grafico, valores, tam, [this, f, tam, img](QJsonObject p) -> QString {
-            p["ancho"] = tam.width();
-            p["alto"] = tam.height();
-            QString err;
-            const auto cuadro = d_->proc.tira(p, QVector<int>{msEstable(f)}, &err);
-            if (err.isEmpty() && !cuadro.empty()) *img = cuadro.front().imagen;
-            return err;
-        });
-        if (e.isEmpty() && img->isNull()) e = tr("el gráfico es de un plugin: no se dibuja aparte");
-    }
-    if (error) *error = e;
-    return e.isEmpty() ? *img : QImage();
+void Emisor::dibujarQuieto(const QString& grafico, const QJsonObject& valores, const QString& fuente,
+                           std::function<void(QImage, QString)> listo) {
+    if (!d_->proc.disponible()) return listo({}, tr("el renderizador de gráficos no está en este bundle"));
+    const QJsonObject f = ficha(grafico);
+    QSize tam = tamanoDe(fuentePorNombre(fuente));
+    if (!tam.isValid()) tam = QSize(f.value("ancho").toInt(900), f.value("alto").toInt(220));
+    // Por resolver y no por conPedido: un plugin contesta DESPUÉS y su error no es un
+    // «el gráfico no salió» del aire (esto no sale).
+    QPointer<Emisor> yo(this);
+    resolver(grafico, valores, tam, [yo, f, tam, listo](QJsonObject p, QString e) {
+        if (!yo) return;
+        if (!e.isEmpty()) return listo({}, e);
+        p["ancho"] = tam.width();
+        p["alto"] = tam.height();
+        QString err;
+        const auto cuadro = yo->d_->proc.tira(p, QVector<int>{msEstable(f)}, &err);
+        if (err.isEmpty() && cuadro.empty()) err = tr("el renderizador no devolvió el cuadro");
+        listo(err.isEmpty() ? cuadro.front().imagen : QImage(), err);
+    });
 }
 
 QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente) {

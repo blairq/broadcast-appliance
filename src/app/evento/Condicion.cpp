@@ -18,6 +18,12 @@ namespace {
 
 constexpr int64_t kDiaMs = 24LL * 3600 * 1000;
 
+bool empieza(const std::string& s, const char* pre) { return s.rfind(pre, 0) == 0; }
+
+/// ¿Es (o empieza a ser) un pulso? Ahí el «+» es de la tecla («tecla:Ctrl+F5»), no la
+/// suma de tiempo (que solo va después de «pieza:<id>.fin»).
+bool esPulso(const std::string& w) { return empieza(w, "tecla:") || empieza(w, "botonera:") || empieza(w, "web:"); }
+
 // --- Leer -------------------------------------------------------------------------------
 
 /// Separa en palabras: los operadores y los paréntesis sueltos, lo citado entero.
@@ -49,6 +55,10 @@ std::vector<std::string> palabras(const std::string& s) {
             ++i;
             continue;
         }
+        if (c == '+' && esPulso(cur)) {
+            cur += c;
+            continue;
+        }
         if (c == '>' || c == '<' || c == '(' || c == ')' || c == '!' || c == '+') {
             cortar();
             out.push_back(std::string(1, c));
@@ -61,8 +71,6 @@ std::vector<std::string> palabras(const std::string& s) {
 }
 
 bool esOperador(const std::string& t) { return t == "==" || t == "!=" || t == ">=" || t == "<=" || t == ">" || t == "<"; }
-
-bool empieza(const std::string& s, const char* pre) { return s.rfind(pre, 0) == 0; }
 
 /// "HH:MM" o "H:MM" → minutos; -1 si no es una hora.
 int minutosDe(const std::string& t) {
@@ -108,6 +116,7 @@ struct Atomo {
     json valor;
     int minutos = 0; ///< hora
     int64_t masMs = 0; ///< pieza: «+ 2s»
+    std::string clave; ///< pulso: con qué se compara (clavePulso de ref)
 };
 
 struct Nodo {
@@ -251,6 +260,7 @@ class Lector {
                    (empieza(w, "web:") && w.size() > 4)) {
             a.clase = Atomo::Clase::Pulso;
             a.ref = w;
+            a.clave = clavePulso(w);
         } else {
             e = ba::i18n::llenar(ba::i18n::traducir("linea", "«%1» no es una condición que conozca (bus:, medio:, hora, "
                                                               "pieza:, tecla:, botonera:, web:)"),
@@ -356,7 +366,7 @@ Evaluacion evaluarAtomo(const Atomo& a, const Mundo& m) {
             return ev;
         }
         case Atomo::Clase::Pulso:
-            ev.cumple = m.pulsos.count(a.ref) > 0;
+            ev.cumple = std::any_of(m.pulsos.begin(), m.pulsos.end(), [&](const std::string& p) { return clavePulso(p) == a.clave; });
             if (ev.cumple) ev.desdeMs = m.ahoraMs;
             return ev;
     }
@@ -439,10 +449,47 @@ std::vector<std::string> temasDe(const Condicion& c) {
 }
 
 std::vector<std::string> pulsosDe(const Linea& l) {
-    std::vector<std::string> out;
+    std::vector<std::string> todos;
     for (const Condicion& c : condicionesDe(l))
-        if (const Nodo* n = leida(c)) refsDeNodo(*n, Atomo::Clase::Pulso, out);
+        if (const Nodo* n = leida(c)) refsDeNodo(*n, Atomo::Clase::Pulso, todos);
+    // La misma tecla escrita de dos maneras («ctrl+f5» y «Ctrl+F5») es un solo pulso.
+    std::vector<std::string> out;
+    std::set<std::string> claves;
+    for (std::string& p : todos)
+        if (claves.insert(clavePulso(p)).second) out.push_back(std::move(p));
     return out;
+}
+
+std::string clavePulso(const std::string& pulso) {
+    if (!empieza(pulso, "tecla:")) return pulso;
+    std::string t;
+    for (const char c : pulso.substr(6))
+        t += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    // La tecla es lo último; un «+» al final que sigue a otro (o solo) es la tecla «+».
+    std::string tecla;
+    if (t == "+" || (t.size() >= 2 && t.compare(t.size() - 2, 2, "++") == 0)) {
+        tecla = "+";
+        t.resize(t.size() >= 2 ? t.size() - 2 : 0);
+    } else {
+        const std::size_t u = t.rfind('+');
+        tecla = u == std::string::npos ? t : t.substr(u + 1);
+        t.resize(u == std::string::npos ? 0 : u);
+    }
+    // Los modificadores, como conjunto y con un solo nombre cada uno.
+    std::set<std::string> mods;
+    for (std::size_t i = 0; i < t.size();) {
+        const std::size_t j = std::min(t.find('+', i), t.size());
+        std::string m = t.substr(i, j - i);
+        if (m == "control") m = "ctrl";
+        else if (m == "cmd" || m == "command" || m == "meta" || m == "win") m = "meta";
+        else if (m == "option" || m == "opt") m = "alt";
+        if (!m.empty()) mods.insert(m);
+        i = j + 1;
+    }
+    std::string out = "tecla:";
+    for (const std::string& m : mods)
+        out += m + "+";
+    return out + tecla;
 }
 
 std::set<Condicion> condicionesDe(const Linea& l) {

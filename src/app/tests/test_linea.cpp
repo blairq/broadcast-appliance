@@ -36,6 +36,7 @@
 #include "evento/LineaPlantillas.hpp"
 #include "evento/Linea.hpp"
 #include "evento/LineaEdicion.hpp"
+#include "evento/LineaProductor.hpp"
 
 using namespace ba::evento::linea;
 using json = nlohmann::json;
@@ -1208,6 +1209,21 @@ void testCorridaHoldYPausa() {
     CHECK(c.pausadoMs(T0 + 150 * S) == 55 * S, "y se lleva la cuenta de lo pausado (para el desvío)");
     acc = c.tick(T0 + 155 * S);
     CHECK(hay(acc, Accion::Que::EntraPaso, "p3"), "y sigue solo");
+    CHECK(c.instancias()[1].hastaMs - c.instancias()[1].desdeMs == 10 * S, "lo que duró p2 no cuenta la pausa");
+
+    // Lo que sale EN la pausa (el ensayo que graba: GO o parar sin reanudar) tampoco la
+    // cuenta: lo que duró es lo que corrió.
+    Corrida g(lineaParaGrabar(l), entrada(T0));
+    g.arrancar(T0);
+    g.pausar(T0 + 20 * S);
+    g.go("principal", T0 + 80 * S); // GO pausado: p1 corrió 20 s
+    CHECK(g.instancias()[0].hastaMs - g.instancias()[0].desdeMs == 20 * S, "un GO en pausa: la pausa no es del paso");
+    g.reanudar(T0 + 90 * S);
+    g.pausar(T0 + 100 * S);
+    g.terminar(T0 + 400 * S); // p2: 10 s corridos (los 10 de la pausa antes del GO, no)
+    CHECK(g.instancias()[1].hastaMs - g.instancias()[1].desdeMs == 10 * S, "parar en pausa: tampoco");
+    const json tg = tiemposGrabados(l, g.instancias());
+    CHECK(tg["totalGrabadoSeg"] == 30, "los tiempos grabados no suman las pausas");
 }
 
 void testCorridaSaltosEIr() {
@@ -1353,6 +1369,23 @@ void testCondiciones() {
     CHECK(!evaluar("tecla:F5", m).cumple, "un pulso que no pasó");
     m.pulsos.insert("tecla:F5");
     CHECK(evaluar("tecla:F5", m).cumple && evaluar("tecla:F5", m).desdeMs == T0, "el pulso, en su instante");
+    // Con modificadores: el «+» es de la tecla, no la suma de tiempo.
+    CHECK(errorDeCondicion("tecla:Ctrl+F5").empty() && errorDeCondicion("tecla:Ctrl+Shift+F5 y bus:x").empty() &&
+              errorDeCondicion("tecla:Ctrl++").empty(),
+          "tecla con modificadores, bien escrita");
+    CHECK(!evaluar("tecla:Ctrl+F5", m).cumple, "F5 sola no es Ctrl+F5");
+    m.pulsos.insert("tecla:Ctrl+Shift+F5"); // la forma de Qt (Acciones::tecla)
+    CHECK(evaluar("tecla:shift+ctrl+f5", m).cumple && evaluar("tecla:Control+Shift+F5 o web:x", m).cumple,
+          "los modificadores como conjunto, sin mayúsculas");
+    CHECK(!evaluar("tecla:Ctrl+F5", m).cumple, "sin Shift no");
+    m.pulsos.insert("tecla:Ctrl++");
+    CHECK(evaluar("tecla:ctrl++", m).cumple && clavePulso("tecla:Ctrl++") == "tecla:ctrl++" &&
+              clavePulso("tecla:Shift+Ctrl+F5") == "tecla:ctrl+shift+f5" && clavePulso("web:A+B") == "web:A+B",
+          "la tecla «+» y la clave");
+    CHECK(evaluar("pieza:z9.fin+2s", m).cumple == false && errorDeCondicion("pieza:z9.fin+2s").empty(),
+          "pegado a una pieza, el «+» sigue siendo la suma");
+    m.pulsos.erase("tecla:Ctrl+Shift+F5");
+    m.pulsos.erase("tecla:Ctrl++");
 
     // La hora: cuándo cambia y desde cuándo vale.
     Evaluacion h = evaluar("hora>=19:30", m);

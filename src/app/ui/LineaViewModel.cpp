@@ -420,26 +420,40 @@ void LineaViewModel::mirarFoto(const QString& escena, bool mirar) {
 // «Con lo que va a tener»: la escena del paso con los gráficos que el paso pone solos
 // (no los adlibs), cada uno con sus valores y en su cuadro estable. Se dibuja APARTE,
 // nunca en el aire: la foto de la escena (la de capturarAparte, cada 20 s) y encima cada
-// gráfico dibujado por el renderizador de gráficos (Emisor::dibujarQuieto).
+// gráfico dibujado por el renderizador de gráficos (Emisor::dibujarQuieto), al tamaño de
+// su fuente y en el LUGAR que esa fuente ocupa en la escena (itemsVisibles: fracciones
+// del lienzo). Si la fuente no está en la escena (va en un DSK, o todavía no existe), a
+// pantalla completa. Los de plugin contestan después: la compuesta se arma al llegar.
 //
 // EL PRESUPUESTO. Solo el próximo y los dos que siguen; cada gráfico se dibuja UNA vez
-// por (gráfico, valores) y de a uno cada 2 s (el renderizador hace esperar a quien
-// pide); componer es pintar imágenes chicas. Lo que sale del presupuesto se suelta.
+// por (gráfico, valores, fuente) y de a uno cada 2 s (el renderizador hace esperar a
+// quien pide); componer es pintar imágenes chicas: la capa se guarda ya achicada al
+// ancho de la miniatura. Lo que sale del presupuesto se suelta.
 
 namespace {
 
-/// Los gráficos que un paso pone solo: [(gráfico, valores)].
-std::vector<std::pair<std::string, json>> graficosDePaso(const ln::Paso& p) {
-    std::vector<std::pair<std::string, json>> out;
+struct GraficoDePaso {
+    std::string grafico, fuente, clave;
+    json valores;
+};
+
+/// Los gráficos que un paso pone solo, con la clave de su capa (gráfico, fuente, valores).
+std::vector<GraficoDePaso> graficosDePaso(const ln::Paso& p) {
+    std::vector<GraficoDePaso> out;
     for (const ln::Pieza& z : p.piezas) {
         if (z.tipo != "grafico" || z.desde.modo == ln::Ancla::Modo::Manual) continue;
         const std::string accion = z.datos.value("accion", std::string("mostrar"));
-        const std::string g = z.datos.value("grafico", std::string());
-        if (accion != "mostrar" || g.empty()) continue;
-        out.emplace_back(g, z.datos.value("valores", json::object()));
+        GraficoDePaso g{z.datos.value("grafico", std::string()), z.datos.value("fuente", std::string()), {},
+                        z.datos.value("valores", json::object())};
+        if (accion != "mostrar" || g.grafico.empty()) continue;
+        g.clave = g.grafico + "|" + g.fuente + "|" + g.valores.dump(-1, ' ', false, json::error_handler_t::replace);
+        out.push_back(std::move(g));
     }
     return out;
 }
+
+/// Ancho de una capa guardada: el de la miniatura (la foto es de 320).
+constexpr int kAnchoCapa = 320;
 
 } // namespace
 
@@ -467,25 +481,42 @@ void LineaViewModel::miniaturasConGraficos(const ln::SalidaResuelta& sr, int64_t
         // Cada gráfico, una vez (y de a uno cada tanto).
         std::string firma = escena + "|" + std::to_string(fotoMs_[escena]);
         bool completos = true;
-        for (const auto& [g, valores] : gs) {
-            const std::string clave = g + "|" + valores.dump(-1, ' ', false, json::error_handler_t::replace);
-            firma += "|" + clave;
-            if (capas_.count(clave)) continue;
+        for (const GraficoDePaso& g : gs) {
+            firma += "|" + g.clave;
+            if (capas_.count(g.clave)) continue;
             completos = false;
-            if (ahora - ultimoDibujoMs_ < kDibujoCadaMs) continue;
+            if (capasEnCurso_.count(g.clave) || ahora - ultimoDibujoMs_ < kDibujoCadaMs) continue;
             ultimoDibujoMs_ = ahora;
-            const QJsonObject qv = QJsonDocument::fromJson(QByteArray::fromStdString(valores.dump())).object();
+            capasEnCurso_.insert(g.clave);
+            const QJsonObject qv = QJsonDocument::fromJson(QByteArray::fromStdString(g.valores.dump())).object();
+            QPointer<LineaViewModel> yo(this);
             // Nula si no se pudo: la compuesta va sin ese gráfico (y no se vuelve a pedir).
-            capas_[clave] = em->dibujarQuieto(QString::fromStdString(g), qv, foto.size());
-            if (capas_.size() > 64) capas_.erase(capas_.begin());
+            em->dibujarQuieto(QString::fromStdString(g.grafico), qv, QString::fromStdString(g.fuente),
+                              [yo, clave = g.clave](QImage img, QString) {
+                                  if (!yo) return;
+                                  yo->capasEnCurso_.erase(clave);
+                                  if (!img.isNull() && img.width() > kAnchoCapa)
+                                      img = img.scaledToWidth(kAnchoCapa, Qt::SmoothTransformation);
+                                  yo->capas_[clave] = img;
+                                  if (yo->capas_.size() > 64) yo->capas_.erase(yo->capas_.begin());
+                                  yo->pedirRecalculo(); // la compuesta, con esta capa
+                              });
         }
         if (!completos || firmas_[p->id] == firma) continue;
+        // Dónde va cada uno: el lugar de su fuente en la escena (en la foto de ahora).
+        std::map<std::string, CanvasRect> lugares;
+        for (const auto& [fuente, r] : engine_.itemsVisibles(escena)) lugares[fuente] = r;
         QImage out = foto.convertToFormat(QImage::Format_ARGB32_Premultiplied);
         QPainter pintor(&out);
         pintor.setRenderHint(QPainter::SmoothPixmapTransform);
-        for (const auto& [g, valores] : gs) {
-            const QImage& capa = capas_[g + "|" + valores.dump(-1, ' ', false, json::error_handler_t::replace)];
-            if (!capa.isNull()) pintor.drawImage(out.rect(), capa);
+        for (const GraficoDePaso& g : gs) {
+            const QImage& capa = capas_[g.clave];
+            if (capa.isNull()) continue;
+            const auto l = lugares.find(g.fuente);
+            const QRectF donde = l == lugares.end() ? QRectF(out.rect())
+                                                    : QRectF(l->second.x * out.width(), l->second.y * out.height(),
+                                                             l->second.w * out.width(), l->second.h * out.height());
+            pintor.drawImage(donde, capa);
         }
         pintor.end();
         firmas_[p->id] = firma;
