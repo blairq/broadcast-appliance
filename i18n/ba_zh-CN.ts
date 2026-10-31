@@ -29791,11 +29791,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>配置「%1」已损坏：已载入上一版本（损坏的文件保存为 .corrupto）。</translation>
     </message>
     <message>
-        <location line="+13" />
-        <source>El aviso por «%1» no salió: %2</source>
-        <translation>通过「%1」发送的通知未能发出：%2</translation>
-    </message>
-    <message>
         <location line="+118" />
         <source>Modo seguro</source>
         <translation>安全模式</translation>
@@ -30373,6 +30368,13 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>AlarmasViewModel</name>
+    <message>
+        <source>El aviso por «%1» no salió: %2</source>
+        <translation>通过「%1」发送的通知未能发出：%2</translation>
     </message>
 </context>
 <context>

@@ -29910,11 +29910,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>A configuração “%1” estava danificada: foi carregada a versão anterior (a danificada ficou como .corrupto).</translation>
     </message>
     <message>
-        <location line="+13" />
-        <source>El aviso por «%1» no salió: %2</source>
-        <translation>O aviso por “%1” não saiu: %2</translation>
-    </message>
-    <message>
         <location line="+118" />
         <source>Modo seguro</source>
         <translation>Modo seguro</translation>
@@ -30495,6 +30490,13 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 fecha o aplicativo e %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AlarmasViewModel</name>
+    <message>
+        <source>El aviso por «%1» no salió: %2</source>
+        <translation>O aviso por “%1” não saiu: %2</translation>
     </message>
 </context>
 <context>

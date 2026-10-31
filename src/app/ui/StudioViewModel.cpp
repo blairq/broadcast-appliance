@@ -758,150 +758,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     energia_->vigilar();
     connect(energia_.get(), &EnergiaAire::aviso, this, &StudioViewModel::notify);
     // Disparadores (alertas) contra el estado real de la app, y la pestaña Asistente. El
-    // vigía corre en el plano de control (F3-03): `in` es lo que se lee en ESTE hilo y se
-    // le pasa como foto (agent/EntradasAlarmas); `directas`, lo seguro entre hilos, que
-    // sigue con la interfaz trabada (todo lo que sale al aire).
+    // vigía corre en el plano de control (F3-03) y lee lo que dicen sus fuentes
+    // (ui/AlarmasViewModel): lo de la interfaz como foto, lo del aire directo.
     {
-        agent::AlertInputs in;
-        in.energia = [this]() { return energia_->estado(); };
-        in.audio = [this]() {
-            std::vector<agent::AlertInputs::Audio> out;
-            for (const std::string& n : rt_.engine().audioSources())
-                out.push_back({n, rt_.engine().sourcePeakDb(n), rt_.engine().sourceMuted(n)});
-            return out; // la mezcla del programa va directa (abajo)
-        };
-        in.media = [this]() {
-            std::vector<agent::AlertInputs::Media> out;
-            for (const auto& m : rt_.engine().mediaSources())
-                out.push_back({m.name, m.state, m.durationMs, m.timeMs});
-            return out;
-        };
-        in.room = [this]() {
-            return nlohmann::json::parse(
-                QJsonDocument(conference_->client().snapshot()).toJson(QJsonDocument::Compact).toStdString(),
-                nullptr, false);
-        };
-        in.chat = [this]() {
-            std::vector<nlohmann::json> out;
-            for (const auto& m : chatOverlay_->collect())
-                out.push_back({{"key", m.key.toStdString()},
-                               {"platform", m.source.toStdString()},
-                               {"author", m.author.toStdString()},
-                               {"text", m.text.toStdString()}});
-            return out;
-        };
-        // Las salidas de texto (voz a texto con nombre): las últimas frases.
-        in.textos = [this]() {
-            std::vector<nlohmann::json> out;
-            if (!flujos_) return out;
-            const std::uint64_t ultimo = flujos_->ultimoSeq();
-            for (const auto& f : flujos_->desde(ultimo > 50 ? ultimo - 50 : 0))
-                out.push_back({{"key", std::to_string(f.seq)},
-                               {"flujo", f.flujo.toStdString()},
-                               {"texto", f.texto.toStdString()},
-                               {"origen", f.origen.toStdString()}});
-            return out;
-        };
-        in.roomChat = [this]() {
-            return nlohmann::json::parse(
-                QJsonDocument(static_cast<JsonListModel*>(conference_->chat())->items())
-                    .toJson(QJsonDocument::Compact)
-                    .toStdString(),
-                nullptr, false);
-        };
-
-        // El disco de todo lo que se graba (por volumen; la copia en el mismo disco). Mira
-        // el espacio libre de cada carpeta: una vez cada 5 s alcanza.
-        in.disco = [this, cache = std::make_shared<std::pair<qint64, nlohmann::json>>()]() {
-            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-            if (cache->first == 0 || ahora - cache->first >= 5000) *cache = {ahora, rt_.discoGrabacion()};
-            return cache->second;
-        };
-        // Señal de cada entrada de video (las de GStreamer: cuadros que llegan). Se
-        // consulta como mucho una vez por segundo.
-        in.senales = [this, cache = std::make_shared<std::pair<qint64, std::vector<std::pair<std::string, bool>>>>(),
-                      // Histéresis: la que quedó sin señal vuelve a «con señal» recién
-                      // después de 10 s seguidos con cuadros. Una cámara que se corta y
-                      // vuelve cada pocos segundos disparaba la alarma otra vez a cada
-                      // rato (y la franja roja reaparecía apenas se la reconocía).
-                      vuelta = std::make_shared<std::map<std::string, std::pair<bool, qint64>>>(),
-                      desde = QDateTime::currentMSecsSinceEpoch()]() {
-            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-            // Recién arrancada, las entradas todavía se están conectando (una cámara de red
-            // tarda unos segundos): no hay alarmas de «sin señal» los primeros 15 s.
-            if (ahora - desde < 15000) return std::vector<std::pair<std::string, bool>>{};
-            if (video_ && ahora - cache->first > 1000) {
-                cache->first = ahora;
-                cache->second.clear();
-                for (const QString& e : video_->entradas()) {
-                    const nlohmann::json st = video_->estadoEntrada(e.toStdString());
-                    if (!st.contains("gstreamer")) continue; // sin el dato de GStreamer: sin cuadros que mirar
-                    const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
-                    if (!g.is_object()) continue;
-                    // Las de los invitados y el remoto: sin nadie conectado no hay cuadros, y
-                    // no es una falla (para eso está «invitado caído»).
-                    const nlohmann::json aj = st.value("ajustes", nlohmann::json::object());
-                    if (aj.is_object() && (aj.value("video_invitado", false) ||
-                                           aj.value("pipeline", std::string()).rfind("bavideoanillo", 0) == 0))
-                        continue;
-                    const bool activa = st.value("activa", true);
-                    // Una que todavía no entregó nada (una cámara de red conectándose): hasta
-                    // los 45 s del arranque no es «sin señal»; la que tenía y la perdió, sí.
-                    const bool nuncaLlego = g.value("sin_datos_s", 0.0) < 0.0;
-                    bool con = !activa || video::VideoGrafos::tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
-                    // La primera vez que se la ve no «vuelve» de nada: arranca dada por buena
-                    // (si no, a los 15 s del arranque todas pasaban 10 s «sin señal»).
-                    auto& [reportada, conDesde] =
-                        vuelta->try_emplace(e.toStdString(), std::pair<bool, qint64>{true, 0}).first->second;
-                    if (!con) {
-                        reportada = false;
-                        conDesde = 0;
-                    } else if (!reportada && activa) {
-                        if (conDesde == 0) conDesde = ahora;
-                        if (ahora - conDesde < 10000) con = false; // todavía no se la da por vuelta
-                        else reportada = true;
-                    } else {
-                        reportada = true;
-                    }
-                    cache->second.emplace_back(e.toStdString(), con);
-                }
-            }
-            return cache->second;
-        };
-        in.superres = [this]() { return video_ ? video_->programador().value("entradas", nlohmann::json::object()) : nlohmann::json::object(); };
-        // DIRECTAS: el motor, la foto de las salidas, la persistencia y los recursos.
-        agent::AlertInputs directas;
-        BroadcastEngine& motor = rt_.engine();
-        // La mezcla del programa (lo que sale): para el silencio y la saturación de fábrica.
-        directas.audio = [&motor]() {
-            return std::vector<agent::AlertInputs::Audio>{{"Programa", motor.picoProgramaVigiaDb(), false}};
-        };
-        // De la foto de las salidas que publica el hilo de salidas del motor (no de status(),
-        // que recorre las salidas de la interfaz).
-        directas.status = [&rt]() {
-            const nlohmann::json f = rt.engine().fotoSalidas();
-            const nlohmann::json t = f.value("principal", nlohmann::json::object());
-            agent::AlertInputs::Status a;
-            a.streaming = t.value("andando", false);
-            a.droppedFrames = t.value("perdidos", 0);
-            a.totalFrames = t.value("cuadros", 0);
-            a.reconnecting = t.value("reconectando", false);
-            a.recording = f.value("grabacion", nlohmann::json::object()).value("activa", false);
-            a.grabacionPedida = !rt.recordStopWanted();
-            const nlohmann::json salidas = f.value("salidas", nlohmann::json::object()); // con nombre: UB si no
-            for (const auto& [id, x] : salidas.items())
-                if (x.value("grabacion", nlohmann::json::object()).value("caida", false)) a.grabacionesCaidas.push_back(id);
-            return a;
-        };
-        directas.recursos = [this]() { return recursos_ ? recursos_->muestreador().niveles() : nlohmann::json::object(); };
-        directas.persistencia = [&rt]() { return rt.avisosPersistencia(); };
-        directas.programaVideo = [&motor]() {
-            const auto v = motor.programaVideo();
-            return nlohmann::json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
-        };
-        directas.loudness = [&motor]() { return motor.loudnessPrograma().json(); };
-        // El área de las alarmas (su ViewModel, ligado al vigía): ui/AlarmasViewModel.
-        alarmas_ = std::make_unique<AlarmasViewModel>(std::move(in), std::move(directas), rt.dataRoot());
+        alarmas_ = std::make_unique<AlarmasViewModel>(AlarmasViewModel::Fuentes{
+            .rt = rt,
+            .energia = *energia_,
+            .sala = *conference_,
+            .chat = *chatOverlay_,
+            .recursos = [this]() { return recursos_.get(); },
+            .flujos = [this]() { return flujos_.get(); },
+            .video = [this]() { return video_.get(); }});
         connect(alarmas_.get(), &AlarmasViewModel::notify, this, &StudioViewModel::notify);
         marca("alerts");
         vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");

@@ -30029,11 +30029,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Конфигурация «%1» была повреждена: загружена предыдущая версия (повреждённая сохранена как .corrupto).</translation>
     </message>
     <message>
-        <location line="+13" />
-        <source>El aviso por «%1» no salió: %2</source>
-        <translation>Уведомление через «%1» не отправлено: %2</translation>
-    </message>
-    <message>
         <location line="+118" />
         <source>Modo seguro</source>
         <translation>Безопасный режим</translation>
@@ -30617,6 +30612,13 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AlarmasViewModel</name>
+    <message>
+        <source>El aviso por «%1» no salió: %2</source>
+        <translation>Уведомление через «%1» не отправлено: %2</translation>
     </message>
 </context>
 <context>

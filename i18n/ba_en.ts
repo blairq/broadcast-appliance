@@ -29910,11 +29910,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The configuration “%1” was damaged: the previous version was loaded (the damaged one was kept as .corrupto).</translation>
     </message>
     <message>
-        <location line="+13" />
-        <source>El aviso por «%1» no salió: %2</source>
-        <translation>The notification via “%1” didn't go out: %2</translation>
-    </message>
-    <message>
         <location line="+118" />
         <source>Modo seguro</source>
         <translation>Safe mode</translation>
@@ -30495,6 +30490,13 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AlarmasViewModel</name>
+    <message>
+        <source>El aviso por «%1» no salió: %2</source>
+        <translation>The notification via “%1” didn't go out: %2</translation>
     </message>
 </context>
 <context>

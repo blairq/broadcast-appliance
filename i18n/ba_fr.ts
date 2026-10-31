@@ -29910,11 +29910,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>La configuration « %1 » était endommagée : la version précédente a été chargée (celle endommagée a été gardée en .corrupto).</translation>
     </message>
     <message>
-        <location line="+13" />
-        <source>El aviso por «%1» no salió: %2</source>
-        <translation>L'alerte via « %1 » n'est pas partie : %2</translation>
-    </message>
-    <message>
         <location line="+118" />
         <source>Modo seguro</source>
         <translation>Mode sans échec</translation>
@@ -30495,6 +30490,13 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AlarmasViewModel</name>
+    <message>
+        <source>El aviso por «%1» no salió: %2</source>
+        <translation>L'alerte via « %1 » n'est pas partie : %2</translation>
     </message>
 </context>
 <context>

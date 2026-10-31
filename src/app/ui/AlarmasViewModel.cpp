@@ -4,25 +4,38 @@
 
 #include "agent/AlarmaSonora.hpp"
 #include "agent/EntradasAlarmas.hpp"
+#include "agent/FlujosTexto.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "arranque/EnergiaAire.hpp"
 #include "emision/AvisoFueraDeUi.hpp"
 #include "i18n/I18n.hpp"
+#include "ui/ChatOverlayRenderer.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/ConferenceViewModel.hpp"
+#include "ui/ListModels.hpp"
+#include "ui/RecursosViewModel.hpp"
+#include "video/VideoGrafos.hpp"
 
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
 #include <QQmlEngine>
 
+#include <map>
+#include <memory>
+
 namespace ba::app {
 
 using json = nlohmann::json;
 
-AlarmasViewModel::AlarmasViewModel(agent::AlertInputs deLaInterfaz, agent::AlertInputs directas,
-                                   const std::filesystem::path& datos, QObject* parent)
+AlarmasViewModel::AlarmasViewModel(Fuentes f, QObject* parent)
     : QObject(parent),
-      entradas_(std::make_unique<agent::EntradasAlarmas>(std::move(deLaInterfaz), std::move(directas))),
-      sonido_(std::make_unique<agent::AlarmaSonora>(datos)) {
+      entradas_(std::make_unique<agent::EntradasAlarmas>(deLaInterfaz(f), directas(f))),
+      sonido_(std::make_unique<agent::AlarmaSonora>(f.rt.dataRoot())) {
     entradas_->refrescar();
-    motor_ = std::make_unique<agent::AlertEngine>(entradas_->paraElVigia(), (datos / "Config" / "alertas.json").string());
+    motor_ = std::make_unique<agent::AlertEngine>(entradas_->paraElVigia(),
+                                                  (f.rt.dataRoot() / "Config" / "alertas.json").string());
     // Los notificadores, en el hilo del vigía (conexión directa): salen aunque la interfaz
     // no ande. Lo demás, en la interfaz (este objeto vive en ella: la conexión es encolada).
     connect(motor_.get(), &agent::AlertEngine::fired, motor_.get(), [this](const json& ev) { enHiloDelVigia(ev); },
@@ -35,6 +48,157 @@ AlarmasViewModel::AlarmasViewModel(agent::AlertInputs deLaInterfaz, agent::Alert
 }
 
 AlarmasViewModel::~AlarmasViewModel() = default;
+
+agent::AlertInputs AlarmasViewModel::deLaInterfaz(const Fuentes& f) {
+    agent::AlertInputs in;
+    AppRuntime& rt = f.rt;
+    in.energia = [e = &f.energia]() { return e->estado(); };
+    in.audio = [&rt]() {
+        std::vector<agent::AlertInputs::Audio> out;
+        for (const std::string& n : rt.engine().audioSources())
+            out.push_back({n, rt.engine().sourcePeakDb(n), rt.engine().sourceMuted(n)});
+        return out; // la mezcla del programa va directa (abajo)
+    };
+    in.media = [&rt]() {
+        std::vector<agent::AlertInputs::Media> out;
+        for (const auto& m : rt.engine().mediaSources())
+            out.push_back({m.name, m.state, m.durationMs, m.timeMs});
+        return out;
+    };
+    in.room = [s = &f.sala]() {
+        return json::parse(QJsonDocument(s->client().snapshot()).toJson(QJsonDocument::Compact).toStdString(), nullptr,
+                           false);
+    };
+    in.chat = [c = &f.chat]() {
+        std::vector<json> out;
+        for (const auto& m : c->collect())
+            out.push_back({{"key", m.key.toStdString()},
+                           {"platform", m.source.toStdString()},
+                           {"author", m.author.toStdString()},
+                           {"text", m.text.toStdString()}});
+        return out;
+    };
+    // Las salidas de texto (voz a texto con nombre): las últimas frases.
+    in.textos = [flujos = f.flujos]() {
+        std::vector<json> out;
+        agent::FlujosTexto* fl = flujos ? flujos() : nullptr;
+        if (fl == nullptr) return out;
+        const std::uint64_t ultimo = fl->ultimoSeq();
+        for (const auto& x : fl->desde(ultimo > 50 ? ultimo - 50 : 0))
+            out.push_back({{"key", std::to_string(x.seq)},
+                           {"flujo", x.flujo.toStdString()},
+                           {"texto", x.texto.toStdString()},
+                           {"origen", x.origen.toStdString()}});
+        return out;
+    };
+    in.roomChat = [s = &f.sala]() {
+        return json::parse(
+            QJsonDocument(static_cast<JsonListModel*>(s->chat())->items()).toJson(QJsonDocument::Compact).toStdString(),
+            nullptr, false);
+    };
+    // El disco de todo lo que se graba (por volumen; la copia en el mismo disco). Mira
+    // el espacio libre de cada carpeta: una vez cada 5 s alcanza.
+    in.disco = [&rt, cache = std::make_shared<std::pair<qint64, json>>()]() {
+        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+        if (cache->first == 0 || ahora - cache->first >= 5000) *cache = {ahora, rt.discoGrabacion()};
+        return cache->second;
+    };
+    // Señal de cada entrada de video (las de GStreamer: cuadros que llegan). Se
+    // consulta como mucho una vez por segundo.
+    in.senales = [video = f.video, cache = std::make_shared<std::pair<qint64, std::vector<std::pair<std::string, bool>>>>(),
+                  // Histéresis: la que quedó sin señal vuelve a «con señal» recién
+                  // después de 10 s seguidos con cuadros. Una cámara que se corta y
+                  // vuelve cada pocos segundos disparaba la alarma otra vez a cada
+                  // rato (y la franja roja reaparecía apenas se la reconocía).
+                  vuelta = std::make_shared<std::map<std::string, std::pair<bool, qint64>>>(),
+                  desde = QDateTime::currentMSecsSinceEpoch()]() {
+        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+        // Recién arrancada, las entradas todavía se están conectando (una cámara de red
+        // tarda unos segundos): no hay alarmas de «sin señal» los primeros 15 s.
+        if (ahora - desde < 15000) return std::vector<std::pair<std::string, bool>>{};
+        video::VideoGrafos* v = video ? video() : nullptr;
+        if (v != nullptr && ahora - cache->first > 1000) {
+            cache->first = ahora;
+            cache->second.clear();
+            for (const QString& e : v->entradas()) {
+                const json st = v->estadoEntrada(e.toStdString());
+                if (!st.contains("gstreamer")) continue; // sin el dato de GStreamer: sin cuadros que mirar
+                const json g = st.value("gstreamer", json::object());
+                if (!g.is_object()) continue;
+                // Las de los invitados y el remoto: sin nadie conectado no hay cuadros, y
+                // no es una falla (para eso está «invitado caído»).
+                const json aj = st.value("ajustes", json::object());
+                if (aj.is_object() && (aj.value("video_invitado", false) ||
+                                       aj.value("pipeline", std::string()).rfind("bavideoanillo", 0) == 0))
+                    continue;
+                const bool activa = st.value("activa", true);
+                // Una que todavía no entregó nada (una cámara de red conectándose): hasta
+                // los 45 s del arranque no es «sin señal»; la que tenía y la perdió, sí.
+                const bool nuncaLlego = g.value("sin_datos_s", 0.0) < 0.0;
+                bool con = !activa || video::VideoGrafos::tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
+                // La primera vez que se la ve no «vuelve» de nada: arranca dada por buena
+                // (si no, a los 15 s del arranque todas pasaban 10 s «sin señal»).
+                auto& [reportada, conDesde] =
+                    vuelta->try_emplace(e.toStdString(), std::pair<bool, qint64>{true, 0}).first->second;
+                if (!con) {
+                    reportada = false;
+                    conDesde = 0;
+                } else if (!reportada && activa) {
+                    if (conDesde == 0) conDesde = ahora;
+                    if (ahora - conDesde < 10000) con = false; // todavía no se la da por vuelta
+                    else reportada = true;
+                } else {
+                    reportada = true;
+                }
+                cache->second.emplace_back(e.toStdString(), con);
+            }
+        }
+        return cache->second;
+    };
+    in.superres = [video = f.video]() {
+        video::VideoGrafos* v = video ? video() : nullptr;
+        return v != nullptr ? v->programador().value("entradas", json::object()) : json::object();
+    };
+    return in;
+}
+
+agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
+    agent::AlertInputs directas;
+    AppRuntime& rt = f.rt;
+    BroadcastEngine& motor = rt.engine();
+    // La mezcla del programa (lo que sale): para el silencio y la saturación de fábrica.
+    directas.audio = [&motor]() {
+        return std::vector<agent::AlertInputs::Audio>{{"Programa", motor.picoProgramaVigiaDb(), false}};
+    };
+    // De la foto de las salidas que publica el hilo de salidas del motor (no de status(),
+    // que recorre las salidas de la interfaz).
+    directas.status = [&rt]() {
+        const json fo = rt.engine().fotoSalidas();
+        const json t = fo.value("principal", json::object());
+        agent::AlertInputs::Status a;
+        a.streaming = t.value("andando", false);
+        a.droppedFrames = t.value("perdidos", 0);
+        a.totalFrames = t.value("cuadros", 0);
+        a.reconnecting = t.value("reconectando", false);
+        a.recording = fo.value("grabacion", json::object()).value("activa", false);
+        a.grabacionPedida = !rt.recordStopWanted();
+        const json salidas = fo.value("salidas", json::object()); // con nombre: UB si no
+        for (const auto& [id, x] : salidas.items())
+            if (x.value("grabacion", json::object()).value("caida", false)) a.grabacionesCaidas.push_back(id);
+        return a;
+    };
+    directas.recursos = [recursos = f.recursos]() {
+        RecursosViewModel* r = recursos ? recursos() : nullptr;
+        return r != nullptr ? r->muestreador().niveles() : json::object();
+    };
+    directas.persistencia = [&rt]() { return rt.avisosPersistencia(); };
+    directas.programaVideo = [&motor]() {
+        const auto v = motor.programaVideo();
+        return json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
+    };
+    directas.loudness = [&motor]() { return motor.loudnessPrograma().json(); };
+    return directas;
+}
 
 void AlarmasViewModel::refrescarFoto() { entradas_->refrescar(); }
 
