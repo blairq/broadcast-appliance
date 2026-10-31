@@ -4090,7 +4090,7 @@ void McpService::registerTools() {
         t.run = [&rt, &vm](const json& a, Done done) {
             std::vector<std::string> arrancar;
             if (a.contains("invitado")) {
-                const QString f = vm.fuenteDeInvitado(QString::fromStdString(a.value("invitado", std::string())));
+                const QString f = vm.emision().fuenteDeInvitado(QString::fromStdString(a.value("invitado", std::string())));
                 if (f.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "ese invitado no tiene una fuente en el programa (¿esta admitido?)")));
                 arrancar.push_back(f.toStdString());
             }

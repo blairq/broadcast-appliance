@@ -937,8 +937,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"destino", {{"type", "string"}}}, {"minutos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 10}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            json d{{"destinos", vm.saludActual()}};
-            if (a.contains("destino")) d["serie"] = vm.saludSerie(a.value("destino", std::string()), a.value("minutos", 5));
+            json d{{"destinos", vm.emision().saludActual()}};
+            if (a.contains("destino")) d["serie"] = vm.emision().saludSerie(a.value("destino", std::string()), a.value("minutos", 5));
             done(ToolResult().data(d));
         };
         core.addTool(std::move(t));

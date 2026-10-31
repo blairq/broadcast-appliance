@@ -156,7 +156,7 @@ ApplicationWindow {
     /// ejemplo los de un grafico) para no tener que armar el contexto cada uno.
     function pedirAlAsistente(texto) { barraIA.mandar(texto) }
     function openStreamDialog() {
-        if (Studio.streamServer && Studio.streamKeyAvailable) Studio.startStreaming("", "")
+        if (Studio.streamServer && Studio.streamKeyAvailable) Studio.emision.startStreaming("", "")
         else streamDlg.open()
     }
     function confirm(opts) { confirmDlg.ask(opts) }
@@ -168,19 +168,18 @@ ApplicationWindow {
             text: qsTr("La emisión en vivo se va a detener."),
             accept: qsTr("Cortar"),
             reject: qsTr("Cancelar"),
-            action: function() { Studio.stopStreaming() }
+            action: function() { Studio.emision.stopStreaming() }
         })
     }
 
     Connections {
-        target: Studio
-        function onNotify(message, level) { toasts.show(message, level) }
+        target: Studio.emision
         function onPedirConfirmarGrabacion(horas) {
             confirm({
                 title: qsTr("Queda muy poco disco"),
                 text: qsTr("Alcanza para ~%n minutos de grabación a este bitrate. ¿Grabar igual?", "", Math.round(horas * 60)),
                 accept: qsTr("Grabar igual"), reject: qsTr("Cancelar"),
-                action: function() { Studio.grabarIgual() }
+                action: function() { Studio.emision.grabarIgual() }
             })
         }
         // Ya al aire y se pidió otro destino: nunca se cambia sin preguntar.
@@ -189,9 +188,13 @@ ApplicationWindow {
                 title: qsTr("Ya estás transmitiendo"),
                 text: qsTr("Sale a %1. ¿Cambiar a %2? La transmisión se corta un instante.").arg(actual).arg(nuevoServer),
                 accept: qsTr("Cambiar de destino"), reject: qsTr("Seguir como está"),
-                action: function() { Studio.cambiarDestinoStream(nuevoServer, nuevoKey) }
+                action: function() { Studio.emision.cambiarDestinoStream(nuevoServer, nuevoKey) }
             })
         }
+    }
+    Connections {
+        target: Studio
+        function onNotify(message, level) { toasts.show(message, level) }
         // Cierre pedido por la app (launcher por el canal de control,
         // actualizacion, MCP): nunca se pregunta. Si la guardia llego a frenar
         // ese quit, se repite ya sin guardia.
@@ -726,7 +729,7 @@ ApplicationWindow {
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { srvField.text = Studio.streamServer; keyField.text = "" }
-        onAccepted: Studio.startStreaming(srvField.text, keyField.text)
+        onAccepted: Studio.emision.startStreaming(srvField.text, keyField.text)
         ColumnLayout {
             spacing: 10
             Label { text: qsTr("Servidor RTMP") }

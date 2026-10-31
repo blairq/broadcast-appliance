@@ -23,7 +23,7 @@ Rectangle {
     Timer {
         // Mostrándose, cada segundo; si no, alcanza con enterarse a los pocos segundos.
         interval: a.visible ? 1000 : 4000; running: true; repeat: true; triggeredOnStart: true
-        onTriggered: a.d = Studio.apurosDiscoUi()
+        onTriggered: a.d = Studio.emision.apurosDiscoUi()
     }
 
     ColumnLayout {
@@ -72,19 +72,19 @@ Rectangle {
                 active: true
                 activeColor: Theme.live
                 text: qsTr("Darle el disco al programa")
-                onClicked: { Studio.priorizarProgramaUi(true); a.d = Studio.apurosDiscoUi() }
+                onClicked: { Studio.emision.priorizarProgramaUi(true); a.d = Studio.emision.apurosDiscoUi() }
             }
             GlassButton {
                 visible: a.prioridad
                 compact: true
                 text: qsTr("Seguir con todo ya")
-                onClicked: { Studio.priorizarProgramaUi(false); a.d = Studio.apurosDiscoUi() }
+                onClicked: { Studio.emision.priorizarProgramaUi(false); a.d = Studio.emision.apurosDiscoUi() }
             }
             Item { Layout.fillWidth: true }
             CheckBox {
                 text: qsTr("Hacerlo solo")
                 checked: a.d.modo === "auto"
-                onToggled: { Studio.modoDiscoUi(checked ? "auto" : "preguntar"); a.d = Studio.apurosDiscoUi() }
+                onToggled: { Studio.emision.modoDiscoUi(checked ? "auto" : "preguntar"); a.d = Studio.emision.apurosDiscoUi() }
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: qsTr("La próxima vez que el disco no dé abasto grabando el programa, pausar lo demás sin preguntar")
             }

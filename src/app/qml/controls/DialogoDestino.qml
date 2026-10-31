@@ -51,7 +51,7 @@ Popup {
                     if (dUrlResp.visible && dUrlResp.text !== "") d.url_respaldo = dUrlResp.text
                     if (dUrl.text.startsWith("srt://")) { d.modo = dModo.currentText; d.latencia_ms = dLat.value }
                     if (dlg.salida !== "") d.salida = dlg.salida
-                    const e = Studio.guardarDestinoUi(d)
+                    const e = Studio.emision.guardarDestinoUi(d)
                     if (e !== "") Studio.notify(e, "error"); else dlg.close()
                 }
             }

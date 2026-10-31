@@ -30201,52 +30201,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Монитор «%1» не подключён.</translation>
     </message>
     <message>
-        <location line="+32" />
-        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
-        <translation>Внимание: на диске места на ~%1 ч записи</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Grabando en %1</source>
-        <translation>Запись в %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <location line="+10" />
-        <source>No se pudo grabar: %1</source>
-        <translation>Не удалось начать запись: %1</translation>
-    </message>
-    <message>
-        <location line="-2" />
-        <source>Grabando (con poco disco)</source>
-        <translation>Идёт запись (мало места на диске)</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
-        <translation>Трансляция на это назначение уже шла: ничего не изменилось</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Al aire</source>
-        <translation>В эфире</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>No se pudo transmitir: %1</source>
-        <translation>Не удалось начать трансляцию: %1</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Transmitiendo al destino nuevo</source>
-        <translation>Трансляция на новое назначение</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No se pudo cambiar de destino: %1</source>
-        <translation>Не удалось сменить назначение: %1</translation>
-    </message>
-    <message>
         <location line="+140" />
         <source>%1 (copia)</source>
         <translation>%1 (копия)</translation>
@@ -30320,16 +30274,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>Новый день: у конференции новый PIN (%1)</translation>
-    </message>
-    <message>
-        <location line="+69" />
-        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
-        <translation>У этого гостя ещё нет источника в программе.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Grabando «%1» aparte</source>
-        <translation>«%1» записывается отдельно</translation>
     </message>
     <message>
         <location line="+97" />
@@ -30473,6 +30417,53 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>EmisionViewModel</name>
+    <message>
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation>Внимание: на диске места на ~%1 ч записи</translation>
+    </message>
+    <message>
+        <source>Grabando en %1</source>
+        <translation>Запись в %1</translation>
+    </message>
+    <message>
+        <source>No se pudo grabar: %1</source>
+        <translation>Не удалось начать запись: %1</translation>
+    </message>
+    <message>
+        <source>Grabando (con poco disco)</source>
+        <translation>Идёт запись (мало места на диске)</translation>
+    </message>
+    <message>
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation>Трансляция на это назначение уже шла: ничего не изменилось</translation>
+    </message>
+    <message>
+        <source>Al aire</source>
+        <translation>В эфире</translation>
+    </message>
+    <message>
+        <source>No se pudo transmitir: %1</source>
+        <translation>Не удалось начать трансляцию: %1</translation>
+    </message>
+    <message>
+        <source>Transmitiendo al destino nuevo</source>
+        <translation>Трансляция на новое назначение</translation>
+    </message>
+    <message>
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation>Не удалось сменить назначение: %1</translation>
+    </message>
+    <message>
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation>У этого гостя ещё нет источника в программе.</translation>
+    </message>
+    <message>
+        <source>Grabando «%1» aparte</source>
+        <translation>«%1» записывается отдельно</translation>
     </message>
 </context>
 <context>

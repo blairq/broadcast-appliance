@@ -126,7 +126,7 @@ Item {
             accion: t.aire.grabando ? qsTr("Detener") : qsTr("Grabar")
             // La de la por omisión con lo suyo de siempre (el aviso del disco); las demás, la de su salida.
             function grabar(si) {
-                if (t.porOmision) { if (si !== Studio.recording) Studio.toggleRecording(); return }
+                if (t.porOmision) { if (si !== Studio.recording) Studio.emision.toggleRecording(); return }
                 const e = Studio.salidas.grabar(Studio.salidas.activa, si)
                 if (e !== "") Studio.notify(e, "error")
             }

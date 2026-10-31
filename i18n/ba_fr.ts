@@ -30082,52 +30082,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>L'écran « %1 » n'est pas connecté.</translation>
     </message>
     <message>
-        <location line="+32" />
-        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
-        <translation>Attention : le disque permet ~%1 h d'enregistrement</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Grabando en %1</source>
-        <translation>Enregistrement vers %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <location line="+10" />
-        <source>No se pudo grabar: %1</source>
-        <translation>Impossible d'enregistrer : %1</translation>
-    </message>
-    <message>
-        <location line="-2" />
-        <source>Grabando (con poco disco)</source>
-        <translation>Enregistrement (peu d'espace disque)</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
-        <translation>Vous diffusiez déjà vers cette destination : rien n'a changé</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Al aire</source>
-        <translation>À l'antenne</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>No se pudo transmitir: %1</source>
-        <translation>Impossible de diffuser : %1</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Transmitiendo al destino nuevo</source>
-        <translation>Diffusion vers la nouvelle destination</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No se pudo cambiar de destino: %1</source>
-        <translation>Impossible de changer de destination : %1</translation>
-    </message>
-    <message>
         <location line="+140" />
         <source>%1 (copia)</source>
         <translation>%1 (copie)</translation>
@@ -30201,16 +30155,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>Nouveau jour : la conférence a un nouveau PIN (%1)</translation>
-    </message>
-    <message>
-        <location line="+69" />
-        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
-        <translation>Cet invité n'a pas encore de source dans le programme.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Grabando «%1» aparte</source>
-        <translation>Enregistrement séparé de « %1 »</translation>
     </message>
     <message>
         <location line="+97" />
@@ -30351,6 +30295,53 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>EmisionViewModel</name>
+    <message>
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation>Attention : le disque permet ~%1 h d'enregistrement</translation>
+    </message>
+    <message>
+        <source>Grabando en %1</source>
+        <translation>Enregistrement vers %1</translation>
+    </message>
+    <message>
+        <source>No se pudo grabar: %1</source>
+        <translation>Impossible d'enregistrer : %1</translation>
+    </message>
+    <message>
+        <source>Grabando (con poco disco)</source>
+        <translation>Enregistrement (peu d'espace disque)</translation>
+    </message>
+    <message>
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation>Vous diffusiez déjà vers cette destination : rien n'a changé</translation>
+    </message>
+    <message>
+        <source>Al aire</source>
+        <translation>À l'antenne</translation>
+    </message>
+    <message>
+        <source>No se pudo transmitir: %1</source>
+        <translation>Impossible de diffuser : %1</translation>
+    </message>
+    <message>
+        <source>Transmitiendo al destino nuevo</source>
+        <translation>Diffusion vers la nouvelle destination</translation>
+    </message>
+    <message>
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation>Impossible de changer de destination : %1</translation>
+    </message>
+    <message>
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation>Cet invité n'a pas encore de source dans le programme.</translation>
+    </message>
+    <message>
+        <source>Grabando «%1» aparte</source>
+        <translation>Enregistrement séparé de « %1 »</translation>
     </message>
 </context>
 <context>

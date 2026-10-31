@@ -31,6 +31,7 @@
 #include "comun/UsoCpu.hpp"
 #include "ui/AsambleaViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
+#include "ui/EmisionViewModel.hpp"
 #include "ui/SalidasViewModel.hpp"
 #include "ui/MultiviewViewModel.hpp"
 
@@ -282,8 +283,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QVariantMap tally READ tally NOTIFY tallyChanged)
     /// Los medios que suenan/se ven al aire: [{fuente, restante_s, duracion_s}] (T46).
     Q_PROPERTY(QVariantList mediosAlAire READ mediosAlAire NOTIFY mediosChanged)
-    /// Salud de cada destino de transmisión (T27): [{id, activo, kbps, perdidos_red, perdidos_enc, congestion, reconexiones, kbps_historial[]}].
-    Q_PROPERTY(QVariantList saludSalidas READ saludSalidasUi NOTIFY saludChanged)
+    /// Grabar, transmitir y lo que los rodea (ui/EmisionViewModel): destinos, señal limpia,
+    /// ISO, disco, loudness, retornos y la salud de cada destino.
+    Q_PROPERTY(QObject* emision READ emisionQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -592,10 +594,9 @@ class StudioViewModel : public QObject {
     QVariantMap caidaReciente() const { return caida_; }
     QVariantMap tally() const { return tally_; }
     QVariantList mediosAlAire() const { return mediosAlAire_; }
-    QVariantList saludSalidasUi() const;
-    /// La serie de un destino en los últimos `minutos` (de a un punto por segundo).
-    nlohmann::json saludSerie(const std::string& destino, int minutos) const;
-    nlohmann::json saludActual() const { return saludActual_; }
+    /// El área de la emisión (los mandos de grabar y transmitir, la salud de los destinos).
+    EmisionViewModel& emision() { return *emision_; }
+    QObject* emisionQml() const;
     /// El pico de audio de una fuente (para el vúmetro de cada celda del multiview).
     Q_INVOKABLE double picoDe(const QString& fuente) const;
     Q_INVOKABLE void cerrarCartelCaida() { caida_.clear(); emit caidaChanged(); }
@@ -611,30 +612,6 @@ class StudioViewModel : public QObject {
     /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
     Q_INVOKABLE QString capitulosPuntosUi() const;
     control::Dsk& dsk() { return control_->dsk(); }
-    /// El disco en apuros (BroadcastEngine::discoEstado): {apuros, atraso_s, registro_trabado_ms,
-    /// prioridad, automatica, modo, pausadas, graba_programa, desde_s}.
-    Q_INVOKABLE QVariantMap apurosDiscoUi() const;
-    /// Darle el disco a la grabación del programa (pausa ISO, repetición, registro) o devolverlo.
-    Q_INVOKABLE void priorizarProgramaUi(bool si);
-    /// "preguntar", "auto" o "nunca". "" o el error.
-    Q_INVOKABLE QString modoDiscoUi(const QString& modo);
-    /// Grabación ISO (cada entrada a su archivo): [{fuente, archivo, mb, audioPropio, activa, pausada}].
-    Q_INVOKABLE QVariantList isosUi() const;
-    /// Graba o deja de grabar una fuente aparte (chequea el disco y el tope). "" o el error.
-    Q_INVOKABLE QString isoUi(const QString& fuente, bool grabar);
-    /// Grabar aparte la fuente de un invitado de la sala (id): avisa el resultado.
-    Q_INVOKABLE void isoInvitadoUi(const QString& id);
-    /// La fuente de un invitado de la sala («Invitado N» por su lugar). "" si no tiene.
-    Q_INVOKABLE QString fuenteDeInvitado(const QString& participante) const;
-    /// Todas las de video de la escena al aire (true) o ninguna (false). Devuelve los errores.
-    Q_INVOKABLE QString isoTodasUi(bool grabar);
-    /// La señal limpia: {activa, destino, archivo, cuadros, perdidos, reconectando}.
-    Q_INVOKABLE QVariantMap limpiaUi() const;
-    /// La arranca (a `destino`, id de un destino guardado, o a disco si vacío) o la corta. "" o el error.
-    Q_INVOKABLE QString limpiaActivarUi(bool activar, const QString& destino);
-    /// La grabación (T29): {activa, archivo, copia, copia_activa, calidad, encoder, pistas, encoder_respaldo_activo}
-    /// y la repetición {replay: {activa, segundos, ultimo}}.
-    Q_INVOKABLE QVariantMap grabacionUi() const;
     QObject* playlistQml() const;
     QObject* puestoCorreccionQml() const;
     medios::Playlist& playlist() { return *playlist_; }
@@ -826,30 +803,6 @@ class StudioViewModel : public QObject {
     QObject* despachadorQml() const;
 
     // --- Comandos ---------------------------------------------------------------
-    Q_INVOKABLE void toggleRecording();
-    /// Graba aunque quede poco disco (lo confirmó el operador).
-    Q_INVOKABLE void grabarIgual();
-    /// {libre_gb, horas, kbps, carpeta} y el remux: {archivo, destino, pct, andando, ok, error}.
-    Q_INVOKABLE QVariantMap discoUi() const;
-    /// Lo que oye el invitado del slot: "mix_minus" (el programa sin su voz) o "programa".
-    Q_INVOKABLE QString retornoInvitadoUi(int slot) const;
-    Q_INVOKABLE QString setRetornoInvitadoUi(int slot, const QString& modo);
-    /// El loudness de lo que sale: {m, s, i, tp, lra, segundos, gr_db, objetivo, fuera_de_objetivo}.
-    Q_INVOKABLE QVariantMap loudnessUi() const;
-    Q_INVOKABLE void resetLoudnessUi();
-    /// {perfil: r128|a85|plataforma16|plataforma14|custom, lufs?, tp?}. "" o el error.
-    Q_INVOKABLE QString objetivoLoudnessUi(const QVariantMap& o);
-    Q_INVOKABLE QVariantMap remuxUi() const;
-    Q_INVOKABLE void startStreaming(const QString& server, const QString& key);
-    Q_INVOKABLE void stopStreaming();
-    /// Pasa la transmisión a otro destino estando al aire (lo confirmó el operador).
-    Q_INVOKABLE void cambiarDestinoStream(const QString& server, const QString& key);
-    // Destinos adicionales (respaldo, otras plataformas): comparten los codificadores.
-    Q_INVOKABLE QVariantList destinosUi() const;
-    Q_INVOKABLE QString guardarDestinoUi(const QVariantMap& d);
-    Q_INVOKABLE QString borrarDestinoUi(const QString& id);
-    Q_INVOKABLE QString iniciarDestinoUi(const QString& id);
-    Q_INVOKABLE void detenerDestinoUi(const QString& id);
     // --- Bus de preview y TAKE ------------------------------------------------
     // Una mesa de switcher tiene DOS buses: lo que esta al aire (programa) y lo
     // que va a salir (preview). El operador arma el proximo plano, lo MIRA, y
@@ -894,9 +847,9 @@ class StudioViewModel : public QObject {
     /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
     emision::SeguridadAire& seguridadAire() { return salidas_->seguridadAire(); }
     /// Lo que oye cada invitado (modelo, Config/retornos.json).
-    emision::RetornosInvitados& retornos() { return *retornos_; }
+    emision::RetornosInvitados& retornos() { return emision_->retornos(); }
     /// El objetivo de loudness guardado (modelo, Config/loudness.json).
-    audio::ObjetivoLoudness& objetivoLoudness() { return *objetivoLoudness_; }
+    audio::ObjetivoLoudness& objetivoLoudness() { return emision_->objetivoLoudness(); }
 
     /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
     /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
@@ -975,7 +928,6 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
-    void saludChanged();
     void tallyChanged();
     void mediosChanged();
     void caidaChanged();
@@ -1014,11 +966,6 @@ class StudioViewModel : public QObject {
     void reinicioChanged();
     void escenasAjustesChanged();
     void senalChanged();
-    /// Se pidió transmitir a otro destino estando al aire: que el operador confirme.
-    void pedirCambioDestino(const QString& actual, const QString& nuevoServer, const QString& nuevoKey);
-    void destinosChanged();
-    /// Queda muy poco disco para grabar: que el operador confirme.
-    void pedirConfirmarGrabacion(double horas);
 
    private slots:
     void onTick();
@@ -1131,19 +1078,6 @@ class StudioViewModel : public QObject {
     QVariantMap caida_;
     QVariantMap tally_;
     QVariantList mediosAlAire_;
-    struct Salud {
-        std::uint64_t bytesAntes = 0;
-        int perdidosAntes = 0;
-        int reconexiones = 0;
-        bool reconectando = false;
-        qint64 reconectandoDesde = 0;
-        qint64 reconexionMs = 0; ///< lo que tardó la última reconexión
-        std::deque<nlohmann::json> serie; ///< 600 puntos (10 min)
-    };
-    std::map<std::string, Salud> salud_;
-    nlohmann::json saludActual_ = nlohmann::json::array();
-    std::uint64_t saltadosAntes_ = 0;
-    void muestrearSalud();
     /// Las salidas: el conmutador de escenas de cada una, el FTB y la placa, la activa
     /// (ui/SalidasViewModel). Lo que usa sus conmutadores (el respaldo de entradas) va
     /// más abajo.
@@ -1154,8 +1088,7 @@ class StudioViewModel : public QObject {
     double peakActivaR_ = -100;
     /// Desde cuándo nadie mira el retorno de cada salida que no es la por omisión (ver onTick).
     QHash<QString, qint64> salidaVistaMs_;
-    std::unique_ptr<emision::RetornosInvitados> retornos_;      ///< (modelo)
-    std::unique_ptr<audio::ObjetivoLoudness> objetivoLoudness_; ///< (modelo)
+    std::unique_ptr<EmisionViewModel> emision_; ///< grabar, transmitir y lo que los rodea (ui/EmisionViewModel)
     qint64 caidaMs_ = 0;
     std::unique_ptr<agent::RotuloTraduccionConfig> rotulo_; ///< Config/rotulo-traduccion.json (modelo)
     QTimer rotuloApagar_;

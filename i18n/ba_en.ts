@@ -30082,52 +30082,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Monitor “%1” is not connected.</translation>
     </message>
     <message>
-        <location line="+32" />
-        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
-        <translation>Heads up: the disk has room for ~%1 h of recording</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Grabando en %1</source>
-        <translation>Recording to %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <location line="+10" />
-        <source>No se pudo grabar: %1</source>
-        <translation>Couldn't record: %1</translation>
-    </message>
-    <message>
-        <location line="-2" />
-        <source>Grabando (con poco disco)</source>
-        <translation>Recording (low disk space)</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
-        <translation>You were already streaming to that destination: nothing changed</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Al aire</source>
-        <translation>On air</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>No se pudo transmitir: %1</source>
-        <translation>Couldn't stream: %1</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Transmitiendo al destino nuevo</source>
-        <translation>Streaming to the new destination</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No se pudo cambiar de destino: %1</source>
-        <translation>Couldn't change destination: %1</translation>
-    </message>
-    <message>
         <location line="+140" />
         <source>%1 (copia)</source>
         <translation>%1 (copy)</translation>
@@ -30201,16 +30155,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>New day: the conference has a new PIN (%1)</translation>
-    </message>
-    <message>
-        <location line="+69" />
-        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
-        <translation>That guest doesn't have a source in the program yet.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Grabando «%1» aparte</source>
-        <translation>Recording “%1” separately</translation>
     </message>
     <message>
         <location line="+97" />
@@ -30351,6 +30295,53 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
+    </message>
+</context>
+<context>
+    <name>EmisionViewModel</name>
+    <message>
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation>Heads up: the disk has room for ~%1 h of recording</translation>
+    </message>
+    <message>
+        <source>Grabando en %1</source>
+        <translation>Recording to %1</translation>
+    </message>
+    <message>
+        <source>No se pudo grabar: %1</source>
+        <translation>Couldn't record: %1</translation>
+    </message>
+    <message>
+        <source>Grabando (con poco disco)</source>
+        <translation>Recording (low disk space)</translation>
+    </message>
+    <message>
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation>You were already streaming to that destination: nothing changed</translation>
+    </message>
+    <message>
+        <source>Al aire</source>
+        <translation>On air</translation>
+    </message>
+    <message>
+        <source>No se pudo transmitir: %1</source>
+        <translation>Couldn't stream: %1</translation>
+    </message>
+    <message>
+        <source>Transmitiendo al destino nuevo</source>
+        <translation>Streaming to the new destination</translation>
+    </message>
+    <message>
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation>Couldn't change destination: %1</translation>
+    </message>
+    <message>
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation>That guest doesn't have a source in the program yet.</translation>
+    </message>
+    <message>
+        <source>Grabando «%1» aparte</source>
+        <translation>Recording “%1” separately</translation>
     </message>
 </context>
 <context>

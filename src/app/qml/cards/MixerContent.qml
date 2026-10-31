@@ -129,8 +129,8 @@ Item {
         // true peak (rojo arriba del objetivo), LRA y el objetivo.
         ColumnLayout {
             id: ld
-            property var l: Studio.loudnessUi()
-            Timer { interval: 300; running: ld.visible; repeat: true; onTriggered: ld.l = Studio.loudnessUi() }
+            property var l: Studio.emision.loudnessUi()
+            Timer { interval: 300; running: ld.visible; repeat: true; onTriggered: ld.l = Studio.emision.loudnessUi() }
             readonly property var ob: l.objetivo || ({ lufs: -23, tp: -1, perfil: "r128" })
             Layout.fillHeight: true
             Layout.fillWidth: false
@@ -156,7 +156,7 @@ Item {
                     Text { visible: (ld.l.gr_db || 0) < -0.1; text: "LIM " + Number(ld.l.gr_db).toFixed(1); color: Theme.amber; font.pixelSize: 10 }
                 }
             }
-            GlassButton { compact: true; text: qsTr("Reset"); onClicked: Studio.resetLoudnessUi()
+            GlassButton { compact: true; text: qsTr("Reset"); onClicked: Studio.emision.resetLoudnessUi()
                           ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Vuelve a cero el integrado y el LRA (arranca solo al transmitir o grabar)") }
         }
         Rectangle { width: 1; Layout.fillHeight: true; color: Qt.rgba(1, 1, 1, 0.1) }

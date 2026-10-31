@@ -30082,52 +30082,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>O monitor “%1” não está conectado.</translation>
     </message>
     <message>
-        <location line="+32" />
-        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
-        <translation>Atenção: o disco dá para ~%1 h de gravação</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Grabando en %1</source>
-        <translation>Gravando em %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <location line="+10" />
-        <source>No se pudo grabar: %1</source>
-        <translation>Não foi possível gravar: %1</translation>
-    </message>
-    <message>
-        <location line="-2" />
-        <source>Grabando (con poco disco)</source>
-        <translation>Gravando (com pouco disco)</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
-        <translation>Você já estava transmitindo para esse destino: nada mudou</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Al aire</source>
-        <translation>No ar</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>No se pudo transmitir: %1</source>
-        <translation>Não foi possível transmitir: %1</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Transmitiendo al destino nuevo</source>
-        <translation>Transmitindo para o destino novo</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No se pudo cambiar de destino: %1</source>
-        <translation>Não foi possível mudar de destino: %1</translation>
-    </message>
-    <message>
         <location line="+140" />
         <source>%1 (copia)</source>
         <translation>%1 (cópia)</translation>
@@ -30201,16 +30155,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>Novo dia: a conferência tem PIN novo (%1)</translation>
-    </message>
-    <message>
-        <location line="+69" />
-        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
-        <translation>Esse convidado ainda não tem uma fonte no programa.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Grabando «%1» aparte</source>
-        <translation>Gravando “%1” à parte</translation>
     </message>
     <message>
         <location line="+97" />
@@ -30351,6 +30295,53 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 fecha o aplicativo e %3.</translation>
+    </message>
+</context>
+<context>
+    <name>EmisionViewModel</name>
+    <message>
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation>Atenção: o disco dá para ~%1 h de gravação</translation>
+    </message>
+    <message>
+        <source>Grabando en %1</source>
+        <translation>Gravando em %1</translation>
+    </message>
+    <message>
+        <source>No se pudo grabar: %1</source>
+        <translation>Não foi possível gravar: %1</translation>
+    </message>
+    <message>
+        <source>Grabando (con poco disco)</source>
+        <translation>Gravando (com pouco disco)</translation>
+    </message>
+    <message>
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation>Você já estava transmitindo para esse destino: nada mudou</translation>
+    </message>
+    <message>
+        <source>Al aire</source>
+        <translation>No ar</translation>
+    </message>
+    <message>
+        <source>No se pudo transmitir: %1</source>
+        <translation>Não foi possível transmitir: %1</translation>
+    </message>
+    <message>
+        <source>Transmitiendo al destino nuevo</source>
+        <translation>Transmitindo para o destino novo</translation>
+    </message>
+    <message>
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation>Não foi possível mudar de destino: %1</translation>
+    </message>
+    <message>
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation>Esse convidado ainda não tem uma fonte no programa.</translation>
+    </message>
+    <message>
+        <source>Grabando «%1» aparte</source>
+        <translation>Gravando “%1” à parte</translation>
     </message>
 </context>
 <context>

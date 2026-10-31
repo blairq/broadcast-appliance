@@ -31,6 +31,7 @@
 #include "ui/AsambleaViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
 #include "ui/CuentasViewModel.hpp"
+#include "ui/EmisionViewModel.hpp"
 #include "ui/SalidasViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "audio/ObjetivoLoudness.hpp"
@@ -310,10 +311,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     marca("frames");
     frames_->setLobbySlots(rt.gateway().lobbySlots);
-    // Los retornos y el objetivo de loudness son del modelo: acá se muestran.
-    retornos_ = std::make_unique<emision::RetornosInvitados>(rt);
-    objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(rt.dataRoot(), rt.engine().loudness(),
-                                                                  [&e = rt.engine()]() { e.aplicarLoudness(); });
     // Las salidas (ui/SalidasViewModel): el conmutador de escenas de cada una, el FTB y la
     // placa, y cuál maneja esta interfaz. Acá se refleja lo de la activa (escenas, fuentes,
     // mezcla); las pantallas de tally de la sala y el monitor «armada» siguen a la por omisión.
@@ -356,8 +353,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(salidas_.get(), &SalidasViewModel::activaElegida, this, &StudioViewModel::reflejarSalidaActiva);
     // Lo que sale de la activa cambia con las pastillas.
     connect(this, &StudioViewModel::statusChanged, salidas_.get(), &SalidasViewModel::aireCambio);
-    // Los destinos de cada salida van en su fila.
-    connect(this, &StudioViewModel::destinosChanged, salidas_.get(), &SalidasViewModel::publicar);
     salidas_->publicar();
     // La salida que manejaba esta interfaz al cerrarse (si sigue estando; si no, la por omisión).
     salidas_->retomarActiva();
@@ -370,6 +365,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         const nlohmann::json j = nlohmann::json::parse(QJsonDocument(t.toArray()).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
         return j.is_array() ? j : nlohmann::json::array();
     });
+    // Grabar, transmitir y lo que los rodea: destinos, señal limpia, ISO, disco, loudness,
+    // retornos y la salud de cada destino (ui/EmisionViewModel).
+    emision_ = std::make_unique<EmisionViewModel>(
+        EmisionViewModel::Partes{.rt = rt, .sala = *conference_, .grabando = [this]() { return recording_; }});
+    connect(emision_.get(), &EmisionViewModel::notify, this, &StudioViewModel::notify);
+    connect(emision_.get(), &EmisionViewModel::refrescar, this, &StudioViewModel::onTick);
+    connect(emision_.get(), &EmisionViewModel::estadoCambio, this, &StudioViewModel::statusChanged);
+    // Los destinos de cada salida van en su fila.
+    connect(emision_.get(), &EmisionViewModel::destinosChanged, salidas_.get(), &SalidasViewModel::publicar);
     salidas_->publicar(); // el gateway se entera de las salidas apenas hay con quién hablar
     marca("conference");
     direcciones_ = std::make_unique<sala::Direcciones>(conference_->client());
@@ -1941,118 +1945,6 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
     return ctx;
 }
 
-void StudioViewModel::toggleRecording() {
-    if (!recording_) {
-        // Antes de grabar: cuánto alcanza el disco a este bitrate.
-        const nlohmann::json d = rt_.discoGrabacion();
-        const double horas = d.value("horas", -1.0);
-        if (horas >= 0 && horas < AppRuntime::kDiscoMinimoH) {
-            emit pedirConfirmarGrabacion(horas);
-            return;
-        }
-        if (horas >= 0 && horas < 2)
-            emit notify(tr("Ojo: el disco alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1), "warn");
-    }
-    if (recording_) {
-        rt_.stopRecording();
-    } else if (rt_.startRecording()) {
-        emit notify(tr("Grabando en %1").arg(qs(rt_.carpetaGrabacion())), "ok");
-    } else {
-        emit notify(tr("No se pudo grabar: %1").arg(qs(rt_.lastError())), "error");
-    }
-    onTick();
-}
-
-void StudioViewModel::grabarIgual() {
-    if (recording_) return;
-    if (rt_.startRecording())
-        emit notify(tr("Grabando (con poco disco)"), "warn");
-    else
-        emit notify(tr("No se pudo grabar: %1").arg(qs(rt_.lastError())), "error");
-    onTick();
-}
-
-QVariantMap StudioViewModel::loudnessUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().loudness().json().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-}
-
-void StudioViewModel::resetLoudnessUi() { rt_.engine().loudness().reiniciar(); }
-
-QString StudioViewModel::objetivoLoudnessUi(const QVariantMap& o) {
-    const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(o)).toJson().toStdString(), nullptr, false);
-    return qs(objetivoLoudness_->poner(j));
-}
-
-QString StudioViewModel::retornoInvitadoUi(int slot) const { return qs(retornos_->modo(slot)); }
-
-QString StudioViewModel::setRetornoInvitadoUi(int slot, const QString& modo) {
-    return qs(retornos_->poner(slot, modo.toStdString()));
-}
-
-QVariantMap StudioViewModel::discoUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.discoGrabacion().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-}
-
-QVariantMap StudioViewModel::remuxUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().remuxEstado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-}
-
-void StudioViewModel::startStreaming(const QString& server, const QString& key) {
-    if (rt_.salirAlAireManual(server.toStdString(), key.toStdString())) {
-        // Nunca un "Al aire" verde si no cambió nada.
-        if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
-            emit notify(tr("Ya estabas transmitiendo a ese destino: no cambió nada"), "info");
-        else
-            emit notify(tr("Al aire"), "ok");
-    } else if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
-        emit pedirCambioDestino(qs(rt_.engine().destinoActivo()), server, key);
-    } else {
-        emit notify(tr("No se pudo transmitir: %1").arg(qs(rt_.lastError())), "error");
-    }
-    onTick();
-}
-
-void StudioViewModel::cambiarDestinoStream(const QString& server, const QString& key) {
-    if (rt_.salirAlAireManual(server.toStdString(), key.toStdString(), true))
-        emit notify(tr("Transmitiendo al destino nuevo"), "ok");
-    else
-        emit notify(tr("No se pudo cambiar de destino: %1").arg(qs(rt_.lastError())), "error");
-    onTick();
-}
-
-QVariantList StudioViewModel::destinosUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.destinos().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
-}
-
-QString StudioViewModel::guardarDestinoUi(const QVariantMap& d) {
-    const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(d)).toJson().toStdString(), nullptr, false);
-    const std::string e = rt_.guardarDestino(j);
-    if (e.empty()) emit destinosChanged();
-    return qs(e);
-}
-
-QString StudioViewModel::borrarDestinoUi(const QString& id) {
-    const std::string e = rt_.borrarDestino(id.toStdString());
-    if (e.empty()) emit destinosChanged();
-    return qs(e);
-}
-
-QString StudioViewModel::iniciarDestinoUi(const QString& id) {
-    const std::string e = rt_.iniciarDestino(id.toStdString());
-    emit destinosChanged();
-    return qs(e);
-}
-
-void StudioViewModel::detenerDestinoUi(const QString& id) {
-    rt_.detenerDestino(id.toStdString());
-    emit destinosChanged();
-}
-
-void StudioViewModel::stopStreaming() {
-    rt_.stopStreaming();
-    onTick();
-}
-
 void StudioViewModel::takeScene(const QString& name) {
     if (const std::string e = salidas_->conmutadorActivo().poner(name.toStdString()); !e.empty()) emit notify(qs(e), "error");
 }
@@ -2342,9 +2234,14 @@ void StudioViewModel::refrescarAvisos() {
     }
     if (hubo(C::Salidas)) {
         emit statusChanged();
-        emit destinosChanged();
+        emit emision_->destinosChanged();
     }
     if (hubo(C::Salidas) || hubo(C::Aire)) salidas_->publicar();
+}
+
+QObject* StudioViewModel::emisionQml() const {
+    QQmlEngine::setObjectOwnership(emision_.get(), QQmlEngine::CppOwnership);
+    return emision_.get();
 }
 
 QObject* StudioViewModel::salidasQml() const {
@@ -2699,7 +2596,7 @@ void StudioViewModel::publicarEventos() {
         bus_->publicar("audio/nivel/" + mixer_->data(mixer_->index(i), MixerModel::NameRole).toString().toStdString(),
                        mixer_->nivelEn(i, {}));
     if (segundo) {
-        muestrearSalud();
+        emision_->muestrearSalud(*bus_);
         bus_->publicar("audio/loudness", rt_.engine().loudness().json());
         nlohmann::json sin = nlohmann::json::array();
         for (const QString& e : sinSenal()) sin.push_back(e.toStdString());
@@ -2759,75 +2656,6 @@ QString StudioViewModel::capitulosPuntosUi() const {
 
 namespace ba::app {
 
-QVariantMap StudioViewModel::apurosDiscoUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().discoEstado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-}
-
-void StudioViewModel::priorizarProgramaUi(bool si) { rt_.engine().priorizarPrograma(si); }
-
-QString StudioViewModel::modoDiscoUi(const QString& modo) { return qs(rt_.engine().setModoDisco(modo.toStdString())); }
-
-QVariantList StudioViewModel::isosUi() const {
-    QVariantList out;
-    // El tamaño, de lo que contó el motor: preguntarle al disco desde la
-    // interfaz (cada segundo) la trababa con el disco trabado.
-    for (const auto& g : rt_.engine().sourceRecordings())
-        out.append(QVariantMap{{"fuente", qs(g.source)},
-                               {"archivo", qs(g.path)},
-                               {"mb", static_cast<double>(g.bytes) / 1e6},
-                               {"audioPropio", g.audioPropio},
-                               {"activa", g.activa},
-                               {"pausada", g.pausada}});
-    return out;
-}
-
-void StudioViewModel::isoInvitadoUi(const QString& id) {
-    const QString f = fuenteDeInvitado(id);
-    if (f.isEmpty()) return emit notify(tr("Ese invitado no tiene una fuente en el programa todavía."), "warn");
-    const QString e = isoUi(f, true);
-    emit notify(e.isEmpty() ? tr("Grabando «%1» aparte").arg(f) : e, e.isEmpty() ? "ok" : "error");
-}
-
-QString StudioViewModel::isoUi(const QString& fuente, bool grabar) {
-    if (!grabar) {
-        rt_.stopSourceRecording(fuente.toStdString());
-        emit statusChanged();
-        return {};
-    }
-    const std::string e = rt_.grabarAparte(fuente.toStdString()); // las reglas son del modelo
-    if (!e.empty()) return qs(e);
-    emit statusChanged();
-    return {};
-}
-
-QString StudioViewModel::fuenteDeInvitado(const QString& participante) const {
-    if (!conference_) return {};
-    const QJsonObject snap = static_cast<ConferenceViewModel*>(conference_.get())->client().snapshot();
-    for (const QJsonValue& v : snap.value("participants").toArray()) {
-        const QJsonObject p = v.toObject();
-        if (p.value("id").toString() != participante && p.value("name").toString() != participante) continue;
-        const int slot = p.value("slot").toInt();
-        if (slot <= 0) return {};
-        const QString f = "Invitado " + QString::number(slot);
-        for (const std::string& n : rt_.engine().sourceNames())
-            if (qs(n) == f) return f;
-        return {};
-    }
-    return {};
-}
-
-QVariantMap StudioViewModel::limpiaUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().cleanFeedEstado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-}
-
-QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
-    if (!activar) {
-        rt_.detenerSenalLimpia();
-        return {};
-    }
-    return qs(rt_.iniciarSenalLimpia(destino.toStdString()));
-}
-
 
 QString StudioViewModel::balistica() const { return qs(rt_.config().balistica); }
 
@@ -2875,12 +2703,6 @@ QString StudioViewModel::cupoUi(int n) { return QString::fromStdString(cupoSala_
 
 QObject* StudioViewModel::playlistQml() const { return playlist_.get(); }
 QObject* StudioViewModel::puestoCorreccionQml() const { return puestoCorreccion_.get(); }
-
-QVariantMap StudioViewModel::grabacionUi() const {
-    nlohmann::json j = rt_.engine().grabacionEstado();
-    j["replay"] = rt_.engine().replayEstado();
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-}
 
 QVariantMap StudioViewModel::scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const {
     video::TipoScope t = video::TipoScope::Onda;
@@ -2991,23 +2813,6 @@ QString StudioViewModel::armarRepeticion(const QString& archivo, const std::stri
     escenas::Conmutador* c = salidas_->conmutadores().de(salida);
     if (c == nullptr) return tr("No hay una salida «%1».").arg(qs(salida));
     return qs(c->armar(kEscena));
-}
-
-QString StudioViewModel::isoTodasUi(bool grabar) {
-    if (!grabar) {
-        rt_.stopAllSourceRecordings();
-        emit statusChanged();
-        return {};
-    }
-    QStringList errores;
-    for (const std::string& f : rt_.engine().sceneSources(rt_.engine().currentScene())) {
-        bool ya = false;
-        for (const auto& g : rt_.engine().sourceRecordings()) ya = ya || g.source == f;
-        if (ya) continue;
-        const QString e = isoUi(qs(f), true);
-        if (!e.isEmpty()) errores << qs(f) + ": " + e;
-    }
-    return errores.join("; ");
 }
 
 } // namespace ba::app
@@ -3206,77 +3011,6 @@ void StudioViewModel::tbar(double t, bool soltar) {
 } // namespace ba::app
 
 namespace ba::app {
-
-void StudioViewModel::muestrearSalud() {
-    const nlohmann::json h = rt_.engine().saludSalidas();
-    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-    const std::uint64_t saltados = h.value("saltados_encoder", 0ULL);
-    const int saltadosNuevos = static_cast<int>(saltados >= saltadosAntes_ ? saltados - saltadosAntes_ : 0);
-    saltadosAntes_ = saltados;
-    nlohmann::json actual = nlohmann::json::array();
-    const auto uno = [&](const std::string& id, const nlohmann::json& o) {
-        Salud& s = salud_[id];
-        const bool activo = o.value("activo", false);
-        const std::uint64_t bytes = o.value("bytes", 0ULL);
-        const int perdidos = o.value("perdidos", 0);
-        const int kbps = activo && bytes >= s.bytesAntes ? static_cast<int>((bytes - s.bytesAntes) * 8 / 1000) : 0;
-        const int perdidosNuevos = perdidos >= s.perdidosAntes ? perdidos - s.perdidosAntes : 0;
-        s.bytesAntes = bytes;
-        s.perdidosAntes = perdidos;
-        const bool rec = o.value("reconectando", false);
-        if (rec && !s.reconectando) {
-            ++s.reconexiones;
-            s.reconectandoDesde = ahora;
-        }
-        if (!rec && s.reconectando && s.reconectandoDesde > 0) s.reconexionMs = ahora - s.reconectandoDesde;
-        s.reconectando = rec;
-        const nlohmann::json punto{{"ms", ahora}, {"kbps", kbps}, {"perdidos_red", perdidosNuevos},
-                                   {"perdidos_enc", saltadosNuevos}, {"congestion", o.value("congestion", 0.0)}};
-        if (activo) {
-            s.serie.push_back(punto);
-            while (s.serie.size() > 600) s.serie.pop_front();
-        }
-        nlohmann::json hist = nlohmann::json::array();
-        const std::size_t desde = s.serie.size() > 60 ? s.serie.size() - 60 : 0;
-        for (std::size_t i = desde; i < s.serie.size(); ++i) hist.push_back(s.serie[i].value("kbps", 0));
-        actual.push_back({{"id", id},
-                          {"activo", activo},
-                          {"kbps", kbps},
-                          {"perdidos_red", perdidos},
-                          {"perdidos_enc", saltados},
-                          {"congestion", std::round(o.value("congestion", 0.0) * 100) / 100},
-                          {"reconectando", rec},
-                          {"reconexiones", s.reconexiones},
-                          {"ultima_reconexion_ms", s.reconexionMs},
-                          {"kbps_historial", hist}});
-    };
-    uno("principal", h.value("principal", nlohmann::json::object()));
-    const nlohmann::json extras = h.value("extras", nlohmann::json::object()); // .items() de un temporal queda colgado
-    for (const auto& [id, o] : extras.items()) uno(id, o);
-    if (actual != saludActual_) {
-        saludActual_ = actual;
-        emit saludChanged();
-    }
-    bus_->publicar("salida/salud", saludActual_);
-}
-
-QVariantList StudioViewModel::saludSalidasUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", saludActual_}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
-        .object()
-        .value("v")
-        .toArray()
-        .toVariantList();
-}
-
-nlohmann::json StudioViewModel::saludSerie(const std::string& destino, int minutos) const {
-    auto it = salud_.find(destino);
-    if (it == salud_.end()) return nlohmann::json::array();
-    const std::size_t n = static_cast<std::size_t>(std::clamp(minutos, 1, 10) * 60);
-    nlohmann::json out = nlohmann::json::array();
-    const auto& serie = it->second.serie;
-    for (std::size_t i = serie.size() > n ? serie.size() - n : 0; i < serie.size(); ++i) out.push_back(serie[i]);
-    return out;
-}
 
 } // namespace ba::app
 

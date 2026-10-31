@@ -29963,52 +29963,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>显示器「%1」未连接。</translation>
     </message>
     <message>
-        <location line="+32" />
-        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
-        <translation>注意：磁盘约可录制 %1 小时</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Grabando en %1</source>
-        <translation>正在录制到 %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <location line="+10" />
-        <source>No se pudo grabar: %1</source>
-        <translation>无法录制：%1</translation>
-    </message>
-    <message>
-        <location line="-2" />
-        <source>Grabando (con poco disco)</source>
-        <translation>录制中（磁盘空间不足）</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
-        <translation>已在向该目标推流：无任何变化</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Al aire</source>
-        <translation>在播</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>No se pudo transmitir: %1</source>
-        <translation>无法推流：%1</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Transmitiendo al destino nuevo</source>
-        <translation>正在向新目标推流</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No se pudo cambiar de destino: %1</source>
-        <translation>无法更改目标：%1</translation>
-    </message>
-    <message>
         <location line="+140" />
         <source>%1 (copia)</source>
         <translation>%1（副本）</translation>
@@ -30082,16 +30036,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>新的一天：会议已更换新 PIN（%1）</translation>
-    </message>
-    <message>
-        <location line="+69" />
-        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
-        <translation>该嘉宾在节目中尚无来源。</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Grabando «%1» aparte</source>
-        <translation>正在单独录制「%1」</translation>
     </message>
     <message>
         <location line="+97" />
@@ -30229,6 +30173,53 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>EmisionViewModel</name>
+    <message>
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation>注意：磁盘约可录制 %1 小时</translation>
+    </message>
+    <message>
+        <source>Grabando en %1</source>
+        <translation>正在录制到 %1</translation>
+    </message>
+    <message>
+        <source>No se pudo grabar: %1</source>
+        <translation>无法录制：%1</translation>
+    </message>
+    <message>
+        <source>Grabando (con poco disco)</source>
+        <translation>录制中（磁盘空间不足）</translation>
+    </message>
+    <message>
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation>已在向该目标推流：无任何变化</translation>
+    </message>
+    <message>
+        <source>Al aire</source>
+        <translation>在播</translation>
+    </message>
+    <message>
+        <source>No se pudo transmitir: %1</source>
+        <translation>无法推流：%1</translation>
+    </message>
+    <message>
+        <source>Transmitiendo al destino nuevo</source>
+        <translation>正在向新目标推流</translation>
+    </message>
+    <message>
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation>无法更改目标：%1</translation>
+    </message>
+    <message>
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation>该嘉宾在节目中尚无来源。</translation>
+    </message>
+    <message>
+        <source>Grabando «%1» aparte</source>
+        <translation>正在单独录制「%1」</translation>
     </message>
 </context>
 <context>
