@@ -199,38 +199,49 @@ void hilosRestantes(Esc& e) {
         std::uint64_t id = 0;
         nombreYId(th, nombre, sizeof nombre, &id);
         cabeceraHilo(e, "hilo", id, nombre);
-        thread_suspend(th); // no se lo despierta: el proceso termina igual
-        std::uintptr_t pc = 0, fp = 0;
+        // Congelado SOLO mientras se le lee la pila; los nombres (dladdr) se buscan
+        // después, ya despierto: si tenía el candado del cargador, lo suelta.
+        thread_suspend(th);
+        std::uintptr_t marcos[kMarcos];
+        int k = 0;
+        std::uintptr_t pc = 0, fp = 0, lr = 0;
+        bool ok = false;
 #if defined(__aarch64__)
         arm_thread_state64_t st{};
         mach_msg_type_number_t c = ARM_THREAD_STATE64_COUNT;
-        if (thread_get_state(th, ARM_THREAD_STATE64, reinterpret_cast<thread_state_t>(&st), &c) != KERN_SUCCESS) continue;
-        pc = static_cast<std::uintptr_t>(arm_thread_state64_get_pc(st));
-        fp = static_cast<std::uintptr_t>(arm_thread_state64_get_fp(st));
-        // En la primera vuelta el retorno está en lr (la función hoja no lo guardó todavía).
-        const std::uintptr_t lr = static_cast<std::uintptr_t>(arm_thread_state64_get_lr(st));
+        if (thread_get_state(th, ARM_THREAD_STATE64, reinterpret_cast<thread_state_t>(&st), &c) == KERN_SUCCESS) {
+            ok = true;
+            pc = static_cast<std::uintptr_t>(arm_thread_state64_get_pc(st));
+            fp = static_cast<std::uintptr_t>(arm_thread_state64_get_fp(st));
+            // En una función hoja el retorno todavía está en lr (no lo guardó en la pila).
+            lr = static_cast<std::uintptr_t>(arm_thread_state64_get_lr(st));
+        }
 #else
         x86_thread_state64_t st{};
         mach_msg_type_number_t c = x86_THREAD_STATE64_COUNT;
-        if (thread_get_state(th, x86_THREAD_STATE64, reinterpret_cast<thread_state_t>(&st), &c) != KERN_SUCCESS) continue;
-        pc = static_cast<std::uintptr_t>(st.__rip);
-        fp = static_cast<std::uintptr_t>(st.__rbp);
-        const std::uintptr_t lr = 0;
-#endif
-        // pc, después lr (si el hilo está en una función hoja, como casi todos los que
-        // esperan en el núcleo, su llamador está ahí y no en la cadena), y la cadena.
-        constexpr std::uintptr_t kSinFirma = 0x0000FFFFFFFFFFFFULL; // sin la firma del puntero (PAC)
-        int k = 0;
-        marco(e, k++, pc);
-        std::uintptr_t par[2] = {0, 0}; // [marco anterior, retorno]
-        bool hay = fp != 0 && (fp & 0x7) == 0 && leer(fp, par, sizeof par);
-        if (lr != 0 && (!hay || (par[1] & kSinFirma) != (lr & kSinFirma))) marco(e, k++, lr & kSinFirma);
-        while (hay && k < kMarcos && par[1] != 0) {
-            marco(e, k++, par[1] & kSinFirma);
-            if (par[0] <= fp || (par[0] & 0x7) != 0) break; // la pila crece hacia abajo: lo demás es basura
-            fp = par[0];
-            hay = leer(fp, par, sizeof par);
+        if (thread_get_state(th, x86_THREAD_STATE64, reinterpret_cast<thread_state_t>(&st), &c) == KERN_SUCCESS) {
+            ok = true;
+            pc = static_cast<std::uintptr_t>(st.__rip);
+            fp = static_cast<std::uintptr_t>(st.__rbp);
         }
+#endif
+        if (ok) {
+            // pc, después lr (si el hilo está en una función hoja, como casi todos los que
+            // esperan en el núcleo, su llamador está ahí y no en la cadena), y la cadena.
+            constexpr std::uintptr_t kSinFirma = 0x0000FFFFFFFFFFFFULL; // sin la firma del puntero (PAC)
+            marcos[k++] = pc;
+            std::uintptr_t par[2] = {0, 0}; // [marco anterior, retorno]
+            bool hay = fp != 0 && (fp & 0x7) == 0 && leer(fp, par, sizeof par);
+            if (lr != 0 && (!hay || (par[1] & kSinFirma) != (lr & kSinFirma))) marcos[k++] = lr & kSinFirma;
+            while (hay && k < kMarcos && par[1] != 0) {
+                marcos[k++] = par[1] & kSinFirma;
+                if (par[0] <= fp || (par[0] & 0x7) != 0) break; // la pila crece hacia abajo: lo demás es basura
+                fp = par[0];
+                hay = leer(fp, par, sizeof par);
+            }
+        }
+        thread_resume(th);
+        for (int m = 0; m < k; ++m) marco(e, m, marcos[m]);
     }
     // (La lista es memoria de Mach: se la deja, el proceso termina.)
 }

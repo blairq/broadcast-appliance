@@ -4,6 +4,13 @@
 #
 #   tools/caidas/analizar.py --pc                 trae los nuevos de la PC de pruebas y los analiza
 #   tools/caidas/analizar.py dist/caidas/…/X.dmp  uno (o varios, o una carpeta)
+#   tools/caidas/analizar.py Logs/dumps/A-…-caida.pila   macOS/Linux (F1-12)
+#   tools/caidas/analizar.py Runtime/caidas.jsonl        cuántas por módulo (qué aislar)
+#
+# En macOS y Linux no hay minidump: el manejador del proceso (src/core/diag/Caidas.cpp)
+# escribe las pilas de todos los hilos con su nombre (.pila) y las imágenes con su
+# UUID / build-id; acá se les ponen nombres y líneas con atos (los .dSYM de
+# dist/simbolos/macos) o addr2line (los .debug de dist/simbolos/linux).
 #
 # Para cada volcado (Logs/dumps/A-<fecha>-caida.dmp y su .json, que escribe el
 # launcher: src/launcher/Volcados.hpp):
@@ -529,6 +536,160 @@ def analizar(ruta, extras, microsoft, todos):
     return texto
 
 
+# --- macOS y Linux: las pilas que escribe el propio manejador (.pila, F1-12) -------------------
+
+def leer_pila(texto):
+    """El formato de src/core/diag/Caidas.cpp: cabecera, «== cayo/hilo <id> <nombre>», marcos, imágenes."""
+    cab, hilos, imgs, actual = {}, [], [], None
+    for l in texto.splitlines():
+        if l.startswith("== imagenes"):
+            actual = "img"
+        elif l.startswith("== cayo ") or l.startswith("== hilo "):
+            partes = l.split(" ", 3)
+            actual = {"cayo": partes[1] == "cayo", "id": partes[2] if len(partes) > 2 else "?",
+                      "nombre": partes[3] if len(partes) > 3 else "", "marcos": []}
+            hilos.append(actual)
+        elif actual == "img" and l.startswith("img "):
+            _, base, ident, ruta = (l.split(" ", 3) + ["", "", ""])[:4]
+            imgs.append({"base": int(base, 16), "id": ident, "ruta": ruta, "nombre": os.path.basename(ruta)})
+        elif isinstance(actual, dict) and l.startswith("#"):
+            p = l.split(" ")
+            actual["marcos"].append({"dir": int(p[1], 16), "modulo": p[2].rsplit("+", 1)[0] if len(p) > 2 else "?",
+                                     "texto": " ".join(p[2:])})
+        elif actual is None and " " in l:
+            k, v = l.split(" ", 1)
+            cab[k] = v
+        elif l == "(no contesto)" and isinstance(actual, dict):
+            actual["mudo"] = True
+    return cab, hilos, imgs
+
+
+def simbolizar_pila(hilos, imgs):
+    """{dirección: «función (archivo:línea)»} con los símbolos del almacén (dist/simbolos)."""
+    por_nombre = {i["nombre"]: i for i in imgs}
+    pedidos = {}  # imagen -> direcciones
+    for h in hilos:
+        for i, m in enumerate(h["marcos"]):
+            img = por_nombre.get(m["modulo"])
+            if img and img["id"] != "-":
+                pedidos.setdefault(img["nombre"], set()).add(m["dir"] - (1 if i > 0 else 0))
+    res = {}
+    for nom, dirs in pedidos.items():
+        img = por_nombre[nom]
+        dirs = sorted(dirs)
+        if sys.platform == "darwin":
+            dsym = ALMACEN / "macos" / nom / img["id"] / (nom + ".dSYM") / "Contents" / "Resources" / "DWARF" / nom
+            if not dsym.exists() or not shutil.which("atos"):
+                continue
+            cmd = ["atos", "-o", str(dsym), "-l", hex(img["base"])] + [hex(d) for d in dirs]
+        else:
+            dbg = ALMACEN / "linux" / img["id"][:2] / (img["id"][2:] + ".debug")
+            herramienta = shutil.which("llvm-addr2line") or shutil.which("addr2line")
+            if not dbg.exists() or not herramienta:
+                continue
+            cmd = [herramienta, "-f", "-C", "-e", str(dbg)] + [hex(d - img["base"]) for d in dirs]
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=120).stdout.splitlines()
+        except (subprocess.SubprocessError, OSError):
+            continue
+        if sys.platform == "darwin":
+            for d, l in zip(dirs, out):
+                res[d] = l.strip()
+        else:
+            for k, d in enumerate(dirs):
+                if 2 * k + 1 < len(out):
+                    res[d] = "%s (%s)" % (out[2 * k].strip(), out[2 * k + 1].strip())
+    return res
+
+
+def desenredar(textos):
+    """Los nombres de C++ legibles (c++filt), si está."""
+    filt = shutil.which("c++filt") or shutil.which("llvm-cxxfilt")
+    if not filt or not textos:
+        return textos
+    try:
+        r = subprocess.run([filt], input="\n".join(textos), capture_output=True, text=True, timeout=60)
+        out = r.stdout.splitlines()
+        return out if len(out) == len(textos) else textos
+    except (subprocess.SubprocessError, OSError):
+        return textos
+
+
+def analizar_pila(ruta, todos):
+    ruta = Path(ruta)
+    cab, hilos, imgs = leer_pila(ruta.read_text(encoding="utf-8", errors="replace"))
+    info = {}
+    j = ruta.with_suffix(".json")
+    if j.exists():
+        try:
+            info = json.loads(j.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            pass
+    out = ["=" * 78, ruta.name]
+    if info:
+        out.append("%s de %s, %s — %s" % (info.get("tipo", "?"), info.get("componente", "?"), info.get("hora", "?"),
+                                          info.get("causa", "")))
+        if info.get("modulo") or info.get("pieza"):
+            out.append("Atribuida a: %s%s" % (info.get("modulo", "?"),
+                                             " (pieza «%s»: la apaga el modo seguro)" % info["pieza"] if info.get("pieza") else ""))
+    out.append("Señal: %s, dirección %s" % (cab.get("senal", "?"), cab.get("direccion", "?")))
+    sim = simbolizar_pila(hilos, imgs)
+    colgado = info.get("tipo") == "colgado"
+    vistas = {}
+    for h in hilos:
+        if not (h["cayo"] or todos or colgado):
+            continue
+        textos = desenredar([m["texto"] for m in h["marcos"]])
+        lineas = []
+        for i, (m, t) in enumerate(zip(h["marcos"], textos)):
+            s = sim.get(m["dir"] - (1 if i > 0 else 0))
+            lineas.append("  #%-2d %s%s" % (i, t, ("   [%s]" % s) if s else ""))
+        if h.get("mudo"):
+            lineas.append("  (no contestó: tenía la señal bloqueada)")
+        titulo = "%s %s «%s»" % ("el hilo que se cayó" if h["cayo"] else "hilo", h["id"], h["nombre"])
+        clave = "\n".join(l.split("[")[0] for l in lineas[:6])
+        if clave in vistas and not h["cayo"]:  # hilos iguales (esperando lo mismo): se agrupan
+            vistas[clave][0].append(titulo)
+            continue
+        vistas[clave] = ([titulo], lineas)
+    for ts, lineas in vistas.values():
+        out.append("")
+        out.append("— %s%s:" % (ts[0], " (y %d más iguales)" % (len(ts) - 1) if len(ts) > 1 else ""))
+        out.extend(lineas)
+    if not sim:
+        out.append("")
+        out.append("(sin símbolos del almacén: tools/caidas/simbolos-mac.sh o simbolos-linux.sh en el build de esa versión)")
+    if info.get("ultimas_lineas"):
+        out.append("")
+        out.append("Lo último que dijo el registro:")
+        out.extend("  " + l[:220] for l in info["ultimas_lineas"][-25:])
+    texto = "\n".join(out)
+    try:
+        ruta.with_suffix(".txt").write_text(texto + "\n", encoding="utf-8")
+    except OSError:
+        pass
+    return texto
+
+
+def resumen_caidas(ruta):
+    """Runtime/caidas.jsonl: cuántas caídas por componente y por módulo/pieza (qué aislar, F3-05)."""
+    por = {}
+    total = atribuidas = 0
+    for l in Path(ruta).read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            c = json.loads(l)
+        except json.JSONDecodeError:
+            continue
+        total += 1
+        clave = (c.get("componente", "?"), c.get("modulo") or "(sin atribuir)", c.get("pieza") or "")
+        atribuidas += 1 if c.get("modulo") else 0
+        por[clave] = por.get(clave, 0) + 1
+    out = ["%d caídas, %d con módulo atribuido (%d %%)" % (total, atribuidas, 100 * atribuidas // max(total, 1))]
+    for (comp, mod, pieza), n in sorted(por.items(), key=lambda x: -x[1]):
+        out.append("  %4d  %-8s %s%s" % (n, comp, mod, ("  [%s]" % pieza) if pieza else ""))
+    return "\n".join(out)
+
+
 def traer_de_la_pc(host, carpetas):
     """Copia los volcados nuevos (y su .json) de la PC a dist/caidas/<host>/."""
     destino = CAIDAS / host
@@ -553,7 +714,7 @@ def traer_de_la_pc(host, carpetas):
 
 def main():
     ap = argparse.ArgumentParser(description="qué pasó en cada volcado")
-    ap.add_argument("rutas", nargs="*", help="volcados (.dmp) o carpetas")
+    ap.add_argument("rutas", nargs="*", help="volcados (.dmp, .pila), carpetas o caidas.jsonl")
     ap.add_argument("--pc", nargs="?", const="windows", help="traer de la PC (host de ssh; por defecto «windows»)")
     ap.add_argument("--carpeta-pc", action="append",
                     default=None, help="carpetas de volcados en la PC (por defecto E:\\BroadcastAppliance\\Logs\\dumps "
@@ -573,10 +734,15 @@ def main():
             print("No hay volcados nuevos en %s." % a.pc)
     for r in a.rutas:
         p = Path(r)
-        rutas += sorted(p.glob("*.dmp")) if p.is_dir() else [p]
+        rutas += sorted(list(p.glob("*.dmp")) + list(p.glob("*-*.pila"))) if p.is_dir() else [p]
     for r in rutas:
         try:
-            print(analizar(r, a.binarios, not a.sin_microsoft, a.todos_los_hilos))
+            if Path(r).name.endswith(".jsonl"):
+                print(resumen_caidas(r))
+            elif Path(r).suffix == ".pila":
+                print(analizar_pila(r, a.todos_los_hilos))
+            else:
+                print(analizar(r, a.binarios, not a.sin_microsoft, a.todos_los_hilos))
         except Exception as e:  # uno roto no frena a los demás
             print("%s: no se pudo leer (%s)" % (r, e))
 
