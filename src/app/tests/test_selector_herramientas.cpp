@@ -10,6 +10,8 @@
 //   - si el buscador no devuelve nada, la búsqueda simple (todas las palabras,
 //     sin tildes) sigue andando.
 #include <QGuiApplication>
+
+#include "ui/FiltroCatalogo.hpp"
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlProperty>
@@ -68,7 +70,12 @@ class StudioFalso : public QObject {
 };
 
 namespace {
-QVariantList filas(QObject* sel) { return QQmlProperty::read(sel, "filas").toList(); }
+/// Lo que muestra la lista: el modelo del selector (FiltroCatalogo), después de su vuelta.
+QVariantList filas(QObject* sel) {
+    QCoreApplication::processEvents();
+    QObject* m = QQmlProperty::read(sel, "filas").value<QObject*>();
+    return m != nullptr ? QQmlProperty::read(m, "lista").toList() : QVariantList{};
+}
 QString nombres(QObject* sel) {
     QString s;
     for (const auto& f : filas(sel)) s += (s.isEmpty() ? "" : ",") + f.toMap().value("nombre").toString();
@@ -76,10 +83,11 @@ QString nombres(QObject* sel) {
 }
 void abrir(QObject* sel, const QString& busqueda) {
     QMetaObject::invokeMethod(sel, "abrir", Q_ARG(QVariant, QString()), Q_ARG(QVariant, busqueda));
+    QCoreApplication::processEvents();
 }
 void seccion(QObject* sel, const QString& id) {
     QQmlProperty::write(sel, "seccion", id);
-    QMetaObject::invokeMethod(sel, "filtrar");
+    QCoreApplication::processEvents();
 }
 } // namespace
 
@@ -89,6 +97,7 @@ int main(int argc, char** argv) {
     const QString dir = QStringLiteral(BA_QML_DIR);
     static StudioFalso studio;
     qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &studio);
+    qmlRegisterType<ba::app::FiltroCatalogo>("BA", 1, 0, "FiltroCatalogo");
     qmlRegisterSingletonType(QUrl::fromLocalFile(dir + "/Theme.qml"), "BA", 1, 0, "Theme");
 
     QQmlEngine engine;
@@ -115,6 +124,7 @@ int main(int argc, char** argv) {
     CHECK(!filas(sel).isEmpty() && filas(sel)[0].toMap().value("porque").toString() == "musica",
           "buscando: dice por qué salió");
     QVariant n;
+    QCoreApplication::processEvents();
     QMetaObject::invokeMethod(sel, "cuantasEn", Q_RETURN_ARG(QVariant, n), Q_ARG(QVariant, QString("medios")));
     CHECK(n.toInt() == 2, "buscando: el contador de Medios cuenta lo encontrado");
     QMetaObject::invokeMethod(sel, "cuantasEn", Q_RETURN_ARG(QVariant, n), Q_ARG(QVariant, QString("escenas")));

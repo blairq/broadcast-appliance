@@ -55,10 +55,10 @@ class ListaObjetos : public ListaConClave<FilaObjeto> {
 
     /// La lista nueva: avisa por clave lo que entró, salió, se movió o cambió.
     void poner(const QVariantList& lista);
-    /// El objeto de la fila (vacío si no hay).
-    QVariantMap fila(int i) const;
-    /// En qué fila está esa clave (-1 si no está).
-    int indiceDe(const QString& clave) const;
+    /// El objeto de la fila (vacío si no hay), para una acción (elegir la de un índice).
+    Q_INVOKABLE QVariantMap fila(int i) const;
+    /// En qué fila está esa clave (-1 si no está), para una acción (ir a la elegida).
+    Q_INVOKABLE int indiceDe(const QString& clave) const;
 
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
