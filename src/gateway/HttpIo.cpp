@@ -249,7 +249,9 @@ long long makeListen(const std::string& bindAddress, uint16_t port) {
         closeFdRaw(s);
         return -1;
     }
-    if (listen(s, 16) != 0) {
+    // La cola del sistema, entera: con 16, una rafaga de conexiones (las que se
+    // rechazan por cupo tambien pasan por accept) hacia esperar el SYN de la app.
+    if (listen(s, SOMAXCONN) != 0) {
         closeFdRaw(s);
         return -1;
     }
@@ -314,10 +316,22 @@ bool setNoDelay(long long fd) {
 #endif
 }
 
+namespace {
+/// Antes de cada recv con plazo: espera a que haya algo, pero no más allá de `hasta`.
+/// Sin plazo no espera (el recv lo acota el timeout del socket).
+bool hayAntesDe(long long fd, Plazo hasta) {
+    if (hasta == kSinPlazo) return true;
+    const auto falta =
+        std::chrono::duration_cast<std::chrono::milliseconds>(hasta - std::chrono::steady_clock::now()).count();
+    return falta > 0 && waitReadable(fd, static_cast<int>(std::min<long long>(falta, 60000))) > 0;
+}
+} // namespace
+
 /// Lee exactamente `n` bytes (maneja lecturas parciales). true si se leyeron.
-bool readExact(long long fd, uint8_t* out, size_t n) {
+bool readExact(long long fd, uint8_t* out, size_t n, Plazo hasta) {
     size_t got = 0;
     while (got < n) {
+        if (!hayAntesDe(fd, hasta)) return false;
         const int r = recv(toFd(fd), reinterpret_cast<char*>(out + got), static_cast<int>(n - got), 0);
         if (r <= 0) return false; // EOF o error
         got += static_cast<size_t>(r);
@@ -346,10 +360,11 @@ bool sendAll(long long fd, const void* data, size_t n) {
 }
 
 /// Lee hasta encontrar `\r\n\r\n` (fin de cabecera). Devuelve la cabecera.
-bool readHeaders(long long fd, std::string& headers) {
+bool readHeaders(long long fd, std::string& headers, Plazo hasta) {
     headers.clear();
     uint8_t c;
     while (headers.size() < kMaxHeaderBytes) {
+        if (!hayAntesDe(fd, hasta)) return false;
         const int r = recv(toFd(fd), reinterpret_cast<char*>(&c), 1, 0);
         if (r <= 0) return false;
         headers.push_back(static_cast<char>(c));

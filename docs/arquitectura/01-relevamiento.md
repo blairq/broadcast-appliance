@@ -277,7 +277,7 @@ de la configuración (ver Apéndice A).
 |---|---|---|
 | principal | latido 250 ms, `room.tick`, `reapViewers`, uso de CPU | `src/gateway/main.cpp:1310-1347` |
 | `acceptThread_` + `adminAcceptThread_` + control LAN + puerta HTTP + túnel | `accept()` por escucha | `src/gateway/SignalingServer.cpp:272`, `333`, `349`, `362`, `378` |
-| uno por conexión HTTP/WS | desprendido; incluye el SSE de la app | `SignalingServer.cpp:801-806`; tope `ajustes:room.maxConexiones`=64 (`SignalingServer.hpp:604`) |
+| uno por conexión HTTP/WS | desprendido; incluye el SSE de la app | `SignalingServer.cpp` (`acceptLoop`); cupo por escucha `ajustes:room.maxConexiones`=256, por IP `room.maxConexionesPorIp`=32, API de control `room.maxConexionesAdmin`=32 + la app siempre (F0-07) |
 | `statsThread_` | cada 2 s: estadísticas WebRTC, direcciones, quién mira el programa | `SignalingServer.cpp:274-296` |
 | libwebrtc: `network`, `worker`, `signaling` | hilos de libwebrtc | `src/gateway/Webrtc.cpp:1106-1108` |
 | `PullAdm` | cada 10 ms tira del audio recibido (NetEq) | `Webrtc.cpp:171-236` |
@@ -1234,7 +1234,8 @@ de tiempos, colas y reintentos:
 | `supervisor.sinAvanceMs` / `supervisor.uiTrabadaMs` | 1000 / 2000 ms | `LatidoAire.cpp:83`, `87` |
 | `launcher.*` | ver 1.3 | `Supervisor.cpp:52-77` |
 | `procesador.prioridad` / `procesador.mediosJuntos` | sí / sí | `Prioridad.cpp:321`, `333` |
-| `room.maxConexiones` / `room.handshakeMs` | 64 / 15000 ms | `src/gateway/SignalingServer.hpp:604-605` |
+| `room.maxConexiones` (por escucha) / `room.maxConexionesPorIp` / `room.maxConexionesAdmin` | 256 / 32 / 32 | `src/gateway/SignalingServer.hpp` (`cupoDe`, F0-07) |
+| `room.handshakeMs` / `room.cabeceraMs` | 15000 / 5000 ms | `src/gateway/SignalingServer.hpp` |
 | `room.maxVisores` | 48 | `src/gateway/Webrtc.hpp:253` |
 | `room.visorCaidoS` / `room.visorNoConectaS` | 10 / 20 s | `Webrtc.cpp:1350-1351` |
 | `room.reconexionMaxS` / `room.salaMuertaS` | 15 / 40 s | `src/app/ui/ConferenceClient.cpp:21-22` |

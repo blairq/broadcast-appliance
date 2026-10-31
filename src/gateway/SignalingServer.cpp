@@ -269,7 +269,7 @@ bool SignalingServer::start() {
     }
     stop_.store(false);
     guestBoundPort_ = http::localPort(listenFd_);
-    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false, false, false);
+    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, Escucha::Invitados);
     // La calidad de la conexion de cada invitado (bitrate, perdida, jitter, RTT).
     statsThread_ = std::thread([this] {
         std::map<std::string, int64_t> anotada; // pantalla -> la última vez que su salida fue al log
@@ -330,7 +330,7 @@ bool SignalingServer::start() {
                        -1);
         } else {
             adminBoundPort_ = http::localPort(adminListenFd_);
-            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true, false, false);
+            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, Escucha::Admin);
             log_.info(llenar(traducir("gateway", "control: API del operador en 127.0.0.1:%1"), {std::to_string(adminBoundPort_)}));
         }
     }
@@ -346,7 +346,7 @@ bool SignalingServer::start() {
         } else {
             controlBoundPort_ = http::localPort(controlListenFd_);
             controlAcceptThread_ =
-                std::thread(&SignalingServer::acceptLoop, this, controlListenFd_, false, false, true);
+                std::thread(&SignalingServer::acceptLoop, this, controlListenFd_, Escucha::Puerta);
             log_.info(llenar(traducir("gateway", "puerta de la sala: 127.0.0.1:%1 (detrás del HTTPS)"),
                              {std::to_string(controlBoundPort_)}));
         }
@@ -359,7 +359,7 @@ bool SignalingServer::start() {
                            -1);
             } else {
                 puertaHttpBoundPort_ = http::localPort(puertaHttpFd_);
-                puertaHttpThread_ = std::thread(&SignalingServer::acceptLoop, this, puertaHttpFd_, false, false, true);
+                puertaHttpThread_ = std::thread(&SignalingServer::acceptLoop, this, puertaHttpFd_, Escucha::PuertaHttp);
                 log_.info(llenar(traducir("gateway", "puerta de la sala: http en %1:%2"),
                                  {cfg_.puertaHttpBind, std::to_string(puertaHttpBoundPort_)}));
             }
@@ -375,7 +375,7 @@ bool SignalingServer::start() {
                        -1);
         } else {
             tunnelBoundPort_ = http::localPort(tunnelListenFd_);
-            tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, false, true, false);
+            tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, Escucha::Tunel);
             log_.info(llenar(traducir("gateway", "tunel: escucha de pinggy en 127.0.0.1:%1 (todo externo)"),
                              {std::to_string(tunnelBoundPort_)}));
         }
@@ -756,8 +756,43 @@ void SignalingServer::closeActiveConns() {
 // Accept + despacho
 // ============================================================================
 
-void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo, bool soloControl) {
+bool SignalingServer::tomarIp(std::uint32_t ip) {
+    std::lock_guard<std::mutex> l(porIpLock_);
+    int& n = porIp_[ip];
+    if (n >= kMaxPorIp()) {
+        if (n == 0) porIp_.erase(ip);
+        return false;
+    }
+    ++n;
+    return true;
+}
+
+void SignalingServer::soltarIp(std::uint32_t ip) {
+    std::lock_guard<std::mutex> l(porIpLock_);
+    const auto it = porIp_.find(ip);
+    if (it != porIp_.end() && --it->second <= 0) porIp_.erase(it);
+}
+
+void SignalingServer::avisarRechazo(Escucha escucha, bool porIp) {
+    static const char* const kNombres[] = {"invitados", "control", "tunel", "puerta", "puerta-http"};
+    const int e = static_cast<int>(escucha);
+    const std::int64_t ahora = nowMs();
+    std::int64_t antes = ultimoAviso_[e].load(std::memory_order_relaxed);
+    if (ahora - antes < 10000 || !ultimoAviso_[e].compare_exchange_strong(antes, ahora)) {
+        rechazosCallados_[e].fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
+    const int callados = rechazosCallados_[e].exchange(0, std::memory_order_relaxed);
+    const std::string texto =
+        porIp ? traducir("gateway", "senalizacion: conexion rechazada en %1, esa IP ya tiene %2 (y %3 rechazos mas sin anotar)")
+              : traducir("gateway", "senalizacion: conexion rechazada en %1, tope de %2 conexiones (y %3 rechazos mas sin anotar)");
+    log_.warn(llenar(texto, {kNombres[e], std::to_string(porIp ? kMaxPorIp() : cupoDe(escucha)), std::to_string(callados)}),
+              -1);
+}
+
+void SignalingServer::acceptLoop(long long listenFd, Escucha escucha) {
     constexpr int kAcceptPollMs = 200;
+    std::atomic<int>& enEsta = porEscucha_[static_cast<int>(escucha)];
     while (!stop_.load(std::memory_order_relaxed)) {
         const int ready = http::waitReadable(listenFd, kAcceptPollMs);
         if (ready == 0) continue;
@@ -772,35 +807,42 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo, b
             accept(static_cast<decltype(socket(0, 0, 0))>(listenFd), reinterpret_cast<sockaddr*>(&cli), &len);
 #ifdef _WIN32
         if (c == INVALID_SOCKET) continue;
+        const std::uint32_t clientIp = static_cast<std::uint32_t>(cli.sin_addr.S_un.S_addr);
 #else
         if (c < 0) continue;
+        const std::uint32_t clientIp = static_cast<std::uint32_t>(cli.sin_addr.s_addr);
 #endif
         const long long fd = static_cast<long long>(c);
 
-        // Tope de concurrencia: por encima se responde 503 y se cierra, en vez
-        // de lanzar threads sin limite.
-        if (activeConns_.load(std::memory_order_relaxed) >= kMaxConcurrentConns()) {
+        // Cupo de la escucha: por encima se responde 503 y se cierra, en vez de lanzar
+        // threads sin limite. La API de control no rechaza: con sus lugares llenos la
+        // conexion entra «de sobrecupo» y se queda solo si trae el token (la app).
+        const bool sobrecupo = enEsta.load(std::memory_order_relaxed) >= cupoDe(escucha);
+        if (sobrecupo && escucha != Escucha::Admin) {
             http::sendResponse(fd, 503, "text/plain", traducir("gateway", "servidor saturado") + "\n");
             http::closeFd(fd);
-            log_.warn(llenar(traducir("gateway", "senalizacion: conexion rechazada, tope de %1 conexiones"),
-                             {std::to_string(kMaxConcurrentConns())}),
-                      -1);
+            avisarRechazo(escucha, false);
+            continue;
+        }
+        // Cupo por IP, ya, si la conexion es directa (la red local). Lo que llega por
+        // loopback se cuenta cuando diga de quien es (PROXY v1 / X-Forwarded-For).
+        const bool directa = ntohl(clientIp) != INADDR_LOOPBACK;
+        if (directa && !tomarIp(clientIp)) {
+            http::sendResponse(fd, 503, "text/plain", traducir("gateway", "servidor saturado") + "\n");
+            http::closeFd(fd);
+            avisarRechazo(escucha, true);
             continue;
         }
         http::setNoDelay(fd);
         http::setSocketTimeout(fd, kHandshakeTimeoutMs());
         activeConns_.fetch_add(1, std::memory_order_relaxed);
+        enEsta.fetch_add(1, std::memory_order_relaxed);
         trackFd(fd);
-#ifdef _WIN32
-        const std::uint32_t clientIp = static_cast<std::uint32_t>(cli.sin_addr.S_un.S_addr);
-#else
-        const std::uint32_t clientIp = static_cast<std::uint32_t>(cli.sin_addr.s_addr);
-#endif
         // Ultima red: un JSON con tipos inesperados (nlohmann lanza) no debe
         // tumbar el proceso desde un thread detachado.
-        std::thread([this, fd, clientIp, admin, externo, soloControl] {
+        std::thread([this, fd, clientIp, escucha, directa, sobrecupo] {
             try {
-                handleConnection(fd, clientIp, admin, externo, soloControl);
+                handleConnection(fd, clientIp, escucha, directa ? clientIp : 0, sobrecupo);
             } catch (const std::exception& e) {
                 log_.warn(llenar(traducir("gateway", "conexion: excepcion %1"), {e.what()}), -1);
             }
@@ -808,21 +850,33 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo, b
     }
 }
 
-void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo,
-                                       bool soloControl) {
-    // El thread esta detachado: el contador DEBE bajar por cualquier salida.
+void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, Escucha escucha, std::uint32_t ipCupo,
+                                       bool sobrecupo) {
+    const bool admin = escucha == Escucha::Admin;
+    const bool externo = escucha == Escucha::Tunel;
+    const bool soloControl = escucha == Escucha::Puerta || escucha == Escucha::PuertaHttp;
+    // El thread esta detachado: los contadores DEBEN bajar por cualquier salida.
     struct ConnGuard {
         SignalingServer* self;
         long long fd;
+        Escucha escucha;
+        std::uint32_t ipCupo;
         ~ConnGuard() {
             self->untrackFd(fd);
             http::closeFd(fd);
+            if (ipCupo != 0) self->soltarIp(ipCupo);
+            self->porEscucha_[static_cast<int>(escucha)].fetch_sub(1, std::memory_order_relaxed);
             self->activeConns_.fetch_sub(1, std::memory_order_relaxed);
         }
-    } guard{this, fd};
+    } guard{this, fd, escucha, ipCupo};
 
+    // La cabecera (y el cuerpo chico de abajo) con plazo total: la app por la API de
+    // control tiene el de siempre; lo demas, uno corto (slowloris). El de sobrecupo
+    // de la API de control tambien el corto: solo esta de paso hasta mostrar el token.
+    const auto plazo = std::chrono::steady_clock::now() +
+                       std::chrono::milliseconds(admin && !sobrecupo ? kHandshakeTimeoutMs() : kCabeceraMs());
     std::string headers;
-    if (!http::readHeaders(fd, headers)) return;
+    if (!http::readHeaders(fd, headers, plazo)) return;
 
     // PROXY v1 (del puente del tunel WireGuard, del terminador HTTPS, del proxy
     // por nombre o de ba-pinggy, todos locales): la conexion llega desde
@@ -843,7 +897,7 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         // La cabecera PROXY puede haber llegado sola: se completa la peticion.
         if (headers.find("\r\n\r\n") == std::string::npos) {
             std::string rest;
-            if (!http::readHeaders(fd, rest)) return;
+            if (!http::readHeaders(fd, rest, plazo)) return;
             headers += rest;
         }
     }
@@ -854,6 +908,22 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     if (externo && !ipDeProxy) {
         std::uint32_t real = 0;
         if (ipDeXff(http::getHeader(headers, "X-Forwarded-For"), real)) clientIp = real;
+    }
+
+    // El cupo por IP de lo que llego por un proceso local y ahora se sabe de quien es.
+    if (ipCupo == 0 && ntohl(clientIp) != INADDR_LOOPBACK) {
+        if (!tomarIp(clientIp)) {
+            http::sendResponse(fd, 503, "text/plain", traducir("gateway", "servidor saturado") + "\n");
+            avisarRechazo(escucha, true);
+            return;
+        }
+        guard.ipCupo = clientIp;
+    }
+    // De sobrecupo en la API de control: solo la app (con su token) se queda.
+    if (sobrecupo && !adminAuthorized(headers, "")) {
+        http::sendResponse(fd, 503, "text/plain", traducir("gateway", "servidor saturado") + "\n");
+        avisarRechazo(escucha, false);
+        return;
     }
 
     // Linea de peticion: METHOD TARGET HTTP/1.1
@@ -886,7 +956,9 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
             return;
         }
         body.resize(static_cast<size_t>(n));
-        if (!http::readExact(fd, reinterpret_cast<uint8_t*>(&body[0]), body.size())) return;
+        // El cuerpo, con su propio plazo (un POST que gotea tampoco retiene la conexion).
+        const auto plazoCuerpo = std::chrono::steady_clock::now() + std::chrono::milliseconds(kHandshakeTimeoutMs());
+        if (!http::readExact(fd, reinterpret_cast<uint8_t*>(&body[0]), body.size(), plazoCuerpo)) return;
     }
 
     if (admin) {

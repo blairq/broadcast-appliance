@@ -17,6 +17,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -46,13 +47,19 @@ int waitReadable(long long fd, int ms);
 void setSocketTimeout(long long fd, int ms);
 bool setNoDelay(long long fd);
 
-/// Lee exactamente `n` bytes. false en EOF/error.
-bool readExact(long long fd, uint8_t* out, size_t n);
+/// Sin plazo total: cada recv lo acota el timeout del socket (setSocketTimeout).
+using Plazo = std::chrono::steady_clock::time_point;
+inline constexpr Plazo kSinPlazo = Plazo::max();
+
+/// Lee exactamente `n` bytes. false en EOF/error o si vence `hasta`.
+bool readExact(long long fd, uint8_t* out, size_t n, Plazo hasta = kSinPlazo);
 /// Lee hasta `n` bytes. :returns: >0 leidos, <=0 EOF/error.
 int recvSome(long long fd, uint8_t* out, size_t n);
 bool sendAll(long long fd, const void* data, size_t n);
-/// Lee hasta el fin de cabecera (`\r\n\r\n`).
-bool readHeaders(long long fd, std::string& headers);
+/// Lee hasta el fin de cabecera (`\r\n\r\n`). Con `hasta`, el plazo es para TODA la
+/// cabecera y no por recv: el que la manda de a un byte cada tanto (slowloris) no
+/// retiene la conexión más que eso.
+bool readHeaders(long long fd, std::string& headers, Plazo hasta = kSinPlazo);
 
 /// Valor de una cabecera (busqueda case-insensitive, valor intacto).
 std::string getHeader(const std::string& headers, const std::string& name);
