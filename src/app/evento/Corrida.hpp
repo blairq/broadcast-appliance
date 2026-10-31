@@ -24,6 +24,21 @@
 // propone cómo adecuar la línea; la persona confirma y recién ahí se suelta
 // (`soltar`). Sin respuesta queda en HOLD; con GO se suelta tal cual estaba. La
 // descripción y la decisión quedan en el recorrido.
+//
+// VARIAS SALIDAS (L6, 3.4). Cada salida tiene su cursor (su al aire y su próximo) y
+// las acciones vienen marcadas con la salida: el que las hace usa el conmutador, la
+// mezcla y las capas de ESA salida. Un paso "*" es un momento compartido: un GO lo
+// toma en todas las que lo tienen por delante. Un paso «ancla» espera al de otra
+// salida (la cuenta «espera a principal/p17»; un GO lo hace entrar ya). Si alguien
+// cambia la escena a mano fuera de la línea, la salida queda marcada «a mano»
+// (`marcarAMano`) sin romper el pronóstico, y `reenganchar` vuelve a la del paso.
+//
+// LO DE AFUERA (L7, 3.2 y 3.6). Las condiciones (evento/Condicion.hpp) se evalúan
+// sobre lo que la app le cuenta a la corrida: los temas del bus (`hecho`), los
+// pulsos de una tecla, la botonera o la web (`pulso`) y los medios que terminan
+// (`medioTermino`); la hora y el fin de cada pieza los sabe la corrida. Con eso
+// entran los pasos «cuando», terminan los «mientras», arrancan las piezas «cuando»
+// y se disparan los disparadores (en el flanco: cuando la condición PASA a cumplirse).
 // ============================================================================
 #pragma once
 
@@ -37,6 +52,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "evento/Condicion.hpp"
 #include "evento/Linea.hpp"
 
 namespace ba::evento::linea {
@@ -107,6 +123,29 @@ class Corrida {
     void pausar(int64_t ahora);
     std::vector<Accion> reanudar(int64_t ahora);
     std::vector<Accion> terminar(int64_t ahora);
+
+    // --- Lo de afuera (L7) --------------------------------------------------------------
+    /// Cambió un tema del bus. Solo cuenta si alguna condición lo mira (`temasQueMira`).
+    std::vector<Accion> hecho(const std::string& tema, const nlohmann::json& valor, int64_t ahora);
+    /// Un pulso ("tecla:F5", "botonera:<id>", "web:<botón>"): vale solo en este instante.
+    std::vector<Accion> pulso(const std::string& clave, int64_t ahora);
+    /// El medio de la pieza llegó al final ("medio:<pieza>.termino").
+    std::vector<Accion> medioTermino(const std::string& pieza, int64_t ahora);
+    /// Los temas del bus que miran las condiciones de la línea.
+    std::vector<std::string> temasQueMira() const;
+    /// Las condiciones de la línea con lo que valen ahora.
+    const Seguimiento& condiciones() const { return seguimiento_; }
+
+    // --- Varias salidas (L6) --------------------------------------------------------------
+    /// La escena del paso al aire de la salida ("" si no pone ninguna).
+    std::string escenaAlAire(const std::string& salida) const;
+    /// Alguien puso `escena` a mano en la salida, fuera de la línea: queda anotado y
+    /// marcado (el pronóstico sigue igual). Con la escena del paso, se desmarca.
+    void marcarAMano(const std::string& salida, const std::string& escena, int64_t ahora);
+    /// La escena que se puso a mano ("" si la salida va con la línea).
+    std::string aMano(const std::string& salida) const;
+    /// Vuelve a la escena del paso al aire (la repone) y se desmarca.
+    std::vector<Accion> reenganchar(const std::string& salida, int64_t ahora, std::string* error = nullptr);
 
     // --- El tiempo -------------------------------------------------------------------
     /// Lo que tocaba hasta `ahora`: pasos que entran solos, piezas que llegan a su
@@ -181,6 +220,11 @@ class Corrida {
     /// Suelta el HOLD del corte y anota la decisión, sin mover nada (lo mueve quien llama).
     void soltarCorte(const std::string& decision, int64_t ahora);
     void anotar(int64_t ahora, const char* que, nlohmann::json datos = nlohmann::json::object());
+    /// Saca una viva: avisa, la anota y deja la hora de su fin (para «pieza:<id>.fin»).
+    std::vector<Viva>::iterator sacar(std::vector<Viva>::iterator it, int64_t ahora, std::vector<Accion>& acc);
+    /// Vuelve a evaluar las condiciones y hace los disparadores que pasaron a cumplirse.
+    void actualizarCondiciones(int64_t ahora, std::vector<Accion>& acc);
+    void hacerDisparador(const Disparador& d, int64_t ahora, std::vector<Accion>& acc);
 
     Linea linea_;
     Entrada base_;
@@ -203,6 +247,15 @@ class Corrida {
     std::string descripcion_;
     nlohmann::json resumen_ = nlohmann::json::object();
     std::vector<nlohmann::json> recorrido_;
+    // Lo de afuera (L7).
+    Mundo mundo_;
+    Seguimiento seguimiento_;
+    std::set<Condicion> condiciones_;   ///< las que usa la línea (se rehace con setLinea)
+    std::set<std::string> arriba_;      ///< los disparadores cuya condición se cumple
+    int disparando_ = 0;                ///< profundidad: un disparador que dispara otro
+    /// Cuándo arrancó de verdad cada pieza de lo emitido (Entrada::arranques).
+    std::map<std::string, int64_t> arranques_;
+    std::map<std::string, std::string> aMano_; ///< salida → la escena que se puso a mano
 };
 
 } // namespace ba::evento::linea

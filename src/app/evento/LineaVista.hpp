@@ -33,8 +33,7 @@
 
 namespace ba::evento::linea {
 
-/// La escena con la que sale un paso por esa salida (la de su pieza `escena`); "" si no tiene.
-std::string escenaDe(const Linea& l, const Paso& p, const std::string& salida);
+// (La escena de un paso por salida: linea::escenaDe, en Linea.hpp: la misma regla que la corrida.)
 
 /// De dónde sale la miniatura de una caja.
 enum class FuenteMini {

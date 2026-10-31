@@ -87,16 +87,6 @@ json chipsDe(const Linea& l, const Paso& p, const std::string& salida, const Con
 
 } // namespace
 
-std::string escenaDe(const Linea& l, const Paso& p, const std::string& salida) {
-    for (const Pieza& z : p.piezas) {
-        if (z.tipo != "escena") continue;
-        const Pista* pi = l.pista(z.pista);
-        if (pi && !pi->salida.empty() && pi->salida != salida) continue;
-        if (std::string e = leerTexto(z.datos, "escena"); !e.empty()) return e;
-    }
-    return {};
-}
-
 const char* nombreDe(FuenteMini f) {
     switch (f) {
         case FuenteMini::Programa: return "programa";

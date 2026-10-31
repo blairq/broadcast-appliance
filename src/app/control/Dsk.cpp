@@ -90,7 +90,7 @@ std::string Dsk::definir(int capa, const json& def) {
     return {};
 }
 
-std::string Dsk::mostrar(int capa, bool visible, bool confirmada) {
+std::string Dsk::mostrar(int capa, bool visible, bool confirmada, const std::string& salida) {
     json* c = buscar(capa);
     if (c == nullptr) return ba::i18n::traducir("dsk", "la capa va de 1 a 4");
     if (!visible && c->value("fijo", false) && !confirmada)
@@ -99,8 +99,24 @@ std::string Dsk::mostrar(int capa, bool visible, bool confirmada) {
                                 {c->value("nombre", std::string())});
     if (visible && c->value("contenido", json::array()).empty())
         return ba::i18n::traducir("dsk", "la capa no tiene contenido: definila primero");
-    if (!engine_.dskMostrar(capa, visible, c->value("transicion_ms", 300))) return engine_.lastError();
-    (*c)["visible"] = visible;
+    const bool porOmision = salida.empty() || salida == BroadcastEngine::kSalidaPorOmision;
+    if (!porOmision && visible) {
+        // La definición es una para todas: se arma en esa salida antes de subirla.
+        std::vector<std::string> cont;
+        for (const auto& n : c->value("contenido", json::array()))
+            if (n.is_string()) cont.push_back(n.get<std::string>());
+        if (!engine_.dskArmar(capa, cont, c->value("recuadro", json::object()), salida)) return engine_.lastError();
+    }
+    if (!engine_.dskMostrar(capa, visible, c->value("transicion_ms", 300), porOmision ? std::string() : salida))
+        return engine_.lastError();
+    if (porOmision) {
+        (*c)["visible"] = visible;
+    } else {
+        json& en = (*c)["visible_en"];
+        if (!en.is_object()) en = json::object();
+        if (visible) en[salida] = true;
+        else en.erase(salida);
+    }
     avisar();
     return {};
 }
@@ -125,6 +141,9 @@ void Dsk::restaurar() {
         if (cont.empty()) continue;
         engine_.dskArmar(capa, cont, c.value("recuadro", json::object()));
         if (c.value("visible", false)) engine_.dskMostrar(capa, true, 0);
+        // Las otras salidas: si todavía no existen (se crean después), no vuelve ahí.
+        for (const auto& [s, v] : c.value("visible_en", json::object()).items())
+            if (v == true && engine_.dskArmar(capa, cont, c.value("recuadro", json::object()), s)) engine_.dskMostrar(capa, true, 0, s);
     }
     if (alCambiar_) alCambiar_(capas_);
     emit cambio();

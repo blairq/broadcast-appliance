@@ -14,7 +14,11 @@
 //   - cerrar en los celulares muestra el resultado a todos;
 //   - el resultado oficial va a Quórum (acta, CSV nominal, gráfico) y al bus
 //     (sesion/votacion); si votaron también los celulares en una de la
-//     central, un voto por integrante (vale el último).
+//     central, un voto por integrante (vale el último);
+//   - el estado, sea quien sea el que la lleve (los celulares siguen a la
+//     central), también al bus: votacion/estado {estado, numero, tema} y, para
+//     las condiciones de la línea de tiempo, votacion/abierta (abierta o en
+//     pausa) y votacion/cerrada (true/false).
 // ============================================================================
 #pragma once
 
@@ -71,6 +75,8 @@ class Votaciones : public QObject {
    private:
     /// La de la central, también en los celulares.
     void seguirCentral();
+    /// El estado al bus (votacion/estado, votacion/abierta, votacion/cerrada).
+    void publicarEstado();
     /// La de la central con los votos de los celulares (un voto por integrante).
     json combinada(const json& resultadoCentral) const;
 

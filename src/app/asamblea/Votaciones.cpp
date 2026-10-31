@@ -22,6 +22,18 @@ Votaciones::Votaciones(SesionRemota& sesion, ConferenciaDcn& dcn, Quorum& quorum
     });
     // La votación de la central también en los celulares (abrir, pausar, cerrar).
     connect(&dcn_, &ConferenciaDcn::cambio, this, &Votaciones::seguirCentral);
+    // Los celulares siguen siempre a la que manda: su estado es el de la votación.
+    connect(&sesion_, &SesionRemota::cambio, this, &Votaciones::publicarEstado);
+    publicarEstado();
+}
+
+void Votaciones::publicarEstado() {
+    const json v = sesion_.votacion();
+    const std::string est = v.value("estado", std::string("sin"));
+    // Publicar lo mismo no avisa a nadie: la sesión cambia por muchas cosas.
+    bus_.publicar("votacion/estado", {{"estado", est}, {"numero", v.value("numero", 0)}, {"tema", v.value("tema", std::string())}});
+    bus_.publicar("votacion/abierta", est == "abierta" || est == "pausada");
+    bus_.publicar("votacion/cerrada", est == "cerrada");
 }
 
 void Votaciones::accion(const std::string& acc, const json& args, const std::string& quien, Listo listo) {

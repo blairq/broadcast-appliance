@@ -3,6 +3,8 @@
 // ============================================================================
 #include "evento/Linea.hpp"
 
+#include "evento/Condicion.hpp"
+
 #include "evento/Evento.hpp"
 #include "evento/LeerJson.hpp"
 #include "i18n/I18n.hpp"
@@ -369,6 +371,16 @@ Disparador Disparador::deJson(const json& j) {
     return d;
 }
 
+std::string errorDeHacer(const json& h) {
+    using ba::i18n::traducir;
+    if (!h.is_object()) return traducir("linea", "«hacer» tiene que ser {accion, salida?, id?}");
+    const std::string a = leerTexto(h, "accion");
+    static const std::set<std::string> sinId{"go", "hold", "soltar", "saltar"}, conId{"adlib", "insertar", "ir"};
+    if (sinId.count(a)) return {};
+    if (conId.count(a)) return leerTexto(h, "id").empty() ? traducir("linea", "a esa acción le falta el «id»") : std::string();
+    return ba::i18n::llenar(traducir("linea", "«%1» no es una acción (go, hold, soltar, saltar, adlib, insertar, ir)"), {a});
+}
+
 json Plantilla::aJson() const { return json{{"id", id}, {"nombre", nombre}, {"pasos", listaJson(pasos)}}; }
 
 Plantilla Plantilla::deJson(const json& j) {
@@ -411,6 +423,23 @@ const Bloque* Linea::bloqueDe(const std::string& pasoId) const {
         for (const Paso& p : b.pasos)
             if (p.id == pasoId) return &b;
     return nullptr;
+}
+
+const Pieza* piezaDeEscena(const Linea& l, const Paso& p, const std::string& s) {
+    for (const Pieza& z : p.piezas) {
+        const Pista* pi = l.pista(z.pista);
+        const bool deEscena = pi ? pi->tipo == "escena" : z.tipo == "escena";
+        if (!deEscena) continue;
+        // La pista de escena de otra salida (en un momento compartido, cada una la suya).
+        if (pi && !pi->salida.empty() && pi->salida != s) continue;
+        if (!leerTexto(z.datos, "escena").empty()) return &z;
+    }
+    return nullptr;
+}
+
+std::string escenaDe(const Linea& l, const Paso& p, const std::string& s) {
+    const Pieza* z = piezaDeEscena(l, p, s);
+    return z ? leerTexto(z->datos, "escena") : std::string();
 }
 
 json Linea::aJson() const {
@@ -688,6 +717,7 @@ struct Trabajo {
     std::vector<int> futuras;   ///< índices de `seq`, en el orden en que van a entrar
     int alAire = -1;
     std::vector<bool> alcanzaSolo; ///< por índice: entra sin que nadie apriete nada
+    std::vector<bool> trasAlAire;  ///< por índice: entra cuando TERMINA el que está al aire
 };
 
 std::string clave(const std::string& salida, const std::string& paso) { return salida + "/" + paso; }
@@ -792,6 +822,15 @@ class Resolvedor {
         return plan;
     }
 
+    /// ¿El paso arrancado en `frente` todavía no sabe cuándo termina? Abierto, o un
+    /// «mientras» cuya condición no dejó de cumplirse desde que entró.
+    bool sinFinConocido(const Paso& p, int64_t frente) const {
+        if (p.fin.modo == ModoFin::Abierto) return true;
+        if (p.fin.modo != ModoFin::Mientras) return false;
+        const EstadoCondicion* c = condicion(p.fin.mientras);
+        return !(c && !c->cumple && c->desdeMs >= frente);
+    }
+
     SalidaResuelta resolverSalida(const std::string& s, Trabajo& w) {
         SalidaResuelta out;
         out.salida = s;
@@ -802,6 +841,7 @@ class Resolvedor {
         const int n = static_cast<int>(w.seq.size());
         out.pasos.resize(w.seq.size());
         w.alcanzaSolo.assign(w.seq.size(), false);
+        w.trasAlAire.assign(w.seq.size(), false);
         auto indice = [&](const std::string& id) {
             for (int i = 0; i < n; ++i)
                 if (w.seq[i].p->id == id) return i;
@@ -942,6 +982,7 @@ class Resolvedor {
                     const PasoResuelto& rr = out.pasos[ref];
                     if (ini.modo == ModoInicio::Tras) t = rr.finMs + w.seq[ref].p->postEsperaMs;
                     else t = rr.frenteMs + ini.masMs;
+                    if (ini.modo == ModoInicio::Tras && ref == w.alAire) w.trasAlAire[k] = true;
                     if (ref != prev && rr.estimado) propio = true;
                     break;
                 }
@@ -965,7 +1006,9 @@ class Resolvedor {
                     r.como = ComoEntro::Cuando;
                     const EstadoCondicion* c = condicion(ini.condicion);
                     if (c && c->cumple) {
-                        t = c->desdeMs;
+                        // Lo de afuera corta al que está al aire solo si este es el
+                        // próximo; más adelante espera su turno (ver alcanzaSolo).
+                        t = hechos.empty() ? c->desdeMs : std::max(c->desdeMs, prevFin);
                         fijo = true;
                     } else {
                         propio = true;
@@ -1080,12 +1123,22 @@ class Resolvedor {
         if (!w.futuras.empty()) out.proximo = w.seq[w.futuras.front()].p->id;
 
         // Qué entra solo: lo que se encadena desde lo que está al aire sin un GO en
-        // el medio; un hard start, una condición o un ancla entran solos igual.
+        // el medio; un hard start o un ancla entran solos igual. Una condición, solo
+        // si es el próximo: lo de afuera («cerró la votación») no se saltea los
+        // pasos que tiene adelante; cuando le llega el turno, entra si ya se cumple.
         bool cadena = w.alAire >= 0 && !out.pasos[w.alAire].enHold;
+        // Un paso al aire que no sabe cuándo termina (abierto, o «mientras» que se sigue
+        // cumpliendo) no se termina por la hora: lo que va «tras» él espera.
+        const bool sinFin = w.alAire >= 0 && sinFinConocido(*w.seq[w.alAire].p, out.pasos[w.alAire].frenteMs);
         for (int k : w.futuras) {
             const PasoResuelto& r = out.pasos[k];
             if (r.cortadoPorHora) continue;
-            const bool independiente = r.como == ComoEntro::Hora || r.como == ComoEntro::Cuando || r.como == ComoEntro::Ancla;
+            if (sinFin && w.trasAlAire[k]) {
+                cadena = false;
+                continue;
+            }
+            const bool independiente = r.como == ComoEntro::Hora || r.como == ComoEntro::Ancla ||
+                                       (r.como == ComoEntro::Cuando && k == w.futuras.front());
             w.alcanzaSolo[k] = r.automatico && (cadena || independiente);
             cadena = w.alcanzaSolo[k] && !r.enHold;
         }
@@ -1126,7 +1179,13 @@ class Resolvedor {
                 pr.prioridad = z.prioridad;
                 pr.orden = orden_[&z];
                 pr.estimado = r.estimado;
-                switch (z.desde.modo) {
+                // Lo que ya arrancó de verdad tiene su hora, sea cual sea su `desde`.
+                const auto real = r.estado == EstadoPaso::AlAire || r.estado == EstadoPaso::Pasado
+                                      ? e_.arranques.find(claveArranque(s, p.id, z.id))
+                                      : e_.arranques.end();
+                if (real != e_.arranques.end() && real->second >= r.frenteMs) {
+                    pr.desdeMs = real->second;
+                } else switch (z.desde.modo) {
                     case Ancla::Modo::Ms: pr.desdeMs = r.frenteMs + z.desde.ms; break;
                     case Ancla::Modo::AntesDelFin:
                         pr.desdeMs = std::max(r.frenteMs, r.finMs - z.desde.ms);
@@ -1210,19 +1269,6 @@ class Resolvedor {
 
     // --- Conflictos entre salidas (3.4) ---------------------------------------------
 
-    /// La escena de un paso en una salida: la pieza de su pista de escena.
-    std::string escenaDe(const Paso& p, const std::string& s) const {
-        for (const Pieza& z : p.piezas) {
-            const Pista* pi = l_.pista(z.pista);
-            const bool deEscena = pi ? pi->tipo == "escena" : z.tipo == "escena";
-            if (!deEscena) continue;
-            if (pi && !pi->salida.empty() && p.salida == "*" && pi->salida != s) continue;
-            const std::string e = leerTexto(z.datos, "escena");
-            if (!e.empty()) return e;
-        }
-        return {};
-    }
-
     /// Qué hay al aire y qué está armado en la salida en el instante t.
     std::pair<const Paso*, const Paso*> enSalida(const SalidaResuelta& sr, const Trabajo& w, int64_t t) const {
         int aire = -1;
@@ -1267,7 +1313,7 @@ class Resolvedor {
                     const auto [aire, armado] = enSalida(o, trabajos[i], z.desdeMs);
                     for (const auto& [paso, armada] : {std::pair{aire, false}, std::pair{armado, true}}) {
                         if (!paso) continue;
-                        const std::string escena = escenaDe(*paso, o.salida);
+                        const std::string escena = linea::escenaDe(l_, *paso, o.salida);
                         if (escena.empty()) continue;
                         const auto cams = e_.camarasDeEscena(escena);
                         if (std::find(cams.begin(), cams.end(), camara) == cams.end()) continue;
@@ -1361,6 +1407,31 @@ std::vector<Reparo> revisar(const Linea& l, const OpcionesRevision& o) {
                 if (z.id.empty() || !idsPieza.insert(z.id).second)
                     reparo(b.id, p.id, z.id, true, llenar(traducir("linea", "hay dos piezas con el id «%1»"), {z.id}));
         }
+    }
+
+    // Condiciones que no se entienden: en vivo no se cumplirían nunca.
+    const auto condicionMal = [&](const std::string& b, const std::string& p, const std::string& z, const Condicion& c) {
+        if (c.empty()) return; // vacía: la reparan las reglas de cada modo
+        if (const std::string e = errorDeCondicion(c); !e.empty())
+            reparo(b, p, z, true, llenar(traducir("linea", "la condición «%1» no se entiende: %2"), {c, e}));
+    };
+    for (const Bloque& b : l.bloques) {
+        if (b.inicio && b.inicio->modo == ModoInicio::Cuando) condicionMal(b.id, {}, {}, b.inicio->condicion);
+        if (!b.plantilla.empty() && std::none_of(l.plantillas.begin(), l.plantillas.end(),
+                                                 [&](const Plantilla& t) { return t.id == b.plantilla; }))
+            reparo(b.id, {}, {}, true, llenar(traducir("linea", "el bloque se arma con la plantilla «%1», que no existe"), {b.plantilla}));
+        for (const Paso& p : b.pasos) {
+            if (p.inicio.modo == ModoInicio::Cuando) condicionMal(b.id, p.id, {}, p.inicio.condicion);
+            if (p.fin.modo == ModoFin::Mientras) condicionMal(b.id, p.id, {}, p.fin.mientras);
+            for (const Pieza& z : p.piezas)
+                if (z.desde.modo == Ancla::Modo::Cuando) condicionMal(b.id, p.id, z.id, z.desde.cuando);
+        }
+    }
+    for (const Disparador& d : l.disparadores) {
+        if (d.cuando.empty()) reparo({}, {}, {}, true, llenar(traducir("linea", "el disparador «%1» no dice cuándo"), {d.id}));
+        condicionMal({}, {}, {}, d.cuando);
+        if (const std::string e = errorDeHacer(d.hacer); !e.empty())
+            reparo({}, {}, {}, true, llenar(traducir("linea", "el disparador «%1»: %2"), {d.id, e}));
     }
 
     for (const Pista& pi : l.pistas)

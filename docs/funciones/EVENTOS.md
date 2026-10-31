@@ -116,7 +116,7 @@ problemas y hay que verlos antes:
   actualizar, cambiar configuración que reinicia el gateway) piden confirmación
   extra o quedan bloqueadas.
 
-### 1.6 La línea de tiempo — **hecho L0-L3** (modelo, ejecutor de una salida y MCP)
+### 1.6 La línea de tiempo — **hecho L0-L3, L6 y L7** (modelo, ejecutor, MCP, varias salidas y condiciones)
 
 El plan entero está en `docs/planes/PLAN-LINEA-DE-TIEMPO.md`. Lo hecho:
 
@@ -145,7 +145,7 @@ El plan entero está en `docs/planes/PLAN-LINEA-DE-TIEMPO.md`. Lo hecho:
   paso y del estante, e insertar un paso del estante (una copia; lo planeado no se
   toca). «Siguiente» en el guion de cues dispara la pieza siguiente del paso al
   aire si no salió todavía (lo que antes era el cue siguiente) y si no, hace GO.
-  Por ahora sale de verdad la salida por omisión; las otras se anotan.
+  Cada salida sale de verdad (L6): ver abajo.
 - **Lo emitido**: `Eventos/<x>/recorrido.jsonl` (qué entró, cuándo y cómo, las
   piezas, los HOLD, los saltos, lo insertado, los cortes, lo que se contó y lo que
   se decidió; lo del ensayo no) y la sección `linea` del documento de aire
@@ -167,9 +167,45 @@ El plan entero está en `docs/planes/PLAN-LINEA-DE-TIEMPO.md`. Lo hecho:
   recorta lo «recortable» y propone saltear lo «opcional»), las acciones de vivo y
   el flujo del corte. Ver `docs/funciones/MCP.md`.
 
-Falta (L4 en adelante): la escaleta y la conducción nuevas en QML, la vista
-multipista, varias salidas de verdad, disparadores y condiciones (`cuando`,
-`mientras`), las superficies web y el productor automático.
+- **Varias salidas (L6).** Cada salida tiene su cursor y sale por su conmutador:
+  su escena (armada antes en su PVW), su música y su video (un medio y una escena
+  «Video del evento · <salida>» por salida; con más de una salida, la música de
+  cada una suena solo en su mezcla), su audio (una pista de audio de una salida
+  toca su mezcla; una global, todas) y sus capas DSK. Un paso `"*"` es un momento
+  compartido: un GO lo toma en todas. Un paso `ancla` muestra a quién espera
+  (`esperaA` en `linea_estado`) y entra con su ancla o con un GO. Si alguien cambia
+  la escena a mano fuera de la línea, la salida queda marcada `aMano` (el
+  pronóstico sigue igual) y «reenganchar» vuelve a la del paso.
+- **Piezas nuevas que se ejecutan.** `ptz` `{camara, posicion, segundos?,
+  siOcupada: esperar|mover|saltar}`: si la cámara está al aire en alguna salida,
+  de fábrica espera a que se libere (aparece en `ptzPendientes` y se puede
+  «mover igual»); los conflictos de PTZ de la revisión usan las escenas reales.
+  `dsk` `{capa, accion: subir|bajar, confirmada?}` en la salida de la pieza (baja
+  al terminar su vida). `asamblea` `{accion: tratar (punto) | siguiente | punto
+  (punto, estado, resultado) | votacion (que: abrir|pausar|reanudar|cerrar|a_quorum,
+  tema, menu, segundos)}`: al cerrar una votación carga también el resultado
+  oficial. `playlist` `{accion: play|next|prev|stop, indice?, autoNext?, loop?}`:
+  la playlist sigue siendo la dueña del in/out y del auto-next.
+- **Condiciones (L7, `evento/Condicion.hpp`).** `bus:<tema>[.campo] [== 'x']`,
+  `medio:<pieza>.termino`, `hora>=19:30`, `pieza:<id>.fin + 2s`, y los pulsos
+  `tecla:F5`, `botonera:<id>`, `web:<botón>`, con `y`/`o`/`no` y paréntesis. Un
+  paso `cuando` entra cuando se cumple, pero solo si es el próximo (no se saltea
+  lo que tiene adelante); uno `mientras` dura lo que dure su condición (y lo que va
+  «tras» él no entra por la hora mientras siga cumpliéndose); una pieza `cuando`
+  arranca al cumplirse y después vive lo suyo. Los **disparadores** hacen go,
+  hold, soltar, saltar, adlib, insertar o ir cuando su condición PASA a cumplirse
+  (no en pausa ni en el HOLD de un corte). La revisión marca las condiciones mal
+  escritas. Las votaciones publican `votacion/estado`, `votacion/abierta` y
+  `votacion/cerrada` para esto.
+- **Orden del día.** Un bloque con `plantilla` y `origen: "asamblea/orden-del-dia"`
+  se arma con un paso por punto (marcas `{n}`, `{titulo}`, `{expediente}`,
+  `{punto}`); si el orden del día cambia, se vuelve a armar sin tocar lo que ya
+  salió.
+- **El estante tras un corte.** Lo disparado del estante vuelve como estaba (si
+  su vida no terminó durante el corte).
+
+Falta: la escaleta y la conducción nuevas en QML (L4), la vista multipista (L5),
+las superficies web (L8) y el productor automático (L9).
 
 ---
 

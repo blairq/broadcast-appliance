@@ -22,16 +22,6 @@ const char* nombreDe(EstadoCorrida e) {
     return "parada";
 }
 
-namespace {
-
-/// Las salidas por las que pasa un paso ("*": todas).
-std::vector<std::string> salidasDe(const Linea& l, const Paso& p) {
-    if (p.salida == "*") return l.salidasEfectivas();
-    return {l.salidaDe(p)};
-}
-
-} // namespace
-
 Corrida::Corrida(Linea l, Entrada base) : linea_(std::move(l)), base_(std::move(base)) {
     // Lo vivo es de la corrida: de la base solo valen el arranque, la medianoche, el
     // fin planeado y las cámaras de cada escena.
@@ -39,12 +29,18 @@ Corrida::Corrida(Linea l, Entrada base) : linea_(std::move(l)), base_(std::move(
     base_.salteados.clear();
     base_.holds.clear();
     base_.proximos.clear();
+    base_.condiciones.clear();
+    base_.arranques.clear();
+    mundo_.medianocheMs = base_.medianocheMs;
+    mundo_.inicioPlaneadoMs = base_.inicioPlaneadoMs;
+    condiciones_ = condicionesDe(linea_);
 }
 
 void Corrida::setLinea(Linea l) {
     linea_ = std::move(l);
     for (const Insercion& i : inserciones_)
         aplicar(i);
+    condiciones_ = condicionesDe(linea_);
 }
 
 void Corrida::aplicar(const Insercion& ins) {
@@ -74,6 +70,8 @@ Entrada Corrida::entrada(int64_t ahora) const {
             e.holds.push_back({s, {}});
     for (const auto& [s, p] : proximos_)
         e.proximos.push_back({s, p});
+    e.condiciones = seguimiento_.estados();
+    e.arranques = arranques_;
     return e;
 }
 
@@ -148,6 +146,11 @@ void Corrida::entrar(const std::string& salida, const std::string& paso, ComoEnt
     holdsPaso_.erase(std::remove_if(holdsPaso_.begin(), holdsPaso_.end(), [&](const RefPaso& h) { return h.salida == salida; }),
                      holdsPaso_.end());
     armado_.erase(salida);
+    aMano_.erase(salida);
+    // El paso entra de nuevo (repetir): sus piezas vuelven a arrancar.
+    const std::string pre = salida + "/" + paso + "/";
+    for (auto it = arranques_.lower_bound(pre); it != arranques_.end() && it->first.rfind(pre, 0) == 0;)
+        it = arranques_.erase(it);
     acc.push_back({Accion::Que::EntraPaso, salida, paso, {}, {}, false, {}});
     anotar(ahora, "entra", {{"salida", salida}, {"paso", paso}, {"como", nombreDe(como)}});
 }
@@ -159,12 +162,24 @@ void Corrida::disparar(const std::string& salida, const std::string& paso, const
                                 [&](const Viva& v) { return v.salida == salida && v.paso == paso && v.pieza == pieza; }),
                  vivas_.end());
     vivas_.push_back({salida, paso, pieza, ahora, hasta});
+    if (!paso.empty()) arranques_[claveArranque(salida, paso, pieza)] = ahora;
+    // Arranca de nuevo: lo que se sabía de su medio y de su fin era de la vez anterior.
+    mundo_.mediosTerminados.erase(pieza);
+    mundo_.finesDePieza.erase(pieza);
     Accion a{Accion::Que::Pieza, salida, paso, pieza, {}, reposicion, {}};
     acc.push_back(a);
     anotar(ahora, reposicion ? "repone" : "pieza", {{"salida", salida}, {"paso", paso}, {"pieza", pieza}});
 }
 
+std::vector<Corrida::Viva>::iterator Corrida::sacar(std::vector<Viva>::iterator it, int64_t ahora, std::vector<Accion>& acc) {
+    acc.push_back({Accion::Que::Saca, it->salida, it->paso, it->pieza, {}, false, {}});
+    anotar(ahora, "saca", {{"salida", it->salida}, {"paso", it->paso}, {"pieza", it->pieza}});
+    mundo_.finesDePieza[it->pieza] = ahora;
+    return vivas_.erase(it);
+}
+
 void Corrida::procesar(int64_t ahora, bool avanzar, std::vector<Accion>& acc) {
+    actualizarCondiciones(ahora, acc);
     Resolucion r;
     // Un paso que entra solo puede hacer entrar otro en el acto (un «sigue» sin
     // duración): se resuelve de nuevo hasta que no entre nada más (con tope).
@@ -205,22 +220,14 @@ void Corrida::procesar(int64_t ahora, bool avanzar, std::vector<Accion>& acc) {
             ++it;
             continue;
         }
-        acc.push_back({Accion::Que::Saca, it->salida, it->paso, it->pieza, {}, false, {}});
-        anotar(ahora, "saca", {{"salida", it->salida}, {"paso", it->paso}, {"pieza", it->pieza}});
-        it = vivas_.erase(it);
+        it = sacar(it, ahora, acc);
     }
 
     // El lookahead: la escena del próximo, armada en el PVW de su salida.
     for (const SalidaResuelta& sr : r.salidas) {
         const Paso* p = sr.proximo.empty() ? nullptr : linea_.paso(sr.proximo);
         if (p == nullptr) continue;
-        std::string escena;
-        for (const Pieza& z : p->piezas) {
-            const Pista* pi = linea_.pista(z.pista);
-            if (z.tipo != "escena" || (pi && !pi->salida.empty() && pi->salida != sr.salida)) continue;
-            escena = leerTexto(z.datos, "escena");
-            if (!escena.empty()) break;
-        }
+        const std::string escena = escenaDe(linea_, *p, sr.salida);
         if (escena.empty() || armado_[sr.salida] == escena) continue;
         armado_[sr.salida] = escena;
         acc.push_back({Accion::Que::Armar, sr.salida, p->id, {}, escena, false, {}});
@@ -267,7 +274,17 @@ std::vector<Accion> Corrida::go(const std::string& salida, int64_t ahora) {
         }
         return acc;
     }
-    entrar(salida, sr->proximo, ComoEntro::Go, ahora, acc);
+    const std::string paso = sr->proximo;
+    entrar(salida, paso, ComoEntro::Go, ahora, acc);
+    // Un momento compartido ("*"): el mismo GO lo toma en las salidas que lo tienen
+    // por delante (lo que tenían en el medio queda salteado, como con «Ir a»).
+    if (const Paso* p = linea_.paso(paso); p != nullptr && p->salida == "*")
+        for (const SalidaResuelta& o : r.salidas) {
+            if (o.salida == salida) continue;
+            const PasoResuelto* x = o.paso(paso);
+            if (x != nullptr && (x->estado == EstadoPaso::Proximo || x->estado == EstadoPaso::Futuro))
+                entrar(o.salida, paso, ComoEntro::Go, ahora, acc);
+        }
     procesar(ahora, estado_ == EstadoCorrida::Corriendo, acc);
     return acc;
 }
@@ -349,9 +366,7 @@ std::vector<Accion> Corrida::irA(const std::string& salida, const std::string& p
                 ++it;
                 continue;
             }
-            acc.push_back({Accion::Que::Saca, salida, it->paso, id, {}, false, {}});
-            anotar(ahora, "saca", {{"salida", salida}, {"paso", it->paso}, {"pieza", id}});
-            it = vivas_.erase(it);
+            it = sacar(it, ahora, acc);
         }
     const std::vector<std::string> ya = activas(salida);
     for (const Reposicion& d : c.deberianEstar) {
@@ -457,7 +472,12 @@ std::vector<Accion> Corrida::reanudar(int64_t ahora) {
     // zócalo a los 5 s) y su fin previsto no se comen la pausa.
     for (Instancia& x : instancias_) {
         if (x.hastaMs != 0) continue;
-        x.desdeMs += ahora - std::max(pausadoDesdeMs_, x.desdeMs);
+        const int64_t corre = ahora - std::max(pausadoDesdeMs_, x.desdeMs);
+        x.desdeMs += corre;
+        // Lo que ya arrancó adentro del paso se corre igual: sigue a la misma distancia.
+        const std::string pre = x.salida + "/" + x.paso + "/";
+        for (auto it = arranques_.lower_bound(pre); it != arranques_.end() && it->first.rfind(pre, 0) == 0; ++it)
+            it->second += corre;
     }
     pausadoMs_ += ahora - pausadoDesdeMs_;
     estado_ = EstadoCorrida::Corriendo;
@@ -508,6 +528,10 @@ int64_t Corrida::proximoMs(int64_t ahora, const std::string& salida) const {
         if (ev.ms > ahora && (salida.empty() || ev.salida == salida)) mejor = std::min(mejor, ev.ms);
     for (const Viva& v : vivas_)
         if (v.hastaMs != kNunca && v.hastaMs > ahora && (salida.empty() || v.salida == salida)) mejor = std::min(mejor, v.hastaMs);
+    // Una condición que cambia sola a una hora («hora>=19:30», «pieza:z.fin + 2s»): la
+    // mira el ejecutor de la salida por omisión (el tick es uno para todas).
+    if ((salida.empty() || salida == salidaPorOmision()) && seguimiento_.proximoCambioMs() > ahora)
+        mejor = std::min(mejor, seguimiento_.proximoCambioMs());
     return mejor == kNunca ? -1 : mejor - ahora;
 }
 
@@ -560,6 +584,13 @@ json Corrida::aJsonVivo(int64_t ahora) const {
     j["inserciones"] = ins;
     j["insertados"] = insertados_;
     j["retomando"] = retomando_;
+    // Lo del estante que estaba puesto: el resolvedor no lo conoce, así que vuelve de acá.
+    json est = json::array();
+    for (const Viva& v : vivas_)
+        if (v.paso.empty()) est.push_back({{"salida", v.salida}, {"pieza", v.pieza}, {"desdeMs", v.desdeMs}, {"hastaMs", v.hastaMs}});
+    j["estante"] = est;
+    j["arranques"] = arranques_;
+    j["aMano"] = aMano_;
     return j;
 }
 
@@ -591,6 +622,14 @@ std::vector<Accion> Corrida::retomar(const json& vivo, int64_t ahora) {
     disparadas_.clear();
     vivas_.clear();
     armado_.clear();
+    arranques_.clear();
+    if (vivo.contains("arranques") && vivo["arranques"].is_object())
+        for (const auto& [k, v] : vivo["arranques"].items())
+            if (v.is_number_integer()) arranques_[k] = v.get<int64_t>();
+    aMano_.clear();
+    if (vivo.contains("aMano") && vivo["aMano"].is_object())
+        for (const auto& [k, v] : vivo["aMano"].items())
+            if (v.is_string()) aMano_[k] = v.get<std::string>();
 
     // Todo en HOLD hasta que alguien cuente qué está pasando (3.8).
     const Retoma rt = retomarTrasCorte(linea_, g, entrada(ahora));
@@ -612,7 +651,22 @@ std::vector<Accion> Corrida::retomar(const json& vivo, int64_t ahora) {
     for (const Reposicion& x : rt.reponer) {
         disparar(x.pieza.salida, x.pieza.paso, x.pieza.pieza, ahora, kNunca, true, acc);
         vivas_.back().desdeMs = x.pieza.desdeMs;
+        arranques_[claveArranque(x.pieza.salida, x.pieza.paso, x.pieza.pieza)] = x.pieza.desdeMs;
     }
+    // Lo disparado del estante vuelve como estaba, si su vida no se terminó en el corte
+    // (el resolvedor no lo conoce: por eso viene aparte en linea-aire.json).
+    if (vivo.contains("estante") && vivo["estante"].is_array())
+        for (const json& x : vivo["estante"]) {
+            const std::string s = leerTexto(x, "salida"), id = leerTexto(x, "pieza");
+            const int64_t hasta = leerNumero(x, "hastaMs", kNunca);
+            if (id.empty() || pieza({}, id) == nullptr) continue;
+            if (hasta <= ahora) {
+                acc.push_back({Accion::Que::Saca, s, {}, id, {}, false, {}});
+                continue;
+            }
+            disparar(s, {}, id, ahora, hasta, true, acc);
+            vivas_.back().desdeMs = leerNumero(x, "desdeMs", ahora);
+        }
     for (const Reposicion& x : rt.perdidas) {
         if (const int i = indiceAlAire(x.pieza.salida); i >= 0 && instancias_[static_cast<std::size_t>(i)].paso == x.pieza.paso)
             disparadas_.insert({static_cast<std::size_t>(i), x.pieza.pieza});
@@ -630,7 +684,8 @@ std::vector<Accion> Corrida::retomar(const json& vivo, int64_t ahora) {
     }
     for (const std::string& id : rt.sacar)
         for (const PiezaAire& p : g.piezas)
-            if (p.pieza == id) acc.push_back({Accion::Que::Saca, p.salida, {}, id, {}, false, {}});
+            if (p.pieza == id && pieza({}, id) == nullptr) // las del estante, arriba
+                acc.push_back({Accion::Que::Saca, p.salida, {}, id, {}, false, {}});
     anotar(ahora, "corte", {{"desdeMs", g.escritoMs}, {"hastaMs", ahora}, {"resumen", resumen_}});
     procesar(ahora, false, acc);
     return acc;
@@ -657,6 +712,133 @@ std::vector<Accion> Corrida::soltar(const std::string& decision, int64_t ahora) 
     return acc;
 }
 
+// --- Lo de afuera (L7) ------------------------------------------------------------------
+
+void Corrida::actualizarCondiciones(int64_t ahora, std::vector<Accion>& acc) {
+    mundo_.ahoraMs = ahora;
+    seguimiento_.actualizar(condiciones_, mundo_);
+    // Los disparadores, en el flanco. Se anota siempre quién está arriba (así lo que
+    // pasó en pausa o en el HOLD del corte no queda pendiente), pero se hace solo
+    // con la línea corriendo de verdad.
+    std::vector<const Disparador*> toca;
+    for (const Disparador& d : linea_.disparadores) {
+        const bool cumple = seguimiento_.cumple(d.cuando);
+        const bool estaba = arriba_.count(d.id) > 0;
+        if (cumple == estaba) continue;
+        if (cumple) arriba_.insert(d.id);
+        else arriba_.erase(d.id);
+        if (cumple && estado_ == EstadoCorrida::Corriendo && !retomando_) toca.push_back(&d);
+    }
+    // Un disparador que hace algo que dispara otro, sí; uno que se dispara a sí mismo
+    // en ronda, no: el flanco ya lo corta, y el tope es por las dudas.
+    if (toca.empty() || disparando_ > 8) return;
+    ++disparando_;
+    for (const Disparador* d : toca)
+        hacerDisparador(*d, ahora, acc);
+    --disparando_;
+}
+
+void Corrida::hacerDisparador(const Disparador& d, int64_t ahora, std::vector<Accion>& acc) {
+    const json& h = d.hacer;
+    const std::string accion = leerTexto(h, "accion");
+    const std::string salida = leerTexto(h, "salida", salidaPorOmision());
+    const std::string id = leerTexto(h, "id");
+    anotar(ahora, "disparador", {{"disparador", d.id}, {"accion", accion}, {"salida", salida}});
+    std::vector<Accion> mas;
+    std::string error;
+    if (accion == "go") mas = go(salida, ahora);
+    else if (accion == "hold" || accion == "soltar") {
+        if (setHold(salida, accion == "hold", ahora)) mas = alDia(ahora);
+    } else if (accion == "saltar") {
+        if (saltar(salida, ahora)) mas = alDia(ahora);
+    } else if (accion == "adlib") mas = adlib(salida, id, ahora, &error);
+    else if (accion == "insertar") mas = insertar(salida, id, leerBool(h, "alAire"), ahora, &error);
+    else if (accion == "ir") mas = irA(salida, id, ahora, &error);
+    else error = errorDeHacer(h);
+    if (!error.empty())
+        mas.push_back({Accion::Que::Avisar, salida, {}, {}, {}, false,
+                       ba::i18n::llenar(ba::i18n::traducir("linea", "El disparador «%1» no pudo: %2"), {d.id, error})});
+    acc.insert(acc.end(), mas.begin(), mas.end());
+}
+
+std::vector<Accion> Corrida::hecho(const std::string& tema, const json& valor, int64_t ahora) {
+    std::vector<Accion> acc;
+    const std::vector<std::string> temas = temasQueMira();
+    if (std::find(temas.begin(), temas.end(), tema) == temas.end()) return acc;
+    mundo_.bus[tema] = valor;
+    if (estado_ == EstadoCorrida::Corriendo || estado_ == EstadoCorrida::Pausada) procesar(ahora, estado_ == EstadoCorrida::Corriendo, acc);
+    return acc;
+}
+
+std::vector<Accion> Corrida::pulso(const std::string& clave, int64_t ahora) {
+    std::vector<Accion> acc;
+    if (estado_ != EstadoCorrida::Corriendo && estado_ != EstadoCorrida::Pausada) return acc;
+    // Vale en este instante: se evalúa con el pulso y después se apaga.
+    mundo_.pulsos.insert(clave);
+    procesar(ahora, estado_ == EstadoCorrida::Corriendo, acc);
+    mundo_.pulsos.erase(clave);
+    actualizarCondiciones(ahora, acc);
+    return acc;
+}
+
+std::vector<Accion> Corrida::medioTermino(const std::string& pieza, int64_t ahora) {
+    std::vector<Accion> acc;
+    mundo_.mediosTerminados[pieza] = ahora;
+    if (estado_ == EstadoCorrida::Corriendo || estado_ == EstadoCorrida::Pausada) procesar(ahora, estado_ == EstadoCorrida::Corriendo, acc);
+    return acc;
+}
+
+std::vector<std::string> Corrida::temasQueMira() const {
+    std::vector<std::string> out;
+    for (const Condicion& c : condiciones_)
+        for (const std::string& t : temasDe(c))
+            if (std::find(out.begin(), out.end(), t) == out.end()) out.push_back(t);
+    return out;
+}
+
+// --- Varias salidas (L6) ----------------------------------------------------------------
+
+std::string Corrida::escenaAlAire(const std::string& salida) const {
+    const Instancia* a = alAire(salida);
+    const Paso* p = a ? linea_.paso(a->paso) : nullptr;
+    return p ? escenaDe(linea_, *p, salida) : std::string();
+}
+
+void Corrida::marcarAMano(const std::string& salida, const std::string& escena, int64_t ahora) {
+    const std::string esperada = escenaAlAire(salida);
+    if (esperada.empty()) return; // el paso no pone escena: lo que haya es de la persona
+    const auto it = aMano_.find(salida);
+    if (escena == esperada) {
+        if (it == aMano_.end()) return;
+        aMano_.erase(it);
+        anotar(ahora, "conLaLinea", {{"salida", salida}, {"escena", escena}});
+        return;
+    }
+    if (it != aMano_.end() && it->second == escena) return;
+    aMano_[salida] = escena;
+    anotar(ahora, "aMano", {{"salida", salida}, {"escena", escena}, {"esperada", esperada}});
+}
+
+std::string Corrida::aMano(const std::string& salida) const {
+    const auto it = aMano_.find(salida);
+    return it == aMano_.end() ? std::string() : it->second;
+}
+
+std::vector<Accion> Corrida::reenganchar(const std::string& salida, int64_t ahora, std::string* error) {
+    std::vector<Accion> acc;
+    const Instancia* a = alAire(salida);
+    const Paso* p = a ? linea_.paso(a->paso) : nullptr;
+    const Pieza* z = p ? piezaDeEscena(linea_, *p, salida) : nullptr;
+    if (z == nullptr) {
+        if (error) *error = ba::i18n::traducir("linea", "el paso al aire no pone ninguna escena: no hay a qué volver");
+        return acc;
+    }
+    aMano_.erase(salida);
+    anotar(ahora, "reengancha", {{"salida", salida}, {"paso", p->id}});
+    disparar(salida, p->id, z->id, ahora, kNunca, true, acc);
+    return acc;
+}
+
 json Corrida::estadoJson(int64_t ahora, const std::function<std::string(int64_t)>& hora) const {
     const auto H = [&](int64_t ms) -> json {
         if (ms == kNunca) return nullptr;
@@ -673,7 +855,10 @@ json Corrida::estadoJson(int64_t ahora, const std::function<std::string(int64_t)
                 {"alAire", nullptr},
                 {"proximo", nullptr},
                 {"proximoHardStart", nullptr},
-                {"activas", activas(sr.salida)}};
+                {"activas", activas(sr.salida)},
+                {"aMano", nullptr}};
+        if (const std::string m = aMano(sr.salida); !m.empty())
+            js["aMano"] = {{"escena", m}, {"esperada", escenaAlAire(sr.salida)}};
         if (sr.finPlaneadoMs > 0) js["finPlaneado"] = H(sr.finPlaneadoMs);
         if (const PasoResuelto* p = sr.paso(sr.alAire)) {
             const Paso* m = linea_.paso(p->paso);
@@ -697,6 +882,13 @@ json Corrida::estadoJson(int64_t ahora, const std::function<std::string(int64_t)
                              {"frente", H(p->frenteMs)},
                              {"entraSoloEnSeg", entraSoloEnSeg(sr.salida, ahora)}};
             if (proximos_.count(sr.salida)) js["proximo"]["movidoAMano"] = true;
+            // Anclado a otra salida: la cuenta «espera a principal/p17» (un GO lo hace entrar ya).
+            if (p->como == ComoEntro::Ancla && m != nullptr) {
+                const Bloque* b = linea_.bloqueDe(m->id);
+                const Inicio& ini = m->inicio.modo == ModoInicio::Ancla || b == nullptr || !b->inicio ? m->inicio : *b->inicio;
+                js["proximo"]["esperaA"] = {{"salida", ini.salida}, {"paso", ini.paso}};
+                js["proximo"]["enSeg"] = p->estimado ? json(nullptr) : json((p->frenteMs - ahora) / 1000);
+            }
         }
         for (const HardStart& h : sr.hardStarts) {
             if (h.horaMs < ahora) continue;
@@ -706,8 +898,12 @@ json Corrida::estadoJson(int64_t ahora, const std::function<std::string(int64_t)
         }
         salidas.push_back(std::move(js));
     }
+    json conds = json::array();
+    for (const auto& [c, e] : seguimiento_.estados())
+        if (c.rfind("medio:", 0) != 0) conds.push_back({{"condicion", c}, {"cumple", e.cumple}, {"desde", H(e.desdeMs)}});
     json out{{"estado", nombreDe(estado_)},
              {"salidas", salidas},
+             {"condiciones", conds},
              {"conflictos", r.conflictos.size()},
              {"retoma", {{"activa", retomando_}, {"pideDescripcion", pideDescripcion_}, {"descripcion", descripcion_}}}};
     if (retomando_) out["retoma"]["resumen"] = resumen_;
