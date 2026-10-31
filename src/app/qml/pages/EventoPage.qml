@@ -646,7 +646,9 @@ Rectangle {
                                 onClicked: page.vistaGuion = index
                             }
                         }
-                        Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: 4; color: Qt.rgba(1, 1, 1, 0.1) }
+                        // Alto fijo: con fillHeight la fila entera pide estirarse (un layout hereda el
+                        // fillHeight de sus hijos) y le saca el alto a la escaleta de abajo.
+                        Rectangle { width: 1; Layout.preferredHeight: 20; Layout.margins: 4; color: Qt.rgba(1, 1, 1, 0.1) }
                         GlassButton { visible: page.vistaGuion === 0; text: qsTr("+ Bloque"); compact: true; onClicked: page.ev.agregarBloque("") }
                         Item { Layout.fillWidth: true }
                         GlassButton {
