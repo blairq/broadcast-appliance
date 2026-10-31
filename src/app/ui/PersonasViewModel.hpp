@@ -161,6 +161,12 @@ class PersonasViewModel : public QObject {
     /// Pide mirar quién hay en `feed`. La respuesta llega en `vistos`, más
     /// tarde: el reconocimiento no corre en el hilo de la interfaz.
     Q_INVOKABLE void mirar(const QString& feed);
+    /// Prende o apaga el anotado automático mirando `fuente`, de una vez (la cámara y el
+    /// interruptor juntos: con dos escrituras sueltas, si la segunda no podía, la primera
+    /// quedaba hecha). Si no se puede prender, no cambia nada y lo dice `notify`.
+    Q_INVOKABLE void activarAutoalta(const QString& fuente, bool activo);
+    /// Lo mismo con la acreditación de la puerta.
+    Q_INVOKABLE void activarPuerta(const QString& fuente, bool activo);
     /// Una cámara del estudio que se analiza o se sigue (PTZ): lleva su
     /// tarjeta «Rostros» mientras `usar` (ver Seguidor).
     void usarCamara(const QString& entrada, bool usar);

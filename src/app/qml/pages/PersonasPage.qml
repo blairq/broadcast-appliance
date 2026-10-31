@@ -163,8 +163,7 @@ Rectangle {
                             // ve apagado en tema oscuro (ver Toggle.qml).
                             id: swAuto
                             checked: page.pv.autoalta
-                            onToggled: (wanted) => { page.pv.feedAuto = page.fuente
-                                                     page.pv.autoalta = wanted }
+                            onToggled: (wanted) => page.pv.activarAutoalta(page.fuente, wanted)
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -193,8 +192,7 @@ Rectangle {
                         Toggle {
                             id: swPuerta
                             checked: page.pv.puertaAuto
-                            onToggled: (wanted) => { page.pv.feedPuerta = page.fuente
-                                                     page.pv.puertaAuto = wanted }
+                            onToggled: (wanted) => page.pv.activarPuerta(page.fuente, wanted)
                         }
                         ColumnLayout {
                             Layout.fillWidth: true

@@ -183,6 +183,10 @@ void PersonasViewModel::setLobbyAuto(bool activo) {
 QVariantMap PersonasViewModel::enLobby() const { return {}; }
 QString PersonasViewModel::feedAuto() const { return d_->feedAuto; }
 void PersonasViewModel::setFeedAuto(const QString&) {}
+void PersonasViewModel::activarAutoalta(const QString&, bool activo) {
+    if (activo) emit notify(d_->aviso, "error");
+}
+void PersonasViewModel::activarPuerta(const QString&, bool) {}
 int PersonasViewModel::sinNombre() const { return 0; }
 #else
 
@@ -837,6 +841,44 @@ void PersonasViewModel::setFeedAuto(const QString& feed) {
     if (feed.isEmpty() || feed == d_->feedAuto) return;
     d_->feedAuto = feed;
     d_->pendientes.clear(); // las caras de la otra cámara no cuentan para esta
+    sincronizarRostros();
+    emit autoaltaCambio();
+}
+
+void PersonasViewModel::activarAutoalta(const QString& fuente, bool activo) {
+    if (activo && !d_->listo) {
+        emit notify(d_->aviso, "error");
+        return;
+    }
+    bool cambio = false;
+    if (!fuente.isEmpty() && fuente != d_->feedAuto) {
+        d_->feedAuto = fuente;
+        cambio = true;
+    }
+    if (activo != d_->autoalta) {
+        d_->autoalta = activo;
+        cambio = true;
+    }
+    if (!cambio) return;
+    d_->pendientes.clear(); // lo que estaba a medio ver (o de otra cámara) no se arrastra
+    revisarRonda();
+    sincronizarRostros();
+    emit autoaltaCambio();
+}
+
+void PersonasViewModel::activarPuerta(const QString& fuente, bool activo) {
+    bool cambio = false;
+    if (!fuente.isEmpty() && fuente != d_->feedPuerta) {
+        d_->feedPuerta = fuente;
+        cambio = true;
+    }
+    if (activo != d_->puertaAuto) {
+        d_->puertaAuto = activo;
+        cambio = true;
+    }
+    if (!cambio) return;
+    d_->avisadosPuerta.clear(); // otra cámara (o volver a mirar) es otra puerta
+    revisarRonda();
     sincronizarRostros();
     emit autoaltaCambio();
 }
