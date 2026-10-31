@@ -3,6 +3,7 @@
 // ============================================================================
 #include "mcp/McpFoto.hpp"
 
+#include "ajustes/Ajustes.hpp"
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Metricas.hpp"
 #include "diag/Registro.hpp"
@@ -34,14 +35,40 @@ struct CopiaDeLaInterfaz::Estado {
     bool pedida = false;         ///< hay una en la cola de la interfaz (una sola, aunque pregunten diez)
     std::uint64_t vueltas = 0;   ///< cuántas copió
     std::chrono::steady_clock::time_point cuando{};
+    std::uint64_t usada = 0;     ///< para olvidar la de los argumentos que hace más que no se piden
+};
+
+struct CopiaDeLaInterfaz::Copias {
+    std::mutex mu;
+    std::map<std::string, std::shared_ptr<Estado>> porArgs; ///< args.dump() → su copia
+    std::uint64_t pedidos = 0;
 };
 
 CopiaDeLaInterfaz::CopiaDeLaInterfaz(std::function<json()> leer)
-    : leer_(std::move(leer)), e_(std::make_shared<Estado>()) {}
+    : CopiaDeLaInterfaz(leer ? std::function<json(const json&)>([leer = std::move(leer)](const json&) { return leer(); })
+                             : std::function<json(const json&)>()) {}
 
-CopiaDeLaInterfaz::Lectura CopiaDeLaInterfaz::leer(McpCore& core, int esperaMs) const {
+CopiaDeLaInterfaz::CopiaDeLaInterfaz(std::function<json(const json&)> leer)
+    : leer_(std::move(leer)), c_(std::make_shared<Copias>()) {}
+
+CopiaDeLaInterfaz::Lectura CopiaDeLaInterfaz::leer(McpCore& core, int esperaMs, const json& args, int esperaPrimeraMs) const {
     if (!leer_) return {};
-    const std::shared_ptr<Estado> e = e_;
+    std::shared_ptr<Estado> e;
+    {
+        const std::lock_guard<std::mutex> l(c_->mu);
+        std::shared_ptr<Estado>& x = c_->porArgs[args.dump()];
+        if (!x) x = std::make_shared<Estado>();
+        e = x;
+        e->usada = ++c_->pedidos;
+        // Las de los argumentos que hace más que no se piden se olvidan (una pedida sigue
+        // viva en su tarea: la tiene por shared_ptr).
+        while (c_->porArgs.size() > kCopiasPorArgumentos) {
+            auto vieja = c_->porArgs.begin();
+            for (auto it = c_->porArgs.begin(); it != c_->porArgs.end(); ++it)
+                if (it->second->usada < vieja->second->usada) vieja = it;
+            c_->porArgs.erase(vieja);
+        }
+    }
     std::uint64_t antes = 0;
     bool pedir = false;
     {
@@ -52,11 +79,11 @@ CopiaDeLaInterfaz::Lectura CopiaDeLaInterfaz::leer(McpCore& core, int esperaMs) 
     }
     // Sin el candado: sin ejecutores (o desde la interfaz) corre en el acto, acá mismo.
     if (pedir)
-        core.encolarEnInterfaz([e, leer = leer_]() {
+        core.encolarEnInterfaz([e, leer = leer_, args]() {
             json v;
             bool ok = true;
             try {
-                v = leer();
+                v = leer(args);
             } catch (const std::exception&) {
                 ok = false; // queda la anterior; el que espera se va por el tope
             }
@@ -72,7 +99,8 @@ CopiaDeLaInterfaz::Lectura CopiaDeLaInterfaz::leer(McpCore& core, int esperaMs) 
             e->cv.notify_all();
         });
     std::unique_lock<std::mutex> l(e->mu);
-    e->cv.wait_for(l, std::chrono::milliseconds(std::max(0, esperaMs)), [&]() { return e->vueltas != antes; });
+    const int espera = antes == 0 && esperaPrimeraMs >= 0 ? std::max(esperaMs, esperaPrimeraMs) : esperaMs;
+    e->cv.wait_for(l, std::chrono::milliseconds(std::max(0, espera)), [&]() { return e->vueltas != antes; });
     Lectura r;
     r.alDia = e->vueltas != antes;
     if (e->vueltas > 0) {
@@ -82,11 +110,36 @@ CopiaDeLaInterfaz::Lectura CopiaDeLaInterfaz::leer(McpCore& core, int esperaMs) 
     return r;
 }
 
-namespace {
+EsperaDeLaCopia EsperaDeLaCopia::deLosAjustes() {
+    return {ba::ajustes::entero("mcp.esperaCopiaMs", 250), ba::ajustes::entero("mcp.topeInterfazMs", 5000)};
+}
 
 json estadoDeLaCopia(const CopiaDeLaInterfaz::Lectura& c) {
     return json{{"al_dia", c.alDia}, {"edad_ms", c.edadMs}};
 }
+
+void copiarDeLaInterfaz(McpCore& core, Tool& t, std::function<LeidoEnLaInterfaz(const json& args)> leer, EsperaDeLaCopia espera) {
+    // Lo copiado es el dato o el error, envuelto: un dato puede traer su propio «error».
+    auto copia = std::make_shared<CopiaDeLaInterfaz>(std::function<json(const json&)>([leer = std::move(leer)](const json& a) {
+        const LeidoEnLaInterfaz r = leer(a);
+        return r.error.empty() ? json{{"dato", r.dato}} : json{{"error", r.error}};
+    }));
+    t.hilo = Hilo::Foto;
+    t.run = [&core, copia, espera](const json& a, Done done) {
+        const CopiaDeLaInterfaz::Lectura c = copia->leer(core, espera.ms, a, espera.primeraMs);
+        if (!c.valor.is_object()) {
+            ToolResult r = ToolResult::error(ba::i18n::traducir("mcp", "La interfaz no contesta y todavía no hay una copia de esto: probá de nuevo en unos segundos."));
+            r.structured = json{{"interfaz", estadoDeLaCopia(c)}};
+            return done(r);
+        }
+        if (c.valor.contains("error")) return done(ToolResult::error(c.valor.value("error", std::string())));
+        json dato = c.valor.value("dato", json());
+        if (dato.is_object()) dato["interfaz"] = estadoDeLaCopia(c);
+        done(ToolResult().data(dato));
+    };
+}
+
+namespace {
 
 /// Las salidas con lo que sale de cada una sacado de lo seguro: la lista que publica el
 /// reloj del motor, el documento de aire (escena, negro y placa) y la foto del hilo de
@@ -487,6 +540,124 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
             const json u = f.ultimoTema ? f.ultimoTema(a.value("tema", std::string())) : json();
             if (u.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "ese tema no se publico todavia (eventos_temas)")));
             done(ToolResult().data(u));
+        };
+        core.addTool(std::move(t));
+    }
+
+    // --- La sala: se le pregunta a B ---------------------------------------------------
+    // La conferencia vive en el gateway (B, otro proceso). La interfaz guarda la última
+    // foto que le llegó por eventos (ConferenceClient::snapshot), pero si se traba esa foto
+    // se queda quieta: acá se pregunta a B (GET a su API, con su token), que contesta
+    // aunque la interfaz no ande. Es la misma foto (GET /api/v1/room es lo que manda el
+    // evento «room»).
+    {
+        Tool t;
+        t.name = "room_status";
+        t.title = ba::i18n::traducir("mcp", "Estado de la conferencia");
+        t.category = "sala";
+        t.clase = Clase::Lectura;
+        t.description =
+            QT_TRANSLATE_NOOP("mcp", "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
+            "microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), "
+            "archivos compartidos, chat reciente y config de oradores.");
+        t.hilo = Hilo::Foto;
+        t.run = [f](const json&, Done done) {
+            std::optional<json> r = f.sala ? f.sala("/api/v1/room") : std::nullopt;
+            if (!r || !r->is_object())
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "La conferencia (gateway) no esta conectada.")));
+            json s = std::move(*r);
+            if (s.contains("chat") && s["chat"].size() > 20) {
+                json last = json::array();
+                for (size_t i = s["chat"].size() - 20; i < s["chat"].size(); ++i)
+                    last.push_back(s["chat"][i]);
+                s["chat"] = last;
+            }
+            done(ToolResult().data(s));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "network_status";
+        t.title = ba::i18n::traducir("mcp", "Red y acceso de invitados");
+        t.category = "sala";
+        t.clase = Clase::Lectura;
+        t.description = QT_TRANSLATE_NOOP("mcp", "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
+                        "enlaces y puertos WebRTC del gateway.");
+        t.hilo = Hilo::Foto;
+        t.run = [f](const json&, Done done) {
+            const std::optional<json> r = f.sala ? f.sala("/api/v1/network") : std::nullopt;
+            done(r ? ToolResult().data(*r) : ToolResult::error(ba::i18n::traducir("mcp", "La conferencia no responde.")));
+        };
+        core.addTool(std::move(t));
+    }
+
+    // --- Lo de la app que tiene foto -------------------------------------------------------
+    // AppViewModel publica lo suyo (el modo en vivo, la caída de recién) cada vez que
+    // cambia; si sale algo lo dice el motor (haySalida, desde cualquier hilo); las caídas
+    // son el archivo del supervisor.
+    {
+        Tool t;
+        t.name = "modo_vivo_estado";
+        t.title = ba::i18n::traducir("mcp", "Modo en vivo");
+        t.category = "botonera";
+        t.clase = Clase::Lectura;
+        t.description = QT_TRANSLATE_NOOP("mcp", "Si el modo en vivo esta activo (transmitiendo o con el evento en vivo; opcionalmente grabando), "
+                        "que paginas protege (piden escribir CONFIRMAR con un motivo) y cuales se desbloquearon.");
+        t.hilo = Hilo::Foto;
+        t.run = [f](const json&, Done done) { done(ToolResult().data(f.modoVivo ? f.modoVivo() : json::object())); };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "supervisor_caidas";
+        t.title = ba::i18n::traducir("mcp", "Las ultimas caidas");
+        t.category = "botonera";
+        t.clase = Clase::Lectura;
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las ultimas `n` (10 de fabrica) caidas que anoto el supervisor: que se cayo (app o gateway), la "
+                        "causa (error de memoria, abortado, colgado…), el codigo y la hora. La ultima la muestra un cartel "
+                        "al volver, con cuanto tardo el aire en volver.");
+        t.inputSchema = {{"type", "object"}, {"properties", {{"n", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}}}};
+        t.hilo = Hilo::Foto;
+        t.run = [f](const json& a, Done done) {
+            json d{{"caidas", f.caidas ? f.caidas(a.value("n", 10)) : json::array()}};
+            if (const json c = f.caidaReciente ? f.caidaReciente() : json::object(); c.is_object() && !c.empty()) {
+                d["recien"] = {{"causa", c.value("causa", std::string())}, {"habia_aire", c.value("habia_aire", false)}};
+                if (c.contains("aire_vuelta_s")) d["recien"]["aire_vuelta_s"] = c.value("aire_vuelta_s", 0.0);
+            }
+            done(ToolResult().data(d));
+        };
+        core.addTool(std::move(t));
+    }
+    // Archivos: la carpeta de datos, Credenciales/ (solo los nombres), Respaldos/ y la
+    // versión anterior del programa.
+    {
+        Tool t;
+        t.name = "system_info";
+        t.title = ba::i18n::traducir("mcp", "Carpeta del sistema, credenciales y respaldos");
+        t.category = "sistema";
+        t.clase = Clase::Lectura;
+        t.description = QT_TRANSLATE_NOOP("mcp", "Donde vive el sistema (todo en una carpeta portable), que credenciales hay "
+                        "guardadas (solo nombres; "
+                        "estan cifradas en Credenciales/), los respaldos de datos y si hay una version "
+                        "anterior para volver.");
+        t.hilo = Hilo::Foto;
+        t.run = [f](const json&, Done done) { done(ToolResult().data(f.sistema ? f.sistema() : json::object())); };
+        core.addTool(std::move(t));
+    }
+    // Notificador guarda su lista con candado (la cambia la interfaz; la lee también el
+    // hilo de los avisos fuera de la interfaz).
+    {
+        Tool t;
+        t.name = "notificador_listar";
+        t.title = ba::i18n::traducir("mcp", "Notificadores");
+        t.category = "alertas";
+        t.clase = Clase::Lectura;
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los avisos fuera del programa (webhook, Telegram, mail SMTP) que puede usar un disparador "
+                        "(`notificar` en alert_create): id, tipo, nombre y si ya tiene cargado su secreto.");
+        t.hilo = Hilo::Foto;
+        t.run = [f](const json&, Done done) {
+            done(ToolResult().data({{"notificadores", f.notificadores ? f.notificadores() : json::array()}}));
         };
         core.addTool(std::move(t));
     }

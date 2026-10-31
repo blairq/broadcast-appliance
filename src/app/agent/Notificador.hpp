@@ -22,6 +22,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <mutex>
 #include <string>
 
 namespace ba::app::agent {
@@ -35,7 +36,7 @@ class Notificador : public QObject {
     Notificador(const std::filesystem::path& datos, QObject* parent = nullptr);
 
     /// [{id, tipo, nombre, …sin secretos, tiene_secreto}].
-    json lista() const;
+    json lista() const; ///< desde cualquier hilo
     /// Suma (o pisa por `id`) un notificador. `secreto`: token, URL o contraseña. Devuelve el id o {error}.
     json agregar(const json& def, const std::string& secreto);
     bool borrar(const std::string& id);
@@ -58,7 +59,10 @@ class Notificador : public QObject {
     std::string secreto(const std::string& id) const;
     void enviarSmtp(const json& n, const std::string& clave, const std::string& titulo, const std::string& texto, Listo listo);
     std::filesystem::path archivo_, credenciales_;
+    /// La cambia solo su hilo (agregar, borrar), con mu_; lista() la lee desde cualquiera
+    /// (el MCP en el pool, F3-03) con mu_. Los demás la leen en su hilo, sin candado.
     json lista_ = json::array();
+    mutable std::mutex mu_;
     QNetworkAccessManager nam_;
 };
 

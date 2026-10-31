@@ -80,7 +80,11 @@
 #include "mcp/McpPreguntaTools.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "platform/Paths.hpp"
+#include "agent/Notificador.hpp"
+#include "ui/AppViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/SystemViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/TemaEventoViewModel.hpp"
@@ -984,6 +988,24 @@ FuentesDeFoto McpService::fuentesDeFoto() {
         return json{{"tope", rt.salidas().value("tope", 0)}, {"salidas", resumenSalidas(rt, vm)}};
     };
     f.esperaInterfazMs = ba::ajustes::entero("mcp.esperaCopiaMs", 250);
+    // La sala, preguntada a B sin la interfaz (un socket propio, bloqueante, con tope).
+    f.sala = [](const std::string& ruta) -> std::optional<json> {
+        const std::optional<QJsonObject> r = ConferenceClient::pedirSinInterfaz(QString::fromStdString(ruta));
+        if (!r) return std::nullopt;
+        json j = json::parse(QJsonDocument(*r).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+        if (j.is_discarded()) return std::nullopt;
+        return j;
+    };
+    // Los dueños que dan lo suyo desde cualquier hilo (los punteros se toman acá, en la
+    // interfaz; viven lo que la app).
+    AppViewModel* app = &vm.app();
+    f.modoVivo = [app]() { return app->modoVivoEstado(); };
+    f.caidas = [](int n) { return AppViewModel::caidas(n); };
+    f.caidaReciente = [app]() { return app->caidaRecienteFoto(); };
+    auto* sys = static_cast<SystemViewModel*>(vm.system());
+    f.sistema = [sys]() { return sys->info(); };
+    agent::Notificador* notif = &vm.notificador();
+    f.notificadores = [notif]() { return notif->lista(); };
     return f;
 }
 

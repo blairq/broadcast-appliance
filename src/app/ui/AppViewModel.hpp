@@ -26,6 +26,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "comun/FotoEntreHilos.hpp"
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -82,13 +84,18 @@ class AppViewModel : public QObject {
     Q_INVOKABLE bool paginaBloqueada(const QString& id) const;
     /// La desbloquea hasta que termine el vivo; el motivo queda en el registro.
     Q_INVOKABLE void desbloquearPagina(const QString& id, const QString& motivo);
+    /// DESDE CUALQUIER HILO (F3-03): de la foto que publica al cambiar (lo que se protege y
+    /// lo desbloqueado) y el motor (si sale algo: haySalida). La lee el MCP en el pool.
     nlohmann::json modoVivoEstado() const;
     std::string setModoVivoAjustes(const nlohmann::json& a);
 
     QVariantMap caidaReciente() const { return caida_; }
+    /// DESDE CUALQUIER HILO: la caída de recién, de la foto ({} si no hay).
+    nlohmann::json caidaRecienteFoto() const;
     Q_INVOKABLE void cerrarCartelCaida();
-    /// Las últimas `n` caídas que anotó el supervisor (Runtime/caidas.jsonl).
-    nlohmann::json caidas(int n) const;
+    /// Las últimas `n` caídas que anotó el supervisor (Runtime/caidas.jsonl). Un archivo:
+    /// desde cualquier hilo.
+    static nlohmann::json caidas(int n);
 
     /// {transmitiendo, grabando, personas, hay}. `personas`: los de la sala (lobby,
     /// programa, fila de oradores) y los integrantes de la sesión remota.
@@ -116,6 +123,8 @@ class AppViewModel : public QObject {
 
    private:
     void leerCaida();
+    /// Copia a la foto lo que cambió (lo conectan estadoCambio y caidaChanged).
+    void publicarFoto();
     void contarHastaCerrar(const QString& aviso);
 
     Partes p_;
@@ -128,6 +137,9 @@ class AppViewModel : public QObject {
     qint64 caidaMs_ = 0;
     QVariantMap reinicio_;
     bool eventoNuevo_ = false; ///< el reinicio que viene abre un evento recién creado
+    /// Lo de arriba para los otros hilos (F3-03): {activo, incluir_grabando,
+    /// paginas_protegidas, desbloqueadas, caida}. La pone la interfaz cada vez que cambia.
+    FotoEntreHilos<nlohmann::json> foto_;
 };
 
 } // namespace ba::app

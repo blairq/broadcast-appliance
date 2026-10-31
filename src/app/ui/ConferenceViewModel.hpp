@@ -305,6 +305,12 @@ class ConferenceViewModel : public QObject {
     /// Se agrego una fuente a la escena (la vista de fuentes debe recargar).
     void sourceAdded();
 
+   public:
+    /// Un mensaje del chat de la sala (como viene de B) como queda en el modelo `chat`:
+    /// con `id`/`uid` (su número de secuencia) y `mine`. Sin estado: lo usa también el
+    /// vigía de las alarmas cuando le pregunta a B con la interfaz trabada.
+    static QJsonObject mensajeDelChat(const QJsonObject& msg);
+
    private:
     void onSnapshot();
     void onChatMsg(const QJsonObject& msg, bool live);

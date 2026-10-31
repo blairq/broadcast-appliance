@@ -7,11 +7,14 @@
 
 #include <algorithm>
 
+#include <QElapsedTimer>
 #include <QFile>
+#include <QHostAddress>
 #include <QJsonDocument>
 #include <QNetworkProxy>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QTcpSocket>
 
 #include "diag/Correlacion.hpp"
 
@@ -56,6 +59,38 @@ bool ConferenceClient::leerAdmin(int& puerto, QString& token) {
 }
 
 bool ConferenceClient::loadAdminFile() { return leerAdmin(port_, token_); }
+
+std::optional<QJsonObject> ConferenceClient::pedirSinInterfaz(const QString& ruta, int topeMs) {
+    int puerto = 0;
+    QString token;
+    if (!leerAdmin(puerto, token)) return std::nullopt;
+    QElapsedTimer reloj;
+    reloj.start();
+    const auto queda = [&]() { return std::max(1, topeMs - static_cast<int>(reloj.elapsed())); };
+    QTcpSocket s;
+    s.setProxy(QNetworkProxy::NoProxy);
+    s.connectToHost(QHostAddress::LocalHost, static_cast<quint16>(puerto));
+    if (!s.waitForConnected(queda())) return std::nullopt;
+    QByteArray pedido = "GET " + ruta.toUtf8() + " HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer " + token.toUtf8() +
+                        "\r\nConnection: close\r\n";
+    if (const std::string& orden = ba::diag::correlacion::actual(); !orden.empty())
+        pedido += QByteArray(ba::diag::correlacion::kCabecera) + ": " + QByteArray::fromStdString(orden) + "\r\n";
+    pedido += "\r\n";
+    s.write(pedido);
+    if (!s.waitForBytesWritten(queda())) return std::nullopt;
+    // B cierra al terminar (Connection: close): se lee hasta el cierre o el tope.
+    QByteArray todo;
+    while (s.state() == QAbstractSocket::ConnectedState && reloj.elapsed() < topeMs) {
+        if (s.waitForReadyRead(queda())) todo += s.readAll();
+        else if (s.state() == QAbstractSocket::ConnectedState) return std::nullopt; // venció el tope
+    }
+    todo += s.readAll();
+    const int fin = todo.indexOf("\r\n\r\n");
+    if (fin < 0 || !todo.startsWith("HTTP/1.1 2")) return std::nullopt;
+    const QJsonDocument d = QJsonDocument::fromJson(todo.mid(fin + 4));
+    if (!d.isObject()) return std::nullopt;
+    return d.object();
+}
 
 void ConferenceClient::connectEvents() {
     if (sse_ != nullptr) return;

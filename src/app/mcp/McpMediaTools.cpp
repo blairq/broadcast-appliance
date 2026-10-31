@@ -195,6 +195,8 @@ void McpService::registerMediaTools() {
               {"type",
                {{"type", "string"}, {"enum", {"image", "video", "audio", "any"}}, {"default", "any"}}},
               {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 500}, {"default", 100}}}}}};
+        // Archivos de la carpeta de datos: en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [scan, describe, root](const json& a, Done done) {
             auto files = scan(QString::fromStdString(a.value("folder", std::string("Media"))),
                               QString::fromStdString(a.value("type", std::string("any"))));
@@ -234,6 +236,8 @@ void McpService::registerMediaTools() {
                {{"type", "string"}, {"enum", {"image", "video", "audio", "any"}}, {"default", "any"}}},
               {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}, {"default", 20}}}}},
             {"required", {"query"}}};
+        // Archivos de la carpeta de datos: en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [scan, describe](const json& a, Done done) {
             const QStringList words = fold(QString::fromStdString(a["query"])).split(' ', Qt::SkipEmptyParts);
             std::vector<std::pair<int, QFileInfo>> hits;
@@ -387,6 +391,8 @@ void McpService::registerMediaTools() {
             "archivos, esto da DONDE estan. Las carpetas vacias aparecen igual, porque son a donde "
             "se mueven cosas.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        // Archivos de la carpeta de datos: en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [root](const json&, Done done) {
             const QVector<medios::Archivo> todos = medios::listar(root);
             json out = json::array();

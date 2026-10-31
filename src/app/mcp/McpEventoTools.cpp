@@ -1495,6 +1495,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         "cuerpo deliberativo, asamblea con votación, streaming de juegos, acto, audiencia pública…): id, "
                         "título y para qué sirve. ANTES de preparar un evento nuevo, elegí el que corresponde y leelo con "
                         "evento_escenario.");
+        // Las guías que trae el programa (i18n::leer, con su candado): en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [](const json&, Done done) {
             const std::string indice = ba::i18n::leer("guias/escenarios/indice.json");
             if (indice.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no están las guías en este programa")));
@@ -1512,6 +1514,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         "verificar antes de invitar, el ensayo y qué entregar al final) más la guía del escenario `id` "
                         "(evento_escenarios): sus preguntas propias, qué armar, qué verificar. Seguilo paso a paso.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
+        // Las guías que trae el programa (i18n::leer, con su candado): en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [](const json& a, Done done) {
             const std::string comun = ba::i18n::leer("guias/escenarios/comun.md");
             if (comun.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no están las guías en este programa")));

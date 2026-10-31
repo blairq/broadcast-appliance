@@ -19,6 +19,7 @@
 
 #include "evento/LineaEdicion.hpp"
 #include "mcp/McpCore.hpp"
+#include "mcp/McpFoto.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/LineaProductor.hpp"
 
@@ -80,14 +81,16 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                            {"hasta", {{"description", QT_TRANSLATE_NOOP("mcp", "\"HH:MM\" o ms de época")}}},
                            {"nivel", {{"type", "string"}, {"enum", {"bloques", "pasos", "piezas"}}}}}}};
         t.examples = {R"({})", R"({"nivel": "piezas", "desde": "19:30", "hasta": "20:15"})", R"({"nivel": "bloques"})"};
-        t.run = [&ev, &core](const json& a, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+        // El pronóstico lo arma la línea en la interfaz: se lee una copia (al día con ella
+        // libre; trabada, la última de estos argumentos con su edad).
+        copiarDeLaInterfaz(core, t, [&ev, &core](const json& a) -> LeidoEnLaInterfaz {
+            if (ev.abierto().isEmpty()) return {{}, traducir("mcp", "No hay un evento abierto (guion_abrir).")};
             const int64_t desde = horaDe(ev, a, "desde"), hasta = horaDe(ev, a, "hasta");
-            if (desde < 0 || hasta < 0) return done(ToolResult::error(traducir("mcp", "`desde` y `hasta` van como \"HH:MM\" o en ms.")));
-            const json v = ev.lineaVer(core.salidaDe(a), desde, hasta, a.value("nivel", std::string("pasos")));
-            if (v.is_null()) return done(ToolResult::error(traducir("mcp", "No hay esa salida en la línea.")));
-            done(ToolResult().data(v));
-        };
+            if (desde < 0 || hasta < 0) return {{}, traducir("mcp", "`desde` y `hasta` van como \"HH:MM\" o en ms.")};
+            json v = ev.lineaVer(core.salidaDe(a), desde, hasta, a.value("nivel", std::string("pasos")));
+            if (v.is_null()) return {{}, traducir("mcp", "No hay esa salida en la línea.")};
+            return {std::move(v), {}};
+        });
         core.addTool(std::move(t));
     }
     {
@@ -106,10 +109,11 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             "la persona todavía no contó qué está pasando, y `resumen` es lo que necesitás para proponer: el corte, lo que "
             "estaba al aire y cuánto se pasó, lo que según el plan iría ahora (`segunElPlan`), lo repuesto y lo perdido. "
             "Ver linea_retomar y linea_soltar.");
-        t.run = [&ev](const json&, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
-            done(ToolResult().data(ev.lineaEstado()));
-        };
+        // El estado de la corrida es de la interfaz (EventoViewModel): una copia.
+        copiarDeLaInterfaz(core, t, [&ev](const json&) -> LeidoEnLaInterfaz {
+            if (ev.abierto().isEmpty()) return {{}, traducir("mcp", "No hay un evento abierto (guion_abrir).")};
+            return {ev.lineaEstado(), {}};
+        });
         core.addTool(std::move(t));
     }
     {

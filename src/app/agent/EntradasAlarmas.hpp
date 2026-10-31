@@ -8,10 +8,17 @@
 //     en imagen y su audio, la foto de las salidas del motor, el loudness, la
 //     persistencia, los recursos). Son las alarmas de lo que sale al aire: siguen con
 //     la interfaz trabada.
-//   - DE LA INTERFAZ: objetos de ella (la sala, los chats, las entradas de video, la
-//     energía). La interfaz las lee en su hilo con `refrescar` y las deja en una foto;
-//     el vigía lee la foto. Con la interfaz trabada se quedan quietas, y por eso nada
-//     de lo que sale al aire va por acá.
+//   - DE LA INTERFAZ: objetos de ella (la sala, los chats, las entradas de video). La
+//     interfaz las lee en su hilo con `refrescar` y las deja en una foto; el vigía lee
+//     la foto. Con la interfaz trabada se quedan quietas, y por eso nada de lo que sale
+//     al aire va por acá.
+//   - SIN LA INTERFAZ (respaldo): lo de la interfaz que también se puede preguntar a su
+//     dueño, pero caro para hacerlo siempre (la sala, a B por HTTP). Se usa SOLO cuando
+//     la foto se quedó quieta (la interfaz no la copia hace más de `quietaMs`): así la
+//     sala y su chat siguen avisando con la interfaz trabada, sin preguntarle a B cuatro
+//     veces por segundo cuando anda.
+//
+// La energía y el disco son directas (se miden en el vigía, cada tanto).
 //
 // El audio junta las dos: las fuentes (de la interfaz) y el programa (directo).
 // ============================================================================
@@ -26,7 +33,7 @@ namespace ba::app::agent {
 
 class EntradasAlarmas {
    public:
-    EntradasAlarmas(AlertInputs deLaInterfaz, AlertInputs directas);
+    EntradasAlarmas(AlertInputs deLaInterfaz, AlertInputs directas, AlertInputs sinLaInterfaz = {}, int quietaMs = 1000);
     /// En el hilo de la interfaz: copia lo suyo a la foto.
     void refrescar();
     /// Lo que recibe AlertEngine: cada entrada, directa o de la foto.
@@ -45,7 +52,8 @@ class EntradasAlarmas {
         FotoEntreHilos<std::vector<std::string>> persistencia;
         FotoEntreHilos<bool> vuelta; ///< cuándo copió la interfaz por última vez
     };
-    AlertInputs ui_, directas_;
+    AlertInputs ui_, directas_, respaldo_;
+    int quietaMs_ = 1000;
     std::shared_ptr<Fotos> f_ = std::make_shared<Fotos>();
 };
 

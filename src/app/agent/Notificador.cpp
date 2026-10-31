@@ -60,7 +60,11 @@ std::string Notificador::secreto(const std::string& id) const {
 }
 
 json Notificador::lista() const {
-    json out = lista_;
+    json out;
+    {
+        const std::lock_guard<std::mutex> l(mu_);
+        out = lista_;
+    }
     for (auto& n : out) n["tiene_secreto"] = ba::security::CredentialStore(credenciales_).exists("notificador-" + n.value("id", std::string()));
     return out;
 }
@@ -85,9 +89,12 @@ json Notificador::agregar(const json& def, const std::string& clave) {
     // hasta que una persona lo cargue en la interfaz.
     if (id.empty()) id = "n-" + QString::number(QRandomGenerator::global()->generate(), 16).toStdString();
     n["id"] = id;
-    lista_.erase(std::remove_if(lista_.begin(), lista_.end(), [&](const json& x) { return x.value("id", std::string()) == id; }),
-                 lista_.end());
-    lista_.push_back(n);
+    {
+        const std::lock_guard<std::mutex> l(mu_);
+        lista_.erase(std::remove_if(lista_.begin(), lista_.end(), [&](const json& x) { return x.value("id", std::string()) == id; }),
+                     lista_.end());
+        lista_.push_back(n);
+    }
     if (!clave.empty()) ba::security::CredentialStore(credenciales_).write("notificador-" + id, clave);
     guardar();
     emit cambio();
@@ -95,10 +102,13 @@ json Notificador::agregar(const json& def, const std::string& clave) {
 }
 
 bool Notificador::borrar(const std::string& id) {
-    const auto n = lista_.size();
-    lista_.erase(std::remove_if(lista_.begin(), lista_.end(), [&](const json& x) { return x.value("id", std::string()) == id; }),
-                 lista_.end());
-    if (lista_.size() == n) return false;
+    {
+        const std::lock_guard<std::mutex> l(mu_);
+        const auto n = lista_.size();
+        lista_.erase(std::remove_if(lista_.begin(), lista_.end(), [&](const json& x) { return x.value("id", std::string()) == id; }),
+                     lista_.end());
+        if (lista_.size() == n) return false;
+    }
     ba::security::CredentialStore(credenciales_).remove("notificador-" + id);
     guardar();
     emit cambio();
