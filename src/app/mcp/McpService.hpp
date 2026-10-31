@@ -28,6 +28,7 @@
 
 #include "mcp/McpCore.hpp"
 #include "mcp/McpFoto.hpp"
+#include "mcp/McpMando.hpp"
 
 class QQuickWindow;
 class QThreadPool;
@@ -118,6 +119,9 @@ class McpService : public QObject {
     void applySecurity();
     /// Lo que leen las herramientas de la foto (McpFoto.hpp): cada una, segura entre hilos.
     FuentesDeFoto fuentesDeFoto();
+    /// Lo que hacen las herramientas de aire del plano de control (McpMando.hpp): los
+    /// conmutadores, la seguridad del aire y el runtime, con el turno del motor.
+    MandoDeAire mandoDeAire();
     void applyApprovalPolicy();
     bool roomHasUntrusted();
 

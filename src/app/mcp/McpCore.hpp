@@ -105,15 +105,16 @@ enum class Clase {
 /// En qué hilo corre (F3-03: el despacho lo respeta, ver McpCore::Ejecutores).
 ///
 /// POR QUE LA INTERFAZ ES LO DE FÁBRICA. La clase dice qué hace una herramienta, no
-/// qué toca para hacerlo: casi todas leen o mueven objetos de la interfaz o el motor
-/// (que todavía es del hilo de la interfaz), y correrlas en otro hilo sería una
-/// carrera. Así que corren en la interfaz (con tope) hasta que cada una declare otro
-/// hilo, y lo declara la que lee SOLO cosas seguras entre hilos (el registro, las
-/// alarmas, el documento de aire, las métricas, los archivos).
+/// qué toca para hacerlo: casi todas leen o mueven objetos de la interfaz, y correrlas
+/// en otro hilo sería una carrera. Así que corren en la interfaz (con tope) hasta que
+/// cada una declare otro hilo: la foto, la que lee SOLO cosas seguras entre hilos (el
+/// registro, las alarmas, el documento de aire, las métricas, los archivos); el control,
+/// la que solo toca el motor y su aire (que se turnan la interfaz y el control: corre con
+/// el turno tomado, ver setTurno).
 enum class Hilo {
     SegunClase, ///< addTool lo resuelve: la interfaz (ver arriba)
     Interfaz,   ///< toca objetos de la interfaz o del motor; con tope si llama otro hilo
-    Control,    ///< la cola del plano de control (en orden; no espera a la interfaz)
+    Control,    ///< la cola del plano de control (en orden; no espera a la interfaz; con el turno)
     Foto,       ///< solo lee cosas seguras entre hilos: un hilo del pool
 };
 /// "lectura" | "escritura" | "aire" | "ui" (los nombres de mcp.json; no se traducen).
@@ -451,6 +452,20 @@ class McpCore {
     /// Lo que se manda junto con «la interfaz está ocupada» (structuredContent.foto): lo
     /// que se sabe sin ella (el documento de aire, el latido). Desde cualquier hilo.
     void setFotoDeEmergencia(std::function<json()> f) { fotoEmergencia_ = std::move(f); }
+    /// EL TURNO de lo que tocan las de control (el motor y su aire, que la interfaz también
+    /// usa; en la app, emision/TurnoMotor.hpp): cada una corre con él tomado, de la
+    /// validación hecha a que su `run` vuelve. `tomar(ms)` true si se lo dieron antes del
+    /// tope (topeInterfazMs); si no —la interfaz trabada ADENTRO del motor—, se contesta
+    /// `isError` con `structuredContent.motor_ocupado: true`, quién lo tiene y la foto de
+    /// emergencia, y NO se hace después. Sin turno (los tests sin motor), como siempre.
+    struct Turno {
+        std::function<bool(int ms)> tomar;
+        std::function<void()> soltar;
+        std::function<json()> estado; ///< {quien, esperas, espera_max_ms}
+    };
+    void setTurno(Turno t) { turno_ = std::move(t); }
+    /// Cuántas de control no consiguieron el turno a tiempo (también ba_mcp_motor_ocupado_total).
+    std::uint64_t motorOcupado() const { return motorOcupado_.load(); }
     /// Cuántas veces la interfaz no tomó algo a tiempo (también ba_mcp_interfaz_ocupada_total).
     std::uint64_t vencidas() const { return vencidas_.load(); }
     /// Para una herramienta de la foto que también muestra algo que solo sabe la interfaz
@@ -541,6 +556,8 @@ class McpCore {
     bool conEjecutores_ = false;
     std::function<json()> fotoEmergencia_;
     std::atomic<std::uint64_t> vencidas_{0};
+    Turno turno_;
+    std::atomic<std::uint64_t> motorOcupado_{0};
     /// El balde de una sesión para una clase (N4): fichas que quedan y cuándo se contó.
     struct Balde {
         double fichas = 0;

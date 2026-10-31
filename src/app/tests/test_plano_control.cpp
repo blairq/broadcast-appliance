@@ -22,13 +22,22 @@
 //      aire al día; ninguna fuente se lee en la interfaz ni en el control; la copia de la
 //      interfaz se pide una sola vez y llega cuando ella vuelve; y no cambia nada (los
 //      archivos de Config/, Runtime/ y Logs/, el documento de aire y sus escrituras).
+//   8. Las de AIRE en el control (mcp/McpMando.hpp: scene_switch, scene_preview,
+//      preview_al_aire, aire_ftb, stream_start, record_start), con un aire sintético que
+//      escribe un documento de aire real: con la interfaz trabada se hacen, en el hilo de
+//      control y con el turno del motor (emision/TurnoMotor.hpp), y el documento cambia en
+//      el acto; nada corre en la interfaz (contador) y los avisos a las vistas le llegan
+//      encolados cuando vuelve. Con la interfaz trabada ADENTRO del motor (con el turno)
+//      más que el tope, contestan «motor ocupado» y no se hacen después; menos, esperan.
 // ============================================================================
 #include "agent/AlertEngine.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "emision/DocumentoAire.hpp"
+#include "emision/TurnoMotor.hpp"
 #include "mcp/McpCore.hpp"
 #include "mcp/McpFoto.hpp"
 #include "mcp/McpHttp.hpp"
+#include "mcp/McpMando.hpp"
 #include "persist/ColaEscritura.hpp"
 
 #include <QCoreApplication>
@@ -436,6 +445,206 @@ int main(int argc, char** argv) {
     CHECK(ba::app::salidas::aJson(doc.foto()).dump() == aireAntes && doc.escrituras() == escriturasAntes,
           "7: el documento de aire quedó igual (ni se puso ni se escribió nada)");
     fs::remove_all(datos);
+
+    // --- 8. Las de aire, en el control y con el turno del motor -------------------------
+    // Como en la app: participan del turno la interfaz (el dueño del motor) y el control.
+    ba::app::TurnoMotor::participar("interfaz");
+    plano.encolar([]() { ba::app::TurnoMotor::participar("control"); });
+    ba::app::TurnoMotor turno;
+    core.setTurno({[&turno](int ms) { return turno.tomarHasta(ms); }, [&turno]() { turno.soltar(); },
+                   [&turno]() { return turno.estado(); }});
+    const fs::path datos8 = fs::temp_directory_path() / "ba-test-plano-control-aire";
+    fs::remove_all(datos8);
+    fs::create_directories(datos8 / "Runtime");
+    ba::app::salidas::DocumentoAire doc8(datos8 / "Runtime");
+    // El aire sintético: lo que la app tiene en el motor, los conmutadores y el runtime.
+    struct Aire {
+        std::string alAire = "Plano general", armada;
+        bool ftb = false, transmite = false, graba = false;
+    } aire;
+    std::atomic<int> enLaInterfaz{0}, sinTurno{0}, operaciones{0}, avisosVista{0}, avisosFuera{0};
+    // Cada operación: dónde corrió y con qué; el documento de aire, ya (lo que hace
+    // AppRuntime::writeOnAirState con el turno); el aviso a la vista, encolado al dueño
+    // (AppRuntime::enDueno).
+    const auto operar = [&](const std::function<void()>& cambio) {
+        const ba::app::TurnoMotor::Guarda g(turno); // como los métodos del motor: recursivo
+        ++operaciones;
+        if (QThread::currentThread() == interfaz) ++enLaInterfaz;
+        if (!turno.loTengo()) ++sinTurno;
+        cambio();
+        std::map<std::string, ba::app::salidas::Aire> sal;
+        auto& a = sal["principal"];
+        a.escena = aire.alAire;
+        a.transmitiendo = aire.transmite;
+        a.grabando = aire.graba;
+        a.placa.ftb = aire.ftb;
+        doc8.ponerSalidas(sal, false);
+        doc8.volcar();
+        plano.encolarEnDueno([&]() {
+            ++avisosVista;
+            if (QThread::currentThread() != interfaz) ++avisosFuera;
+        });
+    };
+    MandoDeAire mando;
+    mando.escenas = []() { return std::vector<std::string>{"Plano general", "Entrevista", "Cierre"}; };
+    mando.alAire = [&](const std::string&) { return aire.alAire; };
+    mando.armada = [&](const std::string&) { return aire.armada; };
+    mando.poner = [&](const std::string&, const std::string& e) {
+        operar([&]() { aire.alAire = e; });
+        return std::string();
+    };
+    mando.armar = [&](const std::string&, const std::string& e) {
+        operar([&]() { aire.armada = e; });
+        return std::string();
+    };
+    mando.take = [&](const std::string&, const std::string&, int) {
+        operar([&]() { std::swap(aire.alAire, aire.armada); });
+        return std::string();
+    };
+    mando.tbar = [](const std::string&, double, bool) { return std::string(); };
+    mando.manualHacia = [](const std::string&) { return std::string(); };
+    mando.ftb = [&](const std::string&, bool activar, int, const std::string&) {
+        operar([&]() { aire.ftb = activar; });
+        return std::string();
+    };
+    mando.placa = [](const std::string&, bool, const std::string&, const std::string&, int) { return std::string(); };
+    mando.estadoPlaca = [&](const std::string&) { return json{{"ftb", aire.ftb}}; };
+    mando.transmitir = [&](const std::string&, const std::string&, const std::string&, bool) {
+        MandoDeAire::Inicio r;
+        operar([&]() {
+            r.yaIgual = aire.transmite;
+            aire.transmite = true;
+        });
+        r.ok = true;
+        return r;
+    };
+    mando.cortarTransmision = [&](const std::string&) { operar([&]() { aire.transmite = false; }); };
+    mando.iniciarDestino = [](const std::string&) { return std::string(); };
+    mando.detenerDestino = [](const std::string&) {};
+    mando.destinos = []() { return json::array(); };
+    mando.variableClave = []() { return std::string("BA_STREAM_KEY"); };
+    mando.grabacion = [&](const std::string&) {
+        return json{{"activa", aire.graba}, {"archivo", aire.graba ? "programa-0001.mkv" : ""}};
+    };
+    mando.disco = []() { return json{{"horas", 12.0}}; };
+    mando.grabar = [&](const std::string&) {
+        operar([&]() { aire.graba = true; });
+        return std::string();
+    };
+    mando.pararGrabacion = [&](const std::string&) { operar([&]() { aire.graba = false; }); };
+    mando.algoSale = [&]() { return aire.transmite || aire.graba; };
+    mando.contenedor = []() { return std::string("mkv"); };
+    const std::size_t antesAire = core.tools().size();
+    registrarHerramientasDeAire(core, mando);
+    bool todasDeControl = core.tools().size() == antesAire + 11;
+    for (std::size_t i = antesAire; i < core.tools().size(); ++i)
+        todasDeControl = todasDeControl && core.tools()[i].hilo == Hilo::Control;
+    CHECK(todasDeControl, "8: las 11 de aire son del control");
+    // Lo de aire pedido por algo automático con aire andando lo confirma una persona; acá no
+    // hay a quién preguntarle (como con --test).
+    core.setHayAire([&]() { return aire.transmite || aire.graba; });
+    core.setSinAprobaciones(true);
+
+    struct PasoAire {
+        std::string herramienta;
+        json args;
+        std::function<bool(const ba::app::salidas::Aire&)> seVe; ///< en el documento, en el acto
+        std::string resultado;
+        double ms = -1;
+        bool seVio = false;
+    };
+    using SA = ba::app::salidas::Aire;
+    std::vector<PasoAire> pasos;
+    pasos.push_back({"scene_switch", {{"name", "Entrevista"}}, [](const SA& a) { return a.escena == "Entrevista"; }});
+    pasos.push_back({"scene_preview", {{"name", "Cierre"}}, [](const SA& a) { return a.escena == "Entrevista"; }});
+    pasos.push_back({"preview_al_aire", json::object(), [](const SA& a) { return a.escena == "Cierre"; }});
+    pasos.push_back({"aire_ftb", {{"activar", true}}, [](const SA& a) { return a.placa.ftb; }});
+    pasos.push_back({"stream_start", json::object(), [](const SA& a) { return a.transmitiendo; }});
+    pasos.push_back({"record_start", json::object(), [](const SA& a) { return a.grabando; }});
+    pasos.push_back({"aire_ftb", {{"activar", false}}, [](const SA& a) { return !a.placa.ftb; }});
+    const int vueltasAntes = control.load();
+    std::thread clienteAire([&]() {
+        for (std::size_t i = 0; i < pasos.size(); ++i) {
+            const auto t = std::chrono::steady_clock::now();
+            pasos[i].resultado = llamar(http.port(), token, pasos[i].herramienta, 400 + static_cast<int>(i), pasos[i].args);
+            pasos[i].ms = msDesde(t);
+            pasos[i].seVio = pasos[i].seVe(doc8.foto().de("principal"));
+        }
+    });
+    trabarInterfaz(static_cast<int>(pasos.size()) * 150 + 1500);
+    clienteAire.join();
+    const int avisosEnLaTraba = avisosVista.load();
+    bool todasHechas = true, todasSeVen = true;
+    double peorAire = 0;
+    for (const auto& p : pasos) {
+        const json r = json::parse(p.resultado, nullptr, false);
+        const bool bien = r.is_object() && r.contains("result") && !r["result"].value("isError", true);
+        if (!bien || !p.seVio) std::printf("  %s: %s\n", p.herramienta.c_str(), p.resultado.substr(0, 300).c_str());
+        todasHechas = todasHechas && bien && p.ms < 600;
+        todasSeVen = todasSeVen && p.seVio;
+        peorAire = std::max(peorAire, p.ms);
+    }
+    std::printf("  medido: %zu de aire con la interfaz trabada, la peor %.1f ms; %d operaciones; el control dio %d vueltas\n",
+                pasos.size(), peorAire, operaciones.load(), control.load() - vueltasAntes);
+    CHECK(todasHechas, "8: con la interfaz trabada, TAKE, FTB, transmitir y grabar se hacen en el acto");
+    CHECK(todasSeVen, "8: el aire responde: el documento de aire cambia en el acto");
+    CHECK(operaciones.load() >= static_cast<int>(pasos.size()) && enLaInterfaz.load() == 0,
+          "8: nada se hizo en el hilo de la interfaz");
+    CHECK(sinTurno.load() == 0, "8: todo con el turno del motor");
+    CHECK(avisosEnLaTraba == 0, "8: los avisos a la vista esperan a la interfaz (no corren en el control)");
+    atender(200);
+    CHECK(avisosVista.load() == operaciones.load() && avisosFuera.load() == 0,
+          "8: al volver, la interfaz recibe cada aviso, en su hilo");
+
+    // La interfaz trabada ADENTRO del motor (con el turno) más que el tope: «ocupado».
+    {
+        std::string r;
+        double ms = -1;
+        const int antes = operaciones.load();
+        const std::uint64_t ocupadoAntes = core.motorOcupado();
+        turno.tomar();
+        std::thread c([&]() {
+            const auto t = std::chrono::steady_clock::now();
+            r = llamar(http.port(), token, "scene_switch", 500, {{"name", "Plano general"}});
+            ms = msDesde(t);
+        });
+        trabarInterfaz(1500);
+        turno.soltar();
+        c.join();
+        atender(300);
+        const json j = json::parse(r, nullptr, false);
+        const json st = j.is_object() ? j["result"].value("structuredContent", json::object()) : json::object();
+        std::printf("  medido: con el turno en la interfaz, «motor ocupado» a los %.1f ms (tope 800)\n", ms);
+        CHECK(j.is_object() && j["result"].value("isError", false) && st.value("motor_ocupado", false) &&
+                  st.value("turno", json::object()).value("quien", std::string()) == "interfaz" && st.contains("foto"),
+              "8: trabada adentro del motor: «motor ocupado», con quién lo tiene y la foto");
+        CHECK(ms >= 750 && ms < 1400, "8: al vencer el tope");
+        CHECK(operaciones.load() == antes && aire.alAire == "Cierre" && core.motorOcupado() == ocupadoAntes + 1,
+              "8: y no se hizo después");
+    }
+    // Menos que el tope: el control espera y lo hace.
+    {
+        std::string r;
+        double ms = -1;
+        turno.tomar();
+        std::thread c([&]() {
+            const auto t = std::chrono::steady_clock::now();
+            r = llamar(http.port(), token, "scene_switch", 501, {{"name", "Plano general"}});
+            ms = msDesde(t);
+        });
+        trabarInterfaz(300);
+        turno.soltar();
+        trabarInterfaz(300);
+        c.join();
+        const json j = json::parse(r, nullptr, false);
+        CHECK(j.is_object() && !j["result"].value("isError", true) && ms >= 250 && aire.alAire == "Plano general" &&
+                  doc8.foto().de("principal").escena == "Plano general",
+              "8: el turno suelto antes del tope: el control espera y lo hace");
+        std::printf("  medido: esperando el turno 300 ms, contestó a los %.1f ms; turno %s\n", ms, turno.estado().dump().c_str());
+    }
+    atender(200);
+    CHECK(ba::persist::cola().vaciar(), "8: el documento de aire quedó escrito");
+    fs::remove_all(datos8);
 
     plano.detener();
     CHECK(http.thread() == interfaz && vigia.thread() == interfaz, "6: lo adoptado vuelve a su hilo");

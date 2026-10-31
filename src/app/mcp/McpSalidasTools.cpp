@@ -29,10 +29,14 @@
 
 namespace ba::app::mcp {
 
-escenas::Conmutador& conmutadorDe(const McpCore& core, StudioViewModel& vm, const json& args) {
+escenas::Conmutador& conmutadorDe(StudioViewModel& vm, const std::string& salida) {
     // callTool ya validó la salida; si justo la borraron, la por omisión (no se cae).
-    escenas::Conmutador* c = vm.conmutadores().de(core.salidaDe(args));
+    escenas::Conmutador* c = vm.conmutadores().de(salida);
     return c != nullptr ? *c : vm.conmutadores().porOmision();
+}
+
+escenas::Conmutador& conmutadorDe(const McpCore& core, StudioViewModel& vm, const json& args) {
+    return conmutadorDe(vm, core.salidaDe(args));
 }
 
 json resumenSalidas(AppRuntime& rt, StudioViewModel& vm) {
