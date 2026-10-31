@@ -25,7 +25,7 @@
 set(BA_TESTS_LENTOS
     test_retraso_propio test_composicion test_motor_app test_motor test_salidas
     test_grafico_proceso test_motor_retornos test_qml_syntax test_cloudflared
-    test_superres_vivo test_sondas test_baanillo)
+    test_superres_vivo test_sondas test_baanillo test_motor_salidas)
 
 # ba_test_entradas(<test> <ruta>...): archivos o carpetas que el test lee y que
 # la caché no puede adivinar. Rutas relativas: a la carpeta de fuentes actual.

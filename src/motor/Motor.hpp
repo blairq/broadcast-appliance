@@ -31,6 +31,24 @@
 // LA ESCUCHA (auriculares del operador): programa (lo que sale, junto con su
 // video), directo (la sala sin demora: solo las globales), pfl (una entrada
 // sola) o apagado.
+//
+// LAS SALIDAS (docs/planes/PLAN-SALIDAS.md, etapa 1). El aparato tiene N salidas
+// y cada una es un operador completo: su PROGRAMA y su PREVIEW, lo que tiene al
+// aire y armado, su DSK, su T-bar y su mezcla (su bus, con su máster, su
+// limitador y su toma para el loudness). Las entradas, las escenas y la cadena de
+// cada entrada son de todas: cada entrada se procesa UNA vez y su audio entra al
+// bus de cada salida con el fader, el mute y el «en escena» de ESA salida (su
+// Mando). Una escena al aire en la salida B suena en el bus de B y no en el de A.
+// Ninguna salida es especial, pero lo que no dice a cuál apunta va a la salida
+// por omisión («principal», la que existe desde el arranque) y conserva los
+// nombres de siempre: video:programa, video:programa:limpio, video:preview,
+// bus:programa; vistas «programa», «preview», «limpio». Las demás llevan su id:
+// video:programa:<id>, video:programa:<id>:limpio, video:preview:<id>,
+// bus:programa:<id>; vistas «programa:<id>», «preview:<id>», «limpio:<id>».
+// POR AHORA siguen a la salida por omisión: las pistas 2-6, los retornos
+// (mix-minus), el bus «directo», la escucha «selección», el puente a
+// BA.Audio.ContentForReturn y el multiview (su PROGRAMA y su PREVIEW son los de
+// la por omisión; el tally rojo es «al aire en ALGUNA salida»).
 // ============================================================================
 #pragma once
 
@@ -88,10 +106,25 @@ class Motor {
     void detener();
     bool andando() const { return hilo_.joinable(); }
 
+    // --- Las salidas ---
+    /// La que existe desde el arranque y a la que va lo que no dice a cuál apunta.
+    static constexpr const char* kSalidaPorOmision = "principal";
+    /// Una salida nueva (andando, si el motor anda): sin nada al aire ni armado;
+    /// su mezcla arranca con los faders y mutes de la por omisión. El id no puede
+    /// tener «:» ni «@» (van en los productores y en las claves de las vistas).
+    std::string crearSalida(const std::string& id, const std::string& nombre);
+    /// Saca una salida andando (la por omisión no se borra).
+    std::string borrarSalida(const std::string& id);
+    /// {id: {nombre, por_omision, al_aire, armada, tbar_hacia, …}} de la foto (no espera).
+    nlohmann::json salidas() const;
+    const std::string& salidaPorOmision() const { return porOmision_; }
+
     // --- Entradas ---
     /// opciones: {"global": bool (suena siempre), "en_escena": bool (de fábrica: global),
     ///            "interna": bool (de la app: no va al multiview),
     ///            "nivel": lineal, "mute": bool, "pistas": [1…6] (de fábrica [1]: el programa)}
+    /// El nivel, el mute y el «en escena» de las opciones valen para todas las salidas.
+    /// En todo lo que sigue, `salida` "" = la por omisión.
     std::string agregarEntrada(const std::string& id, const nlohmann::json& ajustes,
                                const nlohmann::json& opciones = nlohmann::json::object());
     std::string actualizarEntrada(const std::string& id, const nlohmann::json& ajustes);
@@ -103,12 +136,14 @@ class Motor {
     nlohmann::json propiedadesEntrada(const std::string& id, const std::string& elemento) const;
     /// El canal de control «ba/control» de la entrada (ver Entrada::control).
     std::string controlEntrada(const std::string& id, const nlohmann::json& campos);
-    std::string ponerNivel(const std::string& id, double lineal);
-    std::string ponerMute(const std::string& id, bool mute);
-    /// A qué pistas va (1 = el programa; 2…6 = la grabación multipista).
+    /// El fader y el mute de la entrada en la mezcla de una salida. Los de la por
+    /// omisión valen también para las pistas, los retornos y la escucha «selección».
+    std::string ponerNivel(const std::string& id, double lineal, const std::string& salida = "");
+    std::string ponerMute(const std::string& id, bool mute, const std::string& salida = "");
+    /// A qué pistas va (1 = el programa de cada salida; 2…6 = la grabación multipista).
     std::string ponerPistas(const std::string& id, const std::vector<int>& pistas);
-    /// Las entradas de escena que están al aire (las demás de escena se apagan).
-    void escenaAlAire(const std::vector<std::string>& ids, int fundidoMs);
+    /// Las entradas de escena que están al aire en una salida (las demás de escena se apagan en ella).
+    void escenaAlAire(const std::vector<std::string>& ids, int fundidoMs, const std::string& salida = "");
     /// {estado (none|playing|paused|stopped|ended|error), tiempo_ms, duracion_ms}; null si no es un medio.
     nlohmann::json medio(const std::string& id) const;
     /// Controles de un medio: play, pausa, reiniciar, parar; `ir` con ms.
@@ -119,32 +154,35 @@ class Motor {
     /// Si está al aire o armada, se actualiza andando.
     std::string definirEscena(const nlohmann::json& escena);
     std::string quitarEscena(const std::string& nombre);
-    /// La escena en el PREVIEW.
-    std::string armar(const std::string& nombre);
-    /// Lo armado al PROGRAMA: «corte» o «mezcla» de `ms`.
-    std::string take(const std::string& transicion = "corte", int ms = 0);
-    /// Una escena directo al PROGRAMA (sin pasar por el preview).
-    std::string alAire(const std::string& nombre, const std::string& transicion = "corte", int ms = 0);
-    /// El DSK del PROGRAMA (capas encima de cualquier escena: zócalos, logo), con fundido.
+    /// La escena en el PREVIEW de la salida.
+    std::string armar(const std::string& nombre, const std::string& salida = "");
+    /// Lo armado al PROGRAMA de la salida: «corte» o «mezcla» de `ms`.
+    std::string take(const std::string& transicion = "corte", int ms = 0, const std::string& salida = "");
+    /// Una escena directo al PROGRAMA de la salida (sin pasar por el preview).
+    std::string alAire(const std::string& nombre, const std::string& transicion = "corte", int ms = 0,
+                       const std::string& salida = "");
+    /// El DSK del PROGRAMA de la salida (capas encima de cualquier escena: zócalos, logo), con fundido.
     /// [{entrada, x, y, ancho, alto, alfa, orden}]. Vacío = sin DSK.
-    std::string dsk(const nlohmann::json& capas, int fundidoMs = 0);
-    /// T-bar hacia `nombre` (t de 0 a 1); con `soltar` termina. true si quedó al aire.
-    bool tbar(const std::string& nombre, double t, bool soltar, std::string* error = nullptr);
-    std::string tbarHacia() const;
+    std::string dsk(const nlohmann::json& capas, int fundidoMs = 0, const std::string& salida = "");
+    /// T-bar de la salida hacia `nombre` (t de 0 a 1); con `soltar` termina. true si quedó al aire.
+    bool tbar(const std::string& nombre, double t, bool soltar, std::string* error = nullptr, const std::string& salida = "");
+    std::string tbarHacia(const std::string& salida = "") const;
     /// Una composición de `nombre` aunque no esté al aire (el editor, el DSK): cuenta
     /// pedidos. Devuelve el productor ("" si no existe la escena).
     std::string usarEscena(const std::string& nombre);
     void soltarEscena(const std::string& nombre);
     /// Lo que entregan los buses de video: "programa", "limpio" (el programa sin DSK),
-    /// "preview", "multiview"; y cuánto tardan.
-    std::string productorDeVideo(const std::string& bus, std::int64_t* latenciaNs = nullptr);
+    /// "preview" (de `salida`, o de la que diga la clave: "programa:<id>"…), "multiview";
+    /// y cuánto tardan.
+    std::string productorDeVideo(const std::string& bus, std::int64_t* latenciaNs = nullptr, const std::string& salida = "");
 
     // --- Retornos ---
     /// modo: programa | mix_minus | apagado; `propia` = la entrada del invitado.
     std::string retorno(int n, const std::string& modo, const std::string& propia);
 
     // --- La escucha ---
-    /// modo: programa | directo | pfl | seleccion | apagado; `id` = la entrada (pfl).
+    /// modo: programa | directo | pfl | seleccion | apagado; `id` = la entrada (pfl)
+    /// o la salida (programa; "" = la por omisión).
     /// «seleccion»: la suma de las entradas marcadas con ponerEscucha.
     std::string escuchar(const std::string& modo, const std::string& id = "");
     /// Marca (o desmarca) una entrada para la escucha «selección». Con alguna
@@ -154,11 +192,12 @@ class Motor {
     void escuchaNivel(double lineal);
 
     // --- El máster ---
-    /// El volumen de todo el programa (0…1) con fundido (el FTB baja el audio).
-    void masterVolumen(double lineal, int ms);
-    /// Cada bloque del audio del programa (F32 estéreo 48 kHz, en el hilo de datos):
-    /// el loudness, los picos, la medición de sincronía. Devuelve un id para sacarlo.
-    int escucharPrograma(std::function<void(const float*, std::size_t cuadros)> fn);
+    /// El volumen de todo el programa de la salida (0…1) con fundido (el FTB baja el audio).
+    void masterVolumen(double lineal, int ms, const std::string& salida = "");
+    /// Cada bloque del audio del programa de la salida (F32 estéreo 48 kHz, en el hilo
+    /// de datos): el loudness, los picos, la medición de sincronía. Devuelve un id para
+    /// sacarlo. Una salida que todavía no existe empieza a llegar cuando se crea.
+    int escucharPrograma(std::function<void(const float*, std::size_t cuadros)> fn, const std::string& salida = "");
     void dejarDeEscuchar(int id);
     /// El audio de UNA entrada después de su cadena (lo mismo que va a la mezcla),
     /// estéreo intercalado a 48 kHz, en el hilo de GStreamer, apenas llega (sin
@@ -169,12 +208,13 @@ class Motor {
     /// ¿Sigue andando esa toma? (un motor rearmado no tiene las del anterior:
     /// los números no se repiten entre motores).
     bool tomaViva(int toma) const;
-    bool ponerLimitador(bool activo, double techoDb);
+    bool ponerLimitador(bool activo, double techoDb, const std::string& salida = "");
     void ponerTopeEstudio(std::int64_t ms);
 
     // --- Multiview (M2.4) ---
-    /// PREVIEW y PROGRAMA arriba, las entradas con video abajo (hasta 8), cada una con
-    /// su tally (rojo: al aire; verde: armada; gris) y su nombre. Se ve con la vista
+    /// PREVIEW y PROGRAMA (los de la salida por omisión) arriba, las entradas con video
+    /// abajo (hasta 8), cada una con su tally (rojo: al aire en alguna salida; verde:
+    /// armada en la por omisión; gris) y su nombre. Se ve con la vista
     /// «multiview» o se consume como «video:multiview».
     std::string multiview(bool activo, int ancho = 1280, int alto = 720);
 
@@ -231,18 +271,41 @@ class Motor {
     /// aparatos lo usen (reloj «red»). 0 = dejar de publicar. "" o el error.
     std::string publicarReloj(int puerto);
     const Lienzo& lienzo() const { return cfg_.lienzo; }
-    /// Lo que entrega un bus (para la grabación, más adelante): "bus:programa", "bus:pista2"…
-    /// y cuánto tarda en salir (ns). "" si no existe.
-    std::string productorDeBus(const std::string& bus, std::int64_t* latenciaNs = nullptr);
+    /// Lo que entrega un bus (para la grabación, más adelante): "programa" (de `salida`,
+    /// o "programa:<id>"), "pista2"… y cuánto tarda en salir (ns). "" si no existe.
+    std::string productorDeBus(const std::string& bus, std::int64_t* latenciaNs = nullptr, const std::string& salida = "");
 
    private:
     struct Canal {
         std::shared_ptr<Entrada> entrada; ///< compartida con el buzón de cuadros (ver empujarCuadro)
-        bool global = false, enEscena = false, interna = false;
+        bool global = false, interna = false;
+        unsigned pistas = 1; ///< bit 0 = el programa de cada salida, bit n-1 = pista n
+        bool escucha = false; ///< va a la escucha «selección»
+    };
+    /// Lo que una salida hace con una entrada en su mezcla.
+    struct Mando {
         double nivel = 1.0;
         bool mute = false;
-        unsigned pistas = 1; ///< bit 0 = programa, bit n-1 = pista n
-        bool escucha = false; ///< va a la escucha «selección»
+        bool enEscena = false; ///< está en la escena al aire de ESA salida
+    };
+    /// La toma del audio del programa de una salida (escucharPrograma). Compartida con
+    /// su desarme aparte: GStreamer puede llamar a alAudio hasta que se pasa a NULL.
+    struct TomaPrograma {
+        Motor* motor = nullptr;
+        std::string salida;
+        GstElement* pipeline = nullptr;
+    };
+    /// Una salida (ver LAS SALIDAS arriba): todo lo del aire que antes era único.
+    struct Salida {
+        std::string nombre;
+        std::unique_ptr<Mezcla> mezcla;                   ///< bus:programa[:<id>]
+        std::unique_ptr<Composicion> programa, preview;   ///< video:programa[:<id>], video:preview[:<id>]
+        std::string alAire, armada;
+        std::set<std::string> dskEscenas;                 ///< las escenas que pidió su DSK
+        std::map<std::string, Mando> mandos;              ///< por entrada
+        std::shared_ptr<TomaPrograma> toma;
+        GstElement* puente = nullptr; ///< bus → BA.Audio.ContentForReturn (por ahora, solo la por omisión)
+        std::int64_t puenteLatNs = -1;
     };
     struct Retorno {
         std::string modo, propia;
@@ -250,10 +313,27 @@ class Motor {
     };
     void bucle();
     void enSeleccion(const std::string& id, const Canal& c);
-    /// Pone (o saca) una entrada en un bus con el estado del canal.
-    void enBus(Mezcla& m, const std::string& id, const Canal& c, bool incluir, int fundidoMs);
-    /// Lleva un canal a todos los buses donde corresponde.
+    /// Pone (o saca) una entrada en un bus con el estado del canal y el mando de una salida.
+    void enBus(Mezcla& m, const std::string& id, const Canal& c, const Mando& k, bool incluir, int fundidoMs);
+    /// Lleva un canal a todos los buses donde corresponde (los de todas las salidas).
     void aplicar(const std::string& id, int fundidoMs);
+    /// Lo mismo, solo en lo que depende de una salida: su bus y, si es la por
+    /// omisión, lo que por ahora la sigue (pistas, retornos, directo, selección).
+    void aplicarEnSalida(Salida& s, const std::string& id, int fundidoMs);
+    /// "" = la por omisión; nullptr si no hay una con ese id.
+    Salida* laSalida(const std::string& id);
+    const Salida* laSalida(const std::string& id) const;
+    Salida& porOmision() { return salidas_.at(porOmision_); }
+    const Mando& mandoPorOmision(const std::string& id) const;
+    std::string noHaySalida(const std::string& id) const;
+    /// Arma lo que anda de una salida (su bus, sus composiciones, su puente, su toma).
+    std::string armarSalida(const std::string& id, Salida& s);
+    /// Lo desarma: aparte (en caliente: devuelve cuándo termina) o ya (al apagar, con
+    /// los desarmes ya esperados).
+    std::shared_future<void> desarmarSalida(Salida& s, bool aparte);
+    void armarPuente(Salida& s);
+    std::string crearSalidaYa(const std::string& id, const std::string& nombre);
+    std::string borrarSalidaYa(const std::string& id);
     Mezcla* pista(int n, bool crear);
     void armarRetorno(int n, Retorno& r);
     std::string anillo(const std::string& nombre) const { return cfg_.prefijoAnillos + nombre; }
@@ -266,14 +346,13 @@ class Motor {
     std::atomic<bool> permitirBajar_{false};
     std::map<std::string, std::unique_ptr<Sondas>> sondasAparte_; ///< las del programa y la mezcla
     std::map<std::string, Canal> canales_;
-    std::unique_ptr<Mezcla> programa_, directo_;
+    std::map<std::string, Salida> salidas_; ///< la por omisión existe siempre (desde el constructor)
+    std::string porOmision_ = kSalidaPorOmision;
+    std::unique_ptr<Mezcla> directo_;
     std::unique_ptr<Mezcla> seleccion_; ///< la escucha «selección»
     std::map<int, std::unique_ptr<Mezcla>> pistas_;
-    GstElement* puente_ = nullptr; ///< bus:programa → BA.Audio.ContentForReturn
-    std::int64_t puenteLatNs_ = -1;
     std::map<int, Retorno> retornos_;
     std::unique_ptr<Escucha> escucha_;
-    std::unique_ptr<Composicion> vPrograma_, vPreview_;
     std::unique_ptr<Vistas> vistas_;
     std::unique_ptr<Composicion> vMulti_;
     std::map<std::string, std::unique_ptr<Entrada>> mvAux_; ///< los colores del tally y los nombres
@@ -295,10 +374,12 @@ class Motor {
     std::vector<std::shared_future<void>> desarmes_;
     void desarmarAparte(std::unique_ptr<Composicion> c);
     std::shared_future<void> desarmarAparte(std::function<void()> f);
-    /// Entradas que se están desarmando aparte, por id: una nueva con el mismo id
-    /// espera a que termine (sus productores inter llevan el mismo nombre).
+    /// Entradas que se están desarmando aparte, por id (las salidas, por «salida:<id>»:
+    /// las entradas no llevan «:»): una nueva con el mismo id espera a que termine
+    /// (sus productores inter llevan el mismo nombre).
     std::mutex desarmandoM_;
     std::map<std::string, std::shared_future<void>> desarmando_;
+    void esperarDesarme(const std::string& clave);
 
     // --- El buzón de cuadros de la app (ver empujarCuadro) ---
     struct Buzon {
@@ -339,19 +420,19 @@ class Motor {
     std::string propiedadEntradaYa(const std::string& id, const std::string& elemento, const std::string& prop,
                                    const std::string& valor);
     std::string controlEntradaYa(const std::string& id, const nlohmann::json& campos);
-    std::string ponerNivelYa(const std::string& id, double lineal);
-    std::string ponerMuteYa(const std::string& id, bool mute);
+    std::string ponerNivelYa(const std::string& id, double lineal, const std::string& salida);
+    std::string ponerMuteYa(const std::string& id, bool mute, const std::string& salida);
     std::string ponerPistasYa(const std::string& id, const std::vector<int>& pistas);
-    void escenaAlAireYa(const std::vector<std::string>& ids, int fundidoMs);
+    void escenaAlAireYa(const std::vector<std::string>& ids, int fundidoMs, const std::string& salida);
     std::string controlMedioYa(const std::string& id, const std::string& accion, std::int64_t ms);
     nlohmann::json medioYa(const std::string& id) const;
     std::string definirEscenaYa(const nlohmann::json& escena);
     std::string quitarEscenaYa(const std::string& nombre);
-    std::string armarYa(const std::string& nombre);
-    std::string takeYa(const std::string& transicion, int ms);
-    std::string alAireYa(const std::string& nombre, const std::string& transicion, int ms);
-    std::string dskYa(const nlohmann::json& capas, int fundidoMs);
-    bool tbarYa(const std::string& nombre, double t, bool soltar, std::string* error);
+    std::string armarYa(const std::string& nombre, const std::string& salida);
+    std::string takeYa(const std::string& transicion, int ms, const std::string& salida);
+    std::string alAireYa(const std::string& nombre, const std::string& transicion, int ms, const std::string& salida);
+    std::string dskYa(const nlohmann::json& capas, int fundidoMs, const std::string& salida);
+    bool tbarYa(const std::string& nombre, double t, bool soltar, std::string* error, const std::string& salida);
     std::string usarEscenaYa(const std::string& nombre);
     /// El lienzo de una escena interna (el suyo, o el del estudio).
     Lienzo lienzoDe(const Escena& e) const;
@@ -361,14 +442,11 @@ class Motor {
     std::string ponerEscuchaYa(const std::string& id, bool on);
     void escuchaDispositivoYa(const std::string& id);
     void escuchaNivelYa(double lineal);
-    void masterVolumenYa(double lineal, int ms);
-    bool ponerLimitadorYa(bool activo, double techoDb);
+    void masterVolumenYa(double lineal, int ms, const std::string& salida);
+    bool ponerLimitadorYa(bool activo, double techoDb, const std::string& salida);
     std::string multiviewYa(bool activo, int ancho, int alto);
     std::string verPedirYa(const std::string& clave, int ancho, int alto);
     void verSoltarYa(const std::string& clave);
-    std::set<std::string> dskEscenas_;
-    // La toma de audio del programa
-    GstElement* tomaAudio_ = nullptr;
     struct TomaEntrada {
         GstElement* pipeline = nullptr;
         std::string id;
@@ -381,10 +459,16 @@ class Motor {
     /// Las vivas, para tomaViva y dejarDeEscucharEntrada sin el candado del motor.
     mutable std::mutex tomasVivasM_;
     std::map<int, std::shared_ptr<TomaEntrada>> tomasVivas_;
-    void armarTomaAudio();
+    /// La toma del programa de una salida, si alguien la escucha y no está armada.
+    void armarTomaAudio(const std::string& salida);
     void escucharEntradaYa(int n, const std::string& id, std::function<void(const float*, std::size_t)> fn);
     std::mutex tomaMu_;
-    std::map<int, std::function<void(const float*, std::size_t)>> oyentes_;
+    struct Oyente {
+        std::string salida; ///< el id (ya resuelto: nunca "")
+        std::function<void(const float*, std::size_t)> fn;
+    };
+    std::map<int, Oyente> oyentes_; ///< bajo tomaMu_
+    bool hayOyentes(const std::string& salida); ///< toma tomaMu_
     int proximoOyente_ = 1;
     static GstFlowReturn alAudio(GstElement* sink, gpointer d);
     void actualizarMultiview();
@@ -392,8 +476,8 @@ class Motor {
     /// van a 2 cuadros/s (Entrada::ponerEnUso). Con mu_ tomado.
     void actualizarUso();
     std::map<std::string, Escena> escenas_;
-    std::string alAire_, armada_;
-    std::string escuchaModo_ = "apagado", escuchaId_;
+    std::string escuchaModo_ = "apagado";
+    std::string escuchaId_; ///< la entrada (pfl) o la salida (programa; "" = la por omisión)
     std::thread hilo_;
     std::atomic<bool> seguir_{false};
 };

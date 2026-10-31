@@ -12,7 +12,9 @@
 // la sueltan todos (`soltar`). `ultimo` copia el último cuadro si es más nuevo
 // que el que ya tiene quien pregunta (número de serie).
 //
-// Claves: "programa", "preview" (las composiciones) o "entrada:<id>". Una clave
+// Claves: "programa", "preview", "limpio" (las composiciones de la salida por
+// omisión), "programa:<salida>", "preview:<salida>", "limpio:<salida>" (las de
+// otra salida) o "entrada:<id>"; las resuelve el motor. Una clave
 // puede llevar «@<nombre>» para tener otra vista de lo mismo (otro tamaño): lo
 // que va después de la @ no se mira para resolver.
 // `avisar` registra una función que recibe CADA cuadro de esa clave (en el hilo

@@ -30,6 +30,9 @@ Motor::Motor(Config c) : cfg_(std::move(c)) {
     fijarColorSalida(cfg_.lienzo);
     reloj_ = std::make_unique<Reloj>(cfg_.reloj, cfg_.relojServidor, cfg_.relojPuerto, cfg_.relojDominio);
     reloj_->ponerTope(cfg_.topeMs);
+    // La salida por omisión existe siempre (también antes de arrancar): lo que no
+    // dice a qué salida apunta va a ella.
+    salidas_[porOmision_].nombre = traducir("motor", "Principal");
 }
 
 Motor::~Motor() { detener(); }
@@ -82,29 +85,19 @@ std::string Motor::iniciar() {
         registrar(Nivel::Info, llenar(traducir("motor", "motor: la sombra de D3D12, adelantada en %1 ms"),
                                       {std::to_string((g_get_monotonic_time() - t0) / 1000)}));
     }
-    Mezcla::Opciones op;
-    op.limitador = true;
-    // Sin ebur128level: el loudness del programa lo mide la app (audio::LoudnessPrograma,
-    // con su objetivo, el reinicio al salir al aire y el true peak reciente) y el del
-    // motor no lo leía nadie (~4 % de un núcleo, siempre).
-    op.loudness = false;
-    programa_ = std::make_unique<Mezcla>(*reloj_, "programa", op);
-    if (!programa_->anda()) return llenar(traducir("motor", "el bus PROGRAMA no arrancó: %1"), {programa_->error()});
     escucha_ = std::make_unique<Escucha>(*reloj_, cfg_.sinkEscucha);
-    if (cfg_.video) {
-        Composicion::Opciones vop;
-        vop.gpu = cfg_.videoGpu;
-        Composicion::Opciones pop = vop;
-        pop.dsk = true; // el PROGRAMA con DSK y clean feed
-        vPrograma_ = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "programa", pop);
-        vPreview_ = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "preview", vop);
-        if (!vPrograma_->anda())
-            registrar(Nivel::Error, llenar(traducir("motor", "el video del PROGRAMA no arrancó: %1"), {vPrograma_->error()}));
-    }
+    // Las salidas: la por omisión y las que se crearon antes de arrancar.
+    for (auto& [sid, s] : salidas_)
+        if (const std::string e = armarSalida(sid, s); !e.empty()) {
+            if (sid == porOmision_) return e;
+            registrar(Nivel::Error, e);
+        }
     vistas_ = std::make_unique<Vistas>(*reloj_, [this](const std::string& clave, std::int64_t* lat) -> std::string {
         // (lo llaman pedir y tic, con mu_ del motor ya tomado o no: el recursive_mutex lo permite)
         BA_CANDADO(mu_);
-        if (clave == "programa" || clave == "preview" || clave == "multiview" || clave == "limpio")
+        // «programa», «preview», «limpio» (la salida por omisión) o con «:<salida>».
+        const std::string bus = clave.substr(0, clave.find(':'));
+        if (bus == "programa" || bus == "preview" || bus == "limpio" || clave == "multiview")
             return productorDeVideo(clave, lat);
         if (clave.rfind("escena:", 0) == 0) {
             auto it = vEscenas_.find(clave.substr(7));
@@ -123,26 +116,6 @@ std::string Motor::iniciar() {
         return {};
     });
     vistas_->ponerDesarmador([this](std::function<void()> f) { desarmarAparte(std::move(f)); });
-    // El programa para el gateway (lo que oyen los invitados en modo «programa»).
-    if (!cfg_.prefijoAnillos.empty() && hayFabrica("baanillosink")) {
-        const std::string d = "intersrc producer-name=" + entreComillas(programa_->productor()) +
-                              " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! baanillosink canal=" +
-                              entreComillas(anillo("ContentForReturn"));
-        GError* e = nullptr;
-        puente_ = gst_parse_launch(d.c_str(), &e);
-        if (e != nullptr) {
-            registrar(Nivel::Aviso,
-                      llenar(traducir("motor", "el programa para el gateway: %1"), {ba::diag::utf8Valido(e->message)}));
-            g_error_free(e);
-            if (puente_ != nullptr) gst_object_unref(puente_);
-            puente_ = nullptr;
-        } else {
-            reloj_->adoptar(puente_);
-            puenteLatNs_ = programa_->latenciaSalidaNs() + margenMezclaNs();
-            gst_pipeline_set_latency(GST_PIPELINE(puente_), static_cast<GstClockTime>(puenteLatNs_));
-            gst_element_set_state(puente_, GST_STATE_PLAYING);
-        }
-    }
     seguir_ = true;
     hilo_ = std::thread([this]() { bucle(); });
     hiloCuadros_ = std::thread([this]() { cuadros(); });
@@ -187,29 +160,171 @@ void Motor::detener() {
     }
     tomasEntrada_.clear();
     vistas_.reset();
-    if (tomaAudio_ != nullptr) {
-        gst_element_set_state(tomaAudio_, GST_STATE_NULL);
-        gst_object_unref(tomaAudio_);
-        tomaAudio_ = nullptr;
+    for (auto& [sid, s] : salidas_) {
+        desarmarSalida(s, false);
+        Salida vacia; // sin nada al aire ni mandos: las entradas se van
+        vacia.nombre = std::move(s.nombre);
+        s = std::move(vacia);
     }
     vEscenas_.clear();
-    dskEscenas_.clear();
     vMulti_.reset();
     mvAux_.clear();
     escucha_.reset();
-    vPreview_.reset();
-    vPrograma_.reset();
     retornos_.clear();
-    if (puente_ != nullptr) {
-        gst_element_set_state(puente_, GST_STATE_NULL);
-        gst_object_unref(puente_);
-        puente_ = nullptr;
-    }
     canales_.clear();
     pistas_.clear();
     directo_.reset();
     seleccion_.reset();
-    programa_.reset();
+}
+
+// ============================================================================
+// Las salidas (docs/planes/PLAN-SALIDAS.md, etapa 1)
+// ============================================================================
+
+Motor::Salida* Motor::laSalida(const std::string& id) {
+    auto it = salidas_.find(id.empty() ? porOmision_ : id);
+    return it == salidas_.end() ? nullptr : &it->second;
+}
+
+const Motor::Salida* Motor::laSalida(const std::string& id) const {
+    auto it = salidas_.find(id.empty() ? porOmision_ : id);
+    return it == salidas_.end() ? nullptr : &it->second;
+}
+
+const Motor::Mando& Motor::mandoPorOmision(const std::string& id) const {
+    static const Mando kNinguno;
+    const auto& m = salidas_.at(porOmision_).mandos;
+    auto it = m.find(id);
+    return it == m.end() ? kNinguno : it->second;
+}
+
+std::string Motor::noHaySalida(const std::string& id) const {
+    return llenar(traducir("motor", "no hay una salida «%1»"), {id.empty() ? porOmision_ : id});
+}
+
+std::string Motor::armarSalida(const std::string& id, Salida& s) {
+    // La por omisión con los nombres de siempre; las demás con su id.
+    const std::string suf = id == porOmision_ ? std::string() : ":" + id;
+    Mezcla::Opciones op;
+    op.limitador = true;
+    // Sin ebur128level: el loudness del programa lo mide la app (audio::LoudnessPrograma,
+    // con su objetivo, el reinicio al salir al aire y el true peak reciente) y el del
+    // motor no lo leía nadie (~4 % de un núcleo, siempre).
+    op.loudness = false;
+    s.mezcla = std::make_unique<Mezcla>(*reloj_, "programa" + suf, op);
+    if (!s.mezcla->anda()) {
+        const std::string e = llenar(traducir("motor", "el bus PROGRAMA no arrancó: %1"), {s.mezcla->error()});
+        s.mezcla.reset();
+        return e;
+    }
+    if (cfg_.video) {
+        Composicion::Opciones vop;
+        vop.gpu = cfg_.videoGpu;
+        Composicion::Opciones pop = vop;
+        pop.dsk = true; // el PROGRAMA con DSK y clean feed
+        s.programa = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "programa" + suf, pop);
+        s.preview = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "preview" + suf, vop);
+        if (!s.programa->anda())
+            registrar(Nivel::Error, llenar(traducir("motor", "el video del PROGRAMA no arrancó: %1"), {s.programa->error()}));
+    }
+    for (const auto& [cid, c] : canales_) aplicarEnSalida(s, cid, 0);
+    if (id == porOmision_) armarPuente(s);
+    if (hayOyentes(id)) armarTomaAudio(id); // la pidieron antes de que existiera
+    return {};
+}
+
+void Motor::armarPuente(Salida& s) {
+    // El programa para el gateway (lo que oyen los invitados en modo «programa»).
+    if (cfg_.prefijoAnillos.empty() || !hayFabrica("baanillosink") || !s.mezcla) return;
+    const std::string d = "intersrc producer-name=" + entreComillas(s.mezcla->productor()) +
+                          " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! baanillosink canal=" +
+                          entreComillas(anillo("ContentForReturn"));
+    GError* e = nullptr;
+    s.puente = gst_parse_launch(d.c_str(), &e);
+    if (e != nullptr) {
+        registrar(Nivel::Aviso,
+                  llenar(traducir("motor", "el programa para el gateway: %1"), {ba::diag::utf8Valido(e->message)}));
+        g_error_free(e);
+        if (s.puente != nullptr) gst_object_unref(s.puente);
+        s.puente = nullptr;
+        return;
+    }
+    reloj_->adoptar(s.puente);
+    s.puenteLatNs = s.mezcla->latenciaSalidaNs() + margenMezclaNs();
+    gst_pipeline_set_latency(GST_PIPELINE(s.puente), static_cast<GstClockTime>(s.puenteLatNs));
+    gst_element_set_state(s.puente, GST_STATE_PLAYING);
+}
+
+std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
+    // Todo junto y en orden: lo que la lee (la toma, el puente) antes que lo que la
+    // hace. La toma va con su estructura: GStreamer la nombra hasta pasar a NULL.
+    auto desarmar = [toma = std::move(s.toma), puente = std::exchange(s.puente, nullptr),
+                     programa = std::shared_ptr<Composicion>(std::move(s.programa)),
+                     preview = std::shared_ptr<Composicion>(std::move(s.preview)),
+                     mezcla = std::shared_ptr<Mezcla>(std::move(s.mezcla))]() mutable {
+        for (GstElement* p : {toma ? toma->pipeline : nullptr, puente})
+            if (p != nullptr) {
+                gst_element_set_state(p, GST_STATE_NULL);
+                gst_object_unref(p);
+            }
+        toma.reset();
+        preview.reset();
+        programa.reset();
+        mezcla.reset();
+    };
+    // Las escenas que pedía su DSK (al apagar se van todas juntas).
+    if (aparte)
+        for (const auto& n : s.dskEscenas) soltarEscena(n);
+    s.dskEscenas.clear();
+    if (aparte) return desarmarAparte(std::function<void()>(std::move(desarmar)));
+    desarmar();
+    return {};
+}
+
+std::string Motor::crearSalidaYa(const std::string& id, const std::string& nombre) {
+    BA_CANDADO(mu_);
+    if (id.empty()) return traducir("motor", "falta el id de la salida");
+    if (id.find_first_of(":@") != std::string::npos) return traducir("motor", "el id de la salida no puede tener «:» ni «@»");
+    if (salidas_.count(id) > 0) return llenar(traducir("motor", "ya hay una salida «%1»"), {id});
+    esperarDesarme("salida:" + id); // una borrada con el mismo id: sus productores se llaman igual
+    Salida& s = salidas_[id];
+    s.nombre = nombre.empty() ? id : nombre;
+    // Su mezcla arranca como la de la por omisión, pero sin nada al aire.
+    for (const auto& [cid, c] : canales_) {
+        Mando k = mandoPorOmision(cid);
+        k.enEscena = false;
+        s.mandos[cid] = k;
+    }
+    if (andando()) {
+        if (std::string e = armarSalida(id, s); !e.empty()) {
+            borrarSalidaYa(id);
+            return e;
+        }
+        actualizarUso();
+    }
+    return {};
+}
+
+std::string Motor::borrarSalidaYa(const std::string& id) {
+    BA_CANDADO(mu_);
+    if (id.empty() || id == porOmision_) return traducir("motor", "la salida por omisión no se puede borrar");
+    auto it = salidas_.find(id);
+    if (it == salidas_.end()) return noHaySalida(id);
+    if (escuchaModo_ == "programa" && escuchaId_ == id) escuchar("apagado");
+    std::shared_future<void> f = desarmarSalida(it->second, true);
+    {
+        std::lock_guard<std::mutex> l(desarmandoM_);
+        desarmando_["salida:" + id] = std::move(f);
+    }
+    salidas_.erase(it);
+    actualizarMultiview(); // el tally de lo que tenía al aire
+    actualizarUso();
+    return {};
+}
+
+json Motor::salidas() const {
+    const auto f = instantanea();
+    return f && f->contains("salidas") ? (*f)["salidas"] : json::object();
 }
 
 void Motor::bucle() {
@@ -247,7 +362,8 @@ void Motor::bucle() {
             }
             {
                 Tramo t("tic de los buses de audio");
-                if (programa_) programa_->tic();
+                for (auto& [sid, s] : salidas_)
+                    if (s.mezcla) s.mezcla->tic();
                 if (directo_) directo_->tic();
                 if (seleccion_) seleccion_->tic();
                 for (auto& [n, p] : pistas_) p->tic();
@@ -256,18 +372,21 @@ void Motor::bucle() {
             }
             {
                 Tramo t("tic de las composiciones");
-                if (vPrograma_) vPrograma_->tic();
-                if (vPreview_) vPreview_->tic();
+                for (auto& [sid, s] : salidas_) {
+                    if (s.programa) s.programa->tic();
+                    if (s.preview) s.preview->tic();
+                }
                 if (vMulti_) vMulti_->tic();
                 for (auto& [n, c] : vEscenas_)
                     if (c.comp) c.comp->tic();
             }
             Tramo tResto("resto de la vuelta (toma de audio, multiview, puente, escucha)");
-            if (tomaAudio_ != nullptr) {
-                GstBus* bus = gst_element_get_bus(tomaAudio_);
-                while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
-                gst_object_unref(bus);
-            }
+            for (auto& [sid, s] : salidas_)
+                if (s.toma) {
+                    GstBus* bus = gst_element_get_bus(s.toma->pipeline);
+                    while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
+                    gst_object_unref(bus);
+                }
             for (auto& [n, a] : mvAux_) a->tic();
             if (vistas_) {
                 Tramo t("tic de las vistas");
@@ -282,23 +401,25 @@ void Motor::bucle() {
                 publicarInstantanea();
             }
             // Los que consumen el programa esperan lo que tarda en salir.
-            if (puente_ != nullptr && programa_) {
-                const std::int64_t lat = programa_->latenciaSalidaNs() + margenMezclaNs();
-                if (lat > puenteLatNs_ + static_cast<std::int64_t>(5 * GST_MSECOND) ||
-                    lat < puenteLatNs_ - static_cast<std::int64_t>(60 * GST_MSECOND)) {
-                    puenteLatNs_ = lat;
-                    recalcularLatenciaAparte(puente_, [p = refCompartida(puente_), lat]() {
+            for (auto& [sid, s] : salidas_) {
+                if (s.puente == nullptr || !s.mezcla) continue;
+                const std::int64_t lat = s.mezcla->latenciaSalidaNs() + margenMezclaNs();
+                if (lat > s.puenteLatNs + static_cast<std::int64_t>(5 * GST_MSECOND) ||
+                    lat < s.puenteLatNs - static_cast<std::int64_t>(60 * GST_MSECOND)) {
+                    s.puenteLatNs = lat;
+                    recalcularLatenciaAparte(s.puente, [p = refCompartida(s.puente), lat]() {
                         gst_pipeline_set_latency(GST_PIPELINE(p.get()), static_cast<GstClockTime>(lat));
                     });
                 }
-                GstBus* bus = gst_element_get_bus(puente_);
+                GstBus* bus = gst_element_get_bus(s.puente);
                 while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
                 gst_object_unref(bus);
             }
             if (escucha_) {
                 std::int64_t lat = 0;
-                if (escuchaModo_ == "programa" && programa_)
-                    lat = programa_->latenciaSalidaNs();
+                const Salida* oida = escuchaModo_ == "programa" ? laSalida(escuchaId_) : nullptr;
+                if (oida != nullptr && oida->mezcla)
+                    lat = oida->mezcla->latenciaSalidaNs();
                 else if (escuchaModo_ == "directo" && directo_)
                     lat = directo_->latenciaSalidaNs();
                 else if (escuchaModo_ == "pfl")
@@ -314,15 +435,15 @@ void Motor::bucle() {
     }
 }
 
-void Motor::enBus(Mezcla& m, const std::string& id, const Canal& c, bool incluir, int fundidoMs) {
+void Motor::enBus(Mezcla& m, const std::string& id, const Canal& c, const Mando& k, bool incluir, int fundidoMs) {
     if (!incluir || !c.entrada->daAudio()) {
         m.quitar(id);
         return;
     }
     m.agregar(id);
-    m.ponerNivel(id, c.nivel);
-    m.ponerMute(id, c.mute);
-    m.ponerEscena(id, c.global || c.enEscena ? 1.0 : 0.0, fundidoMs);
+    m.ponerNivel(id, k.nivel);
+    m.ponerMute(id, k.mute);
+    m.ponerEscena(id, c.global || k.enEscena ? 1.0 : 0.0, fundidoMs);
 }
 
 Mezcla* Motor::pista(int n, bool crear) {
@@ -338,18 +459,30 @@ Mezcla* Motor::pista(int n, bool crear) {
 }
 
 void Motor::aplicar(const std::string& id, int fundidoMs) {
+    for (auto& [sid, s] : salidas_) aplicarEnSalida(s, id, fundidoMs);
+}
+
+// EL AUDIO POR SALIDA. La entrada se procesa una vez (su cadena, su rack) y entrega
+// <id>:audio; cada salida la suma a SU bus con SU mando (fader, mute, en escena).
+// Cambiar el mando de una salida toca solo su bus: el fundido de escena de otra
+// no se corta.
+void Motor::aplicarEnSalida(Salida& s, const std::string& id, int fundidoMs) {
     auto it = canales_.find(id);
     if (it == canales_.end()) return;
     const Canal& c = it->second;
+    const Mando& k = s.mandos[id];
     const bool alPrograma = (c.pistas & 1u) != 0;
-    if (programa_) enBus(*programa_, id, c, alPrograma, fundidoMs);
+    if (s.mezcla) enBus(*s.mezcla, id, c, k, alPrograma, fundidoMs);
+    if (&s != &porOmision()) return;
+    // Por ahora siguen a la salida por omisión (su mando): las pistas, los retornos,
+    // el directo y la selección.
     for (int n = 2; n <= 6; ++n) {
         const bool va = (c.pistas & (1u << (n - 1))) != 0;
-        if (Mezcla* p = pista(n, va)) enBus(*p, id, c, va, fundidoMs);
+        if (Mezcla* p = pista(n, va)) enBus(*p, id, c, k, va, fundidoMs);
     }
     for (auto& [n, r] : retornos_)
-        if (r.bus) enBus(*r.bus, id, c, alPrograma && r.propia != id, fundidoMs);
-    if (directo_) enBus(*directo_, id, c, c.global, 0);
+        if (r.bus) enBus(*r.bus, id, c, k, alPrograma && r.propia != id, fundidoMs);
+    if (directo_) enBus(*directo_, id, c, k, c.global, 0);
     if (seleccion_) enSeleccion(id, c);
 }
 
@@ -359,26 +492,14 @@ std::string Motor::agregarEntradaYa(const std::string& id, const json& ajustes, 
     if (id.empty()) return traducir("motor", "falta el id");
     if (id.find(':') != std::string::npos) return traducir("motor", "el id no puede tener «:»");
     if (canales_.count(id) > 0) return llenar(traducir("motor", "ya hay una entrada «%1»"), {id});
-    {
-        // La anterior con este id todavía se está desarmando: se la espera (acá,
-        // en el hilo del motor), porque sus productores llevan los mismos nombres.
-        std::shared_future<void> antes;
-        {
-            std::lock_guard<std::mutex> l(desarmandoM_);
-            auto d = desarmando_.find(id);
-            if (d != desarmando_.end()) {
-                antes = d->second;
-                desarmando_.erase(d);
-            }
-        }
-        if (antes.valid()) antes.wait();
-    }
+    esperarDesarme(id);
     Canal c;
     c.global = opciones.value("global", false);
-    c.enEscena = opciones.value("en_escena", c.global);
     c.interna = opciones.value("interna", false);
-    c.nivel = opciones.value("nivel", 1.0);
-    c.mute = opciones.value("mute", false);
+    Mando k; // el mismo en todas las salidas
+    k.enEscena = opciones.value("en_escena", c.global);
+    k.nivel = opciones.value("nivel", 1.0);
+    k.mute = opciones.value("mute", false);
     if (opciones.contains("pistas") && opciones["pistas"].is_array()) {
         c.pistas = 0;
         for (const auto& p : opciones["pistas"])
@@ -388,6 +509,7 @@ std::string Motor::agregarEntradaYa(const std::string& id, const json& ajustes, 
     c.entrada = std::make_shared<Entrada>(*reloj_, cfg_.lienzo, id, ajustes.is_object() ? ajustes : json::object());
     indexarDeApp(id, c.entrada);
     canales_[id] = std::move(c);
+    for (auto& [sid, s] : salidas_) s.mandos[id] = k;
     aplicar(id, 0);
     actualizarMultiview();
     return {};
@@ -459,7 +581,10 @@ std::string Motor::quitarEntradaYa(const std::string& id) {
     BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
-    if (programa_) programa_->quitar(id);
+    for (auto& [sid, s] : salidas_) {
+        if (s.mezcla) s.mezcla->quitar(id);
+        s.mandos.erase(id);
+    }
     if (directo_) directo_->quitar(id);
     if (seleccion_) seleccion_->quitar(id);
     for (auto& [n, p] : pistas_) p->quitar(id);
@@ -474,23 +599,26 @@ std::string Motor::quitarEntradaYa(const std::string& id) {
     return {};
 }
 
-std::string Motor::ponerNivelYa(const std::string& id, double lineal) {
+std::string Motor::ponerNivelYa(const std::string& id, double lineal, const std::string& salida) {
     BA_CANDADO(mu_);
-    auto it = canales_.find(id);
-    if (it == canales_.end()) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
-    it->second.nivel = std::clamp(lineal, 0.0, 4.0);
-    aplicar(id, 0);
+    if (canales_.count(id) == 0) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return noHaySalida(salida);
+    s->mandos[id].nivel = std::clamp(lineal, 0.0, 4.0);
+    aplicarEnSalida(*s, id, 0);
     return {};
 }
 
-std::string Motor::ponerMuteYa(const std::string& id, bool mute) {
+std::string Motor::ponerMuteYa(const std::string& id, bool mute, const std::string& salida) {
     BA_CANDADO(mu_);
-    auto it = canales_.find(id);
-    if (it == canales_.end()) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
-    it->second.mute = mute;
-    for (auto& [n, t] : tomasEntrada_)
-        if (t->id == id) t->mute = mute;
-    aplicar(id, 0);
+    if (canales_.count(id) == 0) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return noHaySalida(salida);
+    s->mandos[id].mute = mute;
+    if (s == &porOmision()) // las tomas de la matriz siguen a la por omisión
+        for (auto& [n, t] : tomasEntrada_)
+            if (t->id == id) t->mute = mute;
+    aplicarEnSalida(*s, id, 0);
     return {};
 }
 
@@ -508,14 +636,17 @@ std::string Motor::ponerPistasYa(const std::string& id, const std::vector<int>& 
     return {};
 }
 
-void Motor::escenaAlAireYa(const std::vector<std::string>& ids, int fundidoMs) {
+void Motor::escenaAlAireYa(const std::vector<std::string>& ids, int fundidoMs, const std::string& salida) {
     BA_CANDADO(mu_);
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return;
     const std::set<std::string> al(ids.begin(), ids.end());
     for (auto& [id, c] : canales_) {
         if (c.global) continue;
-        const bool antes = c.enEscena;
-        c.enEscena = al.count(id) > 0;
-        if (antes != c.enEscena) aplicar(id, fundidoMs);
+        Mando& k = s->mandos[id];
+        const bool antes = k.enEscena;
+        k.enEscena = al.count(id) > 0;
+        if (antes != k.enEscena) aplicarEnSalida(*s, id, fundidoMs);
     }
 }
 
@@ -525,14 +656,16 @@ std::string Motor::definirEscenaYa(const json& j) {
     Escena e = Escena::desdeJson(j);
     if (e.nombre.empty()) return traducir("motor", "falta el nombre de la escena");
     escenas_[e.nombre] = e;
-    // Al aire o armada: se actualiza andando (posición, tamaño, recorte, capas).
-    if (e.nombre == alAire_ && vPrograma_) {
-        vPrograma_->mostrar(e);
-        std::vector<std::string> ids;
-        for (const auto& c : e.capas) ids.push_back(c.entrada);
-        escenaAlAire(ids, 0);
+    // Al aire o armada en alguna salida: se actualiza andando (posición, tamaño, recorte, capas).
+    for (auto& [sid, s] : salidas_) {
+        if (e.nombre == s.alAire && s.programa) {
+            s.programa->mostrar(e);
+            std::vector<std::string> ids;
+            for (const auto& c : e.capas) ids.push_back(c.entrada);
+            escenaAlAire(ids, 0, sid);
+        }
+        if (e.nombre == s.armada && s.preview) s.preview->mostrar(e);
     }
-    if (e.nombre == armada_ && vPreview_) vPreview_->mostrar(e);
     if (auto it = vEscenas_.find(e.nombre); it != vEscenas_.end() && it->second.comp) {
         // Otro lienzo u otros filtros (no solo sus valores): se rearma; los consumidores
         // la siguen leyendo por el mismo nombre.
@@ -553,25 +686,28 @@ std::string Motor::definirEscenaYa(const json& j) {
 std::string Motor::quitarEscenaYa(const std::string& nombre) {
     BA_CANDADO(mu_);
     if (escenas_.erase(nombre) == 0) return llenar(traducir("motor", "no hay una escena «%1»"), {nombre});
-    if (armada_ == nombre) {
-        armada_.clear();
-        if (vPreview_) vPreview_->mostrar(Escena{"", {}});
-    }
+    for (auto& [sid, s] : salidas_)
+        if (s.armada == nombre) {
+            s.armada.clear();
+            if (s.preview) s.preview->mostrar(Escena{"", {}});
+        }
     return {};
 }
 
-std::string Motor::armarYa(const std::string& nombre) {
+std::string Motor::armarYa(const std::string& nombre, const std::string& salida) {
     BA_CANDADO(mu_);
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return noHaySalida(salida);
     if (nombre.empty()) { // nada armado
-        armada_.clear();
-        if (vPreview_) vPreview_->mostrar(Escena{"", {}}, "corte", 0);
+        s->armada.clear();
+        if (s->preview) s->preview->mostrar(Escena{"", {}}, "corte", 0);
         actualizarUso();
         return {};
     }
     auto it = escenas_.find(nombre);
     if (it == escenas_.end()) return llenar(traducir("motor", "no hay una escena «%1»"), {nombre});
-    armada_ = nombre;
-    if (vPreview_) vPreview_->mostrar(it->second, "corte", 0);
+    s->armada = nombre;
+    if (s->preview) s->preview->mostrar(it->second, "corte", 0);
     actualizarMultiview();
     actualizarUso(); // lo armado ya corre entero: el TAKE no la agarra a 2 cuadros/s
     return {};
@@ -583,7 +719,12 @@ void Motor::actualizarUso() {
     // Con tramos: si tarda, el registro dice cuál parte (llegó a 650 ms al arrancar).
     {
         Tramo t("uso: las composiciones");
-        for (Composicion* c : {vPrograma_.get(), vPreview_.get(), vMulti_.get()})
+        std::vector<const Composicion*> comps{vMulti_.get()};
+        for (const auto& [sid, s] : salidas_) {
+            comps.push_back(s.programa.get());
+            comps.push_back(s.preview.get());
+        }
+        for (const Composicion* c : comps)
             if (c != nullptr) {
                 sumar(uso, c->entradasEnUso());
                 sumar(leidos, c->productoresEnUso());
@@ -614,17 +755,19 @@ void Motor::actualizarUso() {
     }
 }
 
-std::string Motor::alAireYa(const std::string& nombre, const std::string& transicion, int ms) {
+std::string Motor::alAireYa(const std::string& nombre, const std::string& transicion, int ms, const std::string& salida) {
     BA_CANDADO(mu_);
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return noHaySalida(salida);
     auto it = escenas_.find(nombre);
     if (it == escenas_.end()) return llenar(traducir("motor", "no hay una escena «%1»"), {nombre});
     if (transicion != "corte" && transicion != "mezcla" && transicion != "empuje" && transicion != "cortina")
         return traducir("motor", "transición: corte, mezcla, empuje o cortina");
-    alAire_ = nombre;
+    s->alAire = nombre;
     // Con tramos: si tarda, el registro dice cuál parte.
-    if (vPrograma_) {
+    if (s->programa) {
         Tramo t("alAire: mostrar en el programa");
-        vPrograma_->mostrar(it->second, transicion, ms);
+        s->programa->mostrar(it->second, transicion, ms);
     }
     {
         Tramo t("alAire: multiview");
@@ -636,27 +779,31 @@ std::string Motor::alAireYa(const std::string& nombre, const std::string& transi
         if (c.visible) ids.push_back(c.entrada);
     {
         Tramo t("alAire: audio de la escena");
-        escenaAlAire(ids, transicion == "corte" ? 0 : ms);
+        escenaAlAire(ids, transicion == "corte" ? 0 : ms, salida);
     }
     Tramo t("alAire: uso de las entradas");
     actualizarUso(); // las que entran, a todos sus cuadros ya
     return {};
 }
 
-std::string Motor::takeYa(const std::string& transicion, int ms) {
+std::string Motor::takeYa(const std::string& transicion, int ms, const std::string& salida) {
     BA_CANDADO(mu_);
-    if (armada_.empty()) return traducir("motor", "no hay nada armado en el preview");
-    const std::string antes = alAire_;
-    const std::string e = alAire(armada_, transicion, ms);
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return noHaySalida(salida);
+    if (s->armada.empty()) return traducir("motor", "no hay nada armado en el preview");
+    const std::string antes = s->alAire, armada = s->armada;
+    const std::string e = alAire(armada, transicion, ms, salida);
     if (!e.empty()) return e;
     // Lo que estaba al aire queda armado (el take intercambia, como una mesa de corte).
-    if (!antes.empty() && escenas_.count(antes) > 0) armar(antes);
+    if (!antes.empty() && escenas_.count(antes) > 0) armar(antes, salida);
     return {};
 }
 
-std::string Motor::dskYa(const json& capas, int fundidoMs) {
+std::string Motor::dskYa(const json& capas, int fundidoMs, const std::string& salida) {
     BA_CANDADO(mu_);
-    if (!vPrograma_) return traducir("motor", "el motor está sin video");
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return noHaySalida(salida);
+    if (!s->programa) return traducir("motor", "el motor está sin video");
     // Una capa puede ser una entrada o una ESCENA entera ({"escena": "Zócalo"}).
     json lista = capas.is_array() ? capas : json::array();
     std::set<std::string> escenasUsadas;
@@ -674,29 +821,34 @@ std::string Motor::dskYa(const json& capas, int fundidoMs) {
     }
     // Las escenas del DSK: se piden las nuevas (antes de soltar las viejas, así no se rearman).
     for (const auto& n : escenasUsadas)
-        if (dskEscenas_.count(n) == 0) usarEscena(n);
+        if (s->dskEscenas.count(n) == 0) usarEscena(n);
     for (auto& c : v)
         if (c.entrada.rfind("escena:", 0) == 0) {
             auto it = vEscenas_.find(c.entrada.substr(7));
             if (it != vEscenas_.end() && it->second.comp) c.productor = it->second.comp->productor();
         }
-    const bool ok = vPrograma_->ponerDsk(v, fundidoMs);
-    for (const auto& n : dskEscenas_)
+    const bool ok = s->programa->ponerDsk(v, fundidoMs);
+    for (const auto& n : s->dskEscenas)
         if (escenasUsadas.count(n) == 0) soltarEscena(n);
-    dskEscenas_ = escenasUsadas;
+    s->dskEscenas = escenasUsadas;
     return ok ? std::string() : traducir("motor", "el PROGRAMA no tiene DSK");
 }
 
-std::string Motor::productorDeVideo(const std::string& bus, std::int64_t* latenciaNs) {
+std::string Motor::productorDeVideo(const std::string& clave, std::int64_t* latenciaNs, const std::string& salida) {
     BA_CANDADO(mu_);
-    if (bus == "limpio" && vPrograma_) {
-        if (latenciaNs != nullptr) *latenciaNs = vPrograma_->latenciaSalidaNs();
-        return vPrograma_->productorLimpio();
+    // «programa:<salida>» (la clave de una vista) vale lo mismo que «programa» con `salida`.
+    const auto dos = clave.find(':');
+    const std::string bus = clave.substr(0, dos);
+    const Salida* s = laSalida(dos == std::string::npos ? salida : clave.substr(dos + 1));
+    if (bus == "limpio" && s != nullptr && s->programa) {
+        if (latenciaNs != nullptr) *latenciaNs = s->programa->latenciaSalidaNs();
+        return s->programa->productorLimpio();
     }
-    Composicion* c = bus == "programa"    ? vPrograma_.get()
-                     : bus == "preview"   ? vPreview_.get()
-                     : bus == "multiview" ? vMulti_.get()
-                                          : nullptr;
+    const Composicion* c = bus == "multiview" ? vMulti_.get()
+                           : s == nullptr     ? nullptr
+                           : bus == "programa" ? s->programa.get()
+                           : bus == "preview"  ? s->preview.get()
+                                               : nullptr;
     if (c == nullptr) return {};
     if (latenciaNs != nullptr) *latenciaNs = c->latenciaSalidaNs();
     return c->productor();
@@ -729,10 +881,13 @@ std::string Motor::multiviewYa(bool activo, int ancho, int alto) {
 void Motor::actualizarMultiview() {
     if (!vMulti_) return;
     const int W = mvAncho_, H = mvAlto_, borde = std::max(2, H / 180);
+    // Rojo: al aire en ALGUNA salida. Verde y los dos recuadros de arriba: la por omisión.
+    const Salida& po = porOmision();
     std::set<std::string> alAire, armada;
-    if (auto it = escenas_.find(alAire_); it != escenas_.end())
-        for (const auto& c : it->second.capas) alAire.insert(c.entrada);
-    if (auto it = escenas_.find(armada_); it != escenas_.end())
+    for (const auto& [sid, s] : salidas_)
+        if (auto it = escenas_.find(s.alAire); it != escenas_.end())
+            for (const auto& c : it->second.capas) alAire.insert(c.entrada);
+    if (auto it = escenas_.find(po.armada); it != escenas_.end())
         for (const auto& c : it->second.capas) armada.insert(c.entrada);
     Escena e;
     e.nombre = "multiview";
@@ -775,8 +930,8 @@ void Motor::actualizarMultiview() {
         nombre(id, texto, x + borde, y + borde, w - 2 * borde, h - 2 * borde);
     };
     // Las dos fijas con «:» en el id (una entrada que se llame «preview» no las pisa).
-    celda(":preview", "video:preview", "PREVIEW" + (armada_.empty() ? std::string() : " · " + armada_), "mv:verde", 0, 0, W / 2, H / 2);
-    celda(":programa", "video:programa", "PROGRAMA" + (alAire_.empty() ? std::string() : " · " + alAire_), "mv:rojo", W / 2, 0, W / 2, H / 2);
+    celda(":preview", "video:preview", "PREVIEW" + (po.armada.empty() ? std::string() : " · " + po.armada), "mv:verde", 0, 0, W / 2, H / 2);
+    celda(":programa", "video:programa", "PROGRAMA" + (po.alAire.empty() ? std::string() : " · " + po.alAire), "mv:rojo", W / 2, 0, W / 2, H / 2);
     int i = 0;
     for (const auto& [id, c] : canales_) {
         if (!c.entrada->daVideo() || c.interna || i >= 8) continue;
@@ -953,6 +1108,21 @@ void Motor::desarmarAparte(std::unique_ptr<Composicion> c) {
     desarmarAparte([s]() mutable { s.reset(); });
 }
 
+void Motor::esperarDesarme(const std::string& clave) {
+    // La anterior con esta clave todavía se está desarmando: se la espera (acá,
+    // en el hilo del motor), porque sus productores llevan los mismos nombres.
+    std::shared_future<void> antes;
+    {
+        std::lock_guard<std::mutex> l(desarmandoM_);
+        auto d = desarmando_.find(clave);
+        if (d != desarmando_.end()) {
+            antes = d->second;
+            desarmando_.erase(d);
+        }
+    }
+    if (antes.valid()) antes.wait();
+}
+
 std::shared_future<void> Motor::desarmarAparte(std::function<void()> f) {
     std::lock_guard<std::mutex> l(desarmesM_);
     desarmes_.erase(std::remove_if(desarmes_.begin(), desarmes_.end(),
@@ -965,21 +1135,26 @@ std::shared_future<void> Motor::desarmarAparte(std::function<void()> f) {
     return sf;
 }
 
-bool Motor::tbarYa(const std::string& nombre, double t, bool soltar, std::string* error) {
+bool Motor::tbarYa(const std::string& nombre, double t, bool soltar, std::string* error, const std::string& salida) {
     BA_CANDADO(mu_);
+    Salida* s = laSalida(salida);
+    if (s == nullptr) {
+        if (error != nullptr) *error = noHaySalida(salida);
+        return false;
+    }
     auto it = escenas_.find(nombre);
-    if (it == escenas_.end() || !vPrograma_) {
+    if (it == escenas_.end() || !s->programa) {
         if (error != nullptr) *error = llenar(traducir("motor", "no hay una escena «%1»"), {nombre});
         return false;
     }
-    const bool quedo = vPrograma_->manual(it->second, t, soltar);
+    const bool quedo = s->programa->manual(it->second, t, soltar);
     if (soltar || t >= 1.0) {
         if (quedo) {
-            alAire_ = nombre;
+            s->alAire = nombre;
             std::vector<std::string> ids;
             for (const auto& c : it->second.capas)
                 if (c.visible) ids.push_back(c.entrada);
-            escenaAlAire(ids, 200);
+            escenaAlAire(ids, 200, salida);
             actualizarMultiview();
         }
         return quedo;
@@ -987,85 +1162,98 @@ bool Motor::tbarYa(const std::string& nombre, double t, bool soltar, std::string
     return false;
 }
 
-std::string Motor::tbarHacia() const {
-    const auto f = instantanea();
-    return f && f->contains("tbar_hacia") ? (*f)["tbar_hacia"].get<std::string>() : std::string();
+std::string Motor::tbarHacia(const std::string& salida) const {
+    const auto f = instantanea(); // sin copiar la foto: la interfaz lo pregunta seguido
+    const std::string id = salida.empty() ? porOmision_ : salida;
+    if (!f || !f->contains("salidas") || !(*f)["salidas"].contains(id)) return {};
+    return (*f)["salidas"][id].value("tbar_hacia", std::string());
 }
 
-void Motor::masterVolumenYa(double lineal, int ms) {
+void Motor::masterVolumenYa(double lineal, int ms, const std::string& salida) {
     BA_CANDADO(mu_);
-    if (programa_) programa_->ponerMaster(lineal, ms);
+    if (Salida* s = laSalida(salida); s != nullptr && s->mezcla) s->mezcla->ponerMaster(lineal, ms);
 }
 
 GstFlowReturn Motor::alAudio(GstElement* sink, gpointer d) {
-    auto* m = static_cast<Motor*>(d);
+    const auto* t = static_cast<const TomaPrograma*>(d);
+    Motor* m = t->motor;
     GstSample* s = gst_app_sink_pull_sample(GST_APP_SINK(sink));
     if (s == nullptr) return GST_FLOW_OK;
     GstBuffer* b = gst_sample_get_buffer(s);
     GstMapInfo map;
     if (b != nullptr && gst_buffer_map(b, &map, GST_MAP_READ)) {
         std::lock_guard<std::mutex> l(m->tomaMu_);
-        for (auto& [id, fn] : m->oyentes_) fn(reinterpret_cast<const float*>(map.data), map.size / (2 * sizeof(float)));
+        for (auto& [id, o] : m->oyentes_)
+            if (o.salida == t->salida) o.fn(reinterpret_cast<const float*>(map.data), map.size / (2 * sizeof(float)));
         gst_buffer_unmap(b, &map);
     }
     gst_sample_unref(s);
     return GST_FLOW_OK;
 }
 
-int Motor::escucharPrograma(std::function<void(const float*, std::size_t)> fn) {
+bool Motor::hayOyentes(const std::string& salida) {
+    std::lock_guard<std::mutex> lt(tomaMu_);
+    for (const auto& [id, o] : oyentes_)
+        if (o.salida == salida) return true;
+    return false;
+}
+
+int Motor::escucharPrograma(std::function<void(const float*, std::size_t)> fn, const std::string& salida) {
+    const std::string sid = salida.empty() ? porOmision_ : salida;
     int id = 0;
     {
         std::lock_guard<std::mutex> lt(tomaMu_);
         id = proximoOyente_++;
-        oyentes_[id] = std::move(fn);
+        oyentes_[id] = Oyente{sid, std::move(fn)};
     }
-    orden("escucharPrograma", [this]() {
-        armarTomaAudio();
+    orden("escucharPrograma", [this, sid]() {
+        armarTomaAudio(sid);
         return std::string();
     });
     return id;
 }
 
-void Motor::armarTomaAudio() {
+void Motor::armarTomaAudio(const std::string& salida) {
     BA_CANDADO(mu_);
-    if (tomaAudio_ == nullptr && programa_) {
-        const std::string d = "intersrc producer-name=" + entreComillas(programa_->productor()) +
-                              " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! "
-                              "appsink name=s emit-signals=true sync=true max-buffers=0 drop=false";
-        tomaAudio_ = gst_parse_launch(d.c_str(), nullptr);
-        if (tomaAudio_ != nullptr) {
-            GstElement* sk = gst_bin_get_by_name(GST_BIN(tomaAudio_), "s");
-            g_signal_connect(sk, "new-sample", G_CALLBACK(&Motor::alAudio), this);
-            gst_object_unref(sk);
-            reloj_->adoptar(tomaAudio_);
-            gst_pipeline_set_latency(GST_PIPELINE(tomaAudio_),
-                                     static_cast<GstClockTime>(programa_->latenciaSalidaNs() + margenMezclaNs()));
-            gst_element_set_state(tomaAudio_, GST_STATE_PLAYING);
-        }
-    }
+    Salida* s = laSalida(salida);
+    if (s == nullptr || s->toma || !s->mezcla) return; // la que todavía no existe la arma al crearse
+    const std::string d = "intersrc producer-name=" + entreComillas(s->mezcla->productor()) +
+                          " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! "
+                          "appsink name=s emit-signals=true sync=true max-buffers=0 drop=false";
+    GstElement* p = gst_parse_launch(d.c_str(), nullptr);
+    if (p == nullptr) return;
+    auto t = std::make_shared<TomaPrograma>();
+    t->motor = this;
+    t->salida = salida.empty() ? porOmision_ : salida;
+    t->pipeline = p;
+    GstElement* sk = gst_bin_get_by_name(GST_BIN(p), "s");
+    g_signal_connect(sk, "new-sample", G_CALLBACK(&Motor::alAudio), t.get());
+    gst_object_unref(sk);
+    reloj_->adoptar(p);
+    gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(s->mezcla->latenciaSalidaNs() + margenMezclaNs()));
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    s->toma = std::move(t);
 }
 
 void Motor::dejarDeEscuchar(int id) {
-    bool vacio = false;
+    std::string sid;
     {
         std::lock_guard<std::mutex> lt(tomaMu_);
-        oyentes_.erase(id); // desde acá no se lo llama más (alAudio llama con tomaMu_)
-        vacio = oyentes_.empty();
+        auto it = oyentes_.find(id);
+        if (it == oyentes_.end()) return;
+        sid = it->second.salida;
+        oyentes_.erase(it); // desde acá no se lo llama más (alAudio llama con tomaMu_)
     }
-    if (!vacio) return;
-    orden("dejarDeEscuchar", [this]() {
-        {
-            std::lock_guard<std::mutex> lt(tomaMu_);
-            if (!oyentes_.empty()) return std::string(); // volvió alguien mientras tanto
-        }
-        if (tomaAudio_ != nullptr) {
-            GstElement* p = tomaAudio_;
-            tomaAudio_ = nullptr;
-            desarmarAparte([p]() {
-                gst_element_set_state(p, GST_STATE_NULL);
-                gst_object_unref(p);
-            });
-        }
+    if (hayOyentes(sid)) return;
+    orden("dejarDeEscuchar", [this, sid]() {
+        if (hayOyentes(sid)) return std::string(); // volvió alguien mientras tanto
+        Salida* s = laSalida(sid);
+        if (s == nullptr || !s->toma) return std::string();
+        std::shared_ptr<TomaPrograma> t = std::move(s->toma);
+        desarmarAparte([t]() {
+            gst_element_set_state(t->pipeline, GST_STATE_NULL);
+            gst_object_unref(t->pipeline);
+        });
         return std::string();
     });
 }
@@ -1116,7 +1304,7 @@ void Motor::escucharEntradaYa(int n, const std::string& id, std::function<void(c
     auto t = std::make_shared<TomaEntrada>();
     t->pipeline = p;
     t->id = id;
-    t->mute = it->second.mute;
+    t->mute = mandoPorOmision(id).mute;
     t->fn = std::move(fn);
     GstElement* sk = gst_bin_get_by_name(GST_BIN(p), "s");
     g_signal_connect(sk, "new-sample", G_CALLBACK(+[](GstElement* sink, gpointer dd) -> GstFlowReturn {
@@ -1245,7 +1433,7 @@ void Motor::armarRetorno(int n, Retorno& r) {
     op.medidores = false;
     op.anillo = anillo("Return." + std::to_string(n));
     r.bus = std::make_unique<Mezcla>(*reloj_, "retorno" + std::to_string(n), op);
-    for (const auto& [id, c] : canales_) enBus(*r.bus, id, c, (c.pistas & 1u) != 0 && id != r.propia, 0);
+    for (const auto& [id, c] : canales_) enBus(*r.bus, id, c, mandoPorOmision(id), (c.pistas & 1u) != 0 && id != r.propia, 0);
 }
 
 std::string Motor::retornoYa(int n, const std::string& modo, const std::string& propia) {
@@ -1288,11 +1476,13 @@ std::string Motor::escucharYa(const std::string& modo, const std::string& id) {
         escucha_->escuchar(seleccion_->productor(), seleccion_->latenciaSalidaNs());
         return {};
     }
-    if (modo == "programa") {
+    if (modo == "programa") { // `id`: la salida ("" = la por omisión)
+        const Salida* s = laSalida(id);
+        if (s == nullptr || !s->mezcla) return noHaySalida(id);
         escuchaModo_ = modo;
-        escuchaId_.clear();
+        escuchaId_ = id == porOmision_ ? std::string() : id;
         directo_.reset();
-        escucha_->escuchar(programa_->productor(), programa_->latenciaSalidaNs());
+        escucha_->escuchar(s->mezcla->productor(), s->mezcla->latenciaSalidaNs());
         return {};
     }
     if (modo == "directo") {
@@ -1301,7 +1491,7 @@ std::string Motor::escucharYa(const std::string& modo, const std::string& id) {
             op.medidores = false;
             op.latenciaFijaNs = kDirectoNs;
             directo_ = std::make_unique<Mezcla>(*reloj_, "directo", op);
-            for (const auto& [cid, c] : canales_) enBus(*directo_, cid, c, c.global, 0);
+            for (const auto& [cid, c] : canales_) enBus(*directo_, cid, c, mandoPorOmision(cid), c.global, 0);
         }
         escuchaModo_ = modo;
         escuchaId_.clear();
@@ -1327,9 +1517,10 @@ void Motor::enSeleccion(const std::string& id, const Canal& c) {
         return;
     }
     // En los auriculares aunque no esté al aire (sin el fundido de escena).
+    const Mando& k = mandoPorOmision(id);
     seleccion_->agregar(id);
-    seleccion_->ponerNivel(id, c.nivel);
-    seleccion_->ponerMute(id, c.mute);
+    seleccion_->ponerNivel(id, k.nivel);
+    seleccion_->ponerMute(id, k.mute);
     seleccion_->ponerEscena(id, 1.0, 0);
 }
 
@@ -1356,19 +1547,21 @@ void Motor::escuchaNivelYa(double lineal) {
     if (escucha_) escucha_->ponerNivel(lineal);
 }
 
-bool Motor::ponerLimitadorYa(bool activo, double techoDb) {
+bool Motor::ponerLimitadorYa(bool activo, double techoDb, const std::string& salida) {
     BA_CANDADO(mu_);
-    return programa_ && programa_->ponerLimitador(activo, techoDb);
+    Salida* s = laSalida(salida);
+    return s != nullptr && s->mezcla && s->mezcla->ponerLimitador(activo, techoDb);
 }
 
 void Motor::ponerTopeEstudio(std::int64_t ms) { reloj_->ponerTope(ms); }
 
-std::string Motor::productorDeBus(const std::string& bus, std::int64_t* latenciaNs) {
+std::string Motor::productorDeBus(const std::string& bus, std::int64_t* latenciaNs, const std::string& salida) {
     BA_CANDADO(mu_);
     Mezcla* m = nullptr;
-    if (bus == "programa")
-        m = programa_.get();
-    else if (bus.rfind("pista", 0) == 0 && bus.size() == 6)
+    if (bus == "programa" || bus.rfind("programa:", 0) == 0) {
+        Salida* s = laSalida(bus == "programa" ? salida : bus.substr(9));
+        m = s != nullptr ? s->mezcla.get() : nullptr;
+    } else if (bus.rfind("pista", 0) == 0 && bus.size() == 6)
         m = pista(bus[5] - '0', true);
     if (m == nullptr) return {};
     if (latenciaNs != nullptr) *latenciaNs = m->latenciaSalidaNs();
@@ -1382,7 +1575,7 @@ std::shared_ptr<const std::vector<Motor::NivelAudio>> Motor::niveles() const {
 
 void Motor::publicarNiveles() {
     auto v = std::make_shared<std::vector<NivelAudio>>();
-    v->reserve(canales_.size() + pistas_.size() + retornos_.size() + 1);
+    v->reserve(canales_.size() + pistas_.size() + retornos_.size() + salidas_.size());
     for (const auto& [id, c] : canales_) {
         if (!c.entrada || !c.entrada->daAudio()) continue;
         NivelAudio n;
@@ -1403,7 +1596,7 @@ void Motor::publicarNiveles() {
         }
         v->push_back(std::move(n));
     };
-    deBus("programa", programa_.get());
+    for (const auto& [sid, s] : salidas_) deBus(sid == porOmision_ ? "programa" : "programa:" + sid, s.mezcla.get());
     for (const auto& [num, m] : pistas_) deBus("pista" + std::to_string(num), m.get());
     for (const auto& [num, r] : retornos_) deBus("retorno" + std::to_string(num), r.bus.get());
     std::shared_ptr<const std::vector<NivelAudio>> listo = std::move(v);
@@ -1428,8 +1621,9 @@ std::string Motor::analizarEmpezar(const std::string& entrada) {
         GstElement* p = nullptr;
         {
             std::lock_guard<std::recursive_mutex> l(mu_);
-            if (entrada == "programa" && vPrograma_) p = vPrograma_->pipelineRef();
-            if (entrada == "programa:audio" && programa_) p = programa_->pipelineRef();
+            const Salida& po = porOmision(); // por ahora, la salida por omisión
+            if (entrada == "programa" && po.programa) p = po.programa->pipelineRef();
+            if (entrada == "programa:audio" && po.mezcla) p = po.mezcla->pipelineRef();
         }
         if (p == nullptr) return llenar(traducir("motor", "«%1» no está andando"), {entrada});
         auto s = std::make_unique<Sondas>(p); // se queda con sus elementos
@@ -1478,10 +1672,11 @@ json Motor::estado() const {
     json entradas = json::object();
     for (const auto& [id, c] : canales_) {
         json e = c.entrada->estado();
+        const Mando& k = mandoPorOmision(id); // los de cada salida, en «salidas»
         e["global"] = c.global;
-        e["en_escena"] = c.enEscena;
-        e["nivel"] = c.nivel;
-        e["mute"] = c.mute;
+        e["en_escena"] = k.enEscena;
+        e["nivel"] = k.nivel;
+        e["mute"] = k.mute;
         json ps = json::array();
         for (int n = 1; n <= 6; ++n)
             if ((c.pistas & (1u << (n - 1))) != 0) ps.push_back(n);
@@ -1498,13 +1693,35 @@ json Motor::estado() const {
         if (c.entrada->llegaTarde()) tarde.push_back(id);
     json esc = escucha_ ? escucha_->estado() : json::object();
     esc["modo"] = escuchaModo_;
-    if (!escuchaId_.empty()) esc["entrada"] = escuchaId_;
+    if (!escuchaId_.empty()) esc[escuchaModo_ == "programa" ? "salida" : "entrada"] = escuchaId_;
     json medios = json::object();
     for (const auto& [id, c] : canales_)
         if (c.entrada->esMedio()) medios[id] = medioYa(id);
+    // Cada salida con lo suyo; la por omisión, además, en los campos de siempre.
+    json salidas = json::object();
+    for (const auto& [sid, s] : salidas_) {
+        json enEscena = json::array(), mandos = json::object();
+        for (const auto& [id, k] : s.mandos) {
+            mandos[id] = {{"nivel", k.nivel}, {"mute", k.mute}, {"en_escena", k.enEscena}};
+            if (k.enEscena) enEscena.push_back(id);
+        }
+        salidas[sid] = {{"nombre", s.nombre},
+                        {"por_omision", sid == porOmision_},
+                        {"al_aire", s.alAire},
+                        {"armada", s.armada},
+                        {"tbar_hacia", s.programa ? s.programa->manualHacia() : std::string()},
+                        {"dsk", s.dskEscenas},
+                        {"en_escena", enEscena},
+                        {"mandos", mandos},
+                        {"programa", s.mezcla ? s.mezcla->estado() : json()},
+                        {"video", {{"programa", s.programa ? s.programa->estado() : json()},
+                                   {"preview", s.preview ? s.preview->estado() : json()}}}};
+    }
+    const json& po = salidas[porOmision_];
     return {{"andando", andando()},
             {"medios", medios},
-            {"tbar_hacia", vPrograma_ ? vPrograma_->manualHacia() : std::string()},
+            {"salidas", salidas},
+            {"tbar_hacia", po["tbar_hacia"]},
             {"estudio",
              {{"latencia_ms", static_cast<double>(reloj_->latencia()) / 1e6},
               {"objetivo_ms", static_cast<double>(reloj_->objetivo()) / 1e6},
@@ -1518,17 +1735,17 @@ json Motor::estado() const {
              {{"ancho", cfg_.lienzo.ancho},
               {"alto", cfg_.lienzo.alto},
               {"fps", static_cast<double>(cfg_.lienzo.fpsN) / std::max(1, cfg_.lienzo.fpsD)}}},
-            {"programa", programa_ ? programa_->estado() : json()},
+            {"programa", po["programa"]},
             {"video",
-             {{"al_aire", alAire_},
-              {"armada", armada_},
+             {{"al_aire", po["al_aire"]},
+              {"armada", po["armada"]},
               {"escenas", [&]() {
                    json n = json::array();
                    for (const auto& [k, e] : escenas_) n.push_back(k);
                    return n;
                }()},
-              {"programa", vPrograma_ ? vPrograma_->estado() : json()},
-              {"preview", vPreview_ ? vPreview_->estado() : json()},
+              {"programa", po["video"]["programa"]},
+              {"preview", po["video"]["preview"]},
               // Las composiciones de escena que no andan, con su motivo (la app lo muestra en la
               // tarjeta del compositor o de la Mezcla de GStreamer, no solo en el registro).
               {"errores_escenas", [&]() {
@@ -1623,6 +1840,13 @@ void Motor::correrOrdenes() {
 
 // --- Lo que llama la interfaz: se encola ---------------------------------------
 
+std::string Motor::crearSalida(const std::string& id, const std::string& nombre) {
+    return orden("crearSalida", [=, this]() { return crearSalidaYa(id, nombre); });
+}
+std::string Motor::borrarSalida(const std::string& id) {
+    return orden("borrarSalida", [=, this]() { return borrarSalidaYa(id); });
+}
+
 std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, const json& opciones) {
     return orden("agregarEntrada", [=, this]() { return agregarEntradaYa(id, ajustes, opciones); });
 }
@@ -1639,18 +1863,18 @@ std::string Motor::propiedadEntrada(const std::string& id, const std::string& el
 std::string Motor::controlEntrada(const std::string& id, const json& campos) {
     return orden("controlEntrada", [=, this]() { return controlEntradaYa(id, campos); });
 }
-std::string Motor::ponerNivel(const std::string& id, double lineal) {
-    return orden("ponerNivel", [=, this]() { return ponerNivelYa(id, lineal); });
+std::string Motor::ponerNivel(const std::string& id, double lineal, const std::string& salida) {
+    return orden("ponerNivel", [=, this]() { return ponerNivelYa(id, lineal, salida); });
 }
-std::string Motor::ponerMute(const std::string& id, bool mute) {
-    return orden("ponerMute", [=, this]() { return ponerMuteYa(id, mute); });
+std::string Motor::ponerMute(const std::string& id, bool mute, const std::string& salida) {
+    return orden("ponerMute", [=, this]() { return ponerMuteYa(id, mute, salida); });
 }
 std::string Motor::ponerPistas(const std::string& id, const std::vector<int>& pistas) {
     return orden("ponerPistas", [=, this]() { return ponerPistasYa(id, pistas); });
 }
-void Motor::escenaAlAire(const std::vector<std::string>& ids, int fundidoMs) {
+void Motor::escenaAlAire(const std::vector<std::string>& ids, int fundidoMs, const std::string& salida) {
     orden("escenaAlAire", [=, this]() {
-        escenaAlAireYa(ids, fundidoMs);
+        escenaAlAireYa(ids, fundidoMs, salida);
         return std::string();
     });
 }
@@ -1663,24 +1887,24 @@ std::string Motor::definirEscena(const json& escena) {
 std::string Motor::quitarEscena(const std::string& nombre) {
     return orden("quitarEscena", [=, this]() { return quitarEscenaYa(nombre); });
 }
-std::string Motor::armar(const std::string& nombre) {
-    return orden("armar", [=, this]() { return armarYa(nombre); });
+std::string Motor::armar(const std::string& nombre, const std::string& salida) {
+    return orden("armar", [=, this]() { return armarYa(nombre, salida); });
 }
-std::string Motor::take(const std::string& transicion, int ms) {
-    return orden("take", [=, this]() { return takeYa(transicion, ms); });
+std::string Motor::take(const std::string& transicion, int ms, const std::string& salida) {
+    return orden("take", [=, this]() { return takeYa(transicion, ms, salida); });
 }
-std::string Motor::alAire(const std::string& nombre, const std::string& transicion, int ms) {
-    return orden("alAire", [=, this]() { return alAireYa(nombre, transicion, ms); });
+std::string Motor::alAire(const std::string& nombre, const std::string& transicion, int ms, const std::string& salida) {
+    return orden("alAire", [=, this]() { return alAireYa(nombre, transicion, ms, salida); });
 }
-std::string Motor::dsk(const json& capas, int fundidoMs) {
-    return orden("dsk", [=, this]() { return dskYa(capas, fundidoMs); });
+std::string Motor::dsk(const json& capas, int fundidoMs, const std::string& salida) {
+    return orden("dsk", [=, this]() { return dskYa(capas, fundidoMs, salida); });
 }
-bool Motor::tbar(const std::string& nombre, double t, bool soltar, std::string* error) {
+bool Motor::tbar(const std::string& nombre, double t, bool soltar, std::string* error, const std::string& salida) {
     // Lo que va a pasar se sabe sin esperar (Composicion::manual): termina con
     // t >= 1 o al soltar, y queda la nueva si se soltó pasada la mitad.
     const std::string e = orden("tbar", [=, this]() {
         std::string err;
-        tbarYa(nombre, t, soltar, &err);
+        tbarYa(nombre, t, soltar, &err, salida);
         return err;
     });
     if (error != nullptr) *error = e;
@@ -1720,15 +1944,15 @@ void Motor::escuchaNivel(double lineal) {
         return std::string();
     });
 }
-void Motor::masterVolumen(double lineal, int ms) {
+void Motor::masterVolumen(double lineal, int ms, const std::string& salida) {
     orden("masterVolumen", [=, this]() {
-        masterVolumenYa(lineal, ms);
+        masterVolumenYa(lineal, ms, salida);
         return std::string();
     });
 }
-bool Motor::ponerLimitador(bool activo, double techoDb) {
+bool Motor::ponerLimitador(bool activo, double techoDb, const std::string& salida) {
     return orden("ponerLimitador", [=, this]() {
-               return ponerLimitadorYa(activo, techoDb) ? std::string() : traducir("motor", "no se pudo poner el limitador");
+               return ponerLimitadorYa(activo, techoDb, salida) ? std::string() : traducir("motor", "no se pudo poner el limitador");
            }).empty();
 }
 std::string Motor::multiview(bool activo, int ancho, int alto) {
