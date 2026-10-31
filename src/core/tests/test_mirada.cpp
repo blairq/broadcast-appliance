@@ -23,6 +23,7 @@
 #include "ipc/SpoutTransport.hpp"
 #include "platform/Energia.hpp"
 #include "platform/Ritmo.hpp"
+#include "tests/Despertadas.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -39,11 +40,7 @@
 #include <process.h>
 #define ba_getpid _getpid
 #else
-#include <sys/resource.h>
 #include <unistd.h>
-#if defined(__APPLE__)
-#include <libproc.h>
-#endif
 #define ba_getpid getpid
 #endif
 
@@ -160,22 +157,8 @@ struct Resultado {
     double demoraMediaMs = 0, demoraMaxMs = 0;
 };
 
-/// Las despertadas del proceso hasta ahora: en macOS las que cuenta el sistema (las «idle wake
-/// ups» del Monitor de Actividad: temporizadores que lo sacan de dormir); en Linux, los cambios
-/// de contexto voluntarios (cada despertada de un sleep es uno). En Windows no se mide (0).
-long cambiosVoluntarios() {
-#if defined(__APPLE__)
-    rusage_info_v2 r{};
-    if (proc_pid_rusage(getpid(), RUSAGE_INFO_V2, reinterpret_cast<rusage_info_t*>(&r)) != 0) return 0;
-    return static_cast<long>(r.ri_pkg_idle_wkups + r.ri_interrupt_wkups);
-#elif defined(_WIN32)
-    return 0;
-#else
-    rusage r{};
-    getrusage(RUSAGE_SELF, &r);
-    return r.ru_nvcsw;
-#endif
-}
+/// Las despertadas del proceso (tests/Despertadas.hpp).
+long cambiosVoluntarios() { return ba::pruebas::despertadasDelProceso(); }
 
 double segundosDePrueba() {
     const char* v = std::getenv("BA_MIRADA_S");

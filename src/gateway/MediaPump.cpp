@@ -28,6 +28,7 @@
 #endif
 #include "ColaVoz.hpp"
 #include "Labios.hpp"
+#include "LectorVoz.hpp"
 #include "Log.hpp"
 #include "RetornoLugar.hpp"
 #include "platform/Ritmo.hpp"
@@ -974,67 +975,53 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
 
 // --- Bajada: operador (solo al lobby) -----------------------------------------
 
-void MediaPump::operatorAudioThread() {
-    SharedAudioRing reader;
-    bool open = false;
-    auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+void MediaPump::bajarVoz(const std::wstring& nombre, const std::string& abierta,
+                         const std::function<void(const PoppedBlock&, size_t)>& alBloque) {
     std::vector<float> block;
-    MedidaTransporte medida(angosto(cfg_.operatorAudioName), "audio"); // sellado al escribir: sin faltantes por sello
+    MedidaTransporte medida(angosto(nombre), "audio"); // sellado al escribir: sin faltantes por sello
     auto ventana = std::chrono::steady_clock::now();
-    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
-    while (!stop_.load(std::memory_order_relaxed)) {
-        if (!open) {
-            const auto now = std::chrono::steady_clock::now();
-            if (!cfg_.operatorAudioName.empty() && now - lastRetry >= std::chrono::milliseconds(500)) {
-                lastRetry = now;
-                if (SharedAudioRing::openReader(cfg_.operatorAudioName.c_str(), reader).ok) {
-                    open = true;
-                    medida.reabierto();
-                    log_.info(traducir("gateway", "operador: microfono (BA.Audio.Operator) abierto"));
-                }
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            continue;
-        }
-        if (reader.stale()) {
-            reader = SharedAudioRing{};
-            open = false;
-            continue;
-        }
-        leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
-            // La voz del operador SOLO a quien le esta hablando: el resto del
-            // lobby no escucha conversaciones ajenas.
-            for (int s : sessionsWhere(
-                     [](const MediaRoute& r) { return r.kind == MediaRoute::Kind::Lobby && r.talk; })) {
-                if (WebrtcSession* sess = hub_.session(s))
-                    sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
-            }
-            // Adentro (programa o fila) no se le empuja aparte: ya recibe el retorno
-            // y dos fuentes en el mismo track se pisan. Va a la cola del IFB del
-            // retorno que recibe: el de su salida.
-            std::set<std::string> conIfb;
-            {
-                std::lock_guard<std::mutex> l(routesLock_);
-                for (size_t s = 1; s < routes_.size(); ++s)
-                    if (routes_[s].kind != MediaRoute::Kind::Lobby && routes_[s].talk) conIfb.insert(routes_[s].salida);
-            }
-            const size_t tope = kTopeColaVoz(cfg_.audioRate); // 300 ms estéreo
-            for (const std::string& salida : conIfb) {
-                if (salida.empty()) {
-                    std::lock_guard<std::mutex> l(ifb_.lock);
-                    colavoz::encolar(ifb_.voz, blk.samples, n, tope);
-                    continue;
-                }
-                std::lock_guard<std::mutex> l(bajadasLock_);
-                const auto it = bajadas_.find(salida);
-                if (it == bajadas_.end()) continue;
-                std::lock_guard<std::mutex> lq(it->second->ifb.lock);
-                colavoz::encolar(it->second->ifb.voz, blk.samples, n, tope);
-            }
-        });
-        cerrarVentana(medida, ventana, true);
-        ritmo.esperar();
-    }
+    voz::leer(
+        nombre, [this] { return !stop_.load(std::memory_order_relaxed); },
+        [&] {
+            medida.reabierto();
+            log_.info(abierta);
+        },
+        [&](SharedAudioRing& anillo) { leerPendientes(anillo, block, medida, alBloque); },
+        [&] { cerrarVentana(medida, ventana, true); });
+}
+
+void MediaPump::operatorAudioThread() {
+    bajarVoz(cfg_.operatorAudioName, traducir("gateway", "operador: microfono (BA.Audio.Operator) abierto"),
+             [this](const PoppedBlock& blk, size_t n) {
+                 // La voz del operador SOLO a quien le esta hablando: el resto del
+                 // lobby no escucha conversaciones ajenas.
+                 for (int s : sessionsWhere(
+                          [](const MediaRoute& r) { return r.kind == MediaRoute::Kind::Lobby && r.talk; })) {
+                     if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
+                 }
+                 // Adentro (programa o fila) no se le empuja aparte: ya recibe el retorno
+                 // y dos fuentes en el mismo track se pisan. Va a la cola del IFB del
+                 // retorno que recibe: el de su salida.
+                 std::set<std::string> conIfb;
+                 {
+                     std::lock_guard<std::mutex> l(routesLock_);
+                     for (size_t s = 1; s < routes_.size(); ++s)
+                         if (routes_[s].kind != MediaRoute::Kind::Lobby && routes_[s].talk) conIfb.insert(routes_[s].salida);
+                 }
+                 const size_t tope = kTopeColaVoz(cfg_.audioRate); // 300 ms estéreo
+                 for (const std::string& salida : conIfb) {
+                     if (salida.empty()) {
+                         std::lock_guard<std::mutex> l(ifb_.lock);
+                         colavoz::encolar(ifb_.voz, blk.samples, n, tope);
+                         continue;
+                     }
+                     std::lock_guard<std::mutex> l(bajadasLock_);
+                     const auto it = bajadas_.find(salida);
+                     if (it == bajadas_.end()) continue;
+                     std::lock_guard<std::mutex> lq(it->second->ifb.lock);
+                     colavoz::encolar(it->second->ifb.voz, blk.samples, n, tope);
+                 }
+             });
 }
 
 void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para) {
@@ -1044,40 +1031,11 @@ void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::f
     // MediaRoute::oyeAlAtendedor; si el operador le está hablando a esa misma
     // persona, gana el operador: empujar dos fuentes al mismo track las pisa). La de
     // cada canal de registro, a la conexión que tiene ese canal.
-    SharedAudioRing reader;
-    bool open = false;
-    auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
-    std::vector<float> block;
-    MedidaTransporte medida(angosto(nombre), "audio"); // sellado al escribir: sin faltantes por sello
-    auto ventana = std::chrono::steady_clock::now();
-    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
-    while (!stop_.load(std::memory_order_relaxed)) {
-        if (!open) {
-            const auto now = std::chrono::steady_clock::now();
-            if (now - lastRetry >= std::chrono::milliseconds(500)) {
-                lastRetry = now;
-                if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
-                    open = true;
-                    medida.reabierto();
-                    log_.info(llenar(traducir("gateway", "%1 abierta"), {etiqueta}));
-                }
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            continue;
+    bajarVoz(nombre, llenar(traducir("gateway", "%1 abierta"), {etiqueta}), [&](const PoppedBlock& blk, size_t n) {
+        for (int s : sessionsWhere(para)) {
+            if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
         }
-        if (reader.stale()) {
-            reader = SharedAudioRing{};
-            open = false;
-            continue;
-        }
-        leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
-            for (int s : sessionsWhere(para)) {
-                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
-            }
-        });
-        cerrarVentana(medida, ventana, true);
-        ritmo.esperar();
-    }
+    });
 }
 
 void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
@@ -1085,53 +1043,25 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
     // lo llena cada 10 ms, con voz o con silencio, mientras el canal conversa). Al tótem le
     // baja esa voz más la de quien lo atiende por web; a quien lo atiende, esa voz más la de la
     // persona del tótem. Cada uno oye al otro y al asistente, y nadie se oye a sí mismo.
-    SharedAudioRing reader;
-    bool open = false;
-    auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
-    std::vector<float> block, alTotem, alQueAtiende;
+    std::vector<float> alTotem, alQueAtiende;
     const std::string etiqueta = llenar(traducir("gateway", "registro: voz del asistente del canal %1"), {std::to_string(canal)});
     MonitorRegistro& m = monitorRegistro_[static_cast<size_t>(canal)];
-    MedidaTransporte medida(angosto(nombre), "audio"); // sellado al escribir: sin faltantes por sello
-    auto ventana = std::chrono::steady_clock::now();
-    ba::platform::Ritmo ritmo{std::chrono::milliseconds(kMiradaAudioMs)};
-    while (!stop_.load(std::memory_order_relaxed)) {
-        if (!open) {
-            const auto now = std::chrono::steady_clock::now();
-            if (now - lastRetry >= std::chrono::milliseconds(500)) {
-                lastRetry = now;
-                if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
-                    open = true;
-                    medida.reabierto();
-                    log_.info(llenar(traducir("gateway", "%1 abierta"), {etiqueta}));
-                }
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            continue;
+    bajarVoz(nombre, llenar(traducir("gateway", "%1 abierta"), {etiqueta}), [&](const PoppedBlock& blk, size_t n) {
+        const auto totem = sessionsWhere([canal](const MediaRoute& r) { return r.oyeVozRegistro(canal); });
+        const auto miran = sessionsWhere([canal](const MediaRoute& r) { return r.miraRegistro(canal); });
+        alTotem.assign(blk.samples, blk.samples + n);
+        alQueAtiende.assign(blk.samples, blk.samples + n);
+        {
+            std::lock_guard<std::mutex> l(m.lock);
+            colavoz::mezclar(m.habla, alTotem.data(), n);
+            if (!miran.empty()) colavoz::mezclar(m.persona, alQueAtiende.data(), n);
+            else m.persona.clear();
         }
-        if (reader.stale()) {
-            reader = SharedAudioRing{};
-            open = false;
-            continue;
-        }
-        leerPendientes(reader, block, medida, [&](const PoppedBlock& blk, size_t n) {
-            const auto totem = sessionsWhere([canal](const MediaRoute& r) { return r.oyeVozRegistro(canal); });
-            const auto miran = sessionsWhere([canal](const MediaRoute& r) { return r.miraRegistro(canal); });
-            alTotem.assign(blk.samples, blk.samples + n);
-            alQueAtiende.assign(blk.samples, blk.samples + n);
-            {
-                std::lock_guard<std::mutex> l(m.lock);
-                colavoz::mezclar(m.habla, alTotem.data(), n);
-                if (!miran.empty()) colavoz::mezclar(m.persona, alQueAtiende.data(), n);
-                else m.persona.clear();
-            }
-            for (int s : totem)
-                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alTotem.data(), n, cfg_.audioRate);
-            for (int s : miran)
-                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alQueAtiende.data(), n, cfg_.audioRate);
-        });
-        cerrarVentana(medida, ventana, true);
-        ritmo.esperar();
-    }
+        for (int s : totem)
+            if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alTotem.data(), n, cfg_.audioRate);
+        for (int s : miran)
+            if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alQueAtiende.data(), n, cfg_.audioRate);
+    });
 }
 
 void MediaPump::operatorVideoThread() {

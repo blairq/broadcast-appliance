@@ -285,6 +285,11 @@ class MediaPump {
     bool sigue(const std::atomic<bool>* parar) const {
         return !stop_.load(std::memory_order_relaxed) && (parar == nullptr || !parar->load(std::memory_order_relaxed));
     }
+    /// Las voces A->B (operador, atendedor, asistente del registro): lee el anillo `nombre`
+    /// dormido en su timbre (LectorVoz.hpp) y le pasa cada bloque a `alBloque`; al abrirlo,
+    /// `abierta` al registro. Hasta stop().
+    void bajarVoz(const std::wstring& nombre, const std::string& abierta,
+                  const std::function<void(const ba::ipc::PoppedBlock&, size_t)>& alBloque);
     void operatorAudioThread();
     /// Una voz sintetizada A->B (`nombre`) a las sesiones que cumplen `para`, sin
     /// mezclar con nada: la del que atiende (MediaRoute::oyeAlAtendedor) y la de cada
