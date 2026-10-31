@@ -12,10 +12,14 @@
 //   3. reinicio del escritor: bump de generacion; el lector resincroniza
 //      (descarta lo viejo, aplica fade) y sigue con los datos nuevos.
 //   + chequeos deterministas de los contadores de overrun/underrun.
+//   4. al ritmo del escritor: un bloque cada 10 ms y un lector con trabajo por
+//      vuelta. Sacando uno y durmiendo 10 ms se pierden bloques (el retorno de
+//      audio del gateway, antes); con leerPendientes no se pierde ninguno.
 
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SharedMemoryRegion.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -314,11 +318,61 @@ static void testCounters() {
     }
 }
 
+// Escribe un bloque cada 10 ms durante `ms` y devuelve los descartados; el lector
+// hace `vuelta` en un bucle propio hasta que el escritor termina.
+template <typename Vuelta>
+static uint64_t alRitmo(const wchar_t* nombre, int ms, Vuelta vuelta) {
+    SharedAudioRing ring, reader;
+    CHECK(SharedAudioRing::init(nombre, 2, 16, 333, 1, ring).ok, "init(ritmo)");
+    CHECK(SharedAudioRing::openReader(nombre, reader).ok, "openReader(ritmo)");
+    std::atomic<bool> fin{false};
+    std::thread lector([&] {
+        while (!fin.load()) vuelta(reader);
+    });
+    std::vector<float> blk(reader.blockFloats(), 0.25f);
+    auto t = std::chrono::steady_clock::now();
+    for (int i = 0; i < ms / 10; ++i) {
+        t += 10ms;
+        std::this_thread::sleep_until(t);
+        ring.push(blk.data(), static_cast<uint64_t>(i));
+    }
+    fin = true;
+    lector.join();
+    return reader.descartados();
+}
+
+static void testAlRitmo() {
+    std::vector<float> buf;
+    uint64_t leidos = 0;
+    // El trabajo de cada vuelta (repartir a los invitados), ~3 ms.
+    const auto trabajo = [] { std::this_thread::sleep_for(3ms); };
+    const uint64_t antes = alRitmo(L"BA.Test.RitmoViejo", 3000, [&](SharedAudioRing& r) {
+        if (buf.size() < r.blockFloats()) buf.resize(r.blockFloats());
+        PoppedBlock pb;
+        r.pop(buf.data(), pb);
+        trabajo();
+        std::this_thread::sleep_for(10ms);
+    });
+    CHECK(antes > 0, "un bloque por vuelta y dormir 10 ms: el lector no llega y se pierden bloques");
+    const uint64_t ahora = alRitmo(L"BA.Test.RitmoNuevo", 3000, [&](SharedAudioRing& r) {
+        leerPendientes(r, buf, [&](const PoppedBlock& pb, size_t) {
+            if (!pb.isSilence) ++leidos;
+        });
+        trabajo();
+        std::this_thread::sleep_for(2ms);
+    });
+    CHECK(ahora == 0, "leerPendientes: no se pierde ningun bloque");
+    CHECK(leidos >= 295, "leerPendientes: llegan todos los bloques, sin silencio inventado");
+    std::printf("al ritmo: antes %llu descartados, ahora %llu (%llu leidos)\n", (unsigned long long)antes,
+                (unsigned long long)ahora, (unsigned long long)leidos);
+}
+
 int main() {
     testConcurrency();
     testWraparound();
     testWriterRestart();
     testCounters();
+    testAlRitmo();
 
     if (g_failures == 0) {
         std::printf("ALL TESTS PASSED\n");

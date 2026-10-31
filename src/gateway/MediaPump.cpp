@@ -461,6 +461,13 @@ template <typename Pred> std::vector<int> MediaPump::sessionsWhere(Pred pred) co
 
 // --- Bajada: programa ---------------------------------------------------------
 
+namespace {
+
+/// Cada cuanto se mira si A escribio audio: muy por debajo del bloque (10 ms).
+constexpr int kMiradaAudioMs = 2;
+
+} // namespace
+
 void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb,
                                    const std::atomic<bool>* parar) {
     SharedAudioRing reader;
@@ -473,6 +480,8 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
     std::vector<SharedAudioRing> slotReaders(nSlots);
     std::vector<bool> slotOpen(nSlots, false);
     std::vector<std::vector<float>> slotBlock(nSlots);
+    std::vector<float> silencio;
+    uint64_t descartadosVistos = 0;
     auto lastSlotRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     while (sigue(parar)) {
         {
@@ -514,20 +523,28 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                           : llenar(traducir("gateway", "salida %1: retorno de audio: A cambio o se cerro; reabriendo"), {salida}));
             continue;
         }
-        const size_t n = reader.blockFloats();
-        if (block.size() < n) block.resize(n);
-        PoppedBlock blk;
-        if (reader.pop(block.data(), blk)) {
-            // El bloque de cada slot con mix-minus (uno por vuelta, al mismo ritmo).
+        if (const uint64_t d = reader.descartados(); d != descartadosVistos) {
+            if (d > descartadosVistos)
+                log_.warn(llenar(traducir("gateway", "retorno de audio%1: se perdieron %2 bloques de 10 ms (el gateway no llegaba)"),
+                                 {salida.empty() ? std::string() : " " + salida, std::to_string(d - descartadosVistos)}), -1);
+            descartadosVistos = d;
+        }
+        leerPendientes(reader, block, [&](const PoppedBlock& blk, size_t n) {
+            // El bloque de cada slot con mix-minus: uno por bloque del programa.
+            if (silencio.size() < n) silencio.assign(n, 0.0f);
             std::vector<const float*> deSlot(nSlots, nullptr);
             for (size_t s = 1; s < nSlots; ++s) {
                 if (!slotOpen[s]) continue;
-                const size_t ns = slotReaders[s].blockFloats();
+                SharedAudioRing& sr = slotReaders[s];
+                const size_t ns = sr.blockFloats();
                 if (ns != n) continue;
                 if (slotBlock[s].size() < ns) slotBlock[s].resize(ns);
                 PoppedBlock b2;
-                // Un hueco del mix-minus (silencio de relleno): mejor el programa entero.
-                if (slotReaders[s].pop(slotBlock[s].data(), b2) && !b2.isSilence) deSlot[s] = b2.samples;
+                // Si el slot se atraso respecto del programa, se pone al dia (sin sumar demora).
+                while (sr.pendientes() > 2) sr.pop(slotBlock[s].data(), b2);
+                // Un hueco del mix-minus: silencio. Nunca el programa entero: el
+                // invitado se oiria a si mismo con demora (eco).
+                deSlot[s] = sr.pendientes() > 0 && sr.pop(slotBlock[s].data(), b2) ? b2.samples : silencio.data();
             }
             // IFB: la voz del operador de este bloque (silencio si no hay), una vez para todos.
             std::vector<float> voz;
@@ -575,8 +592,8 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                 }
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(fuente, n, cfg_.audioRate);
             }
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        });
+        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaAudioMs));
     }
 }
 
@@ -728,10 +745,7 @@ void MediaPump::operatorAudioThread() {
             open = false;
             continue;
         }
-        const size_t n = reader.blockFloats();
-        if (block.size() < n) block.resize(n);
-        PoppedBlock blk;
-        if (reader.pop(block.data(), blk)) {
+        leerPendientes(reader, block, [&](const PoppedBlock& blk, size_t n) {
             // La voz del operador SOLO a quien le esta hablando: el resto del
             // lobby no escucha conversaciones ajenas.
             for (int s : sessionsWhere(
@@ -761,8 +775,8 @@ void MediaPump::operatorAudioThread() {
                 std::lock_guard<std::mutex> lq(it->second->ifb.lock);
                 colavoz::encolar(it->second->ifb.voz, blk.samples, n, tope);
             }
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        });
+        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaAudioMs));
     }
 }
 
@@ -795,15 +809,12 @@ void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::f
             open = false;
             continue;
         }
-        const size_t n = reader.blockFloats();
-        if (block.size() < n) block.resize(n);
-        PoppedBlock blk;
-        if (reader.pop(block.data(), blk)) {
+        leerPendientes(reader, block, [&](const PoppedBlock& blk, size_t n) {
             for (int s : sessionsWhere(para)) {
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
             }
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        });
+        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaAudioMs));
     }
 }
 
@@ -836,10 +847,7 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
             open = false;
             continue;
         }
-        const size_t n = reader.blockFloats();
-        if (block.size() < n) block.resize(n);
-        PoppedBlock blk;
-        if (reader.pop(block.data(), blk)) {
+        leerPendientes(reader, block, [&](const PoppedBlock& blk, size_t n) {
             const auto totem = sessionsWhere([canal](const MediaRoute& r) { return r.oyeVozRegistro(canal); });
             const auto miran = sessionsWhere([canal](const MediaRoute& r) { return r.miraRegistro(canal); });
             alTotem.assign(blk.samples, blk.samples + n);
@@ -854,8 +862,8 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alTotem.data(), n, cfg_.audioRate);
             for (int s : miran)
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alQueAtiende.data(), n, cfg_.audioRate);
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        });
+        std::this_thread::sleep_for(std::chrono::milliseconds(kMiradaAudioMs));
     }
 }
 

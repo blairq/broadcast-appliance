@@ -59,6 +59,19 @@ size_t SharedAudioRing::blockFloats() const {
 
 uint64_t SharedAudioRing::capacityBlocks() const { return hdr()->capacityFrames / audio_ring::kBlockFrames; }
 
+uint64_t SharedAudioRing::pendientes() const {
+    if (region_.data() == nullptr) return 0;
+    auto* h = hdr();
+    const uint64_t write = AtomicRef<uint64_t>(h->writeIndex).load(std::memory_order_acquire);
+    const uint64_t read = AtomicRef<uint64_t>(h->readIndex).load(std::memory_order_relaxed);
+    return write > read ? std::min(write - read, capacityBlocks()) : 0;
+}
+
+uint64_t SharedAudioRing::descartados() const {
+    if (region_.data() == nullptr) return 0;
+    return AtomicRef<uint64_t>(hdr()->overrunCount).load(std::memory_order_relaxed);
+}
+
 const RingHeader* SharedAudioRing::header() const { return hdr(); }
 
 SharedMemoryRegion* SharedAudioRing::region() { return &region_; }

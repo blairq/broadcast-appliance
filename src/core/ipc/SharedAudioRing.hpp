@@ -45,6 +45,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "SharedMemoryRegion.hpp"
 
@@ -166,6 +167,14 @@ class SharedAudioRing {
     ///           nulo o el ring no esta mapeado.
     bool pop(float* out, PoppedBlock& meta);
 
+    /// Lado LECTOR: cuantos bloques escritos todavia no se leyeron (0 si el ring
+    /// no esta mapeado). Para leer al ritmo del escritor: todo lo que haya, sin
+    /// pop() de mas (ante underrun pop() entrega silencio, no "nada").
+    uint64_t pendientes() const;
+
+    /// Bloques que el escritor descarto porque el lector no llegaba (overrunCount).
+    uint64_t descartados() const;
+
     /// Tamano de un bloque en floats (kBlockFrames * channels).
     size_t blockFloats() const;
 
@@ -208,5 +217,24 @@ class SharedAudioRing {
     uint64_t lastDataNs_ = 0;
     uint64_t lastCheckNs_ = 0;
 };
+
+/// Lee TODO lo que el escritor dejo en el anillo, bloque por bloque, y se lo pasa a
+/// `alBloque(const PoppedBlock&, size_t floats)`. Es la forma de leer al ritmo del
+/// escritor: llamarla seguido (cada pocos ms) y dormir entre llamadas.
+///
+/// Sacar un bloque por vuelta y dormir el largo de un bloque NO alcanza: con el
+/// trabajo de cada vuelta el lector va mas lento que el escritor, el anillo se llena
+/// (la capacidad entera de atraso) y el escritor descarta bloques: cortes en el audio.
+/// Sin pendientes no se lee nada: pop() inventaria silencio.
+template <typename F>
+void leerPendientes(SharedAudioRing& r, std::vector<float>& buf, F&& alBloque) {
+    const size_t n = r.blockFloats();
+    if (buf.size() < n) buf.resize(n);
+    for (uint64_t k = r.pendientes(); k > 0; --k) {
+        PoppedBlock blk;
+        if (!r.pop(buf.data(), blk)) return;
+        alBloque(blk, n);
+    }
+}
 
 } // namespace ba::ipc
