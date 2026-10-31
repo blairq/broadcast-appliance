@@ -4,6 +4,7 @@
 #include "evento/Linea.hpp"
 
 #include "evento/Evento.hpp"
+#include "evento/LeerJson.hpp"
 #include "i18n/I18n.hpp"
 
 #include <algorithm>
@@ -16,28 +17,7 @@ namespace {
 
 using nlohmann::json;
 
-// --- Leer JSON sin tirar excepciones ---------------------------------------------
-//
-// Un evento.json lo edita gente (y el asistente): un campo con el tipo cambiado no
-// puede tirar abajo la carga. Lo que no se entiende queda con su valor por defecto.
-
-std::string leerTexto(const json& j, const char* k, const std::string& def = {}) {
-    const auto it = j.find(k);
-    return it != j.end() && it->is_string() ? it->get<std::string>() : def;
-}
-
-int64_t leerNumero(const json& j, const char* k, int64_t def = 0) {
-    const auto it = j.find(k);
-    if (it == j.end()) return def;
-    if (it->is_number_integer()) return it->get<int64_t>();
-    if (it->is_number_float()) return static_cast<int64_t>(it->get<double>());
-    return def;
-}
-
-bool leerBool(const json& j, const char* k, bool def = false) {
-    const auto it = j.find(k);
-    return it != j.end() && it->is_boolean() ? it->get<bool>() : def;
-}
+// Leer sin tirar excepciones: evento/LeerJson.hpp (los mismos lectores que el v1).
 
 template <class T, class F>
 std::vector<T> lista(const json& j, const char* k, F deJson) {
@@ -187,7 +167,7 @@ json Ancla::aJson() const {
     switch (modo) {
         case Modo::Ms: return json{{"ms", ms}};
         case Modo::AntesDelFin: return json{{"antesDelFin", ms}};
-        case Modo::Manual: return json{{"manual", true}};
+        case Modo::Manual: return ms > 0 ? json{{"manual", true}, {"ms", ms}} : json{{"manual", true}};
         case Modo::Cuando: return json{{"cuando", cuando}};
     }
     return json::object();
@@ -198,6 +178,7 @@ Ancla Ancla::deJson(const json& j) {
     if (!j.is_object()) return a;
     if (leerBool(j, "manual")) {
         a.modo = Modo::Manual;
+        a.ms = std::max<int64_t>(0, leerNumero(j, "ms"));
     } else if (j.contains("cuando")) {
         a.modo = Modo::Cuando;
         a.cuando = leerTexto(j, "cuando");
@@ -458,10 +439,9 @@ Linea Linea::deJson(const json& j) {
 
 // --- Migración v1 → v2 ---------------------------------------------------------------
 
-namespace {
-
-/// ¿Este cue v1 abre un paso? Los que cambian el plano principal o frenan el guion.
 bool abrePaso(Tipo t) { return t == Tipo::Escena || t == Tipo::Orador || t == Tipo::Video || t == Tipo::Espera || t == Tipo::Pausa; }
+
+namespace {
 
 /// La pista (por tipo) donde cae cada cue v1, según la tabla de 3.2.
 const char* pistaDeTipo(Tipo t) {
@@ -485,6 +465,8 @@ const char* pistaDeTipo(Tipo t) {
 bool pistaPorSalida(const std::string& tipo) {
     return tipo == "escena" || tipo == "graficos" || tipo == "dsk" || tipo == "audio" || tipo == "medios";
 }
+
+} // namespace
 
 /// La vida que tenía cada cosa en el v1. La música seguía sonando hasta el tema
 /// siguiente («Música del evento»), el rack quedaba como se lo dejaba, el gráfico
@@ -515,8 +497,6 @@ void vidaDeCue(const Cue& c, Pieza& p) {
         default: p.vida = Vida::Paso; return;
     }
 }
-
-} // namespace
 
 Linea migrar(const Evento& v1) {
     Linea l;
@@ -566,12 +546,12 @@ Linea migrar(const Evento& v1) {
                 z.tipo = nombreDeTipo(c.tipo);
                 z.texto = c.texto;
                 z.datos = c.datos;
-                if (anteriorEncadena) {
-                    z.desde.ms = enPasoMs;
-                } else {
-                    // En el v1 este cue esperaba el clic: queda como adlib del paso.
-                    z.desde.modo = Ancla::Modo::Manual;
-                }
+                // Donde estaba en el v1 (la suma de lo de antes). Si esperaba el clic
+                // queda como adlib del paso, pero con su lugar en el plan: así la
+                // escaleta lo muestra donde iba y el guion de cues se vuelve a leer
+                // igual (proyectar).
+                z.desde.ms = enPasoMs;
+                if (!anteriorEncadena) z.desde.modo = Ancla::Modo::Manual;
                 vidaDeCue(c, z);
                 actual->piezas.push_back(std::move(z));
             }

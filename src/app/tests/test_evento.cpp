@@ -5,12 +5,9 @@
 //      su offset desde el arranque.
 //   2. Guardar y cargar reproduce el guion; un tipo desconocido no se pierde.
 //   3. Revision previa: encuentra lo que le falta a cada tipo de cue.
-//   4. Correr el guion: avanzar, retroceder, saltar y terminar; los bloques
-//      vacios no frenan el recorrido.
-//   5. El desvio: tarde, adelantado, y que lo pausado NO cuente como atraso.
-//   6. El recorrido guarda lo que realmente paso, con su duracion real.
-//   7. Pasar solo: los automaticos y las pausas avanzan al cumplir su duracion,
-//      con el aviso de los ultimos 5 s; el HOLD lo frena y se suelta.
+//   4. La línea de tiempo (v2) viaja con el guion sin perderse.
+//
+// Correrlo (avanzar, HOLD, pasar solo, el recorrido) es de la línea: test_linea.
 // ============================================================================
 
 #include <cstdio>
@@ -246,192 +243,18 @@ void revision() {
     CHECK(rc.size() == 1 && !rc[0].grave, "la cadena larga se avisa, no frena");
 }
 
-// --- 4) Correr el guion -----------------------------------------------------
-void correr() {
-    Guion g(actoDePrueba());
-    CHECK(g.estado() == Guion::Estado::Parado, "arranca parado");
-    CHECK(g.cueActual() == nullptr, "parado no esta en ningun cue");
-
-    g.arrancar(1000);
-    CHECK(g.estado() == Guion::Estado::Corriendo, "arrancado corre");
-    CHECK(g.cueActual() != nullptr && g.cueActual()->id == "c1", "empieza por el primer cue");
-    CHECK(g.cueSiguiente() != nullptr && g.cueSiguiente()->id == "c2", "y sabe cual sigue");
-
-    CHECK(g.avanzar(2000) && g.cueActual()->id == "c2", "avanza dentro del bloque");
-    CHECK(g.avanzar(3000) && g.cueActual()->id == "c3", "y cruza al bloque siguiente");
-    CHECK(g.cueSiguiente()->id == "c4", "el siguiente cruza de bloque tambien");
-
-    CHECK(g.retroceder(4000) && g.cueActual()->id == "c2", "retrocede cruzando de bloque");
-    CHECK(g.irA({2, 0}, 5000) && g.cueActual()->id == "c5", "salta a donde le digan");
-    CHECK(!g.irA({9, 0}, 5000), "no salta a un bloque que no existe");
-
-    CHECK(!g.avanzar(6000), "despues del ultimo cue no hay mas");
-    CHECK(g.estado() == Guion::Estado::Terminado, "y el guion termina");
-
-    // Un bloque vacio en el medio no frena el recorrido.
+// --- 4) La línea viaja con el guion ---------------------------------------------
+/// El evento lleva su línea de tiempo (v2) tal cual: este archivo no la entiende,
+/// pero no la puede perder al guardar (la corre la Corrida, ver test_linea).
+void linea_tal_cual() {
     Evento e = actoDePrueba();
-    Bloque hueco;
-    hueco.nombre = "Todavia sin armar";
-    e.bloques.insert(e.bloques.begin() + 1, hueco);
-    Guion g2(e);
-    g2.arrancar(0);
-    g2.avanzar(0);
-    CHECK(g2.avanzar(0) && g2.cueActual()->id == "c3", "salta el bloque vacio");
-
-    // Un evento sin ningun cue termina apenas arranca, no se queda colgado.
-    Guion g3(Evento{});
-    g3.arrancar(0);
-    CHECK(g3.estado() == Guion::Estado::Terminado, "sin cues, termina enseguida");
-}
-
-// --- 5) El desvio -----------------------------------------------------------
-void desvio() {
-    Guion g(actoDePrueba());
-    g.arrancar(0);
-    CHECK(g.desvioSeg(0) == 0, "recien arrancado no hay desvio");
-
-    // El primer cue dura 30 s previstos. Si se pasa al segundo a los 45 s,
-    // vamos 15 s tarde.
-    g.avanzar(45000);
-    CHECK(g.desvioSeg(45000) == 15, "pasarse de largo es ir tarde");
-    CHECK(g.enCueSeg(50000) == 5, "cuenta los segundos en el cue");
-    CHECK(g.restanteSeg(50000) == 85, "y lo que falta segun lo previsto");
-
-    // Si en cambio se adelanta, el desvio es negativo.
-    Guion g2(actoDePrueba());
-    g2.arrancar(0);
-    g2.avanzar(20000);
-    CHECK(g2.desvioSeg(20000) == -10, "cortar antes es ir adelantado");
-
-    // Lo pausado no cuenta: el operador paro a proposito.
-    Guion g3(actoDePrueba());
-    g3.arrancar(0);
-    g3.avanzar(30000); // puntual: 30 s previstos, 30 s reales
-    CHECK(g3.desvioSeg(30000) == 0, "puntual");
-    g3.pausar(40000);
-    CHECK(g3.estado() == Guion::Estado::Pausado, "queda pausado");
-    CHECK(g3.desvioSeg(100000) == 10, "mientras esta pausado el desvio no corre");
-    g3.reanudar(100000);
-    CHECK(g3.desvioSeg(100000) == 10, "al reanudar sigue el desvio que habia");
-    CHECK(g3.enCueSeg(110000) == 20, "y los segundos en el cue descuentan la pausa");
-}
-
-// --- 6) El recorrido --------------------------------------------------------
-void recorrido() {
-    Guion g(actoDePrueba());
-    g.arrancar(0);
-    g.avanzar(45000);
-    g.avanzar(120000);
-
-    const auto& r = g.recorrido();
-    CHECK(r.size() == 3, "un renglon por cue ejecutado");
-    CHECK(r[0].previstoSeg == 30 && r[0].realSeg() == 45, "el primero: 30 previstos, 45 reales");
-    CHECK(r[1].previstoSeg == 90 && r[1].realSeg() == 75, "el segundo salio mas corto");
-    CHECK(r[2].hastaMs == 0, "el que esta corriendo todavia no tiene fin");
-    const Posicion segundo{0, 1}; // fuera del CHECK: la coma de las llaves confunde al preprocesador
-    CHECK(r[1].pos == segundo, "cada renglon sabe de que cue habla");
-
-    // Parado por el operador (pausado incluso): el cue en curso queda cerrado y el
-    // recorrido sigue ahi para el informe.
-    g.pausar(130000);
-    g.terminar(150000);
-    CHECK(g.estado() == Guion::Estado::Terminado, "parado queda terminado");
-    CHECK(g.recorrido().size() == 3 && g.recorrido()[2].hastaMs == 150000, "terminar cierra el cue en curso");
-    CHECK(g.cueActual() == nullptr, "y no queda parado en ningun cue");
-}
-
-// --- 7) Pasar solo ----------------------------------------------------------
-/// Placa (30 s, automatica) → pausa de 10 s → espera (automatica: no vale) →
-/// zocalo automatico sin duracion → camara (manual) → cierre automatico (el ultimo).
-Evento conAutomaticos() {
-    Evento e;
-    Bloque b;
-    b.nombre = "Apertura";
-    Cue placa = cue(Tipo::Escena, "placa", 30, json{{"escena", "Placa"}});
-    placa.automatico = true;
-    Cue espera = cue(Tipo::Espera, "espera", 0);
-    espera.automatico = true;
-    Cue zocalo = cue(Tipo::Grafico, "zocalo", 0, json{{"fuente", "Zocalo"}, {"grafico", "nombre"}});
-    zocalo.automatico = true;
-    Cue cierre = cue(Tipo::Escena, "cierre", 20, json{{"escena", "Placa final"}});
-    cierre.automatico = true;
-    b.cues = {placa, cue(Tipo::Pausa, "pausa", 10), espera, zocalo, cue(Tipo::Escena, "camara", 60), cierre};
-    e.bloques = {b};
-    return e;
-}
-
-void avance_solo() {
-    Guion g(conAutomaticos());
-    CHECK(g.msParaAvanzarSolo(0) == -1, "parado no avanza solo");
-    g.arrancar(0);
-    CHECK(g.avanzaSolo(), "un cue automatico avanza solo");
-    CHECK(g.msParaAvanzarSolo(1000) == 29000, "cuando se cumple su duracion");
-    CHECK(g.entraSoloEnSeg(1000) == 0, "lejos del final no hay aviso");
-    CHECK(g.entraSoloEnSeg(25000) == 5, "el aviso arranca a los 5 s");
-    CHECK(g.entraSoloEnSeg(25001) == 5, "y redondea para arriba (4,999 s se lee 0:05)");
-    CHECK(g.entraSoloEnSeg(29500) == 1, "hasta el ultimo segundo");
-    CHECK(g.msParaAvanzarSolo(30000) == 0, "cumplida la duracion, toca");
-    CHECK(g.msParaAvanzarSolo(31000) == 0, "y pasado tambien (nunca negativo)");
-    CHECK(g.entraSoloEnSeg(30000) == 0, "cuando toca ya no se avisa: entra");
-
-    // La pausa espera y sigue, sin marcarla automatica.
-    g.avanzar(30000);
-    CHECK(g.cueActual()->id == "pausa" && g.avanzaSolo(), "la pausa con duracion sigue sola");
-    CHECK(g.msParaAvanzarSolo(35000) == 5000, "a los 10 s");
-    // La espera no, aunque diga automatica: es para que confirme alguien.
-    g.avanzar(40000);
-    CHECK(g.cueActual()->id == "espera" && !g.avanzaSolo(), "una espera nunca pasa sola");
-    CHECK(g.msParaAvanzarSolo(99000) == -1, "ni aunque pase el tiempo");
-    // Un automatico sin duracion encadena en el acto.
-    g.avanzar(50000);
-    CHECK(g.cueActual()->id == "zocalo" && g.msParaAvanzarSolo(50000) == 0, "sin duracion encadena ya");
-    g.avanzar(50000);
-    CHECK(g.cueActual()->id == "camara" && !g.avanzaSolo(), "un manual espera el clic");
-    // El ultimo no termina el evento solo.
-    g.avanzar(110000);
-    CHECK(g.cueActual()->id == "cierre" && !g.avanzaSolo(), "el ultimo no se va solo aunque sea automatico");
-
-    // Una pausa sin duracion no espera nada: no se va sola (y la revision ya la marca).
-    Evento e = conAutomaticos();
-    e.bloques[0].cues[1].duracionSeg = 0;
-    Guion g2(e);
-    g2.irA({0, 1}, 0);
-    CHECK(!g2.avanzaSolo(), "una pausa sin duracion no pasa sola");
-}
-
-void hold() {
-    Guion g(conAutomaticos());
-    CHECK(!g.setHold(true), "sin cue no hay HOLD");
-    g.arrancar(0);
-    CHECK(g.setHold(true) && g.hold(), "HOLD sobre el cue actual");
-    CHECK(g.msParaAvanzarSolo(40000) == -1, "en HOLD no avanza solo aunque se pase");
-    CHECK(g.entraSoloEnSeg(27000) == 0, "ni avisa");
-    CHECK(g.restanteSeg(40000) == -10, "la cuenta sigue, en +");
-    CHECK(g.desvioSeg(40000) == 40, "el desvio corre: el HOLD no es una pausa");
-    CHECK(g.enCueSeg(40000) == 40, "el reloj del cue no se congela");
-    // Soltarlo: si ya se paso, toca en el acto.
-    CHECK(g.setHold(false) && !g.hold(), "un segundo HOLD lo suelta");
-    CHECK(g.msParaAvanzarSolo(40000) == 0, "suelto y pasado, entra ya");
-    // Es del cue: al cambiar se suelta solo.
-    g.setHold(true);
-    g.avanzar(41000);
-    CHECK(!g.hold(), "el HOLD no pasa al cue siguiente");
-    CHECK(g.desvioSeg(41000) == 11, "y lo que se quedo de mas en HOLD es atraso (no es una pausa)");
-    CHECK(g.msParaAvanzarSolo(41000) == 10000, "la pausa siguiente cuenta normal");
-}
-
-void pausado_no_avanza() {
-    Guion g(conAutomaticos());
-    g.arrancar(0);
-    g.pausar(10000);
-    CHECK(g.msParaAvanzarSolo(60000) == -1, "pausado no avanza solo");
-    CHECK(g.entraSoloEnSeg(60000) == 0, "ni avisa");
-    g.reanudar(70000);
-    // 10 s antes de pausar, 60 s pausado: quedan 20 s, no -40.
-    CHECK(g.msParaAvanzarSolo(70000) == 20000, "lo pausado no cuenta para el avance");
-    CHECK(g.entraSoloEnSeg(86000) == 4, "el aviso tambien descuenta la pausa");
-    g.avanzar(90000); // entra solo a tiempo (30 s netos)
-    CHECK(g.desvioSeg(90000) == 0, "y lo pausado no es desvio: llego en hora");
+    CHECK(e.aJson().count("linea") == 0, "un evento sin línea (v1) no escribe la clave");
+    e.linea = json{{"version", 2}, {"bloques", json::array()}, {"inventado", {{"x", 1}}}};
+    const Evento v = Evento::deJson(e.aJson());
+    CHECK(v.linea == e.linea, "la línea vuelve igual, con lo que no se entiende acá");
+    json roto = e.aJson();
+    roto["linea"] = "texto";
+    CHECK(Evento::deJson(roto).linea.is_null(), "una línea que no es un objeto no se toma");
 }
 
 /// La lista de auto-aceptar del lobby: va y vuelve del JSON, y una entrada sin
@@ -465,12 +288,7 @@ int main() {
     ida_y_vuelta();
     fechas_y_horas();
     revision();
-    correr();
-    desvio();
-    recorrido();
-    avance_solo();
-    hold();
-    pausado_no_avanza();
+    linea_tal_cual();
     auto_aceptar();
     if (g_fallos == 0) std::printf("test_evento: OK\n");
     return g_fallos == 0 ? 0 : 1;

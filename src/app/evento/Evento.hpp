@@ -32,10 +32,11 @@
 // espera el clic. Por defecto los cues son MANUALES: en vivo, que algo salga
 // solo cuando no lo esperabas es peor que llegar tarde.
 //
-// CUÁNDO PASA SOLO lo decide el `Guion` (msParaAvanzarSolo): al cumplirse la
-// duración de un automático o de una pausa. Los últimos 5 s se avisan («entra
-// solo en 0:05») y el HOLD lo frena. Quien tiene el reloj (el view model) solo
-// pregunta y dispara: la regla vive acá, donde se prueba sin motor.
+// QUIÉN LO CORRE. Desde la línea de tiempo (Linea.hpp) el guion de cues es lo
+// que se ve de ella: cada paso con sus piezas, leído como cues en fila. Lo corre
+// la `Corrida` de la línea (Corrida.hpp): un solo ejecutor, con el aviso «entra
+// solo en 0:05», el HOLD y la retoma tras un corte. Este archivo sigue siendo el
+// formato de cues, su validación y su revisión previa.
 // ============================================================================
 #pragma once
 
@@ -167,6 +168,13 @@ struct Evento {
     /// que es lo que corresponde por defecto: hacer pasar gente sola es una
     /// decisión que alguien tiene que tomar a propósito.
     std::vector<Invitado> autoAceptar;
+    /// La línea de tiempo (v2, evento/Linea.hpp), tal como está en el archivo. Null =
+    /// un evento escrito antes de la línea (v1): al abrirlo se migra (ver
+    /// linea::migrar) y desde ahí manda la línea; `bloques` pasa a ser lo que se ve
+    /// de ella como guion de cues (linea::proyectar), para la vista y las
+    /// herramientas de siempre. Acá va como JSON a propósito: este archivo no sabe
+    /// nada de la línea y lo que solo lee el guion (la web, el histórico) no la paga.
+    nlohmann::json linea;
 
     int duracionSeg() const;
     /// Segundos desde el arranque del evento hasta el principio del bloque.
@@ -201,109 +209,5 @@ struct Reparo {
 /// archivos existan, que las escenas existan, que los invitados estén
 /// conectados) necesita el motor y va aparte.
 std::vector<Reparo> revisar(const Evento& e);
-
-/// Dónde está parado el guion. Un cue por vez, identificado por bloque y cue.
-struct Posicion {
-    int bloque = -1;
-    int cue = -1;
-
-    bool valida() const { return bloque >= 0 && cue >= 0; }
-    bool operator==(const Posicion& o) const { return bloque == o.bloque && cue == o.cue; }
-    bool operator!=(const Posicion& o) const { return !(*this == o); }
-};
-
-/// El guion corriendo: dónde está parado, desde cuándo, y cuánto se desvió de
-/// lo previsto. No ejecuta nada — dice qué cue toca y quien sabe hacerlo lo
-/// hace. Eso permite el ENSAYO: el mismo recorrido, sin salir al aire.
-class Guion {
-   public:
-    enum class Estado { Parado, Corriendo, Pausado, Terminado };
-
-    explicit Guion(Evento e) : e_(std::move(e)) {}
-
-    const Evento& evento() const { return e_; }
-    Estado estado() const { return estado_; }
-    Posicion posicion() const { return pos_; }
-    /// El cue donde está parado, o nullptr si no está en ninguno.
-    const Cue* cueActual() const;
-    /// El que sigue (para mostrarlo antes de que toque), o nullptr si no hay.
-    const Cue* cueSiguiente() const;
-    Posicion siguienteDe(Posicion p) const;
-
-    /// Arranca desde el principio. `nowMs` es el reloj de pared.
-    void arrancar(int64_t nowMs);
-    /// Pasa al siguiente cue. Devuelve false si ya no hay más (y termina).
-    bool avanzar(int64_t nowMs);
-    /// Vuelve al anterior, para cuando hubo que repetir algo.
-    bool retroceder(int64_t nowMs);
-    /// Salta a un cue concreto (el operador lo eligió en la lista).
-    bool irA(Posicion p, int64_t nowMs);
-    /// Pausa y reanuda el guion entero: el tiempo pausado NO cuenta como
-    /// desvío, porque el operador paró a propósito.
-    void pausar(int64_t nowMs);
-    void reanudar(int64_t nowMs);
-    /// El operador lo para: el cue en curso queda cerrado (con su duración real)
-    /// y el recorrido sirve para el informe.
-    void terminar(int64_t nowMs);
-
-    /// HOLD: congela el avance automático del cue actual. NO es una pausa: la
-    /// cuenta sigue (en «+» cuando se pasa) y el desvío corre, porque el evento
-    /// sigue pasando; lo único que se frena es que el guion se vaya solo. Es de
-    /// ESTE cue: al cambiar de cue se suelta solo. false si no hay cue actual.
-    bool setHold(bool on);
-    bool hold() const { return hold_; }
-
-    /// ¿El cue actual pasa solo al siguiente? Los automáticos y las pausas con
-    /// duración. Las esperas nunca (son para que confirme el operador), y el
-    /// último tampoco: terminar el evento lo decide una persona.
-    bool avanzaSolo() const;
-    /// Cuánto falta (ms) para que el guion pase solo al siguiente: 0 = ya toca.
-    /// -1 si ahora no va a pasar solo (no corresponde, HOLD, pausado o parado).
-    /// Lo pausado no cuenta, igual que en el desvío.
-    int64_t msParaAvanzarSolo(int64_t nowMs) const;
-    /// El aviso «entra solo en 0:05»: los segundos que faltan (redondeado para
-    /// arriba) durante los últimos `kAvisoSeg`; 0 fuera de esa ventana.
-    int entraSoloEnSeg(int64_t nowMs) const;
-    static constexpr int kAvisoSeg = 5;
-
-    /// Segundos en el cue actual.
-    int enCueSeg(int64_t nowMs) const;
-    /// Desvío acumulado: positivo = vamos tarde, negativo = vamos adelantados.
-    /// Se mide contra lo previsto para el cue donde estamos parados.
-    int desvioSeg(int64_t nowMs) const;
-    /// Cuánto falta para que termine el cue actual según lo previsto
-    /// (negativo si ya se pasó). Sin duración prevista: 0.
-    int restanteSeg(int64_t nowMs) const;
-    /// Lo que lleva el evento desde que arrancó, sin contar las pausas.
-    int transcurridoSeg(int64_t nowMs) const;
-
-    /// Lo que realmente pasó: un renglón por cue ejecutado, con su duración
-    /// real. Es la materia prima del informe posterior.
-    struct Paso {
-        Posicion pos;
-        int64_t desdeMs = 0;
-        int64_t hastaMs = 0;
-        int previstoSeg = 0;
-        int realSeg() const { return static_cast<int>((hastaMs - desdeMs) / 1000); }
-    };
-    const std::vector<Paso>& recorrido() const { return recorrido_; }
-
-   private:
-    void entrarA(Posicion p, int64_t nowMs);
-    void cerrarPaso(int64_t nowMs);
-    /// Milisegundos en el cue actual, sin lo pausado.
-    int64_t enCueMs(int64_t nowMs) const;
-
-    Evento e_;
-    Estado estado_ = Estado::Parado;
-    Posicion pos_;
-    int64_t arranqueMs_ = 0;   ///< cuándo arrancó el evento
-    int64_t enCueDesdeMs_ = 0; ///< cuándo se entró al cue actual
-    int64_t pausadoDesdeMs_ = 0;
-    int64_t pausadoMs_ = 0;      ///< total pausado, que no cuenta como desvío
-    int64_t pausadoEnCueMs_ = 0; ///< lo pausado dentro del cue actual
-    bool hold_ = false;          ///< el cue actual no se va solo (ver setHold)
-    std::vector<Paso> recorrido_;
-};
 
 } // namespace ba::evento

@@ -44,6 +44,8 @@
 
 namespace ba::evento {
 struct Evento;
+struct Cue;
+enum class Tipo;
 }
 
 namespace ba::evento::linea {
@@ -119,7 +121,9 @@ enum class Continuar {
 struct Ancla {
     enum class Modo { Ms, AntesDelFin, Manual, Cuando };
     Modo modo = Modo::Ms;
-    int64_t ms = 0; ///< Ms: desde que arranca el paso; AntesDelFin: antes de que termine
+    /// Ms: desde que arranca el paso; AntesDelFin: antes de que termine; Manual:
+    /// dónde la pone el plan (para la escaleta y los tiempos), aunque no entra sola.
+    int64_t ms = 0;
     Condicion cuando;
 
     nlohmann::json aJson() const;
@@ -297,6 +301,15 @@ struct Linea {
 /// La duración del paso es la suma de las de sus cues: el total no cambia.
 /// Pura: guardar la copia v1 en Respaldos/ es de quien la llama (L2).
 Linea migrar(const Evento& v1);
+
+/// ¿Este cue v1 abre un paso? Los que cambian el plano principal (escena, orador,
+/// video) o frenan el guion (pausa, espera). Los demás van como piezas del paso.
+bool abrePaso(Tipo t);
+
+/// La vida (y, para un gráfico que «se va sola», la duración) que la migración le
+/// da a la pieza de un cue v1: la música sigue hasta la siguiente, el gráfico según
+/// su `seVa`. La usa también reconciliar() para saber si una vida fue tocada a mano.
+void vidaDeCue(const Cue& c, Pieza& p);
 
 // --- Lo emitido y lo que se sabe en vivo ---------------------------------------------
 
