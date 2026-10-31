@@ -78,6 +78,10 @@ std::set<Condicion> condicionesDe(const Linea& l);
 /// Los pulsos que espera la línea ("tecla:F5", "botonera:<id>", "web:<botón>"), en
 /// orden de aparición: las teclas que hay que atender y los botones que la web muestra.
 std::vector<std::string> pulsosDe(const Linea& l);
+/// Con qué se compara un pulso: una tecla, sin mayúsculas y con los modificadores como
+/// conjunto («tecla:Ctrl+Shift+F5» = «tecla:shift+ctrl+f5»: el atajo publica la forma de
+/// Qt y la condición se escribe como venga); los demás, tal cual.
+std::string clavePulso(const std::string& pulso);
 
 /// Cada condición en el tiempo: si se cumple y desde cuándo.
 class Seguimiento {

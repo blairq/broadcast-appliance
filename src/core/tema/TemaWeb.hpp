@@ -94,6 +94,16 @@ nlohmann::json coloresQr(const nlohmann::json& resuelto);
 /// incrustarla (el logo del evento al centro de un QR). "" si no es eso o no se puede leer.
 std::string imagenComoDataUrl(const std::filesystem::path& archivo);
 
+/// El PNG que acompaña en Tema/ a un logo SVG («logo-1a2b.svg» → «logo-1a2b.png»): la app
+/// lo dibuja al ponerlo, para lo que no sabe pintar un SVG adentro de otro SVG (QtSvg y el
+/// `<image>` del QR que dibuja la app; también algún navegador viejo de un televisor).
+/// "" si `logo` no es un SVG.
+std::string pngDeLogo(const std::string& logo);
+
+/// El logo `logo` de la carpeta `carpetaTema` para ponerlo al centro de un QR, como data URL:
+/// su PNG (pngDeLogo) si es un SVG y el PNG está; si no, el archivo tal cual. "" si nada.
+std::string logoParaQr(const std::filesystem::path& carpetaTema, const std::string& logo);
+
 /// Una huella corta y estable de un texto (FNV-1a de 64 bits, 12 hex): la versión de la hoja.
 std::string huella(const std::string& texto);
 

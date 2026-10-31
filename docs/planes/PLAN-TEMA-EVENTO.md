@@ -144,7 +144,13 @@ quede solo en `SignalingServer`).
   (capturas), y un zócalo y un QR nuevos con el acento y el logo del evento.
 - Los sitios ya generados no cambian solos: `evento_tema migrar_sitio` (o el botón «Pasar el
   sitio al tema»).
-- El logo SVG dentro de un QR que dibuja la app (QtSvg y `<image>` con un SVG en data URL): mirarlo
-  en la pestaña QR; si QtSvg no lo pinta, rasterizarlo a PNG al ponerlo.
+- Mirar en la pestaña QR el logo SVG del evento al centro. **Hecho (2026-10-31):** al ponerlo (y al
+  abrir un evento con un tema de antes) se dibuja su PNG al lado en Tema/ (`evento/TemaLogoPng`,
+  `ba::tema::pngDeLogo`: mismo nombre, .png, 512 px el lado mayor) y el QR de la app y el `qr.svg`
+  del gateway lo usan (`ba::tema::logoParaQr`); el PNG se va con su logo (`limpiarRecursos`).
+  `test_tema_logo_png`: el QR con el PNG se pinta con QtSvg. Nota: la Qt 6.6 de la Mac pinta
+  también el SVG adentro (con el plugin `imageformats/qsvg`); el PNG lo hace independiente de ese
+  plugin y de los navegadores viejos. (`test_tema_evento` no enlazaba desde que el tema guarda con
+  `persist::escribir`: compila `Escritor.cpp` suelto.)
 - Las cadenas nuevas (`ajustes`, `emisor`, `motor`) a los catálogos (`tools/i18n/extraer.py` y la
   traducción por lotes); `docs/mcp.json` no cambió (ninguna herramienta nueva).

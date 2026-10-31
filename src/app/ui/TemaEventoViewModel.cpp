@@ -9,6 +9,7 @@
 #include <QUrl>
 
 #include "evento/EventoWeb.hpp"
+#include "evento/TemaLogoPng.hpp"
 #include "i18n/I18n.hpp"
 #include "sala/Pedido.hpp"
 #include "tema/TemaWeb.hpp"
@@ -68,6 +69,9 @@ void TemaEventoViewModel::seguirEvento() {
 
 void TemaEventoViewModel::recargar() {
     tema_ = hayEvento() ? evento::TemaEvento::leer(carpetaEvento_) : evento::TemaEvento{};
+    // El PNG de un logo SVG (para el QR que dibuja la app): al ponerlo (guardar pasa por
+    // acá) o, si falta, al abrir un evento con un tema de antes.
+    if (tema_.existe) evento::asegurarPngDeLogos(carpetaEvento_, tema_);
     resuelto_ = tema_.existe ? ba::tema::resolver(tema_.paraPublicar(carpetaEvento_)) : json::object();
     ponerPorOmision();
     emit cambio();
@@ -85,7 +89,8 @@ void TemaEventoViewModel::ponerPorOmision() {
         qr["primario"] = QString::fromStdString(c.value("primario", std::string("#000000")));
         qr["fondo"] = QString::fromStdString(c.value("fondo", std::string("#ffffff")));
         const std::string logo = resuelto_["marca"].value("logo", std::string());
-        const std::string src = logo.empty() ? std::string() : ba::tema::imagenComoDataUrl(evento::carpetaTema(carpetaEvento_) / logo);
+        // Un SVG va por su PNG (pngDeLogo): QtSvg no pinta un SVG adentro del SVG del QR.
+        const std::string src = ba::tema::logoParaQr(evento::carpetaTema(carpetaEvento_), logo);
         if (!src.empty()) {
             qr["logoEvento"] = true;
             qr["logoSrc"] = QString::fromStdString(src);

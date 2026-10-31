@@ -227,6 +227,10 @@ class Corrida {
     std::vector<Viva>::iterator sacar(std::vector<Viva>::iterator it, int64_t ahora, std::vector<Accion>& acc);
     /// Vuelve a evaluar las condiciones y hace los disparadores que pasaron a cumplirse.
     void actualizarCondiciones(int64_t ahora, std::vector<Accion>& acc);
+    /// Cuánto de lo que lleva al aire `x` es pausa en curso (0 si no está en pausa).
+    int64_t corrimientoDePausa(const Instancia& x, int64_t ahora) const;
+    /// Saca del aire `x` a la hora `ahora` (sin contar la pausa en curso).
+    void cerrar(Instancia& x, int64_t ahora);
     void hacerDisparador(const Disparador& d, int64_t ahora, std::vector<Accion>& acc);
     /// ¿El disparador vale ahora? (su `activo` + `en`: todo el evento, mientras un paso o
     /// un bloque esté al aire, o desde que entró).

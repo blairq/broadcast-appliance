@@ -144,9 +144,12 @@ class Emisor : public QObject {
     /// El cuadro estable de un gráfico (ms): pasada la entrada, antes de la salida.
     static int msEstable(const QJsonObject& ficha);
     /// El gráfico con esos valores en su cuadro estable, dibujado aparte (no sale al
-    /// aire): la miniatura «con gráficos» de la línea de tiempo. ESPERA al
-    /// renderizador: quien llama se cuida de no pedirlo seguido. Nula y `error` si no.
-    QImage dibujarQuieto(const QString& grafico, const QJsonObject& valores, QSize tam, QString* error = nullptr);
+    /// aire): la miniatura «con gráficos» de la línea de tiempo. Al tamaño de la fuente
+    /// de escena `fuente` (la que lo va a mostrar; si no está, el de la ficha). ESPERA al
+    /// renderizador: quien llama se cuida de no pedirlo seguido. `listo` con la imagen
+    /// (nula y el error si no): en el momento, o más tarde si el gráfico es de un plugin.
+    void dibujarQuieto(const QString& grafico, const QJsonObject& valores, const QString& fuente,
+                       std::function<void(QImage imagen, QString error)> listo);
 
     /// Con qué valores se disparó esa fuente por última vez (vacío si nunca).
     QJsonObject ultimosValores(std::uint64_t fuente) const;

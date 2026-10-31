@@ -300,11 +300,15 @@ Item {
                         GlassButton { compact: true; text: qsTr("Baja latencia (%1 ms)").arg(latPanel.lat.baja_latencia_ms || 110)
                                       active: latPanel.lat.baja_latencia === true
                                       onClicked: pop.vg.ponerTopeEstudioUi(latPanel.lat.baja_latencia_ms || 110) }
-                        Text {
-                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
-                            text: qsTr("Una sincronizada que pide más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora.")
-                        }
+                        Item { Layout.fillWidth: true }
                         GlassButton { compact: true; text: qsTr("Ver en el mapa"); icon: "⤳"; onClicked: pop.verMapa() }
+                    }
+                    // En su propia fila, no adentro de la de arriba: un texto que se parte dentro de
+                    // una fila le cuesta a la columna una vuelta más de acomodarse, y sin ancho (la
+                    // pestaña escondida, el panel a -32) no terminaba nunca («polish loop»).
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
+                        text: qsTr("Una sincronizada que pide más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora.")
                     }
                 }
             }

@@ -231,9 +231,10 @@ class LineaViewModel : public QObject {
     std::map<std::string, int> fotosVisibles_;
     std::map<std::string, int64_t> fotoMs_;
     bool fotoEnCurso_ = false;
-    // «Con gráficos»: cada gráfico dibujado una vez por (gráfico, valores), la firma de
+    // «Con gráficos»: cada gráfico dibujado una vez por (gráfico, fuente, valores), la firma de
     // cada compuesta (escena, foto y gráficos) y cuándo se dibujó el último.
     std::map<std::string, QImage> capas_;
+    std::set<std::string> capasEnCurso_; ///< pedidas a un plugin que todavía no contestó
     std::map<std::string, std::string> firmas_;
     QVariantMap conGraficos_;
     int64_t ultimoDibujoMs_ = 0;

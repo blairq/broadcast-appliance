@@ -41,6 +41,14 @@ sobre un evento de prueba PROPIO (nunca el del operador):
 El informe (JSON y Markdown, con la versión de la app) va a <datos>/Logs/caos/<fecha>/
 o a --salida. RTO p50/p95 por escenario.
 
+NOCTURNO (F4-03, `--nocturno`): todos los escenarios, 5 repeticiones (o más con
+--repeticiones) y plazo de 90 s; el informe queda marcado como nocturno y se compara con
+la corrida nocturna completa anterior de la misma carpeta (Logs/caos/*/caos.json, la más
+reciente; tools/caos/comparar.py): un RTO p95 que subió más de 25 % y más de 1 s, un
+escenario que dejó de medir o cualquier «no volvió» es regresión, y va al informe
+(«Contra la corrida anterior»). Para correrlo de noche en una máquina de pruebas, la tarea
+de cada sistema (apagada de fábrica) está en tools/caos/nocturno/ (instalar.py la arma).
+
     python3 -I tools/caos/banco.py                       # todo, 3 veces cada uno
     python3 -I tools/caos/banco.py --escenarios kill_a,codificador_tx --repeticiones 5
     python3 -I tools/caos/banco.py --lanzar dist/BroadcastAppliance.app --nocturno
@@ -48,7 +56,7 @@ o a --salida. RTO p50/p95 por escenario.
         --escenarios kill_a_con_emisor,kill_emisor
 
 Sale con 0 si todo volvió dentro de --plazo-s, 1 si algo no volvió, 2 si cortó antes de
-tocar nada. Sin sonido: la cámara virtual no tiene audio y nada sale por los parlantes.
+tocar nada y, con --nocturno, 3 si algo empeoró contra la corrida anterior. Sin sonido: la cámara virtual no tiene audio y nada sale por los parlantes.
 """
 from __future__ import annotations
 
@@ -82,6 +90,7 @@ def _modulo(nombre: str, ruta: str):
 
 _am = _modulo("asamblea_mcp", os.path.join(RAIZ, "tools", "test", "asamblea-mcp.py"))
 rtmp_local = _modulo("rtmp_local", os.path.join(AQUI, "rtmp_local.py"))
+comparar = _modulo("caos_comparar", os.path.join(AQUI, "comparar.py"))
 
 CAM = "Cámara de caos"
 WINDOWS = platform.system() == "Windows"
@@ -688,7 +697,8 @@ class Corte(Exception):
     """El banco no puede seguir sin arriesgar lo del operador (o la app no contesta)."""
 
 
-def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list, corte: str | None) -> dict:
+def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list, corte: str | None,
+            nocturno: bool = False) -> dict:
     esc = {}
     for nombre, reps in b.resultados.items():
         rto = [r.get("rto_s") for r in reps if not r.get("saltado")]
@@ -707,6 +717,13 @@ def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list
          "maquina": {"sistema": platform.system(), "version": platform.release(), "nodo": platform.node()},
          "plazo_s": b.a.plazo_s, "corte": corte, "escenarios": esc, "mkv": mkv,
          "rtmp": {"sesiones": rtmp_ses, "huecos": rtmp_huecos}}
+    if nocturno:
+        # Contra la nocturna anterior de la misma carpeta (Logs/caos): antes de escribir la de
+        # ahora, así no se encuentra a sí misma.
+        j["nocturno"] = True
+        ant = comparar.anterior(os.path.dirname(os.path.abspath(carpeta)), carpeta)
+        j["comparacion"] = comparar.comparar(comparar.leer(ant) if ant else None, j)
+        j["comparacion"]["informe_anterior"] = ant
     os.makedirs(carpeta, exist_ok=True)
     with open(os.path.join(carpeta, "caos.json"), "w", encoding="utf-8") as f:
         json.dump(j, f, ensure_ascii=False, indent=1)
@@ -735,6 +752,8 @@ def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list
     md += ["", f"## Transmisión ({len(rtmp_ses)} conexiones al RTMP local)", ""]
     for h in rtmp_huecos:
         md.append(f"- {datetime.datetime.fromtimestamp(h['desde']).strftime('%H:%M:%S')}: {h['s']} s sin video")
+    if nocturno:
+        md += [""] + comparar.markdown(j["comparacion"])
     with open(os.path.join(carpeta, "caos.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(md) + "\n")
     return j
@@ -782,13 +801,15 @@ def main() -> int:
     ap.add_argument("--espera-app-s", type=float, default=120.0)
     ap.add_argument("--puerto-rtmp", type=int, default=0, help="0 = uno libre")
     ap.add_argument("--salida", help="carpeta del informe (de fábrica <datos>/Logs/caos/<fecha>)")
-    ap.add_argument("--nocturno", action="store_true", help="5 repeticiones y plazo de 90 s")
+    ap.add_argument("--nocturno", action="store_true",
+                    help="todos los escenarios, 5 repeticiones, plazo de 90 s y comparar con la nocturna anterior (3 si empeoró)")
     ap.add_argument("--no-matar", action="store_true", help="al final, app_quit pero sin matar lo que quede")
     ap.add_argument("--emisor-aparte", action="store_true",
                     help="con --lanzar: la salida principal la codifica ba-emisor (F3-01; para kill_a_con_emisor)")
     a = ap.parse_args()
     if a.nocturno:
         a.repeticiones, a.plazo_s = max(a.repeticiones, 5), max(a.plazo_s, 90.0)
+        a.escenarios = ",".join(ESCENARIOS)  # la vara es la misma cada noche
     escenarios = [e.strip() for e in a.escenarios.split(",") if e.strip()]
     malos = [e for e in escenarios if e not in ESCENARIOS]
     if malos:
@@ -837,12 +858,18 @@ def main() -> int:
             rtmp.parar()
             if lanzado is not None and lanzado.poll() is None:
                 lanzado.kill()
-    j = informe(b, carpeta, mkv, ses, huecos, corte)
+    j = informe(b, carpeta, mkv, ses, huecos, corte, a.nocturno)
     log("informe:", os.path.join(carpeta, "caos.md"))
     if corte and not b.resultados:
         return 2
     no_volvio = sum(e["no_volvio"] for e in j["escenarios"].values())
-    return 1 if (corte or no_volvio) else 0
+    if corte or no_volvio:
+        return 1
+    if a.nocturno and j["comparacion"]["regresiones"]:
+        for r in j["comparacion"]["regresiones"]:
+            log("REGRESIÓN:", r["escenario"], r["texto"])
+        return comparar.REGRESION
+    return 0
 
 
 if __name__ == "__main__":
