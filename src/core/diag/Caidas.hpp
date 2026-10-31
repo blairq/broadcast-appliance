@@ -22,6 +22,15 @@
 // defecto: el proceso muere con el codigo que corresponde (139 para SIGSEGV) y
 // el launcher hace lo que ya hacia. Esto no cambia el comportamiento, solo
 // deja la prueba.
+//
+// LAS PILAS DE TODOS LOS HILOS (F1-12). Además de la del que se cayó, al
+// archivo que dejó el launcher (BA_CAIDA_CANAL = Logs/dumps/<A|B>.pila) van las
+// de todos los hilos con su nombre y las imágenes cargadas con su UUID /
+// build-id: en macOS congelando cada hilo con Mach y siguiendo sus punteros de
+// marco; en Linux pidiéndole a cada uno su pila con una señal propia. SIGQUIT es
+// el pedido del launcher para un proceso que dejó de latir. El launcher
+// (Volcados) lo renombra, lo atribuye (fault::atribuir) y lo deja para
+// tools/caidas/analizar.py. Sin launcher, todo va al registro.
 // ============================================================================
 #pragma once
 

@@ -191,6 +191,11 @@ json AlertEngine::types() {
          {"summary", QT_TRANSLATE_NOOP("alertas", "El estado guardado volvió dañado tras un corte (qué había al aire, la línea de "
                      "tiempo) o la carpeta de datos está en un disco sin diario (FAT/exFAT).")},
          {"params", json::object()}},
+        {{"type", "energia"},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Se cortó la luz: el equipo anda con batería o UPS; y otra vez cuando queda poca y "
+                     "las grabaciones se cierran en orden (energia.corte.*).")},
+         {"params", json::object()},
+         {"cooldownSec", 0}},
         {{"type", "timer"},
          {"summary", QT_TRANSLATE_NOOP("alertas", "Temporizador del servidor: en N segundos, a una hora, o cada N segundos.")},
          {"params",
@@ -746,6 +751,27 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             st.since.erase("r0");
             st.seen.erase("r0");
         }
+    } else if (type == "energia" && in_.energia) {
+        // El corte de luz (F1-11, arranque/EnergiaAire): al pasar a batería o UPS, y
+        // otra vez cuando la política cierra las grabaciones. Al volver la red, se rearma.
+        const json e = in_.energia();
+        if (!e.value("en_bateria", false)) {
+            st.seen.erase("bat");
+            return;
+        }
+        const std::string fase = e.value("accion", std::string()) == "cerrar_grabaciones" ? "2" : "1";
+        if (st.seen["bat"] >= fase) return;
+        st.seen["bat"] = fase;
+        const int pct = e.value("porcentaje", -1), min = e.value("minutos", -1);
+        const std::string queda = (pct >= 0 ? std::to_string(pct) + " %" : std::string("?")) +
+                                  (min >= 0 ? ", " + std::to_string(min) + " min" : std::string());
+        fire(rule, st,
+             fase == "2" ? ba::i18n::llenar(ba::i18n::traducir("alertas", "Queda poca batería (%1): las grabaciones se cerraron en orden y la transmisión sigue."), {queda})
+                         : ba::i18n::llenar(ba::i18n::traducir("alertas", "Se cortó la luz: el equipo anda con %1 (%2)."),
+                                            {e.value("fuente", std::string()) == "ups" ? ba::i18n::traducir("alertas", "el UPS")
+                                                                                       : ba::i18n::traducir("alertas", "la batería"),
+                                             queda}),
+             {{"porcentaje", pct}, {"minutos", min}, {"fuente", e.value("fuente", std::string())}}, now);
     } else if (type == "disk" && in_.disco && in_.status) {
         const auto s = in_.status();
         if (!s.recording && !p.value("siempre", false)) return;
@@ -1098,6 +1124,8 @@ void AlertEngine::sembrar(bool faltantes) {
          {"params", {{"recurso", "*"}, {"nivel", "aviso"}}}, {"sonido", "aviso"}},
         {{"type", "persistencia"}, {"name", ba::i18n::traducir("alertas", "Estado guardado dañado")},
          {"params", json::object()}, {"sonido", "critico"}, {"reconocer", true}},
+        {{"type", "energia"}, {"name", ba::i18n::traducir("alertas", "En batería (corte de luz)")}, {"params", json::object()},
+         {"sonido", "critico"}, {"reconocer", true}},
     });
     for (json r : reglas) {
         const std::string tipo = r.value("type", std::string());

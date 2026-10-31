@@ -108,7 +108,7 @@ class Supervisor {
     std::filesystem::path runtimeDir() const;
     void handleCrash(bool isA);
     /// Deja escrita la causa de la caída (Runtime/ultima-caida.json y caidas.jsonl).
-    void anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const std::filesystem::path& volcado = {});
+    void anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const Volcado* volcado = nullptr);
     void handleHang(bool isA);
 
     // --- Recuperacion (UI) --------------------------------------------------
@@ -157,7 +157,8 @@ class Supervisor {
     bool otraVersion_[2] = {false, false};
     std::uint64_t ultimaMiradaAire_ = 0; // ms monotonicos: al-aire.json se mira cada tanto, no cada vuelta
     bool appNeedsRestore_ = false;             // A relanzado tras crash arranca con --restore
-    bool safeMode_ = false;                    // circuit breaker: >5 crashes de A en 2 min
+    ba::fault::ModoSeguro modoSeguro_;         // cortacircuito escalonado: un nivel por disparo (F1-10)
+    std::optional<ba::fault::Pieza> ultimaPiezaA_; // a quién se atribuyó la última caída de A (Volcados)
     std::vector<std::uint64_t> appCrashTimes_; // ms monotonicos, para el circuit breaker
     std::uint64_t lastFailureMs_ = 0;          // ultima caida/cuelgue de A o B
     int recentFailures_ = 0;                   // fallas dentro de la ventana (decide el dialogo)

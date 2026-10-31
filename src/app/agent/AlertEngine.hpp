@@ -35,6 +35,7 @@
 //   recursos      recurso ("*"|cpu|gpu|ram|vram|red|motor), nivel (aviso|critico):
 //                 la máquina está al límite (sostenido; lo mide diag::Recursos)
 //   persistencia  el estado guardado volvió dañado o la carpeta de datos está en FAT/exFAT
+//   energia       se cortó la luz (batería/UPS) y, después, la política cerró las grabaciones
 //   timer         in (seg) | at ("HH:MM") | every (seg)
 //
 // Las reglas se guardan en Config/alertas.json (sobreviven reinicios).
@@ -103,6 +104,8 @@ struct AlertInputs {
     std::function<json()> recursos;
     /// Avisos de la persistencia (AppRuntime::avisosPersistencia): cada uno suena una vez.
     std::function<std::vector<std::string>()> persistencia;
+    /// La energía (arranque/EnergiaAire::estado): {en_bateria, porcentaje, minutos, fuente, accion}.
+    std::function<json()> energia;
     std::function<std::int64_t()> nowMs; ///< reloj (inyectable en tests)
 };
 

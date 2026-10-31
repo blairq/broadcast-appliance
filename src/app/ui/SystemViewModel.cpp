@@ -101,7 +101,13 @@ QVariantList SystemViewModel::elementosQueFaltan() const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(faltan.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
-QString SystemViewModel::inicioPoner(bool activo) { return QString::fromStdString(inicio::poner(activo)); }
+QVariantList SystemViewModel::preparacion() const { return inicioEstado().value("preparacion").toList(); }
+
+QString SystemViewModel::inicioPoner(bool activo) {
+    const QString err = QString::fromStdString(inicio::poner(activo));
+    emit changed(); // la preparación tiene «arranca con la sesión»
+    return err;
+}
 
 void SystemViewModel::refresh() { emit changed(); }
 

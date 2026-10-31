@@ -39,7 +39,10 @@ namespace ba::app {
 ///   --guests=<n>            invitados en escena (0..4)
 ///   --duration=<seg>        termina solo (pruebas)
 ///   --status-every=<seg>    cada cuanto imprime el estado (0 = nunca)
-///   --safe-mode             x264 y solo las fuentes de invitados
+///   --safe-level=<1..3>     modo seguro escalonado (F1-10, fault/ModoSeguro.hpp): 1 y 2
+///                           apagan piezas y restauran las escenas; 3 = --safe-mode
+///   --safe-off=<a,b>        piezas apagadas por la causa de la última caída
+///   --safe-mode             x264 y solo las fuentes de invitados (= --safe-level=3)
 ///   --restore               (lo pasa el launcher tras un crash)
 ///
 /// :returns: 0 en cierre ordenado; !=0 si el motor no pudo arrancar.

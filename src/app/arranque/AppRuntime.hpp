@@ -259,6 +259,16 @@ class AppRuntime {
     /// Lo anota en el registro (error) y para la alarma. Lo usa también la línea de
     /// tiempo cuando su estado vivo (linea-aire.json) vuelve dañado.
     void avisarPersistencia(const std::string& texto);
+    /// Corte de luz con poca batería (F1-11, arranque/EnergiaAire): EOS ordenado de
+    /// las grabaciones (archivos cerrados que se abren) SIN olvidarlas: al-aire.json
+    /// las deja pedidas y sin «cerrado», y desde acá un cierre (el sistema que se
+    /// apaga por batería) cuenta como corte, no como cierre del operador. Al volver
+    /// la energía (o la máquina) se retoma todo. La transmisión sigue. Devuelve las
+    /// salidas que cerró.
+    std::vector<std::string> cerrarGrabacionesPorEnergia();
+    /// Volvió la energía antes de apagarse: las grabaciones que se cerraron vuelven.
+    void retomarGrabacionesPorEnergia();
+    bool emergenciaEnergia() const { return emergenciaEnergia_; }
     const std::filesystem::path& dataRoot() const { return root_; }
     /// El feed del operador (lobby): de ahí sale el micrófono del push-to-talk.
     OperatorFeed& operatorFeed() { return operator_; }
@@ -343,6 +353,8 @@ class AppRuntime {
     std::vector<std::string> avisosPersistencia_;
     bool corteAnterior_ = false;
     bool cerrando_ = false;           ///< stop(): al-aire.json dice «cerrado»
+    bool emergenciaEnergia_ = false;  ///< cerrarGrabacionesPorEnergia: un cierre es un corte
+    std::set<std::string> porEnergia_; ///< las salidas cuya grabación cerró el corte (vuelven)
     mutable std::string escenaEscrita_; ///< lo que dice al-aire.json de las escenas (firmaDelAire)
     mutable int keySaved_ = -1;   // cache de streamKeySaved (-1 = sin consultar)
     bool safeBackupDone_ = false; // app.json resguardado antes de guardar en modo seguro

@@ -13,6 +13,7 @@
 #include "escenas/RespaldoEntradas.hpp"
 #include "escenas/AjustesEscenas.hpp"
 #include "escenas/ControlGrillas.hpp"
+#include "arranque/EnergiaAire.hpp"
 #include "arranque/ModoVivoConfig.hpp"
 #include "ui/EnlacesViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
@@ -117,6 +118,7 @@
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "fault/ModoSeguro.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 #include "diag/VigiaBucle.hpp"
@@ -802,9 +804,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
     chatOverlay_ = std::make_unique<ChatOverlayRenderer>(*youtube_, *conference_, *twitch_, *facebook_);
     marca("chatOverlay");
+    // El corte de luz (F1-11): la energía, la alarma «en batería» y la política.
+    energia_ = std::make_unique<EnergiaAire>(EnergiaAire::Acciones{[&rt]() { return rt.cerrarGrabacionesPorEnergia(); },
+                                                                   [&rt]() { rt.retomarGrabacionesPorEnergia(); },
+                                                                   [&rt]() { return rt.emergenciaEnergia(); }});
+    energia_->vigilar();
+    connect(energia_.get(), &EnergiaAire::aviso, this, &StudioViewModel::notify);
     // Disparadores (alertas) contra el estado real de la app, y la pestaña Asistente.
     {
         agent::AlertInputs in;
+        in.energia = [this]() { return energia_->estado(); };
         in.audio = [this]() {
             std::vector<agent::AlertInputs::Audio> out;
             for (const std::string& n : rt_.engine().audioSources())
@@ -1129,17 +1138,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // Barra de mensajes del asistente al operador (y respuestas a invitados).
         messages_ = std::make_unique<OperatorMessages>();
         marca("messages");
-        if (rt.config().safeMode) {
-            // El launcher arranco en modo seguro tras varias caidas: que el
-            // operador sepa por que no ve sus escenas.
-            messages_->post(
-                {{"kind", "message"},
-                 {"priority", "critical"},
-                 {"title", tr("Modo seguro").toStdString()},
-                 {"text",
-                  tr("La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no "
-                     "se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.")
-                      .toStdString()}});
+        if (ba::fault::delProceso().activo()) {
+            // El launcher arrancó en modo seguro tras varias caídas (F1-10): que el
+            // operador sepa qué se apagó (nivel 1-2: las escenas están) o por qué
+            // no ve sus escenas (nivel 3).
+            messages_->post({{"kind", "message"},
+                             {"priority", "critical"},
+                             {"title", tr("Modo seguro").toStdString()},
+                             {"text", ba::fault::delProceso().aviso()}});
         }
         messages_->setChatSender([this](const QString& to, const QString& text) {
             conference_->sendChat(to, text);

@@ -13,6 +13,9 @@
 #include <mutex>
 
 #include "audio/ClapEditor.hpp"
+#include "fault/ModoSeguro.hpp"
+#include "i18n/I18n.hpp"
+#include "platform/Paths.hpp"
 
 #include <filesystem>
 
@@ -102,6 +105,18 @@ bool ParamInfo::isEnum() const { return (flags & CLAP_PARAM_IS_ENUM) != 0; }
 // --- Biblioteca -----------------------------------------------------------------------
 
 std::shared_ptr<ClapLibrary> ClapLibrary::open(const std::string& path, std::string* error) {
+    // Modo seguro (F1-10): los CLAP de terceros no se cargan. Propios son los que
+    // vienen con el programa (adentro del bundle) y los LSP que trae (también en
+    // la copia sombra o el árbol de desarrollo, con el mismo nombre).
+    if (ba::fault::delProceso().apagada(ba::fault::Pieza::ClapTerceros)) {
+        const std::filesystem::path p(path);
+        const std::string rel = p.lexically_normal().lexically_relative(ba::platform::bundleRoot().lexically_normal()).generic_string();
+        const bool propio = (!rel.empty() && rel.rfind("..", 0) != 0) || p.filename() == "lsp-plugins.clap";
+        if (!propio) {
+            if (error != nullptr) *error = ba::i18n::traducir("rack", "modo seguro: los plugins CLAP de terceros no se cargan");
+            return nullptr;
+        }
+    }
     std::shared_ptr<ClapLibrary> lib(new ClapLibrary());
     lib->path_ = path;
     lib->handle_ = openLib(path, error);

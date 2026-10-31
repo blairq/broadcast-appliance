@@ -8,6 +8,7 @@
 #include <system_error>
 
 #include "agent/VozIdioma.hpp"
+#include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
 
 // Sin Qt (test_reconocedores): la marca para lupdate, que deja el texto como está.
@@ -163,6 +164,11 @@ std::set<std::string> Reconocedores::consumidoresDe(MotorOido m) const {
 void Reconocedores::pedirCarga(MotorOido m) {
     EstadoMotor& e = motores_[m];
     if (e.cargado || e.cargando) return;
+    // Modo seguro (F1-10): no se carga ningún modelo; el uso queda con su error.
+    if (ba::fault::delProceso().apagada(ba::fault::Pieza::Modelos)) {
+        e.error = ba::i18n::traducir("reconocedores", "modo seguro: los modelos locales están apagados");
+        return;
+    }
     e.cargando = true;
     e.error.clear();
     if (acciones_.cargar) acciones_.cargar(m);
