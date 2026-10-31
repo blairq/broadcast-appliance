@@ -76,7 +76,9 @@ QString resumenDeNodo(const json& n, int conectadas) {
         const json pp = p.value("params", json::object());
         return t("Controlador · %1").arg(tarjeta == "gst" ? texto(pp.value("elemento", json(""))) : tarjeta == "obs" ? texto(pp.value("filtro", json(""))) : q(tarjeta));
     }
-    if (n.value("controlador", false) || (n.contains("controlador") && n["controlador"].is_string() && !n["controlador"].get<std::string>().empty()))
+    // `controlador` puede ser true o el id del controlador (texto): value<bool> con un texto tira.
+    const json ctl = n.value("controlador", json());
+    if ((ctl.is_boolean() && ctl.get<bool>()) || (ctl.is_string() && !ctl.get<std::string>().empty()))
         return p.value("local", json::object()).empty() ? t("↳ del controlador") : t("↳ del controlador · con ajuste propio");
     if (tipo == "gst") {
         const json pr = p.value("propiedades", json::object());
