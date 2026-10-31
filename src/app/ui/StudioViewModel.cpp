@@ -4,6 +4,8 @@
 
 #include "ui/StudioViewModel.hpp"
 #include "sala/CupoSala.hpp"
+#include "sala/ConfigSala.hpp"
+#include "emision/InputSpecs.hpp"
 #include "sala/VotacionSala.hpp"
 #include "sala/PreguntasSala.hpp"
 #include "sala/SeguridadSala.hpp"
@@ -380,6 +382,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         emit notify(QString::fromStdString(texto), error ? "error" : "ok");
     });
     cupoSala_->alCambiar([this](int n) { frames_->setGuests(n); });
+    configSala_ = std::make_unique<sala::ConfigSala>(conference_->client());
     seguridad_ = std::make_unique<sala::SeguridadSala>(rt.dataRoot(), conference_->client(), [this]() { return modoVivo(); });
     // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
     conference_->setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
@@ -1028,6 +1031,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         avisoFueraDeUi_->escuchar(rt.latido());
         settings_->setEnVivo([this]() { return modoVivo(); });
         settings_->setCupoEnCaliente([this](int n) { return cupoSala_->cambiar(n); });
+        settings_->setConfigSala(configSala_.get());
         // ¿Volvemos de una caída? El supervisor dejó escrita la causa.
         {
             const auto archivo = ba::platform::dataRoot() / "Runtime" / "ultima-caida.json";
@@ -2153,6 +2157,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 
     connect(sources_.get(), &SourcesModel::error, this,
             [this](const QString& m) { emit notify(m, "error"); });
+    connect(settings_.get(), &SettingsModel::avisoSala, this, [this](const QString& texto) { emit notify(texto, "error"); });
     connect(settings_.get(), &SettingsModel::salaReiniciada, this, [this](const QString& e) {
         emit notify(e.isEmpty() ? tr("Conferencia reiniciada con la configuración nueva.")
                                 : tr("La conferencia no se reinició (%1): apretá «Reiniciar la conferencia» en Configuración "
@@ -4700,13 +4705,12 @@ QString StudioViewModel::armarRepeticion(const QString& archivo, const std::stri
     if (std::find(escenas.begin(), escenas.end(), kEscena) == escenas.end() && !rt_.addScene(kEscena))
         return qs(rt_.lastError());
     const std::string ajustes =
-        nlohmann::json{{"is_local_file", true}, {"local_file", archivo.toStdString()}, {"looping", false},
-                       {"restart_on_activate", true}, {"close_when_inactive", true}}
+        nlohmann::json{{"local_file", archivo.toStdString()}, {"looping", false}}
             .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const auto fuentes = e.sceneSources(kEscena);
     if (std::find(fuentes.begin(), fuentes.end(), kFuente) == fuentes.end()) {
         SourceSpec spec;
-        spec.id = "ffmpeg_source";
+        spec.id = inputs::kMedioType;
         spec.name = kFuente;
         spec.settingsJson = ajustes;
         if (!rt_.addSource(kEscena, spec)) return qs(rt_.lastError());

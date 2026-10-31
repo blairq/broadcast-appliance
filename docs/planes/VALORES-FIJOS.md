@@ -29,7 +29,7 @@ No se duplicaron en la página porque ya tienen su lugar en la interfaz: la rete
 Todo lo de las tablas de abajo pasó a Configuración como **ajustes avanzados** (170), salvo lo que se lista al final. Cómo funciona:
 
 - `src/core/ajustes/Ajustes.{hpp,cpp}`: un registro por proceso. La app lo carga de `app.json`, la sala de `gateway.json` y el launcher de `launcher.json`, siempre bajo `"ajustes"` y solo con lo que se cambió. El código lo consulta al usarlo (`ajustes::entero("stream.colaMs", 1000)`), con el valor de siempre como respaldo.
-- `src/app/ui/AjustesAvanzados.cpp`: la tabla (rótulo, rango, unidad, explicación, sección, a qué archivo va). `SettingsModel` los suma a su sección con el rol `avanzado`.
+- `src/core/ajustes/Registro.cpp`: la tabla (el registro central, sin Qt) (rótulo, rango, unidad, explicación, sección, a qué archivo va). `SettingsModel` los suma a su sección con el rol `avanzado`.
 - En la página: interruptor «Mostrar ajustes avanzados» arriba a la derecha. Las secciones que solo tienen avanzados (Audio, Plugins y descargas) los muestran siempre. También van en Traducción, Voz del operador y Modelos locales.
 - Lo de la app rige en caliente (al aplicar se recarga el registro); lo de la sala reinicia la sala; lo del launcher, al volver a abrir el programa.
 - Tests: `src/core/tests/test_ajustes.cpp`.

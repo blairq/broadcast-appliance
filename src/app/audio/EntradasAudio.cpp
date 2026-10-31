@@ -6,7 +6,6 @@
 #include "i18n/I18n.hpp"
 
 #include "audio/UnificarEntradas.hpp"
-#include "emision/InputSpecs.hpp"
 
 #if defined(BA_HAVE_GST)
 #include <gst/gst.h>
@@ -63,7 +62,7 @@ std::string pipelineDeMicrofono(const std::string& dispositivo) {
     return p + kExtra;
 }
 
-std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine& engine) {
+std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine&) {
     std::vector<BroadcastEngine::ListItem> out;
     out.push_back({ba::i18n::traducir("audio", "Entrada de audio predeterminada"), "default", false});
 #if defined(BA_HAVE_GST)
@@ -108,13 +107,8 @@ std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine& engine) 
             for (auto& [nombre, valor] : unificarEntradas(crudas, kElemento)) out.push_back({nombre, valor, false});
         }
         gst_object_unref(mon);
-        if (out.size() > 1) return out;
     }
 #endif
-    std::vector<EntradaCruda> crudas;
-    for (const auto& d : engine.sourceTypeListItems(inputs::kAudioInLibobs, inputs::kAudioInProp))
-        crudas.push_back({d.name, idDesdeLibobs(d.value), "", false});
-    for (auto& [nombre, valor] : unificarEntradas(crudas, kElemento)) out.push_back({nombre, valor, false});
     return out;
 }
 

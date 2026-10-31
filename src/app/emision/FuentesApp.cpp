@@ -3,7 +3,10 @@
 // ============================================================================
 #include "emision/FuentesApp.hpp"
 #include "i18n/I18n.hpp"
+#include "platform/Paths.hpp"
 
+#include <cstdio>
+#include <filesystem>
 #include <atomic>
 #include <mutex>
 
@@ -221,6 +224,24 @@ json filtrosExtra(const std::string& entrada) {
 void ponerAvisoExtras(std::function<void(const std::string&)> fn) {
     std::lock_guard<std::mutex> l(gMu);
     gAvisoExtras = std::move(fn);
+}
+
+std::string rutaDelEvento(const std::string& r) {
+    if (r.empty()) return r;
+    const std::filesystem::path p(std::u8string(r.begin(), r.end()));
+    if (p.is_absolute()) return r;
+    // Antes quedaba relativa a la carpeta de trabajo del proceso, que la app no fija.
+    const std::u8string u = (ba::platform::configRoot() / p).lexically_normal().u8string();
+    return std::string(u.begin(), u.end());
+}
+
+std::string colorDelMotor(const json& v, const char* def) {
+    if (!v.is_number()) return def;
+    const auto c = static_cast<std::uint32_t>(v.get<std::int64_t>());
+    const unsigned a = (c >> 24) & 0xFF, b = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, r = c & 0xFF;
+    char out[16];
+    std::snprintf(out, sizeof out, "#%02X%02X%02X%02X", a, r, g, b);
+    return out;
 }
 
 } // namespace ba::app::fuentes

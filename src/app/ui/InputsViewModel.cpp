@@ -264,7 +264,7 @@ void InputsViewModel::rebuildInputs() {
             disp = dispositivoDe("ndi", QString::fromStdString(s.value("ndi_name", std::string())));
         else
             disp = dispositivoDe("camara_red",
-                                 QUrl(QString::fromStdString(s.value("uri", s.value("input", std::string())))).host());
+                                 QUrl(QString::fromStdString(s.value("uri", std::string()))).host());
         QVariantMap fila{
             {"name", QString::fromStdString(n)},
             {"kind", hw      ? "hardware"
@@ -277,7 +277,7 @@ void InputsViewModel::rebuildInputs() {
                               ? (s.contains("ba_plugin")
                                      ? tr("Plugin: %1").arg(QString::fromStdString(s.value("ba_plugin", std::string()))).toStdString()
                                      : inputs::redactUrl(s.value("uri", s.value("pipeline", std::string()))))
-                              : inputs::redactUrl(s.value("input", std::string())))},
+                              : std::string())},
             {"width", w},
             {"height", h},
             {"receiving", w > 0},

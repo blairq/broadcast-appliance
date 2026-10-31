@@ -456,6 +456,9 @@ class SignalingServer {
     static constexpr int kPinLockoutSecPerIp = 60;
     std::map<std::uint32_t, IpAttempts> ipAttempts_;
     mutable std::mutex ipAttemptsLock_;
+    /// Intentos de PIN por IP y bloqueo (los de cfg_ al arrancar; se cambian en caliente
+    /// por PUT /api/v1/config/sala). Con ipAttemptsLock_.
+    int pinIntentos_ = 5, pinBloqueoS_ = 60;
     bool ipAttemptAllowed(std::uint32_t ip);
     void ipRecordFailure(std::uint32_t ip);
     void ipRecordSuccess(std::uint32_t ip);
@@ -464,6 +467,8 @@ class SignalingServer {
     void handleAdmin(long long fd, const std::string& method, const std::string& path,
                      const std::string& query, const std::string& headers, const std::string& body);
     bool adminAuthorized(const std::string& headers, const std::string& method) const;
+    /// PUT /api/v1/config/<sección>: la configuración en caliente (F3-06; ver sala/ConfigSala.hpp de la app).
+    void aplicarConfig(long long fd, const std::string& seccion, const nlohmann::json& req);
     void adminEvents(long long fd);
     void adminShareContent(long long fd, const std::string& id);
     void broadcastToHosts(const std::string& event, const nlohmann::json& data);

@@ -78,6 +78,7 @@ class BancoSuperRes;
 } // namespace ba::app::video
 namespace ba::app::sala {
 class CupoSala;
+class ConfigSala;
 class Direcciones;
 class VotacionSala;
 class PreguntasSala;
@@ -681,6 +682,8 @@ class StudioViewModel : public QObject {
     /// El cupo de invitados (modelo: sala::CupoSala). La interfaz y el MCP lo piden
     /// por acá; el resultado se muestra como aviso.
     sala::CupoSala& cupoSala() { return *cupoSala_; }
+    /// La configuración de la sala en caliente (modelo: sala::ConfigSala).
+    sala::ConfigSala& configSala() { return *configSala_; }
     /// La votación de la sala (modelo).
     sala::VotacionSala& votacion() { return *votacion_; }
     /// La cola de preguntas de la sala (modelo).
@@ -1135,6 +1138,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
     std::unique_ptr<sala::CupoSala> cupoSala_; ///< usa el cliente de conference_: va después (se destruye antes)
+    std::unique_ptr<sala::ConfigSala> configSala_; ///< ídem
     std::unique_ptr<sala::Direcciones> direcciones_; ///< idem: el catálogo de direcciones del gateway
     std::unique_ptr<sala::VotacionSala> votacion_; ///< ídem
     std::unique_ptr<sala::PreguntasSala> preguntas_; ///< ídem

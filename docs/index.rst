@@ -104,8 +104,8 @@ Estado
 ------
 
 Los procesos están **implementados** y compilan (cross MinGW a Windows; el
-núcleo además nativo en Linux). Ya no son esqueletos: `ba-app` (MainWindow +
-OperatorEngine), `ba-gateway` (Webrtc/SignalingServer/Cloudflared/MediaPump/
+núcleo además nativo en Linux). Ya no son esqueletos: `ba-app` (interfaz QML +
+BroadcastEngine sobre GStreamer), `ba-gateway` (Webrtc/SignalingServer/Cloudflared/MediaPump/
 TokenAuth), `ba-sources` (módulo libobs) y el rack de audio (host CLAP + módulos
 LSP) están completos, y el launcher suma `RecoveryUi` (ventana
 Win32 con `Incident` + `RecoveryAction`). Quedan por hacer los **tests de

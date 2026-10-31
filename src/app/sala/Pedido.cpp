@@ -36,7 +36,8 @@ void pedir(ConferenceClient& cliente, const std::string& metodo, const std::stri
         const QJsonObject o =
             QJsonDocument::fromJson(QByteArray::fromStdString(cuerpo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
                 .object();
-        cliente.post(q, o, alVolver);
+        if (metodo == "PUT") cliente.put(q, o, alVolver);
+        else cliente.post(q, o, alVolver);
     }
 }
 

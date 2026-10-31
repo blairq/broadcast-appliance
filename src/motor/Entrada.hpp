@@ -243,6 +243,10 @@ class Entrada {
     /// "auto" (lo que diga la señal) | "no" | un método de `deinterlace` (yadif, linear…);
     /// `campo_` "auto" | "tff" | "bff".
     std::string colorReal_, desentrelazar_ = "auto", campo_ = "auto";
+    /// Una entrada de red: `rtsp_transporte` (tcp|udp), `tls_ca` (raíces para TLS) y
+    /// `reconectar_s` (primera espera al caerse). Ver OrigenRed.hpp.
+    std::string transporteRtsp_, tlsCa_;
+    int reconectarMs_ = 1000;
     std::int64_t rearmePedidoNs_ = 0; ///< el último rearme por un cambio de configuración (no por una caída)
     std::vector<Filtro> filtrosV_, filtrosA_;
     bool alfa_ = false, normalizar_ = true, conAudio_ = true, estudio_ = true, ntpSync_ = true, superres_ = false;

@@ -499,7 +499,8 @@ json RackManager::audioSources() const {
             group = QT_TRANSLATE_NOOP("audio", "Micrófonos y líneas del equipo");
         } else if (type.find("_output_capture") != std::string::npos) {
             group = QT_TRANSLATE_NOOP("audio", "Audio del equipo (lo que suena)");
-        } else if (type == "ffmpeg_source" || type == "ba_gst_medio" || type == "vlc_source" || type == "ba_ndi_input") {
+        } else if (type == inputs::kMedioType || type == "ba_ndi_input" ||
+                   inputs::isNetworkInput(type, json::parse(e->sourceSettingsJson(name), nullptr, false))) {
             group = QT_TRANSLATE_NOOP("audio", "Medios y red");
         }
         json j{{"nombre", name}, {"tipo", type}, {"grupo", group}, {"rack", false}};

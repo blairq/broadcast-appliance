@@ -27,10 +27,19 @@ namespace origen_red {
 /// ¿Es una dirección de red que conviene compartir? (rtsp, rtmp, srt, http…; no archivos).
 bool esDeRed(const std::string& uri);
 
+/// Cómo se recibe una dirección (lo que guardó la entrada). Todo es parte de la
+/// clave del origen: con otros valores, otra conexión.
+struct Opciones {
+    int latenciaMs = 200;       ///< el colchón de RTSP/SRT
+    bool ntp = false;           ///< RTSP: la hora de captura del que manda
+    std::string transporteRtsp; ///< "tcp", "udp" o "" (lo que negocie rtspsrc)
+    std::string ca;             ///< raíces para verificar https/rtsps/rtmps ("" = las de GIO)
+    int reconectarMs = 1000;    ///< primera espera para reconectar (después se duplica hasta 10 s)
+};
+
 /// Pide el origen de `uri` (lo crea si no existe) y devuelve el prefijo del
-/// productor: «origen:<n>». Lo que cambia cómo se recibe (latencia del colchón,
-/// hora de captura) es parte de la clave: con otros valores, otro origen.
-std::string usar(const Reloj& reloj, const std::string& uri, int latenciaMs, bool ntp);
+/// productor: «origen:<n>».
+std::string usar(const Reloj& reloj, const std::string& uri, const Opciones& op);
 
 /// Suelta el origen pedido con `usar` (por el prefijo).
 void soltar(const std::string& prefijo);

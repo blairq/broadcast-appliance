@@ -3,6 +3,7 @@
 #include "i18n/I18n.hpp"
 
 #include "arranque/AppRuntime.hpp"
+#include "emision/InputSpecs.hpp"
 #include "platform/Paths.hpp"
 
 #include <QFileInfo>
@@ -109,9 +110,9 @@ std::string Playlist::asegurarEscena() {
     const auto fuentes = e.sceneSources(kEscena);
     if (std::find(fuentes.begin(), fuentes.end(), kFuente) == fuentes.end()) {
         SourceSpec spec;
-        spec.id = "ffmpeg_source";
+        spec.id = inputs::kMedioType;
         spec.name = kFuente;
-        spec.settingsJson = json{{"is_local_file", true}, {"restart_on_activate", false}, {"clear_on_media_end", false}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        spec.settingsJson = json{{"clear_on_media_end", false}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (!rt_.addSource(kEscena, spec)) return rt_.lastError();
         rt_.save();
     }
@@ -123,12 +124,9 @@ std::string Playlist::cargarItem(int i) {
         return ba::i18n::llenar(ba::i18n::traducir("medios", "no hay un ítem %1"), {std::to_string(i + 1)});
     if (const std::string e = asegurarEscena(); !e.empty()) return e;
     const json& it = items_[static_cast<size_t>(i)];
-    const std::string ajustes = json{{"is_local_file", true},
-                                     {"local_file", it.value("archivo", std::string())},
+    const std::string ajustes = json{{"local_file", it.value("archivo", std::string())},
                                      {"looping", false},
-                                     {"restart_on_activate", false},
-                                     {"clear_on_media_end", false},
-                                     {"hw_decode", true}}
+                                     {"clear_on_media_end", false}}
                                     .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!rt_.updateSourceSettings(kFuente, ajustes)) return rt_.lastError();
     // libobs no hace correr un medio que no se ve en ningún lado: si la escena no

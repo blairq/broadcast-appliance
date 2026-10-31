@@ -7,6 +7,7 @@
 #include <filesystem>
 
 #include "Log.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Hilo.hpp"
 
@@ -41,12 +42,28 @@ std::string q(const std::string& ruta) {
 } // namespace
 
 std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile, const std::string& logPath) {
-    const std::string procesos = c.procesos > 0 ? std::to_string(c.procesos) : "auto";
+    // Los workers, resueltos acá (como «auto» en ba-web: los núcleos, hasta 4): los topes
+    // de abajo se reparten entre ellos.
+    const int procesos =
+        c.procesos > 0 ? c.procesos : std::clamp(static_cast<int>(std::thread::hardware_concurrency()), 1, 4);
     const std::string cache = std::to_string(c.cacheMs > 0 ? c.cacheMs : 1000) + "ms";
+    // Lo que ba-web le abre al gateway sale de los cupos del gateway (F0-07), no de un número
+    // propio: cada escucha del gateway acepta `room.maxConexiones` y cada IP real, sumando
+    // todo, `room.maxConexionesPorIp`. Repartido entre los workers (cada uno cuenta lo suyo),
+    // ba-web nunca le manda más de lo que acepta: lo que sobra lo frena ba-web con un 503,
+    // sin un hilo del gateway de por medio. Antes ba-web tenía 512 por worker contra 256 del
+    // gateway por escucha. Una cuarta parte de cada escucha queda para lo que llega directo
+    // (la red local por HTTP, el túnel si ba-web se cae y se relanza).
+    const int cupoEscucha = ba::ajustes::entero("room.maxConexiones", 256);
+    const int porIp = ba::ajustes::entero("room.maxConexionesPorIp", 32);
+    const int alGateway = std::max(1, cupoEscucha * 3 / 4 / procesos);
+    const int tunelesPorIp = std::max(1, porIp / procesos);
     std::string s;
     s += "# Generado por el gateway al arrancar (BaWeb.cpp): no se edita a mano.\n";
-    s += "worker_processes " + procesos + ";\n";
+    s += "worker_processes " + std::to_string(procesos) + ";\n";
     s += "worker_connections 4096;\n";
+    s += "upstream_max_conns " + std::to_string(alGateway) + ";\n";
+    s += "limit_tunnels_per_ip " + std::to_string(tunelesPorIp) + ";\n";
     // El túnel. real_ip_xff: la IP real es la última de X-Forwarded-For, la que agrega pinggy (--xff).
     if (c.tunel)
         s += "listen 127.0.0.1:" + std::to_string(c.puerto) + (c.proxyProtocol ? " proxy_protocol" : "") +

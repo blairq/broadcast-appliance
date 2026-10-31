@@ -36,7 +36,7 @@ void registrarTipo() {
     t.video = true;
     t.audio = false;
     t.defectos = Config::defectos();
-    t.motor = ajustesMotor;
+    t.motor = [](const json& a, int, int) { return ajustesMotor(a); };
     t.props = [](const json& a) {
         using P = fuentes::Prop;
         std::vector<P> out;

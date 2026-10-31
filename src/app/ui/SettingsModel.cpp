@@ -21,7 +21,8 @@
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/IdiomaSistema.hpp"
-#include "ui/AjustesAvanzados.hpp"
+#include "ajustes/Registro.hpp"
+#include "sala/ConfigSala.hpp"
 #include "control/TemasWeb.hpp"
 #include "ipc/LugaresSala.hpp"
 
@@ -228,16 +229,16 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
         {"gateway.returnH", "Invitados", traducir("ajustes", "Retorno al invitado: alto"), "int", {}, 180, 1080, "px", "", "gateway", 360},
         // --- Conferencia -----------------------------------------------------------
         {"gateway.room", "Conferencia", traducir("ajustes", "Nombre de la conferencia"), "text", {}, 0, 0, "", traducir("ajustes", "Nombre de la conferencia a la que entran los invitados."), "gateway", "sala1"},
-        {"room.lobby", "Conferencia", traducir("ajustes", "Lobby de admisión"), "bool", {}, 0, 0, "", traducir("ajustes", "Cada invitado espera a que lo hagas pasar (y mientras espera solo te ve a vos)."), "gateway", true},
+        {"room.lobby", "Conferencia", traducir("ajustes", "Lobby de admisión"), "bool", {}, 0, 0, "", traducir("ajustes", "Cada invitado espera a que lo hagas pasar (y mientras espera solo te ve a vos)."), "live", true},
         {"room.lobbySlots", "Conferencia", traducir("ajustes", "Previews del lobby"), "int", {}, 0, 8, "", traducir("ajustes", "Cuántos de los que esperan pueden mostrarte su cámara a la vez."), "gateway", 4},
         {"room.maxBackstage", "Conferencia", traducir("ajustes", "Fila de oradores"), "int", {}, 0, 32, "", traducir("ajustes", "Modo oradores: cuántos en la fila pueden ver el programa a la vez (cada uno usa una sesión de video)."), "gateway", 12},
         {"room.backstagePreviews", "Conferencia", traducir("ajustes", "Previews de la fila"), "int", {}, 0, 8, "", traducir("ajustes", "Modo oradores: cuántos de la fila (los primeros) te muestran su cámara en la app."), "gateway", 6},
         {"room.vistasRemotas", "Sesión remota", traducir("ajustes", "Integrantes mirando a la vez"), "int", {}, 1, 64, "", traducir("ajustes", "Sesión remota: cuántos integrantes pueden mirar un canal a la vez en su celular (cada uno es una conexión de video)."), "gateway", 16},
         {"gateway.programaW", "Pantallas", traducir("ajustes", "Retorno a las pantallas: ancho"), "int", {}, 320, 3840, "px", traducir("ajustes", "Resolución del programa que va a las pantallas de la sala y a los celulares."), "gateway", 1280},
         {"gateway.programaH", "Pantallas", traducir("ajustes", "Retorno a las pantallas: alto"), "int", {}, 180, 2160, "px", "", "gateway", 720},
-        {"room.pinIntentos", "Conferencia", traducir("ajustes", "PIN: intentos por dirección"), "int", {}, 1, 100, "", traducir("ajustes", "PIN mal tantas veces desde una misma dirección: se la bloquea un rato."), "gateway", 5},
-        {"room.pinBloqueo", "Conferencia", traducir("ajustes", "PIN: bloqueo"), "int", {}, 5, 86400, "s", traducir("ajustes", "Cuánto queda bloqueada esa dirección."), "gateway", 60},
-        {"room.maxUploadMB", "Conferencia", traducir("ajustes", "Tope por archivo compartido"), "int", {}, 1, 20480, "MB", "", "gateway", 2048},
+        {"room.pinIntentos", "Conferencia", traducir("ajustes", "PIN: intentos por dirección"), "int", {}, 1, 100, "", traducir("ajustes", "PIN mal tantas veces desde una misma dirección: se la bloquea un rato."), "live", 5},
+        {"room.pinBloqueo", "Conferencia", traducir("ajustes", "PIN: bloqueo"), "int", {}, 5, 86400, "s", traducir("ajustes", "Cuánto queda bloqueada esa dirección."), "live", 60},
+        {"room.maxUploadMB", "Conferencia", traducir("ajustes", "Tope por archivo compartido"), "int", {}, 1, 20480, "MB", "", "live", 2048},
         // --- Red de la conferencia -------------------------------------------------
         {"gateway.port", "Red de la conferencia", traducir("ajustes", "Puerto de la conferencia"), "int", {}, 1024, 65535, "", "", "gateway", 8787},
         {"gateway.bind", "Red de la conferencia", traducir("ajustes", "Acceso (dónde escucha)"), "choice", opcionesBind(rt.gateway().bindAddress), 0, 0, "", traducir("ajustes", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la conferencia."), "gateway", "127.0.0.1"},
@@ -293,20 +294,27 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent)
         {"launcher.recoveryUi", "Sistema y datos", traducir("ajustes", "Diálogo de recuperación"), "bool", {}, 0, 0, "", traducir("ajustes", "Si está apagado, el supervisor reinicia solo sin preguntar."), "restart", true},
     };
     // clang-format on
-    // Los avanzados (antes valores fijos en el código): al final, cada uno en su sección.
-    // Su tabla marca los textos (QT_TRANSLATE_NOOP): se traducen acá. Lo que no se marcó
-    // (unidades, siglas) no pasa por la traducción.
+    // Los avanzados (antes valores fijos en el código): al final, cada uno en su sección,
+    // del registro central (ajustes/Registro.hpp). Su tabla marca los textos
+    // (QT_TRANSLATE_NOOP): se traducen acá. Lo que no se marcó (unidades, siglas) no pasa
+    // por la traducción.
     const auto deTabla = [](const QString& t) {
         return t.isEmpty() ? t : traducir("ajustes", t.toUtf8().constData());
     };
     static const QRegularExpression palabra("[a-záéíóúñ]{5}");
     const auto marcado = [](const QString& t) { return t.contains(palabra); };
-    for (const AjusteAvanzado& a : ajustesAvanzados()) {
+    const auto u = [](const char* t) { return QString::fromUtf8(t); };
+    for (const ba::ajustes::Definicion& a : ba::ajustes::registro()) {
         QVariantList opciones;
         for (const auto& [v, l] : a.opciones)
-            opciones << QVariantMap{{"value", v}, {"label", v != l && marcado(l) ? deTabla(l) : l}};
-        const QString sufijo = marcado(a.suffix) ? deTabla(a.suffix) : a.suffix;
-        Field f{a.key, a.section, deTabla(a.label), a.kind, opciones, a.min, a.max, sufijo, deTabla(a.help), a.scope, a.def};
+            opciones << QVariantMap{{"value", u(v)}, {"label", u(v) != u(l) && marcado(u(l)) ? deTabla(u(l)) : u(l)}};
+        const QString sufijo = marcado(u(a.sufijo)) ? deTabla(u(a.sufijo)) : u(a.sufijo);
+        const QVariant def = a.defecto.is_boolean()  ? QVariant(a.defecto.get<bool>())
+                             : a.defecto.is_string() ? QVariant(qs(a.defecto.get<std::string>()))
+                             : std::string(a.tipo) == "float" ? QVariant(a.defecto.get<double>())
+                                                              : QVariant(a.defecto.get<int>());
+        Field f{u(a.clave), u(a.seccion), deTabla(u(a.etiqueta)), u(a.tipo), opciones, a.min, a.max,
+                sufijo, deTabla(u(a.ayuda)), u(a.alcance), def};
         f.avanzado = true;
         f.destino = static_cast<int>(a.destino);
         fields_.push_back(std::move(f));
@@ -769,13 +777,18 @@ QString SettingsModel::apply() {
         if (!e.empty()) notes << traducir("ajustes", "Cupo: %1").arg(QString::fromStdString(e));
     }
     // Los avanzados: cada uno a su archivo ("ajustes"), solo los que no están en su valor de siempre.
+    // Los de la sala: los de alcance «live» rigen en caliente (se le mandan por su API,
+    // sala::ConfigSala); el resto la reinicia (porQue).
     json ajApp = json::object(), ajSala = json::object(), ajLauncher = json::object();
-    bool cambiaSala = false, cambiaLauncher = false;
+    json ajSalaEnCaliente = json::object(); // los «live» de la sala: van al gateway andando
+    bool ajustesSalaEnCaliente = false, cambiaLauncher = false;
+    QStringList porQue;
     for (const Field& f : fields_) {
         if (!f.avanzado) continue;
         const QVariant v = draft_.value(f.key);
         if (v != saved_.value(f.key)) {
-            if (f.destino == 1) cambiaSala = true;
+            if (f.destino == 1 && f.scope == "live") ajustesSalaEnCaliente = true;
+            else if (f.destino == 1) porQue << f.key;
             if (f.destino == 2) cambiaLauncher = true;
         }
         if (v == f.def) continue;
@@ -784,14 +797,22 @@ QString SettingsModel::apply() {
                   : f.kind == "bool" ? json(v.toBool())
                                      : json(v.toString().toStdString());
         (f.destino == 1 ? ajSala : f.destino == 2 ? ajLauncher : ajApp)[f.key.toStdString()] = jv;
+        if (f.destino == 1 && f.scope == "live") ajSalaEnCaliente[f.key.toStdString()] = jv;
     }
     c.ajustes = ajApp;
     ba::ajustes::cargar(c.ajustes); // en caliente: el código los lee al usarlos
     rt_.launcher().ajustes = ajLauncher;
     if (cambiaLauncher) notes << traducir("ajustes", "Los avanzados del arranque rigen al volver a abrir el programa.");
-    const QStringList porQue = cambiadas({"gateway.", "guests.reserva", "room.", "direct.", "wg.", "pinggy."}) +
-                               (cupoEnVivo ? QStringList() : cambiadas({"guests.count"}));
-    if (!porQue.isEmpty() || cambiaSala) {
+    bool salaEnCaliente = false;
+    for (const QString& k : cambiadas({"gateway.", "guests.reserva", "room.", "direct.", "wg.", "pinggy."}) +
+                                (cupoEnVivo ? QStringList() : cambiadas({"guests.count"}))) {
+        if (alcance(k) == "live") salaEnCaliente = true;
+        else porQue << k;
+    }
+    // Sin la sala para mandárselo, lo que rige en caliente queda para cuando arranque.
+    if (configSala_ == nullptr && (salaEnCaliente || ajustesSalaEnCaliente) && porQue.isEmpty())
+        notes << traducir("ajustes", "La conferencia toma estos cambios cuando arranque.");
+    if (!porQue.isEmpty() || salaEnCaliente || ajustesSalaEnCaliente) {
         GatewaySettings& g = rt_.gateway();
         g.ajustes = ajSala;
         g.room = s("gateway.room");
@@ -859,7 +880,7 @@ QString SettingsModel::apply() {
         // entradas de video de los lugares nuevos (si no, «Invitado 5» no aparecía).
         if (!cupoEnVivo && i("guests.count") != c.guests) rt_.ajustarInvitados(i("guests.count"));
         g.guestsReserva = std::max(i("guests.reserva"), c.guests);
-        restartB = true;
+        restartB = !porQue.isEmpty();
     }
     LauncherSettings& l = rt_.launcher();
     l.shadowCopy = b("launcher.shadow");
@@ -882,8 +903,35 @@ QString SettingsModel::apply() {
     } else {
         notes << traducir("ajustes", "Configuracion guardada.");
     }
+    if (!restartB && configSala_ != nullptr) {
+        // En caliente: el gateway los aplica andando, sin cortar a nadie. Lo que no
+        // pudo (la sala no contesta, un valor que rechazó) se avisa: queda guardado y
+        // rige cuando la conferencia vuelva a arrancar.
+        QPointer<SettingsModel> yo(this);
+        const auto alVolver = [yo](const std::string& e) {
+            if (yo && !e.empty())
+                emit yo->avisoSala(traducir("ajustes", "La conferencia no tomó los cambios en caliente (%1): rigen cuando "
+                                                       "vuelva a arrancar.")
+                                       .arg(QString::fromStdString(e)));
+        };
+        if (ajustesSalaEnCaliente) configSala_->aplicar("ajustes", json{{"valores", ajSalaEnCaliente}}, alVolver);
+        if (salaEnCaliente) {
+            const GatewaySettings& g = rt_.gateway();
+            configSala_->aplicar("sala",
+                                 json{{"lobby", g.lobby},
+                                      {"pinIntentos", g.pinIntentos},
+                                      {"pinBloqueoS", g.pinBloqueoS},
+                                      {"maxUploadMB", g.maxUploadMB}},
+                                 alVolver);
+        }
+        if (ajustesSalaEnCaliente || salaEnCaliente)
+            notes << traducir("ajustes", "La conferencia los toma en caliente, sin reiniciarse.");
+    }
     if (restartB) {
-        if (!porQue.isEmpty()) notes << traducir("ajustes", "Se reinicia la conferencia por: %1.").arg(porQue.join(", "));
+        notes << traducir("ajustes", "Se reinicia la conferencia por: %1.").arg(porQue.join(", "));
+        // Reiniciarla corta a todos: que se sepa a cuántos.
+        if (const int n = configSala_ != nullptr ? configSala_->conectados() : -1; n > 0)
+            notes << traducir("ajustes", "Se cortan %1 conectados: vuelven a entrar solos en unos segundos.").arg(n);
         // Aparte: esperar que el gateway se cierre trababa la interfaz unos segundos
         // (al prender o apagar pinggy, por ejemplo). El resultado llega como señal.
         notes << traducir("ajustes", "Reiniciando la conferencia con la configuración nueva…");

@@ -160,6 +160,10 @@ void ConferenceClient::post(const QString& path, const QJsonObject& body, Done d
     send("POST", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done), timeoutMs);
 }
 
+void ConferenceClient::put(const QString& path, const QJsonObject& body, Done done) {
+    send("PUT", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done), 5000);
+}
+
 void ConferenceClient::del(const QString& path, Done done) { send("DELETE", path, {}, std::move(done)); }
 
 void ConferenceClient::get(const QString& path, Done done) { send("GET", path, {}, std::move(done)); }

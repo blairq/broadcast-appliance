@@ -7,6 +7,8 @@
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
+
+#include <gio/gio.h>
 #include "platform/Hilo.hpp"
 
 #include <algorithm>
@@ -26,15 +28,14 @@ namespace {
 
 struct Origen {
     std::string uri;
-    int latenciaMs = 200;
-    bool ntp = false;
+    Opciones op;
     const Reloj* reloj = nullptr;
     std::string prefijo;
     GstElement* pipeline = nullptr;
     int usuarios = 0;
     gint64 sinUsoDesde = 0;   ///< µs (monotónico) desde que nadie lo usa
     gint64 reintentoEn = 0;   ///< µs: cuándo volver a conectar (0 = no hace falta)
-    gint64 esperaMs = 1000;   ///< crece con cada caída seguida (hasta 10 s)
+    gint64 esperaMs = 1000;   ///< arranca en op.reconectarMs y crece con cada caída seguida (hasta 10 s)
     /// El pipeline anterior se está desarmando aparte (ver desarmar): hasta que
     /// termine no se arma otro (los productores inter llevan el mismo nombre).
     std::shared_ptr<std::atomic<bool>> desarmando;
@@ -45,7 +46,7 @@ std::mutex& mu() {
     static auto* m = new std::mutex;
     return *m;
 }
-std::map<std::string, Origen>& origenes() { // clave: uri|latencia|ntp
+std::map<std::string, Origen>& origenes() { // clave: la uri y las Opciones
     static auto* m = new std::map<std::string, Origen>;
     return *m;
 }
@@ -61,6 +62,26 @@ std::string conComillasGst(const std::string& s) {
         out += c;
     }
     return out + "\"";
+}
+
+/// La espera de la primera reconexión, en su rango.
+gint64 esperaInicial(const Opciones& op) { return std::clamp<gint64>(op.reconectarMs, 200, 10000); }
+
+/// Las raíces de un archivo PEM para verificar TLS: una base por archivo y para
+/// siempre (como los orígenes, nunca se destruye). nullptr si no se pudo leer.
+GTlsDatabase* raices(const std::string& ca) {
+    static auto* m = new std::mutex;
+    static auto* bases = new std::map<std::string, GTlsDatabase*>;
+    std::lock_guard<std::mutex> l(*m);
+    if (const auto it = bases->find(ca); it != bases->end()) return it->second;
+    GError* e = nullptr;
+    GTlsDatabase* db = g_tls_file_database_new(ca.c_str(), &e);
+    if (e != nullptr) {
+        registrar(Nivel::Aviso, llenar(traducir("motor", "raíces de TLS %1: %2"), {ca, ba::diag::utf8Valido(e->message)}));
+        g_error_free(e);
+    }
+    (*bases)[ca] = db;
+    return db;
 }
 
 // SE DESARMA APARTE. Pasar a NULL un RTSP que no contesta tarda lo que tarde la
@@ -114,18 +135,28 @@ void armar(Origen& o) {
         return;
     }
     if (GstElement* dec = gst_bin_get_by_name(GST_BIN(p), "ba_dec")) {
-        // RTSP y SRT: la latencia de su colchón y, en RTSP, la hora de captura del que manda.
+        // RTSP y SRT: la latencia de su colchón y, en RTSP, la hora de captura del que manda
+        // y el transporte elegido; con TLS, las raíces con las que se verifica al servidor.
         g_signal_connect(dec, "source-setup",
                          G_CALLBACK(+[](GstElement*, GstElement* fuente, gpointer d) {
-                             const auto* o = static_cast<const Origen*>(d);
+                             const Opciones& op = static_cast<const Origen*>(d)->op;
                              GObjectClass* k = G_OBJECT_GET_CLASS(fuente);
-                             const std::string lat = std::to_string(std::max(o->latenciaMs, 20));
+                             const std::string lat = std::to_string(std::max(op.latenciaMs, 20));
                              if (g_object_class_find_property(k, "latency") != nullptr)
                                  gst_util_set_object_arg(G_OBJECT(fuente), "latency", lat.c_str());
                              if (g_object_class_find_property(k, "ntp-sync") != nullptr)
-                                 gst_util_set_object_arg(G_OBJECT(fuente), "ntp-sync", o->ntp ? "true" : "false");
+                                 gst_util_set_object_arg(G_OBJECT(fuente), "ntp-sync", op.ntp ? "true" : "false");
                              if (g_object_class_find_property(k, "buffer-mode") != nullptr)
-                                 gst_util_set_object_arg(G_OBJECT(fuente), "buffer-mode", o->ntp ? "synced" : "slave");
+                                 gst_util_set_object_arg(G_OBJECT(fuente), "buffer-mode", op.ntp ? "synced" : "slave");
+                             if (!op.transporteRtsp.empty() && g_object_class_find_property(k, "protocols") != nullptr)
+                                 gst_util_set_object_arg(G_OBJECT(fuente), "protocols", op.transporteRtsp.c_str());
+                             if (!op.ca.empty()) {
+                                 if (g_object_class_find_property(k, "tls-database") != nullptr) {
+                                     if (GTlsDatabase* db = raices(op.ca)) g_object_set(fuente, "tls-database", db, nullptr);
+                                 } else if (g_object_class_find_property(k, "ssl-ca-file") != nullptr) {
+                                     g_object_set(fuente, "ssl-ca-file", op.ca.c_str(), nullptr);
+                                 }
+                             }
                          }),
                          &o);
         gst_object_unref(dec);
@@ -152,14 +183,15 @@ bool esDeRed(const std::string& uri) {
     return false;
 }
 
-std::string usar(const Reloj& reloj, const std::string& uri, int latenciaMs, bool ntp) {
+std::string usar(const Reloj& reloj, const std::string& uri, const Opciones& op) {
     std::lock_guard<std::mutex> l(mu());
-    const std::string clave = uri + "|" + std::to_string(latenciaMs) + "|" + (ntp ? "1" : "0");
+    const std::string clave = uri + "|" + std::to_string(op.latenciaMs) + "|" + (op.ntp ? "1" : "0") + "|" +
+                              op.transporteRtsp + "|" + op.ca + "|" + std::to_string(op.reconectarMs);
     Origen& o = origenes()[clave];
     if (o.prefijo.empty()) {
         o.uri = uri;
-        o.latenciaMs = latenciaMs;
-        o.ntp = ntp;
+        o.op = op;
+        o.esperaMs = esperaInicial(op);
         o.reloj = &reloj;
         o.prefijo = "origen:" + std::to_string(++contador());
     }
@@ -210,7 +242,7 @@ void tic() {
                            GST_MESSAGE_SRC(m) == GST_OBJECT(o.pipeline)) {
                     GstState viejo, nuevo;
                     gst_message_parse_state_changed(m, &viejo, &nuevo, nullptr);
-                    if (nuevo == GST_STATE_PLAYING) o.esperaMs = 1000; // anduvo: la próxima caída espera poco
+                    if (nuevo == GST_STATE_PLAYING) o.esperaMs = esperaInicial(o.op); // anduvo: la próxima caída espera poco
                 }
                 gst_message_unref(m);
             }

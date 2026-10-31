@@ -3923,7 +3923,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3530
+        "linea": 3529
       },
       "roles": [
         "asistente"
@@ -4246,7 +4246,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1379
+        "linea": 1380
       },
       "roles": [
         "asistente",
@@ -4333,7 +4333,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2228
+        "linea": 2227
       },
       "roles": [
         "asistente",
@@ -4366,7 +4366,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2473
+        "linea": 2472
       },
       "roles": [
         "asistente",
@@ -4418,7 +4418,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2504
+        "linea": 2503
       },
       "roles": [
         "asistente",
@@ -4451,7 +4451,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2490
+        "linea": 2489
       },
       "roles": [
         "asistente",
@@ -4541,7 +4541,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2321
+        "linea": 2320
       },
       "roles": [
         "asistente",
@@ -4588,7 +4588,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2191
+        "linea": 2190
       },
       "roles": [
         "asistente",
@@ -4634,7 +4634,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2338
+        "linea": 2337
       },
       "roles": [
         "asistente",
@@ -4671,7 +4671,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2283
+        "linea": 2282
       },
       "roles": [
         "asistente",
@@ -4751,7 +4751,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2156
+        "linea": 2155
       },
       "roles": [
         "asistente",
@@ -8733,7 +8733,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3483
+        "linea": 3482
       },
       "roles": [
         "asistente"
@@ -9676,7 +9676,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3466
+        "linea": 3465
       },
       "roles": [
         "asistente"
@@ -10942,7 +10942,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4268
+        "linea": 4267
       },
       "roles": [
         "asistente"
@@ -10968,7 +10968,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2553
+        "linea": 2552
       },
       "roles": [
         "asistente"
@@ -11001,7 +11001,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2570
+        "linea": 2569
       },
       "roles": [
         "asistente"
@@ -11031,7 +11031,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4148
+        "linea": 4147
       },
       "roles": [
         "asistente"
@@ -11066,7 +11066,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4182
+        "linea": 4181
       },
       "roles": [
         "asistente"
@@ -12511,7 +12511,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpInputTools.cpp",
-        "linea": 276
+        "linea": 279
       },
       "roles": [
         "asistente",
@@ -12560,7 +12560,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpInputTools.cpp",
-        "linea": 213
+        "linea": 216
       },
       "roles": [
         "asistente",
@@ -12595,7 +12595,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpInputTools.cpp",
-        "linea": 188
+        "linea": 191
       },
       "roles": [
         "asistente",
@@ -12638,10 +12638,6 @@
               "udp"
             ],
             "default": "tcp"
-          },
-          "hwDecode": {
-            "type": "boolean",
-            "default": true
           },
           "reconnectSec": {
             "type": "integer",
@@ -13455,7 +13451,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1011
+        "linea": 1012
       },
       "roles": [
         "asistente",
@@ -13510,7 +13506,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1041
+        "linea": 1042
       },
       "roles": [
         "asistente",
@@ -13548,7 +13544,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1072
+        "linea": 1073
       },
       "roles": [
         "asistente",
@@ -13600,7 +13596,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1357
+        "linea": 1358
       },
       "roles": [
         "asistente",
@@ -13632,7 +13628,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1087
+        "linea": 1088
       },
       "roles": [
         "asistente",
@@ -13681,7 +13677,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1401
+        "linea": 1402
       },
       "roles": [
         "asistente",
@@ -13730,7 +13726,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1447
+        "linea": 1448
       },
       "roles": [
         "asistente",
@@ -13765,7 +13761,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1431
+        "linea": 1432
       },
       "roles": [
         "asistente",
@@ -13798,7 +13794,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1315
+        "linea": 1316
       },
       "roles": [
         "asistente",
@@ -13888,7 +13884,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1586
+        "linea": 1587
       },
       "roles": [
         "asistente",
@@ -13924,7 +13920,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1509
+        "linea": 1510
       },
       "roles": [
         "asistente",
@@ -13961,7 +13957,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1547
+        "linea": 1548
       },
       "roles": [
         "asistente",
@@ -13999,7 +13995,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1208
+        "linea": 1209
       },
       "roles": [
         "asistente",
@@ -14032,7 +14028,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1172
+        "linea": 1173
       },
       "roles": [
         "asistente",
@@ -14071,7 +14067,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1233
+        "linea": 1234
       },
       "roles": [
         "asistente",
@@ -14110,7 +14106,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1287
+        "linea": 1288
       },
       "roles": [
         "asistente",
@@ -14150,7 +14146,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1482
+        "linea": 1483
       },
       "roles": [
         "asistente",
@@ -14189,7 +14185,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1529
+        "linea": 1530
       },
       "roles": [
         "asistente",
@@ -14229,7 +14225,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1255
+        "linea": 1256
       },
       "roles": [
         "asistente",
@@ -14278,7 +14274,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1335
+        "linea": 1336
       },
       "roles": [
         "asistente",
@@ -14330,7 +14326,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1736
+        "linea": 1737
       },
       "roles": [
         "asistente",
@@ -14377,7 +14373,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1121
+        "linea": 1122
       },
       "roles": [
         "asistente",
@@ -14410,7 +14406,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1102
+        "linea": 1103
       },
       "roles": [
         "asistente",
@@ -14443,7 +14439,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 913
+        "linea": 914
       },
       "roles": [
         "asistente",
@@ -14476,7 +14472,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 939
+        "linea": 940
       },
       "roles": [
         "asistente",
@@ -14527,7 +14523,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1142
+        "linea": 1143
       },
       "roles": [
         "asistente",
@@ -14567,7 +14563,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3238
+        "linea": 3237
       },
       "roles": [
         "asistente",
@@ -14604,7 +14600,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3252
+        "linea": 3251
       },
       "roles": [
         "asistente",
@@ -14631,7 +14627,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3226
+        "linea": 3225
       },
       "roles": [
         "asistente",
@@ -14658,7 +14654,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3270
+        "linea": 3269
       },
       "roles": [
         "asistente",
@@ -16167,7 +16163,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3349
+        "linea": 3348
       },
       "roles": [
         "asistente",
@@ -16234,7 +16230,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3284
+        "linea": 3283
       },
       "roles": [
         "asistente",
@@ -16277,7 +16273,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3365
+        "linea": 3364
       },
       "roles": [
         "asistente",
@@ -16311,7 +16307,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3333
+        "linea": 3332
       },
       "roles": [
         "asistente",
@@ -16345,7 +16341,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3318
+        "linea": 3317
       },
       "roles": [
         "asistente",
@@ -16440,7 +16436,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3425
+        "linea": 3424
       },
       "roles": [
         "asistente",
@@ -16467,7 +16463,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3410
+        "linea": 3409
       },
       "roles": [
         "asistente",
@@ -17218,7 +17214,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1862
+        "linea": 1863
       },
       "roles": [
         "asistente",
@@ -17276,7 +17272,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1809
+        "linea": 1810
       },
       "roles": [
         "asistente",
@@ -17313,7 +17309,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1779
+        "linea": 1780
       },
       "roles": [
         "asistente",
@@ -17607,7 +17603,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2110
+        "linea": 2111
       },
       "roles": [
         "asistente",
@@ -17642,7 +17638,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2054
+        "linea": 2055
       },
       "roles": [
         "asistente",
@@ -17681,7 +17677,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1888
+        "linea": 1889
       },
       "roles": [
         "asistente",
@@ -17730,7 +17726,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2076
+        "linea": 2077
       },
       "roles": [
         "asistente",
@@ -17758,7 +17754,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1760
+        "linea": 1761
       },
       "roles": [
         "asistente",
@@ -17896,7 +17892,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1907
+        "linea": 1908
       },
       "roles": [
         "asistente",
@@ -21234,7 +21230,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 383
+        "linea": 380
       },
       "roles": [
         "asistente",
@@ -21285,7 +21281,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 219
+        "linea": 220
       },
       "roles": [
         "asistente",
@@ -21340,7 +21336,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 180
+        "linea": 181
       },
       "roles": [
         "asistente",
@@ -21398,7 +21394,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 408
+        "linea": 405
       },
       "roles": [
         "asistente",
@@ -21439,7 +21435,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 278
+        "linea": 279
       },
       "roles": [
         "asistente",
@@ -21493,7 +21489,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 319
+        "linea": 320
       },
       "roles": [
         "asistente",
@@ -21546,7 +21542,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 121
+        "linea": 122
       },
       "roles": [
         "asistente",
@@ -21587,7 +21583,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
-        "linea": 79
+        "linea": 80
       },
       "roles": [
         "asistente",
@@ -21899,7 +21895,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2806
+        "linea": 2805
       },
       "roles": [
         "asistente",
@@ -21938,7 +21934,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2787
+        "linea": 2786
       },
       "roles": [
         "asistente",
@@ -21974,7 +21970,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2839
+        "linea": 2838
       },
       "roles": [
         "asistente",
@@ -22024,7 +22020,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3191
+        "linea": 3190
       },
       "roles": [
         "asistente",
@@ -22052,7 +22048,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3117
+        "linea": 3116
       },
       "roles": [
         "asistente",
@@ -22100,7 +22096,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3129
+        "linea": 3128
       },
       "roles": [
         "asistente",
@@ -22128,7 +22124,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3177
+        "linea": 3176
       },
       "roles": [
         "asistente",
@@ -22169,7 +22165,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3155
+        "linea": 3154
       },
       "roles": [
         "asistente",
@@ -22204,7 +22200,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3037
+        "linea": 3036
       },
       "roles": [
         "asistente",
@@ -22245,7 +22241,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3001
+        "linea": 3000
       },
       "roles": [
         "asistente",
@@ -22277,7 +22273,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2968
+        "linea": 2967
       },
       "roles": [
         "asistente",
@@ -22312,7 +22308,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2902
+        "linea": 2901
       },
       "roles": [
         "asistente",
@@ -22361,7 +22357,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2941
+        "linea": 2940
       },
       "roles": [
         "asistente",
@@ -22389,7 +22385,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2923
+        "linea": 2922
       },
       "roles": [
         "asistente",
@@ -22453,7 +22449,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3076
+        "linea": 3075
       },
       "roles": [
         "asistente",
@@ -22491,7 +22487,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3093
+        "linea": 3092
       },
       "roles": [
         "asistente",
@@ -22519,7 +22515,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2776
+        "linea": 2775
       },
       "roles": [
         "asistente",
@@ -22550,7 +22546,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3062
+        "linea": 3061
       },
       "roles": [
         "asistente",
@@ -22653,7 +22649,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2868
+        "linea": 2867
       },
       "roles": [
         "asistente",
@@ -22681,7 +22677,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2857
+        "linea": 2856
       },
       "roles": [
         "asistente",
@@ -27505,7 +27501,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2533
+        "linea": 2532
       },
       "roles": [
         "asistente",
@@ -27581,7 +27577,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3566
+        "linea": 3565
       },
       "roles": [
         "asistente",
@@ -28443,7 +28439,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3604
+        "linea": 3603
       },
       "roles": [
         "asistente"
@@ -28493,7 +28489,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4013
+        "linea": 4012
       },
       "roles": [
         "asistente"
@@ -28555,7 +28551,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3767
+        "linea": 3766
       },
       "roles": [
         "asistente"
@@ -28581,7 +28577,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3588
+        "linea": 3587
       },
       "roles": [
         "asistente"
@@ -28624,7 +28620,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3743
+        "linea": 3742
       },
       "roles": [
         "asistente"
@@ -28655,7 +28651,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4082
+        "linea": 4081
       },
       "roles": [
         "asistente"
@@ -28687,7 +28683,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4130
+        "linea": 4129
       },
       "roles": [
         "asistente"
@@ -28728,7 +28724,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3908
+        "linea": 3907
       },
       "roles": [
         "asistente"
@@ -28763,7 +28759,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3929
+        "linea": 3928
       },
       "roles": [
         "asistente"
@@ -28922,7 +28918,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3962
+        "linea": 3961
       },
       "roles": [
         "asistente"
@@ -28975,7 +28971,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3990
+        "linea": 3989
       },
       "roles": [
         "asistente"
@@ -29037,7 +29033,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3829
+        "linea": 3828
       },
       "roles": [
         "asistente"
@@ -29071,7 +29067,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3891
+        "linea": 3890
       },
       "roles": [
         "asistente"
@@ -29127,7 +29123,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3863
+        "linea": 3862
       },
       "roles": [
         "asistente"
@@ -29154,7 +29150,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3814
+        "linea": 3813
       },
       "roles": [
         "asistente"
@@ -29236,7 +29232,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2397
+        "linea": 2396
       },
       "roles": [
         "asistente"
@@ -29275,7 +29271,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2449
+        "linea": 2448
       },
       "roles": [
         "asistente"
@@ -29870,7 +29866,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3713
+        "linea": 3712
       },
       "roles": [
         "asistente"
@@ -29908,7 +29904,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3643
+        "linea": 3642
       },
       "roles": [
         "asistente"
@@ -29943,7 +29939,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3688
+        "linea": 3687
       },
       "roles": [
         "asistente"
@@ -31131,7 +31127,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2610
+        "linea": 2609
       },
       "roles": [
         "asistente"
@@ -31157,7 +31153,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2635
+        "linea": 2634
       },
       "roles": [
         "asistente"
@@ -31183,7 +31179,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2598
+        "linea": 2597
       },
       "roles": [
         "asistente"
@@ -31216,7 +31212,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2648
+        "linea": 2647
       },
       "roles": [
         "asistente"
@@ -31847,7 +31843,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2663
+        "linea": 2662
       },
       "roles": [
         "asistente"
@@ -31892,7 +31888,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2679
+        "linea": 2678
       },
       "roles": [
         "asistente"
@@ -31925,7 +31921,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2730
+        "linea": 2729
       },
       "roles": [
         "asistente"
@@ -31958,7 +31954,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2714
+        "linea": 2713
       },
       "roles": [
         "asistente"
@@ -32645,7 +32641,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2746
+        "linea": 2745
       },
       "roles": [
         "asistente"

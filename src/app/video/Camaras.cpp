@@ -5,7 +5,6 @@
 #include "video/Camaras.hpp"
 #include "Piezas.hpp" // motor::resondearSinAviso
 
-#include "emision/InputSpecs.hpp"
 #include "i18n/I18n.hpp"
 
 #include <algorithm>
@@ -110,7 +109,7 @@ void recorrer(F&& fn) {
 } // namespace
 #endif
 
-std::vector<BroadcastEngine::ListItem> camarasDelEquipo(BroadcastEngine& engine) {
+std::vector<BroadcastEngine::ListItem> camarasDelEquipo(BroadcastEngine&) {
     std::vector<BroadcastEngine::ListItem> out;
 #if defined(BA_HAVE_GST)
     recorrer([&](GstDevice* dev, const std::string& id) {
@@ -118,10 +117,7 @@ std::vector<BroadcastEngine::ListItem> camarasDelEquipo(BroadcastEngine& engine)
         out.push_back({n != nullptr ? n : id, id, false});
         g_free(n);
     });
-    if (!out.empty()) return out;
 #endif
-    for (const auto& d : engine.sourceTypeListItems(inputs::kVideoType, inputs::kVideoProp))
-        out.push_back({d.name, idCamaraDesdeLibobs(d.value), d.disabled});
     return out;
 }
 

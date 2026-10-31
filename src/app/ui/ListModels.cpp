@@ -309,12 +309,10 @@ QString SourcesModel::addGuest(int slot, bool share) {
     if (slot < 1 || slot > guestSlots()) return {};
     // Mismos nombres que crea el arranque: si la fuente ya existe se agrega
     // la MISMA a esta escena (una fuente puede estar en varias escenas).
-    SourceSpec spec;
-    spec.id = "ba_guest_video";
-    spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
+    SourceSpec spec = inputs::videoInvitadoSpec(slot, share ? "share" : "guest",
+                                                "Invitado " + std::to_string(slot) + (share ? " — pantalla" : ""));
     if (rowOf(spec.name) >= 0) return qs(spec.name); // ya esta en esta escena
-    spec.settingsJson = "{\"slot\":" + std::to_string(slot) + (share ? ",\"channel\":\"share\"}" : "}");
-    spec.rect = share ? CanvasRect{0.0f, 0.0f, 1.0f, 1.0f} : CanvasRect{0.5f, 0.5f, 0.5f, 0.5f};
+    if (!share) spec.rect = CanvasRect{0.5f, 0.5f, 0.5f, 0.5f};
     if (!rt_.addSource(scene_.toStdString(), spec)) {
         emit error(qs(rt_.lastError()));
         return {};
