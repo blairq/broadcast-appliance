@@ -358,29 +358,72 @@ int parseSeconds(const json& v) {
     return 0;
 }
 
-json toJson(const QJsonObject& o) {
-    return json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-}
-json toJson(const QJsonArray& a) {
-    return json::parse(QJsonDocument(a).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-}
-QJsonObject toQt(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
+// Qt <-> json SIN pasar por texto (antes cada conversión escribía el JSON y lo volvía a
+// leer: settings_list lo hacía por cada valor de cada fila). Los números como los dejaba
+// el texto: el que es entero, entero; el resto, double.
+namespace {
+json deQJson(const QJsonValue& v) {
+    switch (v.type()) {
+        case QJsonValue::Bool: return v.toBool();
+        case QJsonValue::Double: {
+            const double d = v.toDouble();
+            const qint64 i = v.toInteger();
+            if (static_cast<double>(i) == d) return static_cast<std::int64_t>(i);
+            return d;
+        }
+        case QJsonValue::String: return v.toString().toStdString();
+        case QJsonValue::Array: {
+            json out = json::array();
+            for (const QJsonValue& x : v.toArray()) out.push_back(deQJson(x));
+            return out;
+        }
+        case QJsonValue::Object: {
+            json out = json::object();
+            const QJsonObject o = v.toObject();
+            for (auto it = o.begin(); it != o.end(); ++it) out[it.key().toStdString()] = deQJson(it.value());
+            return out;
+        }
+        case QJsonValue::Null:
+        case QJsonValue::Undefined: break;
+    }
+    return nullptr;
 }
 
-json qvToJson(const QVariant& v) {
-    const QJsonValue jv = QJsonValue::fromVariant(v);
-    QJsonDocument doc(QJsonArray{jv});
-    const json arr = json::parse(doc.toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-    return arr.is_array() && !arr.empty() ? arr[0] : json();
+QJsonValue aQJson(const json& j) {
+    switch (j.type()) {
+        case json::value_t::boolean: return j.get<bool>();
+        case json::value_t::number_integer: return static_cast<qint64>(j.get<std::int64_t>());
+        case json::value_t::number_unsigned: return static_cast<qint64>(j.get<std::uint64_t>());
+        case json::value_t::number_float: return j.get<double>();
+        case json::value_t::string: return QString::fromStdString(j.get<std::string>());
+        case json::value_t::array: {
+            QJsonArray a;
+            for (const json& x : j) a.append(aQJson(x));
+            return a;
+        }
+        case json::value_t::object: {
+            QJsonObject o;
+            for (auto it = j.begin(); it != j.end(); ++it) o.insert(QString::fromStdString(it.key()), aQJson(it.value()));
+            return o;
+        }
+        default: break;
+    }
+    return QJsonValue::Null;
 }
+} // namespace
+
+json toJson(const QJsonObject& o) { return deQJson(o); }
+json toJson(const QJsonArray& a) { return deQJson(a); }
+QJsonObject toQt(const json& j) { return j.is_object() ? aQJson(j).toObject() : QJsonObject(); }
+
+json qvToJson(const QVariant& v) { return deQJson(QJsonValue::fromVariant(v)); }
 
 QVariant jsonToQv(const json& v) {
     if (v.is_boolean()) return v.get<bool>();
     if (v.is_number_integer()) return static_cast<qlonglong>(v.get<long long>());
     if (v.is_number()) return v.get<double>();
     if (v.is_string()) return QString::fromStdString(v.get<std::string>());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).toVariant();
+    return aQJson(v).toVariant();
 }
 
 void enPool(QObject* volver, std::function<ToolResult()> trabajo, Done done) {

@@ -46,9 +46,7 @@ namespace ba::app::mcp {
 
 json roomSnapshot(StudioViewModel& vm) {
     auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
-    const QByteArray raw = QJsonDocument(conf->client().snapshot()).toJson(QJsonDocument::Compact);
-    json s = json::parse(raw.toStdString(), nullptr, false);
-    return s.is_object() ? s : json::object();
+    return toJson(conf->client().snapshot()); // sin pasar por texto (toJson)
 }
 
 bool resolveParticipant(const json& snapshot, const std::string& query, json& out, std::string& err) {
