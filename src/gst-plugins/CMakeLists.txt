@@ -71,13 +71,14 @@ else()
 endif()
 add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/video.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
-    "${BA_IPC_RITMO}")
+    "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
 target_include_directories(gstbaipc PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
 target_compile_definitions(gstbaipc PRIVATE BA_RITMO_SIN_ENERGIA)
 ba_plugin_gst(gstbaipc)
 if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     add_executable(test_baanillo tests/test_baanillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
-        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp")
+        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
+    target_compile_definitions(test_baanillo PRIVATE BA_RITMO_SIN_ENERGIA)
     target_include_directories(test_baanillo PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
     target_link_libraries(test_baanillo PRIVATE ba::gstreamer)
     if(DEFINED BA_GST_LIBDIR)
@@ -90,7 +91,8 @@ if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     # El video del canal (como el gateway: publica BA.Guest.<n>): el tamaño del
     # canal en las caps, también después de que abajo pidan renegociar.
     add_executable(test_bavideoanillo tests/test_bavideoanillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
-        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp")
+        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
+    target_compile_definitions(test_bavideoanillo PRIVATE BA_RITMO_SIN_ENERGIA)
     target_include_directories(test_bavideoanillo PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
     target_link_libraries(test_bavideoanillo PRIVATE ba::gstreamer)
     if(DEFINED BA_GST_LIBDIR)

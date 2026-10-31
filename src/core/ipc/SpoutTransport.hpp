@@ -25,8 +25,9 @@
 //   - El camino de datos no toma locks: acquire/release con atomic_ref sobre la
 //     cabecera. El escritor nunca espera; el lector reintenta si el escritor dio
 //     la vuelta a los tres buffers mientras copiaba, y nunca ve un cuadro a medio
-//     escribir. Nadie despierta a nadie: el lector sondea (hasData/receive),
-//     y sin cuadro nuevo duerme hasta el próximo esperado (proximaMirada, F2-14).
+//     escribir. Sin cuadro nuevo el lector duerme hasta que el escritor toca el
+//     timbre (ipc/Timbre.hpp, F3-13: esperarNuevo) o, con un escritor que no toca,
+//     hasta el próximo esperado (proximaMirada, F2-14).
 //   - Los objetos son move-only y no son thread-safe por si mismos: son vistas
 //     de un slot. La seguridad entre threads la aporta el layout (atomic_ref),
 //     no esta clase.
@@ -51,6 +52,7 @@
 
 #include "ipc/AtomicRef.hpp"
 #include "ipc/Mirada.hpp"
+#include "ipc/Timbre.hpp"
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -253,6 +255,7 @@ class SpoutSender {
    private:
     // Backend CPU: region compartida con cabecera + triple buffer.
     SharedMemoryRegion region_;
+    Timbre timbre_; // en la cabecera de region_: se suelta antes que ella (ver el .cpp)
     VideoSlotHeader* header_ = nullptr;
     bool published_ = false;
     bool periodoDicho_ = false;     // el productor dijo su período: no se mide
@@ -327,6 +330,23 @@ class SpoutReceiver {
     /// Cada cuánto publica el productor (ns; 0 = todavía no se sabe).
     std::uint64_t periodoNs() const;
 
+    /// El timbre (F3-13). Sin cuadro nuevo:
+    ///
+    ///     const auto visto = rx.timbre();   // ANTES de mirar
+    ///     if (!rx.hasData()) rx.esperarNuevo(visto, pasoQuieto);
+    ///
+    /// duerme hasta que el productor toque (un cuadro nuevo) o, si no toca (uno viejo, o un
+    /// sistema sin la primitiva), hasta proximaMirada. Con timbre el plazo es mirada::kVigia
+    /// (por si el productor se murió sin tocar), o `aMasTardar` si es antes (el lector tiene
+    /// algo que hacer a una hora). true si tocaron.
+    std::uint32_t timbre() const { return timbre_.visto(); }
+    bool esperarNuevo(std::uint32_t visto, std::chrono::steady_clock::duration pasoQuieto,
+                      std::chrono::steady_clock::time_point aMasTardar = std::chrono::steady_clock::time_point::max());
+    /// ¿El productor toca el timbre?
+    bool tocaTimbre() const { return timbre_.vivo(); }
+    /// Despierta al que duerme en esperarNuevo (otro hilo del mismo proceso: parar).
+    void despertar() { timbre_.despertar(); }
+
     /// true si el sender al que estamos suscritos ya no existe o fue
     /// reemplazado por otro (el proceso productor se reinicio y publico el
     /// mismo nombre de nuevo). El receptor seguiria mirando la memoria vieja
@@ -340,6 +360,7 @@ class SpoutReceiver {
    private:
     // Backend CPU: region compartida con cabecera + triple buffer.
     SharedMemoryRegion region_;
+    Timbre timbre_; // en la cabecera de region_: se suelta antes que ella (ver el .cpp)
     VideoSlotHeader* header_ = nullptr;
     std::wstring name_;
     std::uint64_t instanceId_ = 0;

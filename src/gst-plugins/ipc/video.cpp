@@ -12,11 +12,11 @@
 //     GPU), si no el del canal. Si cambia, se renegocian las caps.
 //   - Si el canal todavía no existe o el gateway se reinició, se resuscribe
 //     solo; mientras tanto no sale nada.
-//   - Sin cuadro nuevo se duerme hasta justo después del próximo que el gateway
-//     debería publicar (su último envío más su período, de la cabecera del canal:
-//     ipc/Mirada.hpp, F2-14), no cada 4 ms fijos; quieto hace más de 1 s, de a
-//     15 ms. Nadie avisa que hay cuadro nuevo: es sondeo, pero a la hora del que
-//     publica (mirar a un ritmo propio hace batir las cadencias y perder cuadros).
+//   - Sin cuadro nuevo se duerme hasta que el gateway toca el timbre del canal
+//     (ipc/Timbre.hpp, F3-13): se despierta con el cuadro, sin sondear. Con un
+//     gateway que no toca (viejo, o un macOS anterior a 14.4), hasta justo después
+//     del próximo que debería publicar (su último envío más su período, de la
+//     cabecera del canal: ipc/Mirada.hpp, F2-14); quieto hace más de 1 s, de a 15 ms.
 //   - La hora de cada cuadro: la que le puso el gateway al publicarlo, pasada
 //     al reloj del pipeline (hora.hpp); así el audio del invitado (baanillo,
 //     otra cadena) queda alineado por la misma hora. Cuadros por segundo
@@ -45,10 +45,10 @@ G_END_DECLS
 
 struct _BaVideoAnillo {
     GstPushSrc parent;
-    std::mutex* mu;
+    std::mutex* mu; ///< canal, y reemplazar rx (despertarlo es de otro hilo: desbloquear)
     std::string* canal;
     std::atomic<bool> parar;
-    // Solo el hilo de streaming:
+    // Solo el hilo de streaming (reemplazarlo, con mu):
     ba::ipc::SpoutReceiver* rx;
     bool suscripto;
     std::string* suscriptoCanal;
@@ -98,23 +98,30 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
         }
         // Otro canal o el gateway lo rehízo: resuscribirse (si no, queda congelado).
         if (v->suscripto && (canal != *v->suscriptoCanal || v->rx->stale())) {
+            std::lock_guard<std::mutex> l(*v->mu);
             *v->rx = ba::ipc::SpoutReceiver{};
             v->suscripto = false;
         }
         if (!v->suscripto) {
             const std::wstring w(canal.begin(), canal.end());
-            if (canal.empty() || !v->rx->subscribe(w.c_str())) {
-                *v->rx = ba::ipc::SpoutReceiver{};
+            bool ok = false;
+            {
+                std::lock_guard<std::mutex> l(*v->mu);
+                ok = !canal.empty() && v->rx->subscribe(w.c_str());
+                if (!ok) *v->rx = ba::ipc::SpoutReceiver{};
+            }
+            if (!ok) {
                 if (!ba::ipc_gst::esperar(v->parar, 250)) return GST_FLOW_FLUSHING;
                 continue;
             }
             v->suscripto = true;
             *v->suscriptoCanal = canal;
         }
-        // Sin cuadro nuevo: hasta el próximo que el gateway debería publicar (A 4 ms fijos
-        // eran 250 despertadas por segundo por invitado; a 2 ms, 500).
+        // Sin cuadro nuevo: hasta que el gateway toque el timbre (o su próximo cuadro, si no
+        // toca). A 4 ms fijos eran 250 despertadas por segundo por invitado; a 2 ms, 500.
+        const std::uint32_t visto = v->rx->timbre();
         if (!v->rx->hasData()) {
-            if (!ba::ipc_gst::esperarHasta(v->parar, v->rx->proximaMirada(kPasoQuieto))) return GST_FLOW_FLUSHING;
+            if (!ba::ipc_gst::esperarNuevo(v->parar, *v->rx, visto, kPasoQuieto)) return GST_FLOW_FLUSHING;
             continue;
         }
         const int w = v->rx->width(), h = v->rx->height();
@@ -160,7 +167,10 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
 }
 
 static gboolean desbloquear(GstBaseSrc* bs) {
-    BA_VIDEO_ANILLO(bs)->parar = true;
+    auto* v = BA_VIDEO_ANILLO(bs);
+    v->parar = true;
+    std::lock_guard<std::mutex> l(*v->mu);
+    v->rx->despertar(); // si duerme en el timbre
     return TRUE;
 }
 
@@ -171,6 +181,7 @@ static gboolean desbloquearFin(GstBaseSrc* bs) {
 
 static gboolean alParar(GstBaseSrc* bs) {
     auto* v = BA_VIDEO_ANILLO(bs);
+    std::lock_guard<std::mutex> l(*v->mu);
     *v->rx = ba::ipc::SpoutReceiver{};
     v->suscripto = false;
     v->ancho = v->alto = 0;
@@ -194,6 +205,7 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* val, GParamSpec* 
     const gchar* x = g_value_get_string(val);
     std::lock_guard<std::mutex> l(*v->mu);
     *v->canal = x != nullptr ? x : "";
+    v->rx->despertar(); // que se cambie ya, aunque el canal de antes esté quieto
 }
 
 static void leerPropiedad(GObject* o, guint id, GValue* val, GParamSpec* ps) {

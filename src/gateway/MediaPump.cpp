@@ -878,6 +878,7 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
             }
             if (anilloAudio.header() != nullptr) edadAudio.medir(anilloAudio.retrasoDelEscritorNs() + kLecturaAudioNs);
         }
+        const std::uint32_t visto = receiver.timbre(); // ANTES de mirar (F3-13)
         if (receiver.hasData()) {
             FrameMeta meta{};
             if (receiver.receive(src.data(), src.size(), meta)) {
@@ -948,11 +949,10 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
             trabajoUs = 0;
             cuadros = 0;
         }
-        // Hasta el próximo cuadro que A debería publicar (F2-14) o el próximo que espera su
-        // audio, lo que venga antes.
-        auto plazo = receiver.proximaMirada(kPasoQuieto);
-        if (espera.proximo() != 0) plazo = std::min(plazo, plazoDeQpc(espera.proximo()));
-        ba::platform::dormirHasta(plazo);
+        // Hasta que A toque el timbre con un cuadro (F3-13; si no toca, hasta el próximo que
+        // debería publicar, F2-14) o hasta el próximo que espera su audio, lo que venga antes.
+        receiver.esperarNuevo(visto, kPasoQuieto,
+                              espera.proximo() != 0 ? plazoDeQpc(espera.proximo()) : std::chrono::steady_clock::time_point::max());
     }
 }
 
@@ -1154,6 +1154,7 @@ void MediaPump::operatorVideoThread() {
             receiver = SpoutReceiver{};
             sub = false;
         }
+        const std::uint32_t visto = receiver.timbre(); // ANTES de mirar (F3-13)
         if (sub && receiver.hasData()) {
             FrameMeta meta{};
             if (receiver.receive(src.data(), src.size(), meta)) {
@@ -1179,8 +1180,11 @@ void MediaPump::operatorVideoThread() {
             }
         }
         if (sub) cerrarVentana(medida, ventana, true);
-        // Hasta el próximo cuadro del operador (F2-14); sin él, de a kPasoQuieto (la placa va a 5).
-        ba::platform::dormirHasta(receiver.proximaMirada(kPasoQuieto));
+        // Hasta que A toque el timbre con un cuadro del operador (F3-13; si no toca, hasta el
+        // próximo, F2-14); sin cámara, a tiempo para la placa (va a 5 por segundo).
+        receiver.esperarNuevo(visto, kPasoQuieto,
+                              now - lastFrame > std::chrono::seconds(1) ? lastPlate + std::chrono::milliseconds(200)
+                                                                        : std::chrono::steady_clock::time_point::max());
     }
 }
 
