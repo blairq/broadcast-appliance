@@ -1116,7 +1116,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>StudioViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4480"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4488"/>
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Hay %n persona conectada</numerusform>
