@@ -5,6 +5,7 @@
 
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
+#include "persist/Escritor.hpp"
 #include "platform/Paths.hpp"
 
 #include <QFileInfo>
@@ -102,9 +103,10 @@ void anotar(const QProcess& p, const QString& nombre) {
 #endif
     std::error_code ec;
     fs::create_directories(carpeta(), ec);
-    std::ofstream f(anotacion(nombre), std::ios::binary | std::ios::trunc);
-    f << json{{"pid", pid}, {"exe", QFileInfo(p.program()).canonicalFilePath().toStdString()}}.dump(
-        -1, ' ', false, json::error_handler_t::replace);
+    // Ya, sin la cola: si la app se cae enseguida, el barrido del próximo arranque tiene que encontrarlo.
+    ba::persist::escribir(anotacion(nombre),
+                          json{{"pid", pid}, {"exe", QFileInfo(p.program()).canonicalFilePath().toStdString()}}.dump(
+                              -1, ' ', false, json::error_handler_t::replace));
 }
 
 void parar(QProcess& p, const QString& nombre) {
