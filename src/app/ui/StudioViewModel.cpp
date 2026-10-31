@@ -3903,7 +3903,9 @@ QVariantMap StudioViewModel::latidoUi() const {
     // Las trabas largas (LatidoAire, desde otro hilo) y las demoras del bucle (VigiaBucle).
     nlohmann::json j = rt_.latido().estado();
     j["bucle_ui"] = ba::diag::VigiaBucle::interfaz().informe();
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
+    QJsonObject o = QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
+    o["frames_poll"] = frames_->medidas(); // lo que tarda FrameService::poll en este hilo (F3-11)
+    return o.toVariantMap();
 }
 
 QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {

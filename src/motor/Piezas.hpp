@@ -112,6 +112,13 @@ bool gpuVideo(); ///< gpu() != Ninguna
 void ponerGpuVideo(bool quiere);
 /// "gl", "d3d12" o "cpu" (para el estado y el mapa).
 const char* nombreGpu();
+/// ¿La GPU del motor todavía entrega? Un pipeline chico (subir, componer, bajar) con el
+/// contexto del motor tiene que dar 3 cuadros antes de `topeMs`. Sin GPU, true. Lo usa la
+/// detección de la GPU perdida (GpuPerdida.hpp).
+bool gpuEntrega(int topeMs = 2000);
+/// Suelta el contexto GL o el dispositivo D3D12 del motor y deja la GPU sin decidir: la
+/// próxima pregunta arma uno nuevo (GpuPerdida.hpp, rearmarGpu).
+void soltarGpu();
 /// Las caps de una textura del motor: «video/x-raw(memory:…),format=RGBA» + `extra`.
 std::string texturaGpu(const std::string& extra = "");
 /// Subir a la GPU y convertir (si ya está en la GPU, pasa): «glupload ! glcolorconvert» o

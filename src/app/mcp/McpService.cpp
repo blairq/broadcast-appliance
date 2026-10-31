@@ -3622,12 +3622,13 @@ void McpService::registerTools() {
         t.description = ba::i18n::traducir("mcp", "SOLO EN MODO PRUEBA. Programa una falla: `pieza` codificador (deja de codificar, "
                         "como un codificador de placa que se cae) o sumidero (no puede escribir: disco o conexión) de "
                         "`salida` grabacion o transmision, dentro de `en_s` segundos (0 = ya). La primera de ese tipo "
-                        "que pase se la lleva, una vez. `limpiar`: borra lo programado. Siempre devuelve lo programado y lo "
-                        "ya disparado.");
+                        "que pase se la lleva, una vez. `salida` video con `pieza` gpu: la GPU del video se pierde (el mezclador "
+                        "avisa el error de una GPU perdida y la app rearma el motor). `limpiar`: borra lo programado. Siempre "
+                        "devuelve lo programado y lo ya disparado.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"pieza", {{"type", "string"}, {"enum", {"codificador", "sumidero"}}}},
-                           {"salida", {{"type", "string"}, {"enum", {"grabacion", "transmision"}}}},
+                          {{"pieza", {{"type", "string"}, {"enum", {"codificador", "sumidero", "gpu"}}}},
+                           {"salida", {{"type", "string"}, {"enum", {"grabacion", "transmision", "video"}}}},
                            {"en_s", {{"type", "number"}, {"minimum", 0}, {"maximum", 3600}}},
                            {"limpiar", {{"type", "boolean"}}}}}};
         t.run = [](const json& a, Done done) {

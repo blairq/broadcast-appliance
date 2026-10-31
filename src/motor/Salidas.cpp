@@ -2,6 +2,7 @@
 // src/motor/Salidas.cpp — ver Salidas.hpp
 // ============================================================================
 #include "Salidas.hpp"
+#include "GpuPerdida.hpp"
 #include "diag/Recursos.hpp"
 #include "diag/Utf8.hpp"
 #include "i18n/I18n.hpp"
@@ -381,6 +382,7 @@ class Codificacion {
         GstBus* bus = gst_element_get_bus(pipeline_);
         while (GstMessage* m = gst_bus_pop(bus)) {
             if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
+                revisarErrorDeGpu(m); // ¿se perdió la GPU? (F3-09: un codificador de la placa también lo dice)
                 GError* e = nullptr;
                 gst_message_parse_error(m, &e, nullptr);
                 error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error");

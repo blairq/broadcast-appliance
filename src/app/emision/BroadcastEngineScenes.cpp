@@ -1475,9 +1475,9 @@ std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderCo
     return out;
 }
 
-bool BroadcastEngine::resetVideo(const VideoConfig& video) {
+bool BroadcastEngine::resetVideo(const VideoConfig& video, const std::function<VideoConfig()>& conElMotorApagado) {
     if (!started_) return false;
-    if (outputsActive()) {
+    if (outputsActive() && !conElMotorApagado) {
         setError(ba::i18n::traducir("emision", "no se puede cambiar la resolucion con salidas activas"));
         return false;
     }
@@ -1500,7 +1500,7 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
     stopReturnFeeds();
     disablePreview();
     shutdown();
-    if (!startup(paths_, video, audio_)) return false;
+    if (!startup(paths_, conElMotorApagado ? conElMotorApagado() : video, audio_)) return false;
     for (const auto& n : orden) {
         const auto& f = fuentes.at(n);
         crearFuente(f.spec, f.global);
@@ -1525,7 +1525,7 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
     }
     for (const auto& [slot, modo] : retornos_) setRetornoInvitado(slot, modo);
     if (feeds) publishReturnFeeds();
-    if (preview) enablePreview(video.outputWidth / 2, video.outputHeight / 2);
+    if (preview) enablePreview(video_.outputWidth / 2, video_.outputHeight / 2);
     return true;
 }
 

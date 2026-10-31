@@ -43,6 +43,11 @@ int main() {
     CHECK(!f.hay(), "no queda nada");
     const auto e = f.estado();
     CHECK(e["programadas"].empty() && e["disparadas"].size() == 2, "el estado cuenta las disparadas");
+    // La GPU perdida (F3-09): «video.gpu», y nada más con «gpu» o con «video».
+    CHECK(!f.programar("video", "codificador", 0).empty(), "video solo con gpu");
+    CHECK(!f.programar("grabacion", "gpu", 0).empty(), "gpu solo con video");
+    CHECK(f.programar("video", "gpu", 0).empty(), "programar la GPU perdida");
+    CHECK(f.tomar("video") == "gpu", "la toma la composición");
     f.programar("grabacion", "codificador", 10);
     f.limpiar();
     CHECK(!f.hay() && f.estado()["disparadas"].empty(), "limpiar borra todo");

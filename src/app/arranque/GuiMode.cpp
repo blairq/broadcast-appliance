@@ -288,7 +288,14 @@ int runGui(int argc, char** argv) {
     };
 
     AppRuntime rt;
-    rt.configure(argc, argv);
+    {
+        // Lo que tarda leer la configuración: la retoma tras una caída cuenta todo (F3-10).
+        QElapsedTimer reloj;
+        reloj.start();
+        rt.configure(argc, argv);
+        ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: la configuración, %1 ms"),
+                                                   {std::to_string(reloj.elapsed())}));
+    }
     const int rc = rt.start();
     if (rc != 0) {
         std::printf("ba-app: %s\n",

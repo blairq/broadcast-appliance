@@ -44,6 +44,7 @@
 #include "i18n/I18n.hpp"
 #include "Motor.hpp" // motor: el retorno del invitado sin audio
 #include "Reloj.hpp" // motor: iniciarGStreamer
+#include "GpuPerdida.hpp" // motor: la GPU perdida (F3-09)
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "platform/GstEntorno.hpp"
@@ -519,6 +520,19 @@ int AppRuntime::start() {
         health_.setState(kHealthSlot, ba::ipc::ProcessState::Running);
         health_.beat(kHealthSlot);
     }
+    // El arranque, medido como el de la interfaz (StudioViewModel): cada etapa de más de
+    // 150 ms queda en el registro, desde acá (GStreamer incluido: la retoma tras una
+    // caída tiene que estar en < 3 s, F3-10, y estas marcas dicen dónde se va).
+    const auto relojArranque = std::chrono::steady_clock::now();
+    auto ultimaMarca = relojArranque;
+    const auto marca = [&ultimaMarca](const std::string& que) {
+        const auto ahora = std::chrono::steady_clock::now();
+        const long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - ultimaMarca).count();
+        if (ms > 150)
+            ba::diag::registro().info(
+                ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: %1 tardó %2 ms"), {que, std::to_string(ms)}));
+        ultimaMarca = ahora;
+    };
     // GSTREAMER PRIMERO, EN OTRO HILO. La primera vez en una PC (o con el disco en
     // otra letra) rehace su lista de plugins: cada uno pasa por el escáner y uno
     // que se traba mirando el hardware cuesta 60 s. En otra PC tardó más de 2
@@ -566,6 +580,7 @@ int AppRuntime::start() {
             arranque::seguir(a);
         });
     }
+    marca(ba::i18n::traducir("arranque", "GStreamer"));
 
     // EL LATIDO DEL ARRANQUE: arrancar no es estar colgado. Con GStreamer ya
     // iniciado, el motor igual tarda unos segundos en armarse; sin latir, el
@@ -605,18 +620,6 @@ int AppRuntime::start() {
                                  {std::to_string(cfg_.video.baseWidth), std::to_string(cfg_.video.baseHeight),
                                   std::to_string(cfg_.video.fpsNum), cfg_.encoder.videoEncoder})
                     .c_str());
-    // El arranque del motor, medido como el de la interfaz (StudioViewModel):
-    // cada etapa de más de 150 ms queda en el registro.
-    const auto relojArranque = std::chrono::steady_clock::now();
-    auto ultimaMarca = relojArranque;
-    const auto marca = [&ultimaMarca](const std::string& que) {
-        const auto ahora = std::chrono::steady_clock::now();
-        const long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - ultimaMarca).count();
-        if (ms > 150)
-            ba::diag::registro().info(
-                ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: %1 tardó %2 ms"), {que, std::to_string(ms)}));
-        ultimaMarca = ahora;
-    };
     arranque::avisar(ba::i18n::traducir("arranque", "Arrancando el motor de video y audio…"));
     // El reloj del estudio (Video → Sincronía): con él arranca el motor.
     {
@@ -636,6 +639,7 @@ int AppRuntime::start() {
     fuentesqr::registrar();
     fuentespdf::registrar();
     grilla::registrarTipo();
+    marca(ba::i18n::traducir("arranque", "el reloj y los tipos de fuente"));
     if (!engine_.startup(paths, cfg_.video, AudioConfig{})) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: %s\n",
@@ -822,6 +826,8 @@ void AppRuntime::tick() {
         // cortan: las atiende el hilo de salidas del motor, ver BroadcastEngine::ticSalidas.)
         // La escena al aire de cada salida, para volver a ella tras un corte (P0.10).
         if (firmaDelAire() != escenaEscrita_) writeOnAirState();
+        // La GPU del video se perdió (F3-09): el motor no se rearma solo, lo rearma la app.
+        if (ba::motor::gpuPerdida()) rearmarPorGpu();
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
 }
@@ -1040,8 +1046,7 @@ std::string AppRuntime::firmaDelAire() const {
 
 fs::path AppRuntime::archivoAlAire() { return ba::platform::stateDir() / "al-aire.json"; }
 
-void AppRuntime::writeOnAirState() const {
-    escenaEscrita_ = firmaDelAire();
+salidas::AlAire AppRuntime::aireActual() const {
     // Cada salida con su escena, lo que transmite (la principal y sus destinos) y si
     // graba; la por omisión además en los campos de siempre (salidas::aJson), que es
     // lo que lee un arranque de antes de las salidas.
@@ -1057,6 +1062,12 @@ void AppRuntime::writeOnAirState() const {
         for (const auto& [destino, salida] : destinosAlAire_)
             if (salida == id) x.destinos.push_back(destino);
     }
+    return a;
+}
+
+void AppRuntime::writeOnAirState() const {
+    escenaEscrita_ = firmaDelAire();
+    const salidas::AlAire a = aireActual();
     // Al hilo escritor (este hilo no toca el disco), primero que los ajustes y en dos
     // generaciones con F_FULLFSYNC: un corte en cualquier momento deja una entera.
     ba::persist::cola().escribirGeneracion(archivoAlAire(),
@@ -1126,10 +1137,12 @@ void AppRuntime::retomarGrabaciones() {
     }
 }
 
-void AppRuntime::restoreOutputs() {
+void AppRuntime::restoreOutputs(bool deEstaCorrida) {
     const salidas::AlAire& aire = aireAnterior_;
     if (aire.cerrado || aire.salidas.empty()) return; // se cerró en orden: nada al aire
-    if (cfg_.modoPrueba && !cfg_.retomaEnPrueba) return; // la escena sí; las salidas, nunca con --test (salvo el banco de caos)
+    // La escena sí; las salidas de una corrida anterior, nunca con --test (salvo el banco de
+    // caos). Las de esta (el rearme por la GPU) estaban saliendo recién: vuelven siempre.
+    if (cfg_.modoPrueba && !cfg_.retomaEnPrueba && !deEstaCorrida) return;
     // Las grabaciones, cuando se sepa DÓNDE: la carpeta del evento la da la interfaz
     // (setCarpetaDelEvento) después de este arranque; si se retoman antes caen en la
     // carpeta de fábrica, fuera del evento. Sin evento, retomarGrabaciones() a secas.
@@ -1991,13 +2004,81 @@ bool AppRuntime::applyVideo(const VideoConfig& v) {
         return false;
     }
     cfg_.video = v;
+    reubicarFuentes();
+    return true;
+}
+
+void AppRuntime::reubicarFuentes() {
     // Las ubicaciones son fracciones del lienzo: se recalculan en pixeles.
     for (const auto& sc : cfg_.scenes) {
         for (const auto& s : sc.sources) {
             engine_.setSourceRect(sc.name, s.name, s.rect);
         }
     }
-    return true;
+}
+
+namespace {
+/// El lienzo para componer en la CPU (F3-09): a 720p como mucho, con la misma forma. No
+/// se guarda: el próximo arranque vuelve a probar la GPU con el de la configuración.
+VideoConfig videoParaCpu(VideoConfig v) {
+    constexpr int kAlto = 720;
+    const auto achicar = [](int& w, int& h) {
+        if (h <= kAlto || h <= 0) return;
+        w = (w * kAlto / h) & ~1;
+        h = kAlto;
+    };
+    achicar(v.baseWidth, v.baseHeight);
+    achicar(v.outputWidth, v.outputHeight);
+    return v;
+}
+} // namespace
+
+void AppRuntime::rearmarPorGpu() {
+    const auto desde = std::chrono::steady_clock::now();
+    const nlohmann::json antes = ba::motor::estadoGpu();
+    ba::diag::registro().linea(ba::diag::Nivel::Error, "motor", 0,
+                               ba::i18n::llenar(ba::i18n::traducir("arranque", "se perdió la GPU del video (%1): se rearma el motor"),
+                                                {antes.value("motivo", std::string())}));
+    // Lo que sale ahora es lo que se retoma (como después de un corte, pero sin leer el
+    // disco). Las salidas se paran con el motor viejo: lo que estaba saliendo vuelve a
+    // empezar (ba-emisor sostiene la transmisión con su placa mientras tanto, F3-01).
+    const salidas::AlAire aire = aireActual();
+    VideoConfig usado = cfg_.video;
+    ba::motor::Gpu gpu = ba::motor::Gpu::Ninguna;
+    const bool ok = engine_.resetVideo(cfg_.video, [&]() {
+        gpu = ba::motor::rearmarGpu();
+        usado = gpu == ba::motor::Gpu::Ninguna ? videoParaCpu(cfg_.video) : cfg_.video;
+        return usado;
+    });
+    if (!ok) {
+        // Sin motor no hay aire: que el supervisor lo relance (el latido de los cuadros se
+        // corta solo) y vuelva como de un corte.
+        ba::diag::registro().linea(ba::diag::Nivel::Error, "motor", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("arranque", "el motor no se pudo rearmar tras perder la GPU: %1"),
+                                                    {engine_.lastError()}));
+        // Si no llegó a apagarlo, la marca sigue: que no se reintente en cada tic.
+        if (ba::motor::gpuPerdida()) ba::motor::rearmarGpu();
+        return;
+    }
+    reubicarFuentes();
+    operator_.configure(engine_, cfg_.operatorVideo, cfg_.operatorAudio); // lo que ve el lobby, del motor nuevo
+    // Las salidas, como restoreOutputs después de un corte: las de otras salidas se vuelven a
+    // anotar al arrancar (startRecording/startStreaming).
+    grabandoOtras_.clear();
+    transmitiendoOtras_.clear();
+    destinosAlAire_.clear();
+    aireAnterior_ = aire;
+    aireAnterior_.cerrado = false;
+    restoreOutputs(/*deEstaCorrida=*/true);
+    writeOnAirState();
+    avisar(Cambio::Salidas);
+    avisar(Cambio::Escenas);
+    const long long ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - desde).count();
+    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "motor", 0,
+                               ba::i18n::llenar(ba::i18n::traducir("arranque", "motor rearmado tras perder la GPU en %1 ms: video en %2, %3×%4"),
+                                                {std::to_string(ms), ba::motor::nombreGpu(), std::to_string(usado.baseWidth),
+                                                 std::to_string(usado.baseHeight)}));
 }
 
 bool AppRuntime::applyEncoder(const EncoderConfig& e) {

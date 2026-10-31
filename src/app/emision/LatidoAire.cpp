@@ -94,11 +94,18 @@ void LatidoAire::bucle() {
     bool avisoTraba = false;
     bool alarmaAire = false; // la alarma «interfaz trabada con aire» está dada
     std::uint64_t trabaMs = 0; // lo que lleva (o llevó) la traba, para el aviso de la vuelta
+    bool primero = false;      // el primer cuadro del programa ya se anotó
     while (corriendo_) {
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
         const std::uint64_t ahora = ahoraNs();
         const std::uint64_t c = cuadros_ ? cuadros_() : 0;
         if (c != ultimos) {
+            // La retoma tras una caída (F3-10): el banco de caos lee la hora de esta línea
+            // (tools/caos/banco.py, «primer_cuadro_s»). Con 250 ms de resolución.
+            if (!primero) {
+                primero = true;
+                ba::diag::registro().info(ba::i18n::traducir("supervisor", "arranque: el primer cuadro del programa"));
+            }
             ultimos = c;
             sinAvanceNs = 0;
         } else {

@@ -3,6 +3,7 @@
 // ============================================================================
 #include "Fallas.hpp"
 
+#include "GpuPerdida.hpp"
 #include "Reloj.hpp"
 #include "fault/FallasProgramadas.hpp"
 #include "i18n/I18n.hpp"
@@ -54,6 +55,17 @@ void aplicarFallasProgramadas(GstElement* pipeline, const std::string& salida, G
         avisarError(e, GST_RESOURCE_ERROR, GST_RESOURCE_ERROR_WRITE, "no se pudo escribir (falla inyectada)");
     }
     gst_object_unref(e);
+}
+
+void aplicarFallaDeGpu(GstElement* mezclador) {
+    auto& f = ba::fault::FallasProgramadas::instancia();
+    if (mezclador == nullptr || !f.hay() || f.tomar("video").empty()) return;
+    registrar(Nivel::Aviso, ba::i18n::traducir("motor", "falla inyectada (banco de caos): la GPU del video se pierde"));
+    if (GstPad* sale = gst_element_get_static_pad(mezclador, "src")) {
+        cortar(sale);
+        gst_object_unref(sale);
+    }
+    avisarError(mezclador, GST_RESOURCE_ERROR, GST_RESOURCE_ERROR_FAILED, textoDeGpuPerdida(gpu()).c_str());
 }
 
 } // namespace ba::motor

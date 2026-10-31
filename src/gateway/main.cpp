@@ -567,7 +567,7 @@ int main(int argc, char** argv) {
         pumpCfg.registroVozAudioNames.push_back(ba::ipc::nombreVozRegistro(k));
     }
     // Nombres por slot con el [0] reservado (no hay slot 0).
-    for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames,
+    for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames, &pumpCfg.guestUiVideoNames,
                     &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames, &pumpCfg.returnSlotNames}) {
         v->emplace_back();
     }
@@ -578,6 +578,7 @@ int main(int argc, char** argv) {
         pumpCfg.returnSlotNames.push_back(ba::ipc::nombreRetorno("", s));
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));
         pumpCfg.shareVideoNames.push_back(toWide("BA.GuestShare." + std::to_string(s)));
+        pumpCfg.guestUiVideoNames.push_back(toWide("BA.GuestUi." + std::to_string(s))); // la tarjeta de A (F3-11)
     }
     // R3: el remoto con la palabra (un canal; [0] reservado como los demás).
     // Dos canales: el que tiene la palabra y, en un debate entre remotos, el otro.

@@ -6,6 +6,7 @@
 //
 // Un punto es «<salida>.<pieza>»: salida = grabacion | transmision (el tipo, no el
 // id: la primera que pase por ahí se la lleva), pieza = codificador | sumidero.
+// Y «video.gpu» (F3-09): el mezclador de la composición avisa que se perdió la GPU.
 // Cada falla se dispara UNA vez (tomar la consume).
 //
 // Solo las arma la herramienta diag_falla, que existe solo con --test: en uso

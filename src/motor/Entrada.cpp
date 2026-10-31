@@ -2,6 +2,7 @@
 // src/motor/Entrada.cpp — ver Entrada.hpp
 // ============================================================================
 #include "Entrada.hpp"
+#include "GpuPerdida.hpp"
 #include "BuffersAudio.hpp"
 #include "Candado.hpp" // Tramo
 #include "diag/Utf8.hpp"
@@ -1729,6 +1730,7 @@ void Entrada::procesarMensaje(GstMessage* m) {
             });
             return;
         case GST_MESSAGE_ERROR: {
+            revisarErrorDeGpu(m); // ¿se perdió la GPU? (F3-09)
             GError* e = nullptr;
             gchar* dbg = nullptr;
             gst_message_parse_error(m, &e, &dbg);

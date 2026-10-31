@@ -1154,6 +1154,8 @@ void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora) {
 #include <gst/app/gstappsink.h>
 #include <gst/gl/gl.h>
 
+#include "GpuPerdida.hpp"
+
 #include <atomic>
 #include <cstdlib>
 #include <mutex>
@@ -1248,6 +1250,7 @@ bool d3d12Listo() {
     std::lock_guard<std::mutex> l(gGlMu);
     for (GstContext* c : gContextos) gst_context_unref(c);
     gContextos = std::move(contextos);
+    vigilarDispositivos(gContextos); // que el dispositivo avise si se pierde (GpuPerdida.hpp)
     return true;
 }
 
@@ -1281,6 +1284,63 @@ void ponerGpuVideo(bool quiere) {
 Gpu gpu() {
     if (gGpu.load() < 0) ponerGpuVideo(true);
     return static_cast<Gpu>(gGpu.load());
+}
+
+void soltarGpu() {
+    std::lock_guard<std::mutex> l(gGlMu);
+    if (gContexto != nullptr) {
+        if (gDisplay != nullptr) gst_gl_display_remove_context(gDisplay, gContexto);
+        gst_object_unref(gContexto);
+        gContexto = nullptr;
+    }
+    if (gDisplay != nullptr) {
+        gst_object_unref(gDisplay);
+        gDisplay = nullptr;
+    }
+    for (GstContext* c : gContextos) gst_context_unref(c);
+    gContextos.clear();
+    vigilarDispositivos({});
+    gGpu = -1; // la próxima pregunta (ponerGpuVideo) arma uno nuevo
+}
+
+bool gpuEntrega(int topeMs) {
+    const Gpu g = gpu();
+    if (g == Gpu::Ninguna) return true;
+    // Lo mismo que hace el motor (subir, convertir, componer, bajar) con SU contexto: si
+    // el contexto o el dispositivo se perdieron, esto no entrega.
+    const std::string d = "videotestsrc num-buffers=3 ! video/x-raw,format=RGBA,width=64,height=36 ! " + subirGpu() + " ! " +
+                          texturaGpu() + " ! " + (g == Gpu::D3D12 ? "d3d12compositor" : "glvideomixer") + " ! " + texturaGpu() +
+                          " ! " + bajarGpu() + " ! appsink name=s sync=false";
+    GError* e = nullptr;
+    GstElement* p = gst_parse_launch(d.c_str(), &e);
+    if (e != nullptr) {
+        g_error_free(e);
+        if (p != nullptr) gst_object_unref(p);
+        return false;
+    }
+    darContextoGpu(p);
+    GstBus* bus = gst_element_get_bus(p);
+    GstElement* s = gst_bin_get_by_name(GST_BIN(p), "s");
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    int cuadros = 0;
+    bool error = false;
+    const gint64 hasta = g_get_monotonic_time() + static_cast<gint64>(topeMs) * 1000;
+    while (cuadros < 3 && !error && g_get_monotonic_time() < hasta) {
+        if (GstSample* m = gst_app_sink_try_pull_sample(GST_APP_SINK(s), 20 * GST_MSECOND)) {
+            ++cuadros;
+            gst_sample_unref(m);
+        }
+        while (GstMessage* m = gst_bus_pop_filtered(bus, GST_MESSAGE_ERROR)) {
+            error = true;
+            gst_message_unref(m);
+        }
+        if (gst_app_sink_is_eos(GST_APP_SINK(s))) break;
+    }
+    gst_object_unref(s);
+    gst_element_set_state(p, GST_STATE_NULL);
+    gst_object_unref(bus);
+    gst_object_unref(p);
+    return cuadros >= 3;
 }
 
 bool gpuVideo() { return gpu() != Gpu::Ninguna; }

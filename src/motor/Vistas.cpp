@@ -2,6 +2,7 @@
 // src/motor/Vistas.cpp — ver Vistas.hpp
 // ============================================================================
 #include "Vistas.hpp"
+#include "GpuPerdida.hpp"
 
 #include <cstdlib>
 
@@ -315,7 +316,10 @@ void Vistas::tic() {
         }
         if (u->pipeline != nullptr) {
             GstBus* bus = gst_element_get_bus(u->pipeline);
-            while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
+            while (GstMessage* m = gst_bus_pop(bus)) {
+                revisarErrorDeGpu(m); // la bajada de la GPU también avisa si se perdió (F3-09)
+                gst_message_unref(m);
+            }
             gst_object_unref(bus);
         }
     }

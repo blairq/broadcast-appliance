@@ -135,6 +135,11 @@ void fitBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh) {
     }
     const int ox = (dw - fw) / 2;
     const int oy = (dh - fh) / 2;
+#if BA_GATEWAY_HAVE_WEBRTC
+    // Como scaleBgra: con filtro y SIMD, directo a su lugar adentro de las barras. Las
+    // vistas chicas (la del invitado para la interfaz, F3-11) pasan todas por acá.
+    libyuv::ARGBScale(src, sw * 4, sw, sh, dst + (static_cast<size_t>(oy) * dw + ox) * 4, dw * 4, fw, fh, libyuv::kFilterBox);
+#else
     for (int y = 0; y < fh; ++y) {
         const int sy = static_cast<int>(static_cast<long long>(y) * sh / fh);
         const uint8_t* srow = src + static_cast<size_t>(sy) * sw * 4;
@@ -144,6 +149,7 @@ void fitBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh) {
             std::memcpy(drow + static_cast<size_t>(x) * 4, srow + static_cast<size_t>(sx) * 4, 4);
         }
     }
+#endif
 }
 
 /// Dónde va un cuadro de `w`×`h` que sube un participante, en un canal de `cw`×`ch` (F2-13,
@@ -390,6 +396,13 @@ void MediaPump::ampliar(int slots) {
         guestVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
         videosInvitado_.push_back(crearVideo(name(cfg_.shareVideoNames, i), cfg_.programW, cfg_.programH));
         shareVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
+        // La vista chica para la interfaz de A (F3-11): achicada acá (libyuv, una vez) en vez
+        // de copiar el cuadro entero en la interfaz. 30 ms entre cuadros: 30 por segundo.
+        if (const std::wstring ui = name(cfg_.guestUiVideoNames, i); !ui.empty()) {
+            videosInvitado_.push_back(crearVideo(ui, cfg_.guestUiW, cfg_.guestUiH));
+            videosInvitado_.back()->minIntervalNs = 30'000'000;
+            guestUiVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
+        }
         audiosInvitado_.push_back(crearAudio(name(cfg_.guestAudioNames, i)));
         guestAudio_[i].store(audiosInvitado_.back().get(), std::memory_order_release);
         lugares_ = s;
@@ -1330,6 +1343,8 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
         r.index <= kMaxInvitados) {
         if (VideoOut* v = guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
             publishVideo(*v, pixels, w, h, true);
+        if (VideoOut* u = guestUiVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
+            publishVideo(*u, pixels, w, h, true);
     } else if (r.kind == MediaRoute::Kind::Lobby && r.index >= 1 &&
                r.index < static_cast<int>(lobbyVideo_.size())) {
         publishVideo(*lobbyVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
@@ -1504,7 +1519,11 @@ void MediaPump::plateThread() {
                 drawPlate(plates[s].data(), w, h, static_cast<int>(s));
             }
             const uint64_t last = v->lastNs.load(std::memory_order_relaxed);
-            if (last == 0 || now - last > kGuestTimeoutNs) publishVideo(*v, plates[s].data(), w, h, false);
+            if (last == 0 || now - last > kGuestTimeoutNs) {
+                publishVideo(*v, plates[s].data(), w, h, false);
+                // La tarjeta de la interfaz muestra la misma placa (F3-11).
+                if (VideoOut* u = guestUiVideo_[s].load(std::memory_order_acquire)) publishVideo(*u, plates[s].data(), w, h, false);
+            }
         }
         // 5 fps: es una imagen fija y A muestra el ultimo frame recibido.
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
