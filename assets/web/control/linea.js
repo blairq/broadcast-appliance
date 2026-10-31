@@ -156,6 +156,44 @@
     return x;
   }
 
+  // --- Lo que propone el productor para llegar a horario -----------------------------------------
+  // Solo se muestra (con cómo quedaría el fin de cada opción): se aplica desde la conducción.
+  function propuesta(c) {
+    const x = { raiz: el("section", "linea-propuesta oculto") };
+    x.texto = el("p", "aviso");
+    x.opciones = el("ul", "suave");
+    x.raiz.append(el("h2", "", t("El productor propone")), x.texto, x.opciones);
+    c.append(x.raiz);
+    x.actualizar = (datos) => {
+      const pr = deLaSalida(datos).salida.propuesta;
+      x.raiz.classList.toggle("oculto", !pr);
+      if (!pr) return;
+      texto(x.texto, pr.texto || "");
+      const ops = pr.opciones || [];
+      sincronizar(x.opciones, ops.map((o) => o.id), () => el("li"), (li, id) => {
+        const o = ops.find((y) => y.id === id);
+        const fin = o.resultado && o.resultado.fin;
+        texto(li, (o.texto || id) + (fin ? " · " + BAi18n.llenar(t("termina %1"), fin) : ""));
+      });
+    };
+    return x;
+  }
+
+  // --- Los pulsos de la web («web:<botón>» en una condición de la línea) -------------------------
+  // Un botón por cada uno que espera la línea: lo que pase (un GO, un adlib) lo dice la condición.
+  function pulsos(c, api) {
+    const x = { raiz: el("div", "fila linea-pulsos") };
+    if (!api.puede("linea_pulso")) return { actualizar() {} };
+    c.append(x.raiz);
+    x.actualizar = (datos) => {
+      const claves = ((deLaSalida(datos).ver.pulsos) || []).filter((k) => k.startsWith("web:"));
+      x.raiz.classList.toggle("oculto", !claves.length);
+      sincronizar(x.raiz, claves, (clave) => boton(clave.slice(4), () => api.hacer("linea_pulso", { clave }).catch(() => {}),
+                                                   { compacto: true }), () => {});
+    };
+    return x;
+  }
+
   // --- Las miniaturas de al aire y del próximo ---------------------------------------------------
   // Una foto de la escena (foto_fuente, 320 de ancho) cuando cambia y, la de al aire, cada 20 s.
   // Sin permiso de imágenes en el perfil, no hay miniaturas (la escaleta anda igual).
@@ -228,5 +266,5 @@
     });
   }
 
-  BA.linea = { mmss, deLaSalida, pasosDe, conduccion, escaleta, estante, miniaturas, pagina };
+  BA.linea = { mmss, deLaSalida, pasosDe, conduccion, escaleta, estante, propuesta, pulsos, miniaturas, pagina };
 })();

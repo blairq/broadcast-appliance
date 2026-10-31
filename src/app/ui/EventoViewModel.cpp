@@ -2242,6 +2242,14 @@ json EventoViewModel::lineaEstado() const {
         ptz.push_back({{"pieza", x.pieza}, {"paso", x.paso}, {"salida", x.salida}, {"camara", x.camara}, {"posicion", x.posicion},
                        {"desde", horaDe(x.desdeMs)}});
     j["ptzPendientes"] = ptz;
+    // Lo que propone el productor para llegar a horario (ui/LineaProductor lo deja en el
+    // bus, linea/<salida>/propuesta): para la escaleta web y el asistente. Solo se muestra;
+    // se aplica desde la conducción.
+    if (control::BusEventos* bus = sistema().bus; bus != nullptr && j.contains("salidas"))
+        for (json& x : j["salidas"]) {
+            const json u = bus->ultimo("linea/" + x.value("salida", std::string()) + "/propuesta");
+            if (u.is_object() && u.value("valor", json()).is_object()) x["propuesta"] = u["valor"];
+        }
     return j;
 }
 

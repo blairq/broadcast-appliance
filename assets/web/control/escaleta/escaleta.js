@@ -13,7 +13,7 @@
       const izq = el("div"), der = el("div");
       arriba.append(izq, der);
       main.append(arriba);
-      partes = [BA.linea.conduccion(izq, api), BA.linea.miniaturas(der, api)];
+      partes = [BA.linea.conduccion(izq, api), BA.linea.pulsos(izq, api), BA.linea.miniaturas(der, api), BA.linea.propuesta(main)];
       const est = el("section");
       est.append(el("h2", "", t("Estante")));
       const e = BA.linea.estante(est, api);
