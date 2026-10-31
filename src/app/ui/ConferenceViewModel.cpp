@@ -181,25 +181,26 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
         avisoSinSalaMs_ = 0; // volvió: la próxima caída se avisa enseguida
         authSeguidos_ = 0;
     });
-    // Estado de red: cada 5 s (cambia poco; no amerita un evento propio).
-    const auto pollNetwork = [this]() {
-        if (!client_->online()) return;
-        QPointer<ConferenceViewModel> yo(this);
-        control_->verRed([yo](const std::string& err, const nlohmann::json& r) {
-            if (!yo || !err.empty()) return;
-            const QVariantMap m = aMapa(r);
-            if (m != yo->network_) {
-                yo->network_ = m;
-                emit yo->networkChanged();
-            }
-        });
+    // El estado de red y las fotos de las tarjetas los avisa la sala cuando cambian
+    // (eventos «red» y «avatar»); al volver la sala se piden una vez.
+    const auto ponerRed = [this](const nlohmann::json& r) {
+        const QVariantMap m = aMapa(r);
+        if (m == network_) return;
+        network_ = m;
+        emit networkChanged();
     };
-    // Fotos de las tarjetas de oradores (las renueva el invitado cada 5 s).
-    connect(&avatarPoll_, &QTimer::timeout, this, &ConferenceViewModel::pollAvatars);
-    avatarPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
-    connect(&networkPoll_, &QTimer::timeout, this, pollNetwork);
-    connect(client_.get(), &ConferenceClient::onlineChanged, this, pollNetwork);
-    networkPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
+    connect(client_.get(), &ConferenceClient::redEvento, this, [ponerRed](const QJsonObject& o) {
+        ponerRed(nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false));
+    });
+    connect(client_.get(), &ConferenceClient::avatarEvento, this, [this](const QString& id) { traerAvatar(id); });
+    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this, ponerRed](bool on) {
+        if (!on) return;
+        QPointer<ConferenceViewModel> yo(this);
+        control_->verRed([yo, ponerRed](const std::string& err, const nlohmann::json& r) {
+            if (yo && err.empty()) ponerRed(r);
+        });
+        pollAvatars();
+    });
     // La atención automática la guarda el modelo (sigue prendida al arrancar
     // y la sala se entera cuando conecta). Si no hay asistente, se apaga sola
     // en cuanto lo intenta (ver onSnapshot).
@@ -260,20 +261,22 @@ void ConferenceViewModel::rebuildSpeakers() {
     onAir_ = onAir;
 }
 
+void ConferenceViewModel::traerAvatar(const QString& id) {
+    QPointer<ConferenceViewModel> yo(this);
+    participantes_->foto(id.toStdString(), [yo, id](bool ok, const QByteArray& jpeg) {
+        if (!yo || !ok || jpeg.isEmpty()) return;
+        const QString url = "data:image/jpeg;base64," + QString::fromLatin1(jpeg.toBase64());
+        if (yo->avatars_.value(id) == url) return;
+        yo->avatars_.insert(id, url);
+        yo->rebuildSpeakers();
+    });
+}
+
 void ConferenceViewModel::pollAvatars() {
     if (!client_->online()) return;
     for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
         const QJsonObject p = v.toObject();
-        if (!p.value("hasAvatar").toBool()) continue;
-        const QString id = p.value("id").toString();
-        participantes_->foto(id.toStdString(), [this, id](bool ok, const QByteArray& jpeg) {
-                            if (!ok || jpeg.isEmpty()) return;
-                            const QString url =
-                                "data:image/jpeg;base64," + QString::fromLatin1(jpeg.toBase64());
-                            if (avatars_.value(id) == url) return;
-                            avatars_.insert(id, url);
-                            rebuildSpeakers();
-                        });
+        if (p.value("hasAvatar").toBool()) traerAvatar(p.value("id").toString());
     }
     // Las de quien ya no esta.
     QSet<QString> alive;

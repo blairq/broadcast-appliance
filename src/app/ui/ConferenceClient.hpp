@@ -123,6 +123,12 @@ class ConferenceClient : public QObject {
     void rotulosEvento(const QJsonObject& ev);
     /// Cómo anda ba-web, el servidor de la página pública ({vivo, reinicios, cortado, seguidas}).
     void webEvento(const QJsonObject& ev);
+    /// Alguien escaneó su invitación: hay acreditaciones para ir a buscar ({pendientes}).
+    void acreditacionEvento();
+    /// Cambió el estado de red de la sala (lo mismo que GET /api/v1/network).
+    void redEvento(const QJsonObject& red);
+    /// Un participante cambió su foto (la de su tarjeta): {id}.
+    void avatarEvento(const QString& id);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 

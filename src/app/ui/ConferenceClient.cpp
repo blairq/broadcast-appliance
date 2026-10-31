@@ -190,6 +190,12 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit rotulosEvento(obj);
     } else if (event == "web") {
         emit webEvento(obj);
+    } else if (event == "acreditacion") {
+        emit acreditacionEvento();
+    } else if (event == "red") {
+        emit redEvento(obj);
+    } else if (event == "avatar") {
+        emit avatarEvento(obj.value("id").toString());
     } else if (event == "votacion" || event == "preguntas") {
         emit estadoEvento(QString::fromUtf8(event), obj);
     } else if (event == "programa") {

@@ -299,9 +299,21 @@ bool SignalingServer::start() {
         int miranAntes = -1;
         json salidasAntes = json::object();
         int vueltas = 0;
+        int vueltasRed = 0;
+        json redAntes;
         while (!stop_.load()) {
             for (int i = 0; i < 20 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
             recalcularDirecciones(); // la IP de la máquina, el túnel, las puertas: ¿cambió algo?
+            // El estado de red, a la app cuando cambia (cada 6 s se mira; antes la app
+            // preguntaba cada 5).
+            if (networkStatus_ && ++vueltasRed >= 3) {
+                vueltasRed = 0;
+                json red = networkStatus_();
+                if (red != redAntes) {
+                    redAntes = red;
+                    broadcastToHosts("red", red);
+                }
+            }
             // Cuántos reciben el programa: a la app, al cambiar y cada 10 s (por si su
             // escucha de eventos se reconectó). Sin nadie, deja de bajarlo y descansa.
             // Lo mismo por cada otra salida que alguien mira ({id: cuántos}): la app
@@ -1696,6 +1708,8 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 std::find(acreditaciones_.begin(), acreditaciones_.end(), codigo) == acreditaciones_.end())
                 acreditaciones_.push_back(codigo);
         }
+        // A se las viene a llevar cuando se entera (nadie pregunta cada dos segundos).
+        broadcastToHosts("acreditacion", json::object());
         // Se contesta que si SIEMPRE: B no sabe si ese codigo existe (el padron
         // lo tiene A), y decirle «no se» al que acaba de llegar no le sirve.
         // Si el codigo no esta en el padron, A lo avisa del lado del operador.
@@ -1930,8 +1944,10 @@ void SignalingServer::apiAvatarUpload(long long fd, const std::string& headers, 
                            R"({"ok":false,"error":"type"})");
         return;
     }
+    bool nueva = false;
     {
         std::lock_guard<std::mutex> lock(avatarsLock_);
+        nueva = avatars_[who.id] != body;
         avatars_[who.id] = body;
         // Limpieza perezosa: las fotos de quien ya no esta en la sala.
         for (auto it = avatars_.begin(); it != avatars_.end();) {
@@ -1940,6 +1956,8 @@ void SignalingServer::apiAvatarUpload(long long fd, const std::string& headers, 
         }
     }
     room_.setHasAvatar(who.id);
+    // La app la va a buscar cuando cambió (el navegador la renueva cada tanto, igual).
+    if (nueva) broadcastToHosts("avatar", json{{"id", who.id}});
     http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
 }
 

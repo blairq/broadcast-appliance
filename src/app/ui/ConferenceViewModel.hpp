@@ -346,12 +346,12 @@ class ConferenceViewModel : public QObject {
     double clockOffset_ = 0;
     QHash<QString, QString> avatars_; // id -> data:image/jpeg;base64,...
     QHash<QString, QString> nombresDeAfuera_; // id -> nombre de quien se atiende sin estar en la sala
-    QTimer avatarPoll_;
+    /// Todas las fotos (al volver la sala) y una (la sala avisa que cambió: «avatar»).
     void pollAvatars();
+    void traerAvatar(const QString& id);
     void rebuildSpeakers();
     QStringList knownWaiting_;
     QVariantMap network_;
-    QTimer networkPoll_;
     QStringList slotNames_;
     QVariantList slotsSinRetorno_;
     qint64 lastSeq_ = 0;

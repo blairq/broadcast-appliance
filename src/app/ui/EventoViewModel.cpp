@@ -198,11 +198,19 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Co
     vigiaEnCurso_.start();
     // La página web del evento en vivo: a la sala cuando cambia algo, cada 10 s (lo que
     // cambia sin avisar: las preguntas, el padrón) y enseguida a una sala nueva.
-    if (sala_ != nullptr)
+    if (sala_ != nullptr) {
         sala_->client().registrarRepublicador("evento-web", this, [this]() {
             webUltimo_.clear();
             publicarWeb();
         });
+        // El que escanea en la puerta espera mirando el teléfono: la sala avisa cada
+        // acreditación y se la va a buscar ya (nadie pregunta cada dos segundos). Al
+        // volver la sala, por si quedó alguna de cuando no se la oía.
+        connect(&sala_->client(), &ConferenceClient::acreditacionEvento, this, &EventoViewModel::recogerAcreditaciones);
+        connect(&sala_->client(), &ConferenceClient::onlineChanged, this, [this](bool on) {
+            if (on) recogerAcreditaciones();
+        });
+    }
     webTimer_.setInterval(ba::ajustes::sAMs("evento.webReenvioS", 10));
     connect(&webTimer_, &QTimer::timeout, this, [this]() { webUltimo_.clear(); publicarWeb(); });
     webTimer_.start();
@@ -717,13 +725,8 @@ bool EventoViewModel::abrir(const QString& carpeta) {
         emit notify(tr("El padron de este evento no se pudo leer: %1").arg(QString::fromStdString(errPadron)),
                     "error");
     migrarAutoAceptar();
-    // Cada dos segundos: el que escanea en la puerta espera mirando el
-    // telefono, y diez segundos ahi parado se sienten eternos.
-    if (buzon_.interval() == 0) {
-        buzon_.setInterval(ba::ajustes::entero("evento.buzonMs", 2000));
-        connect(&buzon_, &QTimer::timeout, this, &EventoViewModel::recogerAcreditaciones);
-    }
-    buzon_.start();
+    // Las acreditaciones que esperaban en la sala (las demás llegan solas: ver el constructor).
+    recogerAcreditaciones();
     // Su página web: las páginas que nadie editó toman la plantilla de este programa (si se
     // mejoró, se ve ya) y se crean las que falten. Lo editado no se toca. Los datos no
     // están en los archivos: los publica la app (publicarWeb) y la página los dibuja.
@@ -744,7 +747,6 @@ void EventoViewModel::cerrar() {
     parar();
     ejecutores_.clear();
     corrida_.reset();
-    buzon_.stop();
     e_ = {};
     linea_ = {};
     proyeccion_ = {};

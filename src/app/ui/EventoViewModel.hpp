@@ -808,10 +808,8 @@ class EventoViewModel : public QObject {
     /// Vuelca la lista blanca vieja del lobby al padrón, una sola vez.
     void migrarAutoAceptar();
     /// Va a buscar al gateway los que escanearon su invitación y los acredita.
-    /// Corre sola mientras hay un evento abierto.
+    /// Con un evento abierto: al abrirlo, cuando la sala avisa una acreditación y cuando vuelve.
     void recogerAcreditaciones();
-    /// El reloj de eso. Ver `recogerAcreditaciones`.
-    QTimer buzon_;
     /// La página web del evento: el reenvío a la sala (cada 10 s, por si se reinició),
     /// cuándo arrancó el guion, la versión del sitio (cambia al regenerar/editar) y lo
     /// último que se mandó (para no repetir).
