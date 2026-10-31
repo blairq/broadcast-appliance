@@ -3110,6 +3110,16 @@ void SignalingServer::avisarPrompter(const std::string& pedido, bool conTexto, b
     const json msg{{"type", "prompter"}, {"estado", e}};
     for (const Superficies::Conectada& c : superficies_.conectadas("prompter"))
         if (Prompters::idValido(c.extra.value("p", std::string())) == id) sendToGuest(c.pid, msg);
+    // El principal lo ven también los invitados en modo oradores (su panel del orador).
+    if (id != Prompters::kPrincipal) return;
+    std::vector<std::string> invitados;
+    {
+        std::lock_guard<std::mutex> l(connsLock_);
+        for (const auto& [pid, c] : conns_)
+            if (pid.rfind("superficie:", 0) != 0) invitados.push_back(pid);
+    }
+    for (const std::string& pid : invitados)
+        if (!esPantalla(pid)) sendToGuest(pid, msg);
 }
 
 std::string SignalingServer::claveDeSuperficie(const std::string& tipo) const {
