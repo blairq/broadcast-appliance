@@ -5,8 +5,8 @@
 // La usan las ventanas sueltas y los monitores (VistaCatalogo, VistaCosas):
 // antes cada una armaba su VideoWall con sus reglas.
 //
-// Las escenas que no están al aire se piden al motor mientras se miran
-// (Studio.frames.mirarEscena) y se sueltan al dejar de mostrarlas.
+// Las escenas que no están al aire las pide al motor cada cuadro del VideoWall
+// mientras se muestra (Suscripcion a Studio.frames).
 import QtQuick
 import BA
 
@@ -25,18 +25,6 @@ Item {
     /// Una sola fuente suele ir a un proyector o un televisor de la sala: sin
     /// marcas de operador. Con varias es un multiview de control.
     property bool operador: clavesVivas.length > 1
-
-    // --- Escenas pedidas al motor --------------------------------------------
-    property var miradas: []
-    function mirar() {
-        const nuevas = vv.clavesVivas.filter(k => k.startsWith("escena:")).map(k => k.slice(7))
-        for (const e of nuevas) if (vv.miradas.indexOf(e) < 0) Studio.frames.mirarEscena(e, true)
-        for (const e of vv.miradas) if (nuevas.indexOf(e) < 0) Studio.frames.mirarEscena(e, false)
-        vv.miradas = nuevas
-    }
-    onClavesVivasChanged: mirar()
-    Component.onCompleted: mirar()
-    Component.onDestruction: { for (const e of vv.miradas) Studio.frames.mirarEscena(e, false) }
 
     Rectangle { anchors.fill: parent; color: "black"; visible: vv.esMultiview }
     VideoWall {

@@ -25,17 +25,21 @@ class JsonListModel;
 
 class TwitchViewModel : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool configured READ configured NOTIFY stateChanged)
-    Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY stateChanged)
-    Q_PROPERTY(bool loginPending READ loginPending NOTIFY stateChanged)
-    Q_PROPERTY(QString userCode READ userCode NOTIFY stateChanged)
-    Q_PROPERTY(QString verificationUri READ verificationUri NOTIFY stateChanged)
-    Q_PROPERTY(QString clientId READ clientId NOTIFY stateChanged)
-    Q_PROPERTY(QVariantMap user READ user NOTIFY stateChanged)
-    Q_PROPERTY(QString avatar READ avatar NOTIFY stateChanged)
+    // Cada grupo avisa solo si cambió lo suyo (el estado del vivo se mira cada 30 s y casi
+    // nunca cambia; la cuenta, al conectar).
+    /// La app de Twitch (Client ID).
+    Q_PROPERTY(bool configured READ configured NOTIFY appChanged)
+    Q_PROPERTY(QString clientId READ clientId NOTIFY appChanged)
+    /// La cuenta: conectada, el código para conectarla, quién es.
+    Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY cuentaChanged)
+    Q_PROPERTY(bool loginPending READ loginPending NOTIFY cuentaChanged)
+    Q_PROPERTY(QString userCode READ userCode NOTIFY cuentaChanged)
+    Q_PROPERTY(QString verificationUri READ verificationUri NOTIFY cuentaChanged)
+    Q_PROPERTY(QVariantMap user READ user NOTIFY cuentaChanged)
+    Q_PROPERTY(QString avatar READ avatar NOTIFY avatarChanged)
     Q_PROPERTY(QVariantMap channel READ channel NOTIFY channelChanged)
-    Q_PROPERTY(QVariantMap stream READ stream NOTIFY channelChanged)
-    Q_PROPERTY(bool streamingHere READ streamingHere NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap stream READ stream NOTIFY streamChanged)
+    Q_PROPERTY(bool streamingHere READ streamingHere NOTIFY streamingHereChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(QObject* videos READ videos CONSTANT)
@@ -87,8 +91,15 @@ class TwitchViewModel : public QObject {
     const QJsonArray& chatMessages() const { return client_->chatMessages(); }
 
    signals:
+    /// Cambió algo de la cuenta o de lo que sale (la app, la cuenta, transmitir desde acá):
+    /// para quien junta todo (la web del evento), no para enlazar propiedades.
     void stateChanged();
+    void appChanged();
+    void cuentaChanged();
+    void avatarChanged();
+    void streamingHereChanged();
     void channelChanged();
+    void streamChanged();
     void busyChanged();
     void errorChanged();
     void chatChanged();
@@ -103,6 +114,11 @@ class TwitchViewModel : public QObject {
     void setError(const QString& e);
     void track(bool start);
     void pollStream();
+    /// El cliente avisó: emite lo que cambió de la app y de la cuenta.
+    void revisarCuenta();
+    void setStreamingHere(bool si);
+    void setChannel(const QJsonObject& c);
+    void setStream(const QJsonObject& s);
 
     AppRuntime& rt_;
     VentanillaMotor& ventanilla_;
@@ -114,6 +130,7 @@ class TwitchViewModel : public QObject {
     QJsonObject stream_;
     QString avatar_;
     bool streamingHere_ = false;
+    QVariantMap appAntes_, cuentaAntes_; ///< para avisar solo lo que cambió
     int busy_ = 0;
     QString lastError_;
     QTimer streamTimer_;

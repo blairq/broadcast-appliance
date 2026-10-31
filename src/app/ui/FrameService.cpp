@@ -272,17 +272,13 @@ int anchoDe(const QString& clave) {
 }
 } // namespace
 
-void FrameService::mirarEntrada(const QString& entrada, bool mirar, bool entera) {
-    if (entrada.isEmpty()) return;
-    // 960 de ancho, como la armada: para apuntar alcanza y sobra.
-    mirarClave((entera ? "entrada-entera:" : "entrada:") + entrada, mirar);
-}
-
-void FrameService::mirarEscena(const QString& escena, bool mirar) {
-    if (escena.isEmpty()) return;
-    // Clave propia (una escena y una entrada pueden llamarse igual) y 1280 de
-    // ancho: va a un monitor entero, no a una tarjeta.
-    mirarClave("escena:" + escena, mirar);
+void FrameService::usar(QObject* vista, bool si, const QString& que) {
+    // Solo lo que una vista puede pedir (las miniaturas son de la línea, con su presupuesto).
+    // La entrada a 960 de ancho (para apuntar alcanza y sobra); la escena, con clave propia (una
+    // escena y una entrada pueden llamarse igual) y a 1280: va a un monitor entero.
+    if (!(que.startsWith("entrada:") || que.startsWith("entrada-entera:") || que.startsWith("escena:"))) return;
+    if (que.section(':', 1).isEmpty()) return;
+    vistas_.usar(vista, si, que);
 }
 
 void FrameService::mirarMiniatura(const QString& escena, bool mirar) {
@@ -364,6 +360,7 @@ std::vector<std::wstring> FrameService::channelsOf(const QString& key) {
 
 bool FrameService::latest(const QString& clave, QImage& out, std::uint64_t& serial) const {
     const QString key = clavePropia(clave);
+    leidoUs_ = ahoraUs();
     // La vista de otra salida se pide sola mientras alguien la lea (ver poll).
     if (key.startsWith("program:") || key.startsWith("armada:")) salidasPedidas_[key] = ahoraUs();
     auto it = slots_.find(key);
@@ -375,6 +372,8 @@ bool FrameService::latest(const QString& clave, QImage& out, std::uint64_t& seri
     serial = it->second.serial;
     return true;
 }
+
+bool FrameService::mirado() const { return ahoraUs() - leidoUs_ <= 1'000'000; }
 
 void FrameService::poll() {
     const std::int64_t t0 = ahoraUs();

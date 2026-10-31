@@ -170,6 +170,9 @@ def armar(aparato=None):
         if n.startswith("?"):
             problemas.append(f"{c['archivo']}:{c['linea']}: {c['errores']['nombre']}")
     cod = {n: c for n, c in cod.items() if not n.startswith("?")}
+    # Lo que toca cada cuerpo contra su hilo (M-46): lo de la interfaz desde otro hilo no pasa.
+    errores_cuerpo, avisos_cuerpo = mcp_codigo.revisar_cuerpos(cod)
+    problemas += errores_cuerpo
     viejos = renombres()
     exactas, prefijos = etiquetas()
     juegos = roles()
@@ -237,7 +240,9 @@ def armar(aparato=None):
         if c["clase"] == "aire":
             h["aire"] = {"cuando": c["aireSi"], "por_que": c["porQueAire"]}
         for clave, campo in (("reversible", "reversible"), ("porSalida", "porSalida"), ("mediada", "mediada"),
-                             ("contenidoNoConfiable", "contenidoNoConfiable")):
+                             ("contenidoNoConfiable", "contenidoNoConfiable"),
+                             ("contenidoNoConfiableConGente", "contenidoNoConfiableConGente"),
+                             ("destructivaSi", "destructivaSi")):
             if c[campo]:
                 h[clave] = True
         if antes:
@@ -269,7 +274,8 @@ def armar(aparato=None):
         "temas_de_ayuda": temas(),
         "herramientas": fuera,
     }
-    return doc, problemas
+    doc_avisos = avisos_cuerpo
+    return doc, problemas, doc_avisos
 
 
 def tabla_md(doc):
@@ -325,7 +331,7 @@ def _volcar(doc):
 
 
 def verificar():
-    doc, problemas = armar()
+    doc, problemas, avisos = armar()
     deriva = []
     actual = json.loads(INVENTARIO.read_text(encoding="utf-8")) if INVENTARIO.exists() else {}
     if _sin_fecha(actual) != _sin_fecha(doc):
@@ -344,6 +350,8 @@ def verificar():
         deriva.append(f"la tabla de {DOC.relative_to(RAIZ)} no es la del registro")
     for p in problemas:
         print("REGISTRO:", p)
+    for a in avisos:
+        print("AVISO:", a)
     for d in deriva:
         print("DERIVA:", d)
     if deriva:
@@ -359,7 +367,7 @@ def main():
     if "--verificar" in sys.argv:
         sys.exit(verificar())
     codigo = "--desde-codigo" in sys.argv
-    doc, problemas = armar(None if codigo else del_aparato())
+    doc, problemas, avisos = armar(None if codigo else del_aparato())
     salida = pathlib.Path(args[0]) if args else INVENTARIO
     salida.parent.mkdir(parents=True, exist_ok=True)
     salida.write_text(_volcar(doc), encoding="utf-8")
@@ -376,6 +384,8 @@ def main():
             print(f"  {que} ({len(hs)}): {'; '.join(hs)}")
     for p in problemas:
         print("  REGISTRO:", p)
+    for a in avisos:
+        print("  AVISO:", a)
     if md is None:
         print(f"  {DOC.relative_to(RAIZ)}: faltan las marcas {MARCA_INI!r} … {MARCA_FIN!r}")
 

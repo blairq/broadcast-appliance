@@ -11,7 +11,9 @@ ba-app-headless/
 # --- Dependencias de terceros (make deps) ----------------------------------
 # extern/ guarda lo que se baja o se compila desde fuente fijada (Qt, GStreamer,
 # ONNX Runtime, libwebrtc, Python, LSP…). Se regenera con `make deps`.
-extern/
+# Sin barra final: ignora también un enlace llamado extern (los worktrees lo usan y
+# commitearlo hizo que un merge borrara la carpeta real del repo principal).
+/extern
 
 # --- Python -------------------------------------------------------------------
 .venv/

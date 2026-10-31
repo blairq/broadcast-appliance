@@ -182,10 +182,8 @@ bool AccesoRemoto::clavesIguales() const {
     return almacen.read(kToken, t) && almacen.read(kApiKey, k) && !t.empty() && t == k;
 }
 
-void AccesoRemoto::setSiguiendo(bool on) {
-    if (on == siguiendo_) return;
-    siguiendo_ = on;
-    if (on) {
+void AccesoRemoto::alCambiarSiguiendo() {
+    if (siguiendo()) {
         refrescar();
         poll_.start();
     } else {

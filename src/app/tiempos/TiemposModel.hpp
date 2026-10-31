@@ -3,12 +3,13 @@
 //
 // Arma el grafo de demoras (tiempos::armar) con las fotos que ya se publican y lo
 // expone como propiedad (`mapa`, avisa con `cambio`): la vista se engancha a eso, no
-// a funciones que se leen una vez. Mientras la página está abierta (`activo`) lo
+// a funciones que se leen una vez. Mientras alguna vista lo usa (`usar`, cuenta por vista) lo
 // rehace 5 veces por segundo y guarda la historia de cada nodo (los últimos 60 s);
 // cerrada no cuesta nada. El MCP pide una foto cuando quiere (`ahora`).
 // ============================================================================
 #pragma once
 
+#include "comun/UsoPorVistas.hpp"
 #include "tiempos/Tiempos.hpp"
 
 #include <QObject>
@@ -28,7 +29,8 @@ namespace ba::app::tiempos {
 class TiemposModel : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantMap mapa READ mapa NOTIFY cambio)
-    Q_PROPERTY(bool activo READ activo WRITE setActivo NOTIFY activoCambio)
+    /// Alguna vista lo usa (usar): mide 5 veces por segundo.
+    Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
     /// Los análisis (el último primero): [{id, estado: midiendo|listo|fallo, progreso 0..1,
     /// desde_ms, segundos, salidas: [{id, titulo, total_ms, p95_ms}], nodos: {id: {p50_ms,
     /// p95_ms, n}}, error}]. Quedan en el evento (Config/tiempos-analisis.json).
@@ -57,7 +59,8 @@ class TiemposModel : public QObject {
 
     QVariantMap mapa() const { return mapaUi_; }
     bool activo() const { return timer_.isActive(); }
-    void setActivo(bool a);
+    /// Una vista (la página) empieza o deja de mirar.
+    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
 
     /// El grafo de ahora (lo rehace en el momento; para el MCP).
     nlohmann::json ahora();
@@ -123,6 +126,8 @@ class TiemposModel : public QObject {
 
     std::function<Fotos()> fotos_;
     QTimer timer_;
+    UsoPorVistas vistas_{this, [this](const QString&) { setActivo(vistas_.alguien()); }};
+    void setActivo(bool a);
     nlohmann::json mapa_ = nlohmann::json::object();
     QVariantMap mapaUi_;
     struct Muestra {

@@ -48,6 +48,8 @@
 
 namespace ba::app {
 class AppRuntime;
+class EstadoAireViewModel;
+struct FotoMotor;
 class JsonListModel;
 class MixerModel;
 class RecursosViewModel;
@@ -103,15 +105,17 @@ class SalidasViewModel : public QObject {
     Q_PROPERTY(QVariantMap tally READ tally NOTIFY tallyCambio)
     /// Los medios que suenan/se ven al aire en la por omisión: [{fuente, restante_s, duracion_s}] (T46).
     Q_PROPERTY(QVariantList mediosAlAire READ mediosAlAire NOTIFY mediosCambio)
+    /// Los textos de placa de siempre, en el idioma del evento (salen al aire), y el último
+    /// que se usó primero.
+    Q_PROPERTY(QStringList textosPlaca READ textosPlaca NOTIFY textosPlacaCambio)
    public:
     struct Partes {
         AppRuntime& rt;
         VentanillaMotor& ventanilla;      ///< pedir y leer la foto del motor
         RecursosViewModel& recursos;      ///< si la máquina da para otra salida
         config::InterfazConfig& interfaz; ///< dónde se recuerda la activa
-        /// Lo que sale de la por omisión (las pastillas de la raíz): {transmitiendo,
-        /// grabando, reconectando, tiempoTransmision, tiempoGrabacion}.
-        std::function<QVariantMap()> airePorOmision;
+        /// Lo que sale de la por omisión (las pastillas de la raíz) y su reloj de 1 Hz.
+        EstadoAireViewModel& aire;
     };
     explicit SalidasViewModel(Partes p, QObject* parent = nullptr);
     ~SalidasViewModel() override;
@@ -167,6 +171,13 @@ class SalidasViewModel : public QObject {
     Q_INVOKABLE QString setCodificador(const QString& id, const QString& codificador);
     /// `susDestinos`: "borrar" o el id de otra salida (con destinos guardados hay que decirlo).
     Q_INVOKABLE QString borrar(const QString& id, const QString& susDestinos = {});
+    /// Lo mismo, para quien necesita el resultado (el MCP): `listo(error)` en este hilo, con
+    /// la foto ya al día. `tope` >= 0 cambia también cuántas salidas puede haber (antes de
+    /// los cambios); `cambios` vacío no cambia la salida.
+    using Listo = std::function<void(const std::string& error)>;
+    void crearSalida(const std::string& id, const std::string& nombre, const std::string& color, Listo listo);
+    void editar(const std::string& id, const nlohmann::json& cambios, int tope, Listo listo);
+    void borrar(const std::string& id, const std::string& susDestinos, Listo listo);
     /// Una salida nueva con su nombre (el id sale del nombre, único) y su color ("" = el
     /// que le toque). Queda como la activa. "" o por qué no.
     Q_INVOKABLE QString crear(const QString& nombre, const QString& color);
@@ -179,8 +190,12 @@ class SalidasViewModel : public QObject {
     Q_INVOKABLE QString ftbUi(bool activar, int ms = 800, const QString& audio = "bajar");
     /// La placa con `texto` (y una imagen opcional). "" o el error.
     Q_INVOKABLE QString placaUi(bool activar, const QString& texto = {}, const QString& imagen = {}, int ms = 600);
-    /// Los textos de placa de siempre (y los que se usaron).
-    Q_INVOKABLE QStringList textosPlaca() const;
+    QStringList textosPlaca() const { return textosPlaca_; }
+    /// Rearma los textos de placa (cambió el idioma del evento o la placa usada) y avisa si cambiaron.
+    void revisarTextosPlaca();
+    /// Los de siempre, con `usado` (la placa que está o estuvo puesta) primero si no es uno de
+    /// ellos. Sin la vista: lo usa el MCP desde el dueño del motor (aire_placas_listar).
+    static QStringList textosDePlaca(const QString& usado);
 
    signals:
     void cambio();
@@ -189,6 +204,7 @@ class SalidasViewModel : public QObject {
     void placaCambio();
     void tallyCambio();
     void mediosCambio();
+    void textosPlacaCambio();
     /// La interfaz pasa a manejar otra salida: escenas, fuentes, mezcla, tally.
     void activaElegida();
     /// Se rehízo la lista: [{id, nombre, color, porOmision}] para el gateway y el monitor.
@@ -211,7 +227,12 @@ class SalidasViewModel : public QObject {
     bool rehacerFilas(QJsonArray* alGateway);
     /// Pide algo que devuelve "" o el error (que vuelve como `notify`).
     void pedir(const char* que, std::function<std::string(AppRuntime&)> orden, std::function<void()> alVolver = {});
+    /// Con el error para quien llama (en vez de `notify`).
+    void pedir(const char* que, std::function<std::string(AppRuntime&)> orden, Listo listo);
     void revisarNueva();
+    /// Rehace `aire` (de la foto y la hora) y avisa si cambió.
+    void revisarAire();
+    static QStringList textosPlacaDe(const FotoMotor& f);
 
     Partes p_;
     std::unique_ptr<escenas::Conmutadores> conmutadores_; ///< el aire y la armada de cada salida (modelo)
@@ -222,12 +243,8 @@ class SalidasViewModel : public QObject {
     std::string activa_;
     int tope_ = 0;
     QVariantMap nuevaAntes_; ///< lo último avisado de nueva
-    /// Lo que sale de cada una de las demás salidas y desde cuándo (los relojes de aire).
-    struct AireDeSalida {
-        bool transmite = false, graba = false, reconecta = false;
-        std::chrono::steady_clock::time_point transmiteDesde{}, grabaDesde{};
-    };
-    std::map<std::string, AireDeSalida> aireSalidas_;
+    QVariantMap aire_;            ///< lo último avisado de aire
+    QStringList textosPlaca_;     ///< lo último avisado de textosPlaca
     QVariantMap tally_;
     QVariantList mediosAlAire_;
     QJsonArray alGatewayAntes_;      ///< lo último que se le dijo al gateway

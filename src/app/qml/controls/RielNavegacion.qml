@@ -346,7 +346,7 @@ Item {
                                             Behavior on color { ColorAnimation { duration: 150 } }
                                             // Candado: en vivo, esta página pide confirmar para entrar.
                                             Text {
-                                                visible: Studio.app.modoVivo && Studio.app.paginaBloqueada(Studio.riel.idDePagina(celda.modelData.page))
+                                                visible: Studio.app.paginasBloqueadas.indexOf(Studio.riel.idDePagina(celda.modelData.page)) >= 0
                                                 anchors { right: parent.right; top: parent.top; rightMargin: -2; topMargin: -2 }
                                                 text: "🔒"
                                                 font.pixelSize: Math.max(9, parent.width * 0.3)
@@ -512,8 +512,8 @@ Item {
 
                 Repeater {
                     model: [
-                        { on: Studio.streaming, c: Theme.live,   si: qsTr("Al aire"),       no: qsTr("Fuera del aire") },
-                        { on: Studio.recording, c: Theme.accent, si: qsTr("Grabando"),      no: qsTr("Sin grabar") },
+                        { on: Studio.aire.streaming, c: Theme.live,   si: qsTr("Al aire"),       no: qsTr("Fuera del aire") },
+                        { on: Studio.aire.recording, c: Theme.accent, si: qsTr("Grabando"),      no: qsTr("Sin grabar") },
                         { on: Studio.gatewayAlive, c: Theme.ok,  si: qsTr("Conferencia en línea"), no: qsTr("Conferencia sin conexión") }
                     ]
                     delegate: Item {

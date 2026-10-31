@@ -327,52 +327,18 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             R"({"origen": "orden-del-dia", "nombreBloque": "Orden del día"})",
             R"({"escenario": "panel"})"};
         t.run = [&ev, &core, fuentes](const json& a, Done done) {
-            namespace L = ba::evento::linea;
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
-            const std::string plantilla = a.value("plantilla", std::string()), escenario = a.value("escenario", std::string());
-            if (plantilla.empty() && escenario.empty() && a.value("origen", std::string()).empty()) {
-                json lista = json::array();
-                const auto sumar = [&lista](const L::Plantilla& p, const char* de) {
-                    json pasos = json::array();
-                    for (const L::Paso& x : p.pasos) pasos.push_back({{"id", x.id}, {"nombre", x.nombre}, {"piezas", x.piezas.size()}});
-                    lista.push_back({{"id", p.id}, {"nombre", p.nombre}, {"de", de}, {"pasos", pasos}});
-                };
-                for (const L::Plantilla& p : ev.linea().plantillas) sumar(p, "evento");
-                for (const L::Plantilla& p : L::plantillasDeFabrica()) sumar(p, "fabrica");
-                return done(ToolResult().data({{"plantillas", lista}}));
-            }
-            json armado;
-            if (!escenario.empty()) {
-                const json g = fuentes.eventoDeEscenario ? fuentes.eventoDeEscenario(escenario) : json();
-                if (!g.is_object())
-                    return done(ToolResult::error(llenar(traducir("mcp", "no hay una plantilla del escenario «%1» (evento_escenarios)"), {escenario})));
-                armado = g.contains("linea") && g["linea"].is_object()
-                             ? L::lineaDeGuia(ev.linea(), L::Linea::deJson(g["linea"]))
-                             : L::lineaDeGuia(ev.linea(), ba::evento::Evento::deJson(g));
-            } else if (a.value("origen", std::string()) == "orden-del-dia") {
+            // Lo que no está en esta versión del programa se dice acá; armar y probar o aplicar
+            // es del modelo (CorridaViewModel::lineaDesdePlantilla).
+            const std::string escenario = a.value("escenario", std::string());
+            json guia, puntos;
+            if (!escenario.empty() && fuentes.eventoDeEscenario) guia = fuentes.eventoDeEscenario(escenario);
+            if (a.value("origen", std::string()) == "orden-del-dia") {
                 if (!fuentes.ordenDelDia) return done(ToolResult::error(traducir("mcp", "el orden del día no está disponible")));
-                armado = L::bloqueDeOrdenDelDia(ev.linea(), plantilla.empty() ? "punto" : plantilla, fuentes.ordenDelDia(),
-                                                a.value("nombreBloque", std::string()), core.salidaDe(a));
-                if (!armado.value("ok", false)) return done(ToolResult::error(armado.value("error", std::string())));
-            } else {
-                L::DesdePlantilla d;
-                d.plantilla = plantilla;
-                d.datos = a.value("datos", json::array());
-                d.bloque = a.value("bloque", std::string());
-                d.nombreBloque = a.value("nombreBloque", std::string());
-                d.alPrincipio = a.contains("despuesDe") && a["despuesDe"] == "";
-                d.despuesDe = a.value("despuesDe", std::string());
-                d.prefijo = a.value("prefijo", std::string());
-                d.salida = core.salidaDe(a);
-                armado = L::desdePlantilla(ev.linea(), d);
-                if (!armado.value("ok", false)) return done(ToolResult::error(armado.value("error", std::string())));
+                puntos = fuentes.ordenDelDia();
             }
-            json r = ev.lineaEditar(armado["ops"], a.value("probar", true));
+            json r = ev.corridaVm().lineaDesdePlantilla(a, core.salidaDe(a), guia, puntos);
             if (!r.value("ok", false)) return done(ToolResult::error(r.value("error", std::string())));
-            r["ops"] = armado["ops"];
-            r["avisos"] = armado["avisos"];
-            if (armado.contains("pasos")) r["pasos"] = armado["pasos"];
-            if (armado.contains("bloques")) r["bloques"] = armado["bloques"];
+            if (r.contains("plantillas")) r.erase("ok");
             done(ToolResult().data(r));
         };
         core.addTool(std::move(t));
@@ -391,16 +357,10 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                                     "mueve esa cámara. Con `camara`, solo esa.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"camara", {{"type", "string"}}}}}};
         t.run = [&ev, fuentes](const json& a, Done done) {
-            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
-            json vistas = json::array();
-            for (const std::string& s : ev.linea().salidasEfectivas()) {
-                json v = ev.lineaVer(s, 0, 0, "pasos");
-                if (!v.is_null()) vistas.push_back(std::move(v));
-            }
-            json c = ba::evento::linea::proximosPorCamara(ev.linea(), vistas, fuentes.camarasDeEscena);
-            const std::string una = a.value("camara", std::string());
-            if (!una.empty()) c = json{{una, c.value(una, json::array())}};
-            done(ToolResult().data({{"camaras", c}}));
+            json r = ev.corridaVm().lineaCamaras(a.value("camara", std::string()), fuentes.camarasDeEscena);
+            if (!r.value("ok", false)) return done(ToolResult::error(r.value("error", std::string())));
+            r.erase("ok");
+            done(ToolResult().data(r));
         };
         core.addTool(std::move(t));
     }
@@ -430,7 +390,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
     vivo("linea_go", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "entra el próximo paso de la línea de tiempo"),
          traducir("mcp", "GO: entra el próximo paso"),
          traducir("mcp", "Entra el próximo paso de la salida (con su escena por el PVW y TAKE). Sin correr, "
-                         "arranca. Sin próximo, la salida termina. Tras un corte, además suelta el HOLD tal cual. "
+                         "arranca con la revisión previa (con problemas graves no: evento_correr con forzar). Sin próximo, la salida termina. Tras un corte, además suelta el HOLD tal cual. "
                          "SALE AL AIRE."),
          json::object(), [&ev, sal](const json& a) { return ev.lineaGo(sal(a)); });
     vivo("linea_hold", Clase::Escritura, nullptr, traducir("mcp", "HOLD del paso al aire"),

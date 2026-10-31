@@ -25,10 +25,8 @@ Rectangle {
     /// miniaturas solo entonces (y los atajos de la línea valen solo entonces).
     readonly property bool guionALaVista: page.visible && page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 0
     // La línea la pueden mirar varias vistas a la vez (esta, la tarjeta, su ventana).
-    readonly property var miradaLinea: [page.guionALaVista, page.guionALaVista && page.vistaGuion === 3]
-    onMiradaLineaChanged: if (Studio.linea) Studio.linea.mirar("evento", miradaLinea[0], miradaLinea[1])
-    Component.onCompleted: miradaLineaChanged()
-    Component.onDestruction: if (Studio.linea) Studio.linea.mirar("evento", false, false)
+    Suscripcion { objetivo: Studio.linea; activa: page.guionALaVista }
+    Suscripcion { objetivo: Studio.linea; que: "multipista"; activa: page.guionALaVista && page.vistaGuion === 3 }
     property int selC: -1
     readonly property var selCue: {
         const bs = ev.guion.bloques || []
@@ -159,7 +157,6 @@ Rectangle {
                     textRole: "nombre"
                     displayText: page.ev.abierto === "" ? qsTr("Elegí un evento…") : (page.ev.guion.nombre || page.ev.abierto)
                     onActivated: (i) => page.ev.abrir(page.ev.eventos[i].carpeta)
-                    Component.onCompleted: page.ev.refrescar()
                     // Con su carpeta adelante: con el histórico hay muchos y se agrupan.
                     delegate: ItemDelegate {
                         required property var modelData
@@ -1052,7 +1049,9 @@ Rectangle {
                                 GlassButton { text: qsTr("Editar…"); compact: true; active: true; onClicked: cueDlg.abrir(page.selB, page.selC) }
                                 GlassButton { text: qsTr("Poner al aire"); compact: true; onClicked: page.ev.irA(page.selB, page.selC) }
                                 GlassButton {
-                                    readonly property string url: page.selCue ? page.ev.enlaceDeCue(page.selCue.tipo, page.selCue.datos || ({})) : ""
+                                    readonly property var enlaces: page.ev.guionVm.enlacesPrompter
+                                    readonly property string url: page.selCue && page.selCue.tipo === "teleprompter"
+                                                                  ? enlaces[(page.selCue.datos || {}).prompter || ""] || enlaces[""] : ""
                                     visible: url !== ""
                                     text: qsTr("Ver el teleprompter ↗"); compact: true
                                     onClicked: Qt.openUrlExternally(url)
@@ -1089,11 +1088,7 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: Math.min(260, 48 + lista.length * 30)
                             title: qsTr("Antes de salir · %1/%2").arg(lista.filter(x => x.hecho).length).arg(lista.length)
-                            property var lista: page.ev.chequeo()
-                            Connections {
-                                target: page.ev
-                                function onChequeoChanged() { chequeoPanel.lista = page.ev.chequeo() }
-                            }
+                            readonly property var lista: page.ev.chequeo
                             ListView {
                                 anchors.fill: parent
                                 clip: true
@@ -1271,7 +1266,7 @@ Rectangle {
             fechaCampo.text = page.ev.guion.fecha || ""
             horaCampo.text = page.ev.guion.inicio || ""
             husoCampo.text = page.ev.guion.huso || ""
-            idiomaCampo.model = page.ev.idiomas()
+            idiomaCampo.model = page.ev.idiomas
             idiomaCampo.currentIndex = Math.max(0, idiomaCampo.indexOfValue(page.ev.guion.idioma || ""))
         }
         onAccepted: {
@@ -1392,7 +1387,7 @@ Rectangle {
         width: 500
         modal: true
         title: qsTr("Evento nuevo")
-        onAboutToShow: { nombreEv.text = ""; modo = "cero"; cpsEv.currentIndex = 0; abrirlo.checked = !(Studio.streaming || Studio.recording) }
+        onAboutToShow: { nombreEv.text = ""; modo = "cero"; cpsEv.currentIndex = 0; abrirlo.checked = !(Studio.aire.streaming || Studio.aire.recording) }
         ColumnLayout {
             width: nuevoEventoDlg.availableWidth
             spacing: 8
@@ -1465,8 +1460,8 @@ Rectangle {
             }
             CheckBox {
                 id: abrirlo
-                text: (Studio.streaming || Studio.recording) ? qsTr("Abrirlo ahora (no: hay algo al aire o grabando)") : qsTr("Abrirlo ahora (la app se reinicia con él)")
-                enabled: !(Studio.streaming || Studio.recording)
+                text: (Studio.aire.streaming || Studio.aire.recording) ? qsTr("Abrirlo ahora (no: hay algo al aire o grabando)") : qsTr("Abrirlo ahora (la app se reinicia con él)")
+                enabled: !(Studio.aire.streaming || Studio.aire.recording)
             }
             RowLayout {
                 Item { Layout.fillWidth: true }
@@ -1479,7 +1474,7 @@ Rectangle {
                         const m = nuevoEventoDlg.modo
                         const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentValue : m
                         // En otro hilo (una copia puede tardar): el progreso arriba, el aviso al terminar.
-                        const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked && !(Studio.streaming || Studio.recording),
+                        const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked,
                                                                   cpsEv.currentValue || "")
                         if (e !== "") { Studio.notify(e, "error"); return }
                         nuevoEventoDlg.close()
@@ -1607,7 +1602,7 @@ Rectangle {
                            text: modelData.midiendo ? qsTr("midiendo…") : page.bytesLegibles(modelData.bytes) }
                     GlassButton {
                         compact: true; text: qsTr("Abrir"); visible: !modelData.activa
-                        enabled: !(Studio.streaming || Studio.recording)
+                        enabled: !(Studio.aire.streaming || Studio.aire.recording)
                         onClicked: {
                             const n = modelData.nombre
                             abrirEventoDlg.close()
@@ -1620,7 +1615,7 @@ Rectangle {
                     }
                 }
             }
-            Text { visible: (Studio.streaming || Studio.recording); color: Theme.amber; font.pixelSize: 12
+            Text { visible: (Studio.aire.streaming || Studio.aire.recording); color: Theme.amber; font.pixelSize: 12
                    text: qsTr("Hay una transmisión o una grabación en curso: terminala para abrir otro evento.") }
             RowLayout { Item { Layout.fillWidth: true } GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: abrirEventoDlg.close() } }
         }
@@ -1678,7 +1673,7 @@ Rectangle {
             anchors.fill: parent
             spacing: 4
             Repeater {
-                model: page.ev.tiposDeCue()
+                model: page.ev.tiposDeCue
                 delegate: Rectangle {
                     required property var modelData
                     Layout.fillWidth: true

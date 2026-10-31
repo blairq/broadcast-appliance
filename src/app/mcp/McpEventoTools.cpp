@@ -43,11 +43,13 @@
 #include "evento/Evento.hpp"
 #include "evento/EventoStore.hpp"
 #include "evento/Historico.hpp"
+#include "evento/TiposDeCue.hpp"
 #include "evento/FotosConfig.hpp"
 #include "mcp/McpCore.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "net/AccesoRemoto.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/HistoricoConsulta.hpp"
 #include "ui/HistoricoViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -399,15 +401,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                       R"({"evento": "2026/Octubre/Sesion-ordinaria", "desde": "18:00", "hasta": "19:30"})"};
         // Solo lee el disco con la raíz de los eventos: en el pool, aunque la interfaz esté trabada.
         t.hilo = Hilo::Foto;
-        t.run = [raiz = ev.raizEventos()](const json& a, Done done) {
-            const evento::EventoStore store(raiz);
+        t.run = [c = HistoricoConsulta::deLaApp(ev.raizEventos(), ev.carpetaConfig())](const json& a, Done done) {
             const std::string carpeta = a.value("evento", std::string());
-            const auto dir = store.carpetaExistente(carpeta);
-            const auto archivo = dir.empty() ? dir : dir / "bitacora.jsonl";
-            if (archivo.empty())
-                return done(ToolResult::error(carpeta.empty() ? ba::i18n::traducir("mcp", "no hay un evento en curso") : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta})));
+            const auto dir = c.carpeta(carpeta);
+            if (dir.empty()) return done(ToolResult::error(HistoricoConsulta::noHay(carpeta)));
             // «HH:MM» es del día de la bitácora: se toma la fecha de la primera línea.
-            const json primera = evento::Bitacora::leer(archivo, 0, 0, {}, {}, 0);
+            const json primera = evento::Bitacora::leer(dir / "bitacora.jsonl", 0, 0, {}, {}, 0);
             const auto ms = [&](const char* k) -> std::int64_t {
                 if (!a.contains(k)) return 0;
                 if (a[k].is_number()) return a[k].get<std::int64_t>();
@@ -420,16 +419,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             std::set<std::string> tipos;
             for (const auto& x : a.value("tipos", json::array()))
                 if (x.is_string()) tipos.insert(x.get<std::string>());
-            const json l = evento::Bitacora::leer(archivo, ms("desde"), ms("hasta"), tipos, a.value("texto", std::string()),
-                                                  static_cast<std::size_t>(a.value("limite", 200)));
-            json out = json::array();
-            for (json x : l) {
-                x["hora"] = QDateTime::fromMSecsSinceEpoch(x.value("t", std::int64_t{0})).toString("HH:mm:ss").toStdString();
-                out.push_back(std::move(x));
-            }
-            done(ToolResult().data(json{{"evento", carpeta.empty() ? store.enCurso() : carpeta},
-                                        {"lineas", out},
-                                        {"total_en_archivo", primera.size()}}));
+            const json r = c.bitacora(carpeta, ms("desde"), ms("hasta"), tipos, a.value("texto", std::string()),
+                                      static_cast<std::size_t>(a.value("limite", 200)));
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            done(ToolResult().data(r));
         };
         core.addTool(std::move(t));
     }
@@ -458,49 +451,28 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"comparar_con", {{"description", QT_TRANSLATE_NOOP("mcp", "\"actual\" o {evento, foto}")}}}}}};
         t.examples = {R"({})", R"({"archivo": "escenas.json"})", R"({"foto": "inicio", "comparar_con": "actual"})",
                       R"({"evento": "2026/Octubre/Sesion-03", "comparar_con": {"evento": "2026/Octubre/Sesion-10", "foto": "inicio"}})"};
-        t.run = [&ev](const json& a, Done done) {
-            evento::FotosConfig fotos(ev.carpetaConfig(), ev.raizEventos() / ".objetos");
-            const auto cargarFoto = [&](const std::string& carpeta, const std::string& cual, std::string& err) -> json {
-                const auto dir = ev.carpetaEvento(carpeta);
-                if (dir.empty()) {
-                    err = carpeta.empty() ? ba::i18n::traducir("mcp", "no hay un evento en curso") : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta});
-                    return nullptr;
-                }
-                json f = evento::FotosConfig::cargar(dir / "config" / ((cual.empty() ? "ultima" : cual) + ".json"));
-                if (f.is_null()) err = ba::i18n::llenar(ba::i18n::traducir("mcp", "ese evento no tiene foto «%1»"), {cual.empty() ? std::string("ultima") : cual});
-                return f;
-            };
-            std::string err;
+        // Solo lee el disco: en el pool, con la API del histórico (la misma de la página;
+        // entiende los eventos de otra configuración, «@<evento>/<carpeta>»).
+        t.hilo = Hilo::Foto;
+        t.run = [c = HistoricoConsulta::deLaApp(ev.raizEventos(), ev.carpetaConfig())](const json& a, Done done) {
             const std::string carpeta = a.value("evento", std::string());
-            const json f = cargarFoto(carpeta, a.value("foto", std::string()), err);
-            if (f.is_null()) return done(ToolResult::error(err));
+            const std::string foto = a.value("foto", std::string());
+            json r;
             if (a.contains("comparar_con")) {
-                json otra;
-                if (a["comparar_con"].is_string() && a["comparar_con"].get<std::string>() == "actual") {
-                    otra = fotos.foto(QDateTime::currentMSecsSinceEpoch());
-                } else if (a["comparar_con"].is_object()) {
-                    otra = cargarFoto(a["comparar_con"].value("evento", std::string()),
-                                      a["comparar_con"].value("foto", std::string()), err);
-                    if (otra.is_null()) return done(ToolResult::error(err));
-                } else {
+                const json& con = a["comparar_con"];
+                if (con.is_string() && con.get<std::string>() == "actual")
+                    r = c.comparar(carpeta, foto, {}, "actual");
+                else if (con.is_object())
+                    r = c.comparar(carpeta, foto, con.value("evento", std::string()), con.value("foto", std::string()));
+                else
                     return done(ToolResult::error(ba::i18n::traducir("mcp", "`comparar_con`: \"actual\" o {evento, foto}")));
-                }
-                const json c = fotos.comparar(f, otra);
-                return done(ToolResult().data(json{{"cambios", c}, {"archivos_distintos", c.size()}}));
+            } else if (const std::string archivo = a.value("archivo", std::string()); !archivo.empty()) {
+                r = c.contenidoConfig(carpeta, foto, archivo);
+            } else {
+                r = c.config(carpeta, foto);
             }
-            const std::string archivo = a.value("archivo", std::string());
-            const json archivos = f.value("archivos", json::object());
-            if (!archivo.empty()) {
-                if (!archivos.contains(archivo)) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "la foto no tiene «%1»"), {archivo})));
-                return done(ToolResult().data(
-                    json{{"archivo", archivo}, {"contenido", fotos.leer(archivos[archivo].value("sha", std::string()))}}));
-            }
-            json lista = json::array();
-            for (auto it = archivos.begin(); it != archivos.end(); ++it)
-                lista.push_back(json{{"archivo", it.key()}, {"bytes", it.value().value("bytes", 0)}});
-            done(ToolResult().data(json{
-                {"hora", QDateTime::fromMSecsSinceEpoch(f.value("t", 0LL)).toString("dd/MM/yyyy HH:mm:ss").toStdString()},
-                {"archivos", lista}}));
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            done(ToolResult().data(r));
         };
         core.addTool(std::move(t));
     }
@@ -522,56 +494,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"evento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La carpeta (vacío = el en curso).")}}}}}};
         t.hilo = Hilo::Foto; // solo lee el disco (con la raíz de los eventos)
-        t.run = [raiz = ev.raizEventos()](const json& a, Done done) {
-            const std::string carpeta = a.value("evento", std::string());
-            const auto dir = evento::EventoStore(raiz).carpetaExistente(carpeta);
-            if (dir.empty())
-                return done(ToolResult::error(carpeta.empty() ? ba::i18n::traducir("mcp", "no hay un evento en curso") : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta})));
-            const auto lista = [](const std::filesystem::path& p) {
-                std::ifstream f(p);
-                json j = f ? json::parse(f, nullptr, false) : json();
-                return j.is_array() ? j : json::array();
-            };
-            const auto hora = [](std::int64_t ms) {
-                return QDateTime::fromMSecsSinceEpoch(ms).toString("dd/MM HH:mm:ss").toStdString();
-            };
-            const json escenas = evento::Bitacora::leer(dir / "bitacora.jsonl", 0, 0, {"bus"}, "aire/escena", 0);
-            json grab = json::array();
-            for (json g : lista(dir / "grabaciones.json")) {
-                const std::int64_t d = g.value("desde_ms", std::int64_t{0});
-                const std::int64_t h = g.value("hasta_ms", std::int64_t{0});
-                g["desde"] = hora(d);
-                if (h != 0) g["hasta"] = hora(h), g["duracion_seg"] = (h - d) / 1000;
-                else g["en_curso"] = true;
-                json caps = json::array();
-                std::string escenaAntes;
-                for (const json& e : escenas) {
-                    if (e.value("origen", std::string()) != "aire/escena") continue;
-                    const std::int64_t t = e.value("t", std::int64_t{0});
-                    const std::string esc = e.value("escena", std::string());
-                    if (t <= d) { escenaAntes = esc; continue; }
-                    if (h != 0 && t > h) break;
-                    if (caps.empty() && !escenaAntes.empty()) caps.push_back(json{{"seg", 0}, {"escena", escenaAntes}});
-                    caps.push_back(json{{"seg", (t - d) / 1000}, {"escena", esc}});
-                }
-                if (caps.empty() && !escenaAntes.empty()) caps.push_back(json{{"seg", 0}, {"escena", escenaAntes}});
-                g["capitulos"] = caps;
-                std::error_code ec;
-                g["existe"] = std::filesystem::exists(g.value("archivo", std::string()), ec);
-                grab.push_back(std::move(g));
-            }
-            json vivos = json::array();
-            for (json v : lista(dir / "transmisiones.json")) {
-                v["desde"] = hora(v.value("desde_ms", std::int64_t{0}));
-                if (v.contains("hasta_ms")) v["hasta"] = hora(v.value("hasta_ms", std::int64_t{0}));
-                vivos.push_back(std::move(v));
-            }
-            json textos = json::array();
-            std::error_code ec;
-            for (const auto& e : std::filesystem::directory_iterator(dir / "Transcripciones", ec))
-                if (e.is_regular_file()) textos.push_back(json{{"archivo", e.path().filename().string()}, {"bytes", e.file_size()}});
-            done(ToolResult().data(json{{"carpeta", dir.string()}, {"grabaciones", grab}, {"transmisiones", vivos},
-                                        {"transcripciones", textos}}));
+        t.run = [c = HistoricoConsulta::deLaApp(ev.raizEventos(), ev.carpetaConfig())](const json& a, Done done) {
+            const json r = c.grabaciones(a.value("evento", std::string()));
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            done(ToolResult().data(r));
         };
         core.addTool(std::move(t));
     }
@@ -593,14 +519,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                          {"properties", {{"evento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La carpeta (guion_listar).")}}}}}};
         // En el pool (fuera de la interfaz: puede leer gigas), con la raíz de los eventos.
         t.hilo = Hilo::Foto;
-        t.run = [raiz = ev.raizEventos()](const json& a, Done done) {
-            const evento::EventoStore store(raiz);
-            const auto dir = store.carpetaExistente(a.value("evento", std::string()));
-            if (dir.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {a.value("evento", std::string())})));
-            json r = evento::CierreEvento::verificar(dir);
-            if (dir == store.carpetaExistente({}))
-                r["aviso"] = ba::i18n::traducir("mcp", "está en curso: se sigue escribiendo (bitácora, ficha…), así que lo que cambió desde "
-                  "su último cierre es normal; los sellos valen cuando deje de estar en curso.");
+        t.run = [c = HistoricoConsulta::deLaApp(ev.raizEventos(), ev.carpetaConfig())](const json& a, Done done) {
+            const std::string carpeta = a.value("evento", std::string());
+            if (carpeta.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta})));
+            const json r = c.sellos(carpeta);
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
             done(ToolResult().data(r));
         };
         core.addTool(std::move(t));
@@ -757,16 +680,16 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                           {{"evento", {{"type", "string"}}},
                            {"destino", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Carpeta absoluta (vacío = Exportados/).")}}},
                            {"grabaciones", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Incluir Grabaciones/ (de fábrica, sí).")}}}}}};
-        t.run = [&ev](const json& a, Done done) {
-            const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
-            if (dir.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {a.value("evento", std::string())})));
-            const std::string d = a.value("destino", std::string());
-            const std::filesystem::path destino = d.empty() ? ev.raizEventos().parent_path() / "Exportados" : std::filesystem::path(d);
-            const auto objetos = ev.raizEventos() / ".objetos";
+        t.run = [c = HistoricoConsulta::deLaApp(ev.raizEventos(), ev.carpetaConfig())](const json& a, Done done) {
+            const std::string carpeta = a.value("evento", std::string());
+            if (carpeta.empty() || c.carpeta(carpeta).empty())
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta})));
+            const std::filesystem::path destino = a.value("destino", std::string());
             const bool con = a.value("grabaciones", true);
-            QThreadPool::globalInstance()->start([dir, destino, objetos, con, done]() {
+            // Una copia puede ser de gigas: en el pool, contesta al terminar.
+            QThreadPool::globalInstance()->start([c, carpeta, destino, con, done]() {
                 std::filesystem::path copia;
-                const std::string e = evento::Historico::exportar(dir, objetos, destino, con, &copia);
+                const std::string e = c.exportar(carpeta, destino, con, &copia);
                 QMetaObject::invokeMethod(qApp, [e, copia, done]() {
                     if (!e.empty()) return done(ToolResult::error(e));
                     done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Copiado en %1"), {copia.string()})).data(json{{"copia", copia.string()}}));
@@ -1042,17 +965,17 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Pantalla todavia no: se puede dejar escrito en el guion (sirve para los tiempos y para "
             "que el operador sepa que hacer), pero cuando toquen se anotan como «todavia no se "
             "ejecutan» en vez de fallar callados.");
+        // Los tipos y lo que usa cada uno: la misma lista que el formulario de la página (evento/TiposDeCue).
+        static const std::map<std::string, std::vector<std::string>> kCampos = evento::camposPorTipo();
+        json tiposDeCue = json::array();
+        for (const std::string& tipo : evento::nombresDeTipos()) tiposDeCue.push_back(tipo);
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"bloque", {{"type", "integer"}, {"minimum", 0}}},
               {"cue",
                {{"type", "integer"}, {"minimum", 0}, {"description", QT_TRANSLATE_NOOP("mcp", "Cual cue del bloque (base 0).")}}},
-              {"tipo",
-               {{"type", "string"},
-                {"enum",
-                 {"escena", "musica", "video", "teleprompter", "orador", "grafico", "carrusel", "pantalla",
-                  "audio", "pausa", "espera", "nota"}}}},
+              {"tipo", {{"type", "string"}, {"enum", tiposDeCue}}},
               {"texto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Lo que lee el operador.")}}},
               {"datos", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "Lo propio del tipo (ver la ayuda).")}}},
               {"duracionSeg", {{"type", "integer"}, {"minimum", 0}}},
@@ -1077,21 +1000,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         if (c >= 0 && c < cs.size()) tipo = cs[c].toMap()["tipo"].toString().toStdString();
                     }
                 }
-                static const std::map<std::string, std::set<std::string>> kCampos{
-                    {"escena", {"escena"}},
-                    {"musica", {"archivo", "accion", "repetir"}},
-                    {"video", {"archivo", "accion", "repetir", "alAire"}},
-                    {"teleprompter", {"discurso", "arrancar"}},
-                    {"orador", {"participante"}},
-                    {"grafico", {"fuente", "grafico", "valores", "seVa", "duracionMs", "repetir", "accion", "vinculo"}},
-                    {"pantalla", {"pantalla", "contenido", "tipo", "pie"}},
-                    {"audio", {"accion", "fuente", "db"}},
-                    {"pausa", {}}, {"espera", {}}, {"nota", {}}};
                 const auto it = kCampos.find(tipo);
                 if (it == kCampos.end()) return {};
                 std::string corregidos, fuera;
                 for (const auto& [k, v] : a["datos"].items()) {
-                    if (it->second.count(k)) continue;
+                    if (std::find(it->second.begin(), it->second.end(), k) != it->second.end()) continue;
                     if (tipo == "grafico" && (k == "params" || k == "parametros")) corregidos += " «" + k + "»→«valores»";
                     else if (tipo == "grafico" && k == "nombre") corregidos += " «nombre»→«grafico»";
                     else fuera += (fuera.empty() ? "" : ", ") + std::string("«") + k + "»";
@@ -1726,7 +1639,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "`antesDeGrabar` cuenta los bloques que pasaron antes de apretar grabar: esos no estan en "
             "el video y no se les inventa una marca.");
         t.run = [&ev, &vm](const json&, Done done) {
-            const QVariantMap c = ev.capitulos(vm.recordStartMs());
+            const QVariantMap c = ev.capitulos(vm.aire().recordStartMs());
             if (c.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay evento abierto o el guion no se corrio.")));
             json out = json{{"ok", c.value("ok").toBool()},
                             {"texto", c.value("texto").toString().toStdString()},
@@ -1808,28 +1721,9 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         }
         return out;
     };
-    // Dejar pasar solo a alguien EXIGE que su ficha exista de verdad. Una
-    // entrada con un id que no existe no deja pasar a nadie y nadie se entera
-    // hasta el dia del evento, cuando esa persona se queda esperando en el
-    // lobby y el operador no sabe por que.
-    const auto fichaFalla = [fichaDe](const json& a, std::string& motivo) {
-        if (!a.value("dejarPasarSolo", false)) return false;
-        const std::string id = a.value("personaId", std::string());
-        if (id.empty()) {
-            motivo = ba::i18n::traducir("mcp", "Para que alguien entre solo hace falta su ficha de rostro (`personaId`): sin cara no "
-                     "hay con que reconocerlo, y entraria por haber ESCRITO un nombre, que es lo que no se "
-                     "quiere. `rostro_listar` da las fichas.");
-            return true;
-        }
-        const auto [existe, nombre] = fichaDe ? fichaDe(id) : std::pair{true, std::string()};
-        if (!existe) {
-            motivo = ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ninguna ficha con id '%1' en la libreta de rostros. `rostro_listar` los da; si "
-                         "esa persona todavia no esta, dale de alta con `rostro_guardar` primero."),
-                       {id});
-            return true;
-        }
-        return false;
-    };
+    // Dejar pasar solo a alguien EXIGE su ficha de rostro, y que exista: la regla es del
+    // padrón (PadronViewModel::motivoEntrarSolo), la misma para la página y para acá.
+    ev.setFichaDe(std::move(fichaDe));
     const auto resumenDe = [](EventoViewModel& vm) {
         json r = json::object();
         const QVariantMap m = vm.resumenPadron();
@@ -1931,10 +1825,9 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
                 {"description",
                  QT_TRANSLATE_NOOP("mcp", "Entra a la conferencia sin que el operador apruebe. Exige `personaId`: se lo reconoce por "
                  "la CARA, no por el nombre que escriba al entrar.")}}}}}};
-        t.run = [&ev, aMapaQt, resumenDe, sinEvento, fichaFalla](const json& a, Done done) {
+        t.run = [&ev, aMapaQt, resumenDe, sinEvento](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
-            std::string motivo;
-            if (fichaFalla(a, motivo)) return done(ToolResult::error(motivo));
+            if (const std::string m = ev.padronVm().motivoEntrarSolo(aMapaQt(a)); !m.empty()) return done(ToolResult::error(m));
             const QString id = ev.anotar(aMapaQt(a));
             if (id.isEmpty())
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo anotar (hace falta al menos el nombre).")));
@@ -1976,12 +1869,12 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
               {"nota", {{"type", "string"}}},
               {"vota", {{"type", "boolean"}}},
               {"dejarPasarSolo", {{"type", "boolean"}}}}}};
-        t.run = [&ev, aMapaQt, sinEvento, fichaFalla](const json& a, Done done) {
+        t.run = [&ev, aMapaQt, sinEvento](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
-            std::string motivo;
-            if (fichaFalla(a, motivo)) return done(ToolResult::error(motivo));
             QVariantMap m = aMapaQt(a);
             m.remove("id");
+            const QString quien = QString::fromStdString(a.value("id", std::string()));
+            if (const std::string mo = ev.padronVm().motivoEntrarSolo(m, quien); !mo.empty()) return done(ToolResult::error(mo));
             if (!ev.cambiarAsistente(QString::fromStdString(a.value("id", std::string())), m))
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay nadie con ese id en el padron.")));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Cambiado.")));

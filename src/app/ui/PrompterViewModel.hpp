@@ -47,6 +47,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include "comun/UsoPorVistas.hpp"
+
 namespace ba::app {
 
 class ConferenceViewModel;
@@ -180,8 +182,9 @@ class PrompterViewModel : public QObject {
     Q_INVOKABLE void avisar(const QString& texto);
     /// Para en seco donde esté, sin mover la posición.
     Q_INVOKABLE void panico();
-    /// Empieza o deja de preguntar el estado (lo llama la página al mostrarse).
-    Q_INVOKABLE void mirar(bool si);
+    /// Una vista empieza o deja de mirar: se pregunta el estado mientras haya alguna
+    /// (cuenta por vista: la página y su ventana a la vez).
+    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
     /// Una consulta suelta, para quien no está mirando la página: por MCP el
     /// estado tiene que estar fresco aunque el operador esté en otra pantalla.
     /// `cuando` corre con la respuesta ya aplicada (o con el fallo).
@@ -201,6 +204,8 @@ class PrompterViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
    private:
+    UsoPorVistas vistas_{this, [this](const QString&) { alCambiarVistas(); }};
+    void alCambiarVistas();
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

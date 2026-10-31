@@ -31,10 +31,13 @@
 #include "diag/Registro.hpp"
 #include "documentos/Documento.hpp"
 #include "documentos/Mrz.hpp"
+#include "emision/FotoMotor.hpp"
 #include "emision/OperatorFeed.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "emision/VozAlLobby.hpp"
 #include "registro/AgenteTotem.hpp"
 #include "registro/Conversacion.hpp"
+#include "registro/RitmoTotem.hpp"
 #include "sala/Direcciones.hpp"
 #include "sala/Pedido.hpp"
 #include "security/CredentialStore.hpp"
@@ -56,28 +59,10 @@ using nlohmann::json;
 
 namespace {
 
-// Los tiempos de la conversación. Se dicen en voz alta frente a una pantalla:
-// cortos para que no parezca colgado, largos para no apurar a nadie.
-constexpr qint64 kSilencioMs = 12000;      ///< sin decir nada: «¿seguís ahí?»
-constexpr qint64 kMargenVozMs = 350;       ///< después de hablar, antes de volver a escuchar
-/// Fin del turno: tanto sin voz después de la última frase. El reconocedor cierra cada frase en
-/// una pausa corta (la de los subtítulos); quien dicta un correo hace pausas más largas, y una
-/// respuesta larga no se contesta por pedazos.
-constexpr qint64 kFinTurnoMs = 700;
-constexpr qint64 kTurnoTopeMs = 8000; ///< con el VAD oyendo «voz» sin parar (ruido): se manda igual
+// Cada cuánto se mira (los tiempos de la conversación son de registro/RitmoTotem).
 constexpr qint64 kEntreFotosMs = 600;      ///< a lo sumo una foto al reconocimiento por conexión
 constexpr qint64 kEntreFotosFrenteMs = 250; ///< en el paso de la foto, más seguido: se busca el momento
-constexpr qint64 kFotoMs = 7000;           ///< cuánto se espera una toma de frente antes de pedirla de nuevo
-constexpr qint64 kArranqueSinCaraMs = 2500; ///< con canal y sin cara a la vista: arranca igual
-constexpr qint64 kListoMs = 8000;          ///< la pantalla de gracias (la página vuelve sola)
 constexpr qint64 kEntreDocumentosMs = 300; ///< mostrando el documento: un cuadro al lector cada tanto
-constexpr qint64 kDocumentoMs = 9000;      ///< cuánto se espera leerlo antes de decirle qué corregir (o pedir el dorso: con una cámara que enfoca, el frente sale en un par de segundos)
-/// Lo mismo con el dorso: cada foto tarda lo que tarde el modelo propio en leerla
-/// (uno a pocos segundos), así que se le da más tiempo para varios intentos.
-constexpr qint64 kDorsoMs = 25000;
-/// Pasado esto, el paso del dorso termina aunque haya una foto en el modelo (el
-/// primer pedido puede esperar a que cargue el modelo local).
-constexpr qint64 kDorsoTopeMs = 45000;
 
 qint64 ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
@@ -129,13 +114,17 @@ json datosParaAfuera(const json& datos) {
 /// El llama-server del programa como lo piden los tótems: la visión (el dorso) y el modelo que
 /// entiende (el rol «registro») con el MISMO pedido, así comparten un solo servidor cargado.
 /// `gguf` vacío = el del modelo local activo.
-agent::ServidorModeloLocal::Pedido pedidoLocal(agent::ModelosLocales* ml, AppRuntime& rt, const QString& gguf = {}) {
+/// La configuración, de la foto del motor (es del plano de control).
+agent::ServidorModeloLocal::Pedido pedidoLocal(agent::ModelosLocales* ml, AppRuntime& rt, const VentanillaMotor& ventanilla,
+                                               const QString& gguf = {}) {
     agent::ServidorModeloLocal::Pedido p;
     p.ejecutable = agent::ServidorModeloLocal::ejecutable();
     p.gguf = !gguf.isEmpty() ? gguf : ml != nullptr ? ml->ggufParaChat() : QString();
     p.mmproj = ml != nullptr ? ml->mmprojPara(p.gguf) : QString();
-    p.capasGpu = rt.config().modeloCapasGpu;
-    p.contexto = rt.config().modeloContexto; // el mismo que el chat: comparten el servidor
+    const auto cfg = ventanilla.foto().configuracion.app;
+    const AppConfig porOmision;
+    p.capasGpu = (cfg ? *cfg : porOmision).modeloCapasGpu;
+    p.contexto = (cfg ? *cfg : porOmision).modeloContexto; // el mismo que el chat: comparten el servidor
     p.logs = QString::fromStdWString((rt.dataRoot() / "Logs").wstring());
     p.cargaS = ba::ajustes::entero("modelo.cargaS", 180);
     p.noReiniciar = true; // si el chat tiene cargado otro modelo, no se lo saca
@@ -159,6 +148,9 @@ struct TotemsViewModel::Conexion {
     int canal = 0;
     bool audio = false;
     std::unique_ptr<registro::Conversacion> conv;
+    /// Cuándo: el fin del turno, la voz que termina, las esperas de la foto y del
+    /// documento, el silencio, las gracias, el arranque sin cara (registro/RitmoTotem).
+    registro::RitmoTotem ritmo;
     // El audio.
     int toma = 0;
     bool oido = false;
@@ -169,11 +161,7 @@ struct TotemsViewModel::Conexion {
     std::shared_ptr<std::atomic<bool>> oye;
     /// Lo oído en este turno que todavía no se mandó: las frases se juntan hasta el fin del turno.
     QString turno;
-    qint64 turnoMs = 0; ///< cuándo llegó la última frase del turno
-    bool hablando = false;
     bool sintetizando = false;
-    qint64 finHablaMs = 0;
-    qint64 ultimaVozMs = 0;
     // La cara.
     bool identificando = false;
     qint64 ultimaFotoMs = 0;
@@ -183,16 +171,11 @@ struct TotemsViewModel::Conexion {
     int vecesCara = 0;
     QByteArray mejorFoto; ///< la última foto con una cara que sirve (para el alta)
     // El paso de la foto de frente (Conversacion::Estado::Foto).
-    bool buscandoFoto = false;
-    qint64 fotoDesdeMs = 0;  ///< desde cuándo se busca (0 = todavía lo está pidiendo)
     QString fotoSugerencia;  ///< qué corregir, según la última toma que no sirvió
     // El paso del documento (Conversacion::Estado::Documento).
-    bool buscandoDocumento = false;
-    qint64 docDesdeMs = 0;          ///< desde cuándo se busca (0 = todavía lo está pidiendo)
     qint64 ultimoDocMs = 0;
     std::uint64_t ultimoCuadroDoc = 0;
     bool leyendoDocumento = false;  ///< hay un cuadro en el lector
-    bool leyendoDorso = false;      ///< hay una foto del dorso en el modelo de visión (una por vez)
     /// Las lecturas dudosas del dorso (sin el verificador compuesto) hasta que dos coinciden.
     std::shared_ptr<documentos::ConfirmadorMrz> dorsoLecturas = std::make_shared<documentos::ConfirmadorMrz>();
     QString docSugerencia;          ///< qué corregir, según lo último que se vio
@@ -200,15 +183,11 @@ struct TotemsViewModel::Conexion {
     /// aparece otra conocida): si no, la misma persona empezaría de nuevo.
     bool esperaVacio = false;
     QString ultimaPersona;
-    qint64 canalDesdeMs = 0;
-    bool primeraDelCanal = false;
-    qint64 terminoMs = 0;
     // Para la vista.
     std::string pedidoEnviado;
     /// El `listo` se manda cuando termina de decir la despedida: el celular
     /// suelta el canal al recibirlo, y con él se cortaría la voz a mitad.
     std::string listoPendiente;
-    bool hayListo = false;
     QString oidoTexto, diceTexto, estado = "esperando";
     // La atención remota: la página de atención que la atiende ("" = la app o el MCP) y si el
     // gateway y la pantalla del tótem ya lo saben. `mudo`: lo que la síntesis entregue tarde
@@ -254,7 +233,7 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
     // Las urls cambian con la dirección de la red o el túnel.
     connect(&vm_.direcciones(), &sala::Direcciones::cambio, this, &TotemsViewModel::cambio);
     if (AtencionViewModel* a = vm_.atencionVm())
-        connect(a, &AtencionViewModel::cambio, this, [this]() {
+        connect(a, &AtencionViewModel::vozCambio, this, [this]() {
             // Otra voz del atendedor: se recarga la próxima vez que haga falta.
             if (vozLista_ && vm_.atencionVm() != nullptr && vm_.atencionVm()->vozElegida() != vozCargada_) vozLista_ = false;
             emit cambio();
@@ -289,8 +268,9 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
             return true;
         };
         AppRuntime* rt = &rt_;
-        v.pedir = [ml, rt](QObject* quien, std::function<void(quint16, QString)> listo) {
-            agent::ServidorModeloLocal::el().pedir(quien, pedidoLocal(ml, *rt), std::move(listo));
+        VentanillaMotor* ven = &vm_.ventanilla();
+        v.pedir = [ml, rt, ven](QObject* quien, std::function<void(quint16, QString)> listo) {
+            agent::ServidorModeloLocal::el().pedir(quien, pedidoLocal(ml, *rt, *ven), std::move(listo));
         };
         v.soltar = [](QObject* quien) { agent::ServidorModeloLocal::el().soltar(quien); };
         lector_->setVisionLocal(std::move(v));
@@ -467,8 +447,8 @@ void TotemsViewModel::reconocerConexiones() {
             const int canal = x.value("canal", 0);
             if (canal > 0 && k.canal != canal) {
                 k.canal = canal;
-                k.canalDesdeMs = ahoraMs();
-                k.primeraDelCanal = true;
+                k.ritmo.canalDesdeMs = ahoraMs();
+                k.ritmo.primeraDelCanal = true;
                 yo->abrirAudio(k);
             }
         }
@@ -750,8 +730,8 @@ void TotemsViewModel::alEvento(const json& ev) {
         }
         c.canal = k;
         if (k > 0) {
-            c.canalDesdeMs = ahoraMs();
-            c.primeraDelCanal = true;
+            c.ritmo.canalDesdeMs = ahoraMs();
+            c.ritmo.primeraDelCanal = true;
             c.esperaVacio = false;
             abrirAudio(c);
         }
@@ -851,7 +831,7 @@ void TotemsViewModel::cerrarAudio(Conexion& c) {
     c.oido = false;
     if (c.canal > 0 && c.canal < static_cast<int>(voces_.size()) && voces_[static_cast<std::size_t>(c.canal)])
         voces_[static_cast<std::size_t>(c.canal)]->cerrar();
-    c.hablando = false;
+    c.ritmo.hablando = false;
     c.callado->store(false);
 }
 
@@ -862,8 +842,8 @@ void TotemsViewModel::mirarCara(Conexion& c) {
     if (ahoraMs() - c.ultimaFotoMs < kEntreFotosMs) return;
     // Conversando, solo hace falta si todavía no hay una foto que sirva (para
     // el alta) o no se sabe quién es; en el paso de la foto, siempre (y más seguido).
-    if (c.buscandoFoto) {
-        if (c.fotoDesdeMs == 0 || ahoraMs() - c.ultimaFotoMs < kEntreFotosFrenteMs) return;
+    if (c.ritmo.buscandoFoto) {
+        if (c.ritmo.fotoDesdeMs == 0 || ahoraMs() - c.ultimaFotoMs < kEntreFotosFrenteMs) return;
     } else if (c.conv != nullptr && c.conv->enCurso() && !c.mejorFoto.isEmpty()) {
         return;
     }
@@ -902,7 +882,7 @@ void TotemsViewModel::alCara(const QString& conn, const QByteArray& jpeg, const 
     if (it == conns_.end()) return;
     Conexion& c = *it->second;
     // El paso de la foto: la primera toma de frente que sirve es la de su ficha.
-    if (c.buscandoFoto && c.fotoDesdeMs > 0 && c.conv != nullptr) {
+    if (c.ritmo.buscandoFoto && c.ritmo.fotoDesdeMs > 0 && c.conv != nullptr) {
         if (hayCara && sirve) {
             c.mejorFoto = jpeg;
             if (!personaId.isEmpty()) c.conv->conocerCara({personaId.toStdString(), nombre.toStdString(), false});
@@ -964,11 +944,11 @@ void TotemsViewModel::empezar(Conexion& c, const QString& personaId, const QStri
     // El dorso se ofrece solo si hay con qué leerlo (el modelo propio del operador).
     c.conv->ofrecerDorso(lector_ && lector_->dorsoDisponible());
     crearAgente(c); // el modelo que entiende, si hay (si no, el guion solo)
-    c.primeraDelCanal = false;
+    c.ritmo.primeraDelCanal = false;
     c.esperaVacio = false;
     c.pedidoEnviado.clear();
     c.oidoTexto.clear();
-    c.ultimaVozMs = ahoraMs();
+    c.ritmo.ultimaVozMs = ahoraMs();
     const auto r = c.conv->empezar(cara);
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
                                cara.personaId.empty()
@@ -986,12 +966,12 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
     // termina con la voz sonando es la persona que siguió hablando: la frase anterior se
     // cerró en una pausa, pero la voz nunca paró y el VAD no avisó que «empieza» otra.
     // Interrumpe como si hubiera empezado ahora.
-    if (c.hablando && c.oye && c.oye->load(std::memory_order_relaxed)) interrumpido(conn);
+    if (c.ritmo.hablando && c.oye && c.oye->load(std::memory_order_relaxed)) interrumpido(conn);
     // Sin eso, lo que el oído cerró justo cuando el asistente empezaba a hablar (o el eco
     // de su propia voz) no cuenta.
-    if (c.hablando) return;
+    if (c.ritmo.hablando) return;
     c.oidoTexto = t.trimmed();
-    c.ultimaVozMs = ahoraMs();
+    c.ritmo.ultimaVozMs = ahoraMs();
     ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
                                ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): oyó «%2»"), {conn.toStdString(), c.oidoTexto.toStdString()}));
     enviar(conn, {{"type", "oido"}, {"texto", c.oidoTexto.toStdString()}});
@@ -1004,7 +984,7 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
         // Se junta con lo anterior del turno; sale cuando la persona termina (tic). Un «sí» o un
         // «no» corto a una confirmación, al instante: ahí no viene nada más.
         c.turno = c.turno.isEmpty() ? c.oidoTexto : c.turno + " " + c.oidoTexto;
-        c.turnoMs = c.ultimaVozMs;
+        c.ritmo.turnoMs = c.ritmo.ultimaVozMs;
         if (c.turno != c.oidoTexto) enviar(conn, {{"type", "oido"}, {"texto", c.turno.toStdString()}});
         const std::string dicho = c.turno.toStdString();
         if (c.conv->pedido().value("confirmando", false) && registro::entenderSiNo(dicho, c.conv->idioma()) != -1 &&
@@ -1017,11 +997,11 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
 void TotemsViewModel::cerrarTurno(Conexion& c) {
     const std::string dicho = c.turno.toStdString();
     c.turno.clear();
-    c.turnoMs = 0;
+    c.ritmo.turnoMs = 0;
     if (dicho.empty() || c.conv == nullptr || !c.conv->enCurso() || c.conv->atendida()) return;
     ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
                                ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): turno «%2»"), {c.conn.toStdString(), dicho}));
-    if (!c.buscandoFoto) enviar(c.conn, {{"type", "estado"}, {"estado", "pensando"}});
+    if (!c.ritmo.buscandoFoto) enviar(c.conn, {{"type", "estado"}, {"estado", "pensando"}});
     if (alOidoAgente(c, dicho)) { // lo entiende el modelo (y el guion retoma)
         emit vivoCambio();
         return;
@@ -1042,7 +1022,7 @@ void TotemsViewModel::alToque(Conexion& c, const json& ev) {
         const auto r = c.conv->cancelar();
         aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     } else if (c.conv != nullptr && accion == "escrito") {
-        c.ultimaVozMs = ahoraMs();
+        c.ritmo.ultimaVozMs = ahoraMs();
         if (c.agente) c.agente->cancelar(); // lo tocado manda sobre lo que el modelo estuviera pensando
         const auto r = c.conv->escrito(texto(ev, "clave"), texto(ev, "valor"));
         aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
@@ -1056,26 +1036,26 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
     // no una bandera aparte). Cada vez que lo pide de nuevo, el tiempo cuenta de
     // nuevo desde que termina de decirlo (tic); la charla oída mientras tanto, no.
     if (c.conv->estado() == registro::Conversacion::Estado::Documento) {
-        if (!c.buscandoDocumento || !decirTxt.empty()) {
-            c.buscandoDocumento = true;
-            c.docDesdeMs = 0;
+        if (!c.ritmo.buscandoDocumento || !decirTxt.empty()) {
+            c.ritmo.buscandoDocumento = true;
+            c.ritmo.docDesdeMs = 0;
             c.docSugerencia.clear();
             c.dorsoLecturas->reiniciar(); // lo pidió de nuevo (o «no»): las fotos de antes no cuentan
             // Si después hace falta el dorso, que el modelo local con visión ya esté cargado.
             if (c.conv->dorsoDisponible() && lector_) lector_->prepararDorso();
         }
     } else {
-        c.buscandoDocumento = false;
+        c.ritmo.buscandoDocumento = false;
         c.dorsoLecturas->reiniciar();
     }
     // La foto de frente: se busca recién cuando terminó de pedirla (tic), no mientras habla.
     // Una respuesta vacía (algo que se oyó mientras mira a la cámara) no la interrumpe.
     if (foto) {
-        c.buscandoFoto = true;
-        c.fotoDesdeMs = 0;
+        c.ritmo.buscandoFoto = true;
+        c.ritmo.fotoDesdeMs = 0;
         c.fotoSugerencia.clear();
     } else if (terminar || !decirTxt.empty()) {
-        c.buscandoFoto = false;
+        c.ritmo.buscandoFoto = false;
     }
     if (campos) enviar(c.conn, {{"type", "campos"}, {"lista", c.conv->camposParaMostrar()}});
     // Lo que se pide cambia también al pasar a confirmar (aparecen los botones Sí / No).
@@ -1095,9 +1075,9 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
     if (terminar && c.enAtencion) liberarAtencion(c); // cancelada desde el tótem, por ejemplo
     if (terminar && c.agente) c.agente->cancelar();
     if (terminar) {
-        if (c.hablando) {
+        if (c.ritmo.hablando) {
             c.listoPendiente = decirTxt;
-            c.hayListo = true;
+            c.ritmo.hayListo = true;
         } else {
             enviar(c.conn, {{"type", "listo"}, {"texto", decirTxt}});
         }
@@ -1105,9 +1085,9 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
         c.esperaVacio = true;
         c.ultimaPersona = QString::fromStdString(c.conv->cara().personaId);
         if (c.ultimaPersona.isEmpty()) c.ultimaPersona = c.ultimaCara;
-        c.terminoMs = ahoraMs();
+        c.ritmo.terminoMs = ahoraMs();
         c.pedidoEnviado.clear();
-    } else if (decirTxt.empty() && !c.buscandoFoto && !c.buscandoDocumento && !c.conv->atendida()) {
+    } else if (decirTxt.empty() && !c.ritmo.buscandoFoto && !c.ritmo.buscandoDocumento && !c.conv->atendida()) {
         c.estado = "escuchando";
         enviar(c.conn, {{"type", "estado"}, {"estado", "escuchando"}});
     }
@@ -1132,10 +1112,10 @@ void TotemsViewModel::hablar(Conexion& c, const std::string& t) {
         voces_[static_cast<std::size_t>(k)]) {
         VozAlLobby* destino = voces_[static_cast<std::size_t>(k)].get();
         c.mudo->store(false);
-        c.hablando = true;
+        c.ritmo.hablando = true;
         c.sintetizando = true;
         ++c.piezas; // varias frases en cola (el modelo, frase por frase): la voz termina con la última
-        c.finHablaMs = 0;
+        c.ritmo.finHablaMs = 0;
         c.callado->store(true);
         if (c.estado != "listo") {
             c.estado = "hablando";
@@ -1207,96 +1187,75 @@ void TotemsViewModel::tic() {
     const qint64 ahora = ahoraMs();
     // Nadie mostrando un documento: el modelo local con visión ya no hace falta cargado
     // (si el chat lo usa, sigue; si no, se apaga y libera la GPU).
-    if (lector_ && std::none_of(conns_.begin(), conns_.end(), [](const auto& kv) { return kv.second->buscandoDocumento; }))
+    if (lector_ && std::none_of(conns_.begin(), conns_.end(), [](const auto& kv) { return kv.second->ritmo.buscandoDocumento; }))
         lector_->soltarDorso();
     for (auto& [k, cp] : conns_) {
         Conexion& c = *cp;
         if (c.canal > 0 && !c.oido) abrirOido(c);
         mirarCara(c);
         mirarDocumento(c);
-        // Atendida por una persona: ni silencios, ni foto, ni arranque solo (el guion está en pausa).
-        if (c.conv != nullptr && c.conv->atendida()) continue;
-        // Lo oído espera el fin del turno: un rato sin frases nuevas y sin voz sonando.
-        if (!c.turno.isEmpty() && !c.hablando) {
-            const qint64 paso = ahora - c.turnoMs;
-            if ((paso >= kFinTurnoMs && (voz_ == nullptr || !voz_->oyendoVoz("registro:" + c.conn))) || paso >= kTurnoTopeMs)
-                cerrarTurno(c);
-            continue;
-        }
-        // Terminó de hablar: lo sintetizado ya salió por el canal.
-        if (c.hablando) {
+        // Lo que el ritmo no sabe (y solo si lo va a mirar: el VAD con turno, la voz hablando).
+        registro::RitmoTotem::Mirada m;
+        m.atendida = c.conv != nullptr && c.conv->atendida();
+        m.conversacion = c.conv != nullptr;
+        m.enCurso = c.conv != nullptr && c.conv->enCurso();
+        m.hayTurno = !c.turno.isEmpty();
+        m.oyendoVoz = m.hayTurno && !c.ritmo.hablando && voz_ != nullptr && voz_->oyendoVoz("registro:" + c.conn);
+        if (c.ritmo.hablando) {
             const VozAlLobby* v = c.canal > 0 && c.canal < static_cast<int>(voces_.size())
                                       ? voces_[static_cast<std::size_t>(c.canal)].get()
                                       : nullptr;
-            const bool salio = !c.sintetizando && (v == nullptr || v->pendiente() < 0.02) &&
-                               !(c.agente && c.agente->ocupado()); // el modelo sigue escribiendo: viene otra frase
-            if (salio && c.finHablaMs == 0) c.finHablaMs = ahora;
-            if (salio && ahora - c.finHablaMs >= kMargenVozMs) {
-                c.hablando = false;
-                c.callado->store(false);
-                c.ultimaVozMs = ahora;
-                if (c.hayListo) {
-                    c.hayListo = false;
-                    c.terminoMs = ahora;
-                    enviar(c.conn, {{"type", "listo"}, {"texto", c.listoPendiente}});
-                }
-                if (c.conv != nullptr && c.conv->enCurso()) {
-                    // Pidió la foto: desde ahora se buscan tomas de frente (y se cuenta el tiempo).
-                    if (c.buscandoFoto) c.fotoDesdeMs = ahora;
-                    if (c.buscandoDocumento) c.docDesdeMs = ahora; // pidió el documento: desde ahora se busca
-                    c.estado = c.buscandoFoto        ? "foto"
-                               : !c.buscandoDocumento ? "escuchando"
-                               : c.conv->buscandoDorso() ? "dorso" // la página guía: «la parte de atrás»
-                                                         : "documento";
-                    enviar(c.conn, {{"type", "estado"}, {"estado", c.estado.toStdString()}});
-                    emit vivoCambio();
-                }
-            }
-            continue;
+            m.vozSalio = !c.sintetizando && (v == nullptr || v->pendiente() < 0.02) &&
+                         !(c.agente && c.agente->ocupado()); // el modelo sigue escribiendo: viene otra frase
         }
-        if (c.buscandoFoto && c.conv != nullptr) {
-            if (c.fotoDesdeMs == 0) c.fotoDesdeMs = ahora; // sin voz: no hubo nada que esperar
-            if (ahora - c.fotoDesdeMs > kFotoMs) {
-                const auto r = c.conv->fotoFallo(c.fotoSugerencia.toStdString());
-                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-            }
-            continue;
-        }
-        if (c.buscandoDocumento && c.conv != nullptr) {
-            if (c.docDesdeMs == 0) c.docDesdeMs = ahora; // sin voz: no hubo nada que esperar
-            // Con una foto del dorso en el modelo, se espera su respuesta (hasta un tope).
-            const qint64 paso = ahora - c.docDesdeMs;
-            if ((paso > (c.conv->buscandoDorso() ? kDorsoMs : kDocumentoMs) && !c.leyendoDorso) || paso > kDorsoTopeMs) {
-                const auto r = c.conv->documentoFallo(c.docSugerencia.toStdString());
-                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-            }
-            continue;
-        }
-        if (c.conv != nullptr && c.conv->enCurso()) {
-            if (ahora - c.ultimaVozMs > kSilencioMs) {
-                c.ultimaVozMs = ahora;
-                const auto r = c.conv->silencio();
-                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
-            }
-            continue;
-        }
-        // La pantalla de gracias ya volvió sola a esperar.
-        if (c.estado == "listo" && ahora - c.terminoMs > kListoMs) {
+        m.buscandoDorso = c.conv != nullptr && c.conv->buscandoDorso();
+        m.pantallaListo = c.estado == "listo";
+        m.hayCanal = c.canal > 0;
+        m.identificando = c.identificando;
+        const registro::RitmoTotem::Decision d = c.ritmo.revisar(m, ahora);
+        if (d.volverAEsperar) {
             c.estado = "esperando";
             emit vivoCambio();
         }
-        // Tomó canal y no aparece una cara: el canal ES el arranque (el que abre
-        // la página en el celular ya decidió registrarse). Solo la primera vez
-        // por canal: en un kiosco el canal queda y lo que arranca es una cara nueva.
-        if (c.canal > 0 && c.primeraDelCanal && !c.identificando && ahora - c.canalDesdeMs > kArranqueSinCaraMs) {
-            const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
-            empezar(c, conocida ? c.ultimaCara : QString(), conocida ? c.ultimoNombre : QString());
+        using Paso = registro::RitmoTotem::Paso;
+        switch (d.paso) {
+            case Paso::Nada: break;
+            case Paso::CerrarTurno: cerrarTurno(c); break;
+            case Paso::TerminoDeHablar:
+                c.callado->store(false); // vuelve a escuchar
+                if (d.mandarListo) enviar(c.conn, {{"type", "listo"}, {"texto", c.listoPendiente}});
+                if (!d.estado.empty()) {
+                    c.estado = QString::fromStdString(d.estado);
+                    enviar(c.conn, {{"type", "estado"}, {"estado", d.estado}});
+                    emit vivoCambio();
+                }
+                break;
+            case Paso::FotoFallo: {
+                const auto r = c.conv->fotoFallo(c.fotoSugerencia.toStdString());
+                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
+                break;
+            }
+            case Paso::DocumentoFallo: {
+                const auto r = c.conv->documentoFallo(c.docSugerencia.toStdString());
+                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
+                break;
+            }
+            case Paso::Silencio: {
+                const auto r = c.conv->silencio();
+                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
+                break;
+            }
+            case Paso::Arrancar: {
+                const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
+                empezar(c, conocida ? c.ultimaCara : QString(), conocida ? c.ultimoNombre : QString());
+                break;
+            }
         }
     }
 }
 
 void TotemsViewModel::mirarDocumento(Conexion& c) {
-    if (!c.buscandoDocumento || c.docDesdeMs == 0 || c.leyendoDocumento || c.canal == 0 || !lector_ ||
+    if (!c.ritmo.buscandoDocumento || c.ritmo.docDesdeMs == 0 || c.leyendoDocumento || c.canal == 0 || !lector_ ||
         c.conv == nullptr)
         return;
     if (ahoraMs() - c.ultimoDocMs < kEntreDocumentosMs) return;
@@ -1324,7 +1283,7 @@ void TotemsViewModel::alCodigoDePagina(Conexion& c, const json& ev) {
     // de la cámara: el PDF417 de un DNI es demasiado denso para el video comprimido) y manda
     // solo el texto. Se traduce con los mismos tipos de documento (los de fábrica y los de
     // los plugins).
-    if (!c.buscandoDocumento || c.leyendoDocumento || !lector_ || c.conv == nullptr) return;
+    if (!c.ritmo.buscandoDocumento || c.leyendoDocumento || !lector_ || c.conv == nullptr) return;
     documentos::Codigo cod;
     cod.formato = texto(ev, "formato");
     cod.texto = texto(ev, "texto");
@@ -1340,7 +1299,7 @@ void TotemsViewModel::alCodigoDePagina(Conexion& c, const json& ev) {
 void TotemsViewModel::alCuadroDePagina(Conexion& c) {
     // El respaldo de los navegadores sin BarcodeDetector (Safari): una foto entera de la
     // cámara, sin la compresión del video, que se lee acá con zxing.
-    if (!c.buscandoDocumento || c.leyendoDocumento || !lector_ || c.conv == nullptr) return;
+    if (!c.ritmo.buscandoDocumento || c.leyendoDocumento || !lector_ || c.conv == nullptr) return;
     ConferenceClient* cli = clienteDe(vm_);
     if (cli == nullptr) return;
     c.leyendoDocumento = true;
@@ -1361,8 +1320,8 @@ void TotemsViewModel::alCuadroDePagina(Conexion& c) {
                     // Pidió la parte de atrás: la misma foto, al modelo propio (el OCR de
                     // la zona de lectura mecánica). Una por vez por conexión: mientras una
                     // está en el modelo, las demás fotos solo buscan el código del frente.
-                    if (k.conv->buscandoDorso() && !k.leyendoDorso) {
-                        k.leyendoDorso = true;
+                    if (k.conv->buscandoDorso() && !k.ritmo.leyendoDorso) {
+                        k.ritmo.leyendoDorso = true;
                         yo->lector_->leerDorso(img, k.conv->documentosAceptados(), k.dorsoLecturas,
                                                [yo2, conn](LectorDocumentos::Resultado r) {
                                                    if (yo2) yo2->alLeerDorso(conn, std::move(r));
@@ -1380,7 +1339,7 @@ void TotemsViewModel::alLeerDocumento(const QString& conn, LectorDocumentos::Res
     if (it == conns_.end()) return;
     Conexion& k = *it->second;
     k.leyendoDocumento = false;
-    if (!k.buscandoDocumento || k.conv == nullptr) return;
+    if (!k.ritmo.buscandoDocumento || k.conv == nullptr) return;
     if (r.leido) {
         // En el registro, a lo sumo el tipo y los últimos tres dígitos.
         const registro::Totem* t = totems_.porId(k.totem.toStdString());
@@ -1401,8 +1360,8 @@ void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resulta
     const auto it = conns_.find(conn);
     if (it == conns_.end()) return;
     Conexion& k = *it->second;
-    k.leyendoDorso = false;
-    if (!k.buscandoDocumento || k.conv == nullptr) return;
+    k.ritmo.leyendoDorso = false;
+    if (!k.ritmo.buscandoDocumento || k.conv == nullptr) return;
     const registro::Totem* t = totems_.porId(k.totem.toStdString());
     const std::string quien = ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2)"), {t != nullptr ? t->id : k.totem.toStdString(), conn.toStdString()});
     if (r.leido) {
@@ -1661,12 +1620,12 @@ void TotemsViewModel::callarAsistente(Conexion& c) {
     c.mudo->store(true);
     if (c.canal > 0 && c.canal < static_cast<int>(voces_.size()) && voces_[static_cast<std::size_t>(c.canal)])
         voces_[static_cast<std::size_t>(c.canal)]->callar();
-    c.hablando = false;
+    c.ritmo.hablando = false;
     c.sintetizando = false;
-    c.finHablaMs = 0;
+    c.ritmo.finHablaMs = 0;
     c.callado->store(false); // el oído sigue: quien atiende lee lo que se le entiende
-    c.hayListo = false;
-    c.buscandoFoto = false;
+    c.ritmo.hayListo = false;
+    c.ritmo.buscandoFoto = false;
 }
 
 void TotemsViewModel::interrumpido(const QString& conn) {
@@ -1675,27 +1634,27 @@ void TotemsViewModel::interrumpido(const QString& conn) {
     Conexion& c = *it->second;
     // Solo con el asistente hablando en una conversación en curso, y no en la despedida
     // (el `listo` se manda cuando termina de decirla). Atendida, habla una persona.
-    if (!c.hablando || c.hayListo || c.conv == nullptr || !c.conv->enCurso() || c.conv->atendida()) return;
+    if (!c.ritmo.hablando || c.ritmo.hayListo || c.conv == nullptr || !c.conv->enCurso() || c.conv->atendida()) return;
     c.mudo->store(true); // lo que la síntesis entregue todavía no sale
     if (c.canal > 0 && c.canal < static_cast<int>(voces_.size()) && voces_[static_cast<std::size_t>(c.canal)])
         voces_[static_cast<std::size_t>(c.canal)]->callar();
 #if defined(BA_HAVE_VOZ)
     // La síntesis es una para todos los tótems: se corta solo si no habla en otro.
     if (habla_ && std::none_of(conns_.begin(), conns_.end(), [&c](const auto& kv) {
-            return kv.second.get() != &c && kv.second->hablando;
+            return kv.second.get() != &c && kv.second->ritmo.hablando;
         }))
         habla_->callar();
 #endif
     const qint64 ahora = ahoraMs();
-    c.hablando = false;
+    c.ritmo.hablando = false;
     c.sintetizando = false;
-    c.finHablaMs = 0;
+    c.ritmo.finHablaMs = 0;
     c.callado->store(false);
-    c.ultimaVozMs = ahora;
+    c.ritmo.ultimaVozMs = ahora;
     // Lo mismo que cuando termina de hablar (tic): la foto o el documento se buscan desde ahora.
-    if (c.buscandoFoto) c.fotoDesdeMs = ahora;
-    if (c.buscandoDocumento) c.docDesdeMs = ahora;
-    c.estado = c.buscandoFoto ? "foto" : !c.buscandoDocumento ? "escuchando" : c.conv->buscandoDorso() ? "dorso" : "documento";
+    if (c.ritmo.buscandoFoto) c.ritmo.fotoDesdeMs = ahora;
+    if (c.ritmo.buscandoDocumento) c.ritmo.docDesdeMs = ahora;
+    c.estado = c.ritmo.buscandoFoto ? "foto" : !c.ritmo.buscandoDocumento ? "escuchando" : c.conv->buscandoDorso() ? "dorso" : "documento";
     enviar(c.conn, {{"type", "estado"}, {"estado", c.estado.toStdString()}});
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
                                ba::i18n::llenar(ba::i18n::traducir("registro", "tótem (%1): la persona interrumpió al asistente"), {c.conn.toStdString()}));
@@ -1729,7 +1688,7 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
         c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_, eventoIdioma_);
         const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
         if (conocida) c.conv->conocerCara({c.ultimaCara.toStdString(), c.ultimoNombre.toStdString(), false});
-        c.primeraDelCanal = false;
+        c.ritmo.primeraDelCanal = false;
         c.esperaVacio = false;
         c.pedidoEnviado.clear();
     }
@@ -1775,7 +1734,7 @@ std::string TotemsViewModel::terminarConn(const QString& conn, const QString& co
         return tr("«como» es asistente, guardar o cancelar.").toStdString();
     }
     liberarAtencion(c);
-    c.ultimaVozMs = ahoraMs();
+    c.ritmo.ultimaVozMs = ahoraMs();
     c.pedidoEnviado.clear(); // que la pantalla vuelva a mostrar qué se pide
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
                                ba::i18n::llenar(ba::i18n::traducir("registro", "tótem «%1» (%2): atención terminada (%3)"), {c.totem.toStdString(), conn.toStdString(), como.toStdString()}));
@@ -1795,7 +1754,7 @@ std::string TotemsViewModel::ponerDatoConn(const QString& conn, const QString& c
     std::string error;
     const auto r = c.conv->poner(clave.toStdString(), valor.toStdString(), error);
     if (!error.empty()) return error;
-    c.ultimaVozMs = ahoraMs();
+    c.ritmo.ultimaVozMs = ahoraMs();
     aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     return {};
 }
@@ -1929,7 +1888,7 @@ void TotemsViewModel::prepararModelo() {
     faltaLocal_.clear();
     emit cambio();
     QPointer<TotemsViewModel> yo(this);
-    agent::ServidorModeloLocal::el().pedir(this, pedidoLocal(modelos_, rt_, gguf), [yo](quint16 puerto, QString error) {
+    agent::ServidorModeloLocal::el().pedir(this, pedidoLocal(modelos_, rt_, vm_.ventanilla(), gguf), [yo](quint16 puerto, QString error) {
         if (!yo) return;
         yo->pidiendoLocal_ = false;
         yo->puertoLocal_ = puerto;
@@ -2003,7 +1962,7 @@ void TotemsViewModel::crearAgente(Conexion& c, bool avisar) {
         if (k == nullptr) return;
         k->textoModelo = acumulado;
         k->diceTexto = QString::fromStdString(acumulado);
-        k->ultimaVozMs = ahoraMs(); // pensando no es un silencio
+        k->ritmo.ultimaVozMs = ahoraMs(); // pensando no es un silencio
         yo->enviar(k->conn, {{"type", "dice"}, {"texto", acumulado}});
         emit yo->vivoCambio();
     };
@@ -2017,7 +1976,7 @@ void TotemsViewModel::crearAgente(Conexion& c, bool avisar) {
         if (k == nullptr || k->conv == nullptr) return;
         k->diceAntes = std::move(k->textoModelo);
         k->textoModelo.clear();
-        k->ultimaVozMs = ahoraMs();
+        k->ritmo.ultimaVozMs = ahoraMs();
         yo->aplicar(*k, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
         k->diceAntes.clear(); // si el guion no dijo nada, lo del modelo ya está en la pantalla
     };

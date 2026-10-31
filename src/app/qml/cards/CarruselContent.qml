@@ -398,10 +398,10 @@ Item {
                     // Rojo solo cuando de verdad esta saliendo: en un aparato
                     // de television, un punto rojo que miente es peor que no
                     // tener punto.
-                    color: Studio.streaming ? Theme.live : Theme.textFaint
+                    color: Studio.aire.streaming ? Theme.live : Theme.textFaint
                 }
                 Text {
-                    text: (Studio.streaming ? qsTr("AL AIRE · %1") : qsTr("PROGRAMA · %1")).arg(Studio.currentScene || "—")
+                    text: (Studio.aire.streaming ? qsTr("AL AIRE · %1") : qsTr("PROGRAMA · %1")).arg(Studio.currentScene || "—")
                     color: Theme.text
                     font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold }
                 }

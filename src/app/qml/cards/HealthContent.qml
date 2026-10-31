@@ -144,11 +144,11 @@ Item {
                 columns: 2
                 columnSpacing: 10; rowSpacing: 6
                 Text { text: "FPS"; color: Theme.textFaint; font.pixelSize: 11 }
-                Text { text: Studio.fps.toFixed(1); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: Studio.aire.fps.toFixed(1); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Text { text: qsTr("Codificador"); color: Theme.textFaint; font.pixelSize: 11 }
-                Text { text: Studio.encoder || qsTr("se elige al grabar o transmitir"); color: Studio.encoder ? Theme.text : Theme.textFaint; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 12 }
+                Text { text: Studio.aire.encoder || qsTr("se elige al grabar o transmitir"); color: Studio.aire.encoder ? Theme.text : Theme.textFaint; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 12 }
                 Text { text: qsTr("Perdidos"); color: Theme.textFaint; font.pixelSize: 11 }
-                Text { text: Studio.droppedFrames + " / " + Studio.totalFrames; color: Studio.droppedFrames > 0 ? Theme.warn : Theme.text; font.pixelSize: 12 }
+                Text { text: Studio.aire.droppedFrames + " / " + Studio.aire.totalFrames; color: Studio.aire.droppedFrames > 0 ? Theme.warn : Theme.text; font.pixelSize: 12 }
                 Text { text: qsTr("Lienzo"); color: Theme.textFaint; font.pixelSize: 11 }
                 Text { text: Studio.canvasLabel; color: Theme.text; font.pixelSize: 12 }
                 Text { text: "Gateway"; color: Theme.textFaint; font.pixelSize: 11 }

@@ -107,9 +107,16 @@ AppViewModel::AppViewModel(Partes p, QObject* parent) : QObject(parent), p_(std:
     connect(system_.get(), &SystemViewModel::quitForUpdate, this, &AppViewModel::contarHastaCerrar);
     leerCaida();
     // La foto para los otros hilos, cada vez que cambia lo que muestra.
-    connect(this, &AppViewModel::estadoCambio, this, &AppViewModel::publicarFoto);
+    connect(this, &AppViewModel::vivoCambio, this, &AppViewModel::publicarFoto);
     connect(this, &AppViewModel::caidaChanged, this, &AppViewModel::publicarFoto);
     publicarFoto();
+    // Lo que sale (el vivo, lo que se corta al cerrar): de la foto del motor, cuando cambia.
+    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & FotoMotor::Estado) != 0) revisar();
+    });
+    vivoAntes_ = modoVivo();
+    bloqueadasAntes_ = paginasBloqueadas();
+    impactoAntes_ = impactoDeCerrar();
     if (!configRecuperada().empty())
         QTimer::singleShot(3000, this, [this]() {
             emit notify(tr("La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó "
@@ -182,9 +189,24 @@ nlohmann::json AppViewModel::caidas(int n) {
     return out;
 }
 
+void AppViewModel::revisar() {
+    const bool vivo = modoVivo();
+    const QStringList bloqueadas = paginasBloqueadas();
+    if (vivo != vivoAntes_ || bloqueadas != bloqueadasAntes_) {
+        vivoAntes_ = vivo;
+        bloqueadasAntes_ = bloqueadas;
+        emit vivoCambio();
+    }
+    if (const QVariantMap i = impactoDeCerrar(); i != impactoAntes_) {
+        impactoAntes_ = i;
+        emit impactoCambio();
+    }
+}
+
 void AppViewModel::vigilar(control::BusEventos& bus) {
     // Volviendo de una caída: cuánto tardó el aire en volver.
-    if (!caida_.isEmpty() && !caida_.contains("aire_vuelta_s") && (p_.transmitiendo() || p_.grabando()) && caidaMs_ > 0) {
+    const FotoMotor::EstadoAire& aire = p_.ventanilla.foto().estado;
+    if (!caida_.isEmpty() && !caida_.contains("aire_vuelta_s") && (aire.transmite || aire.graba) && caidaMs_ > 0) {
         caida_["aire_vuelta_s"] = (QDateTime::currentMSecsSinceEpoch() - caidaMs_) / 1000.0;
         emit caidaChanged();
         // Volvió el aire: el aviso dura 30 s más y se cierra solo (en el modelo, no en la
@@ -216,11 +238,19 @@ bool AppViewModel::paginaBloqueada(const QString& id) const {
     return modoVivo() && modoVivoCfg_->paginas().contains(id) && !desbloqueadas_.contains(id);
 }
 
+QStringList AppViewModel::paginasBloqueadas() const {
+    QStringList out;
+    if (!modoVivo()) return out;
+    for (const QString& id : modoVivoCfg_->paginas())
+        if (!desbloqueadas_.contains(id)) out << id;
+    return out;
+}
+
 void AppViewModel::desbloquearPagina(const QString& id, const QString& motivo) {
     desbloqueadas_.insert(id);
     ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("modo-vivo", "modo en vivo: se desbloqueó «%1» — motivo: %2"),
                                                {id.toStdString(), motivo.toStdString()}));
-    emit estadoCambio();
+    revisar();
 }
 
 void AppViewModel::publicarFoto() {
@@ -253,18 +283,21 @@ nlohmann::json AppViewModel::modoVivoEstado() const {
 std::string AppViewModel::setModoVivoAjustes(const nlohmann::json& a) {
     if (modoVivo()) return tr("no se cambia en vivo").toStdString();
     const std::string e = modoVivoCfg_->cambiar(a);
-    emit estadoCambio();
+    revisar();
+    publicarFoto(); // lo que se protege va en la foto aunque el vivo no cambie
     return e;
 }
 
 QVariantMap AppViewModel::impactoDeCerrar() const {
-    const bool tx = p_.transmitiendo(), rec = p_.grabando();
+    const FotoMotor::EstadoAire& aire = p_.ventanilla.foto().estado;
+    const bool tx = aire.transmite, rec = aire.graba;
     const int n = p_.personas();
     return {{"transmitiendo", tx}, {"grabando", rec}, {"personas", n}, {"hay", tx || rec || n > 0}};
 }
 
 QString AppViewModel::avisoDeCerrar(const QString& accion) const {
-    const bool tx = p_.transmitiendo(), rec = p_.grabando();
+    const FotoMotor::EstadoAire& aire = p_.ventanilla.foto().estado;
+    const bool tx = aire.transmite, rec = aire.graba;
     const int n = p_.personas();
     if (!tx && !rec && n == 0) return {};
     QStringList corta;

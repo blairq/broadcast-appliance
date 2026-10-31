@@ -31,8 +31,7 @@ Rectangle {
             if (page.au) { page.au.selectSource(seccion); page.vista = "racks" }
         }
     }
-    onVisibleChanged: if (au) au.setActive(visible)
-    Component.onCompleted: if (au && visible) au.setActive(true)
+    Suscripcion { objetivo: page.au; activa: page.visible }
 
     // --- Geometria de los nodos -------------------------------------------------------------
     readonly property int nodeW: 178

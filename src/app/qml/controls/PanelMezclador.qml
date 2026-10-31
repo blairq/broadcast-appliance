@@ -36,9 +36,7 @@ Item {
     property bool calibracionAbierta: pestana === "calibracion" // se crea la primera vez y queda
     onPestanaChanged: if (pestana === "calibracion") calibracionAbierta = true
 
-    Component.onCompleted: if (mz) mz.usar(m, visible)
-    onVisibleChanged: if (mz) mz.usar(m, visible)
-    Component.onDestruction: if (mz) mz.usar(m, false)
+    Suscripcion { objetivo: m.mz; activa: m.visible }
 
     // El estado de las tiras (fader, mute, envíos) cambia poco: se relee seguido sin
     // pedir un aviso por cada cosa.

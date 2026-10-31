@@ -203,8 +203,8 @@ Item {
                 ToolTip.text: qsTr("El QR para manejar las escenas desde una tablet o un celular")
             }
             Text {
-                visible: Studio.droppedFrames > 0
-                text: qsTr("%n perdido", "", Studio.droppedFrames)
+                visible: Studio.aire.droppedFrames > 0
+                text: qsTr("%n perdido", "", Studio.aire.droppedFrames)
                 color: Theme.amber; font.pixelSize: 11
             }
         }

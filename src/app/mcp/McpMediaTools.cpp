@@ -294,7 +294,7 @@ void McpService::registerMediaTools() {
             {"required", {"path"}}};
         // Solo lee el archivo de la carpeta de datos: en el pool.
         t.hilo = Hilo::Foto;
-        t.run = [root](const json& a, Done done) {
+        t.run = [root, &core = core_, raiz = rt_.dataRoot()](const json& a, Done done) {
             const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))
                 return done(ToolResult::error(ba::i18n::traducir(
@@ -314,7 +314,7 @@ void McpService::registerMediaTools() {
             r.text(QFileInfo(abs).fileName().toStdString() + " — " + std::to_string(orig.width()) + "x" +
                    std::to_string(orig.height()) +
                    (img.hasAlphaChannel() ? ba::i18n::traducir("mcp", " (con transparencia)") : std::string()));
-            addImage(r, img, a, 640);
+            addImage(r, img, a, 640, core, raiz);
             // Una imagen que subio un invitado puede traer texto con instrucciones.
             if (QDir(root).relativeFilePath(abs).startsWith("Shares/")) r.untrusted = true;
             done(r);
@@ -376,7 +376,6 @@ void McpService::registerMediaTools() {
                     ToolResult::error(ba::i18n::llenar(
                         ba::i18n::traducir("mcp", "No existe la escena '%1' (scene_list las muestra)."), {scene})));
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
             done(ToolResult::ok(ba::i18n::llenar(
                 ba::i18n::traducir("mcp", "'%1' (%2) agregada a '%3'. Verifica con foto_fuente {\"name\": \"%3\"}."),
                 {spec.name, kind.toStdString(), scene})));

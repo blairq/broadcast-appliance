@@ -8,6 +8,13 @@
 #include <QJsonObject>
 #include <QVariant>
 
+#include <QObject>
+#include <QTimer>
+
+#include <functional>
+#include <memory>
+#include <optional>
+
 #include "mcp/McpCore.hpp"
 
 namespace ba::app {
@@ -28,6 +35,42 @@ json toJson(const QJsonArray& a);
 QJsonObject toQt(const json& j);
 /// Filas de un modelo Qt como JSON (cada rol con su nombre).
 json modelRows(const QAbstractItemModel& m);
+
+/// Lo pesado de una herramienta de la interfaz (escalar y codificar una imagen, leer o
+/// recorrer archivos, esperar un proceso) en un hilo aparte: `trabajo` corre en el pool
+/// del MCP («mcp-aparte», dos hilos: no compite con la copia de un evento en el pool
+/// global) y `done` vuelve en el hilo de `volver` (la interfaz: qApp). En la interfaz queda
+/// solo lo que es de ella (tomar el cuadro, leer el modelo). Una excepción de `trabajo`
+/// vuelve como error de la herramienta.
+void enPool(QObject* volver, std::function<ToolResult()> trabajo, Done done);
+
+/// Esperar algo que AVISA, en vez de sondearlo con un reloj: cada vez que `obj` emite
+/// `senal` (y una vez al empezar) se pregunta `mirar()`; cuando trae un resultado se
+/// contesta con él, y si pasan `topeMs` sin resultado, con `alVencer()`. En el hilo de
+/// `obj` (la interfaz, si es un modelo de ella). Una sola respuesta; lo de la espera se
+/// borra solo (y si `obj` se va antes, también: entonces contesta `alVencer()`).
+template <class Obj, class Senal>
+void esperarHasta(Obj* obj, Senal senal, std::function<std::optional<ToolResult>()> mirar, int topeMs,
+                  std::function<ToolResult()> alVencer, Done done) {
+    if (auto ya = mirar()) return done(*ya);
+    auto* espera = new QObject(obj); // dueño de las conexiones y del reloj: se va con ellas
+    auto terminado = std::make_shared<bool>(false);
+    const auto terminar = [espera, terminado, done](ToolResult r) {
+        if (*terminado) return;
+        *terminado = true;
+        espera->deleteLater();
+        done(std::move(r));
+    };
+    QObject::connect(obj, senal, espera, [mirar, terminar]() {
+        if (auto r = mirar()) terminar(*r);
+    });
+    QTimer::singleShot(topeMs, espera, [alVencer, terminar]() { terminar(alVencer()); });
+    QObject::connect(espera, &QObject::destroyed, [alVencer, terminado, done]() {
+        if (*terminado) return;
+        *terminado = true;
+        done(alVencer());
+    });
+}
 
 /// Estado de la sala tal como lo publica B (snapshot vigente, sin pedirlo).
 json roomSnapshot(StudioViewModel& vm);

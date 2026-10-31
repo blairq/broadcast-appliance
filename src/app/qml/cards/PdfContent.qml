@@ -56,7 +56,7 @@ Item {
         GlassButton {
             Layout.alignment: Qt.AlignHCenter
             icon: "+"; text: qsTr("Armar la escena «%1»").arg("PDF"); active: true
-            onClicked: tarjeta.ok(tarjeta.pe.crearEscena("PDF"))
+            onClicked: tarjeta.pe.crearEscena("PDF")
         }
     }
 

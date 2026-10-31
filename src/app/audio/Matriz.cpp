@@ -1023,19 +1023,7 @@ void Matriz::setActiva(bool on) {
     timer_.stop();
 }
 
-void Matriz::usar(QObject* vista, bool si) {
-    if (vista == nullptr) return;
-    if (si && !vistas_.contains(vista)) {
-        vistas_.insert(vista);
-        connect(vista, &QObject::destroyed, this, [this](QObject* o) {
-            vistas_.remove(o);
-            setActiva(!vistas_.isEmpty());
-        });
-    } else if (!si) {
-        vistas_.remove(vista);
-    }
-    setActiva(!vistas_.isEmpty());
-}
+void Matriz::usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
 
 void Matriz::leerMedidores() {
     const FotoMotor* fo = foto();

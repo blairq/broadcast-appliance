@@ -33,6 +33,7 @@
 #include "ui/AsistenteViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
 #include "ui/EmisionViewModel.hpp"
+#include "ui/EstadoAireViewModel.hpp"
 #include "ui/EscritorioViewModel.hpp"
 #include "ui/EscenasViewModel.hpp"
 #include "ui/ImagenViewModel.hpp"
@@ -216,17 +217,17 @@ class SourceTypesModel;
 class StudioViewModel : public QObject {
     Q_OBJECT
     // --- Estado ---------------------------------------------------------------
-    Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
-    Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
-    /// Sale algo (transmisión, grabación o señal limpia) y si eso incluye una
-    /// transmisión: lo mismo que mira la PTZ, las alertas y los candados.
-    Q_PROPERTY(bool alAire READ alAire NOTIFY statusChanged)
-    Q_PROPERTY(bool transmitiendo READ transmitiendo NOTIFY statusChanged)
+    /// Lo que sale de la por omisión, las pastillas (ui/EstadoAireViewModel): recording,
+    /// streaming, alAire, transmitiendo, reconnecting, outputProblem, los tiempos y lo que
+    /// mide el motor (fps, encoder, droppedFrames, totalFrames, streamKbps).
+    Q_PROPERTY(QObject* aire READ aireQml CONSTANT)
     /// La app misma (ui/AppViewModel): el modo en vivo, la caída de la que se vuelve, lo que
     /// se corta al cerrar y la cuenta regresiva del reinicio.
     Q_PROPERTY(QObject* app READ appQml CONSTANT)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
     Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
+    /// Qué hacer si cada entrada se cae al aire: {entrada: {escena, al_perder_aire, ms}}.
+    Q_PROPERTY(QVariantMap respaldos READ respaldos NOTIFY respaldosChanged)
     /// El área de la asamblea (ui/AsambleaViewModel): presidenciaHabla y los mandos del operador.
     Q_PROPERTY(QObject* asamblea READ asambleaQml CONSTANT)
     /// El área del asistente y la voz (ui/AsistenteViewModel): el vocabulario y el rótulo de traducción.
@@ -288,19 +289,9 @@ class StudioViewModel : public QObject {
     /// Los mandos de las escenas (ui/EscenasViewModel): armarlas y ordenarlas, el preview y
     /// el TAKE de la activa, el AFV, la repetición.
     Q_PROPERTY(QObject* escenas READ escenasQml CONSTANT)
-    /// La transmision se corto y se esta reintentando.
-    Q_PROPERTY(bool reconnecting READ reconnecting NOTIFY statusChanged)
-    /// Por que se corto, en castellano. Vacio si no hubo problema.
-    Q_PROPERTY(QString outputProblem READ outputProblem NOTIFY statusChanged)
-    Q_PROPERTY(QString recordTime READ recordTime NOTIFY statusChanged)
-    Q_PROPERTY(QString streamTime READ streamTime NOTIFY statusChanged)
-    Q_PROPERTY(double fps READ fps NOTIFY statusChanged)
-    Q_PROPERTY(QString encoder READ encoder NOTIFY statusChanged)
-    Q_PROPERTY(int droppedFrames READ droppedFrames NOTIFY statusChanged)
-    Q_PROPERTY(int totalFrames READ totalFrames NOTIFY statusChanged)
-    Q_PROPERTY(int streamKbps READ streamKbps NOTIFY statusChanged)
-    Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY statusChanged)
-    Q_PROPERTY(bool gatewayAlive READ gatewayAlive NOTIFY statusChanged)
+    /// El CPU que usa la app (medido cada segundo) y si el gateway contesta.
+    Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY cpuChanged)
+    Q_PROPERTY(bool gatewayAlive READ gatewayAlive NOTIFY gatewayChanged)
     /// El vúmetro del programa de la salida activa (ver salidaActiva).
     Q_PROPERTY(double programPeakL READ picoActivaL NOTIFY nivelesChanged)
     Q_PROPERTY(double programPeakR READ picoActivaR NOTIFY nivelesChanged)
@@ -310,15 +301,15 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString escenaArmada READ escenaArmada NOTIFY sceneChanged)
     Q_PROPERTY(double canvasAspect READ canvasAspect NOTIFY canvasChanged)
     Q_PROPERTY(QString canvasLabel READ canvasLabel NOTIFY canvasChanged)
-    Q_PROPERTY(QString streamServer READ streamServer NOTIFY statusChanged)
-    Q_PROPERTY(bool streamKeyAvailable READ streamKeyAvailable NOTIFY statusChanged)
-    Q_PROPERTY(bool streamKeySaved READ streamKeySaved NOTIFY statusChanged)
-    Q_PROPERTY(QString room READ room NOTIFY statusChanged)
+    Q_PROPERTY(QString streamServer READ streamServer NOTIFY ajustesChanged)
+    Q_PROPERTY(bool streamKeyAvailable READ streamKeyAvailable NOTIFY ajustesChanged)
+    Q_PROPERTY(bool streamKeySaved READ streamKeySaved NOTIFY ajustesChanged)
+    Q_PROPERTY(QString room READ room NOTIFY ajustesChanged)
     /// Las direcciones de los servicios (sala/Direcciones): la única fuente de los enlaces.
     Q_PROPERTY(QObject* direcciones READ direccionesQml CONSTANT)
     /// El área de la sala (ui/SalaViewModel): el cupo, el chat, aprobar a los invitados, el encargo al asistente.
     Q_PROPERTY(QObject* sala READ salaQml CONSTANT)
-    Q_PROPERTY(int guests READ guests NOTIFY statusChanged)
+    Q_PROPERTY(int guests READ guests NOTIFY ajustesChanged)
     Q_PROPERTY(QString theme READ theme NOTIFY themeChanged)
     /// Arrancó con --test: el MCP no pide aprobaciones (la interfaz lo avisa siempre).
     Q_PROPERTY(bool modoTest READ modoTest CONSTANT)
@@ -475,10 +466,10 @@ class StudioViewModel : public QObject {
     StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~StudioViewModel() override;
 
-    bool recording() const { return recording_; }
-    /// Cuando arranco la grabacion, en ms desde la epoca. 0 = no esta grabando
-    /// (o arranco antes de que la app supiera mirarlo).
-    Q_INVOKABLE qint64 recordStartMs() const { return recording_ ? recSinceMs_ : 0; }
+    /// Lo que sale de la por omisión (las pastillas): de la foto del motor.
+    EstadoAireViewModel& aire() { return *aire_; }
+    const EstadoAireViewModel& aire() const { return *aire_; }
+    QObject* aireQml() const;
     /// El latido del supervisor: {motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms, politica}.
     Q_INVOKABLE QVariantMap latidoUi() const;
     /// Preferencias chicas de la interfaz (anchos de paneles, lo último elegido),
@@ -489,18 +480,17 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QString latidoPoliticaUi(const QVariantMap& cambios);
     /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
     Q_INVOKABLE bool focoEnTexto() const;
-    /// Hay aire: transmitiendo o grabando.
     /// Sale algo (transmisión, grabación o señal limpia): BroadcastEngine::haySalida.
-    bool alAire() const;
-    /// Se transmite algo (la principal, una extra o la señal limpia).
-    bool transmitiendo() const;
+    bool alAire() const { return aire_->alAire(); }
     QObject* cuerpoQml() const;
     QStringList sinSenal() const;
     /// El respaldo de entradas (modelo).
     escenas::RespaldoEntradas& respaldoEntradas() { return *respaldo_; }
-    /// Qué hacer si la entrada se cae estando al aire: {escena, al_perder_aire: avisar|armar|cortar, ms}.
-    Q_INVOKABLE QVariantMap respaldoEntrada(const QString& entrada) const;
-    Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
+    /// Qué hacer si cada entrada se cae estando al aire (propiedad `respaldos`):
+    /// {entrada: {escena, al_perder_aire: avisar|armar|cortar, ms}}.
+    QVariantMap respaldos() const { return respaldos_; }
+    /// Lo pide al modelo (en el dueño); el error, con notify.
+    Q_INVOKABLE void setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
     QObject* bancasQml() const;
     QObject* debateQml() const;
     QObject* configuracionesQml() const;
@@ -606,16 +596,6 @@ class StudioViewModel : public QObject {
     control::SatelliteServidor& satellite() { return control_->satellite(); }
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
-    bool streaming() const { return streaming_; }
-    bool reconnecting() const { return reconnecting_; }
-    QString outputProblem() const { return outputProblem_; }
-    QString recordTime() const;
-    QString streamTime() const;
-    double fps() const { return fps_; }
-    QString encoder() const { return encoder_; }
-    int droppedFrames() const { return dropped_; }
-    int totalFrames() const { return total_; }
-    int streamKbps() const { return kbps_; }
     double cpuPercent() const { return cpu_; }
     bool gatewayAlive() const { return gatewayAlive_; }
     /// Los de la por omisión (el MCP, las alarmas).
@@ -775,6 +755,8 @@ class StudioViewModel : public QObject {
     /// Se llama en cada cambio de escena y de aire: un tally que llega tarde
     /// es peor que no tenerlo, porque alguien se confia.
     void publicarTally();
+    /// Pide al dueño los respaldos guardados (lee el archivo) y los pone en `respaldos`.
+    void leerRespaldos();
 
    public:
     /// Copia un texto al portapapeles y lo avisa.
@@ -789,10 +771,13 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
-    void statusChanged();
-    /// Los picos del programa (el vúmetro): a 10 Hz. Separados de statusChanged, que
-    /// solo sale cuando cambia algo (antes salía cada 100 ms y re-evaluaba cada binding
-    /// de sus 23 propiedades en toda la interfaz).
+    /// Lo de la configuración que muestran la raíz y las tarjetas (streamServer, la clave,
+    /// room, guests): sale de la parte Ajustes de la foto.
+    void ajustesChanged();
+    void cpuChanged();
+    void gatewayChanged();
+    /// Los picos del programa (el vúmetro): a 10 Hz. Lo demás avisa por su lado (Studio.aire,
+    /// ajustesChanged, cpuChanged, gatewayChanged), cada cosa cuando cambia.
     void nivelesChanged();
     void sceneChanged();
     /// La LISTA de escenas cambió (se agregó, borró, renombró o cambió de
@@ -815,6 +800,7 @@ class StudioViewModel : public QObject {
     /// El launcher (o una señal) pidio cerrar.
     void quitRequested();
     void senalChanged();
+    void respaldosChanged();
 
    private slots:
     void onTick();
@@ -822,6 +808,8 @@ class StudioViewModel : public QObject {
    private:
     AppRuntime& rt_;
     VentanillaMotor& ventanilla_; ///< el motor es del plano de control: se le pide y se lee su foto
+    /// Lo que sale de la por omisión (las pastillas): lo leen las salidas, la app y la sala.
+    std::unique_ptr<EstadoAireViewModel> aire_;
     /// Lo que cambió en la foto del motor (lo de la raíz: las pastillas, el lienzo, el editor).
     void alCambiarFoto(unsigned partes);
     /// El retorno de cada salida que alguien mira ("" = la por omisión): se le pide al motor
@@ -924,6 +912,7 @@ class StudioViewModel : public QObject {
     unsigned vigiaTicks_ = 0;
     std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa los grafos de video y el conmutador de la por omisión (del dueño)
     QStringList sinSenal_; ///< lo último que avisó el respaldo (vive en el dueño)
+    QVariantMap respaldos_; ///< los respaldos guardados (leerRespaldos)
     /// El grafo de video para el vigía de las alarmas (lo lee su hilo; nulo al irse).
     std::atomic<video::VideoGrafos*> videoParaVigia_{nullptr};
     /// Los asistentes, la voz, las salidas de texto y la barra de mensajes
@@ -936,28 +925,12 @@ class StudioViewModel : public QObject {
     QTimer tick_;
     QTimer frameTick_;
 
-    bool recording_ = false;
-    bool streaming_ = false;
-    bool reconnecting_ = false;
-    QString outputProblem_;
-    std::chrono::steady_clock::time_point recSince_{};
-    /// Lo mismo pero en reloj de PARED. `recSince_` es monotono —sirve para
-    /// contar cuanto lleva grabando y no se mueve si alguien cambia la hora—
-    /// pero no se puede comparar con el recorrido del guion, que va en reloj de
-    /// pared. Para los capitulos hacen falta los dos en la misma escala.
-    qint64 recSinceMs_ = 0;
-    std::chrono::steady_clock::time_point streamSince_{};
-    double fps_ = 0;
-    QString encoder_;
-    int dropped_ = 0;
-    int total_ = 0;
-    int kbps_ = 0;
-    std::uint64_t lastBytes_ = 0;
-    std::chrono::steady_clock::time_point lastBytesAt_{};
+    /// El CPU de la app y si el gateway contesta: cada segundo (cpuChanged, gatewayChanged).
+    QTimer segundo_;
+    void alSegundo();
     double cpu_ = 0;
     ba::app::UsoCpu cpuUso_;
     bool gatewayAlive_ = false;
-    QString firmaEstado_; ///< lo último avisado con statusChanged (onTick)
     double peakL_ = -100;
     double peakR_ = -100;
     /// Lee a los demás servicios: se arma al final del constructor y, declarado

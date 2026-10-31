@@ -13,7 +13,10 @@
 // volver), lo que se corta si se cierra la app (para confirmar) y la cuenta regresiva
 // antes de cerrarse para que el launcher la reabra (otro evento, una actualización).
 //
-// En QML: Studio.app (modoVivo, paginaBloqueada, caidaReciente, impactoDeCerrar,
+// Lo que sale lo lee de la foto del motor (la parte Estado: si se transmite y se graba) y
+// avisa solo cuando cambia lo suyo (vivoCambio, impactoCambio), no con cada pastilla.
+//
+// En QML: Studio.app (modoVivo, paginasBloqueadas, caidaReciente, impactoDeCerrar,
 // avisoDeCerrar, reinicio, reiniciarPrograma); Studio.system y Studio.configuraciones
 // siguen en la raíz.
 // ============================================================================
@@ -22,6 +25,7 @@
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 #include <QVariantMap>
 
 #include <nlohmann/json.hpp>
@@ -53,9 +57,12 @@ namespace ba::app {
 class AppViewModel : public QObject {
     Q_OBJECT
     /// Modo en vivo (T48): transmitiendo o con el evento en vivo; protege páginas y ajustes que cortan.
-    Q_PROPERTY(bool modoVivo READ modoVivo NOTIFY estadoCambio)
+    Q_PROPERTY(bool modoVivo READ modoVivo NOTIFY vivoCambio)
+    /// Las páginas (ids del riel) que piden desbloquear para entrar: en vivo, las protegidas
+    /// que no se desbloquearon. Vacía fuera del vivo.
+    Q_PROPERTY(QStringList paginasBloqueadas READ paginasBloqueadas NOTIFY vivoCambio)
     /// Lo que se corta si se cierra (o se actualiza) la app: {transmitiendo, grabando, personas, hay}.
-    Q_PROPERTY(QVariantMap impactoDeCerrar READ impactoDeCerrar NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantMap impactoDeCerrar READ impactoDeCerrar NOTIFY impactoCambio)
     /// La app está por cerrarse para que el launcher la reabra (otro evento, actualización):
     /// {aviso, segundos} con la cuenta regresiva; vacío si no.
     Q_PROPERTY(QVariantMap reinicio READ reinicio NOTIFY reinicioChanged)
@@ -64,12 +71,11 @@ class AppViewModel : public QObject {
    public:
     struct Partes {
         AppRuntime& rt;
-        /// La foto del motor (F3-03): si sale algo (el modo en vivo) y lo del equipo.
+        /// La foto del motor (F3-03): si sale algo (el modo en vivo, lo que se corta al
+        /// cerrar) y lo del equipo.
         VentanillaMotor& ventanilla;
-        /// Lo que sale ahora (las pastillas de la raíz) y quiénes están conectados (la
-        /// sala y la sesión remota): lo que se corta al cerrar.
-        std::function<bool()> transmitiendo;
-        std::function<bool()> grabando;
+        /// Quiénes están conectados (la sala y la sesión remota): lo que se corta al cerrar.
+        /// Cuando cambian, quien los tiene llama a revisar().
         std::function<int()> personas;
         /// El asistente del evento (se arma después): su conversación sigue tras el reinicio.
         std::function<agent::AgentViewModel*()> asistente;
@@ -83,8 +89,13 @@ class AppViewModel : public QObject {
     QObject* configuracionesQml() const;
 
     bool modoVivo() const;
-    /// ¿Hay que desbloquear la página `id` (del riel) para entrar? (en vivo y en la lista)
-    Q_INVOKABLE bool paginaBloqueada(const QString& id) const;
+    QStringList paginasBloqueadas() const;
+    /// ¿Hay que desbloquear la página `id` (del riel) para entrar? (en vivo y en la lista).
+    /// Para C++ (el MCP); QML se enlaza a paginasBloqueadas.
+    bool paginaBloqueada(const QString& id) const;
+    /// Mira de nuevo lo que muestra (el vivo, lo que se corta al cerrar) y avisa lo que cambió:
+    /// lo llaman la foto (lo que sale) y quien sabe de los conectados.
+    void revisar();
     /// La desbloquea hasta que termine el vivo; el motivo queda en el registro.
     Q_INVOKABLE void desbloquearPagina(const QString& id, const QString& motivo);
     /// DESDE CUALQUIER HILO (F3-03): de la foto que publica al cambiar (lo que se protege y
@@ -116,7 +127,9 @@ class AppViewModel : public QObject {
     void vigilar(control::BusEventos& bus);
 
    signals:
-    void estadoCambio();
+    /// El modo en vivo o las páginas bloqueadas.
+    void vivoCambio();
+    void impactoCambio();
     void reinicioChanged();
     void caidaChanged();
     /// Pidió cerrarse (la cuenta regresiva llegó a cero).
@@ -126,7 +139,7 @@ class AppViewModel : public QObject {
 
    private:
     void leerCaida();
-    /// Copia a la foto lo que cambió (lo conectan estadoCambio y caidaChanged).
+    /// Copia a la foto lo que cambió (lo conectan vivoCambio y caidaChanged).
     void publicarFoto();
     void contarHastaCerrar(const QString& aviso);
 
@@ -136,6 +149,10 @@ class AppViewModel : public QObject {
     std::unique_ptr<Configuraciones> configuraciones_;
     QSet<QString> desbloqueadas_;
     bool estabaEnVivo_ = false;
+    /// Lo último avisado (revisar): para avisar solo lo que cambió.
+    bool vivoAntes_ = false;
+    QStringList bloqueadasAntes_;
+    QVariantMap impactoAntes_;
     QVariantMap caida_;
     qint64 caidaMs_ = 0;
     QVariantMap reinicio_;

@@ -140,14 +140,14 @@ Rectangle {
                         Text { text: qsTr("Mirando"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox {
                             Layout.fillWidth: true
-                            model: page.pv.fuentes()
+                            model: page.pv.fuentes
                             textRole: "etiqueta"
                             valueRole: "clave"
-                            currentIndex: { const f = page.pv.fuentes()
+                            currentIndex: { const f = page.pv.fuentes
                                             for (let i = 0; i < f.length; ++i)
                                                 if (f[i].clave === page.fuente) return i
                                             return 0 }
-                            onActivated: (i) => { page.fuente = page.pv.fuentes()[i].clave
+                            onActivated: (i) => { page.fuente = page.pv.fuentes[i].clave
                                                   page.pv.feedAuto = page.fuente
                                                   page.mirar() }
                         }

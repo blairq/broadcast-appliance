@@ -383,7 +383,6 @@ void McpService::registerAsambleaTools() {
                         }
                         creadas.push_back(sc);
                     }
-                    rt.save();
                     return json{{"creadas", creadas}, {"errores", errores}};
                 },
                 [vmp, done](const json& r) {

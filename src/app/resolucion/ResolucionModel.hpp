@@ -7,7 +7,7 @@
 // (resolucion::planear). `niveles` pinta las tarjetas en el analizador de latencia
 // y en el constructor de Video (el mismo dato para las dos vistas). Solo lectura:
 // no cambia nada (docs/planes/PLAN-RESOLUCION.md, fase 2).
-// Se recalcula cada 2 s mientras alguna vista lo mira (mirar(true/false)), y en el
+// Se recalcula cada 2 s mientras alguna vista lo usa (usar(vista, si): cuenta por vista), y en el
 // momento cuando lo pide el MCP.
 // ============================================================================
 #pragma once
@@ -24,6 +24,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "comun/UsoPorVistas.hpp"
 
 namespace ba::app::resolucion {
 
@@ -56,7 +58,7 @@ class ResolucionModel : public QObject {
     QVariantMap niveles() const { return niveles_; }
     QVariantMap planes() const { return planesUi_; }
     /// Una vista empieza (true) o deja (false) de mirar: mientras alguien mira se recalcula cada 2 s.
-    Q_INVOKABLE void mirar(bool si);
+    Q_INVOKABLE void usar(QObject* vista, bool si) { mirando_.usar(vista, si); }
     /// Lo recalcula ahora y devuelve {entradas: {nombre: plan}, niveles}.
     nlohmann::json recalcular();
     /// El plan de una entrada (recalculado ahora). null si no existe.
@@ -68,7 +70,8 @@ class ResolucionModel : public QObject {
    private:
     Fuentes f_;
     QTimer reloj_;
-    int mirando_ = 0;
+    UsoPorVistas mirando_{this, [this](const QString&) { alCambiarMirada(); }};
+    void alCambiarMirada();
     nlohmann::json ultimo_ = nlohmann::json::object();
     QVariantMap niveles_, planesUi_;
     // Los modos de cada cámara (el monitor de dispositivos cuesta: se guardan un rato).

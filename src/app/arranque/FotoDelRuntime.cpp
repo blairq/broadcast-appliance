@@ -8,11 +8,25 @@
 
 #include "emision/SalidasConfig.hpp"
 
+#include <chrono>
 #include <cstdlib>
 #include <memory>
 #include <tuple>
 
 namespace ba::app {
+
+namespace {
+
+/// Desde cuándo sale algo (ms de pared): lo de la foto anterior mientras siga (o mientras
+/// esté caído y el motor lo rearme: `sigue`), ahora si recién empezó, 0 si no sale.
+std::int64_t desdeMs(bool sale, bool sigue, std::int64_t antes) {
+    if (!sale && !sigue) return 0;
+    if (antes > 0) return antes;
+    return sale ? std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()
+                : 0;
+}
+
+} // namespace
 
 void AppRuntime::setFoto(std::function<void(std::shared_ptr<const FotoMotor>, unsigned)> publicar) {
     publicarFoto_ = std::move(publicar);
@@ -137,11 +151,13 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
             x.porOmision = s.value("por_omision", false);
             x.alAire = engine_.currentScene(id);
             x.archivo = engine_.archivoGrabacion(id);
+            bool caida = false;
             for (const auto& e : st.salidas)
                 if (e.id == id) {
                     x.transmitiendo = e.streaming || e.destinos > 0;
                     x.grabando = e.recording;
                     x.reconectando = e.reconnecting;
+                    caida = e.recordingDown;
                 }
             x.sale = engine_.haySalidaEn(id);
             const PedidoSalida pedido = pedidos_.de(id);
@@ -157,13 +173,18 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
             x.placa = engine_.estadoPlaca(id);
             x.dsk = engine_.fuentesDsk(id);
             x.manualHacia = engine_.manualHacia(id);
-            // Lo de los conmutadores, como estaba (si esta vuelta no lo rearman, no se pierde).
+            // Lo de los conmutadores, como estaba (si esta vuelta no lo rearman, no se pierde),
+            // y desde cuándo sale.
+            const FotoMotor::Salida* previa = nullptr;
             for (const auto& a : antes)
                 if (a.id == id) {
                     x.armada = a.armada;
                     x.afv = a.afv;
                     x.tbar = a.tbar;
+                    previa = &a;
                 }
+            x.grabaDesdeMs = desdeMs(x.grabando, caida, previa != nullptr ? previa->grabaDesdeMs : 0);
+            x.transmiteDesdeMs = desdeMs(x.transmitiendo, x.reconectando, previa != nullptr ? previa->transmiteDesdeMs : 0);
             f.salidas.push_back(std::move(x));
         }
     }
@@ -183,6 +204,8 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         e.hayTransmision = engine_.haySalida(false);
         e.corteGrabacionPedido = recordStopWanted();
         e.corteTransmisionPedido = streamStopWanted();
+        e.grabaDesdeMs = desdeMs(e.graba, e.grabacionCaida, e.grabaDesdeMs);
+        e.transmiteDesdeMs = desdeMs(e.transmite, e.reconectando, e.transmiteDesdeMs);
     }
 
     // --- La emisión ----------------------------------------------------------------------

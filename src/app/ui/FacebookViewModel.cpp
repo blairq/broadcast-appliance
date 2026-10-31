@@ -19,7 +19,8 @@
 #include "arranque/AppRuntime.hpp"
 #include "ui/AireDeCuentas.hpp"
 #include "arranque/AppSettings.hpp"
-#include "ui/ConferenceViewModel.hpp" // JsonListModel
+#include "ui/GrabacionesModel.hpp"
+#include "ui/ListModels.hpp" // JsonListModel
 
 namespace ba::app {
 
@@ -35,16 +36,16 @@ QJsonArray withUid(const QJsonArray& in) {
 }
 } // namespace
 
-FacebookViewModel::FacebookViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+FacebookViewModel::FacebookViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, GrabacionesModel& grabaciones, QObject* parent)
     : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<FacebookClient>(
                                     QString::fromStdString((ba::platform::credentialsDir()).string()))),
       lives_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "status", "url", "views", "created"})),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "url", "created", "length"})),
-      recordings_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "size", "modified", "path"})),
+      grabaciones_(grabaciones),
       chat_(std::make_unique<JsonListModel>(QStringList{"uid", "author", "text"})) {
-    connect(client_.get(), &FacebookClient::stateChanged, this, &FacebookViewModel::stateChanged);
+    connect(client_.get(), &FacebookClient::stateChanged, this, &FacebookViewModel::revisarCuenta);
     connect(client_.get(), &FacebookClient::uploadProgress, this,
             [this](const QString& path, qint64 sent, qint64 total) {
                 if (upload_.value("path").toString() != path) return;
@@ -54,15 +55,38 @@ FacebookViewModel::FacebookViewModel(AppRuntime& rt, VentanillaMotor& ventanilla
             });
     chatTimer_.setSingleShot(true);
     connect(&chatTimer_, &QTimer::timeout, this, &FacebookViewModel::pollChat);
-    refreshRecordings();
     if (loggedIn()) QTimer::singleShot(2000, this, &FacebookViewModel::refresh);
 }
 
 FacebookViewModel::~FacebookViewModel() = default;
 
+void FacebookViewModel::revisarCuenta() {
+    const QVariantMap app{{"configured", configured()}, {"appId", appId()}, {"port", port()}, {"uri", redirectUri()}};
+    const QVariantMap cuenta{{"loggedIn", loggedIn()}, {"loginPending", loginPending()}, {"user", user()}};
+    const QVariantMap pagina{{"pages", pages()}, {"pageId", pageId()}, {"page", page()}};
+    bool algo = false;
+    const auto revisar = [&algo](const QVariantMap& ahora, QVariantMap& antes, auto&& avisar) {
+        if (ahora == antes) return;
+        antes = ahora;
+        avisar();
+        algo = true;
+    };
+    revisar(app, appAntes_, [this] { emit appChanged(); });
+    revisar(cuenta, cuentaAntes_, [this] { emit cuentaChanged(); });
+    revisar(pagina, paginaAntes_, [this] { emit paginaChanged(); });
+    if (algo) emit stateChanged();
+}
+
+void FacebookViewModel::setLiveId(const QString& id) {
+    if (id == liveId_) return;
+    liveId_ = id;
+    emit liveIdChanged();
+    emit stateChanged();
+}
+
 QObject* FacebookViewModel::lives() const { return lives_.get(); }
 QObject* FacebookViewModel::videos() const { return videos_.get(); }
-QObject* FacebookViewModel::recordings() const { return recordings_.get(); }
+QObject* FacebookViewModel::recordings() const { return &grabaciones_; }
 QObject* FacebookViewModel::chat() const { return chat_.get(); }
 
 void FacebookViewModel::setError(const QString& e) {
@@ -129,29 +153,9 @@ void FacebookViewModel::refresh() {
     refreshRecordings();
 }
 
-QString FacebookViewModel::recordingsDir() const {
-    return QString::fromStdString(rt_.carpetaGrabacion());
-}
+QString FacebookViewModel::recordingsDir() const { return grabaciones_.carpeta(); }
 
-void FacebookViewModel::refreshRecordings() {
-    QJsonArray out;
-    // Las del evento en curso y las de Recordings/, lo más nuevo primero.
-    QFileInfoList files;
-    for (const std::string& c : rt_.carpetasDeGrabaciones())
-        files += QDir(QString::fromStdString(c))
-                     .entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time);
-    std::sort(files.begin(), files.end(),
-              [](const QFileInfo& a, const QFileInfo& b) { return a.lastModified() > b.lastModified(); });
-    for (const QFileInfo& f : files) {
-        out.append(QJsonObject{{"id", f.absoluteFilePath()},
-                               {"uid", f.absoluteFilePath()},
-                               {"name", f.fileName()},
-                               {"size", static_cast<double>(f.size())},
-                               {"modified", f.lastModified().toString("dd/MM/yyyy HH:mm")},
-                               {"path", f.absoluteFilePath()}});
-    }
-    recordings_->setItems(out);
-}
+void FacebookViewModel::refreshRecordings() { grabaciones_.refrescar(); }
 
 void FacebookViewModel::goLive(const QString& title, const QString& description, bool test) {
     goLive(
@@ -189,9 +193,8 @@ void FacebookViewModel::alSalir(const QJsonObject& d, const QJsonObject& ing, co
         return done(false, {}, tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(error)));
     {
         QPointer<FacebookViewModel> self(this);
-        self->liveId_ = d.value("id").toString();
+        self->setLiveId(d.value("id").toString());
         self->setChatLive(self->liveId_);
-        emit self->stateChanged();
         QVariantMap v{{"plataforma", "facebook"}, {"id", self->liveId_}};
         if (d.contains("permalink_url")) v["url"] = "https://www.facebook.com" + d.value("permalink_url").toString();
         emit self->vivo(v);
@@ -220,8 +223,7 @@ void FacebookViewModel::endLive(const QString& id) {
 void FacebookViewModel::endLive(const QString& id, FacebookClient::Done done) {
     if (id == liveId_) {
         cuentas::cortar(ventanilla_, rt_);
-        liveId_.clear();
-        emit stateChanged();
+        setLiveId({});
     }
     client_->endLive(id, [this, done](bool ok, const QJsonObject& d, const QString& e) {
         refresh();

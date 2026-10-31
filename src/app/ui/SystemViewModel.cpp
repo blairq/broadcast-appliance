@@ -11,10 +11,13 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
+#include <QPointer>
 #include <QProcess>
+#include <QThreadPool>
 #include <QUrl>
 
 #include <filesystem>
@@ -55,7 +58,35 @@ QString localPath(const QString& folderOrUrl) {
     return u.isLocalFile() ? u.toLocalFile() : folderOrUrl;
 }
 
-SystemViewModel::SystemViewModel(QObject* parent) : QObject(parent) {}
+SystemViewModel::SystemViewModel(QObject* parent) : QObject(parent) { leerInicio(); }
+
+QVariantList SystemViewModel::faltantes() const {
+    // Los elementos de GStreamer que faltan: recorrer el registro tarda; una vez, aparte, la
+    // primera vez que alguien los mira (con GStreamer ya arrancado).
+    if (!faltantesPedidos_) {
+        faltantesPedidos_ = true;
+        const_cast<SystemViewModel*>(this)->leerFaltantes();
+    }
+    return faltantes_;
+}
+
+void SystemViewModel::leerFaltantes() {
+    QPointer<SystemViewModel> yo(this);
+    QThreadPool::globalInstance()->start([yo]() {
+        nlohmann::json faltan = nlohmann::json::array();
+        for (const auto& e : video::revisarElementosGst())
+            if (!e.value("esta", true)) faltan.push_back(e);
+        const std::string j = faltan.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        QMetaObject::invokeMethod(
+            qApp,
+            [yo, j]() {
+                if (!yo) return;
+                yo->faltantes_ = QJsonDocument::fromJson(QByteArray::fromStdString(j)).array().toVariantList();
+                emit yo->faltantesChanged();
+            },
+            Qt::QueuedConnection);
+    });
+}
 
 QString SystemViewModel::dataRoot() const { return QDir::toNativeSeparators(root()); }
 
@@ -105,30 +136,37 @@ nlohmann::json SystemViewModel::info() const {
             {"canRollback", canRollback()}};
 }
 
-QVariantMap SystemViewModel::inicioEstado() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(inicio::estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-}
-
-QVariantList SystemViewModel::elementosQueFaltan() const {
-    nlohmann::json faltan = nlohmann::json::array();
-    for (const auto& e : video::revisarElementosGst())
-        if (!e.value("esta", true)) faltan.push_back(e);
-    return QJsonDocument::fromJson(QByteArray::fromStdString(faltan.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
+void SystemViewModel::leerInicio() {
+    QPointer<SystemViewModel> yo(this);
+    QThreadPool::globalInstance()->start([yo]() {
+        const std::string j = inicio::estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        QMetaObject::invokeMethod(
+            qApp,
+            [yo, j]() {
+                if (!yo) return;
+                yo->inicio_ = QJsonDocument::fromJson(QByteArray::fromStdString(j)).object().toVariantMap();
+                emit yo->changed();
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 QVariantList SystemViewModel::preparacion() const {
-    QVariantList out = inicioEstado().value("preparacion").toList();
+    QVariantList out = inicio_.value("preparacion").toList();
     if (equipo_) out += equipo_(); // lo del equipo, después de lo del arranque (F4-07)
     return out;
 }
 
 QString SystemViewModel::inicioPoner(bool activo) {
     const QString err = QString::fromStdString(inicio::poner(activo));
-    emit changed(); // la preparación tiene «arranca con la sesión»
+    leerInicio(); // la preparación tiene «arranca con la sesión»
     return err;
 }
 
-void SystemViewModel::refresh() { emit changed(); }
+void SystemViewModel::refresh() {
+    emit changed(); // las credenciales, los respaldos (y lo del equipo)
+    leerInicio();
+}
 
 QString SystemViewModel::checkUpdate(const QString& folder) const {
     const QString src = QDir::cleanPath(localPath(folder));

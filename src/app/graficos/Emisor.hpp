@@ -164,6 +164,14 @@ class Emisor : public QObject {
     void dibujarQuieto(const QString& grafico, const QJsonObject& valores, const QString& fuente,
                        std::function<void(QImage imagen, QString error)> listo);
 
+    /// Una tira de prueba de `pedido` (grafico_probar): la dibuja un hilo propio con su
+    /// renderizador —ni la interfaz ni el aire esperan a un gráfico que se cuelga—; `listo`
+    /// vuelve en la interfaz (si el Emisor sigue).
+    void probar(QJsonObject pedido, QVector<int> momentos,
+                std::function<void(QVector<Cuadro> cuadros, QString error)> listo);
+    /// El repertorio del nivel declarativo (grafico_repertorio), igual que probar.
+    void repertorio(std::function<void(QJsonObject repertorio, QString error)> listo);
+
     /// Con qué valores se disparó esa fuente por última vez (vacío si nunca).
     QJsonObject ultimosValores(std::uint64_t fuente) const;
     /// Qué gráfico se disparó en esa fuente por última vez.

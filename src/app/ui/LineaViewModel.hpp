@@ -47,6 +47,8 @@
 
 #include "evento/LineaVista.hpp"
 
+#include "comun/UsoPorVistas.hpp"
+
 namespace ba::app {
 
 class AppRuntime;
@@ -62,7 +64,7 @@ class BusEventos;
 class LineaViewModel : public QObject {
     Q_OBJECT
     /// Alguien la mira (la página del guion, la tarjeta, su ventana): recalcula cada segundo y
-    /// pide miniaturas. Lo dice cada vista con `mirar`.
+    /// pide miniaturas. Lo dice cada vista con `usar` (en QML, `Suscripcion`).
     Q_PROPERTY(bool mirando READ mirando NOTIFY mirandoChanged)
     /// Alguna de esas ve la Línea multipista (si no, no se arma `multipista`).
     Q_PROPERTY(bool mirandoLinea READ mirandoLinea NOTIFY mirandoChanged)
@@ -70,17 +72,17 @@ class LineaViewModel : public QObject {
     Q_PROPERTY(QStringList salidas READ salidas NOTIFY salidaChanged)
     Q_PROPERTY(QString salida READ salida WRITE setSalida NOTIFY salidaChanged)
     /// parado, corriendo, pausado o terminado (el de la corrida).
-    Q_PROPERTY(QString estado READ estado NOTIFY vistaChanged)
-    Q_PROPERTY(bool corriendo READ corriendo NOTIFY vistaChanged)
+    Q_PROPERTY(QString estado READ estado NOTIFY estadoChanged)
+    Q_PROPERTY(bool corriendo READ corriendo NOTIFY estadoChanged)
     /// La escaleta compacta de la salida, por bloque (ver linea::escaleta).
-    Q_PROPERTY(QVariantList escaleta READ escaleta NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantList escaleta READ escaleta NOTIFY escaletaChanged)
     /// El Storyboard: lo que viene (al aire, próximo y futuro), en fila.
-    Q_PROPERTY(QVariantList storyboard READ storyboard NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantList storyboard READ storyboard NOTIFY escaletaChanged)
     /// La conducción y la barra de abajo: al aire, próximo, HOLD, entra solo en,
     /// over/under, próximo hard start, bloque, transcurrido, hora (ver linea::conduccion).
-    Q_PROPERTY(QVariantMap conduccion READ conduccion NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantMap conduccion READ conduccion NOTIFY conduccionChanged)
     /// El estante de adlibs (cue cart): [{id, texto, tipo, color, tecla, esPaso}].
-    Q_PROPERTY(QVariantList estante READ estante NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantList estante READ estante NOTIFY estanteChanged)
     /// Los atajos de la línea que valen en la página: [{accion, tecla}] (los de 3.5 D,
     /// menos los que la persona puso en otra cosa o reasignó en Botonera → Atajos).
     Q_PROPERTY(QVariantList teclas READ teclas NOTIFY teclasChanged)
@@ -93,7 +95,7 @@ class LineaViewModel : public QObject {
     Q_PROPERTY(QVariantList pendientes READ pendientes NOTIFY pendientesChanged)
     /// Las fotos de las escenas sin vista viva (escena → imagen) y cuántos segundos tienen.
     Q_PROPERTY(QVariantMap fotos READ fotos NOTIFY fotosChanged)
-    Q_PROPERTY(QVariantMap edadFotos READ edadFotos NOTIFY vistaChanged)
+    Q_PROPERTY(QVariantMap edadFotos READ edadFotos NOTIFY edadFotosChanged)
     /// Las miniaturas «con gráficos» (L10): paso → la escena con los gráficos del paso y
     /// sus valores, dibujada aparte. Solo del próximo y los dos que siguen (presupuesto).
     Q_PROPERTY(QVariantMap conGraficos READ conGraficos NOTIFY fotosChanged)
@@ -109,9 +111,9 @@ class LineaViewModel : public QObject {
 
     bool mirando() const { return mirando_; }
     bool mirandoLinea() const { return mirandoLinea_; }
-    /// Cada vista dice si se la ve (`guion`) y si muestra la multipista (`linea`); `quien` la
-    /// distingue de las otras. Al cerrarse, `mirar(quien, false, false)`.
-    Q_INVOKABLE void mirar(const QString& quien, bool guion, bool linea);
+    /// Cada vista dice si se la ve (`que` "") y si muestra la multipista (`que`
+    /// "multipista"): la cuenta es por vista y la que se destruye se suelta sola.
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { miran_.usar(vista, si, que); }
     QStringList salidas() const;
     QString salida() const { return QString::fromStdString(salidaEfectiva()); }
     void setSalida(const QString& s);
@@ -175,7 +177,13 @@ class LineaViewModel : public QObject {
    signals:
     void mirandoChanged();
     void salidaChanged();
-    void vistaChanged();
+    // Cada parte de la vista con su aviso: la conducción (la hora, lo transcurrido) se
+    // mueve cada segundo corriendo; la escaleta y el estante, solo cuando cambian.
+    void estadoChanged();
+    void escaletaChanged();
+    void conduccionChanged();
+    void estanteChanged();
+    void edadFotosChanged();
     void teclasChanged();
     void multipistaChanged();
     void pendientesChanged();
@@ -212,7 +220,11 @@ class LineaViewModel : public QObject {
 
     void setMirando(bool on);
     void setMirandoLinea(bool on);
-    std::map<QString, bool> miran_; ///< quien → ve la multipista
+    /// Quiénes miran: "" la ven, "multipista" ven la Línea multipista.
+    UsoPorVistas miran_{this, [this](const QString&) {
+        setMirando(miran_.alguien());
+        setMirandoLinea(miran_.activo("multipista"));
+    }};
     bool mirando_ = false;
     bool mirandoLinea_ = false;
     std::string salida_; ///< "" = la por omisión de la línea

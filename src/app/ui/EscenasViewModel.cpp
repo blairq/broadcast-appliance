@@ -355,23 +355,33 @@ void EscenasViewModel::esperarReplay(const std::string& antes, int ms, std::func
 }
 
 QString EscenasViewModel::repetirUi() {
+    repetir({}, true, [this](const QString& archivo, const QString& e, bool) {
+        if (archivo.isEmpty()) return emit notify(e, "error");
+        emit notify(e.isEmpty() ? tr("Repetición armada: dale TAKE.") : e, e.isEmpty() ? "ok" : "error");
+    });
+    return {};
+}
+
+void EscenasViewModel::repetir(const std::string& salida, bool armar,
+                               std::function<void(const QString& archivo, const QString& error, bool armada)> listo) {
     p_.ventanilla.pedir(
         this, "replay_guardar",
-        [&rt = p_.rt]() -> std::pair<std::string, std::string> {
-            const std::string antes = rt.engine().ultimoReplay();
-            if (!rt.engine().guardarReplay()) return {antes, rt.engine().lastError()};
+        [&rt = p_.rt, salida]() -> std::pair<std::string, std::string> {
+            const std::string antes = rt.engine().ultimoReplay(salida);
+            if (!rt.engine().guardarReplay(salida)) return {antes, rt.engine().lastError()};
             return {antes, {}};
         },
-        [this](const std::pair<std::string, std::string>& r) {
-            if (!r.second.empty()) return emit notify(qs(r.second), "error");
-            esperarReplay(r.first, 8000, [this](const QString& f) {
-                if (f.isEmpty()) return emit notify(tr("La repetición no llegó a escribirse."), "error");
-                armarRepeticion(f, {}, [this](const QString& e) {
-                    emit notify(e.isEmpty() ? tr("Repetición armada: dale TAKE.") : e, e.isEmpty() ? "ok" : "error");
-                });
-            });
+        [this, salida, armar, listo = std::move(listo)](const std::pair<std::string, std::string>& r) {
+            if (!r.second.empty()) return listo({}, qs(r.second), false);
+            esperarReplay(
+                r.first, 8000,
+                [this, salida, armar, listo](const QString& f) {
+                    if (f.isEmpty()) return listo({}, tr("La repetición no llegó a escribirse."), false);
+                    if (!armar) return listo(f, {}, false);
+                    armarRepeticion(f, salida, [f, listo](const QString& e) { listo(f, e, e.isEmpty()); });
+                },
+                salida);
         });
-    return {};
 }
 
 void EscenasViewModel::armarRepeticion(const QString& archivo, const std::string& salida,

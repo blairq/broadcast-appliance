@@ -174,7 +174,7 @@ Rectangle {
                         color: page.nueva.puede === false ? Theme.live : page.nueva.aviso ? Theme.amber : Theme.textFaint
                         font.pixelSize: 11
                     }
-                    Text { text: qsTr("Codificador en uso: %1").arg(Studio.encoder || "—"); color: Theme.textFaint; font.pixelSize: 11 }
+                    Text { text: qsTr("Codificador en uso: %1").arg(Studio.aire.encoder || "—"); color: Theme.textFaint; font.pixelSize: 11 }
                 }
             }
         }
@@ -327,14 +327,14 @@ Rectangle {
                                         compact: true; text: modelData.activo ? qsTr("Cortar") : qsTr("Iniciar")
                                         active: modelData.activo; activeColor: Theme.live
                                         onClicked: {
-                                            if (!modelData.activo) { const e = Studio.emision.iniciarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error"); return }
+                                            if (!modelData.activo) { Studio.emision.iniciarDestinoUi(modelData.id); return }
                                             const id = modelData.id, n = modelData.nombre
                                             ApplicationWindow.window.confirm({ title: qsTr("¿Cortar «%1»?").arg(n), text: qsTr("Los demás destinos siguen."),
                                                                                accept: qsTr("Cortar"), reject: qsTr("Cancelar"), action: function() { Studio.emision.detenerDestinoUi(id) } })
                                         }
                                     }
                                     GlassButton { compact: true; text: "✕"; visible: !modelData.activo
-                                                  onClicked: { const e = Studio.emision.borrarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error") } }
+                                                  onClicked: Studio.emision.borrarDestinoUi(modelData.id) }
                                 }
                             }
                             RowLayout {

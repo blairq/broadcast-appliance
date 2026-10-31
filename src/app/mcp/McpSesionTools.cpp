@@ -16,6 +16,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "i18n/I18n.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #include <algorithm>
@@ -313,14 +314,14 @@ void McpService::registerSesionTools() {
                                {"required", {"fuente"}},
                                {"properties", {{"nombre", {{"type", "string"}}}, {"fuente", {{"type", "string"}}}}}}}}}}}};
         t.examples = {R"({"canales": [{"nombre": "Salida principal", "fuente": "programa"}, {"nombre": "Plano general", "fuente": "Cámara del frente"}]})"};
-        AppRuntime* rt = &rt_;
-        t.run = [s, rt](const json& a, Done done) {
+        StudioViewModel* vmp = &vm_;
+        t.run = [s, vmp](const json& a, Done done) {
             if (a.contains("canales")) {
                 for (const auto& c : a["canales"]) {
                     const std::string f = c.is_object() ? c.value("fuente", std::string()) : std::string();
                     if (f.empty() || f == "programa") continue;
-                    const auto n = rt->engine().sceneNames();
-                    if (std::find(n.begin(), n.end(), f) == n.end())
+                    // Las escenas, de la foto del motor (la interfaz no entra al motor).
+                    if (vmp->ventanilla().foto().escena(f) == nullptr)
                         return done(ToolResult::error(
                             ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay ninguna escena «%1» (scene_list)"), {f})));
                 }

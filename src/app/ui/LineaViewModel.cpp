@@ -104,17 +104,6 @@ LineaViewModel::~LineaViewModel() {
 
 // --- Quién mira ---------------------------------------------------------------------------
 
-void LineaViewModel::mirar(const QString& quien, bool guion, bool linea) {
-    if (guion)
-        miran_[quien] = linea;
-    else
-        miran_.erase(quien);
-    bool alguna = false;
-    for (const auto& [q, l] : miran_) alguna = alguna || l;
-    setMirando(!miran_.empty());
-    setMirandoLinea(alguna);
-}
-
 void LineaViewModel::setMirando(bool on) {
     if (on == mirando_) return;
     mirando_ = on;
@@ -198,10 +187,8 @@ void LineaViewModel::recalcular() {
     const QString est = ev_.estado();
     const bool cambioEstado = est != estado_;
     estado_ = est;
-    if (!mirando_) {
-        if (cambioEstado) emit vistaChanged();
-        return;
-    }
+    if (cambioEstado) emit estadoChanged();
+    if (!mirando_) return;
 
     const ln::Corrida* c = ev_.corridaLinea();
     const ln::Linea& plan = ev_.linea();
@@ -263,7 +250,6 @@ void LineaViewModel::recalcular() {
 
     // La escaleta y el Storyboard (lo que viene).
     json esc = ln::escaleta(lineaVista_, resolucionVista_, ctx);
-    bool cambio = cambioEstado;
     if (esc != escaletaJ_) {
         escaletaJ_ = esc;
         escaleta_ = aQv(esc).toList();
@@ -274,7 +260,7 @@ void LineaViewModel::recalcular() {
                 if (e == "alAire" || e == "proximo" || e == "futuro") sb.push_back(p);
             }
         storyboard_ = aQv(sb).toList();
-        cambio = true;
+        emit escaletaChanged();
     }
     // La conducción: lo real (sin lo pendiente), sobre el estado de la salida.
     json sal = json::object();
@@ -292,7 +278,7 @@ void LineaViewModel::recalcular() {
     if (cond != conduccionJ_) {
         conduccionJ_ = cond;
         conduccion_ = aQv(cond).toMap();
-        cambio = true;
+        emit conduccionChanged();
     }
     const json est2 = ln::estante(lineaReal);
     std::vector<std::string> pulsos;
@@ -303,7 +289,7 @@ void LineaViewModel::recalcular() {
         estante_ = aQv(est2).toList();
         pulsos_ = std::move(pulsos);
         rehacerTeclas();
-        cambio = true;
+        emit estanteChanged();
     }
     // La edad de las fotos («hace 20 s»).
     QVariantMap edades;
@@ -311,9 +297,8 @@ void LineaViewModel::recalcular() {
         if (fotos_.contains(QString::fromStdString(escena))) edades[QString::fromStdString(escena)] = static_cast<int>((t - ms) / 1000);
     if (edades != edadFotos_) {
         edadFotos_ = edades;
-        cambio = true;
+        emit edadFotosChanged();
     }
-    if (cambio) emit vistaChanged();
 
     // La Línea multipista: la ventana con «ahora» a un tercio (o corrida a mano).
     if (mirandoLinea_) {

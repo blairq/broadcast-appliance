@@ -14,7 +14,7 @@
 #include "ui/AireDeCuentas.hpp"
 #include "arranque/AppSettings.hpp"
 #include "net/AsyncHttp.hpp"
-#include "ui/ConferenceViewModel.hpp" // JsonListModel
+#include "ui/ListModels.hpp" // JsonListModel
 
 namespace ba::app {
 
@@ -48,14 +48,17 @@ TwitchViewModel::TwitchViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                 const QByteArray b = QByteArray::fromStdString(r.body);
                 avatar_ = QString("data:image/%1;base64,").arg(b.startsWith("\x89PNG") ? "png" : "jpeg") +
                           QString::fromLatin1(b.toBase64());
-                emit stateChanged();
+                emit avatarChanged();
             });
         }
         if (!client_->loggedIn()) {
-            avatar_.clear();
+            if (!avatar_.isEmpty()) {
+                avatar_.clear();
+                emit avatarChanged();
+            }
             emit chatChanged(); // desconectar o cambiar de app apagan el chat adentro del cliente
         }
-        emit stateChanged();
+        revisarCuenta();
     });
     connect(client_.get(), &TwitchClient::chatChanged, this, [this]() {
         chat_->setItems(withUid(client_->chatMessages()));
@@ -72,6 +75,43 @@ TwitchViewModel::TwitchViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
 }
 
 TwitchViewModel::~TwitchViewModel() = default;
+
+void TwitchViewModel::revisarCuenta() {
+    const QVariantMap app{{"configured", configured()}, {"clientId", clientId()}};
+    const QVariantMap cuenta{{"loggedIn", loggedIn()},       {"loginPending", loginPending()}, {"userCode", userCode()},
+                             {"uri", verificationUri()}, {"user", user()}};
+    bool algo = false;
+    if (app != appAntes_) {
+        appAntes_ = app;
+        emit appChanged();
+        algo = true;
+    }
+    if (cuenta != cuentaAntes_) {
+        cuentaAntes_ = cuenta;
+        emit cuentaChanged();
+        algo = true;
+    }
+    if (algo) emit stateChanged();
+}
+
+void TwitchViewModel::setStreamingHere(bool si) {
+    if (si == streamingHere_) return;
+    streamingHere_ = si;
+    emit streamingHereChanged();
+    emit stateChanged();
+}
+
+void TwitchViewModel::setChannel(const QJsonObject& c) {
+    if (c == channel_) return;
+    channel_ = c;
+    emit channelChanged();
+}
+
+void TwitchViewModel::setStream(const QJsonObject& s) {
+    if (s == stream_) return;
+    stream_ = s;
+    emit streamChanged();
+}
 
 QObject* TwitchViewModel::videos() const { return videos_.get(); }
 QObject* TwitchViewModel::chat() const { return chat_.get(); }
@@ -111,9 +151,8 @@ void TwitchViewModel::cancelLogin() { client_->cancelLogin(); }
 void TwitchViewModel::logout() {
     client_->logout([this](bool, const QJsonObject&, const QString&) {
         videos_->setItems({});
-        channel_ = {};
-        stream_ = {};
-        emit channelChanged();
+        setChannel({});
+        setStream({});
         emit notify(tr("Cuenta de Twitch desconectada."), "info");
     });
 }
@@ -124,8 +163,7 @@ void TwitchViewModel::refresh() {
     client_->channel([this](bool ok, const QJsonObject& d, const QString& e) {
         track(false);
         if (!ok) return setError(e);
-        channel_ = d;
-        emit channelChanged();
+        setChannel(d);
     });
     track(true);
     client_->videos(40, [this](bool ok, const QJsonObject& d, const QString& e) {
@@ -160,14 +198,9 @@ void TwitchViewModel::refresh() {
 void TwitchViewModel::pollStream() {
     if (!loggedIn()) return;
     client_->streamStatus([this](bool ok, const QJsonObject& d, const QString&) {
-        if (!ok) return;
-        stream_ = d;
-        emit channelChanged();
+        if (ok) setStream(d);
     });
-    if (streamingHere_ && !cuentas::transmitiendo(ventanilla_)) { // la transmision se corto por otro lado
-        streamingHere_ = false;
-        emit stateChanged();
-    }
+    if (streamingHere_ && !cuentas::transmitiendo(ventanilla_)) setStreamingHere(false); // se corto por otro lado
 }
 
 void TwitchViewModel::updateChannel(const QString& title, const QString& category) {
@@ -221,8 +254,7 @@ void TwitchViewModel::alSalir(const QJsonObject& ing, const std::string& error, 
         return done(false, {}, tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(error)));
     {
         QPointer<TwitchViewModel> self(this);
-        self->streamingHere_ = true;
-        emit self->stateChanged();
+        self->setStreamingHere(true);
         emit self->vivo(QVariantMap{{"plataforma", "twitch"},
                                     {"url", "https://twitch.tv/" + self->client_->user().value("login").toString()}});
         if (!self->client_->chatRunning()) self->setChatOn(true);
@@ -244,8 +276,7 @@ void TwitchViewModel::stopLive() {
 
 void TwitchViewModel::stopLive(TwitchClient::Done done) {
     if (streamingHere_) cuentas::cortar(ventanilla_, rt_);
-    streamingHere_ = false;
-    emit stateChanged();
+    setStreamingHere(false);
     QTimer::singleShot(5000, this, &TwitchViewModel::pollStream);
     done(true, {}, {});
 }

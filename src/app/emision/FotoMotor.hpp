@@ -132,6 +132,7 @@ struct FotoMotor {
         bool sale = false; ///< sale algo de ella (BroadcastEngine::haySalidaEn)
         /// Pedido y el motor todavía no dijo si arrancó (AppRuntime: lo pedido de cada salida).
         bool grabacionPendiente = false, transmisionPendiente = false;
+        std::int64_t grabaDesdeMs = 0, transmiteDesdeMs = 0; ///< como en EstadoAire (0 = no)
         nlohmann::json destinos = nlohmann::json::array(); ///< los suyos: [{id, nombre, activo, reconectando, respaldo}]
         nlohmann::json placa = nlohmann::json::object();   ///< {ftb, ftb_audio, placa, placa_texto, placa_imagen}
         std::vector<std::string> afv;  ///< las fuentes que siguen al video en ella
@@ -153,6 +154,10 @@ struct FotoMotor {
         bool haySalida = false;     ///< sale algo de alguna salida (grabación incluida)
         bool hayTransmision = false; ///< sale algo de alguna salida, sin contar la grabación
         bool corteGrabacionPedido = true, corteTransmisionPedido = true;
+        /// Desde cuándo graba y transmite (ms de pared; 0 = no). Lo anota el dueño al ver
+        /// que empezó, así que no miente con la interfaz trabada ni al rehacerse la vista;
+        /// una grabación caída que el motor rearma (grabacionCaida) sigue con su inicio.
+        std::int64_t grabaDesdeMs = 0, transmiteDesdeMs = 0;
         bool operator==(const EstadoAire&) const = default;
     };
     EstadoAire estado;

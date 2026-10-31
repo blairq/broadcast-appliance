@@ -4,7 +4,6 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "arranque/InterfazConfig.hpp"
-#include "comun/Duracion.hpp"
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
 #include "emision/SalidasConfig.hpp"
@@ -14,6 +13,7 @@
 #include "i18n/I18n.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
 #include "ui/ListModels.hpp" // MixerModel
+#include "ui/EstadoAireViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
 
 #include <QJsonDocument>
@@ -61,6 +61,9 @@ SalidasViewModel::SalidasViewModel(Partes p, QObject* parent) : QObject(parent),
     connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &SalidasViewModel::alCambiar);
     // La máquina se pone justa (o se alivia): cambia el aviso de crear otra salida.
     connect(&p_.recursos, &RecursosViewModel::cambio, this, &SalidasViewModel::revisarNueva);
+    // Lo que sale de la por omisión (sus pastillas) y los relojes de aire, al segundo.
+    connect(&p_.aire, &EstadoAireViewModel::aireChanged, this, &SalidasViewModel::revisarAire);
+    connect(&p_.aire, &EstadoAireViewModel::tiemposChanged, this, &SalidasViewModel::revisarAire);
     // Lo de la activa y la por omisión, como está ahora (para avisar solo lo que cambie).
     const FotoMotor& f = p_.ventanilla.foto();
     if (const FotoMotor::Salida* s = f.salida({})) {
@@ -69,9 +72,25 @@ SalidasViewModel::SalidasViewModel(Partes p, QObject* parent) : QObject(parent),
         afvActivaAntes_ = s->afv;
         placaAntes_ = s->placa;
     }
+    aire_ = aire();
+    textosPlaca_ = textosPlacaDe(f);
 }
 
 SalidasViewModel::~SalidasViewModel() = default;
+
+void SalidasViewModel::revisarAire() {
+    if (const QVariantMap a = aire(); a != aire_) {
+        aire_ = a;
+        emit aireCambio();
+    }
+}
+
+void SalidasViewModel::revisarTextosPlaca() {
+    if (const QStringList t = textosPlacaDe(p_.ventanilla.foto()); t != textosPlaca_) {
+        textosPlaca_ = t;
+        emit textosPlacaCambio();
+    }
+}
 
 void SalidasViewModel::revisarNueva() {
     if (const QVariantMap n = nueva(); n != nuevaAntes_) {
@@ -144,22 +163,9 @@ void SalidasViewModel::alCambiar(unsigned partes) {
         emit cambio();
     }
     revisarNueva();
-    // Las demás salidas: qué sale de cada una y desde cuándo (los relojes de aire, que no se
-    // reinician al cambiar de activa).
-    std::map<std::string, AireDeSalida> ahora;
-    const auto t = std::chrono::steady_clock::now();
-    for (const FotoMotor::Salida& s : f.salidas) {
-        if (s.porOmision) continue;
-        const auto antes = aireSalidas_.find(s.id);
-        AireDeSalida a = antes != aireSalidas_.end() ? antes->second : AireDeSalida{};
-        if (s.transmitiendo && !a.transmite) a.transmiteDesde = t;
-        if (s.grabando && !a.graba) a.grabaDesde = t;
-        a.transmite = s.transmitiendo;
-        a.graba = s.grabando;
-        a.reconecta = s.reconectando;
-        ahora[s.id] = a;
-    }
-    aireSalidas_ = std::move(ahora);
+    // Lo que sale de la activa (desde cuándo lo anota el dueño en la foto) y la placa usada.
+    revisarAire();
+    revisarTextosPlaca();
     // Lo de la activa (escenas, fuentes, el AFV, la placa) y lo de la por omisión (las
     // pantallas de tally de la sala, el monitor «armada»): solo lo que cambió.
     static const FotoMotor::Salida kNinguna;
@@ -335,6 +341,7 @@ void SalidasViewModel::setActiva(const QString& id) {
     emit activaElegida();
     emit cambio();
     emit placaCambio();
+    revisarAire();
 }
 
 QVariantMap SalidasViewModel::activaDatos() const {
@@ -371,19 +378,23 @@ QVariantMap SalidasViewModel::nueva() const {
 QVariantMap SalidasViewModel::aire() const {
     const FotoMotor::Salida* s = p_.ventanilla.foto().salida(activa_);
     const bool alAireActiva = s != nullptr && s->sale;
-    if (activa_.empty()) {
-        QVariantMap m = p_.airePorOmision ? p_.airePorOmision() : QVariantMap{};
-        m["alAire"] = alAireActiva;
-        return m;
-    }
-    const auto it = aireSalidas_.find(activa_);
-    const AireDeSalida a = it != aireSalidas_.end() ? it->second : AireDeSalida{};
-    return {{"transmitiendo", a.transmite},
-            {"grabando", a.graba},
-            {"reconectando", a.reconecta},
+    const EstadoAireViewModel& a = p_.aire;
+    if (activa_.empty())
+        return {{"transmitiendo", a.streaming()},
+                {"grabando", a.recording()},
+                {"reconectando", a.reconnecting()},
+                {"alAire", alAireActiva},
+                {"tiempoTransmision", a.streamTime()},
+                {"tiempoGrabacion", a.recordTime()}};
+    static const FotoMotor::Salida kNinguna;
+    const FotoMotor::Salida& x = s != nullptr ? *s : kNinguna;
+    const std::int64_t ahora = a.ahora();
+    return {{"transmitiendo", x.transmitiendo},
+            {"grabando", x.grabando},
+            {"reconectando", x.reconectando},
             {"alAire", alAireActiva},
-            {"tiempoTransmision", a.transmite ? hmsDesde(a.transmiteDesde) : QStringLiteral("00:00:00")},
-            {"tiempoGrabacion", a.graba ? hmsDesde(a.grabaDesde) : QStringLiteral("00:00:00")}};
+            {"tiempoTransmision", EstadoAireViewModel::hms(x.transmitiendo ? x.transmiteDesdeMs : 0, ahora)},
+            {"tiempoGrabacion", EstadoAireViewModel::hms(x.grabando ? x.grabaDesdeMs : 0, ahora)}};
 }
 
 QVariantMap SalidasViewModel::placa() const {
@@ -409,6 +420,14 @@ void SalidasViewModel::pedir(const char* que, std::function<std::string(AppRunti
         [this, alVolver = std::move(alVolver)](const std::string& e) {
             if (!e.empty()) return emit notify(qs(e), "error");
             if (alVolver) alVolver();
+        });
+}
+
+void SalidasViewModel::pedir(const char* que, std::function<std::string(AppRuntime&)> orden, Listo listo) {
+    p_.ventanilla.pedir(
+        this, que, [&rt = p_.rt, orden = std::move(orden)]() { return orden(rt); },
+        [listo = std::move(listo)](const std::string& e) {
+            if (listo) listo(e);
         });
 }
 
@@ -453,23 +472,48 @@ QString SalidasViewModel::grabar(const QString& id, bool grabar) {
 }
 
 QString SalidasViewModel::crearSalida(const QString& id, const QString& nombre, const QString& color) {
-    pedir("salida_crear", [i = id.toStdString(), n = nombre.toStdString(), c = color.toStdString()](AppRuntime& rt) {
-        return rt.crearSalida(i, n, c);
+    crearSalida(id.toStdString(), nombre.toStdString(), color.toStdString(), [this](const std::string& e) {
+        if (!e.empty()) emit notify(qs(e), "error");
     });
     return {};
+}
+
+void SalidasViewModel::crearSalida(const std::string& id, const std::string& nombre, const std::string& color,
+                                   Listo listo) {
+    pedir("salida_crear", [id, nombre, color](AppRuntime& rt) { return rt.crearSalida(id, nombre, color); },
+          std::move(listo));
 }
 
 QString SalidasViewModel::editar(const QString& id, const QString& nombre, const QString& color) {
     nlohmann::json cambios = nlohmann::json::object();
     if (!nombre.isEmpty()) cambios["nombre"] = nombre.toStdString();
     if (!color.isEmpty()) cambios["color"] = color.toStdString();
-    pedir("salida_editar", [i = id.toStdString(), cambios](AppRuntime& rt) { return rt.editarSalida(i, cambios); });
+    editar(id.toStdString(), cambios, -1, [this](const std::string& e) {
+        if (!e.empty()) emit notify(qs(e), "error");
+    });
     return {};
 }
 
+void SalidasViewModel::editar(const std::string& id, const nlohmann::json& cambios, int tope, Listo listo) {
+    pedir("salida_editar",
+          [id, cambios, tope](AppRuntime& rt) {
+              if (tope >= 0)
+                  if (std::string e = rt.setTopeSalidas(tope); !e.empty()) return e;
+              return cambios.empty() ? std::string() : rt.editarSalida(id, cambios);
+          },
+          std::move(listo));
+}
+
 QString SalidasViewModel::borrar(const QString& id, const QString& susDestinos) {
-    pedir("salida_borrar", [i = id.toStdString(), d = susDestinos.toStdString()](AppRuntime& rt) { return rt.borrarSalida(i, d); });
+    borrar(id.toStdString(), susDestinos.toStdString(), [this](const std::string& e) {
+        if (!e.empty()) emit notify(qs(e), "error");
+    });
     return {};
+}
+
+void SalidasViewModel::borrar(const std::string& id, const std::string& susDestinos, Listo listo) {
+    pedir("salida_borrar", [id, susDestinos](AppRuntime& rt) { return rt.borrarSalida(id, susDestinos); },
+          std::move(listo));
 }
 
 QString SalidasViewModel::setCodificador(const QString& id, const QString& codificador) {
@@ -495,17 +539,20 @@ QString SalidasViewModel::placaUi(bool activar, const QString& texto, const QStr
     return {};
 }
 
-QStringList SalidasViewModel::textosPlaca() const {
-    // Salen al aire: en el idioma del evento (se arman cada vez que se piden, así que un
-    // cambio de idioma se ve en la lista siguiente; una placa ya al aire queda como salió).
+QStringList SalidasViewModel::textosPlacaDe(const FotoMotor& f) {
+    const FotoMotor::Salida* s = f.salida({});
+    return textosDePlaca(s != nullptr ? QString::fromStdString(s->placa.value("placa_texto", std::string())) : QString());
+}
+
+QStringList SalidasViewModel::textosDePlaca(const QString& usado) {
+    // Salen al aire: en el idioma del evento (se rearman al cambiarlo, revisarTextosPlaca;
+    // una placa ya al aire queda como salió).
     const auto ev = [](const std::string& s) { return QString::fromStdString(s); };
     QStringList l{ev(ba::i18n::traducirEvento("SalidasViewModel", "Volvemos enseguida")),
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Cuarto intermedio")),
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Minuto de silencio")),
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Sesión suspendida")),
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Dificultades técnicas"))};
-    const FotoMotor::Salida* s = p_.ventanilla.foto().salida({});
-    const QString usado = s != nullptr ? QString::fromStdString(s->placa.value("placa_texto", std::string())) : QString();
     if (!usado.isEmpty() && !l.contains(usado)) l.prepend(usado);
     return l;
 }

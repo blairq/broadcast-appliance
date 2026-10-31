@@ -161,6 +161,17 @@ struct Tool {
     bool openWorld = false;
     /// Siempre devuelve contenido de invitados/publico (contamina la sesion).
     bool untrustedOutput = false;
+    /// Devuelve nombres, datos o video de invitados cuando HAY ALGUIEN en la sala (las
+    /// capturas, los listados de lo que se ve): contamina la sesión si en ese momento hay
+    /// gente (McpCore::setHayGente, seguro entre hilos). Antes lo ponía un envoltorio
+    /// desde una lista aparte que leía la copia de la sala de la interfaz desde el hilo
+    /// de la herramienta (el pool, en room_status): una carrera y una regla que el
+    /// inventario no veía.
+    bool untrustedConGente = false;
+    /// Borra algo SOLO con este argumento booleano en true (`delete` de
+    /// youtube_live_update): addTool pone `destructive` (la anotación de MCP dice «puede
+    /// borrar») y la tarjeta de aprobación se pone crítica solo cuando viene (esDestructiva).
+    const char* destructivaSi = nullptr;
     /// Su efecto lo decide una persona con un click (preguntar al operador,
     /// sugerir respuestas): no necesita aprobacion aunque la sesion este contaminada.
     bool mediated = false;
@@ -367,6 +378,16 @@ class McpCore {
     json taintInfo(const std::string& session) const;
     /// true si la herramienta modifica algo (ni solo lectura ni mediada por una persona).
     static bool mutating(const Tool& t) { return !t.readOnly && !t.mediated; }
+    /// Si ESTA llamada borra: `destructive`, salvo las que solo borran con su
+    /// `destructivaSi` en true.
+    static bool esDestructiva(const Tool& t, const json& args) {
+        if (t.destructivaSi == nullptr) return t.destructive;
+        const auto it = args.is_object() ? args.find(t.destructivaSi) : args.end();
+        return it != args.end() && it->is_boolean() && it->get<bool>();
+    }
+    /// ¿Hay alguien en la sala? Desde CUALQUIER hilo (Tool::untrustedConGente): la app
+    /// lo da con un valor que pone la interfaz cuando cambia la sala.
+    void setHayGente(std::function<bool()> fn) { hayGente_ = std::move(fn); }
 
     // --- Ayuda (tambien las usa la herramienta `help`) ------------------------
     std::string helpOverview() const;
@@ -597,6 +618,7 @@ class McpCore {
     std::vector<Prompt> prompts_;
     Approver approver_;
     std::function<bool()> hayAire_;
+    std::function<bool()> hayGente_;
     std::function<json()> salidasLista_;
     std::function<bool(const std::string&)> salidaSale_;
     McpAire aire_{*this};

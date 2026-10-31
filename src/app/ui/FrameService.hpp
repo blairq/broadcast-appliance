@@ -12,13 +12,12 @@
 //               interfaz (BA.GuestUi.N, 640×360 a 30 cuadros/s; si B es de antes,
 //               BA.Guest.N entero); se lee directo del transporte entre procesos
 //   "entrada:X" la entrada de video X tal como sale de sus filtros (con el
-//               recorte del PTZ digital), mientras alguien la pida con
-//               mirarEntrada (la tarjeta PTZ suelta)
+//               recorte del PTZ digital), mientras alguna vista la use
+//               (usar: la tarjeta PTZ suelta, el editor de caras, el muro)
 //   "entrada-entera:X" la misma entrada ANTES del recorte del PTZ digital (la
-//               toma entera, para manejar el recorte encima): mirarEntrada
-//               con `entera`
-//   "escena:X"  una escena cualquiera, esté o no al aire, mientras alguien la
-//               pida con mirarEscena (un monitor o una ventana que la muestra)
+//               toma entera, para manejar el recorte encima), igual
+//   "escena:X"  una escena cualquiera, esté o no al aire, mientras alguna vista
+//               la use (un monitor o una ventana que la muestra)
 //   "mini:X"    una escena chica (320 de ancho, ~5 cuadros por segundo): las
 //               cajas de la línea de tiempo que vienen (LineaViewModel, con su
 //               presupuesto), mientras alguien la pida con mirarMiniatura
@@ -57,6 +56,7 @@
 #include <string>
 #include <vector>
 
+#include "comun/UsoPorVistas.hpp"
 #include "ipc/CanalesRegistro.hpp"
 
 namespace ba::app {
@@ -91,17 +91,19 @@ class FrameService : public QObject {
 
     /// Ultima imagen de `key` si es mas nueva que `serial` (y lo actualiza).
     bool latest(const QString& key, QImage& out, std::uint64_t& serial) const;
+    /// Si alguien pidió un cuadro en el último segundo (una vista abierta): sin nadie, el
+    /// que llama a poll lo puede espaciar.
+    bool mirado() const;
 
     /// Que escena mirar en la clave "armada" ("" = ninguna). La pone
     /// StudioViewModel cada vez que cambia el bus de preview.
     void setArmada(const QString& escena);
-    /// Pide (o suelta) el video en vivo de una entrada en la clave
-    /// "entrada:<nombre>". Cuenta pedidos: se renderiza mientras alguien la mire.
-    /// `entera`: la toma antes del recorte del PTZ digital (clave "entrada-entera:X").
-    Q_INVOKABLE void mirarEntrada(const QString& entrada, bool mirar, bool entera = false);
-    /// Igual para una escena cualquiera (esté o no al aire), en la clave
-    /// "escena:<nombre>": la usan los monitores y las ventanas del catálogo.
-    Q_INVOKABLE void mirarEscena(const QString& escena, bool mirar);
+    /// Una vista empieza (o deja) de mostrar la clave `que`: "entrada:<nombre>" (una
+    /// entrada con sus filtros), "entrada-entera:<nombre>" (antes del recorte del PTZ
+    /// digital) o "escena:<nombre>" (una escena cualquiera, esté o no al aire: los
+    /// monitores y las ventanas del catálogo). Se renderiza mientras alguna la use (la
+    /// cuenta es por vista y la que se destruye se suelta sola; en QML, Suscripcion).
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
     /// Igual, chica y lenta, en "mini:<nombre>": las miniaturas vivas de la línea de tiempo.
     void mirarMiniatura(const QString& escena, bool mirar);
     /// Cambia la cantidad de invitados.
@@ -127,7 +129,7 @@ class FrameService : public QObject {
     void framesUpdated();
 
    private:
-    /// Lo común de mirarEntrada y mirarEscena: pedir o soltar un canal del motor.
+    /// Lo común de las vistas y las miniaturas: pedir o soltar un canal del motor.
     void mirarClave(const QString& clave, bool mirar);
     struct Slot {
         QImage image;
@@ -155,12 +157,15 @@ class FrameService : public QObject {
     int lobbySlots_ = 4;
     static constexpr int kBackstageSlots = 8;
     QString armada_;
-    /// Las vistas de entradas pedidas ("entrada:X" o "entrada-entera:X") y cuántos las miran.
+    /// Las vistas pedidas ("entrada:X", "escena:X", "mini:X"…) y cuántos las miran.
     std::map<QString, int> entradas_;
+    /// Qué vista de la interfaz usa cada clave (usar): pide o suelta al cambiar.
+    UsoPorVistas vistas_{this, [this](const QString& que) { mirarClave(que, vistas_.activo(que)); }};
     /// "program:<id>" → "program" si `id` es la por omisión (y lo mismo con "armada").
     static QString clavePropia(const QString& key);
     /// Las vistas de salidas que alguien leyó (latest) y cuándo: poll las pide y las suelta.
     mutable std::map<QString, std::int64_t> salidasPedidas_;
+    mutable std::int64_t leidoUs_ = 0; ///< el último latest(), de cualquier clave (mirado)
     QJsonArray salidas_;
     QVariantMap colores_;
     std::uint64_t vueltas_ = 0;

@@ -636,6 +636,14 @@ endif()
     target_link_libraries(test_plano_control PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
+    # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
+    # andaba y los avisos por grupo, con una ventanilla sintética.
+    add_executable(test_estado_aire tests/test_estado_aire.cpp ui/EstadoAireViewModel.cpp ui/EstadoAireViewModel.hpp
+                   emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp)
+    target_include_directories(test_estado_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_estado_aire PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_estado_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_estado_aire COMMAND test_estado_aire)
     add_test(NAME test_mcp COMMAND test_mcp)
     # Los servidores que lanza la app (OpenCode, llama-server) mueren con ella.
     add_executable(test_hijos_app tests/test_hijos_app.cpp agent/HijosDeLaApp.cpp agent/HijosDeLaApp.hpp)
@@ -1007,6 +1015,25 @@ endif()
     target_include_directories(test_historico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_historico PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_historico COMMAND test_historico)
+    # La API json del histórico (la página y el MCP), con eventos de otra configuración.
+    add_executable(test_historico_consulta tests/test_historico_consulta.cpp ui/HistoricoConsulta.cpp evento/Historico.cpp
+                   evento/Bitacora.cpp evento/CierreEvento.cpp evento/FotosConfig.cpp evento/EventoStore.cpp evento/Evento.cpp)
+    target_include_directories(test_historico_consulta PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_historico_consulta PRIVATE ba_core mbedcrypto Qt6::Core nlohmann_json::nlohmann_json)
+    set_target_properties(test_historico_consulta PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_historico_consulta COMMAND test_historico_consulta)
+    # La lista de eventos: una caché que avisa (leer no va al disco; lo nuevo aparece solo).
+    add_executable(test_eventos_lista tests/test_eventos_lista.cpp ui/EventosListaViewModel.cpp evento/EventoStore.cpp
+                   evento/Evento.cpp)
+    target_include_directories(test_eventos_lista PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_eventos_lista PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json)
+    set_target_properties(test_eventos_lista PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_eventos_lista COMMAND test_eventos_lista)
+    # Los tipos de cue: una sola lista para el formulario y para guion_cue.
+    add_executable(test_tipos_de_cue tests/test_tipos_de_cue.cpp evento/TiposDeCue.cpp evento/Evento.cpp)
+    target_include_directories(test_tipos_de_cue PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_tipos_de_cue PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_tipos_de_cue COMMAND test_tipos_de_cue)
 
     # El padron: quien viene, con que papel, por donde y si llego.
     add_executable(test_padron tests/test_padron.cpp evento/Padron.cpp)
@@ -1035,6 +1062,10 @@ endif()
     # ba_core: los tipos de documento (documentos/Documento, el DNI) del paso «documento».
     target_link_libraries(test_registro_conversacion PRIVATE nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_registro_conversacion COMMAND test_registro_conversacion)
+    # El ritmo de la conversación (fin del turno, esperas, silencio), con la hora a mano.
+    add_executable(test_registro_ritmo tests/test_registro_ritmo.cpp registro/RitmoTotem.cpp)
+    target_include_directories(test_registro_ritmo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_registro_ritmo COMMAND test_registro_ritmo)
     # La conversación atendida por una persona (la atención remota del registro).
     add_executable(test_registro_atencion tests/test_registro_atencion.cpp registro/Conversacion.cpp registro/Totems.cpp)
     target_include_directories(test_registro_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -1264,6 +1295,12 @@ endif()
     target_link_libraries(test_botonera PRIVATE ba_core Qt6::Core)
     set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_botonera COMMAND test_botonera)
+    # El contrato único de suscripción de las vistas (comun/UsoPorVistas): cuenta por vista.
+    add_executable(test_uso_por_vistas tests/test_uso_por_vistas.cpp comun/UsoPorVistas.hpp)
+    target_include_directories(test_uso_por_vistas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_uso_por_vistas PRIVATE Qt6::Core)
+    set_target_properties(test_uso_por_vistas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_uso_por_vistas COMMAND test_uso_por_vistas)
     # El control web (dashboard /control/): emparejar, perfiles, llamar, confirmar y mirar
     # contra un McpCore de prueba (docs/planes/PLAN-WEB-CONTROL.md §2).
     add_executable(test_control_web tests/test_control_web.cpp control/ControlWeb.cpp control/ControlWeb.hpp
