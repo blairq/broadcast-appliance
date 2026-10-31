@@ -270,6 +270,15 @@ Item {
                         color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                     }
                     Repeater { model: latPanel.propias; delegate: FilaSinc {} }
+                    // Los oídos (retornos de los invitados, escucha en vivo) no esperan la latencia del estudio:
+                    // lo que llega más tarde que su espera fija no se oye ahí.
+                    Text {
+                        readonly property var fuera: (latPanel.lat.oido && latPanel.lat.oido.no_entran) || []
+                        visible: fuera.length > 0
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.live; font.pixelSize: 10
+                        text: qsTr("No llegan a tiempo a los retornos ni a la escucha en vivo (esperan %1 ms): %2")
+                              .arg(Math.round((latPanel.lat.oido && latPanel.lat.oido.latencia_ms) || 0)).arg(fuera.join(", "))
+                    }
                     Text {
                         visible: latPanel.sinSenal > 0
                         text: qsTr("%n entrada más sin video ni señal ahora (audio, invitados sin conectar): no marcan la latencia", "", latPanel.sinSenal)
@@ -287,6 +296,10 @@ Item {
                         }
                         GlassButton { compact: true; text: qsTr("Automático"); active: latPanel.lat.automatico === true
                                       onClicked: pop.vg.ponerTopeEstudioUi(-1) }
+                        // El modo baja latencia del evento: el tope bajo; lo que lo pasa va con su demora.
+                        GlassButton { compact: true; text: qsTr("Baja latencia (%1 ms)").arg(latPanel.lat.baja_latencia_ms || 110)
+                                      active: latPanel.lat.baja_latencia === true
+                                      onClicked: pop.vg.ponerTopeEstudioUi(latPanel.lat.baja_latencia_ms || 110) }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
                             text: qsTr("Una sincronizada que pide más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora.")

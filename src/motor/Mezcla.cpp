@@ -73,7 +73,8 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     std::string salida;
     if (op.limitador) {
         if (hayFabrica("balimitador"))
-            salida += "balimitador name=lim ! ";
+            salida += "balimitador name=lim" +
+                      (op.anticipoLimitadorMs > 0 ? " lookahead-ms=" + std::to_string(std::lround(op.anticipoLimitadorMs)) /* entero: sin coma decimal del locale */ : std::string()) + " ! ";
         else
             registrar(Nivel::Aviso,
                       llenar(traducir("motor", "mezcla %1: no está balimitador (plugin baaudio): sale sin limitador"), {nombre_}));
@@ -104,6 +105,11 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     // La edad de lo que sale (lo que pasa de verdad, no la latencia fijada).
     if (GstElement* sale = gst_bin_get_by_name(GST_BIN(pipeline_), "sale")) {
         edadSalida_.ponerEnEntrada(sale, reloj_);
+        // Un bus de oído que escribe a tiempo real (el anillo de un retorno): sin los 20 ms
+        // que el sink suma de fábrica «por si lo de atrás tarda» (processing-deadline). Lo
+        // de atrás es sumar, el limitador y el medidor: no llega a 1 ms.
+        if (latenciaFijaNs_ >= 0 && g_object_class_find_property(G_OBJECT_GET_CLASS(sale), "processing-deadline") != nullptr)
+            g_object_set(sale, "processing-deadline", static_cast<guint64>(ajustes::msANs("audio.oidoProcesoMs", 2)), nullptr);
         gst_object_unref(sale);
     }
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
@@ -174,6 +180,26 @@ void Mezcla::agregar(const std::string& id) {
     r.pad = gst_element_request_pad_simple(mezclador_, "sink_%u");
     GstPad* sale = gst_element_get_static_pad(r.nivel, "src");
     gst_pad_link_full(sale, r.pad, GST_PAD_LINK_CHECK_NOTHING);
+    // UN BUS DE OÍDO NO ESPERA A LA ENTRADA MÁS LENTA. El intersrc le pasa al mezclador la
+    // latencia que declara su entrada (una cámara IP, 120-250 ms), y el mezclador espera la
+    // mayor de sus ramas: con una sola entrada lenta, el retorno de todos los invitados
+    // esperaba lo que ella (medido: 167 ms en vez de 25). En un bus de oído la rama le dice
+    // al mezclador que no demora nada: espera lo fijo (min-upstream-latency) y lo de esa
+    // entrada que llega más tarde no entra (el mezclador lo descarta por viejo). El motor
+    // informa cuáles no llegan (Motor::entraAlOido).
+    if (latenciaFijaNs_ >= 0)
+        gst_pad_add_probe(sale, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_QUERY_UPSTREAM | GST_PAD_PROBE_TYPE_PULL),
+                          [](GstPad*, GstPadProbeInfo* info, gpointer) -> GstPadProbeReturn {
+                              GstQuery* q = GST_PAD_PROBE_INFO_QUERY(info);
+                              if (q != nullptr && GST_QUERY_TYPE(q) == GST_QUERY_LATENCY) {
+                                  gboolean vivo = FALSE;
+                                  GstClockTime min = 0, max = 0;
+                                  gst_query_parse_latency(q, &vivo, &min, &max);
+                                  gst_query_set_latency(q, vivo, 0, max);
+                              }
+                              return GST_PAD_PROBE_OK;
+                          },
+                          nullptr, nullptr);
     gst_object_unref(sale);
     for (GstElement* e : {r.nivel, r.vol, r.src}) gst_element_sync_state_with_parent(e);
     ramas_[id] = r;

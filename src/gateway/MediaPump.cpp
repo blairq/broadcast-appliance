@@ -18,6 +18,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Ducking.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/HealthBlock.hpp"
 
@@ -269,7 +271,8 @@ void MediaPump::start() {
     }
 
     stop_.store(false);
-    threads_.emplace_back(&MediaPump::retornoAudioThread, this, cfg_.returnAudioName, std::string(), &ifb_, nullptr);
+    threads_.emplace_back(&MediaPump::retornoAudioThread, this, cfg_.returnAudioName, std::string(), &ifb_, &mixMinusAbierto_,
+                          nullptr);
     threads_.emplace_back(&MediaPump::videoBajadaThread, this, cfg_.programVideoName, traducir("gateway", "retorno video"),
                           [](const MediaRoute& r) { return r.miraSalida(""); }, nullptr);
     for (size_t k = 0; k < cfg_.escenaVideoNames.size(); ++k) {
@@ -427,7 +430,7 @@ void MediaPump::ajustarBajadas() {
                                    std::function<bool(const MediaRoute&)>([id](const MediaRoute& r) { return r.miraSalida(id); }),
                                    &b->parar);
             b->audio = std::thread(&MediaPump::retornoAudioThread, this, ba::ipc::nombreAudioSalida(id), id, &b->ifb,
-                                   &b->parar);
+                                   &b->mixMinusAbierto, &b->parar);
             log_.info(llenar(traducir("gateway", "salida %1: alguien la mira, se levanta su bajada"), {id}));
             bajadas_.emplace(id, std::move(b));
         }
@@ -481,15 +484,23 @@ constexpr std::uint64_t kBloqueNs = std::uint64_t{audio_ring::kBlockFrames} * 1'
 
 } // namespace
 
-void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb,
+void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb, LugaresAbiertos* abiertos,
                                    const std::atomic<bool>* parar) {
     SharedAudioRing reader;
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     std::vector<float> block;
-    // Mix-minus: un lector por slot (se abren cuando A los publica). Solo los de la
-    // salida por omisión: las otras bajan su retorno entero.
-    const size_t nSlots = salida.empty() ? cfg_.returnSlotNames.size() : 0;
+    // Mix-minus: un lector por slot (se abren cuando A los publica), los de ESTA salida:
+    // un invitado de otra salida oye la mezcla de la suya sin su voz (F2-02). Los mismos
+    // lugares que la por omisión (sin nombres, sin mix-minus: los tests).
+    const size_t nSlots = cfg_.returnSlotNames.size();
+    std::vector<std::wstring> slotNames(nSlots);
+    for (size_t s = 1; s < nSlots; ++s)
+        if (!cfg_.returnSlotNames[s].empty())
+            slotNames[s] = salida.empty() ? cfg_.returnSlotNames[s] : ba::ipc::nombreRetorno(salida, static_cast<int>(s));
+    const std::string deSalida = salida.empty() ? std::string() : llenar(traducir("gateway", " (salida %1)"), {salida});
+    Ducking ducking(cfg_.audioRate);
+    std::vector<float> ganancia;
     std::vector<SharedAudioRing> slotReaders(nSlots);
     std::vector<bool> slotOpen(nSlots, false);
     std::vector<std::vector<float>> slotBlock(nSlots);
@@ -511,21 +522,22 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                     if (slotOpen[s] && slotReaders[s].stale()) {
                         slotReaders[s] = SharedAudioRing{};
                         slotOpen[s] = false;
-                        mixMinusAbierto_[s].store(false);
-                        log_.warn(llenar(traducir("gateway", "retorno mix-minus del slot %1 cerrado: ese invitado queda "
+                        (*abiertos)[s].store(false);
+                        log_.warn(llenar(traducir("gateway", "retorno mix-minus del slot %1%2 cerrado: ese invitado queda "
                                                              "sin retorno hasta que vuelva"),
-                                         {std::to_string(s)}), -1);
+                                         {std::to_string(s), deSalida}), -1);
                     }
-                    if (!slotOpen[s] && !cfg_.returnSlotNames[s].empty() &&
-                        SharedAudioRing::openReader(cfg_.returnSlotNames[s].c_str(), slotReaders[s]).ok) {
+                    if (!slotOpen[s] && !slotNames[s].empty() &&
+                        SharedAudioRing::openReader(slotNames[s].c_str(), slotReaders[s]).ok) {
                         slotOpen[s] = true;
-                        mixMinusAbierto_[s].store(true);
+                        (*abiertos)[s].store(true);
                         if (!slotMedida[s])
-                            slotMedida[s] = std::make_unique<MedidaTransporte>("BA.Audio.Return." + std::to_string(s),
-                                                                               "audio", kBloqueNs);
+                            slotMedida[s] = std::make_unique<MedidaTransporte>(
+                                "BA.Audio." + ba::ipc::sufijoRetorno(salida, static_cast<int>(s)), "audio", kBloqueNs);
                         slotMedida[s]->reabierto();
                         slotVentana[s] = now;
-                        log_.info(llenar(traducir("gateway", "retorno mix-minus del slot %1 abierto"), {std::to_string(s)}));
+                        log_.info(llenar(traducir("gateway", "retorno mix-minus del slot %1%2 abierto"),
+                                         {std::to_string(s), deSalida}));
                     }
                 }
             }
@@ -561,7 +573,8 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                 deSlot[s] = slotOpen[s] ? retorno::bloqueDelLugar(slotReaders[s], slotBlock[s], silencio.data(), n,
                                                                    *slotMedida[s], ahoraQpc)
                                         : nullptr;
-            // IFB: la voz del operador de este bloque (silencio si no hay), una vez para todos.
+            // IFB: la voz del operador de este bloque (silencio si no hay), una vez para todos,
+            // y cuánto baja el programa debajo de ella (Ducking.hpp: con rampa, sin bombeo).
             std::vector<float> voz;
             bool hayVoz = false;
             {
@@ -574,16 +587,20 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
                     hayVoz = true;
                 }
             }
+            ducking.ponerProfundidadDb(ba::ajustes::numero("room.ifbProfundidadDb", -15.0));
+            const bool bajaPrograma = ducking.procesar(hayVoz ? voz.data() : nullptr, n, ganancia);
             const int prueba = pruebaSesion_.load();
             std::vector<float> mezcla;
             for (int s : sessionsWhere([&salida](const MediaRoute& r) { return r.oyeSalida(salida); })) {
                 const MediaRoute r = route(s);
                 // Con el retorno apagado (silencio) igual le llega la voz del operador si le habla.
                 const float* fuente = retorno::fuente(r, blk.samples, deSlot, silencio.data());
-                if ((r.talk && hayVoz) || s == prueba) {
+                const bool ifbAca = r.talk && bajaPrograma; // le hablan (o el programa todavía vuelve)
+                if (ifbAca || s == prueba) {
                     mezcla.assign(fuente, fuente + n);
-                    if (r.talk && hayVoz) // el programa baja (~-8 dB) para que la voz se entienda
-                        for (size_t i = 0; i < n; ++i) mezcla[i] = std::clamp(mezcla[i] * 0.4f + voz[i], -1.0f, 1.0f);
+                    if (ifbAca) // el programa baja para que la voz se entienda
+                        for (size_t i = 0; i < n; ++i)
+                            mezcla[i] = std::clamp(mezcla[i] * ganancia[i / 2] + (hayVoz ? voz[i] : 0.0f), -1.0f, 1.0f);
                     if (s == prueba) {
                         // Tono de 1 kHz a -12 dBFS, prendido según un código seudoaleatorio de
                         // 16 tramos de 250 ms (no periódico: un ruido que se repite —un pitido
@@ -611,7 +628,7 @@ void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, Cola
             if (slotOpen[s]) cerrarVentana(*slotMedida[s], slotVentana[s], true);
         ritmo.esperar();
     }
-    for (size_t s = 1; s < nSlots; ++s) mixMinusAbierto_[s].store(false);
+    for (size_t s = 1; s < nSlots; ++s) (*abiertos)[s].store(false);
 }
 
 /// Cada cuanto se mira si A publico un cuadro nuevo.
@@ -716,11 +733,19 @@ nlohmann::json MediaPump::transporte() const {
 std::vector<int> MediaPump::lugaresSinRetorno() const {
     std::vector<int> out;
     if (cfg_.returnSlotNames.empty()) return out; // sin mix-minus: todos oyen el programa
+    // El de SU salida (F2-02). Orden de candados: bajadasLock_ y adentro routesLock_.
+    std::lock_guard<std::mutex> lb(bajadasLock_);
     std::lock_guard<std::mutex> l(routesLock_);
     for (size_t s = 1; s < routes_.size(); ++s) {
         const MediaRoute& r = routes_[s];
-        if (r.kind != MediaRoute::Kind::Program || r.index <= 0 || !r.salida.empty()) continue;
-        if (r.index > kMaxInvitados || !mixMinusAbierto_[static_cast<size_t>(r.index)].load()) out.push_back(r.index);
+        if (r.kind != MediaRoute::Kind::Program || r.index <= 0) continue;
+        const LugaresAbiertos* abiertos = &mixMinusAbierto_;
+        if (!r.salida.empty()) {
+            auto b = bajadas_.find(r.salida);
+            abiertos = b != bajadas_.end() ? &b->second->mixMinusAbierto : nullptr; // sin bajada levantada: todavía nada
+        }
+        if (r.index > kMaxInvitados || abiertos == nullptr || !(*abiertos)[static_cast<size_t>(r.index)].load())
+            out.push_back(r.index);
     }
     return out;
 }

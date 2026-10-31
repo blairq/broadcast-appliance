@@ -90,6 +90,8 @@ class MediaPump {
         // Indexado por slot, [0] reservado. Si el de un slot no está abierto, ese
         // invitado NO recibe el retorno común (tiene su voz: eco) sino silencio,
         // «retorno apagado» (RetornoLugar.hpp). Vacío = sin mix-minus (los tests).
+        // Son los de la salida por omisión; los de otra salida se llaman
+        // BA.Audio.Return.<salida>.<n> (ipc::nombreRetorno) y existen para los mismos slots.
         std::vector<std::wstring> returnSlotNames; // BA.Audio.Return.<n>
         std::wstring programVideoName;  // BA.Program (A->B)
         std::wstring operatorVideoName; // BA.Operator (A->B, para el lobby)
@@ -177,8 +179,9 @@ class MediaPump {
     int lugares() const;
 
     /// Los lugares del programa con un invitado adentro que no recibe retorno: su mix-minus
-    /// (BA.Audio.Return.<n>) no está abierto, y el programa entero no se le manda porque
-    /// tiene su propia voz (RetornoLugar.hpp). La sala lo publica en su participante.
+    /// en SU salida (BA.Audio.Return.<n> o BA.Audio.Return.<salida>.<n>) no está abierto, y
+    /// el programa entero no se le manda porque tiene su propia voz (RetornoLugar.hpp). La
+    /// sala lo publica en su participante.
     std::vector<int> lugaresSinRetorno() const;
     /// Cómo andan los anillos de audio y los canales de video que lee el gateway: la foto
     /// de la última ventana de 10 s de cada uno (ipc/MedidaTransporte). Va al uso de la sala
@@ -244,15 +247,20 @@ class MediaPump {
 
     /// La voz del operador para los de adentro que tienen «hablar» prendido (IFB): el
     /// hilo del retorno de SU salida la mezcla con el sonido (una sola fuente por
-    /// sesión). Una cola por retorno: cada salida tiene el suyo.
+    /// sesión), con el programa bajado por Ducking.hpp. Una cola por retorno: cada
+    /// salida tiene el suyo.
     struct ColaIfb {
         std::mutex lock;
         std::deque<float> voz;
     };
-    /// El audio de retorno de la salida `salida` ("" = la por omisión, con los
-    /// mix-minus por lugar) a las sesiones que la oyen, con el IFB de `ifb` y el tono
-    /// de la prueba técnica. Corre hasta stop() o hasta que `parar` se prenda.
-    void retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb, const std::atomic<bool>* parar);
+    /// Qué mix-minus de una salida están abiertos, por lugar (los escribe su hilo de retorno).
+    using LugaresAbiertos = std::array<std::atomic<bool>, kMaxInvitados + 1>;
+    /// El audio de retorno de la salida `salida` ("" = la por omisión) a las sesiones que
+    /// la oyen: a cada invitado al aire, el mix-minus de SU lugar en ESA salida (F2-02), con
+    /// el IFB de `ifb` y el tono de la prueba técnica. Marca en `abiertos` los mix-minus
+    /// que lee. Corre hasta stop() o hasta que `parar` se prenda.
+    void retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb, LugaresAbiertos* abiertos,
+                            const std::atomic<bool>* parar);
     /// Un canal de video A->B hacia las sesiones que cumplen `para` (escalado a
     /// lo sumo a programVideoW x programVideoH). El retorno del programa, cada
     /// canal de escena y cada salida son esto mismo con otro nombre y otro filtro.
@@ -334,6 +342,7 @@ class MediaPump {
     struct BajadaSalida {
         std::atomic<bool> parar{false};
         ColaIfb ifb;
+        LugaresAbiertos mixMinusAbierto{};
         std::thread video, audio;
     };
     mutable std::mutex bajadasLock_;
@@ -347,8 +356,9 @@ class MediaPump {
     std::mutex pruebaLock_;
     std::vector<double> pruebaBins_;
 
-    // El mix-minus de cada lugar abierto (lo escribe el hilo del retorno por omisión).
-    std::array<std::atomic<bool>, kMaxInvitados + 1> mixMinusAbierto_{};
+    // El mix-minus de cada lugar abierto en la salida por omisión (lo escribe su hilo del
+    // retorno; los de las otras salidas, en su BajadaSalida).
+    LugaresAbiertos mixMinusAbierto_{};
     // La última foto de cada canal que se lee, por nombre, y si estaba anómala (para avisar
     // una sola vez cuando vuelve a la normalidad).
     struct FotoCanal {

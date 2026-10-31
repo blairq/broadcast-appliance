@@ -579,10 +579,16 @@ json BroadcastEngine::latenciaEstudio() const {
     out["tope_ms"] = r.topeMs();
     out["automatico"] = r.topeAutomatico();
     out["margen_ms"] = ajustes::entero("video.margenComposicionMs", 5); // el del video (el audio usa audio.margenMezclaMs)
+    // El modo baja latencia (F2-05): el tope que se pone con un botón; lo que pasa de ahí va
+    // con su propia demora. Se guarda con el evento, como cualquier tope.
+    out["baja_latencia_ms"] = ajustes::entero("estudio.bajaLatenciaMs", 110);
+    out["baja_latencia"] = !r.topeAutomatico() && r.topeMs() == out["baja_latencia_ms"].get<int>();
     for (const auto& [quien, ns] : r.anotadas())
         if (r.llegaTarde(ns)) out["tarde"].push_back({{"entrada", quien}, {"latencia_ms", ns / 1000000}});
     // Cada entrada: su clase, lo que pide, lo que tarda y si va con su propia demora.
     const auto foto = motor_->instantanea();
+    // Los buses de oído (retornos, escucha en vivo: F2-01) y las entradas que no llegan a tiempo.
+    out["oido"] = foto ? foto->value("oido", json::object()) : json::object();
     // Con nombre: items() sobre un json temporal recorre memoria liberada.
     const json ents = foto ? foto->value("entradas", json::object()) : json::object();
     for (const auto& [id, e] : ents.items()) {
@@ -602,6 +608,8 @@ json BroadcastEngine::latenciaEstudio() const {
                                        {"tiembla_ms", e.value("tiembla_ms", 0.0)},
                                        {"llega_tarde", e.value("llega_tarde", false)},
                                        {"en_escena", e.value("en_escena", false)},
+                                       {"audio", e.value("audio", false)},
+                                       {"entra_al_oido", e.value("entra_al_oido", true)},
                                        {"video", e.value("video", false)},
                                        {"marca", id == out["la_marca"].get<std::string>()}});
         }

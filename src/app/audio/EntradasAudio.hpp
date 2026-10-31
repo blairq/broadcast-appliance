@@ -11,6 +11,10 @@
 //   Linux    pulsesrc device="<nombre de PulseAudio>"     (el mismo id que usaba libobs)
 //
 // "default" es la entrada predeterminada del sistema (y la sigue si cambia).
+//
+// El bloque y el colchón del dispositivo (latency-time/buffer-time) NO van en esta
+// descripción: los fija el motor al armar la entrada (motor/BuffersAudio.hpp, F2-04),
+// así valen también para los micrófonos ya guardados y se informan en su estado.
 // ============================================================================
 #pragma once
 

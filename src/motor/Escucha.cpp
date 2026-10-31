@@ -2,6 +2,7 @@
 // src/motor/Escucha.cpp — ver Escucha.hpp
 // ============================================================================
 #include "Escucha.hpp"
+#include "BuffersAudio.hpp"
 #include "diag/Utf8.hpp"
 #include "i18n/I18n.hpp"
 
@@ -24,15 +25,20 @@ std::string sinkDe(const std::string& id) {
 #if defined(__APPLE__)
     return "osxaudiosink name=sale" + (id.empty() ? std::string() : " unique-id=" + entreComillas(id));
 #elif defined(_WIN32)
-    return "wasapi2sink name=sale" + (id.empty() ? std::string() : " device=" + entreComillas(id));
+    // low-latency: el período mínimo del motor de audio de Windows (sin esto, el de 10 ms
+    // compartido más lo que el driver quiera), como la fuente (EntradasAudio.cpp).
+    return "wasapi2sink name=sale low-latency=true" + (id.empty() ? std::string() : " device=" + entreComillas(id));
 #else
     return "pulsesink name=sale" + (id.empty() ? std::string() : " device=" + entreComillas(id));
 #endif
 }
 
-constexpr std::int64_t kMargenNs = 40 * GST_MSECOND; // lo que tarda el propio sink en arrancar a escribir
-
 } // namespace
+
+std::int64_t Escucha::margenNs() const {
+    // Lo que tarda el propio sink en arrancar a escribir, y el temblor de cuándo llega cada bloque.
+    return margen_ == Margen::Oido ? ajustes::msANs("audio.margenEscuchaOidoMs", 10) : ajustes::msANs("audio.margenEscuchaMs", 40);
+}
 
 Escucha::Escucha(Reloj& reloj, std::string sinkPrueba) : reloj_(reloj), sinkPrueba_(std::move(sinkPrueba)) {}
 
@@ -91,8 +97,9 @@ void Escucha::armar() {
             gst_object_unref(v);
         }
         sinRelojPropio(p); // el reloj es el del estudio, no el de la placa de audio
+        dispositivoBuffers_ = fijarBuffersDeAudio(p, sink);
         reloj_.adoptar(p);
-        gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(latenciaNs_ + kMargenNs));
+        gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(latenciaNs_ + margenNs()));
         if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
             error_ = disp.empty() ? ba::i18n::traducir("motor", "la salida de audio no arrancó")
                                   : ba::i18n::llenar(ba::i18n::traducir("motor", "el dispositivo «%1» no arrancó"), {disp});
@@ -108,10 +115,11 @@ void Escucha::armar() {
     if (!error_.empty()) registrar(Nivel::Aviso, ba::i18n::llenar(ba::i18n::traducir("motor", "escucha: %1"), {error_}));
 }
 
-void Escucha::escuchar(const std::string& productor, std::int64_t latenciaNs) {
-    encargar([this, productor, latenciaNs]() {
+void Escucha::escuchar(const std::string& productor, std::int64_t latenciaNs, Margen margen) {
+    encargar([this, productor, latenciaNs, margen]() {
         productor_ = productor;
         latenciaNs_ = std::max<std::int64_t>(0, latenciaNs);
+        margen_ = margen;
         armar();
     });
 }
@@ -149,7 +157,7 @@ void Escucha::tic(std::int64_t latenciaNs) {
     if (latenciaNs > latenciaNs_ + static_cast<std::int64_t>(5 * GST_MSECOND) ||
         latenciaNs < latenciaNs_ - static_cast<std::int64_t>(60 * GST_MSECOND)) {
         latenciaNs_ = latenciaNs;
-        gst_pipeline_set_latency(GST_PIPELINE(pipeline_), static_cast<GstClockTime>(latenciaNs_ + kMargenNs));
+        gst_pipeline_set_latency(GST_PIPELINE(pipeline_), static_cast<GstClockTime>(latenciaNs_ + margenNs()));
         recalcularLatenciaAparte(pipeline_);
     }
     GstBus* bus = gst_element_get_bus(pipeline_);
@@ -193,7 +201,10 @@ json Escucha::estadoYa() const {
             {"dispositivo", dispositivo_},
             {"nivel", nivel_},
             {"pico_db", picoDb_},
-            {"latencia_ms", static_cast<double>(latenciaNs_ + kMargenNs) / 1e6},
+            {"latencia_ms", static_cast<double>(latenciaNs_ + margenNs()) / 1e6},
+            {"margen_ms", static_cast<double>(margenNs()) / 1e6},
+            {"de_oido", margen_ == Margen::Oido},
+            {"dispositivo_buffers", dispositivoBuffers_},
             {"error", error_}};
 }
 

@@ -1,10 +1,11 @@
 // ============================================================================
 // src/gateway/RetornoLugar.hpp — qué oye cada invitado al aire: su mix-minus o nada
 //
-// El retorno de la salida por omisión baja al ritmo del programa (BA.Audio.ContentForReturn):
-// por cada bloque del programa, a cada invitado del programa se le manda un bloque de SU
-// mix-minus (BA.Audio.Return.<n>, el programa sin su voz). Las reglas
-// (docs/arquitectura/04-plan-unificado.md, F0-01 y F0-04):
+// El retorno de cada salida baja al ritmo de su programa (BA.Audio.ContentForReturn la por
+// omisión, BA.Audio.Salida.<id> las demás): por cada bloque del programa, a cada invitado
+// de esa salida se le manda un bloque de SU mix-minus en ESA salida (BA.Audio.Return.<n> o
+// BA.Audio.Return.<id>.<n>: la mezcla de la salida sin su voz). Las reglas
+// (docs/arquitectura/04-plan-unificado.md, F0-01, F0-04 y F2-02):
 //
 //   - Un invitado al aire NUNCA recibe el programa entero: tiene su propia voz y la oiría
 //     con medio segundo de demora (eco). Si su mix-minus tiene un hueco, ese bloque va en
@@ -21,10 +22,10 @@
 // un hueco del lugar arma un bloque de colchón y desde ahí no hay más huecos, y si el
 // lugar se adelantó más de dos bloques se pone al día tirando los viejos (latencia
 // acotada a 20 ms). Alinear por sello contra el PROGRAMA sería además el objetivo
-// equivocado: lo que oye un invitado que conversa es su mix-minus, no el programa, y
-// cuando los retornos sean buses de oído con latencia propia más corta (F2-01) alinear
-// contra el programa le devolvería la demora que se le sacó. El programa acá es solo el
-// metrónomo. Los huecos y la ocupación de cada lugar se miden (MedidaTransporte) para
+// equivocado: lo que oye un invitado que conversa es su mix-minus, no el programa, y los
+// retornos son buses de oído con latencia propia más corta (F2-01: ~25 ms desde la
+// captura; el programa espera la del estudio): alinear contra el programa le devolvería la
+// demora que se le sacó. El programa acá es solo el metrónomo. Los huecos y la ocupación de cada lugar se miden (MedidaTransporte) para
 // ver si esto alcanza en la máquina real.
 // ============================================================================
 #pragma once
@@ -64,8 +65,8 @@ inline const float* bloqueDelLugar(ipc::SharedAudioRing& lugar, std::vector<floa
 }
 
 /// Lo que se le manda a la sesión con ruta `r` junto con el bloque `programa`. `deLugar[n]`:
-/// el bloque del mix-minus del lugar n en esta vuelta, nullptr si su anillo no está abierto
-/// (vacío si este retorno no tiene mix-minus: el de otra salida, que todavía baja entero).
+/// el bloque del mix-minus del lugar n de esta salida en esta vuelta, nullptr si su anillo
+/// no está abierto (vacío si no hay mix-minus: sin nombres de lugares, las pruebas).
 inline const float* fuente(const MediaRoute& r, const float* programa, const std::vector<const float*>& deLugar,
                            const float* silencio) {
     if (deLugar.empty() || r.kind != MediaRoute::Kind::Program || r.index <= 0) return programa;
