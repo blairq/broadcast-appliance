@@ -167,7 +167,9 @@ int main(int argc, char** argv) {
             dondeDisparo = QThread::currentThread();
         },
         Qt::DirectConnection);
-    plano.adoptar(&vigia, [&vigia]() { vigia.start(100); });
+    // Como en la app: arrancado en la interfaz y después adoptado (el reloj se muda con él).
+    vigia.start(100);
+    plano.adoptar(&vigia);
 
     atender(200); // que arranque todo
 
