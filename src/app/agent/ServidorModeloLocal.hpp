@@ -14,6 +14,12 @@
 // ui/LectorDocumentos), y la imagen no sale de 127.0.0.1. Quién sabe qué mmproj va
 // con cada .gguf es ModelosLocales (mmprojPara): lo engancha StudioViewModel con
 // setMmprojPara, así todos los que piden el servidor lo cargan igual.
+//
+// EL CALOR (F4-05, la política térmica «priorizar programa»). Con `porCalor(true)`,
+// apenas no está contestando nada (pregunta /slots cada pocos segundos) se apaga y
+// queda DORMIDO: los que lo usan siguen anotados y su puerto, reservado. Un pedido
+// mientras duerme lo despierta (en el mismo puerto); al aliviarse la máquina vuelve
+// solo si alguien lo sigue usando.
 // ============================================================================
 #pragma once
 
@@ -63,11 +69,16 @@ class ServidorModeloLocal : public QObject {
     /// `quien` deja de usarlo; sin nadie, se apaga.
     void soltar(QObject* quien);
     quint16 puerto() const { return puerto_; }
+    /// La máquina está caliente (o se alivió): dormirlo apenas no atienda nada, o despertarlo.
+    void porCalor(bool on);
+    bool dormido() const { return dormido_; }
 
    private:
     ServidorModeloLocal() = default;
     void arrancar(const Pedido& p);
     void parar();
+    /// Con calor: si no está contestando nada (/slots), lo duerme.
+    void dormirSiOcioso();
     void avisarListo(quint16 puerto, const QString& error);
 
     QProcess* proc_ = nullptr;
@@ -77,6 +88,10 @@ class ServidorModeloLocal : public QObject {
     QString mmproj_;
     std::function<QString(const QString&)> mmprojPara_;
     bool listo_ = false;
+    Pedido ultimo_;              ///< con qué se arrancó (para despertarlo igual)
+    bool calor_ = false;         ///< porCalor
+    bool dormido_ = false;       ///< se apagó por calor con gente que lo usa (puerto_ reservado)
+    QTimer* vigiaCalor_ = nullptr;
     std::map<QObject*, std::pair<std::function<void(quint16, QString)>, std::function<void(QString)>>> esperan_;
     std::map<QObject*, bool> usan_;
 };

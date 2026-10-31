@@ -364,7 +364,7 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
         }
         case CompactoRole: return !grupos_[i].empty() && compactos_.count(grupos_[i]) > 0;
         case GananciaGrupoDbRole:
-            return grupos_[i].empty() ? 0.0 : mulToDb(rt_.engine().gananciaGrupo(grupos_[i]));
+            return grupos_[i].empty() ? 0.0 : mulToDb(rt_.engine().gananciaGrupo(grupos_[i], salida_));
         case NombreGrupoRole: {
             const auto it = nombresGrupo_.find(grupos_[i]);
             return qs(it != nombresGrupo_.end() ? it->second : grupos_[i]);
@@ -437,7 +437,7 @@ QVariantList MixerModel::gruposEn(const std::string& salida) const {
         out.push_back(QVariantMap{{"grupo", qs(grupos_[i])},
                                   {"nombre", qs(nom != nombresGrupo_.end() ? nom->second : grupos_[i])},
                                   {"tiras", tiras},
-                                  {"volumenDb", mulToDb(rt_.engine().gananciaGrupo(grupos_[i]))},
+                                  {"volumenDb", mulToDb(rt_.engine().gananciaGrupo(grupos_[i], salida))},
                                   {"compacto", compactos_.count(grupos_[i]) > 0},
                                   {"mudo", mudo}});
     }
@@ -447,7 +447,7 @@ QVariantList MixerModel::gruposEn(const std::string& salida) const {
 bool MixerModel::setGananciaGrupoDb(const QString& grupo, double db) {
     if (grupo.isEmpty()) return false;
     const double d = std::clamp(db, -60.0, 12.0);
-    return rt_.setGananciaGrupo(grupo.toStdString(), d <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, d / 20.0)));
+    return rt_.setGananciaGrupo(grupo.toStdString(), d <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, d / 20.0)), salida_);
 }
 
 void MixerModel::setMutedGrupo(const QString& grupo, bool muted) { setMutedGrupoEn(grupo.toStdString(), muted, salida_); }
@@ -527,7 +527,7 @@ bool MixerModel::setMuted(const QString& name, bool muted) { return rt_.setMuted
 void MixerModel::setSalida(const std::string& salida) {
     if (salida == salida_) return;
     salida_ = salida;
-    if (!names_.empty()) emit dataChanged(index(0), index(rowCount() - 1), {VolumeDbRole, MutedRole});
+    if (!names_.empty()) emit dataChanged(index(0), index(rowCount() - 1), {VolumeDbRole, MutedRole, GananciaGrupoDbRole});
 }
 
 void MixerModel::avisarCambio(const std::string& fuente) {

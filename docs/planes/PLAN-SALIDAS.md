@@ -139,13 +139,34 @@ Salida {
    - `gateway.programaW/H` cambiado en Configuración re-llama a `ponerTopeRetorno` (cada
      salida rehace su canal al tamaño nuevo).
 
-   *Falta*: la Matriz (escucha de la app y sus buses) sigue el mute de la por omisión. La
-   medición de sincronía y las alarmas de video (luma/quietud) miran solo la por omisión. Las
-   capas (DSK/placa/FTB) siguen sin volver tras `resetVideo` (como antes). `ObjetivoLoudness`
-   es uno para todas. `RespaldoEntradas` mira las fuentes al aire de todas pero corta en la
-   por omisión. El VCA de los grupos (`setGananciaGrupo`) es de todas las salidas. Un test de
-   la app con el motor (dos salidas andando con `BroadcastEngine`) no existe todavía: lo de
-   abajo del motor lo prueban `test_motor_salidas` y `test_motor_retornos`.
+   *Hecho (2026-10-31, lo que faltaba de la etapa)*:
+   - La Matriz: cada salida virtual elige de qué salida del programa sigue el mute de cada
+     fuente (`Matriz::setSalida`, «Mute de» en su menú con varias salidas; se guarda con el
+     bus en audio-matriz.json). En el motor, `matrizBus(…, salida)` (`BusMatriz::deSalida`):
+     `ponerMute` de esa salida vale en el bus; borrada la que seguía, vuelve a la por
+     omisión (`remutarMatriz`). Las tomas de la matriz de la app (salidas físicas) siguen a la
+     por omisión. Test: `test_motor_matriz`.
+   - `ObjetivoLoudness` por salida: el de la por omisión arriba en Config/loudness.json, el de
+     las demás en `salidas: {id: …}`; una nueva arranca con el de la por omisión
+     (`BroadcastEngine::crearSalida`) y una borrada se lleva el suyo (`olvidar`).
+     `aplicarLoudness` lleva el de cada una; `audio_loudness_objetivo` es de salida y el
+     loudness del Mezclador muestra el de la activa. Test: `test_loudness`.
+   - El VCA de los grupos por salida (`Salida::gananciaGrupo`, `setGananciaGrupo(…, salida)`):
+     la por omisión en app.json como siempre, las demás en salidas.json (`grupos`,
+     `salidas::ponerGrupo`). El Mezclador mueve el de la salida que muestra. Test:
+     `test_salidas_config`.
+   - La sincronía labios/voz (`empezarMedicionSincro(salida)`, `audio_sincro_medir` de
+     salida, el botón de RetardoCanal con la activa) y las alarmas de negro y congelado: cada
+     salida mide su programa (`Medidas`: luma, firma y cuadros de su vista
+     `programa[:<id>]@alarmas`); `program_black`/`program_frozen` suenan por salida (con su
+     nombre si hay varias; `onlyWhenLive` mira si ESA sale). Test: `test_alerts`.
+   - `resetVideo` (el rearme por la GPU, el cambio de lienzo) devuelve las capas DSK, la placa
+     y el negro de cada salida (por la misma API, sin fundido) y el VCA y el objetivo de las
+     demás; el loudness se vuelve a llevar al motor nuevo.
+   *Falta*: `RespaldoEntradas` mira las fuentes al aire de todas pero corta en la por
+   omisión. Un test de la app con el motor (dos salidas andando con `BroadcastEngine`) no
+   existe todavía: lo de abajo del motor lo prueban `test_motor_salidas` y
+   `test_motor_retornos` (así que lo de `resetVideo` no tiene test propio).
 3. **MCP** — argumento opcional `salida` en las ~60 herramientas; `salidas_listar`,
    `salida_crear`, `salida_editar`, `salida_borrar`; `status` con todas; `McpAire` decide
    «de aire» según qué salida está saliendo; `ArgumentosLocales` con la salida del asistente.
@@ -185,7 +206,7 @@ Salida {
    `salida_borrar` con `destinos`. `McpCore::cambiaElAire(herramienta, args, salida)`: la
    misma guarda de aire que `callTool`, para preguntar antes (la botonera).
 
-   *Falta*: `audio_loudness_objetivo` (`ObjetivoLoudness`), `banca_al_aire` (`Bancas` corta en la por
+   *Falta*: `banca_al_aire` (`Bancas` corta en la por
    omisión), `foto_programa` (FrameService, etapa 5), las de escenas que toman «la escena al
    aire» sin `scene` (crear_fuente, source_*, escena_fuentes_ver… siguen con la de la por
    omisión: su guarda de aire tiene que seguir siendo global porque la escena es de todas),

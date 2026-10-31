@@ -35,8 +35,7 @@ QVariantMap mapaDe(const nlohmann::json& j) {
 EmisionViewModel::EmisionViewModel(Partes p, QObject* parent) : QObject(parent), p_(std::move(p)) {
     // Los retornos y el objetivo de loudness son del modelo: acá se muestran.
     retornos_ = std::make_unique<emision::RetornosInvitados>(p_.rt);
-    objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(p_.rt.dataRoot(), p_.rt.engine().loudness(),
-                                                                  [&e = p_.rt.engine()]() { e.aplicarLoudness(); });
+    objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(p_.rt.objetivoLoudness());
 }
 
 EmisionViewModel::~EmisionViewModel() = default;
@@ -221,13 +220,15 @@ QVariantMap EmisionViewModel::grabacionUi() const {
     return mapaDe(j);
 }
 
-QVariantMap EmisionViewModel::loudnessUi() const { return mapaDe(p_.rt.engine().loudness().json()); }
+QVariantMap EmisionViewModel::loudnessUi(const QString& salida) const {
+    return mapaDe(p_.rt.engine().loudness(salida.toStdString()).json());
+}
 
-void EmisionViewModel::resetLoudnessUi() { p_.rt.engine().loudness().reiniciar(); }
+void EmisionViewModel::resetLoudnessUi(const QString& salida) { p_.rt.engine().loudness(salida.toStdString()).reiniciar(); }
 
-QString EmisionViewModel::objetivoLoudnessUi(const QVariantMap& o) {
+QString EmisionViewModel::objetivoLoudnessUi(const QVariantMap& o, const QString& salida) {
     const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(o)).toJson().toStdString(), nullptr, false);
-    return qs(objetivoLoudness_->poner(j));
+    return qs(objetivoLoudness_->poner(j, salida.toStdString()));
 }
 
 QString EmisionViewModel::retornoInvitadoUi(int slot) const { return qs(retornos_->modo(slot)); }

@@ -273,21 +273,13 @@ void RecursosViewModel::atenderTermica(const diag::Recursos::Muestra& m) {
     c.activa = ba::ajustes::siNo("termica.priorizarPrograma", true);
     politica_.configurar(c);
     const int ahora = politica_.actualizar(nivel, m.t);
-    // Lo que cambió, de a un paso (la política no salta más de uno por vuelta).
-    while (apagadosAplicados_ != ahora) {
-        const bool apagar = ahora > apagadosAplicados_;
-        const std::string paso =
-            diag::PoliticaTermica::pasos()[static_cast<std::size_t>(apagar ? apagadosAplicados_ : apagadosAplicados_ - 1)];
-        const bool atendido = degradar_ && degradar_(paso, apagar);
-        sinGancho_.erase(std::remove(sinGancho_.begin(), sinGancho_.end(), paso), sinGancho_.end());
-        if (apagar && !atendido) sinGancho_.push_back(paso);
+    // Lo que cambió, de a un paso (lo atiende el gancho de cada uno).
+    for (const auto& [paso, apagar] : ganchos_.aplicar(ahora))
         ba::diag::registro().linea(
             ba::diag::Nivel::Aviso, "termica", 0,
             ba::i18n::llenar(apagar ? ba::i18n::traducir("termica", "la máquina está %1: se apaga «%2» para priorizar el programa")
                                     : ba::i18n::traducir("termica", "la máquina se alivió (%1): vuelve «%2»"),
                              {m.termica, paso}));
-        apagadosAplicados_ += apagar ? 1 : -1;
-    }
     auto& met = diag::Metricas::proceso();
     static auto& nivelMet = met.medidor("ba_termica_nivel", QT_TRANSLATE_NOOP("metricas", "Nivel térmico: 0 desconocido, 1 normal, 2 templado, 3 serio, 4 crítico"));
     static auto& temp = met.medidor("ba_termica_temperatura_c", QT_TRANSLATE_NOOP("metricas", "La temperatura más alta que se pudo leer, °C"));
@@ -322,7 +314,7 @@ void RecursosViewModel::atenderTermica(const diag::Recursos::Muestra& m) {
 
 nlohmann::json RecursosViewModel::informeTermico() const {
     nlohmann::json j = politica_.informe(recursos_->ultima().t);
-    j["sin_gancho"] = sinGancho_;
+    j["sin_gancho"] = ganchos_.sinGancho();
     return j;
 }
 

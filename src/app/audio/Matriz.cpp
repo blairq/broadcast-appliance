@@ -108,6 +108,7 @@ void setEscucha(const std::string& f, bool on) {
 struct Matriz::Bus {
     std::string id, nombre, tipo;   // tipo: "salida" | "entrada"
     std::string dispositivo;        // salida: el id estable de la placa (el del motor)
+    std::string salida;             // la salida del programa cuyo mute sigue ("" = la por omisión)
     bool entradaCreada = false;     // entrada: su entrada en el motor (lee el bus: intersrc)
 };
 
@@ -307,7 +308,8 @@ QVariantList Matriz::columnas() const {
                                   {"nombre", QString::fromStdString(b->nombre)},
                                   {"tipo", QString::fromStdString(b->tipo)},
                                   {"dispositivo", QString::fromStdString(b->dispositivo)},
-                                  {"dispositivoNombre", disp}});
+                                  {"dispositivoNombre", disp},
+                                  {"salida", QString::fromStdString(b->salida)}});
     }
     return out;
 }
@@ -681,6 +683,18 @@ QString Matriz::setDispositivo(const QString& idQ, const QString& dispositivo) {
     return esta ? QString() : tr("Ese dispositivo ya no está.");
 }
 
+QString Matriz::setSalida(const QString& idQ, const QString& salida) {
+    Bus* b = buscar(idQ.toStdString());
+    if (b == nullptr || b->tipo != "salida") return tr("No es una salida virtual.");
+    // El mute de cada fuente en este bus pasa a ser el de esa salida (lo aplica el motor; una
+    // salida que después se borra vuelve sola a la por omisión).
+    b->salida = salida.toStdString();
+    armarPlan();
+    guardar();
+    emit cambio();
+    return {};
+}
+
 bool Matriz::migrarPlacas() {
     // Antes de F3-08 la placa de una salida virtual se guardaba con el id de Qt Multimedia;
     // el motor usa el suyo (el `unique-id` de macOS, el `device` del resto). Se pasa por el
@@ -812,7 +826,7 @@ void Matriz::armarPlan() {
                 const auto [gl, gr] = canalesDelPan(e.ganancia, e.pan);
                 envios.push_back({k.first, gl, gr});
             }
-            m->matrizBus(b->id, envios, b->tipo == "salida" ? b->dispositivo : std::string());
+            m->matrizBus(b->id, envios, b->tipo == "salida" ? b->dispositivo : std::string(), b->salida);
         }
     }
     // Las salidas físicas: el hilo de mezcla de acá, con las tomas de cada entrada (todavía
@@ -961,7 +975,7 @@ Matriz::json Matriz::estado() const {
             {{"id", "pista" + std::to_string(i + 1)}, {"nombre", pistas_[i]}, {"uso", usoPista_[i]}});
     for (const auto& b : buses_)
         buses.push_back(
-            {{"id", b->id}, {"nombre", b->nombre}, {"tipo", b->tipo}, {"dispositivo", b->dispositivo}});
+            {{"id", b->id}, {"nombre", b->nombre}, {"tipo", b->tipo}, {"dispositivo", b->dispositivo}, {"salida", b->salida}});
     for (const auto& [k, e] : envios_)
         envios.push_back({{"fuente", k.first},
                           {"bus", k.second},
@@ -1060,6 +1074,7 @@ void Matriz::cargar() {
             nb->nombre = b.value("nombre", nb->id);
             nb->tipo = "salida";
             nb->dispositivo = b.value("dispositivo", std::string());
+            nb->salida = b.value("salida", std::string());
             buses_.push_back(std::move(nb));
         } else if (tipo == "entrada") {
             // Con su id de siempre: su entrada lee el bus por él (y si la fuente ya estaba, se

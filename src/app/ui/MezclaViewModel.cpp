@@ -123,20 +123,23 @@ QString MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
     return {};
 }
 
-QString MezclaViewModel::medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo) {
+QString MezclaViewModel::medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo, const std::string& salida) {
     BroadcastEngine& motor = p_.rt.engine();
     if (motor.midiendoSincro()) return tr("ya se está midiendo");
-    if (!motor.empezarMedicionSincro()) return qs(motor.lastError());
+    if (!motor.empezarMedicionSincro(salida)) return qs(motor.lastError());
     QTimer::singleShot(std::clamp(segundos, 4, 30) * 1000, this, [&motor, listo = std::move(listo)]() {
         listo(motor.terminarMedicionSincro());
     });
     return {};
 }
 
-QString MezclaViewModel::medirSincroUi(int segundos) {
-    return medirSincro(segundos, [this](const nlohmann::json& r) {
-        emit medicionSincroLista(QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap());
-    });
+QString MezclaViewModel::medirSincroUi(int segundos, const QString& salida) {
+    return medirSincro(
+        segundos,
+        [this](const nlohmann::json& r) {
+            emit medicionSincroLista(QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap());
+        },
+        salida.toStdString());
 }
 
 } // namespace ba::app

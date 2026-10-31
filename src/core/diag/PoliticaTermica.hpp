@@ -19,6 +19,14 @@
 // en orden inverso, recién cuando el nivel lleva `recuperacionS` por debajo:
 // sin ir y venir con cada medición. Sin Qt ni reloj propio: la app la llama
 // cada segundo con la hora y aplica lo que cambió (los tests, con estados falsos).
+//
+// QUIÉN ATIENDE CADA PASO (GanchosTermicos): la app pone un gancho por paso
+// (superres: la superresolución a barato; modelos: los modelos locales que no
+// atienden se sueltan; vistas: las vistas del motor que nadie mira se duermen;
+// invitados: se les pide menos resolución) y los ganchos llevan lo aplicado: de
+// a un paso, apagando en orden y devolviendo al revés. Un paso sin gancho queda
+// en `sinGancho` (lo dice `sistema_recursos`); si el gancho llega después, se
+// le aplica lo que ya estaba apagado.
 // ============================================================================
 #pragma once
 
@@ -27,7 +35,10 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
+#include <functional>
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace ba::diag {
@@ -65,6 +76,26 @@ class PoliticaTermica {
     std::int64_t nivelDesdeMs_ = -1;   ///< desde cuándo está en este nivel
     std::int64_t ultimoCambioMs_ = -1; ///< el último paso que se apagó o se devolvió
     int apagados_ = 0;
+};
+
+class GanchosTermicos {
+   public:
+    /// Apaga (`apagar`) o devuelve su paso. true si lo atendió.
+    using Gancho = std::function<bool(bool apagar)>;
+    /// El gancho de un paso (reemplaza al anterior). Si el paso ya estaba apagado, se lo
+    /// apaga ya.
+    void poner(const std::string& paso, Gancho g);
+    /// Lleva lo aplicado a `apagados` (PoliticaTermica::actualizar), de a un paso. Lo que
+    /// cambió, en orden: [(paso, apagar)].
+    std::vector<std::pair<std::string, bool>> aplicar(int apagados);
+    int aplicados() const { return aplicados_; }
+    /// Los pasos apagados que nadie atendió.
+    const std::vector<std::string>& sinGancho() const { return sinGancho_; }
+
+   private:
+    std::map<std::string, Gancho> ganchos_;
+    int aplicados_ = 0;
+    std::vector<std::string> sinGancho_;
 };
 
 } // namespace ba::diag

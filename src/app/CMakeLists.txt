@@ -997,6 +997,11 @@ endif()
     target_link_libraries(test_atencion PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_atencion COMMAND test_atencion)
 
+    # Menos resolución a los invitados con la máquina caliente (F4-05), con una sala falsa.
+    add_executable(test_calidad_calor tests/test_calidad_calor.cpp sala/CalidadPorCalor.cpp)
+    target_include_directories(test_calidad_calor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_calidad_calor COMMAND test_calidad_calor)
+
     # El registro por tótem: la configuración (registro.json) y el guion hablado con sus normalizadores.
     add_executable(test_registro_totems tests/test_registro_totems.cpp registro/Totems.cpp)
     target_include_directories(test_registro_totems PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

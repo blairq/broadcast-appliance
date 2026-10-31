@@ -50,14 +50,14 @@ Popup {
             GlassButton { compact: true; text: "0"; onClicked: retMs.value = 0
                           ToolTip.visible: hovered; ToolTip.text: qsTr("Sin retardo") }
         }
-        // Medir con aplauso: mira lo que sale al programa y propone el valor.
+        // Medir con aplauso: mira lo que sale al programa (el de la salida activa) y propone el valor.
         RowLayout {
             Layout.fillWidth: true
             GlassButton {
                 compact: true; text: pop.midiendo ? qsTr("Midiendo… aplaudí") : qsTr("Medir con aplauso")
                 enabled: !pop.midiendo
                 onClicked: {
-                    const e = Studio.mezcla.medirSincroUi(10)
+                    const e = Studio.mezcla.medirSincroUi(10, Studio.salidas.activa)
                     if (e !== "") { Studio.notify(e, "error"); return }
                     pop.midiendo = true; pop.resultado = ""
                 }

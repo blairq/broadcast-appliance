@@ -94,6 +94,24 @@ int main() {
         LoudnessPrograma otro(48000);
         ba::app::audio::ObjetivoLoudness(dir, otro).cargar();
         CHECK(otro.objetivo().perfil == "plataforma14" && otro.objetivo().lufs == -14, "al arrancar vuelve el guardado");
+        // Cada salida el suyo: el de «b» no pisa el de la por omisión y vuelve al arrancar.
+        LoudnessPrograma po(48000), b(48000);
+        const auto de = [&](const std::string& s) { return s.empty() ? &po : s == "b" ? &b : nullptr; };
+        ba::app::audio::ObjetivoLoudness por(dir, de);
+        CHECK(!por.poner({{"perfil", "a85"}}, "nada").empty(), "una salida que no existe: error");
+        CHECK(por.poner({{"perfil", "plataforma16"}}, "b").empty() && b.objetivo().lufs == -16 && po.objetivo().lufs == -23,
+              "el objetivo de otra salida es suyo");
+        CHECK(por.poner({{"perfil", "a85"}}).empty() && po.objetivo().lufs == -24, "el de la por omisión, aparte");
+        LoudnessPrograma po2(48000), b2(48000);
+        ba::app::audio::ObjetivoLoudness(dir, [&](const std::string& s) { return s.empty() ? &po2 : s == "b" ? &b2 : nullptr; })
+            .cargar();
+        CHECK(po2.objetivo().lufs == -24 && b2.objetivo().lufs == -16, "al arrancar vuelve el de cada salida");
+        por.olvidar("b");
+        LoudnessPrograma b3(48000);
+        ba::app::audio::ObjetivoLoudness(dir, [&](const std::string& s) { return s.empty() ? &po2 : s == "b" ? &b3 : nullptr; })
+            .cargar();
+        CHECK(b3.objetivo().perfil == "r128" && po2.objetivo().lufs == -24, "una salida borrada se lleva el suyo");
+        ba::persist::cola().vaciar(); // lo encolado, al disco antes de borrar la carpeta
         fs::remove_all(dir);
     }
     {

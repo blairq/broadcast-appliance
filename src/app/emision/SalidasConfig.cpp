@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <set>
 
 namespace ba::app::salidas {
@@ -61,6 +62,10 @@ Lista leer(const json& j) {
                     for (const auto& [f, m] : mezcla.items())
                         if (m.is_object() && m.value("volumen", json()).is_number())
                             s.mezcla[f] = {std::clamp(m["volumen"].get<double>(), 0.0, 4.0), m.value("mute", false)};
+                const json grupos = x.value("grupos", json::object());
+                if (grupos.is_object())
+                    for (const auto& [g, v] : grupos.items())
+                        if (v.is_number()) s.grupos[g] = std::clamp(v.get<double>(), 0.0, 4.0);
             }
             l.salidas.push_back(std::move(s));
         }
@@ -93,6 +98,7 @@ json aJson(const Lista& l) {
             for (const auto& [f, k] : s.mezcla) m[f] = {{"volumen", k.volumen}, {"mute", k.mute}};
             x["mezcla"] = m;
         }
+        if (!s.grupos.empty()) x["grupos"] = s.grupos;
         arr.push_back(std::move(x));
     }
     return {{"tope", l.tope}, {"salidas", arr}};
@@ -152,6 +158,20 @@ bool ponerMando(Lista& l, const std::string& id, const std::string& fuente, cons
             const auto it = s.mezcla.find(fuente);
             if (it != s.mezcla.end() && it->second == m) return false;
             s.mezcla[fuente] = m;
+            return true;
+        }
+    return false;
+}
+
+bool ponerGrupo(Lista& l, const std::string& id, const std::string& grupo, double ganancia) {
+    if (id.empty() || id == kPorOmision || grupo.empty()) return false;
+    for (auto& s : l.salidas)
+        if (s.id == id) {
+            const auto it = s.grupos.find(grupo);
+            const bool uno = std::abs(ganancia - 1.0) < 1e-6;
+            if (uno ? it == s.grupos.end() : it != s.grupos.end() && std::abs(it->second - ganancia) < 1e-6) return false;
+            if (uno) s.grupos.erase(grupo);
+            else s.grupos[grupo] = ganancia;
             return true;
         }
     return false;

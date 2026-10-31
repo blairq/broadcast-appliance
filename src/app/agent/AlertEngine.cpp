@@ -726,35 +726,50 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                  json::object(), now);
         }
     } else if ((type == "program_black" || type == "program_frozen") && in_.programaVideo) {
-        if (p.value("onlyWhenLive", true) && in_.status) {
-            const auto s = in_.status();
-            if (!s.streaming && !s.recording) {
-                st.since.erase("mal");
-                st.seen.erase("mal");
-                return;
+        const json todo = in_.programaVideo();
+        // Cada salida por su lado (su estado con su id: «mal:<id>»); sin `salidas`, el
+        // programa de arriba (la por omisión) con lo que dice status().
+        json lista = todo.value("salidas", json::array());
+        const bool varias = lista.size() > 1;
+        if (lista.empty()) {
+            json una = todo;
+            una["id"] = "";
+            if (in_.status) {
+                const auto s = in_.status();
+                una["sale"] = s.streaming || s.recording;
+            } else {
+                una["sale"] = true;
             }
+            lista.push_back(std::move(una));
         }
-        const json v = in_.programaVideo();
-        if (!v.value("valido", false)) return;
         const bool negro = type == "program_black";
-        const double luma = v.value("luma", 255.0), quieto = v.value("quieto_s", 0.0);
         const double forSec = p.value("forSec", negro ? 3.0 : 30.0);
-        // Congelado: el propio dato ya dice cuánto lleva sin cambiar.
-        const bool mal = negro ? luma < p.value("umbral", 16.0) : quieto >= forSec;
-        if (!mal) {
-            st.since.erase("mal");
-            st.seen.erase("mal");
-            return;
-        }
-        if (!st.since.count("mal")) st.since["mal"] = now;
-        const bool yaEs = negro ? now - st.since["mal"] >= static_cast<std::int64_t>(forSec * 1000) : true;
-        if (yaEs && st.seen["mal"] != "1" && cooled(type)) {
-            st.seen["mal"] = "1";
-            mark(type);
-            fire(rule, st,
-                 negro ? ba::i18n::llenar(ba::i18n::traducir("alertas", "El programa está en negro hace %1 s (brillo %2 de 255)."), {fmt1((now - st.since["mal"]) / 1000.0), fmt1(luma)})
-                       : ba::i18n::llenar(ba::i18n::traducir("alertas", "El programa está congelado: la imagen no cambia hace %1 s."), {fmt1(quieto)}),
-                 {{"luma", luma}, {"quietoSeg", quieto}}, now);
+        for (const json& v : lista) {
+            const std::string id = v.value("id", std::string());
+            const std::string k = id.empty() || v.value("por_omision", false) ? std::string("mal") : "mal:" + id;
+            const double luma = v.value("luma", 255.0), quieto = v.value("quieto_s", 0.0);
+            // Congelado: el propio dato ya dice cuánto lleva sin cambiar.
+            const bool mal = v.value("valido", false) && (!p.value("onlyWhenLive", true) || v.value("sale", false)) &&
+                             (negro ? luma < p.value("umbral", 16.0) : quieto >= forSec);
+            if (!mal) {
+                st.since.erase(k);
+                st.seen.erase(k);
+                continue;
+            }
+            if (!st.since.count(k)) st.since[k] = now;
+            const bool yaEs = negro ? now - st.since[k] >= static_cast<std::int64_t>(forSec * 1000) : true;
+            const std::string sujeto = k == "mal" ? type : type + ":" + id; // el respiro, también por salida
+            if (!yaEs || st.seen[k] == "1" || !cooled(sujeto)) continue;
+            st.seen[k] = "1";
+            mark(sujeto);
+            std::string texto =
+                negro ? ba::i18n::llenar(ba::i18n::traducir("alertas", "El programa está en negro hace %1 s (brillo %2 de 255)."), {fmt1((now - st.since[k]) / 1000.0), fmt1(luma)})
+                      : ba::i18n::llenar(ba::i18n::traducir("alertas", "El programa está congelado: la imagen no cambia hace %1 s."), {fmt1(quieto)});
+            // Con varias salidas, de cuál.
+            if (varias) texto = ba::i18n::llenar(ba::i18n::traducir("alertas", "Salida «%1»: %2"), {v.value("nombre", id), texto});
+            json datos{{"luma", luma}, {"quietoSeg", quieto}};
+            if (!id.empty()) datos["salida"] = id;
+            fire(rule, st, texto, datos, now);
         }
     } else if (type == "persistencia" && in_.persistencia) {
         for (const std::string& texto : in_.persistencia())

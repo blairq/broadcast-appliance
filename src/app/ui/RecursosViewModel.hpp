@@ -80,10 +80,10 @@ class RecursosViewModel : public QObject {
     /// De dónde sale lo que mide el gateway del transporte A→B (la foto de la sala:
     /// `uso.transporte`). Sin esto, esos SLI quedan desconocidos.
     void alTransporte(std::function<nlohmann::json()> f) { transporte_ = std::move(f); }
-    /// Un paso de la política térmica se apaga (`apagar`) o se devuelve. Los que no
-    /// tienen quien los atienda quedan en el informe como «sin_gancho».
-    using Degradar = std::function<bool(const std::string& paso, bool apagar)>;
-    void alDegradar(Degradar f) { degradar_ = std::move(f); }
+    /// Quién atiende un paso de la política térmica (diag::GanchosTermicos): lo apaga
+    /// (`apagar`) o lo devuelve. Los que no tienen quien los atienda quedan en el informe
+    /// como «sin_gancho».
+    void alDegradar(const std::string& paso, diag::GanchosTermicos::Gancho f) { ganchos_.poner(paso, std::move(f)); }
     /// {politica, sin_gancho} para `sistema_recursos`.
     nlohmann::json informeTermico() const;
 
@@ -119,10 +119,8 @@ class RecursosViewModel : public QObject {
     QVariantList slis_;
     QVariantMap termica_;
     std::function<nlohmann::json()> transporte_;
-    Degradar degradar_;
     diag::PoliticaTermica politica_;
-    int apagadosAplicados_ = 0;
-    std::vector<std::string> sinGancho_;
+    diag::GanchosTermicos ganchos_;
     std::map<std::string, bool> conectadaAntes_; ///< por salida: para contar las reconexiones
 };
 

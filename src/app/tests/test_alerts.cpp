@@ -312,6 +312,28 @@ int main(int argc, char** argv) {
     step(250);
     eng.clear();
     fired.clear();
+    // Cada salida por su lado: la «tv» en negro y saliendo avisa (con su nombre); la por
+    // omisión anda bien y la «sala», en negro pero sin salir, no.
+    eng.create(json{{"type", "program_black"}, {"params", {{"forSec", 3}, {"umbral", 16}}}});
+    w.status = {};
+    w.prog = {{"valido", true},
+              {"luma", 120.0},
+              {"quieto_s", 0.0},
+              {"salidas",
+               {{{"id", "principal"}, {"nombre", "Principal"}, {"por_omision", true}, {"valido", true}, {"luma", 120.0}, {"quieto_s", 0.0}, {"sale", true}},
+                {{"id", "tv"}, {"nombre", "TV"}, {"valido", true}, {"luma", 2.0}, {"quieto_s", 0.0}, {"sale", true}},
+                {{"id", "sala"}, {"nombre", "Sala"}, {"valido", true}, {"luma", 2.0}, {"quieto_s", 0.0}, {"sale", false}}}}};
+    step(250);
+    step(3500);
+    CHECK(fired.size() == 1 && fired[0]["data"].value("salida", std::string()) == "tv" &&
+              fired[0]["text"].get<std::string>().find("TV") != std::string::npos,
+          "negro en otra salida: avisa esa (con su nombre), no la que no sale");
+    step(10000);
+    CHECK(fired.size() == 1, "una sola vez mientras sigue");
+    w.prog = {{"valido", true}, {"luma", 120.0}, {"quieto_s", 0.0}};
+    step(250);
+    eng.clear();
+    fired.clear();
     eng.create(json{{"type", "record_down"}, {"params", {{"forSec", 5}}}});
     w.status = {};
     w.status.grabacionPedida = false;

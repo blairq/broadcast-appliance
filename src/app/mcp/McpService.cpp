@@ -2331,6 +2331,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_sincro_medir";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Medir la sincronía labios/voz con aplausos");
         t.category = "audio";
         t.clase = Clase::Escritura;
@@ -2340,12 +2341,13 @@ void McpService::registerTools() {
             "mezcla de audio) y empareja cada aplauso (pico de audio, cambio brusco en la imagen). La cámara "
             "tiene que estar en el programa y su micrófono sonando. Avisá a la persona que aplauda 4 o 5 veces, "
             "separadas. Con `aplicar_a` (una fuente de audio) y una medición confiable, le suma el retardo "
-            "medido al que ya tenía (audio_sincro). Devuelve retardo_ms, dispersión y si es confiable.");
+            "medido al que ya tenía (audio_sincro). Devuelve retardo_ms, dispersión y si es confiable.") +
+            " " + ba::i18n::traducir("mcp", "Mira el programa de la salida (`salida`).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"segundos", {{"type", "integer"}, {"minimum", 4}, {"maximum", 30}}},
                            {"aplicar_a", {{"type", "string"}}}}}};
-        t.run = [&rt, &vm, persist](const json& a, Done done) {
+        t.run = [this, &rt, &vm, persist](const json& a, Done done) {
             const std::string fuente = a.value("aplicar_a", std::string());
             const QString e = vm.mezcla().medirSincro(a.value("segundos", 10), [&rt, fuente, persist, done](const json& r0) {
                 json r = r0;
@@ -2361,7 +2363,7 @@ void McpService::registerTools() {
                     r["aplicado"] = false;
                 }
                 done(ToolResult().data(r));
-            });
+            }, core_.salidaDe(a));
             if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
         };
         core_.addTool(std::move(t));
@@ -2552,6 +2554,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_loudness_objetivo";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Objetivo de loudness");
         t.category = "audio";
         t.clase = Clase::Escritura;
@@ -2560,7 +2563,8 @@ void McpService::registerTools() {
                         " " +
                         ba::i18n::traducir("mcp", "`agc` true: el programa se lleva solo al objetivo, despacio (1 dB por segundo como mucho, "
                         "hasta 6 dB arriba o abajo, quieto en las pausas), antes del limitador; de fabrica no. Si una "
-                        "transmision va con AAC por debajo de 128 kbps, el techo baja a -2 dBTP.");
+                        "transmision va con AAC por debajo de 128 kbps, el techo baja a -2 dBTP.") +
+                        " " + ba::i18n::traducir("mcp", "Cada salida tiene el suyo (`salida`).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil"}},
                          {"properties",
@@ -2568,13 +2572,14 @@ void McpService::registerTools() {
                            {"lufs", {{"type", "number"}}},
                            {"tp", {{"type", "number"}}},
                            {"agc", {{"type", "boolean"}}}}}};
-        t.run = [&vm, &rt](const json& a, Done done) {
+        t.run = [this, &vm, &rt](const json& a, Done done) {
             json o{{"perfil", a.value("perfil", std::string("r128"))}};
             if (a.contains("lufs")) o["lufs"] = a.value("lufs", -23.0);
             if (a.contains("tp")) o["tp"] = a.value("tp", -1.0);
             if (a.contains("agc")) o["agc"] = a.value("agc", false);
-            if (const std::string e = vm.objetivoLoudness().poner(o); !e.empty()) return done(ToolResult::error(e));
-            done(ToolResult().data(rt.engine().loudness().json()));
+            const std::string salida = core_.salidaDe(a);
+            if (const std::string e = vm.objetivoLoudness().poner(o, salida); !e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data(rt.engine().loudness(salida).json()));
         };
         core_.addTool(std::move(t));
     }

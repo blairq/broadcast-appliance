@@ -168,6 +168,7 @@ std::set<std::string> Vistas::entradasEnUso() const {
     std::lock_guard<std::mutex> l(mu_);
     std::set<std::string> out;
     for (const auto& [clave, u] : vistas_) {
+        if (u->dormida) continue;
         const std::string b = base(clave);
         if (b.rfind("entrada:", 0) == 0) out.insert(b.substr(8));
         else if (b.rfind("entrada-entera:", 0) == 0) out.insert(b.substr(15));
@@ -179,7 +180,7 @@ std::set<std::string> Vistas::productoresEnUso() const {
     std::lock_guard<std::mutex> l(mu_);
     std::set<std::string> out;
     for (const auto& [clave, u] : vistas_)
-        if (!u->productor.empty()) out.insert(u->productor);
+        if (!u->productor.empty() && !u->dormida) out.insert(u->productor);
     return out;
 }
 
@@ -191,6 +192,8 @@ void Vistas::avisar(const std::string& clave, std::function<void(const Cuadro&)>
 
 void Vistas::armar(const std::string& clave, Una& u) {
     desarmar(u);
+    u.dormida = false;
+    u.armadaUs = g_get_monotonic_time();
     u.productor = resolver_(base(clave), &u.latencia);
     if (u.productor.empty()) return;
     const std::string d = "intersrc name=entra producer-name=" + entreComillas(u.productor) +
@@ -304,15 +307,39 @@ void Vistas::soltar(const std::string& clave) {
 bool Vistas::ultimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const {
     std::lock_guard<std::mutex> l(mu_);
     auto it = vistas_.find(clave);
-    if (it == vistas_.end() || it->second->cuadro.serie <= serie) return false;
+    if (it == vistas_.end()) return false;
+    it->second->leidoUs = g_get_monotonic_time(); // alguien la mira (aunque no haya uno nuevo)
+    if (it->second->cuadro.serie <= serie || it->second->cuadro.bgra.empty()) return false; // dormida: sin bytes
     out = it->second->cuadro;
     serie = out.serie;
     return true;
 }
 
-void Vistas::tic() {
+void Vistas::soltarSinMirar(bool on, std::int64_t sinMirarUs) {
     std::lock_guard<std::mutex> l(mu_);
+    sinMirar_ = on;
+    sinMirarUs_ = std::max<std::int64_t>(0, sinMirarUs);
+}
+
+bool Vistas::tic() {
+    std::lock_guard<std::mutex> l(mu_);
+    bool cambio = false;
+    const std::int64_t ahora = g_get_monotonic_time();
     for (auto& [clave, u] : vistas_) {
+        // Las que nadie mira: dormida hasta que alguien la lea (o se apague el ahorro).
+        if (u->dormida) {
+            if (!sinMirar_ || ahora - u->leidoUs < sinMirarUs_) {
+                armar(clave, *u);
+                cambio = true;
+            }
+            continue;
+        }
+        if (sinMirar_ && u->pipeline != nullptr && !u->aviso && ahora - std::max(u->leidoUs, u->armadaUs) >= sinMirarUs_) {
+            desarmar(*u);
+            u->dormida = true;
+            cambio = true;
+            continue;
+        }
         // Lo que mira cambió de latencia, o todavía no existía (se pidió antes de armarse).
         std::int64_t lat = 0;
         const std::string prod = resolver_(base(clave), &lat);
@@ -336,13 +363,15 @@ void Vistas::tic() {
             gst_object_unref(bus);
         }
     }
+    return cambio;
 }
 
 json Vistas::estado() const {
     std::lock_guard<std::mutex> l(mu_);
     json o = json::object();
     for (const auto& [k, u] : vistas_)
-        o[k] = {{"pedidos", u->pedidos}, {"ancho", u->ancho}, {"alto", u->alto}, {"anda", u->pipeline != nullptr}, {"serie", u->cuadro.serie}};
+        o[k] = {{"pedidos", u->pedidos}, {"ancho", u->ancho}, {"alto", u->alto}, {"anda", u->pipeline != nullptr},
+                {"serie", u->cuadro.serie}, {"dormida", u->dormida}};
     return o;
 }
 

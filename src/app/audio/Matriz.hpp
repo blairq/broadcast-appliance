@@ -23,7 +23,9 @@
 // sistema); una entrada virtual es una entrada del motor que lee el bus (intersrc).
 // Agrega la latencia de oído (~20 ms) y SOLO a lo que pasa por un bus virtual: lo que
 // va a las pistas nativas no se entera. Nivel, pan y mute existen en los cruces de los
-// buses virtuales, y se muestran solo si se activan en ese cruce.
+// buses virtuales, y se muestran solo si se activan en ese cruce. El mute de cada fuente
+// (el del Mezclador) vale en un bus virtual con el de la salida del programa que elige
+// ese bus (setSalida; la por omisión si no eligió).
 //
 // LO QUE FALTA PASAR AL MOTOR (docs/arquitectura/04-plan-unificado.md, F3-08): las
 // salidas FÍSICAS del equipo (EquipoAudio: un par de canales de una placa de varios)
@@ -70,7 +72,7 @@ class Matriz : public QObject {
     Q_OBJECT
     /// [{nombre, virtual: bool}]
     Q_PROPERTY(QVariantList filas READ filas NOTIFY cambio)
-    /// [{id, nombre, tipo: pista|salida|entrada, indice, uso, dispositivo, fuente}]
+    /// [{id, nombre, tipo: pista|salida|entrada, indice, uso, dispositivo, salida, fuente}]
     Q_PROPERTY(QVariantList columnas READ columnas NOTIFY cambio)
     /// "fuente|bus" -> {activo, ajustes, nivelDb, pan, mute}
     Q_PROPERTY(QVariantMap cruces READ cruces NOTIFY cambio)
@@ -145,6 +147,9 @@ class Matriz : public QObject {
     Q_INVOKABLE QString quitarBus(const QString& id);
     Q_INVOKABLE QString renombrar(const QString& id, const QString& nombre);
     Q_INVOKABLE QString setDispositivo(const QString& id, const QString& dispositivo);
+    /// De qué salida del programa sigue el mute de cada fuente una salida virtual ("" = la
+    /// por omisión): con varias salidas, la de cada una.
+    Q_INVOKABLE QString setSalida(const QString& id, const QString& salida);
 
     /// Para MCP: todo el estado en JSON.
     json estado() const;

@@ -581,6 +581,29 @@ Item {
                 }
                 onActivated: (i) => { mx.msg = mx.mz.setDispositivo(busPop.bus.id, model[i].id) }
             }
+            // Con varias salidas: el mute de cada fuente acá es el de la salida que se elige.
+            RowLayout {
+                visible: busPop.bus.tipo === "salida" && Studio.salidas.varias
+                Layout.fillWidth: true
+                Text { text: qsTr("Mute de"); color: Theme.textFaint; font.pixelSize: 11 }
+                ComboBox {
+                    Layout.fillWidth: true
+                    model: Studio.salidas.lista
+                    textRole: "nombre"
+                    currentIndex: {
+                        const l = Studio.salidas.lista
+                        for (let i = 0; i < l.count; ++i) {
+                            const f = l.fila(i)
+                            if (busPop.bus.salida ? f.id === busPop.bus.salida : !!f.porOmision) return i
+                        }
+                        return -1
+                    }
+                    onActivated: (i) => {
+                        const f = Studio.salidas.lista.fila(i)
+                        mx.msg = mx.mz.setSalida(busPop.bus.id, f.porOmision ? "" : f.id)
+                    }
+                }
+            }
             RowLayout {
                 GlassButton {
                     visible: busPop.bus.tipo === "fisica"

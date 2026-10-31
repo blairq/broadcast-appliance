@@ -612,7 +612,7 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "fuente '%1': el tipo '%2' todavía no lo arma el motor"), {spec.name, spec.id}));
         return false;
     }
-    json opciones{{"global", global}, {"nivel", nivelAplicado(spec.name, spec.volume)}, {"mute", spec.muted}};
+    json opciones{{"global", global}, {"nivel", nivelAplicado(spec.name, spec.volume, porOmision())}, {"mute", spec.muted}};
     const std::string e = motor_->agregarEntrada(spec.name, ajustes, opciones);
     if (!e.empty()) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "fuente '%1': %2"), {spec.name, e}));
@@ -623,11 +623,14 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     f.global = global;
     sources_[spec.name] = f;
     ordenFuentes_.push_back(spec.name);
-    // En la mezcla de cada salida entra con el mismo volumen y mute (las opciones valen para todas).
+    // En la mezcla de cada salida entra con el mismo volumen y mute (las opciones valen para
+    // todas), con el VCA de su grupo en ESA salida.
     for (auto& [id, s] : salidas_)
         if (!s->porOmision()) {
             s->volumen[spec.name] = spec.volume;
             s->mute[spec.name] = spec.muted;
+            if (const float n = nivelAplicado(spec.name, spec.volume, *s); n != nivelAplicado(spec.name, spec.volume, porOmision()))
+                motor_->ponerNivel(spec.name, n, id);
         }
     if (esDeApp(spec.id)) fuentes::alta(spec.name, spec.id, json::parse(spec.settingsJson, nullptr, false));
     // Una fuente nueva (o rehecha: una placa que cambió de canales): lo guardado de su
@@ -826,7 +829,7 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
     json ajustes;
     if (!ajustesMotor(f.spec, ajustes)) return false;
     const std::string e = motor_->agregarEntrada(
-        to, ajustes, json{{"global", f.global}, {"nivel", nivelAplicado(to, f.spec.volume)}, {"mute", f.spec.muted}});
+        to, ajustes, json{{"global", f.global}, {"nivel", nivelAplicado(to, f.spec.volume, porOmision())}, {"mute", f.spec.muted}});
     if (!e.empty()) {
         setError(e);
         return false;
@@ -855,7 +858,7 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
         if (s->porOmision()) continue;
         if (auto v = s->volumen.extract(from)) {
             v.key() = to;
-            motor_->ponerNivel(to, nivelAplicado(to, v.mapped()), id);
+            motor_->ponerNivel(to, nivelAplicado(to, v.mapped(), *s), id);
             s->volumen.insert(std::move(v));
         }
         if (auto m = s->mute.extract(from)) {
@@ -1075,13 +1078,13 @@ bool BroadcastEngine::setSourceVolume(const std::string& name, float mul, const 
         // Avisa igual: el Mezclador puede estar mirando esta salida (la salida activa de la interfaz).
         const bool cambia = sourceVolume(name, s->id) != v;
         s->volumen[name] = v;
-        const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v), s->id).empty();
+        const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v, *s), s->id).empty();
         if (cambia && cambioAudio_) cambioAudio_(name, "volumen");
         return ok;
     }
     const bool cambia = it->second.spec.volume != v;
     it->second.spec.volume = v;
-    const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v)).empty();
+    const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v, *s)).empty();
     if (cambia && cambioAudio_) cambioAudio_(name, "volumen");
     return ok;
 }
@@ -1099,30 +1102,33 @@ std::string BroadcastEngine::grupoDeAudio(const std::string& nombre) {
     return g;
 }
 
-float BroadcastEngine::nivelAplicado(const std::string& name, float volumen) const {
-    if (gananciaGrupo_.empty()) return volumen;
-    const auto it = gananciaGrupo_.find(grupoDeAudio(name));
-    return it != gananciaGrupo_.end() ? volumen * it->second : volumen;
+float BroadcastEngine::nivelAplicado(const std::string& name, float volumen, const Salida& s) const {
+    if (s.gananciaGrupo.empty()) return volumen;
+    const auto it = s.gananciaGrupo.find(grupoDeAudio(name));
+    return it != s.gananciaGrupo.end() ? volumen * it->second : volumen;
 }
 
-void BroadcastEngine::setGananciaGrupo(const std::string& grupo, float mul) {
+void BroadcastEngine::setGananciaGrupo(const std::string& grupo, float mul, const std::string& salida) {
+    Salida* s = laSalida(salida);
+    if (s == nullptr) return;
     const float g = std::max(0.0f, mul);
-    if (std::abs(g - gananciaGrupo(grupo)) < 1e-6f) return;
-    if (std::abs(g - 1.0f) < 1e-6f) gananciaGrupo_.erase(grupo);
-    else gananciaGrupo_[grupo] = g;
-    for (auto& [nombre, f] : sources_) {
+    if (std::abs(g - gananciaGrupo(grupo, s->id)) < 1e-6f) return;
+    if (std::abs(g - 1.0f) < 1e-6f) s->gananciaGrupo.erase(grupo);
+    else s->gananciaGrupo[grupo] = g;
+    // El VCA es del grupo en la mezcla de ESA salida (cada fuente con su fader ahí).
+    for (const auto& [nombre, f] : sources_) {
         if (grupoDeAudio(nombre) != grupo) continue;
-        if (motor_) motor_->ponerNivel(nombre, nivelAplicado(nombre, f.spec.volume)); // sin audio no tiene nivel: no importa
-        // El VCA es del grupo en todas las salidas (cada una con su fader).
-        for (const auto& [id, s] : salidas_)
-            if (motor_ && !s->porOmision()) motor_->ponerNivel(nombre, nivelAplicado(nombre, sourceVolume(nombre, id)), id);
+        if (motor_) // sin audio no tiene nivel: no importa
+            motor_->ponerNivel(nombre, nivelAplicado(nombre, sourceVolume(nombre, s->id), *s), s->porOmision() ? std::string() : s->id);
         if (cambioAudio_) cambioAudio_(nombre, "volumen");
     }
 }
 
-float BroadcastEngine::gananciaGrupo(const std::string& grupo) const {
-    const auto it = gananciaGrupo_.find(grupo);
-    return it != gananciaGrupo_.end() ? it->second : 1.0f;
+float BroadcastEngine::gananciaGrupo(const std::string& grupo, const std::string& salida) const {
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return 1.0f;
+    const auto it = s->gananciaGrupo.find(grupo);
+    return it != s->gananciaGrupo.end() ? it->second : 1.0f;
 }
 
 float BroadcastEngine::sourceVolume(const std::string& name, const std::string& salida) const {
@@ -1405,15 +1411,31 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video, const std::function<V
     const auto fuentes = sources_;
     const auto orden = ordenFuentes_;
     const auto mics = micInputs_;
-    // Las salidas: lo que tenía al aire y armado cada una, y la mezcla de las que no
-    // son la por omisión (las capas, como siempre, vuelven vacías).
+    // Las salidas: lo que tenía al aire y armado cada una, sus capas (DSK, placa y negro:
+    // el rearme por la GPU o un lienzo nuevo no le sacan al aire lo que tenía encima), y
+    // la mezcla, los VCA y el objetivo de loudness de las que no son la por omisión (la
+    // por omisión no se va: los suyos quedan).
     struct Antes {
         std::string id, nombre, alAire, armada;
         std::map<std::string, float> volumen;
         std::map<std::string, bool> mute;
+        std::map<std::string, float> gananciaGrupo;
+        audio::LoudnessPrograma::Objetivo objetivo;
+        Dsk dsk[4];
+        bool ftb = false, ftbAudio = false, placa = false;
+        std::string placaTexto, placaImagen;
     };
     std::vector<Antes> salidas;
-    for (const auto& s : lasSalidas()) salidas.push_back({s->id, s->nombre, s->alAire, s->armada, s->volumen, s->mute});
+    for (const auto& s : lasSalidas()) {
+        Antes a{s->id, s->nombre, s->alAire, s->armada, s->volumen, s->mute, s->gananciaGrupo, s->medidas->loudness.objetivo()};
+        std::copy(std::begin(s->dsk), std::end(s->dsk), std::begin(a.dsk));
+        a.ftb = s->ftb;
+        a.ftbAudio = s->ftbAudio;
+        a.placa = s->placa;
+        a.placaTexto = s->placaTexto;
+        a.placaImagen = s->placaImagen;
+        salidas.push_back(std::move(a));
+    }
     const bool feeds = returnFeedsActive_;
     const bool preview = previewActive_;
     stopReturnFeeds();
@@ -1437,11 +1459,24 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video, const std::function<V
         if (a.id != kSalidaPorOmision) {
             for (const auto& [n, v] : a.volumen) setSourceVolume(n, v, a.id);
             for (const auto& [n, m] : a.mute) setSourceMuted(n, m, a.id);
+            for (const auto& [g, v] : a.gananciaGrupo) setGananciaGrupo(g, v, a.id);
+            laSalida(a.id)->medidas->loudness.ponerObjetivo(
+                {{"perfil", a.objetivo.perfil}, {"lufs", a.objetivo.lufs}, {"tp", a.objetivo.tp}, {"agc", a.objetivo.agc}});
         }
         if (!a.alAire.empty()) setCurrentSceneCon(a.alAire, "cut", 0, a.id);
         if (!a.armada.empty()) armar(a.armada, a.id);
+        // Las capas vuelven como estaban, sin fundido (por la misma API: las internas de
+        // la placa y el negro se piden de nuevo al motor nuevo, y el negro baja el audio).
+        for (int i = 0; i < 4; ++i) {
+            const Dsk& d = a.dsk[i];
+            if (!d.contenido.empty()) dskArmar(i + 1, d.contenido, d.recuadro, a.id);
+            if (d.visible && !d.contenido.empty()) dskMostrar(i + 1, true, 0, a.id);
+        }
+        if (a.placa) placa(true, a.placaTexto, a.placaImagen, 0, a.id);
+        if (a.ftb) ftb(true, 0, a.ftbAudio, a.id);
         publicarCapas(*laSalida(a.id), 0);
     }
+    aplicarLoudness(); // el objetivo de cada una, al motor nuevo
     for (const auto& [slot, modo] : retornos_) setRetornoInvitado(slot, modo);
     if (feeds) publishReturnFeeds();
     if (preview) enablePreview(video_.outputWidth / 2, video_.outputHeight / 2);

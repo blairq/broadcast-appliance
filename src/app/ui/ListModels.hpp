@@ -181,12 +181,13 @@ class MixerModel : public QAbstractListModel {
     void setMutedGrupoEn(const std::string& grupo, bool muted, const std::string& salida);
     /// El volumen general de un grupo (VCA), de -60 a +12 dB: mueve el grupo entero sin tocar
     /// el fader de cada uno (las diferencias entre ellos quedan); 0 dB = como si no estuviera.
+    /// En la salida que muestra (cada una tiene los suyos).
     Q_INVOKABLE bool setGananciaGrupoDb(const QString& grupo, double db);
     /// Los grupos de ahora: [{grupo, nombre, tiras: [nombres], compacto, volumenDb, mudo}] (la
-    /// ventana del mezclador, que arma sus tiras con esto). `mudo`: todas sus tiras, en la
-    /// salida que muestra.
+    /// ventana del mezclador, que arma sus tiras con esto). `mudo` (todas sus tiras) y
+    /// `volumenDb`, en la salida que muestra.
     Q_INVOKABLE QVariantList grupos() const { return gruposEn(salida_); }
-    /// Lo mismo con el mudo de `salida` (el MCP).
+    /// Lo mismo con el mudo y el VCA de `salida` (el MCP).
     QVariantList gruposEn(const std::string& salida) const;
     /// {pico_db, volumen_db, mudo} de la fila en la mezcla de `salida` (redondeados: lo que
     /// publica el BusEventos en audio/nivel/<fuente> y audio/<salida>/nivel/<fuente>).
@@ -194,8 +195,8 @@ class MixerModel : public QAbstractListModel {
     /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.
     double picoDe(const std::string& nombre) const;
     /// La mezcla de qué salida muestra y mueve (volumen y mute de cada tira; PLAN-SALIDAS:
-    /// cada salida tiene la suya). "" = la por omisión. Lo demás (picos, retardo, grupos)
-    /// es de la fuente: igual en todas.
+    /// cada salida tiene la suya), y el VCA de sus grupos. "" = la por omisión. Lo demás
+    /// (picos, retardo, qué grupos hay) es de la fuente: igual en todas.
     void setSalida(const std::string& salida);
 
    private:

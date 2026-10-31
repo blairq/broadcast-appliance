@@ -71,6 +71,14 @@ int main() {
         CHECK(!salidas::ponerMando(l, "principal", "Mic 1", {0.1, false}) && !salidas::ponerMando(l, "", "Mic 1", {0.1, false}),
               "la por omisión no (lo suyo va en la escena)");
         CHECK(!salidas::ponerMando(l, "nadie", "Mic 1", {0.1, false}), "una salida que no está: no");
+        // El VCA de los grupos de su mezcla: el suyo (1 = sin anotar).
+        CHECK(salidas::ponerGrupo(l, "tv", "Invitado (audio)", 0.5) && !salidas::ponerGrupo(l, "tv", "Invitado (audio)", 0.5),
+              "el VCA de un grupo en la TV (otra vez igual: nada)");
+        CHECK(salidas::ponerGrupo(l, "tv", "Mic", 2.0) && salidas::ponerGrupo(l, "tv", "Mic", 1.0) &&
+                  l.buscar("tv")->grupos.count("Mic") == 0,
+              "en 1 se saca");
+        CHECK(!salidas::ponerGrupo(l, "principal", "Mic", 0.5), "la por omisión no (lo suyo va en la configuración)");
+        CHECK(salidas::leer(salidas::aJson(l)).buscar("tv")->grupos.at("Invitado (audio)") == 0.5, "el VCA vuelve al leer");
         CHECK(salidas::editar(l, "tv", {{"codificador", "x264"}}).empty() && l.buscar("tv")->codificador == "x264",
               "el codificador de la TV");
         CHECK(!salidas::editar(l, "tv", {{"codificador", "h265-raro"}}).empty() && l.buscar("tv")->codificador == "x264",

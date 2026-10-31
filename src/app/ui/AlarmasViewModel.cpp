@@ -192,9 +192,27 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
         return r != nullptr ? r->muestreador().niveles() : json::object();
     };
     directas.persistencia = [&rt]() { return rt.avisosPersistencia(); };
-    directas.programaVideo = [&motor]() {
+    // El programa de cada salida en imagen, con si sale (transmite o graba): cada una suena
+    // por su lado. Arriba, el de la por omisión.
+    directas.programaVideo = [&rt, &motor]() {
         const auto v = motor.programaVideo();
-        return json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
+        json out{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}, {"salidas", json::array()}};
+        const json fo = motor.fotoSalidas().value("salidas", json::object());
+        for (const json& s : rt.salidasPublicadas()) {
+            const std::string id = s.value("id", std::string());
+            const auto pv = motor.programaVideo(id);
+            const json f = fo.value(id, json::object());
+            const bool sale = f.value("principal", json::object()).value("andando", false) ||
+                              f.value("grabacion", json::object()).value("activa", false);
+            out["salidas"].push_back({{"id", id},
+                                      {"nombre", s.value("nombre", id)},
+                                      {"por_omision", s.value("por_omision", false)},
+                                      {"valido", pv.valido},
+                                      {"luma", pv.luma},
+                                      {"quieto_s", pv.quietoSeg},
+                                      {"sale", sale}});
+        }
+        return out;
     };
     directas.loudness = [&motor]() { return motor.loudnessPrograma().json(); };
     return directas;

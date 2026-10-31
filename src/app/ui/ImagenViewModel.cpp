@@ -61,11 +61,10 @@ ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
     video_->setLegalizar(rt.config().legalizar);
     // «Priorizar programa» por calor (F4-05): el primer paso es la superresolución, que
-    // pasa a barato (sin turnos activos) y vuelve a lo que tenía al aliviarse. Los
-    // demás pasos (modelos, vistas sin mirar, resolución de invitados) todavía no
-    // tienen quien los atienda: quedan en `sistema_recursos` como «sin_gancho».
-    p_.recursos.alDegradar([this, antes = std::make_shared<nlohmann::json>()](const std::string& paso, bool apagar) {
-        if (paso != "superres" || !video_) return false;
+    // pasa a barato (sin turnos activos) y vuelve a lo que tenía al aliviarse (los demás
+    // pasos los atienden los modelos, las vistas del motor y la sala).
+    p_.recursos.alDegradar("superres", [this, antes = std::make_shared<nlohmann::json>()](bool apagar) {
+        if (!video_) return false;
         if (apagar) {
             *antes = video_->programador().value("max_activas", nlohmann::json(3));
             video_->configurarProgramador({{"max_activas", 0}});

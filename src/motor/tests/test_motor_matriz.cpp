@@ -131,6 +131,26 @@ int main() {
     CHECK(c.izq < -60, "el mute de la entrada vale en el bus");
     motor.ponerMute("b", false);
 
+    // Un bus que sigue a otra salida: el mute de esa vale; el de la por omisión, no.
+    CHECK(motor.crearSalida("otra", "Otra").empty(), "una segunda salida");
+    motor.matrizBus("s1", {{"b", 1.0, 1.0}}, "", "otra");
+    motor.ponerMute("b", true); // en la por omisión
+    esperar(500);
+    c = nivel(motor, "matriz:s1");
+    std::printf("s1 (de «otra») con b en mute en la por omisión: %.2f dBFS\n", c.izq);
+    CHECK(cerca(c.izq, -15.05, 1.0), "el mute de la por omisión no vale en un bus de otra salida");
+    motor.ponerMute("b", true, "otra");
+    esperar(500);
+    c = nivel(motor, "matriz:s1");
+    CHECK(c.izq < -60, "el mute de la salida que sigue vale");
+    motor.ponerMute("b", false, "otra");
+    motor.borrarSalida("otra"); // vuelve a la por omisión: b sigue en mute ahí
+    esperar(500);
+    c = nivel(motor, "matriz:s1");
+    CHECK(c.izq < -60, "borrada la salida que seguía, el bus toma el mute de la por omisión");
+    motor.ponerMute("b", false);
+    motor.matrizBus("s1", {{"b", 1.0, 1.0}}, "");
+
     // Una placa que no está: muda, sin ir a la del sistema.
     CHECK(motor.matrizBus("s1", {{"b", 1.0, 1.0}}, "placa-que-no-esta").empty(), "s1 a una placa que no está");
     esperar(1000);

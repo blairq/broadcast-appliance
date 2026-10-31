@@ -422,22 +422,30 @@ class BroadcastEngine {
     /// El loudness de lo que sale por la salida: M/S/I, true peak, LRA (EBU R128).
     /// El de la por omisión vive lo que el BroadcastEngine (se puede guardar la referencia).
     audio::LoudnessPrograma& loudness(const std::string& salida = "");
-    /// Lleva el objetivo de loudness (el de la por omisión: Config/loudness.json) al
-    /// motor, en cada salida: el AGC lento si está pedido y el techo del limitador (el
-    /// del objetivo; −2 dBTP si esa salida transmite AAC por debajo de 128 kbps, AES
-    /// TD1004). Al cambiar el objetivo, al crear una salida y al empezar a transmitir.
+    /// El mismo, o nullptr si no hay una salida con ese id ("" = la por omisión).
+    audio::LoudnessPrograma* loudnessDe(const std::string& salida);
+    /// Lleva el objetivo de loudness de cada salida (el suyo: Config/loudness.json; una
+    /// nueva arranca con el de la por omisión) al motor: el AGC lento si está pedido y el
+    /// techo del limitador (el del objetivo; −2 dBTP si esa salida transmite AAC por
+    /// debajo de 128 kbps, AES TD1004). Al cambiar un objetivo, al crear una salida y al
+    /// empezar a transmitir.
     void aplicarLoudness();
-    /// El programa en imagen, para las alarmas: brillo medio (0–255) y cuántos
-    /// segundos lleva sin cambiar. `valido` false si todavía no llegó ningún cuadro.
+    /// El programa de la salida en imagen, para las alarmas: brillo medio (0–255) y cuántos
+    /// segundos lleva sin cambiar. `valido` false si todavía no llegó ningún cuadro (o no
+    /// hay esa salida). DESDE CUALQUIER HILO.
     struct ProgramaVideo {
         double luma = 0, quietoSeg = 0;
         bool valido = false;
     };
-    ProgramaVideo programaVideo() const;
+    ProgramaVideo programaVideo(const std::string& salida = "") const;
     /// Cuántos cuadros salieron del programa (el latido del aire: si no crece, algo se trabó).
-    std::uint64_t cuadrosPrograma() const { return progCuadros_.load(); }
+    std::uint64_t cuadrosPrograma() const { return medidasPrograma_->cuadros.load(); }
     /// El tope de la latencia del estudio (ms; -1 = automático).
     void ponerTopeEstudio(long long ms);
+    /// La política térmica (F4-05): dormir las vistas del motor que nadie mira (las vistas
+    /// previas, las capturas que quedaron vivas) hasta que alguien las lea. Vale también
+    /// para el motor que se rearme.
+    void soltarVistasSinMirar(bool on);
     /// {latencia_ms, tope_ms, automatico, tarde: [entradas que pasan el tope]}.
     nlohmann::json latenciaEstudio() const;
     /// Bajar la latencia del estudio ahora a lo que piden las entradas sincronizadas.
@@ -564,8 +572,9 @@ class BroadcastEngine {
     /// El volumen general de un grupo (un VCA): multiplica el volumen de cada fuente del grupo
     /// sin tocar su fader, en el mismo control de nivel (no agrega nada al camino del audio).
     /// En 1 (0 dB), como si no estuviera. Una fuente que se suma después al grupo ya lo trae.
-    void setGananciaGrupo(const std::string& grupo, float mul);
-    float gananciaGrupo(const std::string& grupo) const;
+    /// Es de la mezcla de cada salida ("" = la por omisión; una nueva arranca sin ninguno).
+    void setGananciaGrupo(const std::string& grupo, float mul, const std::string& salida = "");
+    float gananciaGrupo(const std::string& grupo, const std::string& salida = "") const;
     bool setSourceMuted(const std::string& name, bool muted, const std::string& salida = "");
     bool sourceMuted(const std::string& name, const std::string& salida = "") const;
     /// Pico mas reciente de la fuente en dBFS (-100 = silencio): lo que entrega la
@@ -763,7 +772,8 @@ class BroadcastEngine {
     bool encoderRespaldoActivo() const;
 
     // --- Medir la sincronía labios/voz con un aplauso -----------------------------
-    bool empezarMedicionSincro();
+    /// En el programa de `salida` ("" = la por omisión): una cámara contra su micrófono.
+    bool empezarMedicionSincro(const std::string& salida = "");
     /// {ok, retardo_ms, dispersion_ms, aplausos, confiable, problema, golpes_audio, golpes_video}.
     nlohmann::json terminarMedicionSincro();
     bool midiendoSincro() const { return medSincro_ != nullptr; }
@@ -980,6 +990,12 @@ class BroadcastEngine {
         /// El mismo pico para el vigía de las alarmas (picoProgramaVigiaDb): cada lector
         /// pone el suyo en cero, así ninguno le roba el pico al otro.
         std::atomic<float> picoVigia{0.0f};
+        // Lo que llega de su programa en video (claveAlarmas): brillo medio, la firma del
+        // último cuadro, desde cuándo no cambia y cuántos salieron.
+        std::atomic<double> luma{0};
+        std::atomic<std::uint64_t> firma{0};
+        std::atomic<std::int64_t> cambioMs{0};
+        std::atomic<std::uint64_t> cuadros{0};
     };
     /// Las medidas de la por omisión: existe desde el constructor y no se borra nunca, así
     /// que se pueden leer desde cualquier hilo sin buscar en salidas_.
@@ -999,6 +1015,7 @@ class BroadcastEngine {
         /// la fuente, Fuente::spec: estos quedan vacíos).
         std::map<std::string, float> volumen;
         std::map<std::string, bool> mute;
+        std::map<std::string, float> gananciaGrupo; ///< los VCA de su mezcla: grupo -> ganancia (solo los que no son 1)
         RecordConfig lastRec;
         bool lastRecValido = false;
         int pistasGrabacionMask = 0;
@@ -1065,8 +1082,11 @@ class BroadcastEngine {
     const Salida& porOmision() const { return *salidas_.at(kSalidaPorOmision); }
     /// Una foto de todas (para el hilo de salidas), en orden.
     std::vector<std::shared_ptr<Salida>> lasSalidas() const;
-    /// Empieza a medir su audio (loudness, picos y, la por omisión, la sincronía).
+    /// Empieza a medir su programa: el audio (loudness, picos) y el video (brillo y quietud,
+    /// para las alarmas), y la sincronía si se mide en ella.
     void medirSalida(Salida& s);
+    /// La vista chica de su programa para medirlo.
+    static std::string claveAlarmas(const Salida& s);
     /// Una transmisión de `s` con AAC a `kbps`: si es la más chica y baja de 128, otro techo.
     void anotarAac(Salida& s, int kbps);
     void dejarDeMedir(Salida& s);
@@ -1138,16 +1158,13 @@ class BroadcastEngine {
     std::int64_t discoRestanteMs_ = 0;
     void medirDiscoRestante();
 
-    // Lo que llega de los hilos del motor (el video del programa: el de la por omisión)
-    std::atomic<double> progLuma_{0};
-    std::atomic<std::uint64_t> progFirma_{0};
-    std::atomic<std::int64_t> progCambioMs_{0};
-    std::atomic<std::uint64_t> progCuadros_{0};
+    // La sincronía labios/voz (una medición a la vez, en la salida que se pidió).
     struct MedicionSincro;
     std::shared_ptr<MedicionSincro> medSincro_;
 
     // Vistas para la interfaz
     bool previewActive_ = false;
+    bool vistasSinMirar_ = false; ///< soltarVistasSinMirar
     std::uint64_t previewSerie_ = 0;
     struct VistaPrevia {
         std::string clave, name;
@@ -1179,9 +1196,9 @@ class BroadcastEngine {
     std::mutex falloMotorM_;
     std::function<void(const std::string&)> falloMotor_;
     std::function<void(const std::string&, const char*)> cambioAudio_; ///< alCambiarAudioFuente (se fija una vez, al armar)
-    std::map<std::string, float> gananciaGrupo_; ///< los VCA: grupo -> ganancia (solo los que no son 1)
-    /// Lo que va al control de nivel del motor: el fader de la fuente por la ganancia de su grupo.
-    float nivelAplicado(const std::string& name, float volumen) const;
+    /// Lo que va al control de nivel del motor en la salida `s`: el fader de la fuente por la
+    /// ganancia de su grupo en esa salida.
+    float nivelAplicado(const std::string& name, float volumen, const Salida& s) const;
     std::string pfl_; ///< el canal en PFL ("" = ninguno); no se guarda
     void enviarEscena(int k, const motor::Cuadro& c);
 

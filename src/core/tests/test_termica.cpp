@@ -4,7 +4,9 @@
 // hwmon), los niveles por temperatura y por tope de frecuencia, y diag::PoliticaTermica
 // con estados falsos: apaga en orden (superres, modelos, vistas, invitados), de a un
 // paso, sostenido; en crítico sin esperar; vuelve de a uno y en orden inverso después de
-// un rato frío; apagada, devuelve todo. Y la lectura de este sistema no revienta.
+// un rato frío; apagada, devuelve todo. diag::GanchosTermicos: cada paso por su gancho
+// (en orden y de vuelta al revés), los que no tienen quedan «sin gancho» y un gancho
+// que llega tarde se aplica ya. Y la lectura de este sistema no revienta.
 
 #include "diag/PoliticaTermica.hpp"
 #include "platform/Termica.hpp"
@@ -13,7 +15,9 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
+#include <vector>
 
 static int g_failures = 0;
 #define CHECK(cond, msg)                                                       \
@@ -101,6 +105,49 @@ int main() {
     // Nunca el programa ni la grabación: no son pasos.
     for (const auto& paso : ba::diag::PoliticaTermica::pasos())
         CHECK(paso != "programa" && paso != "grabacion", "el programa y la grabación no se apagan");
+
+    // --- Los ganchos de cada paso, con un estado térmico falso: cada paso lo atiende su
+    // gancho (superres, modelos, vistas sin mirar, resolución de invitados), en orden, y se
+    // devuelve al revés; uno sin gancho queda en sinGancho hasta que llega el suyo.
+    {
+        c.activa = true;
+        ba::diag::PoliticaTermica pol(c);
+        ba::diag::GanchosTermicos g;
+        std::map<std::string, int> apagado; // +1 al apagar, -1 al devolver
+        std::vector<std::string> orden;
+        for (const char* paso : {"superres", "modelos", "invitados"}) // «vistas» llega después
+            g.poner(paso, [&, paso = std::string(paso)](bool apagar) {
+                apagado[paso] += apagar ? 1 : -1;
+                orden.push_back((apagar ? "-" : "+") + paso);
+                return true;
+            });
+        const auto paso = [&](NivelTermico nv, int segundos) {
+            for (int i = 0; i < segundos; ++i) g.aplicar(pol.actualizar(nv, t += 1000));
+            return g.aplicados();
+        };
+        CHECK(paso(NivelTermico::Serio, 60) == 3, "serio sostenido: tres pasos");
+        CHECK(apagado["superres"] == 1 && apagado["modelos"] == 1, "superres y modelos, por su gancho");
+        CHECK(g.sinGancho() == std::vector<std::string>{"vistas"}, "vistas sin gancho: queda anotado");
+        bool vistas = false;
+        g.poner("vistas", [&](bool apagar) {
+            vistas = apagar;
+            orden.push_back(apagar ? "-vistas" : "+vistas");
+            return true;
+        });
+        CHECK(vistas && g.sinGancho().empty(), "el gancho que llega tarde se aplica ya");
+        CHECK(paso(NivelTermico::Critico, 1) == 4 && apagado["invitados"] == 1, "crítico: la resolución de invitados");
+        CHECK(paso(NivelTermico::Normal, 400) == 0, "frío: todo de vuelta");
+        CHECK(!vistas && apagado["superres"] == 0 && apagado["modelos"] == 0 && apagado["invitados"] == 0,
+              "cada gancho devolvió lo suyo");
+        const std::vector<std::string> esperado{"-superres", "-modelos", "-vistas", "-invitados",
+                                                "+invitados", "+vistas",  "+modelos", "+superres"};
+        CHECK(orden == esperado, "se apaga en orden y se devuelve al revés");
+        // Un gancho que no puede (devuelve false) queda sin atender.
+        ba::diag::GanchosTermicos h;
+        h.poner("superres", [](bool) { return false; });
+        h.aplicar(1);
+        CHECK(h.sinGancho() == std::vector<std::string>{"superres"}, "un gancho que no pudo: sin atender");
+    }
 
     // La lectura de este sistema anda (en una Mac: thermalState; en Linux: /sys).
     const auto aca = ba::platform::leerTermica();

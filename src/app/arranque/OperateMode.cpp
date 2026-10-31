@@ -636,7 +636,7 @@ int AppRuntime::start() {
     // gráficos) pasan por acá: así quedan también en la configuración.
     fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)); });
     // El objetivo guardado (Config/loudness.json), también al motor (AGC y techo).
-    audio::ObjetivoLoudness(root_, engine_.loudness(), [this]() { engine_.aplicarLoudness(); }).cargar();
+    objetivoLoudness().cargar();
     // El latido que mira los cuadros del motor (hilo propio): una traba de la
     // interfaz ya no hace que el supervisor corte el aire. Desde acá late él.
     latidoArranque.parar();
@@ -1750,7 +1750,13 @@ bool AppRuntime::anotarAire(bool ok, const std::string& name, const std::string&
 
 // --- Las salidas del aparato ----------------------------------------------------
 
+audio::ObjetivoLoudness AppRuntime::objetivoLoudness() {
+    return audio::ObjetivoLoudness(
+        root_, [this](const std::string& salida) { return engine_.loudnessDe(salida); }, [this]() { engine_.aplicarLoudness(); });
+}
+
 void AppRuntime::crearSalidasGuardadas() {
+    bool alguna = false;
     for (const auto& s : salidas::leer(config::leerObjeto(archivoSalidas())).salidas) {
         if (engine_.existeSalida(s.id)) continue;
         if (!engine_.crearSalida(s.id, s.nombre)) {
@@ -1765,7 +1771,10 @@ void AppRuntime::crearSalidasGuardadas() {
             engine_.setSourceVolume(fuente, static_cast<float>(m.volumen), s.id);
             engine_.setSourceMuted(fuente, m.mute, s.id);
         }
+        for (const auto& [grupo, g] : s.grupos) engine_.setGananciaGrupo(grupo, static_cast<float>(g), s.id);
+        alguna = true;
     }
+    if (alguna) objetivoLoudness().cargar(); // el objetivo de loudness que guardó cada una
 }
 
 EncoderConfig AppRuntime::codificadorDe(const std::string& salida) const {
@@ -1837,6 +1846,7 @@ std::string AppRuntime::borrarSalida(const std::string& id, const std::string& s
     if (std::string e = salidas::quitar(l, id); !e.empty()) return e;
     // Lo que sale de ella (transmisiones, grabación, repetición, limpia) se para con ella.
     if (engine_.existeSalida(id) && !engine_.borrarSalida(id)) return engine_.lastError();
+    objetivoLoudness().olvidar(id);
     grabandoOtras_.erase(id);
     config::guardar(archivoSalidas(), salidas::aJson(l));
     // Los destinos que salían con ella ya se cortaron (borrarSalida): no vuelven tras un corte.
@@ -2043,12 +2053,20 @@ bool AppRuntime::setVolume(const std::string& name, float mul, const std::string
     return true;
 }
 
-bool AppRuntime::setGananciaGrupo(const std::string& grupo, float mul) {
+bool AppRuntime::setGananciaGrupo(const std::string& grupo, float mul, const std::string& salida) {
     if (grupo.empty()) return false;
+    const std::string id = engine_.idDeSalida(salida);
+    if (id.empty()) return false;
     const float g = std::max(0.0f, mul);
-    engine_.setGananciaGrupo(grupo, g);
-    if (std::abs(g - 1.0f) < 1e-6f) cfg_.gruposAudio.erase(grupo);
-    else cfg_.gruposAudio[grupo] = g;
+    engine_.setGananciaGrupo(grupo, g, id);
+    if (id != BroadcastEngine::kSalidaPorOmision) {
+        salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
+        if (salidas::ponerGrupo(l, id, grupo, g)) config::guardar(archivoSalidas(), salidas::aJson(l));
+    } else if (std::abs(g - 1.0f) < 1e-6f) {
+        cfg_.gruposAudio.erase(grupo);
+    } else {
+        cfg_.gruposAudio[grupo] = g;
+    }
     avisar(Cambio::Audio);
     return true;
 }

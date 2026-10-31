@@ -110,6 +110,16 @@ void probarReconocedores() {
     CHECK(descargas[MotorOido::Nemotron] == 1 && !r.cargado(MotorOido::Nemotron), "pasado el margen se descarga");
     CHECK(descargas[MotorOido::Parakeet] == 0, "Parakeet, en uso, no se toca");
 
+    // Con la máquina caliente (F4-05): lo que nadie usa se descarga en el tic, sin margen.
+    r.usar("registro:c9", "registro", 2300);
+    r.informarCarga(MotorOido::Nemotron, true);
+    r.soltar("registro:c9", 2400);
+    r.setPorCalor(true);
+    r.tic(2401);
+    CHECK(descargas[MotorOido::Nemotron] == 2 && !r.cargado(MotorOido::Nemotron), "por calor: sin uso, se descarga ya");
+    CHECK(descargas[MotorOido::Parakeet] == 0 && r.cargado(MotorOido::Parakeet), "por calor: el que está en uso sigue");
+    r.setPorCalor(false);
+
     // Una carga que llega tarde (se descargó mientras cargaba) se suelta.
     r.usar("registro:c4", "registro", 3000);
     r.soltar("registro:c4", 3000);
