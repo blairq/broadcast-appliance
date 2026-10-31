@@ -11,6 +11,11 @@
 //   8. Varias salidas: anclas, momentos compartidos, conflictos de PTZ y gráficos.
 //   9. Revisión previa.
 //  10. Load to time y retoma tras un corte (vuelve en HOLD y pide descripción).
+//  11. La fachada del guion de cues: proyectar y reconciliar (lo no tocado vuelve exacto).
+//  12. Editar en lote (todo o nada, lo emitido protegido) y el diff.
+//  13. La vista compacta (linea_ver) y el ajuste simple (linea_ajustar).
+//  14. La corrida: GO, lo que entra solo, el aviso, HOLD, pausa, saltar, ir a con
+//      reposición, adlibs, insertar del estante y la retoma tras un corte.
 //
 // Todo sin motor y con el reloj inyectado: ningún tiempo real.
 // ============================================================================
@@ -20,7 +25,9 @@
 #include <string>
 
 #include "evento/Evento.hpp"
+#include "evento/Corrida.hpp"
 #include "evento/Linea.hpp"
+#include "evento/LineaEdicion.hpp"
 
 using namespace ba::evento::linea;
 using json = nlohmann::json;
@@ -300,7 +307,8 @@ void testMigracion() {
     CHECK(p0[1].piezas[0].dura.modo == Dura::Modo::Ms && p0[1].piezas[0].dura.ms == 4000, "seVa sola: dura salidaEn");
     CHECK(p0[2].id == "c6" && p0[2].inicio.modo == ModoInicio::Go && p0[2].notaOperador == "texto de c6",
           "la espera es un paso con GO y su texto");
-    CHECK(p0[2].continuar == Continuar::Sigue, "la espera automática encadena con el bloque siguiente");
+    CHECK(p0[2].continuar == Continuar::No && p0[2].fin.modo == ModoFin::Abierto,
+          "la espera nunca se va sola, aunque diga automática (como en el v1): es abierta");
     const auto& p1 = l.bloques[1].pasos;
     CHECK(p1.size() == 2 && p1[0].id == "b2-inicio", "un bloque que arranca con música abre un paso sin escena");
     CHECK(p1[0].piezas[0].id == "c7" && p1[0].piezas[0].desde.ms == 0, "la música del arranque entra con el paso");
@@ -868,6 +876,426 @@ void testRetoma() {
     CHECK(!pr(r, "p2").automatico, "con el HOLD puesto nada entra solo");
 }
 
+
+// --- 11. La fachada del guion de cues (proyectar y reconciliar) ---------------------------
+
+/// El acto de la migración (2.), como v1.
+v1::Evento actoV1() {
+    v1::Evento e;
+    v1::Bloque a;
+    a.id = "b1";
+    a.nombre = "Apertura";
+    a.cues = {cue(v1::Tipo::Escena, "c1", 30, json{{"escena", "Placa"}}, true),
+              cue(v1::Tipo::Musica, "c2", 90, json{{"archivo", "Medios/himno.wav"}}),
+              cue(v1::Tipo::Grafico, "c3", 10, json{{"fuente", "Z"}, {"grafico", "g"}, {"seVa", "al-avanzar"}}, true),
+              cue(v1::Tipo::Pausa, "c4", 5),
+              cue(v1::Tipo::Grafico, "c5", 0, json{{"fuente", "Z"}, {"grafico", "g"}, {"seVa", "sola"}, {"valores", {{"salidaEn", 4000}}}}),
+              cue(v1::Tipo::Espera, "c6", 0, json::object(), true)};
+    v1::Bloque b;
+    b.id = "b2";
+    b.nombre = "Cierre";
+    b.cues = {cue(v1::Tipo::Musica, "c7", 20, json{{"archivo", "Medios/cierre.wav"}}),
+              cue(v1::Tipo::Orador, "c8", 300, json{{"participante", "p-ana"}})};
+    e.bloques = {a, b};
+    return e;
+}
+
+bool mismoCue(const v1::Cue& a, const v1::Cue& b) {
+    return a.id == b.id && a.tipo == b.tipo && a.texto == b.texto && a.datos == b.datos && a.duracionSeg == b.duracionSeg &&
+           a.automatico == b.automatico;
+}
+
+/// Una línea escrita a mano, con todo lo que el v1 no sabe decir.
+Linea lineaNativa() {
+    Linea l = lineaBase();
+    l.salidas.push_back("sala");
+    l.pistas.push_back(pista("escenaS", "escena", "sala"));
+    l.pistas.push_back(pista("ptz", "ptz"));
+    l.pistas.push_back(pista("sala", "sala"));
+    Paso a = paso("a", 60);
+    a.nombre = "Apertura";
+    a.inicio.modo = ModoInicio::Hora;
+    a.inicio.hora = "19:30";
+    a.inicio.politica = Politica::Esperar;
+    a.preEsperaMs = 500;
+    a.guion = "Buenas noches";
+    a.etiquetas = {"recortable"};
+    a.transicion = json{{"tipo", "fundido"}, {"ms", 800}};
+    Pieza zB = pieza("zB", "graficos", "grafico", json{{"fuente", "Z"}, {"grafico", "g"}});
+    zB.desde.modo = Ancla::Modo::AntesDelFin;
+    zB.desde.ms = 10 * S;
+    Pieza zN = pieza("zN", "notas", "nota", json::object(), 4 * S, Vida::HastaQueSeSaque);
+    zN.desde.modo = Ancla::Modo::Manual;
+    zN.texto = "aplausos";
+    a.piezas = {pieza("zA", "escena", "escena", json{{"escena", "Cámara 1"}}), zB,
+                pieza("zP", "ptz", "ptz", json{{"camara", "2"}, {"posicion", "atril"}}, 2 * S), zN};
+    Paso b = paso("b", 120);
+    b.nombre = "Intervalo";
+    b.continuar = Continuar::Con;
+    b.fin.modo = ModoFin::Abierto;
+    b.piezas = {pieza("zM", "audio", "musica", json{{"archivo", "m.wav"}}, 0, Vida::Evento)};
+    Paso c = paso("c", 30, "sala");
+    c.inicio.modo = ModoInicio::Ancla;
+    c.inicio.salida = "principal";
+    c.inicio.paso = "a";
+    c.piezas = {pieza("zS", "escenaS", "escena", json{{"escena", "Sala"}})};
+    Paso d = paso("d", 300);
+    d.nombre = "Habla Ana";
+    d.piezas = {pieza("d-orador", "sala", "orador", json{{"participante", "p-ana"}})};
+    Bloque b1 = bloque("b1", {a, b});
+    Bloque b2 = bloque("b2", {c, d});
+    b2.presupuestoSeg = 300;
+    l.bloques = {b1, b2};
+    ItemEstante it;
+    it.id = "corte";
+    it.paso = paso("corte", 20);
+    l.estante.push_back(it);
+    return l;
+}
+
+void testProyeccion() {
+    // Lo migrado se lee igual que el v1 (la pausa siempre sigue sola: se ve automática).
+    const v1::Evento e = actoV1();
+    const Linea l = migrar(e);
+    const Proyeccion pr = proyectar(l);
+    CHECK(pr.bloques.size() == 2 && pr.bloques[0].cues.size() == 6 && pr.bloques[1].cues.size() == 2, "un cue por pieza o paso");
+    for (std::size_t b = 0; b < e.bloques.size(); ++b)
+        for (std::size_t c = 0; c < e.bloques[b].cues.size() && c < pr.bloques[b].cues.size(); ++c) {
+            v1::Cue esperado = e.bloques[b].cues[c];
+            if (esperado.tipo == v1::Tipo::Pausa) esperado.automatico = true;
+            if (esperado.tipo == v1::Tipo::Espera) esperado.automatico = false; // una espera nunca se va sola
+            CHECK(mismoCue(pr.bloques[b].cues[c], esperado), ("el cue " + esperado.id + " se lee igual").c_str());
+        }
+    CHECK(pr.refs[0][0].paso == "c1" && pr.refs[0][0].pieza == "c1-escena", "el cue que abre el paso es su escena");
+    CHECK(pr.refs[0][3].paso == "c4" && pr.refs[0][3].pieza.empty(), "la pausa es el paso mismo");
+    CHECK(pr.cueDe("c1", "c3") == std::make_pair(0, 2) && pr.cueDe("b2-inicio") == std::make_pair(1, 0), "y se ubica cada uno");
+    CHECK(pr.ref(9, 0) == nullptr, "fuera de rango, nada");
+    CHECK(reconciliar(l, pr.bloques).aJson() == l.aJson(), "sin tocar nada, la línea no cambia");
+
+    // Una línea escrita a mano vuelve EXACTA si no se toca el guion de cues.
+    const Linea nat = lineaNativa();
+    const Proyeccion pn = proyectar(nat);
+    CHECK(pn.bloques[0].cues[0].id == "a" && pn.bloques[0].cues[0].tipo == v1::Tipo::Escena, "la escena del principio abre el paso");
+    CHECK(pn.bloques[0].cues[2].tipo == v1::Tipo::Nota && pn.bloques[0].cues[2].texto == "ptz",
+          "lo que el v1 no conoce (PTZ) se ve como nota que dice qué es");
+    CHECK(pn.bloques[0].cues[4].id == "b" && pn.bloques[0].cues[4].tipo == v1::Tipo::Espera, "un paso abierto sin escena es una espera");
+    CHECK(reconciliar(nat, pn.bloques).aJson() == nat.aJson(), "ida y vuelta exacta: hard start, salida, PTZ, ancla, estante");
+
+    // Tocar un cue cambia esa pieza y nada más.
+    std::vector<v1::Bloque> bs = pn.bloques;
+    bs[0].cues[3].texto = "aplausos largos";
+    Linea r = reconciliar(nat, bs);
+    const json d = diferencias(nat, r);
+    CHECK(d.size() == 1 && d[0]["id"] == "zN" && d[0]["que"] == "cambiado", "solo cambia la nota tocada");
+    CHECK(r.paso("a")->piezas[3].vida == Vida::HastaQueSeSaque && r.paso("a")->inicio.modo == ModoInicio::Hora,
+          "y conserva su vida y el hard start del paso");
+    // Tocar la PTZ (vista como nota) no le cambia el tipo.
+    bs = pn.bloques;
+    bs[0].cues[2].texto = "a la banca 3";
+    r = reconciliar(nat, bs);
+    CHECK(r.paso("a")->piezas[2].tipo == "ptz" && r.paso("a")->piezas[2].pista == "ptz" &&
+              r.paso("a")->piezas[2].texto == "a la banca 3",
+          "la PTZ sigue siendo PTZ");
+    // Cambiarle solo la duración a la PTZ no le pone «ptz» de texto.
+    bs = pn.bloques;
+    bs[0].cues[2].duracionSeg += 1;
+    r = reconciliar(nat, bs);
+    CHECK(r.paso("a")->piezas[2].texto.empty(), "lo que no cambió en el cue no se copia");
+    // Alargar un cue corre lo que viene en su paso y el paso dura más.
+    bs = pn.bloques;
+    bs[0].cues[2].duracionSeg += 10;
+    r = reconciliar(nat, bs);
+    CHECK(r.paso("a")->piezas[3].desde.ms == 14 * S && r.paso("a")->fin.duracionSeg == 70, "lo de después se corre");
+    CHECK(r.paso("a")->piezas[1].desde.modo == Ancla::Modo::AntesDelFin, "lo anclado al fin queda anclado");
+    CHECK(r.paso("b")->continuar == Continuar::Con && r.paso("b")->fin.modo == ModoFin::Abierto, "el otro paso, intacto");
+    // Agregar un gráfico al final del bloque: pieza nueva del último paso; una escena: paso nuevo.
+    bs = pn.bloques;
+    bs[1].cues.push_back(cue(v1::Tipo::Grafico, "zNuevo", 5, json{{"fuente", "Z"}, {"grafico", "g"}}));
+    bs[1].cues.push_back(cue(v1::Tipo::Escena, "pNuevo", 10, json{{"escena", "Placa"}}));
+    r = reconciliar(nat, bs);
+    CHECK(r.paso("d")->piezas.size() == 2 && r.paso("d")->piezas[1].id == "zNuevo", "el gráfico va al paso que estaba");
+    CHECK(r.paso("pNuevo") && r.paso("pNuevo")->piezas[0].pista == "escena-principal" && r.pista("escena-principal"),
+          "la escena abre un paso nuevo (con su pista)");
+    CHECK(r.paso("c")->salida == "sala" && r.paso("c")->inicio.modo == ModoInicio::Ancla, "lo de la sala no se pierde");
+    // Sacar un cue saca su pieza.
+    bs = pn.bloques;
+    bs[0].cues.erase(bs[0].cues.begin() + 1);
+    r = reconciliar(nat, bs);
+    CHECK(r.paso("a")->piezas.size() == 3 && r.paso("a")->piezas[0].id == "zA", "la pieza sale y la escena queda con su id");
+}
+
+// --- 12. Editar la línea ---------------------------------------------------------------
+
+void testEditar() {
+    const Linea l = lineaNativa();
+    Edicion e = editar(l, json::parse(R"([
+        {"op":"paso_agregar","bloque":"b1","despuesDe":"a","paso":{"id":"x","nombre":"Video","fin":{"duracion":45}}},
+        {"op":"pieza_agregar","paso":"x","pieza":{"id":"zx","pista":"graficos","tipo":"grafico","datos":{"fuente":"Z","grafico":"g"}}},
+        {"op":"cambiar","id":"b","campos":{"nombre":"Intervalo corto","fin":{"duracion":60}}},
+        {"op":"mover","id":"d","bloque":"b1","despuesDe":""},
+        {"op":"quitar","id":"zN"}])"));
+    CHECK(e.ok, e.error.c_str());
+    CHECK(e.linea.bloques[0].pasos.size() == 4 && e.linea.bloques[0].pasos[0].id == "d" && e.linea.bloques[0].pasos[2].id == "x",
+          "agregar y mover en su lugar");
+    CHECK(e.linea.paso("b")->nombre == "Intervalo corto" && e.linea.paso("b")->fin.modo == ModoFin::Duracion &&
+              e.linea.paso("b")->continuar == Continuar::Con,
+          "cambiar reemplaza solo lo que dice");
+    int agregados = 0, quitados = 0, cambiados = 0, movidos = 0;
+    for (const json& x : e.diff) {
+        agregados += x["que"] == "agregado";
+        quitados += x["que"] == "quitado";
+        cambiados += x["que"] == "cambiado";
+        movidos += x["que"] == "movido";
+    }
+    CHECK(agregados == 2 && quitados == 1 && cambiados == 1 && movidos >= 1, "el diff cuenta lo que pasó");
+
+    // Todo o nada: una que falla no deja nada a medias.
+    e = editar(l, json::parse(R"([{"op":"quitar","id":"zN"},{"op":"cambiar","id":"nadie","campos":{}}])"));
+    CHECK(!e.ok && e.error.find("2") != std::string::npos, "dice cuál falló");
+    CHECK(!editar(l, json::parse(R"([{"op":"paso_agregar","bloque":"b1","paso":{"id":"a"}}])")).ok, "un id repetido no entra");
+    CHECK(!editar(l, json::parse(R"([{"op":"cambiar","id":"a","campos":{"id":"otro"}}])")).ok, "el id no se cambia");
+    CHECK(!editar(l, json::array()).ok, "sin operaciones no hay edición");
+    // En vivo, lo emitido no se toca.
+    const auto emitido = [](const std::string& p) { return p == "a"; };
+    CHECK(!editar(l, json::parse(R"([{"op":"quitar","id":"zA"}])"), emitido).ok, "una pieza de lo que salió no se toca");
+    CHECK(!editar(l, json::parse(R"([{"op":"quitar","id":"b1"}])"), emitido).ok, "ni el bloque que lo tiene");
+    CHECK(editar(l, json::parse(R"([{"op":"quitar","id":"zM"}])"), emitido).ok, "lo que viene sí");
+    CHECK(!editar(l, json::parse(R"([{"op":"quitar","id":"graficos"}])")).ok, "una pista en uso no se quita");
+    CHECK(editar(l, json::parse(R"([{"op":"estante_agregar","item":{"id":"aplauso","pieza":{"id":"zAp","pista":"audio","tipo":"musica"}}}])")).ok,
+          "el estante se carga por acá");
+}
+
+// --- 13. Ver y ajustar -----------------------------------------------------------------
+
+void testVistaYAjuste() {
+    Linea l = tresPasos();
+    l.bloques[0].pasos[1].etiquetas = {"recortable"};
+    l.bloques[1].pasos[0].etiquetas = {"opcional"};
+    l.bloques[0].pasos[0].piezas = {pieza("z1", "escena", "escena", json{{"escena", "Cam 1"}})};
+    Entrada en = entrada(T0);
+    en.finPlaneadoMs = T0 + 120 * S; // planeado: dos minutos; previsto: tres
+    const Resolucion r = resolver(l, en);
+    const json v = vista(l, r, "principal", 0, 0, "piezas", T0, [](int64_t ms) { return std::to_string((ms - T0) / S) + "s"; });
+    CHECK(v["bloques"].size() == 2 && v["bloques"][0]["pasos"].size() == 2, "bloques y pasos");
+    CHECK(v["bloques"][0]["pasos"][0]["piezas"][0]["id"] == "z1" && v["bloques"][0]["pasos"][0]["piezas"][0]["entra"] == "0s",
+          "con nivel piezas, las piezas y su hora");
+    CHECK(v["overUnderSeg"] == 60 && v["fin"] == "180s", "el over del evento");
+    const json vb = vista(l, r, "principal", T0 + 130 * S, 0, "bloques", T0);
+    CHECK(vb["bloques"].size() == 1 && !vb["bloques"][0].contains("pasos"), "la ventana y el nivel bloques");
+    CHECK(vista(l, r, "nadie", 0, 0, "pasos", T0).is_null(), "una salida que no existe");
+
+    const json a = proponerAjuste(l, r, "principal", T0 + 120 * S);
+    CHECK(a["overSeg"] == 60 && a["recortaSeg"] == 30 && a["faltaSeg"] == 0, "recorta la mitad de lo recortable y saltea lo opcional");
+    CHECK(a["ops"].size() == 1 && a["ops"][0]["id"] == "p2" && a["saltear"].size() == 1 && a["saltear"][0]["paso"] == "p3",
+          "las operaciones para linea_editar");
+    const Edicion e = editar(l, a["ops"]);
+    CHECK(e.ok && e.linea.paso("p2")->duracionPlanMs() == 30 * S, "y se pueden aplicar tal cual");
+    CHECK(proponerAjuste(l, r, "principal", T0 + 600 * S)["ops"].empty(), "si sobra tiempo no propone nada");
+}
+
+// --- 14. La corrida (el ejecutor, con el reloj inyectado) ----------------------------------
+
+bool hay(const std::vector<Accion>& acc, Accion::Que q, const std::string& id) {
+    return std::any_of(acc.begin(), acc.end(), [&](const Accion& a) {
+        return a.que == q && (a.pieza == id || (a.pieza.empty() && (a.paso == id || a.escena == id)));
+    });
+}
+
+Linea lineaCorrida() {
+    Linea l = lineaBase();
+    Paso p1 = paso("p1", 30);
+    p1.continuar = Continuar::Sigue;
+    Pieza zN = pieza("zN", "notas", "nota");
+    zN.desde.modo = Ancla::Modo::Manual;
+    p1.piezas = {pieza("zE1", "escena", "escena", json{{"escena", "Cam 1"}}),
+                 pieza("zG", "graficos", "grafico", json{{"fuente", "F"}, {"grafico", "g"}}, 5 * S),
+                 pieza("zM", "audio", "musica", json{{"archivo", "m.wav"}}, 0, Vida::Evento), zN};
+    Paso p2 = paso("p2", 20);
+    p2.piezas = {pieza("zE2", "escena", "escena", json{{"escena", "Cam 2"}})};
+    Paso p3 = paso("p3", 60);
+    p3.piezas = {pieza("zE3", "escena", "escena", json{{"escena", "Placa"}})};
+    l.bloques = {bloque("b1", {p1, p2}), bloque("b2", {p3})};
+    ItemEstante ap;
+    ap.id = "aplauso";
+    Pieza zAp = pieza("zAp", "audio", "musica", json{{"archivo", "aplausos.wav"}});
+    zAp.dura.modo = Dura::Modo::Ms;
+    zAp.dura.ms = 3 * S;
+    ap.pieza = zAp;
+    ItemEstante corte;
+    corte.id = "corte";
+    corte.paso = paso("corte", 15);
+    corte.paso->piezas = {pieza("zC", "escena", "escena", json{{"escena", "Placa corte"}})};
+    l.estante = {ap, corte};
+    return l;
+}
+
+void testCorrida() {
+    Corrida c(lineaCorrida(), entrada(T0));
+    CHECK(c.estado() == EstadoCorrida::Parada && c.proximoMs(T0) == -1, "parada no hace nada");
+    auto acc = c.arrancar(T0);
+    CHECK(c.estado() == EstadoCorrida::Corriendo && c.alAire("principal") && c.alAire("principal")->paso == "p1", "arranca en p1");
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p1") && hay(acc, Accion::Que::Pieza, "zE1") && hay(acc, Accion::Que::Pieza, "zM"),
+          "entra con su escena y su música");
+    CHECK(!hay(acc, Accion::Que::Pieza, "zG") && !hay(acc, Accion::Que::Pieza, "zN"), "el zócalo a su hora; la manual, nunca sola");
+    CHECK(hay(acc, Accion::Que::Armar, "Cam 2"), "el próximo queda armado en el PVW");
+    CHECK(c.proximoMs(T0) == 5 * S, "el timer va justo al zócalo");
+    acc = c.tick(T0 + 5 * S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zG") && c.proximoMs(T0 + 5 * S) == 25 * S, "el zócalo y después el paso que sigue solo");
+    CHECK(c.entraSoloEnSeg("principal", T0 + 24 * S) == 0 && c.entraSoloEnSeg("principal", T0 + 25 * S + 1) == 5 &&
+              c.entraSoloEnSeg("principal", T0 + 29500) == 1,
+          "el aviso de los últimos 5 s");
+    acc = c.tick(T0 + 30 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p2") && hay(acc, Accion::Que::Saca, "zG") && hay(acc, Accion::Que::Pieza, "zE2"),
+          "p2 entra solo y el zócalo se va con su paso");
+    CHECK(!hay(acc, Accion::Que::Saca, "zM"), "la música sigue");
+    CHECK(c.instancias().size() == 2 && c.instancias()[0].hastaMs == T0 + 30 * S && c.instancias()[1].comoEntro == ComoEntro::Auto,
+          "lo emitido, con cómo entró");
+    CHECK(c.proximoMs(T0 + 30 * S) == -1, "p3 espera el GO: no hay timer");
+    acc = c.go("principal", T0 + 70 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p3") && c.alAire("principal")->paso == "p3", "GO");
+    acc = c.go("principal", T0 + 80 * S);
+    CHECK(hay(acc, Accion::Que::Termina, "") && c.estado() == EstadoCorrida::Terminada && !c.alAire("principal"),
+          "un GO sin próximo termina");
+    const auto rec = c.sacarRecorrido();
+    CHECK(rec.size() > 8 && rec.front()["que"] == "arranca" && rec.back()["que"] == "fin", "el recorrido anota todo");
+    CHECK(c.sacarRecorrido().empty(), "y se saca una vez");
+}
+
+void testCorridaHoldYPausa() {
+    Linea l = tresPasos();
+    l.bloques[0].pasos[0].continuar = Continuar::Sigue;
+    l.bloques[0].pasos[1].continuar = Continuar::Sigue;
+    l.bloques[0].pasos[1].fin.duracionSeg = 10;
+    Corrida c(l, entrada(T0));
+    c.arrancar(T0);
+    CHECK(c.setHold("principal", true, T0 + S) && c.hold("principal"), "HOLD del paso al aire");
+    CHECK(c.tick(T0 + 90 * S).empty() && c.entraSoloEnSeg("principal", T0 + 58 * S) == 0 && c.proximoMs(T0 + 90 * S) == -1,
+          "en HOLD no entra nada ni se avisa");
+    c.setHold("principal", false, T0 + 90 * S);
+    auto acc = c.tick(T0 + 90 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p2") && !c.hold("principal"), "suelto y pasado, entra ya");
+    c.pausar(T0 + 95 * S);
+    CHECK(c.estado() == EstadoCorrida::Pausada && c.tick(T0 + 150 * S).empty() && c.proximoMs(T0 + 150 * S) == -1,
+          "en pausa nada pasa solo");
+    c.reanudar(T0 + 150 * S);
+    CHECK(c.proximoMs(T0 + 150 * S) == 5 * S, "lo pausado no cuenta: a p2 le quedaban 5 s");
+    CHECK(c.pausadoMs(T0 + 150 * S) == 55 * S, "y se lleva la cuenta de lo pausado (para el desvío)");
+    acc = c.tick(T0 + 155 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p3"), "y sigue solo");
+}
+
+void testCorridaSaltosEIr() {
+    Linea l = lineaBase();
+    Paso p1 = paso("p1", 60);
+    p1.piezas = {pieza("zM", "audio", "musica", json{{"archivo", "m.wav"}}, 0, Vida::Evento),
+                 pieza("zG", "graficos", "grafico", json{{"fuente", "F"}, {"grafico", "g"}}, 0, Vida::Bloque)};
+    Paso p2 = paso("p2", 60);
+    p2.piezas = {pieza("zZ", "dsk", "grafico", json{{"fuente", "D"}, {"grafico", "z"}})};
+    Paso p3 = paso("p3", 60);
+    p3.piezas = {pieza("zA", "asistente", "asistente", json{{"herramienta", "qr_mostrar"}}, 0, Vida::HastaQueSeSaque)};
+    Paso p4 = paso("p4", 60);
+    l.bloques = {bloque("b1", {p1, p2}), bloque("b2", {p3, p4})};
+
+    Corrida c(l, entrada(T0));
+    c.arrancar(T0);
+    c.go("principal", T0 + 60 * S);
+    std::string err;
+    auto acc = c.irA("principal", "p4", T0 + 70 * S, &err);
+    CHECK(err.empty() && c.alAire("principal")->paso == "p4", "ir a p4");
+    CHECK(hay(acc, Accion::Que::Saca, "zZ") && hay(acc, Accion::Que::Saca, "zG"), "saca lo que ahí no va");
+    CHECK(!hay(acc, Accion::Que::Pieza, "zM"), "la música que ya suena no se repite");
+    CHECK(hay(acc, Accion::Que::Avisar, "zA"), "la del asistente se pregunta");
+    // Volver atrás repone.
+    acc = c.irA("principal", "p2", T0 + 80 * S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zZ") && c.alAire("principal")->paso == "p2", "volver a p2");
+    CHECK(c.irA("principal", "nadie", T0, &err).empty() && !err.empty(), "un paso que no existe");
+    // Saltar y mover el próximo.
+    CHECK(c.saltar("principal", T0 + 81 * S) && c.resolver(T0 + 81 * S).salida("principal")->proximo == "p4", "saltar p3");
+    CHECK(c.moverProximo("principal", -1, T0 + 82 * S) && c.resolver(T0 + 82 * S).salida("principal")->proximo == "p1",
+          "el próximo para atrás (sin p2, que está al aire)");
+    CHECK(!c.moverProximo("principal", -1, T0 + 83 * S), "antes del primero no hay");
+    CHECK(c.alDia(T0 + 84 * S).empty(), "el próximo movido no tiene escena: nada que armar");
+    acc = c.go("principal", T0 + 90 * S);
+    CHECK(c.alAire("principal")->paso == "p1", "y el GO toma el movido");
+    acc = c.repetir("principal", T0 + 95 * S);
+    CHECK(hay(acc, Accion::Que::EntraPaso, "p1") && hay(acc, Accion::Que::Pieza, "zG"), "repetir vuelve a disparar sus piezas");
+}
+
+void testCorridaAdlibEInsertar() {
+    Corrida c(lineaCorrida(), entrada(T0));
+    c.arrancar(T0);
+    std::string err;
+    auto acc = c.adlib("principal", "zN", T0 + S, &err);
+    CHECK(err.empty() && hay(acc, Accion::Que::Pieza, "zN") && c.disparada("principal", "zN"), "el adlib del paso");
+    acc = c.adlib("principal", "zG", T0 + 2 * S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zG") && !hay(c.tick(T0 + 5 * S), Accion::Que::Pieza, "zG"),
+          "disparada antes de su hora, no se repite a su hora");
+    acc = c.adlib("principal", "aplauso", T0 + 6 * S);
+    CHECK(hay(acc, Accion::Que::Pieza, "zAp") && c.proximoMs(T0 + 6 * S) == 3 * S, "del estante, con su duración");
+    CHECK(hay(c.tick(T0 + 9 * S), Accion::Que::Saca, "zAp"), "y se va sola");
+    CHECK(c.adlib("principal", "nada", T0, &err).empty() && !err.empty(), "lo que no está, no");
+    err.clear();
+    acc = c.insertar("principal", "corte", false, T0 + 10 * S, &err);
+    CHECK(err.empty() && hay(acc, Accion::Que::Armar, "Placa corte"), "el paso del estante queda de próximo (y armado)");
+    const std::string ins = c.resolver(T0 + 10 * S).salida("principal")->proximo;
+    CHECK(ins.rfind("ins1-corte", 0) == 0 && c.linea().paso(ins) && c.linea().paso(ins)->piezas[0].id == ins + "-zC",
+          "con ids propios");
+    c.setLinea(lineaCorrida());
+    CHECK(c.linea().paso(ins) != nullptr, "editar la línea no se lo lleva");
+    acc = c.go("principal", T0 + 12 * S);
+    CHECK(c.alAire("principal")->paso == ins && hay(acc, Accion::Que::Pieza, ins + "-zC"), "y entra con el GO");
+    CHECK(c.resolver(T0 + 12 * S).salida("principal")->proximo == "p2", "después sigue el plan");
+}
+
+void testCorridaRetoma() {
+    Linea l = lineaBase();
+    Paso p1 = paso("p1", 60);
+    p1.continuar = Continuar::Sigue;
+    Pieza zZoc = pieza("zZoc", "graficos", "grafico", json{{"fuente", "F"}, {"grafico", "z"}}, 5 * S);
+    zZoc.dura.modo = Dura::Modo::Ms;
+    zZoc.dura.ms = 10 * S;
+    p1.piezas = {pieza("zMus", "audio", "musica", json{{"archivo", "m.wav"}}, 0, Vida::Evento), zZoc,
+                 pieza("zAsis", "asistente", "asistente", json{{"herramienta", "stream_titulo"}}, 30 * S)};
+    l.bloques = {bloque("b1", {p1, paso("p2", 60), paso("p3", 60)})};
+
+    Corrida antes(l, entrada(T0));
+    antes.arrancar(T0);
+    antes.tick(T0 + 5 * S);
+    const json vivo = antes.aJsonVivo(T0 + 12 * S);
+    CHECK(vivo["salidas"][0]["alAire"] == "p1" && vivo["piezas"].size() == 2 && vivo["arranqueMs"] == T0, "linea-aire.json");
+
+    // Se cortó la luz a las T0+12 y volvió a las T0+100.
+    Corrida c(l, entrada(T0));
+    auto acc = c.retomar(vivo, T0 + 100 * S);
+    CHECK(c.retomando() && c.pideDescripcion() && c.hold("principal"), "vuelve en HOLD y pide descripción");
+    CHECK(c.alAire("principal") && c.alAire("principal")->paso == "p1", "con lo que estaba al aire");
+    CHECK(hay(acc, Accion::Que::Pieza, "zMus") && hay(acc, Accion::Que::Saca, "zZoc") && hay(acc, Accion::Que::Avisar, "zAsis"),
+          "repone la música, saca el zócalo vencido y pregunta por la del asistente");
+    CHECK(c.resumenRetoma()["salidas"][0]["segunElPlan"]["paso"] == "p2", "el resumen para el asistente");
+    CHECK(c.tick(T0 + 200 * S).empty() && c.proximoMs(T0 + 200 * S) == -1, "sin respuesta, sigue en HOLD");
+    c.describir("el orador sigue hablando", T0 + 210 * S);
+    CHECK(!c.pideDescripcion() && c.retomando() && c.descripcion() == "el orador sigue hablando", "la descripción no suelta nada");
+    acc = c.soltar("seguimos como estaba", T0 + 220 * S);
+    CHECK(!c.retomando() && !c.hold("principal") && hay(acc, Accion::Que::EntraPaso, "p2"), "soltar: p1 ya se había pasado y p2 entra");
+    CHECK(!hay(acc, Accion::Que::Pieza, "zAsis"), "lo perdido que pregunta no se hace solo");
+    bool corte = false, descripcion = false, decision = false;
+    for (const json& x : c.sacarRecorrido()) {
+        corte = corte || x["que"] == "corte";
+        descripcion = descripcion || (x["que"] == "descripcion" && x["texto"] == "el orador sigue hablando");
+        decision = decision || (x["que"] == "decision" && x["texto"] == "seguimos como estaba");
+    }
+    CHECK(corte && descripcion && decision, "el corte, la descripción y la decisión quedan en el recorrido");
+
+    // Con GO se suelta tal cual: entra el próximo una sola vez.
+    Corrida g(l, entrada(T0));
+    g.retomar(vivo, T0 + 100 * S);
+    g.go("principal", T0 + 101 * S);
+    CHECK(!g.retomando() && g.alAire("principal")->paso == "p2" && g.instancias().size() == 2, "GO en la retoma");
+    const json est = g.estadoJson(T0 + 101 * S);
+    CHECK(est["estado"] == "corriendo" && est["salidas"][0]["alAire"]["paso"] == "p2" && est["retoma"]["activa"] == false,
+          "el estado para el MCP");
+}
+
 } // namespace
 
 int main() {
@@ -882,6 +1310,14 @@ int main() {
     testRevisar();
     testCargarEn();
     testRetoma();
+    testProyeccion();
+    testEditar();
+    testVistaYAjuste();
+    testCorrida();
+    testCorridaHoldYPausa();
+    testCorridaSaltosEIr();
+    testCorridaAdlibEInsertar();
+    testCorridaRetoma();
     if (g_fallos == 0) std::printf("test_linea: todo OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

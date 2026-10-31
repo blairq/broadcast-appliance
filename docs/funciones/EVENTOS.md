@@ -20,10 +20,11 @@ Un **evento** es una carpeta con su guion y sus medios:
 
 ```
 Eventos/<nombre>/
-├── evento.json         # el storyboard (bloques, cues, tiempos)
+├── evento.json         # la línea de tiempo (`linea`) y su lectura como guion de cues (`bloques`)
+├── recorrido.jsonl     # lo que salió al aire, renglón por renglón (ver 1.6)
 ├── Medios/             # música, videos, placas propias del evento
 ├── Discursos/          # los textos del teleprompter
-└── Respaldos/
+└── Respaldos/          # evento-<fecha>.json al guardar, evento-v1.json, linea-<n>.json
 ```
 
 Que sea una carpeta y no un registro suelto permite **llevarlo a otra máquina**
@@ -51,9 +52,10 @@ son las cosas concretas que pasan:
 Cada cue tiene: **duración prevista**, si es **automático o manual**, y de qué
 cue depende. Los automáticos encadenan; los manuales esperan el clic.
 
-**Pasar solo — hecho (L0 de la línea de tiempo).** Quién decide cuándo toca es
-el modelo (`Guion::msParaAvanzarSolo`, puro y probado en `test_evento`); el view
-model solo programa un disparo a esa hora y avanza.
+**Pasar solo — hecho (L0, y desde L2 sobre la línea de tiempo).** Quién decide
+cuándo toca es la línea (`linea::Corrida`, pura y probada en `test_linea`); cada
+`EjecutorLinea` solo programa un disparo a esa hora y hace lo que le dicen. Ver 1.6:
+desde la línea, el paso (lo que entra con un GO) agrupa los cues que lo siguen.
 
 - Un cue **automático** pasa solo al siguiente cuando se cumple su duración. Sin
   duración, en el acto: así «cámara 2 + zócalo + bajar la música» entran juntos.
@@ -64,10 +66,10 @@ model solo programa un disparo a esa hora y avanza.
   persona.
 - Los últimos 5 s se avisan en la conducción: **«entra solo en 0:05»**
   (`entraSoloEnSeg` del view model; `reloj.entraSoloEnSeg` por MCP).
-- **HOLD** (botón, tecla **H**, `evento_correr {"accion": "hold"}`): congela el
-  avance automático del cue actual. No es una pausa: la cuenta sigue en «+» y el
-  atraso corre. Otro HOLD lo suelta (si ya se pasó, entra en el acto), y al
-  cambiar de cue se suelta solo. Va al bus en `evento/cue` (`hold`).
+- **HOLD** (botón, tecla **H**, `evento_correr {"accion": "hold"}`, `linea_hold`):
+  congela el avance automático del paso al aire. No es una pausa: la cuenta sigue
+  en «+» y el atraso corre. Otro HOLD lo suelta (si ya se pasó, entra en el acto),
+  y al cambiar de paso se suelta solo.
 - La **pausa general** sigue igual: lo pausado no cuenta como desvío ni para el
   avance automático (la cuenta del cue se congela).
 
@@ -113,6 +115,59 @@ problemas y hay que verlos antes:
 - **Modo evento**: mientras corre, las acciones peligrosas (borrar escenas,
   actualizar, cambiar configuración que reinicia el gateway) piden confirmación
   extra o quedan bloqueadas.
+
+### 1.6 La línea de tiempo — **hecho L0-L3** (modelo, ejecutor de una salida y MCP)
+
+El plan entero está en `docs/planes/PLAN-LINEA-DE-TIEMPO.md`. Lo hecho:
+
+- **La línea manda.** El plan del evento es su línea (`evento/Linea.hpp`):
+  bloques → **pasos** (lo que entra con un GO o solo: `tras`, `con`, a una
+  `hora` con política avisar/esperar/cortar, `ancla` a otra salida) → **piezas**
+  en pistas, con su tiempo relativo al paso, su `vida` (paso, bloque, hasta que se
+  saque, evento) y qué hacer si se perdieron. `evento.json` la lleva en `linea`
+  (versión 2).
+- **Migración.** Un evento de antes (sin `linea`) se migra al abrirlo: cada cue
+  de escena, orador, video, pausa o espera abre un paso y los demás son piezas de
+  ese paso. La copia del v1 queda en `Respaldos/evento-v1.json` y el archivo pasa
+  a v2. Una espera migrada es un paso abierto que nunca se va solo (como en el v1).
+- **El guion de cues es una lectura de la línea** (`linea::proyectar`): la página
+  Guion, `guion_*` y `evento_correr` siguen andando igual. Editar un cue edita la
+  línea (`linea::reconciliar`): lo que no se tocó queda exacto (hard starts,
+  salidas, PTZ, anclas), lo tocado se migra de nuevo sin perder lo propio de la
+  línea. Las piezas que el v1 no conoce (PTZ, asistente…) se ven como notas y no
+  pierden su tipo. Desde la línea, `bloques` en el archivo es solo lectura (se
+  regenera al guardar).
+- **Un solo ejecutor** (`linea::Corrida` + un `EjecutorLinea` por salida; el
+  `Guion` v1 ya no existe). Timer exacto al próximo evento (no un sondeo), piezas
+  a su hora y fuera al terminar su vida, lookahead al PVW, el aviso de 5 s, GO,
+  HOLD, pausa general, mover el próximo, saltar, ir a con «load to time» (repone
+  la música y los gráficos de vida larga y saca lo que sobra), repetir, adlibs del
+  paso y del estante, e insertar un paso del estante (una copia; lo planeado no se
+  toca). «Siguiente» en el guion de cues dispara la pieza siguiente del paso al
+  aire si no salió todavía (lo que antes era el cue siguiente) y si no, hace GO.
+  Por ahora sale de verdad la salida por omisión; las otras se anotan.
+- **Lo emitido**: `Eventos/<x>/recorrido.jsonl` (qué entró, cuándo y cómo, las
+  piezas, los HOLD, los saltos, lo insertado, los cortes, lo que se contó y lo que
+  se decidió; lo del ensayo no) y `Runtime/linea-aire.json` (el estado vivo,
+  atómico, cada segundo y en cada cambio). El informe y los capítulos salen de lo
+  emitido, un renglón por paso.
+- **Corte de luz** (T47 + 3.8 del plan). Si la app arranca después de un corte
+  con `linea-aire.json` vivo, la línea vuelve con lo que estaba al aire (repone
+  música y gráficos de vida larga) pero **en HOLD en todas las salidas**, y la
+  conducción pregunta **«¿Qué está pasando?»** (texto, o dictado por la barra del
+  asistente). Lo contado va al asistente con el resumen de la retoma para que
+  **proponga** cómo adecuar la línea (`linea_editar`/`linea_ajustar` con probar);
+  la persona confirma y recién ahí se suelta (`linea_soltar`). Sin respuesta queda
+  en HOLD; «Seguir como estaba» o un GO lo sueltan tal cual. Todo queda en el
+  recorrido. Para probarlo sin cortar nada: `linea_retomar {"simular": true}`.
+- **MCP** (`linea_*`, categoría «Línea de tiempo del evento»): ver, estado,
+  editar en lote con prueba y deshacer, revisar, ajustar a una hora (simple:
+  recorta lo «recortable» y propone saltear lo «opcional»), las acciones de vivo y
+  el flujo del corte. Ver `docs/funciones/MCP.md`.
+
+Falta (L4 en adelante): la escaleta y la conducción nuevas en QML, la vista
+multipista, varias salidas de verdad, disparadores y condiciones (`cuando`,
+`mientras`), las superficies web y el productor automático.
 
 ---
 

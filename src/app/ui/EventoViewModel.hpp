@@ -1,8 +1,16 @@
 // ============================================================================
 // src/app/ui/EventoViewModel.hpp — el guion del evento, para la interfaz
 //
-// Le da a QML el guion (`evento.Evento`) y el recorrido en vivo
-// (`evento.Guion`), y traduce cada cue a lo que hay que hacerle al sistema.
+// Le da a QML el guion (`evento.Evento`) y la línea de tiempo corriendo
+// (`evento::linea::Corrida`, un EjecutorLinea por salida), y traduce cada pieza a
+// lo que hay que hacerle al sistema.
+//
+// LA LÍNEA MANDA. El plan del evento es su línea de tiempo (evento/Linea.hpp); el
+// guion de cues que ven la página Guion y `guion_*` es su lectura (proyectar), y
+// editarlo edita la línea (reconciliar). Un evento escrito antes de la línea se
+// migra al abrirlo (con una copia del v1 en Respaldos/). Correr el guion de cues
+// es correr la línea: «siguiente» dispara la pieza siguiente del paso al aire (lo
+// que en el v1 era el cue siguiente) o, si no queda, hace GO.
 //
 // El modelo de abajo no sabe ejecutar nada a propósito; acá es donde se cierra
 // esa costura. Lo importante es que la traducción sea HONESTA: un cue de un
@@ -23,6 +31,7 @@
 #include <QTimer>
 
 #include <functional>
+#include <map>
 
 #include <nlohmann/json.hpp>
 #include <QJsonArray>
@@ -30,12 +39,15 @@
 #include <QVariantMap>
 
 #include "sala/ListaPrompters.hpp"
+#include "evento/Corrida.hpp"
 #include "evento/Evento.hpp"
+#include "evento/LineaEdicion.hpp"
 #include "evento/EventoStore.hpp"
 #include "evento/Padron.hpp"
 
 namespace ba::app {
 class CarruselViewModel;
+class EjecutorLinea;
 
 class AppRuntime;
 class ConferenceViewModel;
@@ -85,10 +97,15 @@ class EventoViewModel : public QObject {
     /// cambia cada segundo (aparte para no redibujar el guion entero).
     Q_PROPERTY(QVariantMap reloj READ reloj NOTIFY relojChanged)
     /// El aviso «entra solo en 0:05»: los segundos que faltan para que el guion pase
-    /// solo al siguiente, durante los últimos 5 s; 0 = no hay aviso (ver Guion::entraSoloEnSeg).
+    /// solo al siguiente, durante los últimos 5 s; 0 = no hay aviso (ver Corrida::entraSoloEnSeg).
     Q_PROPERTY(int entraSoloEnSeg READ entraSoloEnSeg NOTIFY relojChanged)
-    /// HOLD: el cue actual no se va solo aunque se cumpla su duración (ver Guion::setHold).
+    /// HOLD: el paso al aire no se va solo aunque se cumpla su duración (ver
+    /// Corrida::setHold). Tras un corte de luz la línea vuelve en HOLD (ver `retoma`).
     Q_PROPERTY(bool hold READ hold WRITE setHold NOTIFY correChanged)
+    /// Tras un corte de luz (docs/planes/PLAN-LINEA-DE-TIEMPO.md 3.8): {activa,
+    /// pideDescripcion, descripcion, resumen}. Activa: la línea volvió en HOLD y la
+    /// conducción pregunta «¿Qué está pasando?».
+    Q_PROPERTY(QVariantMap retoma READ retoma NOTIFY correChanged)
     /// Lo ultimo que se ejecuto o se intento, para la vista de conduccion.
     Q_PROPERTY(QVariantList bitacora READ bitacora NOTIFY bitacoraChanged)
 
@@ -156,7 +173,8 @@ class EventoViewModel : public QObject {
     QVariantMap siguiente() const;
     QVariantMap reloj() const;
     int entraSoloEnSeg() const;
-    bool hold() const { return guionCorriendo_ && guionCorriendo_->hold(); }
+    bool hold() const;
+    QVariantMap retoma() const;
     QVariantList bitacora() const { return bitacora_; }
     QVariantList reparos() const;
 
@@ -336,11 +354,61 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void irA(int bloque, int cue);
     Q_INVOKABLE void pausar();
     Q_INVOKABLE void reanudar();
-    /// HOLD sobre el cue actual (el botón y la tecla H, y `evento_correr` por MCP).
+    /// HOLD sobre el paso al aire (el botón y la tecla H, y `evento_correr` por MCP).
+    /// En una retoma, soltarlo es «seguir como estaba».
     void setHold(bool on);
     Q_INVOKABLE void alternarHold() { setHold(!hold()); }
     Q_INVOKABLE void parar();
     void setEnsayo(bool on);
+
+    // --- Tras un corte de luz (3.8) --------------------------------------------------
+    /// «¿Qué está pasando?»: anota la descripción en el recorrido (la línea sigue en
+    /// HOLD) y devuelve el pedido para el asistente, con el resumen de la retoma,
+    /// para que PROPONGA cómo adecuar la línea (la vista se lo encarga).
+    Q_INVOKABLE QString describirRetoma(const QString& texto);
+    /// «Seguir como estaba»: suelta el HOLD del corte sin cambiar nada.
+    Q_INVOKABLE void seguirComoEstaba();
+
+    // --- La línea de tiempo, para el MCP (linea_*) -------------------------------------
+    const evento::linea::Linea& linea() const { return linea_; }
+    /// La salida de la línea que sale hoy (la por omisión).
+    std::string salidaPorOmision() const { return linea_.salidasEfectivas().front(); }
+    /// "HH:MM:SS" en el huso del evento.
+    std::string horaDe(int64_t ms) const;
+    /// linea_estado: la corrida (o el plan, sin correr) por salida, la retoma y la pausa.
+    nlohmann::json lineaEstado() const;
+    /// linea_ver: el pronóstico compacto (ver evento::linea::vista). null si la salida no existe.
+    nlohmann::json lineaVer(const std::string& salida, int64_t desdeMs, int64_t hastaMs, const std::string& nivel) const;
+    /// linea_editar: un lote de operaciones; con `probar` no aplica. Aplicado: deja
+    /// la línea anterior en Respaldos/linea-<n>.json (se deshace con lineaDeshacer) y
+    /// guarda. {ok, error?, diff, pronostico, reparos, revision?}
+    nlohmann::json lineaEditar(const nlohmann::json& ops, bool probar);
+    /// Vuelve a la línea de la última revisión. {ok, error?, revision?}
+    nlohmann::json lineaDeshacer();
+    /// linea_revisar: los reparos propios de la línea (hard starts, anclas, ids,
+    /// pistas, conflictos entre salidas), con dónde están.
+    nlohmann::json lineaRevisar() const;
+    /// linea_ajustar: lo que habría que recortar para terminar a `objetivoMs` (nunca aplica).
+    nlohmann::json lineaAjustar(const std::string& salida, int64_t objetivoMs) const;
+    /// La hora de hoy (en el huso del evento) en ms; -1 si "HH:MM" no es una hora.
+    int64_t horaHoyMs(const std::string& hhmm) const;
+    /// Las acciones de vivo. "" o por qué no.
+    std::string lineaGo(const std::string& salida);
+    std::string lineaHold(const std::string& salida, std::optional<bool> on);
+    std::string lineaMoverProximo(const std::string& salida, int delta);
+    std::string lineaSaltar(const std::string& salida);
+    std::string lineaIr(const std::string& salida, const std::string& paso);
+    std::string lineaRepetir(const std::string& salida);
+    std::string lineaAdlib(const std::string& salida, const std::string& pieza);
+    std::string lineaInsertar(const std::string& salida, const std::string& item, bool alAire);
+    /// Lo emitido (Eventos/<x>/recorrido.jsonl): los últimos `ultimos` renglones (0 = todos).
+    nlohmann::json lineaRecorrido(int ultimos) const;
+    /// linea_retomar: la descripción de qué está pasando (la puede dar el asistente si
+    /// la persona se la dictó). `simular`: hace como si se hubiera cortado la luz
+    /// recién (para probar el flujo sin apagar nada). "" o por qué no.
+    std::string lineaRetomar(const std::string& descripcion, bool simular);
+    /// linea_soltar: suelta el HOLD del corte con lo que se decidió. "" o por qué no.
+    std::string lineaSoltar(const std::string& decision);
 
     /// Ensayo acelerado: recorre el guion ENTERO de una, sin esperar las
     /// duraciones y sin tocar nada, y dice de cada cue si se podria ejecutar.
@@ -451,25 +519,69 @@ class EventoViewModel : public QObject {
 
    private:
     std::function<QString()> anexoActa_;
-    /// Ejecuta el cue donde esta parado el guion. En ensayo no toca nada.
-    void ejecutarActual();
-    /// Lo que sigue a cada movimiento del guion: ejecutar el cue nuevo, armar el
-    /// siguiente, reprogramar el avance automático y avisar a la vista.
-    void entrarAlCue();
-    /// El LOOKAHEAD: si el cue siguiente es de escena, la deja armada en el PVW, así
-    /// el operador ve lo que va a entrar y el TAKE es inmediato.
-    void armarSiguiente();
+    // --- La línea corriendo -----------------------------------------------------------
+    /// La corrida nueva (con un ejecutor por salida), sin arrancarla.
+    void nuevaCorrida();
+    /// Hace lo que devolvió la corrida (cada acción, por el ejecutor de su salida) y
+    /// después: reprograma los timers, escribe el recorrido y el estado vivo, y avisa
+    /// a la vista.
+    void despachar(const std::vector<evento::linea::Accion>& acc);
+    /// Una acción en el aire (la llama el ejecutor de su salida). En ensayo no toca nada.
+    void hacerAccion(const evento::linea::Accion& a);
+    /// Ejecuta un cue (lo que hace una pieza de un tipo del v1). `clave` la identifica
+    /// para poder sacarla después.
+    void ejecutarCue(const evento::Cue& c, const std::string& paso, const std::string& clave);
+    /// Saca una pieza que se terminó (un gráfico con su salida; la música que puso).
+    void sacarPieza(const evento::linea::Accion& a);
+    /// El LOOKAHEAD: deja la escena armada en el PVW, así el operador ve lo que va a
+    /// entrar y el TAKE es inmediato.
+    void armarEscena(const std::string& escena);
     /// Pone al aire la escena de un cue por el PVW: la arma (si el lookahead no la
     /// dejó armada) y hace TAKE con la transición del cue o la de entrada de la
     /// escena. "" o por qué no.
     std::string tomarEscena(const std::string& escena, const nlohmann::json& datos);
-    /// Programa `avanceSolo_` para cuando el guion diga que toca pasar solo (o lo
-    /// apaga). Se llama después de todo lo que cambia esa cuenta: moverse, pausar,
-    /// reanudar, HOLD.
-    void programarAvanceSolo();
     /// Saca (con su salida) los gráficos que puso el guion y «se van al avanzar»
-    /// (títulos, placas): se llama antes de pasar a otra cue.
+    /// según su ficha (títulos, placas): se llama al entrar otro paso.
     void sacarAlAvanzar();
+    /// La línea cambió por el guion de cues (las ediciones de la página y de
+    /// `guion_*`): reconcilia, vuelve a leer el guion y se lo pasa a la corrida.
+    void lineaDesdeGuion();
+    /// La línea cambió por su cuenta (linea_editar, deshacer): el guion de cues se
+    /// vuelve a leer y la corrida se entera.
+    void guionDesdeLinea();
+    /// Arranque previsto, medianoche y fin planeado, en el huso del evento. `hoy`:
+    /// del día de hoy (para correr); si no, del día del evento.
+    evento::linea::Entrada entradaBase(bool hoy) const;
+    /// Runtime/linea-aire.json (el estado vivo, para volver de un corte).
+    std::filesystem::path archivoVivo() const;
+    void escribirVivo();
+    void borrarVivo();
+    /// Al arrancar después de un corte: si la línea estaba corriendo, vuelve en HOLD.
+    void retomarLinea();
+    /// Retoma desde lo que dejó `aJsonVivo`: la corrida nueva vuelve en HOLD.
+    void retomarDesde(const nlohmann::json& vivo);
+    /// Los renglones nuevos del recorrido, a Eventos/<x>/recorrido.jsonl (no en ensayo).
+    void volcarRecorrido();
+    std::filesystem::path archivoRecorrido() const;
+    /// El pedido para el asistente tras un corte, con la descripción y el resumen.
+    QString pedidoDeRetoma(const QString& descripcion) const;
+    /// El cue (del guion de cues) de una pieza, para ejecutarla con las reglas de su tipo.
+    evento::Cue cueDePieza(const evento::linea::Pieza& z, const std::string& paso) const;
+    /// ¿La corrida está andando (corriendo o en pausa)?
+    bool corriendo() const;
+    // El cursor del guion de cues: el cue que se ve «al aire» (el último disparado del paso).
+    struct Cursor {
+        int bloque = -1;
+        int cue = -1;
+        int64_t desdeMs = 0;
+        int64_t pausadoAlEntrarMs = 0;
+        bool valido() const { return bloque >= 0 && cue >= 0; }
+    };
+    void moverCursor(int bloque, int cue);
+    /// El cue que sigue (o el anterior) en el guion de cues ({-1,-1} si no hay).
+    std::pair<int, int> cueSiguienteDe(int bloque, int cue) const;
+    std::pair<int, int> cueAnteriorDe(int bloque, int cue) const;
+    int enCueSeg(int64_t ahora) const;
     /// A la bitácora de la página y, si `alRegistro`, al registro general (lo del ensayo no).
     void anotar(const QString& texto, const QString& tipo, bool alRegistro = true);
     std::function<void(const std::string&, const nlohmann::json&, std::function<void(bool, const std::string&)>)>
@@ -508,9 +620,13 @@ class EventoViewModel : public QObject {
     AppRuntime& rt_;
     ConferenceViewModel* sala_ = nullptr;
     graficos::Emisor* graficos_ = nullptr;
-    /// Los gráficos al aire que se van cuando el guion avanza: la fuente y la generación
+    /// Los gráficos al aire que se van cuando entra otro paso: la fuente y la generación
     /// con que se pusieron (si después se puso otra cosa ahí, no se toca).
     std::vector<std::pair<std::uint64_t, int>> alAvanzar_;
+    /// Los gráficos que puso cada pieza (por su clave), para sacarlos cuando se
+    /// termina su vida; y la pieza que puso la música que suena.
+    std::map<std::string, std::pair<std::uint64_t, int>> graficosDePieza_;
+    std::string musicaDePieza_;
     graficos::Vinculos* vinculos_ = nullptr;
     CarruselViewModel* carruseles_ = nullptr;
     escenas::Conmutador* conmutador_ = nullptr;
@@ -540,19 +656,22 @@ class EventoViewModel : public QObject {
     QString carpetaWebAbs() const;
     /// Genera las páginas que falten del sitio (no pisa nada): al crear y al guardar.
     void asegurarWebBase();
-    std::unique_ptr<evento::Guion> guionCorriendo_;
-    /// El último que se paró: su recorrido sigue sirviendo para el informe y los
-    /// capítulos (se piden al terminar). Se olvida al arrancar otro o cambiar de evento.
-    std::unique_ptr<evento::Guion> ultimoGuion_;
-    const evento::Guion* guionDelInforme() const { return guionCorriendo_ ? guionCorriendo_.get() : ultimoGuion_.get(); }
+    /// La línea del evento abierto (lo que manda) y su lectura como guion de cues
+    /// (`e_.bloques` es `proyeccion_.bloques`).
+    evento::linea::Linea linea_;
+    evento::linea::Proyeccion proyeccion_;
+    /// La corrida: la que corre o, parada, la última (lo emitido sigue sirviendo
+    /// para el informe y los capítulos). Se olvida al arrancar otra o cambiar de evento.
+    std::unique_ptr<evento::linea::Corrida> corrida_;
+    std::map<std::string, std::unique_ptr<EjecutorLinea>> ejecutores_;
+    Cursor cursor_;
     QString abierto_;
     bool sucio_ = false;
     bool ensayo_ = false;
     QVariantList bitacora_;
     std::vector<evento::Reparo> reparos_;
+    /// Cada segundo mientras corre: la cuenta de la vista y el estado vivo (linea-aire.json).
     QTimer reloj_;
-    /// Un disparo, a la hora justa en que el guion pasa solo (ver programarAvanceSolo).
-    QTimer avanceSolo_;
     QTimer vigiaEnCurso_; ///< cada minuto: el cambio de día y el evento automático
     bool automatico_ = true;
 };

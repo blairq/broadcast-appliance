@@ -618,6 +618,10 @@ int main(int argc, char** argv) {
         CHECK(aire.esDeAire("video_reloj", {{"tipo", "ntp"}}), "cambiar el reloj rearma el motor: de aire");
         CHECK(aire.esDeAire("evento_cambiar", {{"nombre", "x"}}), "abrir otro evento reinicia el programa: de aire");
         CHECK(aire.esDeAire("configuracion_cambiar", {{"nombre", "x"}}), "cambiar de configuración: de aire");
+        CHECK(aire.esDeAire("linea_go", json::object()) && aire.esDeAire("linea_soltar", json::object()),
+              "lo que entra al aire desde la línea de tiempo: de aire");
+        CHECK(!aire.esDeAire("linea_hold", json::object()) && !aire.esDeAire("linea_ver", json::object()),
+              "frenar o mirar la línea no cambia el aire");
     }
 
     // --- Las salidas (PLAN-SALIDAS, etapa 3): `salida` en las herramientas de salida

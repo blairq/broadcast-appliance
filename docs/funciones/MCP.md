@@ -62,6 +62,7 @@ es un resumen por categoría.
 | Medios | `media_list`, `media_find` (sin importar tildes ni mayúsculas), `media_view` (ver la imagen), `medio_poner` (a una escena) |
 | Operador | `operator_message` (barra de abajo, color por prioridad), `operator_ask` (pregunta con botones/texto), `operator_messages`, `guest_chat_pending`, `guest_reply_suggest` (respuestas sugeridas, un click) |
 | Salvaguarda | `security_status` (si esta sesión necesita aprobación) |
+| Línea de tiempo del evento | Ver: `linea_ver` (pronóstico compacto por bloques, pasos o piezas, con ventana de horas), `linea_estado` (al aire, próximo, HOLD, over/under, próximo hard start, retoma), `linea_recorrido` (lo emitido), `linea_revisar`. Editar: `linea_editar` (lote atómico con `probar`: diff y pronóstico; aplicado deja `Respaldos/linea-<n>.json`), `linea_deshacer`, `linea_ajustar` (llegar a una hora: recortes y salteos propuestos, nunca aplica). Vivo: `linea_go`, `linea_hold`, `linea_siguiente` / `_anterior` (mover el próximo), `linea_saltar`, `linea_ir` (con reposición de estado), `linea_repetir`, `linea_insertar` (del estante), `linea_adlib`. Tras un corte: `linea_retomar` (la descripción; `simular` para probar) y `linea_soltar`. Las que cambian el aire (go, ir, repetir, insertar, adlib, soltar) están en la lista de aire |
 
 ## Varias salidas (`salida`)
 

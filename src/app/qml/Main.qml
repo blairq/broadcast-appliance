@@ -427,6 +427,15 @@ ApplicationWindow {
     // esta a la vista y puede leer de los Studio.* que esta mirando el
     // operador. Sin contexto, «achicalo un poco» no quiere decir nada.
     function contextoDePagina(i) {
+        // Tras un corte de luz la línea de tiempo vuelve en HOLD y pregunta qué está
+        // pasando: lo que se dicte o escriba acá es esa respuesta, esté donde esté.
+        const r = Studio.evento.retoma
+        const corte = r && r.activa
+            ? qsTr("Volvió la luz en medio del evento y la línea de tiempo está en HOLD: lo que te cuento es qué está pasando. Pasalo con linea_retomar, proponé cómo seguir (linea_editar o linea_ajustar con probar) y soltá con linea_soltar cuando lo confirme. ")
+            : ""
+        return corte + contextoPropio(i)
+    }
+    function contextoPropio(i) {
         switch (i) {
         case 0: return qsTr("Estoy en el Dashboard, mirando el programa y las salidas.")
         case 1: return qsTr("Estoy en Escenas y fuentes. La escena al aire es «%1».").arg(Studio.currentScene)

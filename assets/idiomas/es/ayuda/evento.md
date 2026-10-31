@@ -28,7 +28,9 @@ De la `duracionSeg` de cada cue sale la del bloque y la del evento; con `inicio`
 ## Mientras corre
 `evento_correr` con `arrancar`, `siguiente`, `atras`, `ir`, `pausar`, `reanudar`, `hold`, `parar`. **Sale al aire** salvo en ensayo, asi que lo decide el operador.
 
-Un cue con `automatico: true` pasa **solo** al siguiente cuando se cumple su `duracionSeg` (sin duracion, en el acto: sirve para encadenar escena + zocalo); una `pausa` con duracion, tambien. Las `espera` nunca, y el ultimo cue tampoco. Los ultimos 5 s se avisan (`reloj.entraSoloEnSeg`). `hold` frena ese avance del cue actual (la cuenta sigue y el atraso corre: no es una pausa); otro `hold` lo suelta, o `{"accion": "hold", "hold": false}`.
+Un cue con `automatico: true` pasa **solo** al siguiente cuando se cumple su `duracionSeg` (sin duracion, en el acto: sirve para encadenar escena + zocalo); una `pausa` con duracion, tambien. Las `espera` nunca, y el ultimo cue tampoco. Los ultimos 5 s antes de que entre solo el paso siguiente se avisan (`reloj.entraSoloEnSeg`). `hold` frena ese avance del paso al aire (la cuenta sigue y el atraso corre: no es una pausa); otro `hold` lo suelta, o `{"accion": "hold", "hold": false}`.
+
+Por debajo, el guion es una **línea de tiempo** (ver abajo): cada cue de escena, orador, video, pausa o espera abre un **paso**, y los cues que lo siguen son **piezas** de ese paso. `siguiente` dispara la pieza siguiente del paso si todavía no salió y, si no queda ninguna, hace entrar el paso siguiente. Un gráfico que «se va al avanzar» se va cuando entra el paso siguiente.
 
 El cue de escena que sigue queda **armado en el PVW** de antemano, asi el operador ve lo que va a entrar y el TAKE es inmediato.
 
@@ -46,3 +48,15 @@ Cada evento tiene su **tema**: acento, fondo, letra, logo y nombre, en **todas**
 - Un sitio generado antes del tema: `evento_tema {"accion": "migrar_sitio"}` (respeta lo cambiado a mano en `estilo.css`).
 
 Se guarda en la carpeta del evento (`tema.json` y `Tema/`). Sin tema propio, el acento y el fondo salen de los del sitio (`evento_web sitio {color, fondo}`). En la app: Servicios → Aspecto de las páginas web → Tema del evento.
+
+## La línea de tiempo (`linea_*`)
+El plan del evento es su **línea de tiempo**; el guion de cues es una manera de leerla y editarla (lo que no tocás en los cues queda exacto en la línea). La línea sabe más que los cues: **pasos** que entran con GO o solos (`tras` otro, `con` otro, a una `hora` fija con política avisar/esperar/cortar, `ancla`dos a otra salida), **piezas** con su tiempo dentro del paso (`{ms}`, `{antesDelFin}`, `{manual:true}`) y su `vida` (paso, bloque, hasta que se saque, evento), un **estante** de adlibs y pasos para insertar, y el pronóstico con back time y over/under.
+
+- **Mirar**: `linea_ver` (compacto; `nivel`: bloques, pasos o piezas; `desde`/`hasta` "HH:MM") y `linea_estado` (al aire, próximo, HOLD, over/under, próximo hard start). `linea_revisar` dice lo que está mal armado.
+- **Cambiar**: `linea_editar {ops, probar}`: un lote que entra entero o nada. **Probá primero** (`probar: true`), mostrá el diff y el pronóstico, y aplicalo cuando la persona confirme. Cada cambio aplicado deja la línea anterior en `Respaldos/linea-<n>.json`; `linea_deshacer` vuelve. En vivo solo se toca lo que viene.
+- **Llegar a horario**: `linea_ajustar {hasta: "21:00"}` propone recortar los pasos con etiqueta `recortable` y saltear los `opcional`; nunca aplica.
+- **En vivo**: `linea_go`, `linea_hold`, `linea_siguiente`/`linea_anterior` (mueven el próximo sin tocar el aire), `linea_saltar`, `linea_ir {paso}` (entra con el estado que corresponde: repone música y gráficos de vida larga), `linea_repetir`, `linea_insertar {item}` (un paso del estante), `linea_adlib {pieza}`. Las que cambian el aire las confirma la persona.
+- **Lo que pasó**: `linea_recorrido` (también en `Eventos/<evento>/recorrido.jsonl`).
+
+## Si se corta la luz
+La línea vuelve con el aire como estaba pero **en HOLD**, y la conducción pregunta **«¿Qué está pasando?»**. Cuando la persona te lo cuente (escrito o dictado): `linea_estado` (mirá `retoma.resumen`: cuánto duró el corte, qué estaba al aire, qué iría según el plan, qué se repuso y qué se perdió), pasá la descripción con `linea_retomar {descripcion}`, y **proponé** cómo seguir (dónde reenganchar, qué saltear, qué recortar) con `linea_editar` o `linea_ajustar` con `probar`. Cuando confirme, aplicalo y soltá con `linea_soltar {decision}`. Si dice que siga como estaba, `linea_soltar` sin cambiar nada. Sin respuesta, queda en HOLD. Para probar el flujo sin cortar nada: `linea_retomar {"simular": true}` con la línea corriendo.

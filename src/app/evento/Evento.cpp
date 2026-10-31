@@ -3,6 +3,7 @@
 // ============================================================================
 #include "evento/Evento.hpp"
 
+#include "evento/LeerJson.hpp"
 #include "i18n/I18n.hpp"
 
 #include <algorithm>
@@ -28,21 +29,6 @@ constexpr NombreTipo kTipos[] = {
     {Tipo::Espera, "espera"},   {Tipo::Nota, "nota"},
     {Tipo::Grafico, "grafico"}, {Tipo::Carrusel, "carrusel"},
 };
-
-std::string textoDe(const json& j, const char* clave) {
-    if (!j.contains(clave) || !j[clave].is_string()) return {};
-    return j[clave].get<std::string>();
-}
-
-int enteroDe(const json& j, const char* clave, int porDefecto = 0) {
-    if (!j.contains(clave) || !j[clave].is_number_integer()) return porDefecto;
-    return j[clave].get<int>();
-}
-
-bool boolDe(const json& j, const char* clave, bool porDefecto = false) {
-    if (!j.contains(clave) || !j[clave].is_boolean()) return porDefecto;
-    return j[clave].get<bool>();
-}
 
 /// Un dato de texto del cue esta presente y no vacio.
 bool tieneTexto(const json& datos, const char* clave) {
@@ -237,30 +223,33 @@ json Evento::aJson() const {
     json inv = json::array();
     for (const Invitado& i : autoAceptar)
         inv.push_back(json{{"personaId", i.personaId}, {"nombre", i.nombre}, {"nota", i.nota}});
-    return json{{"nombre", nombre}, {"fecha", fecha}, {"inicio", inicio},  {"huso", huso},
-                {"idioma", idioma}, {"nota", nota},     {"bloques", bs},  {"autoAceptar", inv},
-                {"invitados", invitados}, {"preguntas", preguntas}, {"asamblea", asamblea}};
+    json j{{"nombre", nombre}, {"fecha", fecha}, {"inicio", inicio},  {"huso", huso},
+           {"idioma", idioma}, {"nota", nota},     {"bloques", bs},  {"autoAceptar", inv},
+           {"invitados", invitados}, {"preguntas", preguntas}, {"asamblea", asamblea}};
+    if (linea.is_object()) j["linea"] = linea;
+    return j;
 }
 
 Evento Evento::deJson(const json& j) {
     Evento e;
     if (!j.is_object()) return e;
-    e.nombre = textoDe(j, "nombre");
-    e.fecha = textoDe(j, "fecha");
-    e.inicio = textoDe(j, "inicio");
-    e.huso = textoDe(j, "huso");
-    e.idioma = textoDe(j, "idioma");
-    e.nota = textoDe(j, "nota");
+    e.nombre = leerTexto(j, "nombre");
+    e.fecha = leerTexto(j, "fecha");
+    e.inicio = leerTexto(j, "inicio");
+    e.huso = leerTexto(j, "huso");
+    e.idioma = leerTexto(j, "idioma");
+    e.nota = leerTexto(j, "nota");
     if (j.contains("invitados") && j["invitados"].is_boolean()) e.invitados = j["invitados"].get<bool>();
     if (j.contains("preguntas") && j["preguntas"].is_boolean()) e.preguntas = j["preguntas"].get<bool>();
     if (j.contains("asamblea") && j["asamblea"].is_boolean()) e.asamblea = j["asamblea"].get<bool>();
+    if (j.contains("linea") && j["linea"].is_object()) e.linea = j["linea"];
     if (j.contains("autoAceptar") && j["autoAceptar"].is_array()) {
         for (const json& ji : j["autoAceptar"]) {
             if (!ji.is_object()) continue;
             Invitado i;
-            i.personaId = textoDe(ji, "personaId");
-            i.nombre = textoDe(ji, "nombre");
-            i.nota = textoDe(ji, "nota");
+            i.personaId = leerTexto(ji, "personaId");
+            i.nombre = leerTexto(ji, "nombre");
+            i.nota = leerTexto(ji, "nota");
             // Sin ficha de rostro no se puede reconocer a nadie: una entrada
             // asi dejaria pasar por nombre, que es justo lo que no se quiere.
             if (!i.personaId.empty()) e.autoAceptar.push_back(std::move(i));
@@ -270,22 +259,22 @@ Evento Evento::deJson(const json& j) {
     for (const json& jb : j["bloques"]) {
         if (!jb.is_object()) continue;
         Bloque b;
-        b.id = textoDe(jb, "id");
-        b.nombre = textoDe(jb, "nombre");
-        b.nota = textoDe(jb, "nota");
+        b.id = leerTexto(jb, "id");
+        b.nombre = leerTexto(jb, "nombre");
+        b.nota = leerTexto(jb, "nota");
         if (jb.contains("cues") && jb["cues"].is_array()) {
             for (const json& jc : jb["cues"]) {
                 if (!jc.is_object()) continue;
                 Cue c;
-                c.id = textoDe(jc, "id");
+                c.id = leerTexto(jc, "id");
                 // Un tipo que este programa no conoce (un evento escrito con
                 // una version mas nueva) queda como nota: se ve en la lista y
                 // no se ejecuta, en vez de desaparecer sin avisar.
-                if (!tipoDeNombre(textoDe(jc, "tipo"), c.tipo)) c.tipo = Tipo::Nota;
-                c.texto = textoDe(jc, "texto");
+                if (!tipoDeNombre(leerTexto(jc, "tipo"), c.tipo)) c.tipo = Tipo::Nota;
+                c.texto = leerTexto(jc, "texto");
                 if (jc.contains("datos") && jc["datos"].is_object()) c.datos = jc["datos"];
-                c.duracionSeg = std::max(0, enteroDe(jc, "duracionSeg"));
-                c.automatico = boolDe(jc, "automatico");
+                c.duracionSeg = static_cast<int>(std::max<int64_t>(0, leerNumero(jc, "duracionSeg")));
+                c.automatico = leerBool(jc, "automatico");
                 c.normalizarDatos();
                 b.cues.push_back(std::move(c));
             }
@@ -400,214 +389,6 @@ std::vector<Reparo> revisar(const Evento& e) {
         }
     }
     return rs;
-}
-
-// --- Guion ------------------------------------------------------------------
-
-const Cue* Guion::cueActual() const {
-    if (!pos_.valida()) return nullptr;
-    const auto b = static_cast<std::size_t>(pos_.bloque);
-    const auto c = static_cast<std::size_t>(pos_.cue);
-    if (b >= e_.bloques.size() || c >= e_.bloques[b].cues.size()) return nullptr;
-    return &e_.bloques[b].cues[c];
-}
-
-Posicion Guion::siguienteDe(Posicion p) const {
-    if (!p.valida()) {
-        // Desde ningun lado: el primer cue que exista (saltando bloques vacios).
-        for (std::size_t b = 0; b < e_.bloques.size(); ++b)
-            if (!e_.bloques[b].cues.empty()) return {static_cast<int>(b), 0};
-        return {};
-    }
-    auto b = static_cast<std::size_t>(p.bloque);
-    const auto c = static_cast<std::size_t>(p.cue);
-    if (b >= e_.bloques.size()) return {};
-    if (c + 1 < e_.bloques[b].cues.size()) return {p.bloque, p.cue + 1};
-    for (++b; b < e_.bloques.size(); ++b)
-        if (!e_.bloques[b].cues.empty()) return {static_cast<int>(b), 0};
-    return {};
-}
-
-const Cue* Guion::cueSiguiente() const {
-    const Posicion s = siguienteDe(pos_);
-    if (!s.valida()) return nullptr;
-    return &e_.bloques[static_cast<std::size_t>(s.bloque)].cues[static_cast<std::size_t>(s.cue)];
-}
-
-void Guion::cerrarPaso(int64_t nowMs) {
-    if (!recorrido_.empty() && recorrido_.back().hastaMs == 0) recorrido_.back().hastaMs = nowMs;
-}
-
-void Guion::entrarA(Posicion p, int64_t nowMs) {
-    cerrarPaso(nowMs);
-    pos_ = p;
-    enCueDesdeMs_ = nowMs;
-    pausadoEnCueMs_ = 0;
-    hold_ = false; // el HOLD era del cue que se fue
-    // Si se cambia de cue con el guion pausado, la pausa vuelve a empezar
-    // aca: si no, el cue nuevo arrancaria contando hacia atras.
-    if (estado_ == Estado::Pausado) pausadoDesdeMs_ = nowMs;
-    if (!p.valida()) return;
-    Paso paso;
-    paso.pos = p;
-    paso.desdeMs = nowMs;
-    const Cue* c = cueActual();
-    paso.previstoSeg = c ? c->duracionSeg : 0;
-    recorrido_.push_back(paso);
-}
-
-void Guion::arrancar(int64_t nowMs) {
-    recorrido_.clear();
-    arranqueMs_ = nowMs;
-    pausadoMs_ = 0;
-    pausadoDesdeMs_ = 0;
-    pos_ = {};
-    const Posicion primera = siguienteDe({});
-    if (!primera.valida()) {
-        estado_ = Estado::Terminado;
-        return;
-    }
-    estado_ = Estado::Corriendo;
-    entrarA(primera, nowMs);
-}
-
-void Guion::terminar(int64_t nowMs) {
-    if (estado_ == Estado::Pausado) reanudar(nowMs);
-    cerrarPaso(nowMs);
-    pos_ = {};
-    hold_ = false;
-    estado_ = Estado::Terminado;
-}
-
-bool Guion::avanzar(int64_t nowMs) {
-    if (estado_ == Estado::Parado) {
-        arrancar(nowMs);
-        return estado_ == Estado::Corriendo;
-    }
-    const Posicion s = siguienteDe(pos_);
-    if (!s.valida()) {
-        cerrarPaso(nowMs);
-        pos_ = {};
-        hold_ = false;
-        estado_ = Estado::Terminado;
-        return false;
-    }
-    entrarA(s, nowMs);
-    return true;
-}
-
-bool Guion::retroceder(int64_t nowMs) {
-    if (!pos_.valida()) return false;
-    // El anterior en el mismo bloque; si es el primero, el ultimo del bloque
-    // anterior que tenga cues.
-    if (pos_.cue > 0) {
-        entrarA({pos_.bloque, pos_.cue - 1}, nowMs);
-        return true;
-    }
-    for (int b = pos_.bloque - 1; b >= 0; --b) {
-        const auto& cues = e_.bloques[static_cast<std::size_t>(b)].cues;
-        if (!cues.empty()) {
-            entrarA({b, static_cast<int>(cues.size()) - 1}, nowMs);
-            return true;
-        }
-    }
-    return false;
-}
-
-bool Guion::irA(Posicion p, int64_t nowMs) {
-    if (!p.valida()) return false;
-    const auto b = static_cast<std::size_t>(p.bloque);
-    const auto c = static_cast<std::size_t>(p.cue);
-    if (b >= e_.bloques.size() || c >= e_.bloques[b].cues.size()) return false;
-    if (estado_ == Estado::Parado || estado_ == Estado::Terminado) {
-        recorrido_.clear();
-        arranqueMs_ = nowMs;
-        pausadoMs_ = 0;
-        estado_ = Estado::Corriendo;
-    }
-    entrarA(p, nowMs);
-    return true;
-}
-
-void Guion::pausar(int64_t nowMs) {
-    if (estado_ != Estado::Corriendo) return;
-    estado_ = Estado::Pausado;
-    pausadoDesdeMs_ = nowMs;
-}
-
-void Guion::reanudar(int64_t nowMs) {
-    if (estado_ != Estado::Pausado) return;
-    estado_ = Estado::Corriendo;
-    const int64_t pausa = nowMs - pausadoDesdeMs_;
-    pausadoMs_ += pausa;
-    pausadoEnCueMs_ += pausa;
-    pausadoDesdeMs_ = 0;
-}
-
-int64_t Guion::enCueMs(int64_t nowMs) const {
-    if (!pos_.valida()) return 0;
-    // Mientras esta pausado el reloj del cue tampoco corre: el operador paro
-    // el evento, no se quedo mirando este cue.
-    const int64_t hasta = estado_ == Estado::Pausado ? pausadoDesdeMs_ : nowMs;
-    return std::max<int64_t>(0, hasta - enCueDesdeMs_ - pausadoEnCueMs_);
-}
-
-int Guion::enCueSeg(int64_t nowMs) const { return static_cast<int>(enCueMs(nowMs) / 1000); }
-
-bool Guion::setHold(bool on) {
-    if (cueActual() == nullptr) return false;
-    hold_ = on;
-    return true;
-}
-
-bool Guion::avanzaSolo() const {
-    const Cue* c = cueActual();
-    if (c == nullptr || !siguienteDe(pos_).valida()) return false;
-    switch (c->tipo) {
-        // Una pausa ES esperar y seguir: no hace falta marcarla automática.
-        case Tipo::Pausa: return c->duracionSeg > 0;
-        // Una espera existe para que confirme alguien: marcada automática
-        // dejaría de ser una espera.
-        case Tipo::Espera: return false;
-        default: return c->automatico;
-    }
-}
-
-int64_t Guion::msParaAvanzarSolo(int64_t nowMs) const {
-    if (estado_ != Estado::Corriendo || hold_ || !avanzaSolo()) return -1;
-    // Un automático sin duración encadena en el acto («cámara 2» y «zócalo» a la
-    // vez); con duración, cuando se cumple.
-    return std::max<int64_t>(0, cueActual()->duracionSeg * 1000LL - enCueMs(nowMs));
-}
-
-int Guion::entraSoloEnSeg(int64_t nowMs) const {
-    const int64_t ms = msParaAvanzarSolo(nowMs);
-    if (ms <= 0 || ms > kAvisoSeg * 1000LL) return 0;
-    return static_cast<int>((ms + 999) / 1000);
-}
-
-int Guion::desvioSeg(int64_t nowMs) const {
-    if (!pos_.valida()) return 0;
-    const int previsto =
-        e_.offsetDeCueSeg(static_cast<std::size_t>(pos_.bloque), static_cast<std::size_t>(pos_.cue));
-    if (previsto < 0) return 0;
-    // El tiempo pausado no cuenta: el operador paro a proposito, no se atraso.
-    const int64_t hasta = estado_ == Estado::Pausado ? pausadoDesdeMs_ : nowMs;
-    const int transcurrido = static_cast<int>((hasta - arranqueMs_ - pausadoMs_) / 1000);
-    return transcurrido - previsto;
-}
-
-int Guion::restanteSeg(int64_t nowMs) const {
-    const Cue* c = cueActual();
-    if (c == nullptr || c->duracionSeg <= 0) return 0;
-    return c->duracionSeg - enCueSeg(nowMs);
-}
-
-int Guion::transcurridoSeg(int64_t nowMs) const {
-    if (estado_ == Estado::Parado || arranqueMs_ == 0) return 0;
-    const int64_t hasta = estado_ == Estado::Terminado && !recorrido_.empty() ? recorrido_.back().hastaMs : nowMs;
-    const int64_t pausaEnCurso = estado_ == Estado::Pausado ? nowMs - pausadoDesdeMs_ : 0;
-    return static_cast<int>(std::max<int64_t>(0, hasta - arranqueMs_ - pausadoMs_ - pausaEnCurso) / 1000);
 }
 
 } // namespace ba::evento

@@ -819,8 +819,8 @@ endif()
     target_link_libraries(test_operator_messages PRIVATE ba_core Qt6::Core)
     set_target_properties(test_operator_messages PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_operator_messages COMMAND test_operator_messages)
-    # El guion del evento: tiempos, revision previa y el recorrido en vivo.
-    # No depende de Qt ni de libobs (dice QUE hacer, no lo hace), asi que
+    # El guion del evento: tiempos y revision previa (correrlo es de la linea).
+    # No depende de Qt ni del motor (dice QUE hacer, no lo hace), asi que
     # compila y corre en cualquier lado.
     add_executable(test_evento tests/test_evento.cpp evento/Evento.cpp)
     target_include_directories(test_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -828,8 +828,11 @@ endif()
     add_test(NAME test_evento COMMAND test_evento)
     # La línea de tiempo v2: modelo, migración desde el v1, resolvedor (pronóstico,
     # hard starts, holds, estado en t, conflictos entre salidas), revisión, load to
-    # time y retoma tras un corte. Puro como el guion: sin Qt, sin motor, sin reloj.
-    add_executable(test_linea tests/test_linea.cpp evento/Linea.cpp evento/Evento.cpp)
+    # time y retoma tras un corte; la fachada del guion de cues (proyectar/reconciliar),
+    # editar en lote, y la corrida (el ejecutor: GO, HOLD, lo que entra solo, saltar,
+    # adlibs, insertar, la retoma). Puro como el guion: sin Qt, sin motor, sin reloj.
+    add_executable(test_linea tests/test_linea.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Corrida.cpp
+                   evento/Evento.cpp)
     target_include_directories(test_linea PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_linea PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_linea COMMAND test_linea)

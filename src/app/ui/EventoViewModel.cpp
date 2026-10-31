@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include "ui/CarruselViewModel.hpp"
+#include "ui/EjecutorLinea.hpp"
 #include "ui/EventoViewModel.hpp"
 
 #include "evento/Documentos.hpp"
@@ -31,6 +32,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 #include <QTimeZone>
 
 #include "arranque/AppRuntime.hpp"
@@ -136,6 +138,12 @@ constexpr CampoDeTipo kTipos[] = {
 
 QString qs(const std::string& s) { return QString::fromStdString(s); }
 
+/// El nombre fijo de la música del evento: un tema nuevo reemplaza al anterior en vez
+/// de encimarse, que es lo peor que puede pasar en vivo.
+constexpr const char* kMusica = "Música del evento";
+
+using evento::linea::Accion;
+
 } // namespace
 
 EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graficos::Emisor* graficos,
@@ -143,20 +151,12 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
     : QObject(parent), rt_(rt), sala_(sala), graficos_(graficos), store_(rt.dataRoot() / "Eventos") {
     // El reloj del evento va aparte del guion: cambia cada segundo y no tiene
     // sentido redibujar la lista de cues por eso.
+    // Y de paso deja escrito el estado vivo (linea-aire.json): «cada segundo y en
+    // cada cambio». Lo que entra solo lo programa cada EjecutorLinea a la hora justa.
     reloj_.setInterval(1000);
-    connect(&reloj_, &QTimer::timeout, this, [this]() { emit relojChanged(); });
-    // El avance automático: un solo disparo a la hora justa, no un sondeo. Cuándo
-    // toca lo dice el guion; si al disparar todavía no toca (el reloj de pared se
-    // movió), se reprograma.
-    avanceSolo_.setSingleShot(true);
-    avanceSolo_.setTimerType(Qt::PreciseTimer);
-    connect(&avanceSolo_, &QTimer::timeout, this, [this]() {
-        if (!guionCorriendo_ || guionCorriendo_->msParaAvanzarSolo(ahoraMs()) != 0) {
-            programarAvanceSolo();
-            return;
-        }
-        anotar(tr("Se cumplió el tiempo: entra solo el cue siguiente"), "info");
-        avanzar();
+    connect(&reloj_, &QTimer::timeout, this, [this]() {
+        escribirVivo();
+        emit relojChanged();
     });
     // Las plantillas de la página web del evento (Web/evento/plantilla del programa): ANTES
     // de abrir el último evento, que al abrirse actualiza sus páginas con ellas.
@@ -176,6 +176,14 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
         if (j.is_object()) automatico_ = j.value("evento_automatico", true);
     }
     asegurarEnCurso();
+    // Tras un corte de luz, la línea que estaba corriendo vuelve en HOLD y pregunta qué
+    // está pasando (docs/planes/PLAN-LINEA-DE-TIEMPO.md 3.8). Un rato después, como la
+    // playlist: que el aire ya haya vuelto (T47) y estén el conmutador y los gráficos.
+    // Sin corte (se cerró bien), lo que haya quedado escrito no es de un corte.
+    if (rt.corteAnterior())
+        QTimer::singleShot(ba::ajustes::entero("arranque.retomarLineaMs", 2500), this, &EventoViewModel::retomarLinea);
+    else
+        borrarVivo();
     vigiaEnCurso_.setInterval(ba::ajustes::sAMs("evento.vigiaS", 60));
     connect(&vigiaEnCurso_, &QTimer::timeout, this, &EventoViewModel::asegurarEnCurso);
     vigiaEnCurso_.start();
@@ -317,14 +325,14 @@ void EventoViewModel::publicarWeb() {
         // El estado público: en qué sección va (nada de cues ni notas).
         std::string est = "proximo";
         int bloque = -1;
-        if (guionCorriendo_) {
-            switch (guionCorriendo_->estado()) {
-                case evento::Guion::Estado::Corriendo: est = "en_vivo"; break;
-                case evento::Guion::Estado::Pausado: est = "pausa"; break;
-                case evento::Guion::Estado::Terminado: est = "terminado"; break;
+        if (corrida_) {
+            switch (corrida_->estado()) {
+                case evento::linea::EstadoCorrida::Corriendo: est = "en_vivo"; break;
+                case evento::linea::EstadoCorrida::Pausada: est = "pausa"; break;
+                case evento::linea::EstadoCorrida::Terminada: est = "terminado"; break;
                 default: break;
             }
-            if (est == "en_vivo" || est == "pausa") bloque = guionCorriendo_->posicion().bloque;
+            if (est == "en_vivo" || est == "pausa") bloque = cursor_.bloque;
         }
         if (ensayo_) est = "proximo"; // un ensayo no se publica
         if (est == "proximo" && store_.datos(abierto_.toStdString()).estado == "terminado") est = "terminado";
@@ -354,16 +362,15 @@ void EventoViewModel::publicarWeb() {
         if (est == "proximo") webInicioReal_.clear();
         if (bloque >= 0 && !webInicioReal_.count(bloque)) webInicioReal_[bloque] = QDateTime::currentMSecsSinceEpoch();
         for (const auto& [b, ms] : webInicioReal_) x.inicioReal[b] = ms;
-        if (guionCorriendo_ && bloque >= 0) {
+        if (corriendo() && bloque >= 0 && bloque < static_cast<int>(e_.bloques.size())) {
             // Lo que le falta a la sección actual según lo previsto, y quién habla (si el cue
             // que corre es de orador: el que tiene la palabra se ve al aire, no es privado).
-            const evento::Posicion p = guionCorriendo_->posicion();
             const auto& cues = e_.bloques[static_cast<std::size_t>(bloque)].cues;
             int falta = 0;
-            for (int c = p.cue; c < static_cast<int>(cues.size()); ++c)
+            for (int c = cursor_.cue; c < static_cast<int>(cues.size()); ++c)
                 falta += cues[static_cast<std::size_t>(c)].duracionSeg;
-            x.restanteActualSeg = std::max(0, falta - guionCorriendo_->enCueSeg(ahoraMs()));
-            if (const evento::Cue* c = guionCorriendo_->cueActual(); c != nullptr && c->tipo == evento::Tipo::Orador)
+            x.restanteActualSeg = std::max(0, falta - enCueSeg(ahoraMs()));
+            if (const evento::Cue* c = cuePtrConst(cursor_.bloque, cursor_.cue); c != nullptr && c->tipo == evento::Tipo::Orador)
                 x.habla = c->datos.value("participante", std::string());
         }
         json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0, x);
@@ -627,13 +634,39 @@ bool EventoViewModel::abrir(const QString& carpeta) {
         return false;
     }
     parar();
-    ultimoGuion_.reset();
+    ejecutores_.clear();
+    corrida_.reset();
     e_ = std::move(e);
     ba::i18n::usarEnEvento(e_.idioma); // lo que ven y escuchan el público y los invitados
     abierto_ = carpeta;
+    // LA LÍNEA MANDA: la del archivo o, en un evento de antes (v1), la migración del
+    // guion de cues, con una copia del v1 en Respaldos/ y el archivo pasado a v2.
+    bool migrado = false;
+    QString avisoMigracion; // a la bitácora, después de limpiarla
+    if (e_.linea.is_object()) {
+        linea_ = evento::linea::Linea::deJson(e_.linea);
+    } else {
+        linea_ = evento::linea::migrar(e_);
+        migrado = !e_.bloques.empty();
+    }
+    proyeccion_ = evento::linea::proyectar(linea_);
+    e_.bloques = proyeccion_.bloques;
+    if (migrado) {
+        const auto dir = store_.carpetaDe(carpeta.toStdString());
+        std::error_code ec;
+        std::filesystem::create_directories(dir / "Respaldos", ec);
+        if (!std::filesystem::exists(dir / "Respaldos" / "evento-v1.json", ec))
+            std::filesystem::copy_file(dir / "evento.json", dir / "Respaldos" / "evento-v1.json", ec);
+        e_.linea = linea_.aJson();
+        std::string errMig;
+        avisoMigracion = store_.guardar(carpeta.toStdString(), e_, &errMig)
+                             ? tr("El guion pasó a la línea de tiempo: la copia de antes quedó en Respaldos/evento-v1.json")
+                             : tr("No se pudo guardar el guion pasado a la línea de tiempo: %1").arg(QString::fromStdString(errMig));
+    }
     sucio_ = false;
     reparos_.clear();
     bitacora_.clear();
+    if (!avisoMigracion.isEmpty()) anotar(avisoMigracion, "info");
     // El padron viene con el evento. Que no se pueda leer NO impide abrirlo:
     // el guion es lo que hay que poder correr, y quedarse sin evento por un
     // padron roto seria perder el acto entero por la lista de invitados.
@@ -666,9 +699,12 @@ bool EventoViewModel::abrir(const QString& carpeta) {
 void EventoViewModel::cerrar() {
     if (sucio_) guardar();
     parar();
-    ultimoGuion_.reset();
+    ejecutores_.clear();
+    corrida_.reset();
     buzon_.stop();
     e_ = {};
+    linea_ = {};
+    proyeccion_ = {};
     ba::i18n::usarEnEvento({});
     padron_ = {};
     abierto_.clear();
@@ -946,6 +982,7 @@ void EventoViewModel::setValorDeCue(int bloque, int cue, const QString& clave, c
 }
 
 void EventoViewModel::marcarSucio() {
+    lineaDesdeGuion();
     if (!sucio_) {
         sucio_ = true;
         emit sucioChanged();
@@ -1131,6 +1168,7 @@ void EventoViewModel::moverCue(int deBloque, int deCue, int aBloque, int aCue) {
 
 bool EventoViewModel::guardar() {
     if (abierto_.isEmpty()) return false;
+    e_.linea = linea_.aJson(); // lo que manda; `bloques` va como su lectura
     std::string err;
     if (!store_.guardar(abierto_.toStdString(), e_, &err)) {
         emit notify(tr("No se pudo guardar el guion: %1").arg(QString::fromStdString(err)), "error");
@@ -1164,17 +1202,17 @@ void EventoViewModel::ensayoAcelerado() {
     // Se camina el recorrido de verdad, no la lista: asi se ve el orden real
     // y quedan a la vista los bloques que nunca se visitan.
     const std::vector<std::string> escenas = rt_.engine().sceneNames();
-    evento::Guion recorrido(e_);
     int visitados = 0;
     int problemas = 0;
     int sinEjecutar = 0;
     bitacora_.clear();
 
-    for (evento::Posicion p = recorrido.siguienteDe({}); p.valida(); p = recorrido.siguienteDe(p)) {
-        const evento::Cue& c =
-            e_.bloques[static_cast<std::size_t>(p.bloque)].cues[static_cast<std::size_t>(p.cue)];
+    // En el orden en que pasa: bloque por bloque y cue por cue.
+    for (std::size_t bi = 0; bi < e_.bloques.size(); ++bi)
+        for (std::size_t ci = 0; ci < e_.bloques[bi].cues.size(); ++ci) {
+        const evento::Cue& c = e_.bloques[bi].cues[ci];
         ++visitados;
-        const QString donde = QString("%1.%2").arg(p.bloque + 1).arg(p.cue + 1);
+        const QString donde = QString("%1.%2").arg(bi + 1).arg(ci + 1);
         const QString que = c.texto.empty() ? QString::fromStdString(evento::nombreDeTipo(c.tipo))
                                             : QString::fromStdString(c.texto);
         const std::string falta = c.queLeFalta();
@@ -1197,7 +1235,7 @@ void EventoViewModel::ensayoAcelerado() {
             continue;
         }
         anotar(tr("%1 %2 — listo").arg(donde, que), "ok");
-    }
+        }
 
     // Bloques que el recorrido nunca pisa: estan escritos pero no pasan.
     int colgados = 0;
@@ -1228,10 +1266,9 @@ QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
     const auto fallo = [](const QString& motivo) {
         return QVariantMap{{"ok", false}, {"motivo", motivo}, {"capitulos", QVariantList{}}};
     };
-    const evento::Guion* g = guionDelInforme();
-    if (g == nullptr)
-        return fallo(tr("El guion no se corrio en esta sesion: no hay de donde sacar los tiempos."));
-    const auto& pasos = g->recorrido();
+    if (!corrida_) return fallo(tr("El guion no se corrio en esta sesion: no hay de donde sacar los tiempos."));
+    const std::string salida = salidaPorOmision();
+    const auto& pasos = corrida_->instancias();
     if (pasos.empty()) return fallo(tr("El guion no avanzo ningun cue todavia."));
     if (recInicioMs <= 0)
         return fallo(tr("No se cuando arranco la grabacion. Los capitulos se miden desde ahi, no desde "
@@ -1240,13 +1277,15 @@ QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
 
     QVariantList caps;
     int antesDeGrabar = 0;
-    int bloqueIdx = -1;
-    for (const evento::Guion::Paso& p : pasos) {
-        // Un capitulo por BLOQUE: se toma el primer cue de cada tramo.
-        if (p.pos.bloque == bloqueIdx) continue;
-        bloqueIdx = p.pos.bloque;
-        const auto bi = static_cast<std::size_t>(bloqueIdx);
-        if (bi >= e_.bloques.size()) continue;
+    std::string bloqueId;
+    const auto& bloques = corrida_->linea().bloques;
+    for (const evento::linea::Instancia& p : pasos) {
+        if (p.salida != salida) continue;
+        // Un capitulo por BLOQUE: se toma el primer paso de cada tramo.
+        const evento::linea::Bloque* b = corrida_->linea().bloqueDe(p.paso);
+        if (b == nullptr || b->id == bloqueId) continue;
+        bloqueId = b->id;
+        const int bloqueIdx = static_cast<int>(b - bloques.data());
         const int seg = static_cast<int>((p.desdeMs - recInicioMs) / 1000);
         // Lo que paso ANTES de apretar grabar no esta en el video. Se cuenta y
         // se avisa, en vez de inventarle un 0:00 a algo que no se grabo.
@@ -1254,8 +1293,7 @@ QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
             ++antesDeGrabar;
             continue;
         }
-        const QString nombre = e_.bloques[bi].nombre.empty() ? tr("Bloque %1").arg(bloqueIdx + 1)
-                                                             : QString::fromStdString(e_.bloques[bi].nombre);
+        const QString nombre = b->nombre.empty() ? tr("Bloque %1").arg(bloqueIdx + 1) : QString::fromStdString(b->nombre);
         caps.append(QVariantMap{{"seg", seg}, {"marca", marcaDe(seg)}, {"titulo", nombre}});
     }
     if (caps.isEmpty()) return fallo(tr("Todos los bloques empezaron antes de que arrancara la grabacion."));
@@ -1468,9 +1506,10 @@ QString EventoViewModel::hashActa(const QString& texto) {
 }
 
 QVariantMap EventoViewModel::informe() const {
-    const evento::Guion* g = guionDelInforme();
-    if (g == nullptr) return {};
-    const auto& pasos = g->recorrido();
+    // Un renglón por paso que salió (lo emitido de la salida por omisión).
+    if (!corrida_) return {};
+    const std::string salida = salidaPorOmision();
+    const auto& pasos = corrida_->instancias();
     if (pasos.empty()) return {};
 
     // Se agrupa por bloque respetando el ORDEN EN QUE PASO, no el del guion:
@@ -1478,7 +1517,8 @@ QVariantMap EventoViewModel::informe() const {
     QVariantList bloques;
     QVariantMap bloqueActual;
     QVariantList cuesDelBloque;
-    int bloqueIdx = -1;
+    std::string bloqueId;
+    bool hayBloque = false;
     int bPrevisto = 0;
     int bReal = 0;
     int totalPrevisto = 0;
@@ -1486,7 +1526,7 @@ QVariantMap EventoViewModel::informe() const {
     int nro = 0;
 
     const auto cerrarBloque = [&]() {
-        if (bloqueIdx < 0) return;
+        if (!hayBloque) return;
         bloqueActual["cues"] = cuesDelBloque;
         bloqueActual["previstoSeg"] = bPrevisto;
         bloqueActual["realSeg"] = bReal;
@@ -1497,29 +1537,35 @@ QVariantMap EventoViewModel::informe() const {
         bReal = 0;
     };
 
-    for (const evento::Guion::Paso& p : pasos) {
-        // El ultimo cue puede seguir corriendo: no tiene duracion real todavia.
-        if (p.hastaMs == 0) continue;
-        if (p.pos.bloque != bloqueIdx) {
+    for (const evento::linea::Instancia& p : pasos) {
+        // El último paso puede seguir al aire: no tiene duración real todavía.
+        if (p.salida != salida || p.hastaMs == 0) continue;
+        const evento::linea::Bloque* b = corrida_->linea().bloqueDe(p.paso);
+        const std::string id = b ? b->id : std::string();
+        if (!hayBloque || id != bloqueId) {
             cerrarBloque();
-            bloqueIdx = p.pos.bloque;
-            const auto bi = static_cast<std::size_t>(bloqueIdx);
-            bloqueActual =
-                QVariantMap{{"nombre", bi < e_.bloques.size() ? QString::fromStdString(e_.bloques[bi].nombre)
-                                                              : tr("(bloque borrado)")}};
+            hayBloque = true;
+            bloqueId = id;
+            bloqueActual = QVariantMap{{"nombre", b ? QString::fromStdString(b->nombre) : tr("(bloque borrado)")}};
         }
-        const evento::Cue* c = cuePtrConst(p.pos.bloque, p.pos.cue);
-        const int real = p.realSeg();
+        const evento::linea::Paso* paso = corrida_->linea().paso(p.paso);
+        // El tipo es el del cue con que empieza el paso en el guion de cues.
+        const auto [cb, cc] = proyeccion_.cueDe(p.paso);
+        const evento::Cue* c = cuePtrConst(cb, cc);
+        const int previsto = paso ? static_cast<int>(paso->duracionPlanMs() / 1000) : 0;
+        const int real = static_cast<int>((p.hastaMs - p.desdeMs) / 1000);
         cuesDelBloque.append(QVariantMap{
             {"nro", ++nro},
-            {"texto", c != nullptr ? QString::fromStdString(c->texto) : QString()},
-            {"tipo", c != nullptr ? QString::fromStdString(evento::nombreDeTipo(c->tipo)) : QString()},
-            {"previstoSeg", p.previstoSeg},
+            {"paso", QString::fromStdString(p.paso)},
+            {"texto", paso ? QString::fromStdString(paso->nombre) : QString::fromStdString(p.paso)},
+            {"tipo", c != nullptr ? QString::fromStdString(evento::nombreDeTipo(c->tipo)) : QString("paso")},
+            {"entro", QString::fromUtf8(evento::linea::nombreDe(p.comoEntro))},
+            {"previstoSeg", previsto},
             {"realSeg", real},
-            {"desvioSeg", real - p.previstoSeg}});
-        bPrevisto += p.previstoSeg;
+            {"desvioSeg", real - previsto}});
+        bPrevisto += previsto;
         bReal += real;
-        totalPrevisto += p.previstoSeg;
+        totalPrevisto += previsto;
         totalReal += real;
     }
     cerrarBloque();
@@ -1621,50 +1667,108 @@ void EventoViewModel::revisar() {
 
 // --- Correr -----------------------------------------------------------------
 
+bool EventoViewModel::corriendo() const {
+    if (!corrida_) return false;
+    const auto e = corrida_->estado();
+    return e == evento::linea::EstadoCorrida::Corriendo || e == evento::linea::EstadoCorrida::Pausada;
+}
+
 QString EventoViewModel::estado() const {
-    if (!guionCorriendo_) return "parado";
-    switch (guionCorriendo_->estado()) {
-        case evento::Guion::Estado::Corriendo: return "corriendo";
-        case evento::Guion::Estado::Pausado: return "pausado";
-        case evento::Guion::Estado::Terminado: return "terminado";
+    if (!corrida_) return "parado";
+    switch (corrida_->estado()) {
+        case evento::linea::EstadoCorrida::Corriendo: return "corriendo";
+        case evento::linea::EstadoCorrida::Pausada: return "pausado";
+        case evento::linea::EstadoCorrida::Terminada: return "terminado";
         default: return "parado";
     }
 }
 
 bool EventoViewModel::guionCorriendo() const {
-    if (ensayo_ || !guionCorriendo_) return false;
-    const auto e = guionCorriendo_->estado();
     // Pausado tambien cuenta: el evento esta pasando, el operador solo freno
     // el guion un momento.
-    return e == evento::Guion::Estado::Corriendo || e == evento::Guion::Estado::Pausado;
+    return !ensayo_ && corriendo();
 }
 
 QVariantMap EventoViewModel::actual() const {
-    if (!guionCorriendo_) return {};
-    const evento::Posicion p = guionCorriendo_->posicion();
-    const evento::Cue* c = guionCorriendo_->cueActual();
-    if (c == nullptr) return {};
-    QVariantMap m = cueAMap(*c, p.bloque, p.cue);
-    m["bloqueNombre"] = QString::fromStdString(e_.bloques[static_cast<std::size_t>(p.bloque)].nombre);
-    return m;
+    if (!corriendo()) return {};
+    if (const evento::Cue* c = cuePtrConst(cursor_.bloque, cursor_.cue)) {
+        QVariantMap m = cueAMap(*c, cursor_.bloque, cursor_.cue);
+        m["bloqueNombre"] = QString::fromStdString(e_.bloques[static_cast<std::size_t>(cursor_.bloque)].nombre);
+        if (const auto* r = proyeccion_.ref(cursor_.bloque, cursor_.cue)) m["paso"] = QString::fromStdString(r->paso);
+        return m;
+    }
+    // Un paso que no está en el guion de cues (uno insertado del estante).
+    const evento::linea::Instancia* a = corrida_->alAire(salidaPorOmision());
+    const evento::linea::Paso* p = a ? corrida_->linea().paso(a->paso) : nullptr;
+    if (p == nullptr) return {};
+    return QVariantMap{{"paso", QString::fromStdString(p->id)},     {"texto", QString::fromStdString(p->nombre)},
+                       {"tipo", "paso"},                             {"bloque", -1},
+                       {"cue", -1},                                  {"duracionSeg", static_cast<int>(p->duracionPlanMs() / 1000)}};
 }
 
 QVariantMap EventoViewModel::siguiente() const {
-    if (!guionCorriendo_) return {};
-    const evento::Posicion s = guionCorriendo_->siguienteDe(guionCorriendo_->posicion());
-    const evento::Cue* c = guionCorriendo_->cueSiguiente();
-    if (c == nullptr) return {};
-    QVariantMap m = cueAMap(*c, s.bloque, s.cue);
-    m["bloqueNombre"] = QString::fromStdString(e_.bloques[static_cast<std::size_t>(s.bloque)].nombre);
-    return m;
+    if (!corriendo()) return {};
+    const std::string s = salidaPorOmision();
+    const auto mapa = [this](int b, int c) {
+        QVariantMap m = cueAMap(*cuePtrConst(b, c), b, c);
+        m["bloqueNombre"] = QString::fromStdString(e_.bloques[static_cast<std::size_t>(b)].nombre);
+        if (const auto* r = proyeccion_.ref(b, c)) m["paso"] = QString::fromStdString(r->paso);
+        return m;
+    };
+    // Lo que queda del paso al aire (lo que en el v1 era el cue siguiente)…
+    const evento::linea::Instancia* a = corrida_->alAire(s);
+    const auto [nb, nc] = cueSiguienteDe(cursor_.bloque, cursor_.cue);
+    if (const auto* r = proyeccion_.ref(nb, nc); a && r && r->paso == a->paso && !r->pieza.empty() && !corrida_->disparada(s, r->pieza))
+        return mapa(nb, nc);
+    // …y si no, el próximo paso (el que diga la corrida: saltear y mover el próximo cuentan).
+    const evento::linea::Resolucion res = corrida_->resolver(ahoraMs());
+    const evento::linea::SalidaResuelta* sr = res.salida(s);
+    if (sr == nullptr || sr->proximo.empty()) return {};
+    const auto [b, c] = proyeccion_.cueDe(sr->proximo);
+    if (cuePtrConst(b, c) != nullptr) return mapa(b, c);
+    const evento::linea::Paso* p = corrida_->linea().paso(sr->proximo);
+    return p ? QVariantMap{{"paso", QString::fromStdString(p->id)}, {"texto", QString::fromStdString(p->nombre)}, {"tipo", "paso"}}
+             : QVariantMap{};
+}
+
+void EventoViewModel::moverCursor(int bloque, int cue) {
+    const int64_t t = ahoraMs();
+    cursor_ = {bloque, cue, t, corrida_ ? corrida_->pausadoMs(t) : 0};
+}
+
+std::pair<int, int> EventoViewModel::cueSiguienteDe(int bloque, int cue) const {
+    const int n = static_cast<int>(e_.bloques.size());
+    if (bloque < 0) bloque = 0, cue = -1;
+    for (int b = bloque; b < n; ++b) {
+        const int desde = b == bloque ? cue + 1 : 0;
+        if (desde < static_cast<int>(e_.bloques[static_cast<std::size_t>(b)].cues.size())) return {b, desde};
+    }
+    return {-1, -1};
+}
+
+std::pair<int, int> EventoViewModel::cueAnteriorDe(int bloque, int cue) const {
+    if (bloque < 0 || bloque >= static_cast<int>(e_.bloques.size())) return {-1, -1};
+    if (cue > 0) return {bloque, cue - 1};
+    for (int b = bloque - 1; b >= 0; --b) {
+        const auto& cues = e_.bloques[static_cast<std::size_t>(b)].cues;
+        if (!cues.empty()) return {b, static_cast<int>(cues.size()) - 1};
+    }
+    return {-1, -1};
+}
+
+int EventoViewModel::enCueSeg(int64_t ahora) const {
+    if (!corrida_ || cursor_.desdeMs == 0) return 0;
+    // Lo pausado mientras estaba en este cue no cuenta: el operador paró el evento.
+    const int64_t pausa = corrida_->pausadoMs(ahora) - cursor_.pausadoAlEntrarMs;
+    return static_cast<int>(std::max<int64_t>(0, ahora - cursor_.desdeMs - pausa) / 1000);
 }
 
 QVariantMap EventoViewModel::reloj() const {
-    if (!guionCorriendo_) return QVariantMap{{"desvioSeg", 0}, {"enCueSeg", 0}, {"restanteSeg", 0}};
+    if (!corrida_) return QVariantMap{{"desvioSeg", 0}, {"enCueSeg", 0}, {"restanteSeg", 0}};
     const int64_t t = ahoraMs();
     // En que numero de cue vamos, para "12 de 34".
     int nro = 0;
-    const evento::Posicion p = guionCorriendo_->posicion();
+    const Cursor& p = cursor_;
     for (int b = 0; b < static_cast<int>(e_.bloques.size()) && b <= p.bloque; ++b) {
         const int hasta =
             b == p.bloque ? p.cue + 1 : static_cast<int>(e_.bloques[static_cast<std::size_t>(b)].cues.size());
@@ -1674,13 +1778,13 @@ QVariantMap EventoViewModel::reloj() const {
     // acá, lo que falta del bloque, a qué hora terminaría y, si el guion tiene
     // hora de inicio, contra qué hora de fin planeada se compara.
     int restanteGuion = 0, restanteBloque = 0, totalPrevisto = 0;
-    const int enCue = guionCorriendo_->enCueSeg(t);
+    const int enCue = enCueSeg(t);
     for (int b = 0; b < static_cast<int>(e_.bloques.size()); ++b) {
         const auto& cues = e_.bloques[static_cast<std::size_t>(b)].cues;
         for (int c = 0; c < static_cast<int>(cues.size()); ++c) {
             const int d = cues[static_cast<std::size_t>(c)].duracionSeg;
             totalPrevisto += d;
-            if (!p.valida()) continue;
+            if (!p.valido()) continue;
             int falta = 0;
             if (b > p.bloque || (b == p.bloque && c > p.cue)) falta = d;
             else if (b == p.bloque && c == p.cue) falta = std::max(0, d - enCue);
@@ -1688,20 +1792,27 @@ QVariantMap EventoViewModel::reloj() const {
             if (b == p.bloque) restanteBloque += falta;
         }
     }
-    QVariantMap m{{"desvioSeg", guionCorriendo_->desvioSeg(t)},
+    // Lo que lleva el evento sin las pausas, y el desvío contra lo previsto para el cue
+    // donde está: positivo = vamos tarde.
+    const int transcurrido =
+        corrida_->arranqueMs() > 0 ? static_cast<int>((t - corrida_->arranqueMs() - corrida_->pausadoMs(t)) / 1000) : 0;
+    const int previsto = p.valido() ? e_.offsetDeCueSeg(static_cast<std::size_t>(p.bloque), static_cast<std::size_t>(p.cue)) : -1;
+    const evento::Cue* c = cuePtrConst(p.bloque, p.cue);
+    const std::string s = salidaPorOmision();
+    QVariantMap m{{"desvioSeg", previsto >= 0 && corriendo() ? transcurrido - previsto : 0},
                   {"enCueSeg", enCue},
-                  {"restanteSeg", guionCorriendo_->restanteSeg(t)},
-                  {"cueNro", p.valida() ? nro : 0},
+                  {"restanteSeg", c != nullptr && c->duracionSeg > 0 ? c->duracionSeg - enCue : 0},
+                  {"cueNro", p.valido() ? nro : 0},
                   {"cuesTotal", static_cast<int>(e_.cantidadDeCues())},
                   {"restanteBloqueSeg", restanteBloque},
                   {"restanteGuionSeg", restanteGuion},
                   {"horaFinPrevista", QDateTime::fromMSecsSinceEpoch(t + restanteGuion * 1000LL).toString("HH:mm")},
-                  // Lo que lleva (sin pausas) contra lo previsto del guion entero.
-                  {"transcurridoSeg", guionCorriendo_->transcurridoSeg(t)},
+                  {"transcurridoSeg", transcurrido},
                   {"totalPrevistoSeg", totalPrevisto},
                   // Lo del avance automático, para el MCP y el bus (la página usa las propiedades).
-                  {"entraSoloEnSeg", guionCorriendo_->entraSoloEnSeg(t)},
-                  {"hold", guionCorriendo_->hold()}};
+                  {"entraSoloEnSeg", corrida_->entraSoloEnSeg(s, t)},
+                  {"hold", corrida_->hold(s)},
+                  {"retoma", corrida_->retomando()}};
     if (!e_.inicio.empty()) {
         const QTime ini = QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm");
         if (ini.isValid()) {
@@ -1714,8 +1825,16 @@ QVariantMap EventoViewModel::reloj() const {
     return m;
 }
 
-int EventoViewModel::entraSoloEnSeg() const {
-    return guionCorriendo_ ? guionCorriendo_->entraSoloEnSeg(ahoraMs()) : 0;
+int EventoViewModel::entraSoloEnSeg() const { return corriendo() ? corrida_->entraSoloEnSeg(salidaPorOmision(), ahoraMs()) : 0; }
+
+bool EventoViewModel::hold() const { return corriendo() && corrida_->hold(salidaPorOmision()); }
+
+QVariantMap EventoViewModel::retoma() const {
+    if (!corrida_ || !corrida_->retomando()) return QVariantMap{{"activa", false}};
+    return QVariantMap{{"activa", true},
+                       {"pideDescripcion", corrida_->pideDescripcion()},
+                       {"descripcion", QString::fromStdString(corrida_->descripcion())},
+                       {"resumen", deJson(corrida_->resumenRetoma())}};
 }
 
 void EventoViewModel::setEnsayo(bool on) {
@@ -1747,108 +1866,579 @@ int EventoViewModel::arrancarRevisando(bool forzar) {
     return 0;
 }
 
+void EventoViewModel::nuevaCorrida() {
+    for (auto& [s, e] : ejecutores_)
+        e->parar();
+    ejecutores_.clear();
+    corrida_ = std::make_unique<evento::linea::Corrida>(linea_, entradaBase(true));
+    cursor_ = {};
+    graficosDePieza_.clear();
+    musicaDePieza_.clear();
+    // Un ejecutor por salida: su timer va a la hora justa de lo que le toca. El tick
+    // es uno para todas (la corrida las resuelve juntas).
+    for (const std::string& s : linea_.salidasEfectivas()) {
+        auto e = std::make_unique<EjecutorLinea>(*corrida_, s, [this](const Accion& a) { hacerAccion(a); }, [] { return ahoraMs(); },
+                                                 this);
+        connect(e.get(), &EjecutorLinea::toca, this, [this]() {
+            if (corrida_) despachar(corrida_->tick(ahoraMs()));
+        });
+        ejecutores_[s] = std::move(e);
+    }
+}
+
+void EventoViewModel::despachar(const std::vector<Accion>& acc) {
+    for (const Accion& a : acc) {
+        auto it = ejecutores_.find(a.salida);
+        if (it == ejecutores_.end()) it = ejecutores_.find(salidaPorOmision());
+        if (it != ejecutores_.end()) it->second->hacer(a);
+    }
+    for (auto& [s, e] : ejecutores_)
+        e->programar();
+    volcarRecorrido();
+    if (corriendo()) {
+        escribirVivo();
+        // El reloj de la vista se realinea con el cambio: así la cuenta y el aviso
+        // «entra solo en 0:05» cambian de segundo juntos.
+        reloj_.start();
+    } else {
+        reloj_.stop();
+        borrarVivo();
+    }
+    emit correChanged();
+    emit relojChanged();
+}
+
 void EventoViewModel::arrancar() {
-    if (e_.cantidadDeCues() == 0) {
+    std::size_t pasos = 0;
+    for (const auto& b : linea_.bloques)
+        pasos += b.pasos.size();
+    if (pasos == 0) {
         emit notify(tr("El guion no tiene ningún cue"), "error");
         return;
     }
     // Correrlo de verdad lo pone en curso: lo que pase desde ahora es de este evento.
     if (!ensayo_ && !abierto_.isEmpty() && store_.enCurso() != abierto_.toStdString()) iniciarEvento(abierto_);
-    ultimoGuion_.reset();
-    guionCorriendo_ = std::make_unique<evento::Guion>(e_);
-    guionCorriendo_->arrancar(ahoraMs());
+    nuevaCorrida();
     anotar(ensayo_ ? tr("Arranca el ensayo") : tr("Arranca el evento"), "ok");
-    entrarAlCue();
-}
-
-void EventoViewModel::entrarAlCue() {
-    ejecutarActual();
-    armarSiguiente();
-    programarAvanceSolo();
-    emit correChanged();
-    emit relojChanged();
-}
-
-void EventoViewModel::programarAvanceSolo() {
-    const int64_t ms = guionCorriendo_ ? guionCorriendo_->msParaAvanzarSolo(ahoraMs()) : -1;
-    if (ms < 0)
-        avanceSolo_.stop();
-    else
-        avanceSolo_.start(static_cast<int>(std::min<int64_t>(ms, std::numeric_limits<int>::max())));
-    // El reloj de la vista se realinea con el cue: así la cuenta y el aviso «entra
-    // solo en 0:05» cambian de segundo juntos, en vez de ir hasta uno corridos.
-    if (guionCorriendo_ && guionCorriendo_->estado() != evento::Guion::Estado::Terminado) reloj_.start();
+    despachar(corrida_->arrancar(ahoraMs()));
 }
 
 void EventoViewModel::setHold(bool on) {
-    if (!guionCorriendo_ || hold() == on || !guionCorriendo_->setHold(on)) return;
-    anotar(on ? tr("HOLD: este cue no se va solo") : tr("HOLD suelto: el cue vuelve a irse solo"), "info");
-    programarAvanceSolo();
-    emit correChanged();
-    emit relojChanged();
+    if (!corriendo()) return;
+    // Tras un corte, soltar el HOLD es seguir como estaba.
+    if (!on && corrida_->retomando()) {
+        seguirComoEstaba();
+        return;
+    }
+    if (hold() == on || !corrida_->setHold(salidaPorOmision(), on, ahoraMs())) return;
+    anotar(on ? tr("HOLD: este paso no se va solo") : tr("HOLD suelto: el paso vuelve a irse solo"), "info");
+    despachar(corrida_->alDia(ahoraMs()));
 }
 
 void EventoViewModel::avanzar() {
-    if (!guionCorriendo_) {
+    if (!corriendo()) {
         arrancar();
         return;
     }
-    sacarAlAvanzar();
-    if (!guionCorriendo_->avanzar(ahoraMs())) {
-        reloj_.stop();
-        avanceSolo_.stop();
-        anotar(ensayo_ ? tr("Terminó el ensayo") : tr("Terminó el evento"), "ok");
-        emit correChanged();
+    // Lo que en el v1 era el cue siguiente: si es una pieza del paso al aire que no
+    // salió todavía (un adlib, o una que no llegó a su hora), se dispara ya; si no, GO.
+    const std::string s = salidaPorOmision();
+    const evento::linea::Instancia* a = corrida_->alAire(s);
+    const auto [nb, nc] = cueSiguienteDe(cursor_.bloque, cursor_.cue);
+    const auto* r = proyeccion_.ref(nb, nc);
+    if (a && r && r->paso == a->paso && !r->pieza.empty() && !corrida_->disparada(s, r->pieza)) {
+        despachar(corrida_->adlib(s, r->pieza, ahoraMs()));
         return;
     }
-    entrarAlCue();
+    despachar(corrida_->go(s, ahoraMs()));
 }
 
 void EventoViewModel::retroceder() {
-    if (!guionCorriendo_ || !guionCorriendo_->retroceder(ahoraMs())) return;
-    sacarAlAvanzar();
+    if (!corriendo() || !cursor_.valido()) return;
+    const auto [pb, pc] = cueAnteriorDe(cursor_.bloque, cursor_.cue);
+    const auto* r = proyeccion_.ref(pb, pc);
+    if (r == nullptr) return;
     anotar(tr("Vuelve atrás"), "info");
-    entrarAlCue();
+    // Dentro del mismo paso: se vuelve a disparar esa pieza. Si no, se va a su paso.
+    const evento::linea::Instancia* a = corrida_->alAire(salidaPorOmision());
+    if (a && r->paso == a->paso && !r->pieza.empty()) {
+        despachar(corrida_->adlib(salidaPorOmision(), r->pieza, ahoraMs()));
+        moverCursor(pb, pc);
+        emit correChanged();
+        return;
+    }
+    irA(pb, pc);
 }
 
 void EventoViewModel::irA(int bloque, int cue) {
-    if (!guionCorriendo_) {
-        ultimoGuion_.reset();
-        guionCorriendo_ = std::make_unique<evento::Guion>(e_);
+    const auto* r = proyeccion_.ref(bloque, cue);
+    if (r == nullptr) return;
+    const std::string s = salidaPorOmision();
+    if (!corriendo()) {
+        if (!ensayo_ && !abierto_.isEmpty() && store_.enCurso() != abierto_.toStdString()) iniciarEvento(abierto_);
+        nuevaCorrida();
     }
-    if (!guionCorriendo_->irA({bloque, cue}, ahoraMs())) return;
-    sacarAlAvanzar();
+    std::string err;
+    std::vector<Accion> acc = corrida_->irA(s, r->paso, ahoraMs(), &err);
+    if (!err.empty()) {
+        anotar(QString::fromStdString(err), "error");
+        despachar(acc);
+        return;
+    }
+    // El cue elegido, si es una pieza del medio del paso, se hace ya (como en el v1).
+    if (!r->pieza.empty() && !corrida_->disparada(s, r->pieza)) {
+        const std::vector<Accion> mas = corrida_->adlib(s, r->pieza, ahoraMs());
+        acc.insert(acc.end(), mas.begin(), mas.end());
+    }
     anotar(tr("Salta al cue elegido"), "info");
-    entrarAlCue();
+    despachar(acc);
+    moverCursor(bloque, cue);
+    emit correChanged();
 }
 
 void EventoViewModel::pausar() {
-    if (!guionCorriendo_) return;
-    guionCorriendo_->pausar(ahoraMs());
+    if (!corriendo()) return;
+    corrida_->pausar(ahoraMs());
     anotar(tr("Guion en pausa"), "info");
-    programarAvanceSolo();
-    emit correChanged();
-    emit relojChanged();
+    despachar({});
 }
 
 void EventoViewModel::reanudar() {
-    if (!guionCorriendo_) return;
-    guionCorriendo_->reanudar(ahoraMs());
+    if (!corriendo()) return;
     anotar(tr("Sigue el guion"), "info");
-    programarAvanceSolo();
-    emit correChanged();
-    emit relojChanged();
+    despachar(corrida_->reanudar(ahoraMs()));
 }
 
 void EventoViewModel::parar() {
-    if (!guionCorriendo_) return;
+    if (!corriendo()) return;
     sacarAlAvanzar();
-    reloj_.stop();
-    avanceSolo_.stop();
-    guionCorriendo_->terminar(ahoraMs());
-    ultimoGuion_ = std::move(guionCorriendo_);
-    emit correChanged();
-    emit relojChanged();
+    despachar(corrida_->terminar(ahoraMs()));
+}
+
+// --- La línea corriendo -----------------------------------------------------------
+
+evento::linea::Entrada EventoViewModel::entradaBase(bool hoy) const {
+    evento::linea::Entrada e;
+    const QTimeZone tz = e_.huso.empty() ? QTimeZone::systemTimeZone() : QTimeZone(QByteArray::fromStdString(e_.huso));
+    const QTimeZone z = tz.isValid() ? tz : QTimeZone::systemTimeZone();
+    QDate dia = QDateTime::currentDateTime(z).date();
+    if (!hoy && evento::fechaValida(e_.fecha)) dia = QDate::fromString(QString::fromStdString(e_.fecha), "yyyy-MM-dd");
+    e.medianocheMs = QDateTime(dia, QTime(0, 0), z).toMSecsSinceEpoch();
+    if (evento::horaValida(e_.inicio))
+        e.inicioPlaneadoMs = QDateTime(dia, QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm"), z).toMSecsSinceEpoch();
+    return e;
+}
+
+std::string EventoViewModel::horaDe(int64_t ms) const {
+    const QTimeZone tz = e_.huso.empty() ? QTimeZone::systemTimeZone() : QTimeZone(QByteArray::fromStdString(e_.huso));
+    return QDateTime::fromMSecsSinceEpoch(ms, tz.isValid() ? tz : QTimeZone::systemTimeZone()).toString("HH:mm:ss").toStdString();
+}
+
+int64_t EventoViewModel::horaHoyMs(const std::string& hhmm) const {
+    if (!evento::horaValida(hhmm)) return -1;
+    const QTimeZone tz = e_.huso.empty() ? QTimeZone::systemTimeZone() : QTimeZone(QByteArray::fromStdString(e_.huso));
+    const QTimeZone z = tz.isValid() ? tz : QTimeZone::systemTimeZone();
+    return QDateTime(QDateTime::currentDateTime(z).date(), QTime::fromString(QString::fromStdString(hhmm), "HH:mm"), z)
+        .toMSecsSinceEpoch();
+}
+
+void EventoViewModel::lineaDesdeGuion() {
+    // Lo editado en el guion de cues pasa a la línea; lo que no se tocó queda exacto.
+    linea_ = evento::linea::reconciliar(linea_, e_.bloques);
+    proyeccion_ = evento::linea::proyectar(linea_);
+    e_.bloques = proyeccion_.bloques;
+    if (corrida_) corrida_->setLinea(linea_);
+}
+
+void EventoViewModel::guionDesdeLinea() {
+    proyeccion_ = evento::linea::proyectar(linea_);
+    e_.bloques = proyeccion_.bloques;
+    if (corrida_) corrida_->setLinea(linea_);
+    if (!sucio_) {
+        sucio_ = true;
+        emit sucioChanged();
+    }
+    emit guionChanged();
+    if (corrida_) despachar(corrida_->alDia(ahoraMs()));
+}
+
+std::filesystem::path EventoViewModel::archivoVivo() const { return ba::platform::dataRoot() / "Runtime" / "linea-aire.json"; }
+
+void EventoViewModel::escribirVivo() {
+    // Lo que sale de verdad: el ensayo no se retoma.
+    if (!corriendo() || ensayo_) return;
+    json j = corrida_->aJsonVivo(ahoraMs());
+    j["evento"] = abierto_.toStdString();
+    std::error_code ec;
+    std::filesystem::create_directories(archivoVivo().parent_path(), ec);
+    QSaveFile f(QString::fromStdU16String(archivoVivo().u16string()));
+    if (!f.open(QIODevice::WriteOnly)) return;
+    f.write(QByteArray::fromStdString(j.dump(-1, ' ', false, json::error_handler_t::replace)));
+    f.commit();
+}
+
+void EventoViewModel::borrarVivo() {
+    std::error_code ec;
+    std::filesystem::remove(archivoVivo(), ec);
+}
+
+void EventoViewModel::retomarLinea() {
+    std::ifstream f(archivoVivo());
+    if (!f) return;
+    const json j = json::parse(f, nullptr, false);
+    const std::string est = j.is_object() ? j.value("estado", std::string()) : std::string();
+    if (est != "corriendo" && est != "pausada") {
+        borrarVivo();
+        return;
+    }
+    const QString ev = QString::fromStdString(j.value("evento", std::string()));
+    if (ev.isEmpty() || (ev != abierto_ && !abrir(ev))) return;
+    retomarDesde(j);
+}
+
+void EventoViewModel::retomarDesde(const json& vivo) {
+    ensayo_ = false;
+    nuevaCorrida();
+    const std::vector<Accion> acc = corrida_->retomar(vivo, ahoraMs());
+    // El cursor, en el paso que estaba al aire (desde cuando estaba).
+    if (const evento::linea::Instancia* a = corrida_->alAire(salidaPorOmision())) {
+        const auto [b, c] = proyeccion_.cueDe(a->paso);
+        moverCursor(b, c);
+        cursor_.desdeMs = a->desdeMs;
+    }
+    anotar(tr("Volvió la luz: la línea quedó en HOLD. Contá qué está pasando para seguir."), "error");
+    emit notify(tr("Volvió la luz en medio del evento: la línea quedó en HOLD. ¿Qué está pasando?"), "error");
+    despachar(acc);
+}
+
+QString EventoViewModel::pedidoDeRetoma(const QString& descripcion) const {
+    const QString nombre = e_.nombre.empty() ? abierto_ : QString::fromStdString(e_.nombre);
+    const QString resumen = corrida_ ? QString::fromStdString(corrida_->resumenRetoma().dump()) : QString("{}");
+    return tr("Volvió la luz en medio del evento «%1» y la línea de tiempo quedó en HOLD en todas las salidas (el aire "
+              "volvió como estaba). La persona que opera cuenta qué está pasando: «%2». Mirá linea_estado (y linea_recorrido "
+              "si hace falta) y PROPONÉ cómo adecuar la línea: dónde reenganchar, qué saltear, qué reponer y qué recortar, "
+              "probándolo con linea_editar o linea_ajustar con probar:true. Mostrale la propuesta y esperá que la confirme; "
+              "recién ahí aplicala y soltá el HOLD con linea_soltar (en `decision`, lo que se decidió). Si dice que siga como "
+              "estaba, linea_soltar sin cambiar nada. El resumen de la retoma: %3")
+        .arg(nombre, descripcion, resumen);
+}
+
+QString EventoViewModel::describirRetoma(const QString& texto) {
+    if (!corrida_ || !corrida_->retomando() || texto.trimmed().isEmpty()) return {};
+    corrida_->describir(texto.trimmed().toStdString(), ahoraMs());
+    anotar(tr("Lo que está pasando: %1").arg(texto.trimmed()), "info");
+    despachar({});
+    return pedidoDeRetoma(texto.trimmed());
+}
+
+void EventoViewModel::seguirComoEstaba() {
+    if (!corrida_ || !corrida_->retomando()) return;
+    anotar(tr("Sigue como estaba: se suelta el HOLD"), "ok");
+    despachar(corrida_->soltar(tr("seguir como estaba").toStdString(), ahoraMs()));
+}
+
+std::filesystem::path EventoViewModel::archivoRecorrido() const {
+    if (abierto_.isEmpty()) return {};
+    return store_.carpetaDe(abierto_.toStdString()) / "recorrido.jsonl";
+}
+
+void EventoViewModel::volcarRecorrido() {
+    if (!corrida_) return;
+    const std::vector<json> v = corrida_->sacarRecorrido();
+    // Lo emitido de verdad: lo del ensayo no se anota.
+    if (v.empty() || ensayo_ || abierto_.isEmpty()) return;
+    std::ofstream f(archivoRecorrido(), std::ios::app);
+    for (const json& x : v)
+        f << x.dump(-1, ' ', false, json::error_handler_t::replace) << '\n';
+}
+
+// --- La línea, para el MCP ---------------------------------------------------------
+
+namespace {
+
+json reparosJson(const std::vector<evento::linea::Reparo>& rs) {
+    json out = json::array();
+    for (const auto& r : rs)
+        out.push_back({{"bloque", r.bloque}, {"paso", r.paso}, {"pieza", r.pieza}, {"grave", r.grave}, {"texto", r.texto}});
+    return out;
+}
+
+/// El número de la última revisión en Respaldos/ (linea-<n>.json); 0 si no hay.
+int ultimaRevision(const std::filesystem::path& respaldos) {
+    int n = 0;
+    std::error_code ec;
+    for (const auto& e : std::filesystem::directory_iterator(respaldos, ec)) {
+        const std::string f = e.path().filename().string();
+        if (f.rfind("linea-", 0) != 0 || e.path().extension() != ".json") continue;
+        try {
+            n = std::max(n, std::stoi(f.substr(6)));
+        } catch (...) {
+        }
+    }
+    return n;
+}
+
+} // namespace
+
+json EventoViewModel::lineaEstado() const {
+    const auto hora = [this](int64_t ms) { return horaDe(ms); };
+    const int64_t t = ahoraMs();
+    json j;
+    if (corrida_) {
+        j = corrida_->estadoJson(t, hora);
+    } else {
+        // Sin correr: lo que dice el plan desde ahora (o desde la hora prevista).
+        const evento::linea::Corrida plan(linea_, entradaBase(false));
+        j = plan.estadoJson(t, hora);
+    }
+    j["evento"] = abierto_.toStdString();
+    j["ensayo"] = ensayo_;
+    j["salidaPorOmision"] = salidaPorOmision();
+    return j;
+}
+
+json EventoViewModel::lineaVer(const std::string& salida, int64_t desdeMs, int64_t hastaMs, const std::string& nivel) const {
+    const auto hora = [this](int64_t ms) { return horaDe(ms); };
+    const int64_t t = ahoraMs();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    const std::string n = nivel.empty() ? "pasos" : nivel;
+    if (corrida_) return evento::linea::vista(corrida_->linea(), corrida_->resolver(t), s, desdeMs, hastaMs, n, t, hora);
+    evento::linea::Entrada e = entradaBase(false);
+    e.ahoraMs = t;
+    return evento::linea::vista(linea_, evento::linea::resolver(linea_, e), s, desdeMs, hastaMs, n, t, hora);
+}
+
+json EventoViewModel::lineaEditar(const json& ops, bool probar) {
+    if (abierto_.isEmpty()) return {{"ok", false}, {"error", tr("No hay un evento abierto (guion_abrir).").toStdString()}};
+    const auto hora = [this](int64_t ms) { return horaDe(ms); };
+    const int64_t t = ahoraMs();
+    // En vivo, lo emitido (y lo que está al aire) no se toca.
+    std::function<bool(const std::string&)> intocable;
+    if (corriendo())
+        intocable = [this](const std::string& paso) {
+            const auto& is = corrida_->instancias();
+            return std::any_of(is.begin(), is.end(), [&](const evento::linea::Instancia& x) { return x.paso == paso; });
+        };
+    evento::linea::Edicion ed = evento::linea::editar(linea_, ops, intocable);
+    if (!ed.ok) return {{"ok", false}, {"error", ed.error}};
+    // El pronóstico como quedaría: con lo emitido y lo insertado, si corre.
+    const std::string s = salidaPorOmision();
+    json pron;
+    if (corrida_) {
+        evento::linea::Corrida prueba = *corrida_;
+        prueba.setLinea(ed.linea);
+        pron = evento::linea::vista(prueba.linea(), prueba.resolver(t), s, 0, 0, "pasos", t, hora);
+    } else {
+        evento::linea::Entrada e = entradaBase(false);
+        e.ahoraMs = t;
+        pron = evento::linea::vista(ed.linea, evento::linea::resolver(ed.linea, e), s, 0, 0, "pasos", t, hora);
+    }
+    evento::linea::OpcionesRevision o;
+    o.contexto = entradaBase(false);
+    json out{{"ok", true},
+             {"probar", probar},
+             {"diff", ed.diff},
+             {"pronostico", pron},
+             {"reparos", reparosJson(evento::linea::revisar(ed.linea, o))}};
+    if (probar) return out;
+    // La revisión: la línea de antes, para poder deshacer.
+    const auto respaldos = store_.carpetaDe(abierto_.toStdString()) / "Respaldos";
+    std::error_code ec;
+    std::filesystem::create_directories(respaldos, ec);
+    const int n = ultimaRevision(respaldos) + 1;
+    {
+        std::ofstream f(respaldos / ("linea-" + std::to_string(n) + ".json"));
+        f << linea_.aJson().dump(2, ' ', false, json::error_handler_t::replace);
+        if (!f) return {{"ok", false}, {"error", tr("No se pudo escribir la revisión en Respaldos/").toStdString()}};
+    }
+    linea_ = std::move(ed.linea);
+    guionDesdeLinea();
+    guardar();
+    anotar(tr("La línea cambió (la de antes quedó como revisión %1)").arg(n), "info");
+    out["revision"] = n;
+    return out;
+}
+
+json EventoViewModel::lineaDeshacer() {
+    if (abierto_.isEmpty()) return {{"ok", false}, {"error", tr("No hay un evento abierto (guion_abrir).").toStdString()}};
+    const auto respaldos = store_.carpetaDe(abierto_.toStdString()) / "Respaldos";
+    const int n = ultimaRevision(respaldos);
+    if (n == 0) return {{"ok", false}, {"error", tr("No hay revisiones de la línea para deshacer.").toStdString()}};
+    const auto archivo = respaldos / ("linea-" + std::to_string(n) + ".json");
+    std::ifstream f(archivo);
+    const json j = f ? json::parse(f, nullptr, false) : json();
+    if (!j.is_object()) return {{"ok", false}, {"error", tr("La revisión %1 no se puede leer.").arg(n).toStdString()}};
+    f.close();
+    linea_ = evento::linea::Linea::deJson(j);
+    std::error_code ec;
+    std::filesystem::remove(archivo, ec);
+    guionDesdeLinea();
+    guardar();
+    anotar(tr("La línea volvió a la revisión %1").arg(n), "info");
+    return {{"ok", true}, {"revision", n}};
+}
+
+json EventoViewModel::lineaRevisar() const {
+    evento::linea::OpcionesRevision o;
+    o.contexto = entradaBase(false);
+    const std::vector<std::string> escenas = rt_.engine().sceneNames();
+    o.existeEscena = [&escenas](const std::string& e) { return std::find(escenas.begin(), escenas.end(), e) != escenas.end(); };
+    const auto rs = evento::linea::revisar(linea_, o);
+    const int graves = static_cast<int>(std::count_if(rs.begin(), rs.end(), [](const auto& r) { return r.grave; }));
+    return {{"reparos", reparosJson(rs)}, {"graves", graves}, {"sePuedeCorrer", graves == 0}};
+}
+
+json EventoViewModel::lineaAjustar(const std::string& salida, int64_t objetivoMs) const {
+    const int64_t t = ahoraMs();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    json a;
+    if (corrida_) {
+        a = evento::linea::proponerAjuste(corrida_->linea(), corrida_->resolver(t), s, objetivoMs);
+    } else {
+        evento::linea::Entrada e = entradaBase(false);
+        e.ahoraMs = t;
+        a = evento::linea::proponerAjuste(linea_, evento::linea::resolver(linea_, e), s, objetivoMs);
+    }
+    a["objetivo"] = horaDe(objetivoMs);
+    return a;
+}
+
+namespace {
+/// "" si la salida existe en la línea; si no, por qué no.
+std::string errorDeSalida(const evento::linea::Linea& l, const std::string& s) {
+    const auto ss = l.salidasEfectivas();
+    if (std::find(ss.begin(), ss.end(), s) != ss.end()) return {};
+    std::string hay;
+    for (const auto& x : ss)
+        hay += (hay.empty() ? "" : ", ") + x;
+    return ba::i18n::llenar(ba::i18n::traducir("evento", "No hay una salida «%1» en la línea (hay: %2)."), {s, hay});
+}
+} // namespace
+
+std::string EventoViewModel::lineaGo(const std::string& salida) {
+    if (abierto_.isEmpty()) return tr("No hay un evento abierto (guion_abrir).").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    if (!corriendo()) {
+        arrancar();
+        return corriendo() ? std::string() : tr("No se pudo arrancar: la línea no tiene pasos.").toStdString();
+    }
+    despachar(corrida_->go(s, ahoraMs()));
+    return {};
+}
+
+std::string EventoViewModel::lineaHold(const std::string& salida, std::optional<bool> on) {
+    if (!corriendo()) return tr("La línea no está corriendo: no hay paso que frenar.").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    const bool v = on ? *on : !corrida_->hold(s);
+    if (!v && corrida_->retomando()) {
+        seguirComoEstaba();
+        return {};
+    }
+    if (!corrida_->setHold(s, v, ahoraMs())) return tr("No hay ningún paso al aire en esa salida.").toStdString();
+    anotar(v ? tr("HOLD: este paso no se va solo") : tr("HOLD suelto: el paso vuelve a irse solo"), "info");
+    despachar(corrida_->alDia(ahoraMs()));
+    return {};
+}
+
+std::string EventoViewModel::lineaMoverProximo(const std::string& salida, int delta) {
+    if (!corriendo()) return tr("La línea no está corriendo.").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    if (!corrida_->moverProximo(s, delta, ahoraMs())) return tr("No hay a dónde mover el próximo.").toStdString();
+    despachar(corrida_->alDia(ahoraMs()));
+    return {};
+}
+
+std::string EventoViewModel::lineaSaltar(const std::string& salida) {
+    if (!corriendo()) return tr("La línea no está corriendo.").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    if (!corrida_->saltar(s, ahoraMs())) return tr("No hay próximo para saltear.").toStdString();
+    anotar(tr("Saltea el próximo paso"), "info");
+    despachar(corrida_->alDia(ahoraMs()));
+    return {};
+}
+
+std::string EventoViewModel::lineaIr(const std::string& salida, const std::string& paso) {
+    if (abierto_.isEmpty()) return tr("No hay un evento abierto (guion_abrir).").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    if (!corriendo()) {
+        if (!ensayo_ && store_.enCurso() != abierto_.toStdString()) iniciarEvento(abierto_);
+        nuevaCorrida();
+    }
+    std::string err;
+    const std::vector<Accion> acc = corrida_->irA(s, paso, ahoraMs(), &err);
+    if (err.empty()) anotar(tr("Va al paso «%1»").arg(QString::fromStdString(paso)), "info");
+    despachar(acc);
+    return err;
+}
+
+std::string EventoViewModel::lineaRepetir(const std::string& salida) {
+    if (!corriendo()) return tr("La línea no está corriendo.").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    if (corrida_->alAire(s) == nullptr) return tr("No hay ningún paso al aire en esa salida.").toStdString();
+    anotar(tr("Repite el paso al aire"), "info");
+    despachar(corrida_->repetir(s, ahoraMs()));
+    return {};
+}
+
+std::string EventoViewModel::lineaAdlib(const std::string& salida, const std::string& pieza) {
+    if (!corriendo()) return tr("La línea no está corriendo.").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    std::string err;
+    const std::vector<Accion> acc = corrida_->adlib(s, pieza, ahoraMs(), &err);
+    despachar(acc);
+    return err;
+}
+
+std::string EventoViewModel::lineaInsertar(const std::string& salida, const std::string& item, bool alAire) {
+    if (!corriendo()) return tr("La línea no está corriendo.").toStdString();
+    const std::string s = salida.empty() ? salidaPorOmision() : salida;
+    if (std::string e = errorDeSalida(linea_, s); !e.empty()) return e;
+    std::string err;
+    const std::vector<Accion> acc = corrida_->insertar(s, item, alAire, ahoraMs(), &err);
+    if (err.empty()) anotar(tr("Inserta «%1» del estante").arg(QString::fromStdString(item)), "info");
+    despachar(acc);
+    return err;
+}
+
+json EventoViewModel::lineaRecorrido(int ultimos) const {
+    json v = json::array();
+    std::ifstream f(archivoRecorrido());
+    for (std::string l; std::getline(f, l);) {
+        json x = json::parse(l, nullptr, false);
+        if (!x.is_object()) continue;
+        if (x.contains("ms") && x["ms"].is_number_integer()) x["hora"] = horaDe(x["ms"].get<int64_t>());
+        v.push_back(std::move(x));
+    }
+    if (ultimos > 0 && static_cast<int>(v.size()) > ultimos) v.erase(v.begin(), v.end() - ultimos);
+    return {{"renglones", v}, {"ensayo", ensayo_}};
+}
+
+std::string EventoViewModel::lineaRetomar(const std::string& descripcion, bool simular) {
+    if (simular) {
+        if (!corriendo() || ensayo_)
+            return tr("Para simular un corte la línea tiene que estar corriendo, sin ensayo.").toStdString();
+        // Como si se hubiera cortado la luz recién: el estado vivo de ahora, retomado.
+        retomarDesde(corrida_->aJsonVivo(ahoraMs()));
+    }
+    if (!corrida_ || !corrida_->retomando())
+        return tr("La línea no está volviendo de un corte: no hay nada que describir.").toStdString();
+    if (!descripcion.empty()) describirRetoma(QString::fromStdString(descripcion));
+    return {};
+}
+
+std::string EventoViewModel::lineaSoltar(const std::string& decision) {
+    if (!corrida_ || !corrida_->retomando()) return tr("La línea no está en HOLD por un corte.").toStdString();
+    const std::string d = decision.empty() ? tr("seguir como estaba").toStdString() : decision;
+    anotar(tr("Se suelta el HOLD del corte: %1").arg(QString::fromStdString(d)), "ok");
+    despachar(corrida_->soltar(d, ahoraMs()));
+    return {};
 }
 
 QString EventoViewModel::dentroDelEvento(const QString& sub, const QString& rel) const {
@@ -1940,11 +2530,8 @@ std::string EventoViewModel::tomarEscena(const std::string& escena, const nlohma
     return conmutador_->take(datos.value("transicion", std::string()), datos.value("ms", -1));
 }
 
-void EventoViewModel::armarSiguiente() {
-    if (ensayo_ || conmutador_ == nullptr || !guionCorriendo_) return;
-    const evento::Cue* s = guionCorriendo_->cueSiguiente();
-    if (s == nullptr || s->tipo != evento::Tipo::Escena) return;
-    const std::string escena = s->datos.value("escena", std::string());
+void EventoViewModel::armarEscena(const std::string& escena) {
+    if (ensayo_ || conmutador_ == nullptr) return;
     // La que ya está al aire no se arma (el TAKE no tendría sentido) y la ya armada, tampoco.
     if (escena.empty() || escena == conmutador_->alAire() || escena == conmutador_->armada()) return;
     if (const std::string e = conmutador_->armar(escena); !e.empty()) {
@@ -1955,25 +2542,137 @@ void EventoViewModel::armarSiguiente() {
     anotar(tr("Armada en el PVW: %1").arg(QString::fromStdString(escena)), "info");
 }
 
-void EventoViewModel::ejecutarActual() {
-    const evento::Cue* c = guionCorriendo_ ? guionCorriendo_->cueActual() : nullptr;
-    if (c == nullptr) return;
+evento::Cue EventoViewModel::cueDePieza(const evento::linea::Pieza& z, const std::string& paso) const {
+    evento::Cue c;
+    c.id = z.id;
+    if (!evento::tipoDeNombre(z.tipo, c.tipo)) c.tipo = evento::Tipo::Nota;
+    c.texto = z.texto;
+    c.datos = z.datos;
+    // La duración es la del guion de cues (la de un orador es su tiempo para hablar);
+    // si la pieza no está ahí (del estante, insertada), la de su paso.
+    const auto [b, k] = proyeccion_.cueDe(paso, z.id);
+    if (const evento::Cue* v = cuePtrConst(b, k)) c.duracionSeg = v->duracionSeg;
+    else if (const evento::linea::Paso* p = corrida_ ? corrida_->linea().paso(paso) : nullptr)
+        c.duracionSeg = static_cast<int>(p->duracionPlanMs() / 1000);
+    return c;
+}
 
+void EventoViewModel::hacerAccion(const Accion& a) {
+    if (!corrida_) return;
+    // Por ahora sale de verdad una sola salida (la por omisión): las otras quedan
+    // anotadas hasta que tengan su conmutador (PLAN-SALIDAS).
+    const bool deAqui = a.salida.empty() || a.salida == salidaPorOmision();
+    const QString salida = QString::fromStdString(a.salida);
+    switch (a.que) {
+        case Accion::Que::EntraPaso: {
+            if (!deAqui) {
+                anotar(tr("Salida «%1»: entra «%2»").arg(salida, QString::fromStdString(a.paso)), "info", !ensayo_);
+                return;
+            }
+            sacarAlAvanzar();
+            const auto [b, c] = proyeccion_.cueDe(a.paso);
+            moverCursor(b, c);
+            const evento::linea::Paso* p = corrida_->linea().paso(a.paso);
+            const QString nombre = QString::fromStdString(p && !p->nombre.empty() ? p->nombre : a.paso);
+            anotar(ensayo_ ? tr("(ensayo) Entra «%1»").arg(nombre) : tr("Entra «%1»").arg(nombre), "info", !ensayo_);
+            return;
+        }
+        case Accion::Que::Pieza: {
+            const evento::linea::Pieza* z = corrida_->pieza(a.paso, a.pieza);
+            if (z == nullptr) return;
+            // El cursor del guion de cues sigue a lo que se dispara en el paso al aire.
+            if (deAqui && !a.reposicion && !a.paso.empty()) {
+                const auto [b, c] = proyeccion_.cueDe(a.paso, a.pieza);
+                const auto* r = proyeccion_.ref(cursor_.bloque, cursor_.cue);
+                if (b >= 0 && r != nullptr && r->paso == a.paso && (b > cursor_.bloque || (b == cursor_.bloque && c > cursor_.cue)))
+                    moverCursor(b, c);
+            }
+            const QString titulo = QString::fromStdString(z->texto.empty() ? z->tipo : z->texto);
+            if (ensayo_) {
+                // El ensayo recorre la línea igual pero no toca nada: es para ver
+                // tiempos y orden antes del evento.
+                anotar(tr("(ensayo) %1").arg(titulo), "info", false);
+                return;
+            }
+            if (!deAqui) {
+                anotar(tr("Salida «%1»: %2 (todavía sale solo la principal)").arg(salida, titulo), "info");
+                return;
+            }
+            if (a.reposicion) anotar(tr("Repone: %1").arg(titulo), "info");
+            // Una acción del asistente programada en la línea: se aprobó al escribirla y
+            // no frena el vivo (se hace por el mismo servidor de herramientas).
+            if (z->tipo == "asistente") {
+                const std::string herramienta = z->datos.value("herramienta", std::string());
+                if (!herramienta_ || herramienta.empty()) {
+                    anotar(tr("No se pudo hacer «%1»: el servidor de herramientas no está").arg(titulo), "error");
+                    return;
+                }
+                QPointer<EventoViewModel> yo(this);
+                herramienta_(herramienta, z->datos.value("args", json::object()), [yo, titulo](bool ok, const std::string& texto) {
+                    if (!yo) return;
+                    yo->anotar(ok ? tr("Hecho: %1").arg(titulo)
+                                  : tr("No se pudo hacer «%1»: %2").arg(titulo, QString::fromStdString(texto)),
+                               ok ? "ok" : "error");
+                });
+                return;
+            }
+            evento::Tipo t{};
+            if (!evento::tipoDeNombre(z->tipo, t)) {
+                // Honestidad: el tipo existe en la línea pero todavía no se ejecuta.
+                anotar(tr("Todavía no sé ejecutar una pieza de tipo «%1»: %2").arg(QString::fromStdString(z->tipo), titulo), "error");
+                return;
+            }
+            ejecutarCue(cueDePieza(*z, a.paso), a.paso, a.salida + "/" + a.paso + "/" + a.pieza);
+            return;
+        }
+        case Accion::Que::Saca:
+            if (!ensayo_ && deAqui) sacarPieza(a);
+            return;
+        case Accion::Que::Armar:
+            if (deAqui) armarEscena(a.escena);
+            return;
+        case Accion::Que::Avisar:
+            anotar(QString::fromStdString(a.texto), "info");
+            emit notify(QString::fromStdString(a.texto), "info");
+            return;
+        case Accion::Que::Termina:
+            if (deAqui) anotar(ensayo_ ? tr("Terminó el ensayo") : tr("Terminó el evento"), "ok");
+            return;
+    }
+}
+
+void EventoViewModel::sacarPieza(const Accion& a) {
+    const std::string clave = a.salida + "/" + a.paso + "/" + a.pieza;
+    if (const auto it = graficosDePieza_.find(clave); it != graficosDePieza_.end()) {
+        // Con su generación: si después se puso otra cosa en esa fuente, no se toca.
+        if (graficos_ != nullptr) graficos_->sacar(it->second.first, it->second.second);
+        graficosDePieza_.erase(it);
+    }
+    if (musicaDePieza_ == clave) {
+        rt_.engine().stopMedia(kMusica);
+        musicaDePieza_.clear();
+        anotar(tr("Música: para"), "ok");
+    }
+}
+
+void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& paso, const std::string& clave) {
+    const evento::Cue* c = &cue;
     const QString titulo = c->texto.empty() ? QString::fromStdString(evento::nombreDeTipo(c->tipo))
                                             : QString::fromStdString(c->texto);
-    if (ensayo_) {
-        // El ensayo recorre el guion igual pero no toca nada: es para ver
-        // tiempos y orden antes del evento.
-        anotar(tr("(ensayo) %1").arg(titulo), "info", false);
-        return;
-    }
 
     // Todo por el runtime (rt_.setScene, setMuted…), no directo al motor: el runtime avisa
     // (la tarjeta Dirección, el mezclador, el tally) y lo deja guardado en la configuración.
     switch (c->tipo) {
         case evento::Tipo::Escena: {
             const std::string escena = c->datos.value("escena", std::string());
-            if (const std::string err = tomarEscena(escena, c->datos); !err.empty()) {
+            // Sin transición propia, la del paso (si dice).
+            json datos = c->datos;
+            const evento::linea::Paso* p = corrida_ ? corrida_->linea().paso(paso) : nullptr;
+            if (!datos.contains("transicion") && p != nullptr && p->transicion.is_object()) {
+                datos["transicion"] = p->transicion.value("tipo", std::string());
+                datos["ms"] = p->transicion.value("ms", -1);
+            }
+            if (const std::string err = tomarEscena(escena, datos); !err.empty()) {
                 anotar(tr("No se pudo poner la escena «%1»: %2").arg(QString::fromStdString(escena), QString::fromStdString(err)),
                        "error");
                 emit notify(tr("El cue no se pudo ejecutar: %1").arg(QString::fromStdString(err)), "error");
@@ -1996,11 +2695,11 @@ void EventoViewModel::ejecutarActual() {
         }
         case evento::Tipo::Musica: {
             const std::string accion = c->datos.value("accion", std::string("arrancar"));
-            // El nombre es fijo: asi un tema nuevo reemplaza al anterior en vez
-            // de encimarse, que es lo peor que puede pasar en vivo.
-            const std::string kMusica = "Música del evento";
+            // El nombre es fijo (kMusica): asi un tema nuevo reemplaza al anterior
+            // en vez de encimarse, que es lo peor que puede pasar en vivo.
             if (accion == "parar") {
                 rt_.engine().stopMedia(kMusica);
+                musicaDePieza_.clear();
                 anotar(tr("Música: para"), "ok");
                 return;
             }
@@ -2017,6 +2716,7 @@ void EventoViewModel::ejecutarActual() {
                        "error");
                 return;
             }
+            musicaDePieza_ = clave; // la saca su pieza cuando se termina su vida (si la tiene)
             anotar(repetir ? tr("Música: %1 (en bucle)").arg(rel) : tr("Música: %1").arg(rel), "ok");
             return;
         }
@@ -2121,6 +2821,7 @@ void EventoViewModel::ejecutarActual() {
                                             [id](const auto& a) { return a.first == id; }),
                              alAvanzar_.end());
             if (seVa == "al-avanzar") alAvanzar_.emplace_back(id, graficos_->generacion(id));
+            graficosDePieza_[clave] = {id, graficos_->generacion(id)};
             anotar((seVa == "al-avanzar" ? tr("Al aire el gráfico %1 en %2 (se va al avanzar)")
                     : seVa == "sola"       ? tr("Al aire el gráfico %1 en %2 (se va solo)")
                                            : tr("Al aire el gráfico %1 en %2"))
@@ -2276,7 +2977,7 @@ void EventoViewModel::ejecutarActual() {
         }
         default:
             // Honestidad: el tipo existe en el guion pero todavia no se
-            // ejecuta. Se anota y el guion sigue, en vez de hacer como que
+            // ejecuta. Se anota y la línea sigue, en vez de hacer como que
             // paso algo.
             anotar(tr("Todavía no sé ejecutar un cue de tipo \"%1\": %2")
                        .arg(QString::fromStdString(evento::nombreDeTipo(c->tipo)), titulo),
