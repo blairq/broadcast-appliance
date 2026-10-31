@@ -236,7 +236,10 @@ void InformesResultado::guardarIndice(const json& i) const { escribirArchivo(car
 void InformesResultado::asegurarUna() {
     if (!indice().empty()) return;
     std::string err;
-    crear(ba::i18n::traducirEvento("asamblea", "Resultado de la sesión"), {}, &err);
+    // Sin aviso: esto corre adentro de leer la lista (plantillasUi, el READ de la
+    // propiedad), que ya devuelve la recién creada; avisar ahí relee el enlace que
+    // está leyendo y QML lo marca como ciclo («Binding loop … lista»).
+    agregar(ba::i18n::traducirEvento("asamblea", "Resultado de la sesión"), {}, &err);
 }
 
 json InformesResultado::plantillas() const {
@@ -251,6 +254,12 @@ std::string InformesResultado::texto(const std::string& id) const {
 }
 
 std::string InformesResultado::crear(const std::string& nombre, const std::string& texto, std::string* error) {
+    const std::string id = agregar(nombre, texto, error);
+    if (!id.empty()) emit cambio();
+    return id;
+}
+
+std::string InformesResultado::agregar(const std::string& nombre, const std::string& texto, std::string* error) {
     const std::string n = recortar(nombre);
     if (n.empty()) {
         if (error) *error = ba::i18n::traducir("asamblea", "falta el nombre de la plantilla");
@@ -276,7 +285,6 @@ std::string InformesResultado::crear(const std::string& nombre, const std::strin
     }
     idx.push_back({{"id", id}, {"nombre", n}});
     guardarIndice(idx);
-    emit cambio();
     return id;
 }
 

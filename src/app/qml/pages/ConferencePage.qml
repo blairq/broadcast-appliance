@@ -1298,7 +1298,9 @@ Rectangle {
     Dialog {
         id: wgDlg
         anchors.centerIn: parent
-        width: Math.min(page.width - 80, 760)
+        // El ancho sigue al de la página solo abierto: cerrado, la página arranca en 0 y cada
+        // cambio rearmaba sus textos (que cortan) adentro del implicitHeight (binding loop).
+        width: visible ? Math.min(page.width - 80, 760) : 760
         modal: true
         title: qsTr("Acceso directo por un servidor propio (WireGuard)")
         property string config: ""

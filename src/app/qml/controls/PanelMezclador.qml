@@ -720,7 +720,7 @@ Item {
                 }
                 // Un clic en cualquier lado de la consola le da el foco del teclado (sin
                 // quitarle el clic al fader o a los botones).
-                TapHandler { gesturePolicy: TapHandler.DragThreshold; grabPermissions: PointerHandler.ApproveAnyGrab
+                TapHandler { gesturePolicy: TapHandler.DragThreshold; grabPermissions: PointerHandler.ApprovesTakeOverByAnything
                              onTapped: lista.forceActiveFocus() }
                 // La rueda común (vertical) fuera de un fader desplaza los canales de costado; los
                 // faders están encima y la toman antes (su volumen); de costado la maneja la lista.

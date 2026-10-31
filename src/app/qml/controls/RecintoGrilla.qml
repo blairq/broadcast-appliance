@@ -291,7 +291,7 @@ ColumnLayout {
         // Chica (hemiciclo de una sala grande): la cara, el número y lo que pasa; sin nombre.
         readonly property bool chica: !ancha && width < 104
         readonly property var i: l && l.integrante ? l.integrante : null
-        readonly property bool alAire: i !== null && rec.b.al_aire && rec.b.al_aire.id === i.id
+        readonly property bool alAire: i !== null && !!rec.b.al_aire && rec.b.al_aire.id === i.id
         readonly property int turno: i !== null ? rec.turno(i.id) : 0
         // La central de conferencia.
         readonly property var uni: rec.conCentral && l !== null ? rec.unidadDe(l.banca) : null
@@ -367,7 +367,11 @@ ColumnLayout {
                            ToolTip.visible: hv.hovered; ToolTip.text: qsTr("Nombre sin validar (botón «Integrantes» de arriba)")
                            HoverHandler { id: hv } }
                 }
+                // El nombre en dos renglones de alto fijo: si el alto saliera de cómo corta
+                // (que depende del ancho que reparte el layout), cada reparto lo cambiaba y
+                // el layout de la celda se rearmaba de nuevo (Qt: «polish loop»).
                 Text { visible: !celda.ancha && !celda.chica; Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
+                       lineHeightMode: Text.FixedHeight; lineHeight: 15; Layout.preferredHeight: 2 * lineHeight
                        text: celda.i ? celda.i.nombre : qsTr("(nadie con esta banca)")
                        color: celda.i ? Theme.text : Theme.textFaint; font.pixelSize: 11 }
                 Item { Layout.fillHeight: true; visible: !celda.ancha }
@@ -408,8 +412,10 @@ ColumnLayout {
         color: Qt.rgba(1, 1, 1, 0.05)
         border.width: rec.editando && rec.elegida !== "" ? 1 : 0
         border.color: Theme.accent
-        Text { anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: rec.pres ? 3 : 0 }
-               height: rec.pres ? implicitHeight : parent.height; verticalAlignment: Text.AlignVCenter
+        // Con su alto natural (no uno atado a su propio implicitHeight: era un binding loop);
+        // sin banca encima, centrado en la mesa.
+        Text { anchors.horizontalCenter: parent.horizontalCenter
+               y: rec.pres ? 3 : (parent.height - height) / 2
                text: qsTr("PRESIDENCIA"); color: Theme.textFaint
                font { pixelSize: 11; letterSpacing: 2; weight: Font.DemiBold } }
         MouseArea { anchors.fill: parent; enabled: rec.editando && rec.elegida !== ""; onClicked: rec.tocarPresidencia() }

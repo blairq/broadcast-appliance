@@ -64,11 +64,26 @@ ApplicationWindow {
     /// Cuántas páginas (en orden) ya se pidieron en segundo plano (ver `paginas`).
     property int precargadas: 0
     Timer {
+        id: precarga
         // Arranca cuando la interfaz ya se ve; una página cada 150 ms.
         interval: 150
         repeat: true
         running: win.visible && win.precargadas < win.componentesDePagina.length
         onTriggered: win.precargadas++
+    }
+    // Al cerrar, lo que se estaba creando en segundo plano se cancela ANTES de que se
+    // destruya el motor de QML: si no, el motor se iba con páginas a medio crear
+    // («There are still N items in the process of being created at engine destruction»).
+    // Pasa sobre todo si se cierra apenas arrancó (la precarga recién empieza).
+    Connections {
+        target: Qt.application
+        function onAboutToQuit() {
+            precarga.stop()
+            for (let i = 0; i < paginasCreadas.count; ++i) {
+                const l = paginasCreadas.itemAt(i)
+                if (l && l.status === Loader.Loading) l.active = false
+            }
+        }
     }
     // Modo en vivo: las páginas protegidas piden escribir CONFIRMAR (con un motivo) para entrar.
     property int paginaPermitida: 0
@@ -244,6 +259,7 @@ ApplicationWindow {
         // en el momento. Una vez creada queda: conserva lo que se escribió.
         // El orden es el de componenteDePagina (= el índice de cada página).
         Repeater {
+            id: paginasCreadas
             model: win.componentesDePagina.length
             delegate: Loader {
                 id: lugar
