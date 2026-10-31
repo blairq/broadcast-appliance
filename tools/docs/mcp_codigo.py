@@ -969,6 +969,7 @@ EXCEPCIONES_CUERPO = {
     ("audio_devices", "entra directo al motor (rt.engine())"): "solo sin registro (consola): sin interfaz",
     ("video_devices", "entra directo al motor (rt.engine())"): "solo sin registro (consola): sin interfaz",
     ("system_hardware", "entra directo al motor (rt.engine())"): "solo sin registro (consola): sin interfaz",
+    ("config_generaciones", "recorre carpetas (directory_iterator)"): "Config/ sin subcarpetas: unas decenas de archivos",
 }
 
 
@@ -991,6 +992,20 @@ def _cuerpo_run(texto):
     return cuerpo
 
 
+def _en_el_dueno(cuerpo, pos):
+    """¿`pos` cae adentro de un `pedir(…)` / `despuesEnDueno(…)` / `enDueno(…)`? Eso corre en
+    el dueño del motor (VentanillaMotor::pedir), no en la interfaz."""
+    for m in re.finditer(r"\b(pedir|despuesEnDueno|enDueno)\s*\(", cuerpo[:pos]):
+        prof = 0
+        for ch in cuerpo[m.end() - 1:pos]:
+            prof += {"(": 1, ")": -1}.get(ch, 0)
+            if prof == 0:
+                break
+        if prof > 0:
+            return True
+    return False
+
+
 def revisar_cuerpos(cod=None):
     """-> (errores, avisos): listas de «nombre (archivo:línea): motivo»."""
     cod = cod if cod is not None else herramientas()
@@ -1006,7 +1021,8 @@ def revisar_cuerpos(cod=None):
                     errores.append(f"{donde}: hilo {c['hilo']} y {motivo}")
         else:
             for pat, motivo in _AVISOS_INTERFAZ:
-                if pat.search(cuerpo) and (n, motivo) not in EXCEPCIONES_CUERPO:
+                if any(not _en_el_dueno(cuerpo, m.start()) for m in pat.finditer(cuerpo)) and \
+                        (n, motivo) not in EXCEPCIONES_CUERPO:
                     avisos.append(f"{donde}: en la interfaz y {motivo}")
         props = c["esquema"].get("properties", {}) if isinstance(c["esquema"], dict) else {}
         for clave in ("delete", "clear", "borrar"):
