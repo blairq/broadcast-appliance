@@ -452,6 +452,8 @@ function ponerVistas(lista) {
     b.type = "button";
     b.textContent = v.nombre || v.id;
     b.dataset.vista = v.id;
+    // Con varias salidas, cada una con su color (el mismo del tally y del multiview).
+    if (/^#[0-9a-fA-F]{3,8}$/.test(v.color || "")) { b.classList.add("con-salida"); b.style.setProperty("--color-salida", v.color); }
     b.addEventListener("click", () => elegirVista(v.id));
     caja.appendChild(b);
   }

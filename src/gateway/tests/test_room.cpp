@@ -313,6 +313,34 @@ void testLobbyMedia() {
           "el snapshot muestra el lugar de preview");
 }
 
+void testSalida() {
+    // De qué salida le baja el retorno a un invitado (docs/planes/PLAN-SALIDAS.md): se
+    // guarda en cualquier estado y vale adentro (programa o fila), nunca en el lobby.
+    Room::Cfg cfg;
+    cfg.maxGuests = 1;
+    cfg.lobbySlots = 1;
+    Room room(cfg);
+    std::vector<std::pair<std::string, ba::gateway::MediaRoute>> routes;
+    Room::Sinks s;
+    s.route = [&](const std::string& id, const ba::gateway::MediaRoute& r) { routes.emplace_back(id, r); };
+    room.setSinks(s);
+    using K = ba::gateway::MediaRoute::Kind;
+
+    const auto a = room.connect("A", "", 0);
+    CHECK(room.routeOf(a.id).salida.empty(), "de entrada, la salida por omisión");
+    CHECK(room.setSalida(a.id, "b") == Room::kOk, "elegirle la salida «b» en el lobby");
+    CHECK(room.routeOf(a.id).kind == K::Lobby && room.routeOf(a.id).salida.empty(),
+          "en el lobby sigue viendo al operador");
+    CHECK(findParticipant(room.snapshot(), a.id)["salida"] == "b", "el snapshot la muestra");
+    room.admit(a.id, 1);
+    CHECK(room.routeOf(a.id).kind == K::Program && room.routeOf(a.id).salida == "b", "adentro le baja la «b»");
+    routes.clear();
+    CHECK(room.setSalida(a.id, "") == Room::kOk, "volver a la por omisión");
+    CHECK(!routes.empty() && routes.back().second.salida.empty(), "la ruta nueva se informa al servidor");
+    CHECK(room.setSalida(a.id, "no vale/..") == Room::kBadState, "un id que no sirve para un canal, no");
+    CHECK(room.setSalida("nadie", "b") == Room::kNotFound, "a quien no está, no");
+}
+
 void testAtiendeHablando() {
     // La atención hablada del lobby: sube su voz, baja la del que atiende, y se
     // apaga sola al admitirlo (la atención es del lobby).
@@ -613,6 +641,7 @@ int main() {
     testLockAndRequests();
     testLobbyMedia();
     testAtiendeHablando();
+    testSalida();
     testCupo();
     testSpeakers();
     testSinksUnlocked();

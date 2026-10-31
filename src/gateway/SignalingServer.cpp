@@ -27,12 +27,14 @@
 
 #include "HttpIo.hpp"
 #include "ipc/CanalesEscena.hpp"
+#include "ipc/CanalesSalida.hpp"
 #include "ipc/ControlProtocol.hpp"
 #include "Log.hpp"
 #include "Grillas.hpp"
 #include "MediaPump.hpp"
 #include "qr/Qr.hpp"
 #include "Room.hpp"
+#include "Salidas.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex (ids de participante)
 #include "security/TokenService.hpp" // nowUnix() para el rate-limit por IP
 #include "ShareStore.hpp"
@@ -188,9 +190,9 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
             }
             if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
         };
-        m.vistaOferta = [this](const std::string& id, const std::string& sdp, int canal, bool hablar,
-                               std::function<void(const json&)> enviar) {
-            return ofertaVista(id, sdp, canal, hablar, std::move(enviar));
+        m.vistaOferta = [this](const std::string& id, const std::string& sdp, const SesionBorde::Vista& vista,
+                               bool hablar, std::function<void(const json&)> enviar) {
+            return ofertaVista(id, sdp, vista, hablar, std::move(enviar));
         };
         m.vistaIce = [this](const std::string& id, const std::string& cand) {
             int idx = 0;
@@ -201,14 +203,14 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
             }
             if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
         };
-        m.vistaRuta = [this](const std::string& id, int canal, bool hablar) {
+        m.vistaRuta = [this](const std::string& id, const SesionBorde::Vista& vista, bool hablar) {
             int idx = 0;
             {
                 std::lock_guard<std::mutex> lock(sessLock_);
                 const auto it = sessionOf_.find("vista:" + id);
                 if (it != sessionOf_.end()) idx = it->second;
             }
-            if (idx > 0 && pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(canal, hablar));
+            if (idx > 0 && pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(vista, hablar));
         };
         m.vistaCerrar = [this](const std::string& id) { releaseSession("vista:" + id, 0, true); };
         m.atiendeOferta = [this](const std::string& id, const std::string& sdp, std::function<void(const json&)> enviar) {
@@ -266,18 +268,24 @@ bool SignalingServer::start() {
     statsThread_ = std::thread([this] {
         std::map<std::string, int64_t> anotada; // pantalla -> la última vez que su salida fue al log
         int miranAntes = -1;
+        json salidasAntes = json::object();
         int vueltas = 0;
         while (!stop_.load()) {
             for (int i = 0; i < 20 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
             recalcularDirecciones(); // la IP de la máquina, el túnel, las puertas: ¿cambió algo?
             // Cuántos reciben el programa: a la app, al cambiar y cada 10 s (por si su
             // escucha de eventos se reconectó). Sin nadie, deja de bajarlo y descansa.
+            // Lo mismo por cada otra salida que alguien mira ({id: cuántos}): la app
+            // publica BA.Salida.<id> solo mientras figura acá.
             if (pump_ != nullptr) {
                 const int miran = pump_->miranPrograma();
-                if (miran != miranAntes || ++vueltas >= 5) {
+                json salidas = json::object();
+                for (const auto& [id, n] : pump_->miranSalidas()) salidas[id] = n;
+                if (miran != miranAntes || salidas != salidasAntes || ++vueltas >= 5) {
                     miranAntes = miran;
+                    salidasAntes = salidas;
                     vueltas = 0;
-                    broadcastToHosts("programa", json{{"mirando", miran}});
+                    broadcastToHosts("programa", json{{"mirando", miran}, {"salidas", salidas}});
                 }
             }
             std::vector<std::pair<std::string, int>> sesiones;
@@ -1886,7 +1894,7 @@ bool SignalingServer::esPantalla(const std::string& pid) const {
     return pantallas_.find(pid) != pantallas_.end();
 }
 
-std::string SignalingServer::altaPantalla(std::string& claveOut, int canal) {
+std::string SignalingServer::altaPantalla(std::string& claveOut, int canal, const std::string& salida) {
     std::string hex, clave;
     if (!ba::security::randomSecretHex(16, hex)) return {};
     if (!ba::security::randomSecretHex(16, clave)) return {};
@@ -1911,7 +1919,7 @@ std::string SignalingServer::altaPantalla(std::string& claveOut, int canal) {
         if (peor == pantallas_.end()) return {}; // todas conectadas: no hay lugar
         pantallas_.erase(peor);
     }
-    pantallas_[id] = Pantalla{clave, canal, 0};
+    pantallas_[id] = Pantalla{clave, canal, salida, 0};
     claveOut = clave;
     return id;
 }
@@ -1922,13 +1930,15 @@ std::string SignalingServer::claveDePantalla(const std::string& pid) const {
     return it == pantallas_.end() ? std::string() : it->second.clave;
 }
 
-int SignalingServer::canalDePantalla(const std::string& pid) const {
+MediaRoute SignalingServer::rutaDePantalla(const std::string& pid) const {
     std::lock_guard<std::mutex> lock(pantallasLock_);
     const auto it = pantallas_.find(pid);
-    return it == pantallas_.end() ? -1 : it->second.canal;
+    if (it == pantallas_.end()) return MediaRoute::deSalida({});
+    return it->second.canal >= 0 ? MediaRoute::escena(it->second.canal) : MediaRoute::deSalida(it->second.salida);
 }
 
-bool SignalingServer::reengancharPantalla(const std::string& pid, const std::string& clave, int canal) {
+bool SignalingServer::reengancharPantalla(const std::string& pid, const std::string& clave, int canal,
+                                          const std::string& salida) {
     if (pid.empty() || clave.empty()) return false;
     std::lock_guard<std::mutex> lock(pantallasLock_);
     const auto it = pantallas_.find(pid);
@@ -1936,6 +1946,7 @@ bool SignalingServer::reengancharPantalla(const std::string& pid, const std::str
     if (it->second.clave != clave) return false;
     it->second.sueltaMs = 0;
     it->second.canal = canal;
+    it->second.salida = salida;
     return true;
 }
 
@@ -2031,7 +2042,8 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         // no podria volver jamas.
         const bool vuelve = !arg("resume").empty();
         // `canal`: la escena que muestra (BA.Escena.<k>, la elige la app al
-        // pedir el enlace); sin él, el programa.
+        // pedir el enlace); sin él, el programa. `salida`: de qué salida es ese
+        // programa (sin ella, o si no existe, la por omisión).
         int canal = -1;
         if (!arg("canal").empty()) {
             try {
@@ -2041,8 +2053,9 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
             }
             if (canal < 0 || canal >= ba::ipc::kCanalesEscena) canal = -1;
         }
+        const std::string salida = canal < 0 && ba::ipc::idDeSalidaValido(arg("salida")) ? arg("salida") : std::string();
         if (vuelve) {
-            if (!reengancharPantalla(arg("resume"), arg("key"), canal)) {
+            if (!reengancharPantalla(arg("resume"), arg("key"), canal, salida)) {
                 http::sendResponse(fd, 401, "text/plain", traducir("gateway", "reenganche invalido") + "\n");
                 return {};
             }
@@ -2061,7 +2074,7 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         http::setSocketTimeout(fd, 0);
         std::string id = arg("resume"), clave;
         if (!vuelve) {
-            id = altaPantalla(clave, canal);
+            id = altaPantalla(clave, canal, salida);
             if (id.empty()) {
                 http::writeWsFrame(fd, 0x8, "");
                 return {};
@@ -2071,6 +2084,10 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
             log_.info(llenar(vuelve ? traducir("gateway", "ws: pantalla %1 volvio (solo mira, escena del canal %2)")
                                     : traducir("gateway", "ws: pantalla %1 conectada (solo mira, escena del canal %2)"),
                              {id, std::to_string(canal)}));
+        else if (!salida.empty())
+            log_.info(llenar(vuelve ? traducir("gateway", "ws: pantalla %1 volvio (solo mira, salida %2)")
+                                    : traducir("gateway", "ws: pantalla %1 conectada (solo mira, salida %2)"),
+                             {id, salida}));
         else
             log_.info(llenar(vuelve ? traducir("gateway", "ws: pantalla %1 volvio (solo mira)")
                                     : traducir("gateway", "ws: pantalla %1 conectada (solo mira)"),
@@ -2266,10 +2283,7 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
         dropGuest(pid);
         return;
     }
-    const int canalEscena = pantalla ? canalDePantalla(pid) : -1;
-    const MediaRoute route = !pantalla          ? room_.routeOf(pid)
-                             : canalEscena >= 0 ? MediaRoute::escena(canalEscena)
-                                                : MediaRoute::backstage(0);
+    const MediaRoute route = pantalla ? rutaDePantalla(pid) : room_.routeOf(pid);
     if (route.kind == MediaRoute::Kind::None) {
         log_.warn(llenar(traducir("gateway", "ws: offer de %1 sin ruta de medios (sin lugar); se ignora"), {pid}), -1);
         return;
@@ -2473,18 +2487,29 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
     return true;
 }
 
-MediaRoute SignalingServer::rutaDeVista(int canal, bool hablar) {
-    // El programa como lo ve la fila de oradores (backstage sin preview: no sube nada);
-    // una escena por su canal; «nada» es un canal de escena que no existe: llega el
-    // sonido (y la voz del operador si le habla) pero ninguna imagen.
-    if (canal == -1) return MediaRoute::backstage(0, hablar);
-    MediaRoute r = MediaRoute::escena(canal >= 0 ? canal : 1000);
+MediaRoute SignalingServer::rutaDeVista(const SesionBorde::Vista& vista, bool hablar) {
+    // El programa (de su salida) como lo ve la fila de oradores (backstage sin preview:
+    // no sube nada); una escena por su canal; «nada» es un canal de escena que no
+    // existe: llega el sonido (y la voz del operador si le habla) pero ninguna imagen.
+    if (vista.canal == -1) return MediaRoute::deSalida(vista.salida, hablar);
+    MediaRoute r = MediaRoute::escena(vista.canal >= 0 ? vista.canal : 1000);
     r.talk = hablar;
     return r;
 }
 
-bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp, int canal, bool hablar,
-                                  std::function<void(const json&)> enviar) {
+void SignalingServer::ponerSalidas(const json& lista) {
+    const json saneada = salidas::sanear(lista);
+    {
+        std::lock_guard<std::mutex> l(salidasMu_);
+        salidas_ = saneada;
+    }
+    if (pump_ != nullptr) pump_->ponerSalidas(salidas::conocidas(saneada));
+    if (sesion_) sesion_->ponerSalidas(saneada);
+    log_.info(llenar(traducir("gateway", "salidas: %1"), {std::to_string(saneada.size())}));
+}
+
+bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp, const SesionBorde::Vista& vista,
+                                  bool hablar, std::function<void(const json&)> enviar) {
     if (!soloRecibe(sdp)) {
         log_.warn(llenar(traducir("gateway", "sesion: la vista de %1 quiso mandar medios; se ignora"), {id}), -1);
         return false;
@@ -2542,7 +2567,7 @@ bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp,
                          {id, std::to_string(idx)}));
     };
     sess->configure(cb, hub_.rtcFactory());
-    if (pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(canal, hablar));
+    if (pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(vista, hablar));
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn(llenar(traducir("gateway", "sesion: setRemoteOffer de la vista de %1 falló"), {id}), -1);
         releaseSession(pid, 0, true);

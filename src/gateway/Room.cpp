@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 
+#include "ipc/CanalesSalida.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex
 
 namespace ba::gateway {
@@ -379,6 +380,23 @@ int Room::setAtiende(const std::string& id, bool on) {
     return kOk;
 }
 
+int Room::setSalida(const std::string& id, const std::string& salida) {
+    if (!salida.empty() && !ba::ipc::idDeSalidaValido(salida)) return kBadState;
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        Participant* p = findLocked(id);
+        if (p == nullptr) return kNotFound;
+        if (p->salida == salida) return kOk;
+        // Se guarda en cualquier estado: si espera en el lobby, la usa al entrar.
+        p->salida = salida;
+        out.routes.emplace_back(p->id, routeFor(*p));
+        out.roomChanged = true;
+    }
+    flush(out);
+    return kOk;
+}
+
 int Room::setTalk(const std::string& id, bool on) {
     Out out;
     {
@@ -686,8 +704,12 @@ void Room::autoAdmitLocked(int64_t nowMs, Out& out) {
 }
 
 MediaRoute Room::routeFor(const Participant& p) {
-    if (p.state == State::Admitted && p.slot > 0) return MediaRoute::program(p.slot, p.talk);
-    if (p.state == State::Admitted) return MediaRoute::backstage(p.backstageSlot, p.talk);
+    // Adentro le baja su salida (la del lobby es siempre el operador).
+    if (p.state == State::Admitted) {
+        MediaRoute r = p.slot > 0 ? MediaRoute::program(p.slot, p.talk) : MediaRoute::backstage(p.backstageSlot, p.talk);
+        r.salida = p.salida;
+        return r;
+    }
     if (p.state == State::Waiting && p.lobbySlot > 0) return MediaRoute::lobby(p.lobbySlot, p.talk, p.atiende);
     return {};
 }
@@ -748,6 +770,7 @@ json Room::toJson(const Participant& p) {
                 {"backstageSlot", p.backstageSlot},
                 {"talk", p.talk},
                 {"atiende", p.atiende},
+                {"salida", p.salida},
                 {"connected", p.connected},
                 {"mediaUp", p.mediaUp},
                 {"mic", p.mic},

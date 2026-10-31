@@ -344,13 +344,16 @@ class SignalingServer {
     bool esPantalla(const std::string& pid) const;
     /// Registra una pantalla nueva y devuelve su id. `claveOut` recibe la
     /// clave de reenganche, que se le manda en el "hello".
-    std::string altaPantalla(std::string& claveOut, int canal = -1);
+    /// `canal`: la escena que muestra (-1: ninguna); si no, `salida` ("" = la por omisión).
+    std::string altaPantalla(std::string& claveOut, int canal = -1, const std::string& salida = {});
     /// La clave de reenganche de esa pantalla (vacia si no existe).
     std::string claveDePantalla(const std::string& pid) const;
     /// Valida un reenganche. true si ese id existe y la clave coincide.
-    bool reengancharPantalla(const std::string& pid, const std::string& clave, int canal = -1);
-    /// El canal de escena de una pantalla (-1: el programa).
-    int canalDePantalla(const std::string& pid) const;
+    bool reengancharPantalla(const std::string& pid, const std::string& clave, int canal = -1,
+                             const std::string& salida = {});
+    /// La ruta de una pantalla: su escena, o su salida (la fila sin preview: recibe y no
+    /// sube nada a ningún lado).
+    MediaRoute rutaDePantalla(const std::string& pid) const;
     void bajaPantalla(const std::string& pid);
 
     void handleGuestHttp(long long fd, const std::string& method, const std::string& path,
@@ -386,9 +389,9 @@ class SignalingServer {
     bool ofertaRemoto(const std::string& id, int canal, const std::string& sdp,
                       std::function<void(const nlohmann::json&)> enviar);
     /// Lo que mira un integrante en su celular (sesión del pool que solo recibe, pid «vista:<id>»).
-    bool ofertaVista(const std::string& id, const std::string& sdp, int canal, bool hablar,
+    bool ofertaVista(const std::string& id, const std::string& sdp, const SesionBorde::Vista& vista, bool hablar,
                      std::function<void(const nlohmann::json&)> enviar);
-    static MediaRoute rutaDeVista(int canal, bool hablar);
+    static MediaRoute rutaDeVista(const SesionBorde::Vista& vista, bool hablar);
     /// La atención hablada del que espera en la sesión remota (pid «atiende:<id>», ruta
     /// Atencion): sube su micrófono a BA.Audio.Atencion y le baja la voz del que atiende.
     bool ofertaAtencion(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar);
@@ -491,6 +494,7 @@ class SignalingServer {
     struct Pantalla {
         std::string clave;
         int canal = -1; ///< canal de escena que muestra (BA.Escena.<k>); -1: el programa
+        std::string salida; ///< con canal -1: de qué salida es el programa ("" = la por omisión)
         std::int64_t sueltaMs = 0; ///< cuando se desconecto (0: conectada)
     };
     static std::int64_t kPantallaTtlMs() { return ba::ajustes::entero64("pantallas.ttlHoras", 12) * 60 * 60 * 1000; }
@@ -529,6 +533,12 @@ class SignalingServer {
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;
+    // Las salidas del aparato (docs/planes/PLAN-SALIDAS.md), como las manda la app por
+    // POST /api/v1/salidas, ya saneadas (Salidas.hpp). Las usan el motor de medios (de
+    // qué salida baja cada ruta) y la sesión remota (qué se puede mirar).
+    mutable std::mutex salidasMu_;
+    nlohmann::json salidas_ = nlohmann::json::array();
+    void ponerSalidas(const nlohmann::json& lista);
     // La grilla de personas: el alto del lugar más grande de cada participante en las
     // grillas y la calidad que ya se le pidió a su navegador (ver enviarCalidadGrilla).
     Grillas* grillas_ = nullptr;

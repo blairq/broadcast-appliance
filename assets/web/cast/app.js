@@ -35,6 +35,8 @@
   // Una escena que no es el programa: el canal que le dio la app (vacío: el
   // programa). Va también al reengancharse, para seguir en la misma escena.
   const canal = /^\d{1,2}$/.test(q.get("canal") || "") ? q.get("canal") : "";
+  // Con muchas salidas, de cuál es el programa que muestra (vacío: la por omisión).
+  const salida = !canal && /^[A-Za-z0-9_-]{1,32}$/.test(q.get("salida") || "") ? q.get("salida") : "";
   const conAudio = q.get("audio") !== "0";
   // 150 ms por defecto. Con 0 (lo que había) cada paquete que el wifi pierde se ve:
   // el navegador muestra todo apenas llega y no le queda tiempo de pedir el reenvío,
@@ -98,7 +100,8 @@
     // no, un corte de un segundo dejaria al televisor afuera para siempre.
     const args = (st.id
       ? `pantalla=1&resume=${encodeURIComponent(st.id)}&key=${encodeURIComponent(st.key)}`
-      : `pantalla=1&token=${encodeURIComponent(token)}`) + (canal ? `&canal=${canal}` : "");
+      : `pantalla=1&token=${encodeURIComponent(token)}`) + (canal ? `&canal=${canal}` : "") +
+      (salida ? `&salida=${salida}` : "");
     const ws = new WebSocket(`${proto}://${location.host}/ws?${args}`);
     // Los mensajes del canal van envueltos en un frame binario (ver
     // ../comun/trama.js): sin esto llegan como Blob y no se leen.
@@ -323,7 +326,7 @@
   if (window.BACanal) {
     window.BACanal.abrir({
       // Con canal es una escena (no el programa): así figura en las superficies.
-      tipo: canal ? "escena" : "programa",
+      tipo: canal ? "escena" : "programa", // el de otra salida también es un programa
       que: () => {
         const cs = st.pc ? st.pc.connectionState : "sin conexión";
         const v = $("video");

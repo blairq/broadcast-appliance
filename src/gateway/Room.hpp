@@ -82,6 +82,9 @@ class Room {
         int backstageSlot = 0; ///< 1..backstageSlots en la fila de oradores (preview del operador)
         bool talk = false;     ///< el operador le esta hablando (conversacion privada del lobby)
         bool atiende = false;  ///< lo atiende el asistente hablando (solo en el lobby; ver MediaRoute)
+        /// De qué salida le baja el retorno estando adentro ("" = la por omisión;
+        /// docs/planes/PLAN-SALIDAS.md). Una que no existe baja como la por omisión.
+        std::string salida;
         bool connected = false;
         bool mediaUp = false; ///< PeerConnection establecida
         bool mic = true;
@@ -205,6 +208,9 @@ class Room {
     /// su voz sube para pasarla a texto y le baja la del que atiende. Se apaga
     /// sola al admitirlo: la atención es del lobby.
     int setAtiende(const std::string& id, bool on);
+    /// De qué salida le baja el retorno ("" = la por omisión). Vale en cualquier estado
+    /// (si espera, al entrar). kBadState si el id de salida no sirve (ipc/CanalesSalida).
+    int setSalida(const std::string& id, const std::string& salida);
     /// Pedido al invitado: "mute-mic", "mute-cam", "stop-screen", "lower-hand".
     int request(const std::string& id, const std::string& what);
     /// `to`: "all" o el id de un participante.

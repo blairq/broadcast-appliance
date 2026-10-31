@@ -31,9 +31,12 @@
 //        sala (R3), hasta dos a la vez (un debate): el primero va al canal 1 (BA.Remoto.1…), el
 //        segundo al 2. Al que entra se le dice {type:"medios", activo:true} y su celular ofrece
 //        ({type:"medios-oferta", sdp}, {type:"medios-ice", candidate}); al que sale, false.
-//   POST /api/v1/sesion/vistas       {vistas:[{id, nombre, canal}]}: los canales que el integrante
-//        puede mirar en su celular (canal -1 = el programa, k = BA.Escena.<k>); se les manda
-//        {type:"vistas", lista:[{id, nombre}]}. Su celular abre un WebRTC que solo recibe
+//   POST /api/v1/sesion/vistas       {vistas:[{id, nombre, canal, salida?}]}: los canales que el
+//        integrante puede mirar en su celular (canal -1 = el programa, k = BA.Escena.<k>; con
+//        `salida`, esa salida en vez del programa); se les manda {type:"vistas", lista:[{id,
+//        nombre, color?}]}. Con más de una salida (SignalingServer::ponerSalidas), al lado del
+//        programa van las demás («salida:<id>», con su nombre y su color): quien puede mirar el
+//        programa puede mirar cualquiera. Su celular abre un WebRTC que solo recibe
 //        ({type:"vista-oferta", sdp, vista}, {type:"vista-ice", candidate}) y cambia de canal
 //        con {type:"vista", vista} ("yo" = ninguno: solo el sonido) sin reconectar.
 //   POST /api/v1/sesion/hablar       {id, activo}: el operador le habla («apretar para hablar»
@@ -93,6 +96,13 @@ class SesionBorde {
                const std::string& body);
     void cerrar();
 
+    /// Lo que mira un integrante en su celular: canal -1 = programa, k >= 0 =
+    /// BA.Escena.<k>, -2 = nada (solo el sonido). Con `salida` (y canal -1), esa salida
+    /// en vez de la por omisión.
+    struct Vista {
+        int canal = -2;
+        std::string salida;
+    };
     /// R3: lo que manda el celular del que tiene la palabra va a la app por el
     /// WebRTC del gateway. Lo arma SignalingServer (que tiene el hub y el pump).
     struct Medios {
@@ -103,13 +113,13 @@ class SesionBorde {
             oferta;
         std::function<void(const std::string& id, const std::string& candidato)> ice;
         std::function<void(const std::string& id, int canal)> cerrar;
-        // Lo que mira en su celular (un WebRTC que solo recibe): canal -1 = programa,
-        // k >= 0 = BA.Escena.<k>, -2 = nada (solo el sonido). `hablar`: le llega la voz del operador.
-        std::function<bool(const std::string& id, const std::string& sdp, int canal, bool hablar,
+        // Lo que mira en su celular (un WebRTC que solo recibe), ver Vista. `hablar`: le
+        // llega la voz del operador.
+        std::function<bool(const std::string& id, const std::string& sdp, const Vista& vista, bool hablar,
                            std::function<void(const nlohmann::json&)> enviar)>
             vistaOferta;
         std::function<void(const std::string& id, const std::string& candidato)> vistaIce;
-        std::function<void(const std::string& id, int canal, bool hablar)> vistaRuta;
+        std::function<void(const std::string& id, const Vista& vista, bool hablar)> vistaRuta;
         std::function<void(const std::string& id)> vistaCerrar;
         // La atención hablada mientras espera (ruta Atencion): solo su micrófono sube.
         std::function<bool(const std::string& id, const std::string& sdp,
@@ -128,6 +138,9 @@ class SesionBorde {
     std::string ponerAtiende(const std::string& id, bool on);
     /// A quién se atiende hablando ahora ("" = a nadie).
     std::string conAtiende() const;
+    /// Las salidas que hay (la lista ya saneada, Salidas.hpp): con más de una se ofrecen
+    /// al lado del programa. Re-rutea a los que miran y les manda la lista nueva.
+    void ponerSalidas(const nlohmann::json& saneada);
 
     /// Sirve `rel` de `webroot` con la CSP estricta de estas páginas (cámara y micrófono
     /// solo para ellas). La usa también el registro por tótem (Registro.hpp).
@@ -180,13 +193,16 @@ class SesionBorde {
     std::map<std::string, int> mediosDe_; ///< quiénes mandan audio y video a la sala, y por qué canal (1..2)
     void ponerMedios(const std::vector<std::string>& ids);
     long long ultimoSeqMedios_ = 0; ///< el número de la última lista de medios (la app los numera)
-    nlohmann::json vistas_ = nlohmann::json::array(); ///< [{id, nombre, canal}]
+    nlohmann::json vistas_ = nlohmann::json::array(); ///< [{id, nombre, canal, salida}]
+    nlohmann::json salidas_ = nlohmann::json::array(); ///< [{id, nombre, color, porOmision}]
     std::map<std::string, std::string> vistaDe_;       ///< integrante -> la vista que eligió
     std::map<std::string, bool> hablando_;             ///< a quién le habla el operador
     std::string atiende_;                               ///< a quién atiende el asistente hablando ("" = nadie)
     void avisarAtiende(const std::string& id, bool on); ///< sin mu_ tomado
-    int canalDeVista(const std::string& vista) const;  ///< con mu_ tomado
-    nlohmann::json listaVistas() const;                ///< con mu_ tomado
+    Vista vistaElegida(const std::string& vista) const; ///< con mu_ tomado
+    nlohmann::json listaVistas() const;                 ///< con mu_ tomado
+    /// Cambió lo que se puede mirar: re-rutea a los que miran y les manda la lista. Sin mu_.
+    void difundirVistas();
 };
 
 } // namespace ba::gateway

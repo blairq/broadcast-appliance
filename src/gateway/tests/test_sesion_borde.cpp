@@ -9,6 +9,11 @@
 
 #include <nlohmann/json.hpp>
 
+#ifndef _WIN32
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
 #include "Botonera.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
@@ -131,6 +136,38 @@ int main() {
               !MediaRoute::backstage(0).oyeAlAtendedor(),
           "ni los de adentro ni el remoto con la palabra (la voz nunca va al aire)");
     CHECK(MediaRoute::atencion() != MediaRoute::escena(0), "la ruta de la atención es otra");
+
+#ifndef _WIN32
+    // Las vistas con muchas salidas (docs/planes/PLAN-SALIDAS.md): con una sola, la lista
+    // de la app tal cual; con más, al lado del programa van las demás, con su color.
+    const auto vistas = [&](const nlohmann::json& v) {
+        int sv[2];
+        if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) return nlohmann::json();
+        s.admin(sv[0], "POST", "/api/v1/sesion/vistas", "", nlohmann::json{{"vistas", v}}.dump());
+        ::close(sv[0]);
+        std::string r;
+        char buf[4096];
+        for (ssize_t n; (n = ::read(sv[1], buf, sizeof buf)) > 0;) r.append(buf, static_cast<size_t>(n));
+        ::close(sv[1]);
+        const auto p = r.find("\r\n\r\n");
+        return p == std::string::npos ? nlohmann::json() : nlohmann::json::parse(r.substr(p + 4), nullptr, false).value("vistas", nlohmann::json());
+    };
+    const nlohmann::json deLaApp = nlohmann::json::parse(R"([{"id":"prog","nombre":"Programa","canal":-1},
+                                                              {"id":"esc","nombre":"Atril","canal":0}])");
+    nlohmann::json l = vistas(deLaApp);
+    CHECK(l.size() == 2 && !l[0].contains("color"), "una sola salida: la lista de la app tal cual");
+    s.ponerSalidas(nlohmann::json::parse(R"([{"id":"a","nombre":"Principal","color":"#e53935","porOmision":true},
+                                             {"id":"b","nombre":"Segunda","color":"#1e88e5","porOmision":false}])"));
+    l = vistas(deLaApp);
+    CHECK(l.size() == 3 && l[1]["id"] == "salida:b" && l[1]["nombre"] == "Segunda" && l[1]["color"] == "#1e88e5",
+          "dos salidas: la otra va al lado del programa, con su nombre y su color");
+    CHECK(l[0]["color"] == "#e53935" && !l[2].contains("color"), "el programa lleva el color de la por omisión; la escena, ninguno");
+    l = vistas(nlohmann::json::parse(R"([{"id":"prog","nombre":"Programa","canal":-1},
+                                         {"id":"seg","nombre":"La segunda","canal":-1,"salida":"b"}])"));
+    CHECK(l.size() == 2 && l[1]["id"] == "seg", "si la app ya la puso con nombre propio, no se repite");
+    l = vistas(nlohmann::json::parse(R"([{"id":"esc","nombre":"Atril","canal":0}])"));
+    CHECK(l.size() == 1, "sin el programa en la lista, ninguna otra salida");
+#endif
 
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;

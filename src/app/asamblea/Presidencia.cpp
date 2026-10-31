@@ -383,7 +383,8 @@ void Presidencia::aplicarVistas(bool forzar) {
         if (pasada == 1) p_.motor.soltarCanalesEscena("sesion-remota", tomados);
         for (size_t i = 0; i < vistas.size(); ++i) {
             const std::string fuente = vistas[i].value("fuente", std::string());
-            if (fuente == "programa") {
+            // El programa, o el de otra salida («salida:<id>», el gateway la elige por `salida`).
+            if (fuente == "programa" || fuente.rfind("salida:", 0) == 0) {
                 canales[i] = -1;
                 continue;
             }
@@ -400,9 +401,13 @@ void Presidencia::aplicarVistas(bool forzar) {
         }
     }
     json out = json::array();
-    for (size_t i = 0; i < vistas.size(); ++i)
-        out.push_back({{"id", vistas[i].value("id", std::string())}, {"nombre", vistas[i].value("nombre", std::string())},
-                       {"canal", canales[i]}});
+    for (size_t i = 0; i < vistas.size(); ++i) {
+        json v{{"id", vistas[i].value("id", std::string())}, {"nombre", vistas[i].value("nombre", std::string())},
+               {"canal", canales[i]}};
+        const std::string fuente = vistas[i].value("fuente", std::string());
+        if (fuente.rfind("salida:", 0) == 0) v["salida"] = fuente.substr(7);
+        out.push_back(v);
+    }
     sala::pedir(p_.sala, "POST", "/api/v1/sesion/vistas", {{"vistas", out}}, sinRespuesta);
 }
 

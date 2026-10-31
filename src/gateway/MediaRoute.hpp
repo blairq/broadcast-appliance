@@ -12,11 +12,13 @@
 //               asistente que lo atiende (BA.Audio.Atendedor)
 //   Program(n)  sube -> BA.Guest.<n> / BA.Audio.Guest.<n> (+ pantalla en
 //               BA.GuestShare.<n>)
-//               baja <- programa + retorno de audio
+//               baja <- programa + retorno de audio (o los de su `salida`)
 //   Backstage(k) (modo oradores, esperando turno)
 //               sube -> camara a BA.Backstage.<k> si tiene lugar de preview
 //               (chica, solo la vista del operador; nunca el programa)
-//               baja <- programa + retorno de audio
+//               baja <- programa + retorno de audio (o los de su `salida`).
+//               Sin preview (k = 0) es tambien la ruta de lo que SOLO MIRA una
+//               salida: una pantalla, la vista de un remoto (deSalida)
 //   Escena(k)   (una pantalla de la sala que muestra una escena que no es el
 //               programa, docs/funciones/PANTALLAS.md) no sube nada
 //               baja <- BA.Escena.<k> + retorno de audio
@@ -42,12 +44,21 @@
 //               voz de la persona y la del asistente, mezcladas
 //   None        nada (desconectado / sin lugar)
 //
+// La SALIDA (docs/planes/PLAN-SALIDAS.md): el aparato tiene N salidas y lo que
+// baja con Program o Backstage es la de `salida`: "" = la por omision (BA.Program
+// + BA.Audio.ContentForReturn, como siempre); si no, BA.Salida.<id> +
+// BA.Audio.Salida.<id> (ipc/CanalesSalida.hpp). Una salida que no existe (o que
+// todavia no llego de la app) baja como la por omision: ver SalidasConocidas.
+//
 // Asi un invitado del lobby solo ve al operador (nunca a los demas del lobby
 // ni al programa, donde aparecen los de adentro), y admitirlo es instantaneo.
 // ============================================================================
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "ipc/CanalesRegistro.hpp"
 #include "ipc/LugaresSala.hpp"
@@ -91,6 +102,10 @@ struct MediaRoute {
     /// (BA.Audio.Atendedor), no la del operador. Si el operador además le habla (`talk`),
     /// gana el operador: dos voces en el mismo track se pisan.
     bool atiende = false;
+    /// Program y Backstage: de qué salida baja lo que recibe ("" = la por omisión). En
+    /// las demás rutas no se usa (una Escena es siempre una escena, con el sonido de la
+    /// por omisión).
+    std::string salida{};
 
     static MediaRoute program(int slot, bool talk = false) { return {Kind::Program, slot, talk}; }
     static MediaRoute lobby(int slot, bool talk, bool atiende = false) { return {Kind::Lobby, slot, talk, atiende}; }
@@ -99,6 +114,13 @@ struct MediaRoute {
     static MediaRoute backstage(int preview = 0, bool talk = false) { return {Kind::Backstage, preview, talk}; }
     static MediaRoute remoto(int canal) { return {Kind::Remoto, canal, false}; }
     static MediaRoute escena(int canal) { return {Kind::Escena, canal, false}; }
+    /// Solo mira la salida `id` ("" = la por omisión): una pantalla o la vista de un
+    /// remoto. Es la fila sin preview (no sube nada) con otra salida.
+    static MediaRoute deSalida(const std::string& id, bool talk = false) {
+        MediaRoute r = backstage(0, talk);
+        r.salida = id;
+        return r;
+    }
     static MediaRoute atencion() { return {Kind::Atencion, 0, false}; }
     static MediaRoute registro(int canal) { return {Kind::Registro, canal, false}; }
     static MediaRoute registroAtiende(int canal, bool habla) { return {Kind::RegistroAtiende, canal, habla}; }
@@ -114,10 +136,37 @@ struct MediaRoute {
     bool miraRegistro(int k) const { return kind == Kind::RegistroAtiende && index == k && k >= 1 && k <= kMaxTotems; }
     /// Además la atiende: su micrófono baja SOLO al tótem del canal `k`.
     bool hablaARegistro(int k) const { return miraRegistro(k) && talk; }
+    /// Recibe la salida `id` entera, imagen y sonido ("" = la por omisión): el invitado
+    /// del programa, la fila, una pantalla, la vista de un remoto.
+    bool miraSalida(const std::string& id) const {
+        return (kind == Kind::Program || kind == Kind::Backstage) && salida == id;
+    }
+    /// Le llega el audio de retorno de la salida `id`: los que la miran, y las pantallas
+    /// de escena el de la por omisión (como siempre).
+    bool oyeSalida(const std::string& id) const { return miraSalida(id) || (kind == Kind::Escena && id.empty()); }
     bool operator==(const MediaRoute& o) const {
-        return kind == o.kind && index == o.index && talk == o.talk && atiende == o.atiende;
+        return kind == o.kind && index == o.index && talk == o.talk && atiende == o.atiende && salida == o.salida;
     }
     bool operator!=(const MediaRoute& o) const { return !(*this == o); }
+};
+
+/// Las salidas que hay, según la app (POST /api/v1/salidas). Decide de qué salida
+/// baja de verdad lo que pide una ruta: la pedida si existe y no es la por omisión;
+/// si no, "" (BA.Program). Así una pantalla que pidió una salida que se borró (o que la
+/// app todavía no avisó) ve el programa en vez de nada, y vuelve sola a la suya cuando
+/// aparece: la ruta pedida se guarda aparte (MediaPump).
+struct SalidasConocidas {
+    std::string porOmision;
+    std::vector<std::string> ids; ///< todas, la por omisión incluida
+
+    std::string vigente(const std::string& pedida) const {
+        if (pedida.empty() || pedida == porOmision) return {};
+        return std::find(ids.begin(), ids.end(), pedida) != ids.end() ? pedida : std::string();
+    }
+    MediaRoute vigente(MediaRoute r) const {
+        r.salida = vigente(r.salida);
+        return r;
+    }
 };
 
 } // namespace ba::gateway

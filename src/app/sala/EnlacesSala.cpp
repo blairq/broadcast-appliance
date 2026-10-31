@@ -76,9 +76,10 @@ void EnlacesSala::rotulos(bool remoto, bool conClave, Listo listo) {
                 std::move(listo));
 }
 
-void EnlacesSala::pantalla(const std::string& nombre, int canal, Listo listo) {
+void EnlacesSala::pantalla(const std::string& nombre, int canal, Listo listo, const std::string& salida) {
     std::string ruta = "/api/v1/cast-link?target=local";
     if (canal >= 0) ruta += "&canal=" + std::to_string(canal);
+    else if (!salida.empty()) ruta += "&salida=" + QUrl::toPercentEncoding(QString::fromStdString(salida)).toStdString();
     ruta += "&nombre=" + QUrl::toPercentEncoding(QString::fromStdString(nombre)).toStdString();
     pedirEnlace(ruta, std::move(listo));
 }
