@@ -108,6 +108,15 @@ class YouTubeViewModel : public QObject {
     void goLive(const QString& broadcastId, YouTubeClient::Done done);
     void endBroadcast(const QString& broadcastId, YouTubeClient::Done done);
     void uploadRecording(const QString& path, const QJsonObject& meta, YouTubeClient::Done done);
+    /// Cambiar o borrar un video, crear, cambiar, pasar de estado o borrar un evento: lo
+    /// mismo que hace la página (la lista se pone al día al terminar), con el resultado. Sin
+    /// esto el MCP le hablaba al cliente directo y la página quedaba vieja.
+    void updateVideo(const QString& id, const QJsonObject& cambios, YouTubeClient::Done done);
+    void deleteVideo(const QString& id, YouTubeClient::Done done);
+    void createBroadcast(const QJsonObject& datos, YouTubeClient::Done done);
+    void updateBroadcast(const QString& id, const QJsonObject& cambios, YouTubeClient::Done done);
+    void transition(const QString& id, const QString& estado, YouTubeClient::Done done);
+    void deleteBroadcast(const QString& broadcastId, YouTubeClient::Done done);
     /// Mensajes de chat en memoria (YouTube), del mas viejo al mas nuevo.
     const QJsonArray& chatMessages() const { return chatItems_; }
     QString recordingsDir() const;
@@ -125,6 +134,8 @@ class YouTubeViewModel : public QObject {
     void vivo(const QVariantMap& datos);
 
    private:
+    /// `done` con la vuelta de la página: deja de contar el pedido y, si salió, refresca.
+    YouTubeClient::Done alVolver(YouTubeClient::Done done);
     /// El motor contestó si salió al aire (`error` vacío = sí): sigue goLive.
     void alSalir(const QString& broadcastId, const QString& url, const std::string& error, const YouTubeClient::Done& done);
     void setError(const QString& e);

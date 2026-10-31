@@ -213,27 +213,37 @@ void YouTubeViewModel::copy(const QString& text) { QGuiApplication::clipboard()-
 
 // --- Videos --------------------------------------------------------------------------------
 
+YouTubeClient::Done YouTubeViewModel::alVolver(YouTubeClient::Done done) {
+    track(true);
+    return [this, done = std::move(done)](bool ok, const QJsonObject& d, const QString& e) {
+        track(false);
+        if (ok) refresh();
+        if (done) done(ok, d, e);
+    };
+}
+
 void YouTubeViewModel::updateVideo(const QString& id, const QString& title, const QString& description,
                                    const QString& privacy) {
-    track(true);
-    client_->updateVideo(id,
-                         QJsonObject{{"title", title}, {"description", description}, {"privacy", privacy}},
-                         [this](bool ok, const QJsonObject&, const QString& e) {
-                             track(false);
-                             if (!ok) return setError(e);
-                             emit notify(tr("Video actualizado."), "ok");
-                             refresh();
-                         });
+    updateVideo(id, QJsonObject{{"title", title}, {"description", description}, {"privacy", privacy}},
+                [this](bool ok, const QJsonObject&, const QString& e) {
+                    if (!ok) return setError(e);
+                    emit notify(tr("Video actualizado."), "ok");
+                });
+}
+
+void YouTubeViewModel::updateVideo(const QString& id, const QJsonObject& cambios, YouTubeClient::Done done) {
+    client_->updateVideo(id, cambios, alVolver(std::move(done)));
 }
 
 void YouTubeViewModel::deleteVideo(const QString& id) {
-    track(true);
-    client_->deleteVideo(id, [this](bool ok, const QJsonObject&, const QString& e) {
-        track(false);
+    deleteVideo(id, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
         emit notify(tr("Video borrado de YouTube."), "ok");
-        refresh();
     });
+}
+
+void YouTubeViewModel::deleteVideo(const QString& id, YouTubeClient::Done done) {
+    client_->deleteVideo(id, alVolver(std::move(done)));
 }
 
 void YouTubeViewModel::uploadRecording(const QString& path, const QString& title, const QString& description,
@@ -265,16 +275,24 @@ void YouTubeViewModel::uploadRecording(const QString& path, const QJsonObject& m
 
 void YouTubeViewModel::createBroadcast(const QString& title, const QString& description,
                                        const QString& privacy, const QString& latency) {
-    track(true);
-    client_->createBroadcast(
-        QJsonObject{
-            {"title", title}, {"description", description}, {"privacy", privacy}, {"latency", latency}},
+    createBroadcast(
+        QJsonObject{{"title", title}, {"description", description}, {"privacy", privacy}, {"latency", latency}},
         [this](bool ok, const QJsonObject& d, const QString& e) {
-            track(false);
             if (!ok) return setError(e);
             emit notify(tr("Evento creado: %1").arg(d.value("url").toString()), "ok");
-            refresh();
         });
+}
+
+void YouTubeViewModel::createBroadcast(const QJsonObject& datos, YouTubeClient::Done done) {
+    client_->createBroadcast(datos, alVolver(std::move(done)));
+}
+
+void YouTubeViewModel::updateBroadcast(const QString& id, const QJsonObject& cambios, YouTubeClient::Done done) {
+    client_->updateBroadcast(id, cambios, alVolver(std::move(done)));
+}
+
+void YouTubeViewModel::transition(const QString& id, const QString& estado, YouTubeClient::Done done) {
+    client_->transition(id, estado, alVolver(std::move(done)));
 }
 
 void YouTubeViewModel::goLive(const QString& broadcastId) {
@@ -403,13 +421,14 @@ void YouTubeViewModel::endBroadcast(const QString& broadcastId, YouTubeClient::D
 }
 
 void YouTubeViewModel::deleteBroadcast(const QString& broadcastId) {
-    track(true);
-    client_->deleteBroadcast(broadcastId, [this](bool ok, const QJsonObject&, const QString& e) {
-        track(false);
+    deleteBroadcast(broadcastId, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
         emit notify(tr("Evento borrado."), "ok");
-        refresh();
     });
+}
+
+void YouTubeViewModel::deleteBroadcast(const QString& broadcastId, YouTubeClient::Done done) {
+    client_->deleteBroadcast(broadcastId, alVolver(std::move(done)));
 }
 
 // --- Chat -------------------------------------------------------------------------------------
