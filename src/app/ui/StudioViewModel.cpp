@@ -29,6 +29,7 @@
 #include "emision/SeguridadAire.hpp"
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AsambleaViewModel.hpp"
+#include "ui/ControlViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -551,7 +552,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     evento_->setSistema([this]() {
         return EventoViewModel::Sistema{conmutadores_.get(),
                                         bus_.get(),
-                                        dsk_.get(),
+                                        control_ ? &control_->dsk() : nullptr,
                                         camaras_.get(),
                                         asamblea_ ? &asamblea_->ordenDelDia() : nullptr,
                                         asamblea_ ? asamblea_->votaciones() : nullptr,
@@ -1035,7 +1036,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // «Traducción automática» rotulada mientras sale una traducción (pantalla o CC).
     rotuloApagar_.setSingleShot(true);
     connect(&rotuloApagar_, &QTimer::timeout, this, [this]() {
-        if (dsk_) dsk_->mostrar(rotulo_->capa(), false, true);
+        if (control_) control_->dsk().mostrar(rotulo_->capa(), false, true);
     });
     connect(flujos_.get(), &agent::FlujosTexto::fraseConOrigen, this,
             [this](const QString& flujo, const QString&, const QString& origen) { rotularTraduccion(flujo, origen); });
@@ -1357,149 +1358,28 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         }
         return out;
     };
-    // La botonera: el modelo, los permisos y la ejecución viven acá; el gateway
-    // es solo el borde de red (TLS, tokens, WebSocket de las tablets).
-    {
-        control::Botonera::Ganchos g;
-        g.escenas = [this]() { return rt_.engine().sceneNames(); };
-        g.salidas = listaSalidas;
-        g.fuentesAudio = [this]() { return rt_.engine().audioSources(); };
-        g.pdfs = [this]() {
-            std::vector<std::pair<std::string, std::string>> out;
-            if (pdfEscena_)
-                for (const QVariant& v : pdfEscena_->documentos())
-                    out.emplace_back(v.toMap().value("id").toString().toStdString(), v.toMap().value("titulo").toString().toStdString());
-            return out;
-        };
-        g.bancas = [this]() {
-            std::vector<std::pair<std::string, std::string>> out;
-            for (const auto& i : asamblea_->cuerpo().cuerpo().integrantes())
-                if (!i.value("banca", std::string()).empty())
-                    out.emplace_back(i.value("banca", std::string()), i.value("nombre", std::string()));
-            return out;
-        };
-        g.recinto = [this]() { return asamblea_->cuerpo().cuerpo().recinto(); };
-        // La cara de un botón: la foto del integrante (subida o capturada con la
-        // cámara de su banca) o la foto de una posición PTZ, en 96 px.
-        g.imagen = [this](const std::string& ref) -> std::string {
-            QString ruta;
-            const QString r = QString::fromStdString(ref);
-            if (r.startsWith("medio:")) {
-                ruta = QString::fromStdString(carasBotonera_->rutaPoster(ref.substr(6)));
-            } else if (r.startsWith("cuerpo:")) {
-                ruta = asamblea_->cuerpo().rutaFoto(r.mid(7));
-            } else if (r.startsWith("ptz:") && camaras_) {
-                const QString resto = r.mid(4);
-                const int barra = resto.lastIndexOf('/');
-                if (barra > 0)
-                    for (const QVariant& v : camaras_->posiciones(resto.left(barra))) {
-                        const QVariantMap m = v.toMap();
-                        if (m.value("id").toString() == resto.mid(barra + 1) ||
-                            m.value("nombre").toString().compare(resto.mid(barra + 1), Qt::CaseInsensitive) == 0)
-                            ruta = m.value("miniatura_ruta").toString();
-                    }
-            }
-            if (ruta.isEmpty()) return {};
-            const QFileInfo fi(ruta);
-            const QString clave = ruta + "|" + QString::number(fi.lastModified().toMSecsSinceEpoch());
-            auto it = imagenesBotonera_.find(clave);
-            if (it != imagenesBotonera_.end()) return it->second;
-            QImage img(ruta);
-            if (img.isNull()) return {};
-            const int lado = std::min(img.width(), img.height());
-            img = img.copy((img.width() - lado) / 2, (img.height() - lado) / 2, lado, lado)
-                      .scaled(96, 96, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-            QByteArray jpg;
-            QBuffer buf(&jpg);
-            buf.open(QIODevice::WriteOnly);
-            img.convertToFormat(QImage::Format_RGB888).save(&buf, "JPG", 80);
-            const std::string url = "data:image/jpeg;base64," + jpg.toBase64().toStdString();
-            if (imagenesBotonera_.size() > 400) imagenesBotonera_.clear();
-            imagenesBotonera_[clave] = url;
-            return url;
-        };
-        g.cara = [this](const std::string& ref) -> nlohmann::json {
-            if (ref.rfind("medio:", 0) != 0) return nullptr;
-            return carasBotonera_->cara(ref.substr(6));
-        };
-        g.medioDeCara = [this](const std::string& id) -> nlohmann::json {
-            const QVariantMap i = carasBotonera_->info(qs(id));
-            return {{"medio", i.value("medio").toString().toStdString()}, {"video", i.value("video").toBool()}};
-        };
-        g.presidentes = [this]() {
-            std::set<std::string> out;
-            for (const auto& u : asamblea_->dcn().estado().value("unidades", nlohmann::json::array()))
-                if (u.value("tipo", std::string()) == "presidente" && !u.value("banca", std::string()).empty())
-                    out.insert(u.value("banca", std::string()));
-            return out;
-        };
-        carasBotonera_ = std::make_unique<control::CarasBotonera>(rt, rt.dataRoot());
-        botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
-        satellite_ = std::make_unique<control::SatelliteServidor>(rt.dataRoot(), *botonera_);
-        dsk_ = std::make_unique<control::Dsk>(rt.dataRoot(), rt_.engine());
-        dsk_->setSalida(salidaActiva_);
-        acciones_ = std::make_unique<control::Acciones>(rt.dataRoot());
-        {
-            auto& g = acciones_->ganchos();
-            g.escenas = [this]() { return rt_.engine().sceneNames(); };
-            g.fuentesAudio = [this]() { return rt_.engine().audioSources(); };
-            g.mudo = [this](const std::string& f, const std::string& salida) { return rt_.engine().sourceMuted(f, salida); };
-            g.salidas = listaSalidas;
-            g.dskArriba = [this](int capa, const std::string& salida) { return dsk_->arriba(capa, salida); };
-        }
-        linea_ = std::make_unique<LineaViewModel>(*evento_, rt_.engine(), frames_.get(), acciones_.get(), bus_.get());
-        dsk_->setAlCambiar([this](const nlohmann::json& c) {
-            bus_->publicar("aire/dsk", c);
-            publicarTally(); // lo que muestra una capa también está al aire
-        });
-        auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
-        // La botonera con el gateway (tablets: eventos, credenciales, emparejar): su modelo.
-        botoneraGw_ = std::make_unique<control::BotoneraGateway>(*botonera_, *cli);
-        connect(botoneraGw_.get(), &control::BotoneraGateway::aviso, this,
-                [this](const QString& texto, const QString& nivel) { emit notify(texto, nivel); });
-        // Los aparatos de plugins y del satélite (las tablets van por BotoneraGateway).
-        connect(botonera_.get(), &control::Botonera::mensaje, this, [this](const QString& dev, const nlohmann::json& msg) {
-            const std::string origen = botonera_->origenDe(dev.toStdString());
-            if (origen == "plugin" && plugins_)
-                plugins_->superficieEstado(dev.toStdString(), msg);
-            else if (origen == "satellite" && satellite_)
-                satellite_->mensaje(dev.toStdString(), msg);
-        });
-        // El control web (dashboard /control/): sus aparatos y el puente con el gateway (como la botonera).
-        controlWeb_ = std::make_unique<control::ControlWeb>(rt.dataRoot());
-        controlWeb_->ganchos().salidas = listaSalidas;
-        controlWebGw_ = std::make_unique<control::ControlWebGateway>(*controlWeb_, *cli);
-        // El tema de las páginas web: cada vez que la sala (re)arranca, se lo vuelve a pasar.
-        connect(conference_.get(), &ConferenceViewModel::onlineChanged, this, [this]() {
-            if (static_cast<ConferenceViewModel*>(conference_.get())->online()) mandarTemaWeb();
-        });
-        connect(controlWebGw_.get(), &control::ControlWebGateway::aviso, this,
-                [this](const QString& texto, const QString& nivel) { emit notify(texto, nivel); });
-        connect(controlWeb_.get(), &control::ControlWeb::solicitudNueva, this,
-                [this](const QString&, const QString& nombre, const QString& ip) {
-                    emit notify(tr("«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.").arg(nombre, ip),
-                                "warn");
-                });
-        connect(botonera_.get(), &control::Botonera::solicitudNueva, this,
-                [this](const QString&, const QString& nombre, const QString& perfil, const QString& ip) {
-                    emit notify(tr("«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página "
-                                   "Botonera.")
-                                    .arg(nombre, ip, perfil),
-                                "warn");
-                });
-        // Los aparatos de hardware de los plugins (Stream Deck, MIDI…) son botoneras más.
-        plugins_->setSuperficies(
-            [this](const std::string& id, const std::string& nombre, const nlohmann::json& cap) {
-                botonera_->registrarLocal(id, nombre, "plugin", cap);
-            },
-            [this](const std::string& id) { botonera_->quitarLocal(id); },
-            [this](const std::string& id, const nlohmann::json& msg) { botonera_->entrada(id, msg); });
-        // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,
-        // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
-        grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(
-            escenas::ControlGrillas::Partes{*cli, rt_.engine(), asamblea_->sesionRemota(), &asamblea_->cuerpo().cuerpo()},
-            this);
-    }
+    // Las superficies de control: la botonera, el Satellite, el control web, las capas DSK
+    // y las acciones (ui/ControlViewModel).
+    control_ = std::make_unique<ControlViewModel>(ControlViewModel::Partes{.rt = rt,
+                                                                           .bus = *bus_,
+                                                                           .sala = *conference_,
+                                                                           .direcciones = *direcciones_,
+                                                                           .asamblea = *asamblea_,
+                                                                           .camaras = camaras_.get(),
+                                                                           .plugins = plugins_.get(),
+                                                                           .pdfEscena = pdfEscena_.get(),
+                                                                           .salidas = listaSalidas});
+    connect(control_.get(), &ControlViewModel::notify, this, &StudioViewModel::notify);
+    connect(control_.get(), &ControlViewModel::mostrarQr, this, &StudioViewModel::mostrarQr);
+    connect(control_.get(), &ControlViewModel::dskCambio, this, &StudioViewModel::publicarTally);
+    control_->dsk().setSalida(salidaActiva_);
+    linea_ = std::make_unique<LineaViewModel>(*evento_, rt_.engine(), frames_.get(), &control_->acciones(), bus_.get());
+    // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,
+    // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
+    grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(
+        escenas::ControlGrillas::Partes{conference_->client(), rt_.engine(), asamblea_->sesionRemota(),
+                                        &asamblea_->cuerpo().cuerpo()},
+        this);
     marca("plugins");
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(personas_.get(), camaras_.get());
@@ -1646,100 +1526,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 return tr("No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.");
             return accesoRemoto_->conectar(formas.first().toMap().value("id").toString());
         };
-        f.apiRemota = [this]() { return apiRemotaUi(); };
-        f.activarApiRemota = [this](bool on) { setApiRemotaUi(on); };
-        f.satellite = [this]() -> QVariantMap {
-            if (!satellite_) return {};
-            return {{"activo", satellite_->activo()}, {"puerto", satellite_->puerto()}, {"error", satellite_->error()}};
-        };
-        f.activarSatellite = [this](bool on) -> QString {
-            return satellite_ ? satellite_->configurar(on, satellite_->puerto()) : tr("No disponible.");
-        };
         f.direcciones = [this]() -> const sala::Direcciones* { return direcciones_.get(); };
         f.webEvento = [this]() -> QVariantMap {
             if (!evento_) return {};
             return {{"hay", evento_->web().value("hay").toBool()}, {"evento", evento_->abierto()}};
         };
-        f.controlWeb = [this]() -> QVariantMap {
-            return {{"conectados", controlWeb_->conectados()},
-                    {"aparatos", controlWeb_->aparatosUi().size()},
-                    {"tunel", controlWeb_->tunel()}};
-        };
-        f.emparejarControlWeb = [this]() { emparejarControlWebUi(); };
-        // Los pedidos de aprobación por aparato: se aprueban en la misma fila de Servicios.
-        // Lo hace la persona que está en la consola (el asistente va por sus herramientas).
-        {
-            EnlacesViewModel::Aprobaciones a;
-            a.pendientes = [this]() {
-                QVariantList out;
-                for (const QVariant& v : botonera_->solicitudesUi()) {
-                    QVariantMap m = v.toMap();
-                    m["perfil"] = m.value("perfilId");
-                    m["detalle"] = tr("pide emparejarse");
-                    out << m;
-                }
-                return out;
-            };
-            a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
-                const std::string e = botoneraGw_->resolver(sol.toStdString(), aprobar, perfil.toStdString());
-                if (e.empty()) emit notify(aprobar ? tr("Tablet emparejada.") : tr("Emparejamiento rechazado."), aprobar ? "ok" : "info");
-                return qs(e);
-            };
-            a.perfilModo = "lista";
-            a.perfiles = [this]() {
-                QVariantList out;
-                for (const QVariant& v : botonera_->perfilesUi()) {
-                    const QVariantMap p = v.toMap();
-                    out << QVariantMap{{"id", p.value("id")}, {"nombre", p.value("nombre")}};
-                }
-                return out;
-            };
-            f.aprobaciones["botonera"] = std::move(a);
-        }
-        {
-            EnlacesViewModel::Aprobaciones a;
-            a.pendientes = [this]() {
-                QVariantList out;
-                for (const QVariant& v : controlWeb_->solicitudesUi()) {
-                    QVariantMap m = v.toMap();
-                    m["detalle"] = tr("pide entrar al control web");
-                    out << m;
-                }
-                return out;
-            };
-            a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
-                const QString e = controlWeb_->aprobarUi(sol, aprobar, perfil);
-                if (e.isEmpty()) emit notify(aprobar ? tr("Aparato emparejado.") : tr("Pedido rechazado."), aprobar ? "ok" : "info");
-                return e;
-            };
-            a.perfilModo = "texto";
-            a.perfilAyuda = tr("todo, o: escenas, audio");
-            f.aprobaciones["control"] = std::move(a);
-        }
-        if (satellite_) {
-            EnlacesViewModel::Aprobaciones a;
-            a.pendientes = [this]() {
-                QVariantList out;
-                for (const QVariant& v : satellite_->solicitudesUi()) {
-                    QVariantMap m = v.toMap();
-                    m["detalle"] = tr("quiere conectar un Satellite");
-                    out << m;
-                }
-                return out;
-            };
-            a.resolver = [this](const QString& ip, bool aprobar, const QString&) -> QString {
-                if (!satellite_->pendientes().contains(ip)) return tr("Ese pedido ya no está.");
-                if (aprobar)
-                    satellite_->permitir(ip, true);
-                else
-                    satellite_->rechazar(ip);
-                return {};
-            };
-            a.textoAprobar = tr("Permitir");
-            a.unoEspera = tr("Una IP pide conectar: permitila acá abajo");
-            a.variosEsperan = tr("%1 IP piden conectar: permitilas acá abajo");
-            f.aprobaciones["satellite"] = std::move(a);
-        }
+        // La API remota, el Satellite, el control web y los pedidos de cada aparato.
+        control_->alimentarEnlaces(f);
         {
             EnlacesViewModel::Aprobaciones a;
             a.pendientes = [this]() {
@@ -1778,12 +1571,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(direcciones_.get(), &sala::Direcciones::cambio, e, &EnlacesViewModel::refrescar);
         connect(conference_.get(), &ConferenceViewModel::roomChanged, e, avisar);
         if (accesoRemoto_) connect(accesoRemoto_.get(), &AccesoRemoto::estadoChanged, e, avisar);
-        if (satellite_) connect(satellite_.get(), &control::SatelliteServidor::cambio, e, avisar);
-        connect(controlWeb_.get(), &control::ControlWeb::aparatosCambio, e, avisar);
-        connect(controlWeb_.get(), &control::ControlWeb::solicitudesCambio, e, avisar);
-        connect(controlWeb_.get(), &control::ControlWeb::conexionesCambio, e, avisar);
-        connect(botonera_.get(), &control::Botonera::solicitudesCambio, e, avisar);
-        connect(botonera_.get(), &control::Botonera::cambio, e, avisar); // los nombres de los perfiles
+        control_->avisarA(*e);
         if (evento_) {
             connect(evento_.get(), &EventoViewModel::webChanged, e, avisar);
             connect(evento_.get(), &EventoViewModel::guionChanged, e, avisar);
@@ -1820,7 +1608,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             Qt::QueuedConnection);
     // Lo que arranca al abrir el programa: las capas fijas (DSK) y los gráficos con `alAbrir`.
     QTimer::singleShot(ba::ajustes::entero("arranque.restaurarPlacaMs", 1500), this, [this]() {
-        if (dsk_) dsk_->restaurar();
+        control_->dsk().restaurar();
         // Los gráficos que arrancan solos al abrir el evento (ajuste `alAbrir` de la
         // fuente): el logo que flamea en bucle, la placa de espera. Sin esto, una
         // plantilla con su bandera la mostraba recién cuando alguien la disparaba.
@@ -2694,10 +2482,7 @@ void StudioViewModel::refrescarAvisos() {
         emit themeChanged();
         emit sceneChanged();
         frames_->setGuests(rt_.config().guests);
-        if (rt_.config().temaWeb != temaWebMandado_) {
-            mandarTemaWeb();
-            emit temaWebChanged();
-        }
+        control_->ajustesAplicados(); // el tema de las páginas web, si cambió
         camaras_->sincronizar(); // Mejorar imagen general: rige ya
         video_->setLegalizar(rt_.config().legalizar);
     }
@@ -2807,7 +2592,7 @@ void StudioViewModel::publicarSalidas() {
     // El gateway sabe qué salidas hay para que la sesión remota y el cast elijan (se la
     // vuelve a mandar sola si el gateway se reinicia).
     if (conference_) conference_->client().ponerSalidas(alGateway);
-    if (controlWeb_) controlWeb_->salidasCambiaron(); // sus aparatos ven la lista nueva
+    if (control_) control_->controlWeb().salidasCambiaron(); // sus aparatos ven la lista nueva
 }
 
 escenas::Conmutador& StudioViewModel::conmutadorActivo() const {
@@ -2836,7 +2621,7 @@ void StudioViewModel::reflejarSalidaActiva() {
     sources_->setScene(currentScene());
     mixer_->setSalida(salidaActiva_);
     if (mezclador_) mezclador_->setSalida(salidaActiva_);
-    if (dsk_) dsk_->setSalida(salidaActiva_);
+    if (control_) control_->dsk().setSalida(salidaActiva_);
     // Vuelve con ella al arrancar (Config/interfaz.json: es de esta interfaz, no del aire).
     interfaz_->guardar(kClaveSalidaActiva, salidaActiva_);
     emit salidaActivaChanged();
@@ -3266,7 +3051,7 @@ void StudioViewModel::publicarEventos() {
                     niveles[mixer_->data(mixer_->index(i), MixerModel::NameRole).toString().toStdString()] = mixer_->nivelEn(i, id);
             ss.push_back({{"id", id},
                           {"medios", mediosEn(fa)},
-                          {"dsk", dsk_ ? dsk_->capas(id) : nlohmann::json::array()},
+                          {"dsk", control_->dsk().capas(id)},
                           {"tbar", {{"hacia", rt_.engine().manualHacia(id)}, {"posicion", c != nullptr ? c->tbarPosicion() : 0.0}}},
                           {"niveles", niveles},
                           {"nombre", f.value("nombre").toString().toStdString()},
@@ -3333,64 +3118,23 @@ void StudioViewModel::publicarEventos() {
 
 namespace ba::app {
 
-QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
+QObject* StudioViewModel::botoneraQml() const { return control_->botoneraQml(); }
 QObject* StudioViewModel::recursosQml() const {
     if (recursos_) QQmlEngine::setObjectOwnership(recursos_.get(), QQmlEngine::CppOwnership);
     return recursos_.get();
 }
-QObject* StudioViewModel::controlWebQml() const { return controlWeb_.get(); }
-
-QString StudioViewModel::temaWeb() const { return qs(rt_.config().temaWeb); }
-
-QVariantList StudioViewModel::temasWeb() const {
-    QVariantList out;
-    for (const auto& t : control::temasWeb())
-        out << QVariantMap{{"id", t.id},       {"nombre", QCoreApplication::translate("control-web", t.nombre)},
-                           {"descripcion", QCoreApplication::translate("control-web", t.descripcion)},
-                           {"fondo", t.fondo}, {"superficie", t.superficie}, {"texto", t.texto},
-                           {"acento", t.acento}};
-    return out;
+QObject* StudioViewModel::controlWebQml() const { return control_->controlWebQml(); }
+QObject* StudioViewModel::controlQml() const {
+    QQmlEngine::setObjectOwnership(control_.get(), QQmlEngine::CppOwnership);
+    return control_.get();
 }
 
-void StudioViewModel::setTemaWeb(const QString& id) {
-    const std::string t = id.toStdString();
-    if (!control::temaWebValido(t) || t == rt_.config().temaWeb) return;
-    rt_.config().temaWeb = t;
-    rt_.save();
-    rt_.ajustesAplicados(); // Configuración se entera (y acá, refrescarAvisos lo manda)
-}
 
-void StudioViewModel::mandarTemaWeb() {
-    const std::string t = rt_.config().temaWeb;
-    temaWebMandado_ = t;
-    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-    QPointer<StudioViewModel> yo(this);
-    sala::pedir(cli, "POST", "/api/v1/tema", {{"tema", t}}, [yo](const std::string& err, const nlohmann::json&) {
-        if (yo && !err.empty()) yo->temaWebMandado_.clear(); // se reintenta cuando la sala vuelva
-    });
-}
-
-void StudioViewModel::emparejarControlWebUi() {
-    QPointer<StudioViewModel> yo(this);
-    controlWebGw_->emparejar(nullptr, "", [yo](const nlohmann::json& r) {
-        if (!yo) return;
-        if (!r.contains("url")) {
-            emit yo->notify(QString::fromStdString(r.value("error", tr("No se pudo emparejar.").toStdString())), "error");
-            return;
-        }
-        const std::string aviso = r.value("aviso", std::string());
-        emit yo->mostrarQr(QString::fromStdString(r.value("url", std::string())), tr("Control web (/control/)"),
-                           tr("Abrilo en el navegador del aparato (de la red local; el código vale unos "
-                              "minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.") +
-                               (aviso.empty() ? QString() : "\n" + QString::fromStdString(aviso)),
-                           "verde");
-    });
-}
-QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
-QObject* StudioViewModel::carasBotoneraQml() const { return carasBotonera_.get(); }
-QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
+QObject* StudioViewModel::satelliteQml() const { return control_->satelliteQml(); }
+QObject* StudioViewModel::carasBotoneraQml() const { return control_->carasBotoneraQml(); }
+QObject* StudioViewModel::dskQml() const { return control_->dskQml(); }
 QObject* StudioViewModel::grillasQml() const { return grillasPersonas_.get(); }
-QObject* StudioViewModel::accionesQml() const { return acciones_.get(); }
+QObject* StudioViewModel::accionesQml() const { return control_->accionesQml(); }
 double StudioViewModel::picoDe(const QString& fuente) const { return mixer_ ? mixer_->picoDe(fuente.toStdString()) : -100.0; }
 QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }
 QObject* StudioViewModel::accesoRemotoQml() const { return accesoRemoto_.get(); }
@@ -3401,33 +3145,6 @@ QObject* StudioViewModel::quorumQml() const { return asamblea_->quorumQml(); }
 
 QString StudioViewModel::capitulosPuntosUi() const {
     return qs(asamblea_->ordenDelDia().capitulosTexto(recordStartMs()));
-}
-
-QStringList StudioViewModel::nombresParaDsk() const {
-    QStringList out;
-    for (const std::string& n : rt_.engine().sceneNames()) out << qs(n);
-    for (const std::string& n : rt_.engine().sourceNames())
-        if (!out.contains(qs(n))) out << qs(n);
-    return out;
-}
-
-void StudioViewModel::emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias) {
-    QPointer<StudioViewModel> yo(this);
-    botoneraGw_->emparejar(perfil.toStdString(), nombre.toStdString(), venceDias, [yo](const nlohmann::json& r) {
-        if (!yo) return;
-        const QJsonDocument d = QJsonDocument::fromJson(
-            QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
-        emit yo->emparejamientoListo(d.object().toVariantMap());
-    });
-}
-
-void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil) {
-    const std::string e = botoneraGw_->resolver(solicitud.toStdString(), aprobar, perfil.toStdString());
-    if (!e.empty()) {
-        emit notify(qs(e), "error");
-        return;
-    }
-    emit notify(aprobar ? tr("Tablet emparejada.") : tr("Emparejamiento rechazado."), aprobar ? "ok" : "info");
 }
 
 } // namespace ba::app
@@ -3503,31 +3220,6 @@ QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
     return qs(rt_.iniciarSenalLimpia(destino.toStdString()));
 }
 
-QString StudioViewModel::urlApiRemota() const {
-    // La dirección la decide la sala (sala/Direcciones): la puerta HTTP en la red local.
-    return qs(direcciones_->origen("companion"));
-}
-
-QVariantMap StudioViewModel::apiRemotaUi() const {
-    QVariantList accesos;
-    for (const auto& a : botonera_->accesosHttp())
-        accesos.append(QVariantMap{{"id", qs(a.value("id", std::string()))},
-                                   {"nombre", qs(a.value("nombre", std::string()))},
-                                   {"perfil", qs(a.value("perfil", std::string()))}});
-    QVariantMap out{{"activo", botonera_->apiRemotaActiva()}, {"accesos", accesos}, {"url", urlApiRemota()}};
-    if (urlApiRemota().isEmpty()) out["aviso"] = qs(direcciones_->motivo("companion"));
-    return out;
-}
-
-void StudioViewModel::setApiRemotaUi(bool activo) { botonera_->setApiRemotaActiva(activo); }
-
-QVariantMap StudioViewModel::crearAccesoHttpUi(const QString& perfil, const QString& nombre) {
-    const nlohmann::json r = botonera_->crearAccesoHttp(perfil.toStdString(), nombre.toStdString());
-    if (r.contains("error")) return {{"error", qs(r.value("error", std::string()))}};
-    return {{"dispositivo", qs(r.value("dispositivo", std::string()))},
-            {"token", qs(r.value("token", std::string()))},
-            {"url_ejemplo", urlApiRemota() + qs(r.value("ejemplo", std::string()))}};
-}
 
 QString StudioViewModel::balistica() const { return qs(rt_.config().balistica); }
 
@@ -3715,7 +3407,8 @@ QString StudioViewModel::isoTodasUi(bool grabar) {
 namespace ba::app {
 
 void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& origen) {
-    if (!rotulo_->activo() || !dsk_ || !origen.startsWith("Traducción")) return;
+    if (!rotulo_->activo() || !control_ || !origen.startsWith("Traducción")) return;
+    control::Dsk& dsk = control_->dsk();
     const int capa = rotulo_->capa();
     // ¿Se está mostrando? En un cuadro «Subtítulos» o en los subtítulos ocultos.
     const bool enPantalla = subtitulos_ && subtitulos_->cuadrosDe(flujo) > 0;
@@ -3725,7 +3418,7 @@ void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& ori
     const std::string nombre = "Traducción automática (rótulo)";
     if (!rt_.engine().textoGlobal(nombre, "Traducción automática")) return;
     // La capa se arma una vez con el rótulo arriba a la izquierda.
-    const nlohmann::json capas = dsk_->capas();
+    const nlohmann::json capas = dsk.capas();
     bool armada = false;
     for (const auto& c : capas)
         if (c.value("capa", 0) == capa) {
@@ -3733,13 +3426,13 @@ void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& ori
             armada = cont.size() == 1 && cont[0] == nombre;
         }
     if (!armada)
-        dsk_->definir(capa, {{"nombre", "Traducción automática"},
+        dsk.definir(capa, {{"nombre", "Traducción automática"},
                                     {"contenido", nlohmann::json::array({nombre})},
                                     {"recuadro", {{"posicion", "arriba_izquierda"}, {"tamano", 0.22}, {"margen", 0.03}}},
                                     {"fijo", false},
                                     {"transicion_ms", 300}});
-    for (const auto& c : dsk_->capas())
-        if (c.value("capa", 0) == capa && !c.value("visible", false)) dsk_->mostrar(capa, true, false);
+    for (const auto& c : dsk.capas())
+        if (c.value("capa", 0) == capa && !c.value("visible", false)) dsk.mostrar(capa, true, false);
     rotuloApagar_.start(ba::ajustes::sAMs("traductor.rotuloApagarS", 15)); // se va después de la última frase traducida
 }
 
@@ -3747,7 +3440,7 @@ bool StudioViewModel::rotuloTraduccionActivo() const { return rotulo_->activo();
 
 void StudioViewModel::setRotuloTraduccion(bool activo) {
     rotulo_->setActivo(activo);
-    if (!activo && dsk_) dsk_->mostrar(rotulo_->capa(), false, true);
+    if (!activo && control_) control_->dsk().mostrar(rotulo_->capa(), false, true);
 }
 
 nlohmann::json StudioViewModel::rotuloTraduccionEstado() const {

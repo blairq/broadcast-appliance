@@ -29966,16 +29966,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>n'a pas répondu</translation>
     </message>
     <message>
-        <location line="+213" />
-        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
-        <translation>« %1 » (%2) demande l'accès au contrôle web : approuvez-le dans Services → Contrôle web.</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
-        <translation>« %1 » (%2) demande à s'appairer comme surface de contrôle avec le profil « %3 » : approuvez-le dans la page Surface de contrôle.</translation>
-    </message>
-    <message>
         <location line="+136" />
         <source>grabación del programa</source>
         <translation>enregistrement du programme</translation>
@@ -30000,68 +29990,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="-10" />
         <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
         <translation>Aucun moyen de connexion enregistré : configurez-en un dans Paramètres → Accès à distance.</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>pide emparejarse</source>
-        <translation>demande l'appairage</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <location line="+1985" />
-        <source>Tablet emparejada.</source>
-        <translation>Tablette appairée.</translation>
-    </message>
-    <message>
-        <location line="-1985" />
-        <location line="+1985" />
-        <source>Emparejamiento rechazado.</source>
-        <translation>Appairage refusé.</translation>
-    </message>
-    <message>
-        <location line="-1965" />
-        <source>pide entrar al control web</source>
-        <translation>demande l'accès au contrôle web</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Aparato emparejado.</source>
-        <translation>Appareil appairé.</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Pedido rechazado.</source>
-        <translation>Demande refusée.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>todo, o: escenas, audio</source>
-        <translation>tout, ou : scènes, audio</translation>
-    </message>
-    <message>
-        <location line="+9" />
-        <source>quiere conectar un Satellite</source>
-        <translation>veut connecter un Satellite</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Ese pedido ya no está.</source>
-        <translation>Cette demande n'existe plus.</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Permitir</source>
-        <translation>Autoriser</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una IP pide conectar: permitila acá abajo</source>
-        <translation>Une IP demande à se connecter : autorisez-la ci-dessous</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 IP piden conectar: permitilas acá abajo</source>
-        <translation>%1 IP demandent à se connecter : autorisez-les ci-dessous</translation>
     </message>
     <message>
         <location line="+16" />
@@ -30327,21 +30255,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Nouveau jour : la conférence a un nouveau PIN (%1)</translation>
     </message>
     <message>
-        <location line="+158" />
-        <source>No se pudo emparejar.</source>
-        <translation>Impossible d'appairer.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Control web (/control/)</source>
-        <translation>Contrôle web (/control/)</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
-        <translation>Ouvrez-le dans le navigateur de l'appareil (sur le réseau local ; le code est valable quelques minutes et ne sert qu'une fois). Approuvez-le ensuite ici, dans Services → Contrôle web.</translation>
-    </message>
-    <message>
         <location line="+69" />
         <source>Ese invitado no tiene una fuente en el programa todavía.</source>
         <translation>Cet invité n'a pas encore de source dans le programme.</translation>
@@ -30490,6 +30403,81 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>ControlViewModel</name>
+    <message>
+        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
+        <translation>« %1 » (%2) demande l'accès au contrôle web : approuvez-le dans Services → Contrôle web.</translation>
+    </message>
+    <message>
+        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
+        <translation>« %1 » (%2) demande à s'appairer comme surface de contrôle avec le profil « %3 » : approuvez-le dans la page Surface de contrôle.</translation>
+    </message>
+    <message>
+        <source>No disponible.</source>
+        <translation>Non disponible.</translation>
+    </message>
+    <message>
+        <source>pide emparejarse</source>
+        <translation>demande l'appairage</translation>
+    </message>
+    <message>
+        <source>Tablet emparejada.</source>
+        <translation>Tablette appairée.</translation>
+    </message>
+    <message>
+        <source>Emparejamiento rechazado.</source>
+        <translation>Appairage refusé.</translation>
+    </message>
+    <message>
+        <source>pide entrar al control web</source>
+        <translation>demande l'accès au contrôle web</translation>
+    </message>
+    <message>
+        <source>Aparato emparejado.</source>
+        <translation>Appareil appairé.</translation>
+    </message>
+    <message>
+        <source>Pedido rechazado.</source>
+        <translation>Demande refusée.</translation>
+    </message>
+    <message>
+        <source>todo, o: escenas, audio</source>
+        <translation>tout, ou : scènes, audio</translation>
+    </message>
+    <message>
+        <source>quiere conectar un Satellite</source>
+        <translation>veut connecter un Satellite</translation>
+    </message>
+    <message>
+        <source>Ese pedido ya no está.</source>
+        <translation>Cette demande n'existe plus.</translation>
+    </message>
+    <message>
+        <source>Permitir</source>
+        <translation>Autoriser</translation>
+    </message>
+    <message>
+        <source>Una IP pide conectar: permitila acá abajo</source>
+        <translation>Une IP demande à se connecter : autorisez-la ci-dessous</translation>
+    </message>
+    <message>
+        <source>%1 IP piden conectar: permitilas acá abajo</source>
+        <translation>%1 IP demandent à se connecter : autorisez-les ci-dessous</translation>
+    </message>
+    <message>
+        <source>No se pudo emparejar.</source>
+        <translation>Impossible d'appairer.</translation>
+    </message>
+    <message>
+        <source>Control web (/control/)</source>
+        <translation>Contrôle web (/control/)</translation>
+    </message>
+    <message>
+        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
+        <translation>Ouvrez-le dans le navigateur de l'appareil (sur le réseau local ; le code est valable quelques minutes et ne sert qu'une fois). Approuvez-le ensuite ici, dans Services → Contrôle web.</translation>
     </message>
 </context>
 <context>

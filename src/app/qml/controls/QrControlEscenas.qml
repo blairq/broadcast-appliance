@@ -31,7 +31,7 @@ Dialog {
             // Uno hecho antes de que la plantilla tuviera los botones del guion: se le suman.
             dlg.bot.completarGuionUi(id)
         }
-        Studio.emparejarTabletUi(id, qsTr("Tablet de escenas"), 30)
+        Studio.control.emparejarTabletUi(id, qsTr("Tablet de escenas"), 30)
     }
 
     anchors.centerIn: parent
@@ -41,7 +41,7 @@ Dialog {
     onOpened: generar()
 
     Connections {
-        target: Studio
+        target: Studio.control
         function onEmparejamientoListo(res) {
             if (!dlg.visible) return
             dlg.r = res
@@ -124,8 +124,8 @@ Dialog {
                     text: qsTr("%1 · %2 · perfil «%3»").arg(modelData.nombre).arg(modelData.ip).arg(modelData.perfil)
                     color: Theme.text; font.pixelSize: 12
                 }
-                GlassButton { compact: true; text: qsTr("Aprobar"); active: true; onClicked: Studio.aprobarTabletUi(modelData.id, true) }
-                GlassButton { compact: true; text: qsTr("Rechazar"); onClicked: Studio.aprobarTabletUi(modelData.id, false) }
+                GlassButton { compact: true; text: qsTr("Aprobar"); active: true; onClicked: Studio.control.aprobarTabletUi(modelData.id, true) }
+                GlassButton { compact: true; text: qsTr("Rechazar"); onClicked: Studio.control.aprobarTabletUi(modelData.id, false) }
             }
         }
     }

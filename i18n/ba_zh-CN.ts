@@ -29847,16 +29847,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+213" />
-        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
-        <translation>「%1」（%2）请求网页控制访问：请在 服务 → 网页控制 中批准。</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
-        <translation>「%1」（%2）请求以配置文件「%3」配对为控制台：请在「控制台」页面中批准。</translation>
-    </message>
-    <message>
         <location line="+136" />
         <source>grabación del programa</source>
         <translation>节目录制</translation>
@@ -29881,68 +29871,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="-10" />
         <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
         <translation>没有已保存的连接方式：请在 设置 → 远程访问 中设置。</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>pide emparejarse</source>
-        <translation>请求配对</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <location line="+1985" />
-        <source>Tablet emparejada.</source>
-        <translation>平板已配对。</translation>
-    </message>
-    <message>
-        <location line="-1985" />
-        <location line="+1985" />
-        <source>Emparejamiento rechazado.</source>
-        <translation>配对已拒绝。</translation>
-    </message>
-    <message>
-        <location line="-1965" />
-        <source>pide entrar al control web</source>
-        <translation>请求网页控制访问</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Aparato emparejado.</source>
-        <translation>设备已配对。</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Pedido rechazado.</source>
-        <translation>请求已拒绝。</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>todo, o: escenas, audio</source>
-        <translation>全部，或：场景、音频</translation>
-    </message>
-    <message>
-        <location line="+9" />
-        <source>quiere conectar un Satellite</source>
-        <translation>请求连接 Satellite</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Ese pedido ya no está.</source>
-        <translation>该请求已不存在。</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Permitir</source>
-        <translation>允许</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una IP pide conectar: permitila acá abajo</source>
-        <translation>有一个 IP 请求连接：请在下方允许</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 IP piden conectar: permitilas acá abajo</source>
-        <translation>%1 个 IP 请求连接：请在下方允许</translation>
     </message>
     <message>
         <location line="+16" />
@@ -30208,21 +30136,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>新的一天：会议已更换新 PIN（%1）</translation>
     </message>
     <message>
-        <location line="+158" />
-        <source>No se pudo emparejar.</source>
-        <translation>无法配对。</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Control web (/control/)</source>
-        <translation>网页控制（/control/）</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
-        <translation>请在设备的浏览器中打开（需在本地网络；代码几分钟内有效且只能使用一次）。然后在此处 服务 → 网页控制 中批准。</translation>
-    </message>
-    <message>
         <location line="+69" />
         <source>Ese invitado no tiene una fuente en el programa todavía.</source>
         <translation>该嘉宾在节目中尚无来源。</translation>
@@ -30368,6 +30281,81 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>ControlViewModel</name>
+    <message>
+        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
+        <translation>「%1」（%2）请求网页控制访问：请在 服务 → 网页控制 中批准。</translation>
+    </message>
+    <message>
+        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
+        <translation>「%1」（%2）请求以配置文件「%3」配对为控制台：请在「控制台」页面中批准。</translation>
+    </message>
+    <message>
+        <source>No disponible.</source>
+        <translation>不可用。</translation>
+    </message>
+    <message>
+        <source>pide emparejarse</source>
+        <translation>请求配对</translation>
+    </message>
+    <message>
+        <source>Tablet emparejada.</source>
+        <translation>平板已配对。</translation>
+    </message>
+    <message>
+        <source>Emparejamiento rechazado.</source>
+        <translation>配对已拒绝。</translation>
+    </message>
+    <message>
+        <source>pide entrar al control web</source>
+        <translation>请求网页控制访问</translation>
+    </message>
+    <message>
+        <source>Aparato emparejado.</source>
+        <translation>设备已配对。</translation>
+    </message>
+    <message>
+        <source>Pedido rechazado.</source>
+        <translation>请求已拒绝。</translation>
+    </message>
+    <message>
+        <source>todo, o: escenas, audio</source>
+        <translation>全部，或：场景、音频</translation>
+    </message>
+    <message>
+        <source>quiere conectar un Satellite</source>
+        <translation>请求连接 Satellite</translation>
+    </message>
+    <message>
+        <source>Ese pedido ya no está.</source>
+        <translation>该请求已不存在。</translation>
+    </message>
+    <message>
+        <source>Permitir</source>
+        <translation>允许</translation>
+    </message>
+    <message>
+        <source>Una IP pide conectar: permitila acá abajo</source>
+        <translation>有一个 IP 请求连接：请在下方允许</translation>
+    </message>
+    <message>
+        <source>%1 IP piden conectar: permitilas acá abajo</source>
+        <translation>%1 个 IP 请求连接：请在下方允许</translation>
+    </message>
+    <message>
+        <source>No se pudo emparejar.</source>
+        <translation>无法配对。</translation>
+    </message>
+    <message>
+        <source>Control web (/control/)</source>
+        <translation>网页控制（/control/）</translation>
+    </message>
+    <message>
+        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
+        <translation>请在设备的浏览器中打开（需在本地网络；代码几分钟内有效且只能使用一次）。然后在此处 服务 → 网页控制 中批准。</translation>
     </message>
 </context>
 <context>

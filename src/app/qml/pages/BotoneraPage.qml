@@ -77,7 +77,7 @@ Rectangle {
         function onCambio() { page.refrescar() }
     }
     Connections {
-        target: Studio
+        target: Studio.control
         function onEmparejamientoListo(r) {
             page.emparejo = r
             page.emparejoHasta = r.vence_ms || 0
@@ -600,7 +600,7 @@ Rectangle {
                     solicitudes: page.bot.solicitudes.map(s => Object.assign({}, s, { perfil: s.perfilId, detalle: qsTr("pide emparejarse") }))
                     perfilModo: "lista"
                     perfiles: page.bot.perfiles.map(p => ({ id: p.id, nombre: p.nombre }))
-                    onResolver: (id, aprobar, perfil) => Studio.aprobarTabletUi(id, aprobar, perfil)
+                    onResolver: (id, aprobar, perfil) => Studio.control.aprobarTabletUi(id, aprobar, perfil)
                 }
 
                 Panel {
@@ -626,7 +626,7 @@ Rectangle {
                             GlassButton {
                                 compact: true; text: qsTr("Generar QR"); active: true
                                 enabled: empPerfil.currentIndex >= 0
-                                onClicked: Studio.emparejarTabletUi(page.bot.perfiles[empPerfil.currentIndex].id, empNombre.text, empDias.value)
+                                onClicked: Studio.control.emparejarTabletUi(page.bot.perfiles[empPerfil.currentIndex].id, empNombre.text, empDias.value)
                             }
                         }
                         RowLayout {
@@ -741,9 +741,9 @@ Rectangle {
                     Layout.fillWidth: true
                     padding: 14
                     implicitHeight: apiCol.implicitHeight + 2 * padding
-                    property var api: Studio.apiRemotaUi()
+                    property var api: Studio.control.apiRemotaUi()
                     property var nuevo: ({})
-                    function refrescar() { apiPanel.api = Studio.apiRemotaUi() }
+                    function refrescar() { apiPanel.api = Studio.control.apiRemotaUi() }
                     Connections { target: page.bot; function onDispositivosCambio() { apiPanel.refrescar() } }
                     ColumnLayout {
                         id: apiCol
@@ -758,14 +758,14 @@ Rectangle {
                             GlassButton {
                                 compact: true; text: qsTr("Nuevo acceso HTTP…")
                                 onClicked: {
-                                    const r = Studio.crearAccesoHttpUi(page.bot.perfiles[apiPerfil.currentIndex].id, "Companion (HTTP)")
+                                    const r = Studio.control.crearAccesoHttpUi(page.bot.perfiles[apiPerfil.currentIndex].id, "Companion (HTTP)")
                                     if (r.error) Studio.notify(r.error, "error"); else apiPanel.nuevo = r
                                     apiPanel.refrescar()
                                 }
                             }
                             GlassButton {
                                 compact: true; text: apiPanel.api.activo ? qsTr("Apagar") : qsTr("Prender"); active: !apiPanel.api.activo
-                                onClicked: { Studio.setApiRemotaUi(!apiPanel.api.activo); apiPanel.refrescar() }
+                                onClicked: { Studio.control.setApiRemotaUi(!apiPanel.api.activo); apiPanel.refrescar() }
                             }
                         }
                         Text {

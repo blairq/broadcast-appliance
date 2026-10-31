@@ -29966,16 +29966,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>didn't respond</translation>
     </message>
     <message>
-        <location line="+213" />
-        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
-        <translation>“%1” (%2) is requesting web control access: approve it in Services → Web control.</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
-        <translation>“%1” (%2) is requesting to pair as a control surface with profile “%3”: approve it on the Control surface page.</translation>
-    </message>
-    <message>
         <location line="+136" />
         <source>grabación del programa</source>
         <translation>program recording</translation>
@@ -30000,68 +29990,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="-10" />
         <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
         <translation>No saved way to connect: set one up in Settings → Remote access.</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>pide emparejarse</source>
-        <translation>requests pairing</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <location line="+1985" />
-        <source>Tablet emparejada.</source>
-        <translation>Tablet paired.</translation>
-    </message>
-    <message>
-        <location line="-1985" />
-        <location line="+1985" />
-        <source>Emparejamiento rechazado.</source>
-        <translation>Pairing rejected.</translation>
-    </message>
-    <message>
-        <location line="-1965" />
-        <source>pide entrar al control web</source>
-        <translation>requests web control access</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Aparato emparejado.</source>
-        <translation>Device paired.</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Pedido rechazado.</source>
-        <translation>Request rejected.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>todo, o: escenas, audio</source>
-        <translation>everything, or: scenes, audio</translation>
-    </message>
-    <message>
-        <location line="+9" />
-        <source>quiere conectar un Satellite</source>
-        <translation>wants to connect a Satellite</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Ese pedido ya no está.</source>
-        <translation>That request is gone.</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Permitir</source>
-        <translation>Allow</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una IP pide conectar: permitila acá abajo</source>
-        <translation>An IP is requesting to connect: allow it below</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 IP piden conectar: permitilas acá abajo</source>
-        <translation>%1 IPs are requesting to connect: allow them below</translation>
     </message>
     <message>
         <location line="+16" />
@@ -30327,21 +30255,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>New day: the conference has a new PIN (%1)</translation>
     </message>
     <message>
-        <location line="+158" />
-        <source>No se pudo emparejar.</source>
-        <translation>Couldn't pair.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Control web (/control/)</source>
-        <translation>Web control (/control/)</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
-        <translation>Open it in the device's browser (on the local network; the code is valid for a few minutes and works once). Then approve it here, in Services → Web control.</translation>
-    </message>
-    <message>
         <location line="+69" />
         <source>Ese invitado no tiene una fuente en el programa todavía.</source>
         <translation>That guest doesn't have a source in the program yet.</translation>
@@ -30490,6 +30403,81 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
+    </message>
+</context>
+<context>
+    <name>ControlViewModel</name>
+    <message>
+        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
+        <translation>“%1” (%2) is requesting web control access: approve it in Services → Web control.</translation>
+    </message>
+    <message>
+        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
+        <translation>“%1” (%2) is requesting to pair as a control surface with profile “%3”: approve it on the Control surface page.</translation>
+    </message>
+    <message>
+        <source>No disponible.</source>
+        <translation>Not available.</translation>
+    </message>
+    <message>
+        <source>pide emparejarse</source>
+        <translation>requests pairing</translation>
+    </message>
+    <message>
+        <source>Tablet emparejada.</source>
+        <translation>Tablet paired.</translation>
+    </message>
+    <message>
+        <source>Emparejamiento rechazado.</source>
+        <translation>Pairing rejected.</translation>
+    </message>
+    <message>
+        <source>pide entrar al control web</source>
+        <translation>requests web control access</translation>
+    </message>
+    <message>
+        <source>Aparato emparejado.</source>
+        <translation>Device paired.</translation>
+    </message>
+    <message>
+        <source>Pedido rechazado.</source>
+        <translation>Request rejected.</translation>
+    </message>
+    <message>
+        <source>todo, o: escenas, audio</source>
+        <translation>everything, or: scenes, audio</translation>
+    </message>
+    <message>
+        <source>quiere conectar un Satellite</source>
+        <translation>wants to connect a Satellite</translation>
+    </message>
+    <message>
+        <source>Ese pedido ya no está.</source>
+        <translation>That request is gone.</translation>
+    </message>
+    <message>
+        <source>Permitir</source>
+        <translation>Allow</translation>
+    </message>
+    <message>
+        <source>Una IP pide conectar: permitila acá abajo</source>
+        <translation>An IP is requesting to connect: allow it below</translation>
+    </message>
+    <message>
+        <source>%1 IP piden conectar: permitilas acá abajo</source>
+        <translation>%1 IPs are requesting to connect: allow them below</translation>
+    </message>
+    <message>
+        <source>No se pudo emparejar.</source>
+        <translation>Couldn't pair.</translation>
+    </message>
+    <message>
+        <source>Control web (/control/)</source>
+        <translation>Web control (/control/)</translation>
+    </message>
+    <message>
+        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
+        <translation>Open it in the device's browser (on the local network; the code is valid for a few minutes and works once). Then approve it here, in Services → Web control.</translation>
     </message>
 </context>
 <context>

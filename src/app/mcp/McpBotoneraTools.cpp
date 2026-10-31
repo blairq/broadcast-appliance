@@ -1002,7 +1002,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             if (a.contains("activo")) b.setApiRemotaActiva(a.value("activo", false));
             done(ToolResult().data(json{{"activo", b.apiRemotaActiva()},
                                         {"accesos", b.accesosHttp()},
-                                        {"url", vm.urlApiRemota().toStdString()}}));
+                                        {"url", vm.control().urlApiRemota().toStdString()}}));
         };
         core.addTool(std::move(t));
     }

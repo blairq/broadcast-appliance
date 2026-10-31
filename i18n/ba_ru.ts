@@ -30085,16 +30085,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>не ответил</translation>
     </message>
     <message>
-        <location line="+213" />
-        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
-        <translation>«%1» (%2) запрашивает доступ к веб-управлению: одобрите в Службы → Веб-управление.</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
-        <translation>«%1» (%2) запрашивает сопряжение как пульт управления с профилем «%3»: одобрите на странице «Пульт управления».</translation>
-    </message>
-    <message>
         <location line="+136" />
         <source>grabación del programa</source>
         <translation>запись программы</translation>
@@ -30119,68 +30109,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="-10" />
         <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
         <translation>Нет сохранённого способа подключения: настройте его в Настройки → Удалённый доступ.</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>pide emparejarse</source>
-        <translation>запрашивает сопряжение</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <location line="+1985" />
-        <source>Tablet emparejada.</source>
-        <translation>Планшет сопряжён.</translation>
-    </message>
-    <message>
-        <location line="-1985" />
-        <location line="+1985" />
-        <source>Emparejamiento rechazado.</source>
-        <translation>Сопряжение отклонено.</translation>
-    </message>
-    <message>
-        <location line="-1965" />
-        <source>pide entrar al control web</source>
-        <translation>запрашивает доступ к веб-управлению</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Aparato emparejado.</source>
-        <translation>Устройство сопряжено.</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Pedido rechazado.</source>
-        <translation>Запрос отклонён.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>todo, o: escenas, audio</source>
-        <translation>всё или: сцены, аудио</translation>
-    </message>
-    <message>
-        <location line="+9" />
-        <source>quiere conectar un Satellite</source>
-        <translation>хочет подключить Satellite</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Ese pedido ya no está.</source>
-        <translation>Этого запроса больше нет.</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Permitir</source>
-        <translation>Разрешить</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una IP pide conectar: permitila acá abajo</source>
-        <translation>IP запрашивает подключение: разрешите его ниже</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 IP piden conectar: permitilas acá abajo</source>
-        <translation>IP запрашивают подключение (%1): разрешите их ниже</translation>
     </message>
     <message>
         <location line="+16" />
@@ -30446,21 +30374,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Новый день: у конференции новый PIN (%1)</translation>
     </message>
     <message>
-        <location line="+158" />
-        <source>No se pudo emparejar.</source>
-        <translation>Не удалось выполнить сопряжение.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Control web (/control/)</source>
-        <translation>Веб-управление (/control/)</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
-        <translation>Откройте это в браузере устройства (в локальной сети; код действует несколько минут и одноразовый). Затем одобрите здесь, в Службы → Веб-управление.</translation>
-    </message>
-    <message>
         <location line="+69" />
         <source>Ese invitado no tiene una fuente en el programa todavía.</source>
         <translation>У этого гостя ещё нет источника в программе.</translation>
@@ -30612,6 +30525,81 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>ControlViewModel</name>
+    <message>
+        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
+        <translation>«%1» (%2) запрашивает доступ к веб-управлению: одобрите в Службы → Веб-управление.</translation>
+    </message>
+    <message>
+        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
+        <translation>«%1» (%2) запрашивает сопряжение как пульт управления с профилем «%3»: одобрите на странице «Пульт управления».</translation>
+    </message>
+    <message>
+        <source>No disponible.</source>
+        <translation>Недоступно.</translation>
+    </message>
+    <message>
+        <source>pide emparejarse</source>
+        <translation>запрашивает сопряжение</translation>
+    </message>
+    <message>
+        <source>Tablet emparejada.</source>
+        <translation>Планшет сопряжён.</translation>
+    </message>
+    <message>
+        <source>Emparejamiento rechazado.</source>
+        <translation>Сопряжение отклонено.</translation>
+    </message>
+    <message>
+        <source>pide entrar al control web</source>
+        <translation>запрашивает доступ к веб-управлению</translation>
+    </message>
+    <message>
+        <source>Aparato emparejado.</source>
+        <translation>Устройство сопряжено.</translation>
+    </message>
+    <message>
+        <source>Pedido rechazado.</source>
+        <translation>Запрос отклонён.</translation>
+    </message>
+    <message>
+        <source>todo, o: escenas, audio</source>
+        <translation>всё или: сцены, аудио</translation>
+    </message>
+    <message>
+        <source>quiere conectar un Satellite</source>
+        <translation>хочет подключить Satellite</translation>
+    </message>
+    <message>
+        <source>Ese pedido ya no está.</source>
+        <translation>Этого запроса больше нет.</translation>
+    </message>
+    <message>
+        <source>Permitir</source>
+        <translation>Разрешить</translation>
+    </message>
+    <message>
+        <source>Una IP pide conectar: permitila acá abajo</source>
+        <translation>IP запрашивает подключение: разрешите его ниже</translation>
+    </message>
+    <message>
+        <source>%1 IP piden conectar: permitilas acá abajo</source>
+        <translation>IP запрашивают подключение (%1): разрешите их ниже</translation>
+    </message>
+    <message>
+        <source>No se pudo emparejar.</source>
+        <translation>Не удалось выполнить сопряжение.</translation>
+    </message>
+    <message>
+        <source>Control web (/control/)</source>
+        <translation>Веб-управление (/control/)</translation>
+    </message>
+    <message>
+        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
+        <translation>Откройте это в браузере устройства (в локальной сети; код действует несколько минут и одноразовый). Затем одобрите здесь, в Службы → Веб-управление.</translation>
     </message>
 </context>
 <context>

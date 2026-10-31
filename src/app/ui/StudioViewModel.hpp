@@ -30,6 +30,7 @@
 #include <functional>
 #include "comun/UsoCpu.hpp"
 #include "ui/AsambleaViewModel.hpp"
+#include "ui/ControlViewModel.hpp"
 #include "ui/MultiviewViewModel.hpp"
 
 #include <deque>
@@ -249,10 +250,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* recursos READ recursosQml CONSTANT)
     /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
     Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
-    /// El tema de las interfaces web de control (Servicios → Templates, Configuración).
-    Q_PROPERTY(QString temaWeb READ temaWeb WRITE setTemaWeb NOTIFY temaWebChanged)
-    /// [{id, nombre, descripcion, fondo, superficie, texto, acento}] (control/TemasWeb.hpp).
-    Q_PROPERTY(QVariantList temasWeb READ temasWeb CONSTANT)
+    /// El área de las superficies de control (ui/ControlViewModel): el tema web,
+    /// emparejar tablets y el control web, la API remota.
+    Q_PROPERTY(QObject* control READ controlQml CONSTANT)
     /// Companion Satellite manejando la botonera (control/SatelliteServidor).
     Q_PROPERTY(QObject* satellite READ satelliteQml CONSTANT)
     /// Las caras de los botones (foto o video corto): control/CarasBotonera.
@@ -582,32 +582,22 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE int vocabularioDelCuerpoUi();
     agent::Vocabulario& vocabulario() { return *vocabulario_; }
     control::BusEventos& bus() { return *bus_; }
-    control::Botonera& botonera() { return *botonera_; }
+    control::Botonera& botonera() { return control_->botonera(); }
+    /// El área de las superficies de control (sus modelos, el tema web, la API remota).
+    ControlViewModel& control() { return *control_; }
+    QObject* controlQml() const;
     /// El muestreador de recursos de la máquina (tarjeta «Sistema», sistema_recursos, alarmas).
     RecursosViewModel* recursos() const { return recursos_.get(); }
     QObject* recursosQml() const;
     /// El corte de luz (F1-11): de dónde viene la energía y la política (arranque/EnergiaAire).
     EnergiaAire* energia() const { return energia_.get(); }
     /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
-    control::BotoneraGateway& botoneraGateway() { return *botoneraGw_; }
-    control::CarasBotonera& carasBotonera() { return *carasBotonera_; }
+    control::BotoneraGateway& botoneraGateway() { return control_->botoneraGateway(); }
+    control::CarasBotonera& carasBotonera() { return control_->carasBotonera(); }
     /// El control web (/control/): sus aparatos y el puente con el gateway.
-    control::ControlWeb& controlWeb() { return *controlWeb_; }
-    control::ControlWebGateway& controlWebGateway() { return *controlWebGw_; }
+    control::ControlWeb& controlWeb() { return control_->controlWeb(); }
+    control::ControlWebGateway& controlWebGateway() { return control_->controlWebGateway(); }
     QObject* controlWebQml() const;
-    /// Genera el código de un uso del control web y muestra su QR (mostrarQr).
-    Q_INVOKABLE void emparejarControlWebUi();
-    QString temaWeb() const;
-    /// Lo guarda (como Configuración) y se lo pasa al gateway: cambia en todas las páginas.
-    void setTemaWeb(const QString& id);
-    QVariantList temasWeb() const;
-    /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
-    Q_INVOKABLE QVariantMap apiRemotaUi() const;
-    Q_INVOKABLE void setApiRemotaUi(bool activo);
-    /// Un acceso nuevo para `perfil`: {dispositivo, token, url_ejemplo} (el token se ve UNA vez) o {error}.
-    Q_INVOKABLE QVariantMap crearAccesoHttpUi(const QString& perfil, const QString& nombre);
-    /// http://<ip de la red local>:<puerto de la sala> (vacío si no hay red).
-    QString urlApiRemota() const;
     QObject* botoneraQml() const;
     QObject* satelliteQml() const;
     QObject* carasBotoneraQml() const;
@@ -623,7 +613,7 @@ class StudioViewModel : public QObject {
     QObject* quorumQml() const;
     asamblea::Quorum& quorum() { return asamblea_->quorum(); }
     QObject* accionesQml() const;
-    control::Acciones& acciones() { return *acciones_; }
+    control::Acciones& acciones() { return control_->acciones(); }
     QObject* notificadorQml() const;
     agent::Notificador& notificador() { return *notificador_; }
     QObject* accesoRemotoQml() const;
@@ -650,9 +640,7 @@ class StudioViewModel : public QObject {
     std::string setModoVivoAjustes(const nlohmann::json& a);
     /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
     Q_INVOKABLE QString capitulosPuntosUi() const;
-    control::Dsk& dsk() { return *dsk_; }
-    /// Lo que se puede poner en una capa DSK: escenas y fuentes, por nombre.
-    Q_INVOKABLE QStringList nombresParaDsk() const;
+    control::Dsk& dsk() { return control_->dsk(); }
     /// El disco en apuros (BroadcastEngine::discoEstado): {apuros, atraso_s, registro_trabado_ms,
     /// prioridad, automatica, modo, pausadas, graba_programa, desde_s}.
     Q_INVOKABLE QVariantMap apurosDiscoUi() const;
@@ -723,12 +711,7 @@ class StudioViewModel : public QObject {
     /// y llama a `listo` con él ("" si no llegó).
     void esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo,
                        const std::string& salida = {});
-    control::SatelliteServidor& satellite() { return *satellite_; }
-    /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
-    /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).
-    Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
-    /// Una persona aprueba (o no) la tablet que pidió emparejarse.
-    Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil = QString());
+    control::SatelliteServidor& satellite() { return control_->satellite(); }
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     bool streaming() const { return streaming_; }
@@ -1047,12 +1030,10 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
-    void temaWebChanged();
     void saludChanged();
     void tallyChanged();
     void mediosChanged();
     void caidaChanged();
-    void emparejamientoListo(const QVariantMap& r);
     void statusChanged();
     /// Los picos del programa (el vúmetro): a 10 Hz. Separados de statusChanged, que
     /// solo sale cuando cambia algo (antes salía cada 100 ms y re-evaluaba cada binding
@@ -1188,23 +1169,15 @@ class StudioViewModel : public QObject {
     /// La asamblea y sus modelos (ui/AsambleaViewModel). Después del bus (se desuscriben
     /// de él): lo que usa sus modelos (la grilla, la atención, los tótems) va más abajo.
     std::unique_ptr<AsambleaViewModel> asamblea_;
+    /// Las superficies de control (ui/ControlViewModel): usan la asamblea (las bancas de
+    /// los botones) y el bus; la línea de tiempo usa sus acciones (va más abajo).
+    std::unique_ptr<ControlViewModel> control_;
     /// La bitácora del evento en curso, sus fotos de Config/, el índice de lo que salió y
     /// el cierre en el histórico (ui/BitacoraEvento; H2-H5 de PLAN-EVENTOS-HISTORICO).
     std::unique_ptr<BitacoraEvento> bitacoraEvento_;
-    std::unique_ptr<control::CarasBotonera> carasBotonera_;
-    std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<RecursosViewModel> recursos_;
     std::unique_ptr<EnergiaAire> energia_;
-    std::unique_ptr<control::BotoneraGateway> botoneraGw_;
-    std::unique_ptr<control::ControlWeb> controlWeb_;
-    std::unique_ptr<control::ControlWebGateway> controlWebGw_;
-    /// Le pasa el tema web al gateway (al cambiar y cada vez que la sala vuelve).
-    void mandarTemaWeb();
-    std::string temaWebMandado_;
-    std::unique_ptr<control::SatelliteServidor> satellite_;
-    std::unique_ptr<control::Dsk> dsk_;
-    std::unique_ptr<control::Acciones> acciones_;
-    std::unique_ptr<LineaViewModel> linea_; ///< usa evento_, frames_, acciones_ y bus_: va después
+    std::unique_ptr<LineaViewModel> linea_; ///< usa evento_, frames_, las acciones (control_) y bus_: va después
     QObject* lineaQml() const;
     std::unique_ptr<agent::Notificador> notificador_;
     /// Las alarmas que salen sin la interfaz (la interfaz trabada con aire, F1-13).
@@ -1268,7 +1241,6 @@ class StudioViewModel : public QObject {
     std::atomic<unsigned> avisosPendientes_{0};
     void refrescarAvisos();
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
-    std::map<QString, std::string> imagenesBotonera_;
     std::unique_ptr<escenas::AjustesEscenas> ajustesEscenas_; ///< Config/escenas.json (modelo)
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
