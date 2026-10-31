@@ -1104,21 +1104,38 @@ void AppRuntime::avisarPersistencia(const std::string& texto) {
         avisosPersistencia_.push_back(texto);
 }
 
+void AppRuntime::setCarpetaDelEvento(std::function<fs::path()> fn) {
+    carpetaDelEvento_ = std::move(fn);
+    if (carpetaDelEvento_) retomarGrabaciones();
+}
+
+void AppRuntime::retomarGrabaciones() {
+    if (!grabacionesPorRetomar_) return;
+    grabacionesPorRetomar_ = false;
+    for (const auto& [id, s] : aireAnterior_.salidas) {
+        if (!s.grabando || !engine_.existeSalida(id)) continue;
+        if (id == salidas::kPorOmision ? engine_.status().recording : grabandoOtras_.count(id) > 0) continue;
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación de la salida «%1»"), {id}));
+        if (!startRecording(id))
+            ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la grabación de la salida «%1» no se pudo retomar: %2"), {id, lastError_}));
+    }
+}
+
 void AppRuntime::restoreOutputs() {
     const salidas::AlAire& aire = aireAnterior_;
     if (aire.cerrado || aire.salidas.empty()) return; // se cerró en orden: nada al aire
     if (cfg_.modoPrueba && !cfg_.retomaEnPrueba) return; // la escena sí; las salidas, nunca con --test (salvo el banco de caos)
-    // TODAS las salidas, cada una con lo suyo: grabación, transmisión principal y destinos.
+    // Las grabaciones, cuando se sepa DÓNDE: la carpeta del evento la da la interfaz
+    // (setCarpetaDelEvento) después de este arranque; si se retoman antes caen en la
+    // carpeta de fábrica, fuera del evento. Sin evento, retomarGrabaciones() a secas.
+    grabacionesPorRetomar_ = true;
+    if (carpetaDelEvento_) retomarGrabaciones();
+    // TODAS las salidas, cada una con lo suyo: transmisión principal y destinos.
     for (const auto& [id, s] : aire.salidas) {
         if (!engine_.existeSalida(id)) continue;
         const bool po = id == salidas::kPorOmision;
-        if (s.grabando && (po ? !engine_.status().recording : grabandoOtras_.count(id) == 0)) {
-            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación de la salida «%1»"), {id}));
-            if (!startRecording(id))
-                ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
-                                           ba::i18n::llenar(ba::i18n::traducir("arranque", "la grabación de la salida «%1» no se pudo retomar: %2"), {id, lastError_}));
-        }
         if (s.transmitiendo && !engine_.haySalidaEn(id, /*contarGrabacion=*/false)) {
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                        ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la transmisión de la salida «%1»"), {id}));

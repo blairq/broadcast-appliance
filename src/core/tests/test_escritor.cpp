@@ -253,6 +253,22 @@ void probarCola() {
     c.escribirGeneracion(g, "{\"estado\":\"corriendo\"}");
     CHECK(c.leerGeneraciones(g).cuerpo == "{\"estado\":\"corriendo\"}", "leerGeneraciones ve lo encolado");
     CHECK(c.vaciar() && DosGeneraciones(g).leer().estado == Lectura::Estado::Valida, "generación escrita");
+    // Dos cambios seguidos y nada más: al rato la otra generación tiene lo mismo, así
+    // que romper la última (un corte a mitad) no vuelve al estado de antes del cambio.
+    c.escribirGeneracion(g, "{\"estado\":\"grabando\"}");
+    c.escribirGeneracion(g, "{\"estado\":\"grabando y transmitiendo\"}");
+    CHECK(c.vaciar(), "vacía (con la igualación de la otra generación)");
+    {
+        const DosGeneraciones dg(g);
+        std::uint64_t sa = 0, sb = 0;
+        std::string ca, cb;
+        CHECK(sinCabecera(leer(dg.rutaA()), sa, ca) && sinCabecera(leer(dg.rutaB()), sb, cb) && ca == cb &&
+                  ca == "{\"estado\":\"grabando y transmitiendo\"}",
+              "las dos generaciones quedan con lo último");
+        const fs::path ultima = sa > sb ? dg.rutaA() : dg.rutaB();
+        escribir(ultima, "");
+        CHECK(dg.leer().cuerpo == "{\"estado\":\"grabando y transmitiendo\"}", "rota la última, vuelve lo mismo");
+    }
     c.borrar(g);
     CHECK(c.leerGeneraciones(g).estado == Lectura::Estado::Nada, "el borrado encolado se ve");
     CHECK(c.vaciar() && !fs::exists(DosGeneraciones(g).rutaA()) && !fs::exists(DosGeneraciones(g).rutaB()), "borradas");

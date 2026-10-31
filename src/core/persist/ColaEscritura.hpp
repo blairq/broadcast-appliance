@@ -97,6 +97,7 @@ class ColaEscritura {
         std::uint64_t tomada = 0;  ///< la versión que el hilo está escribiendo
         bool enCurso = false;      ///< el hilo la está escribiendo
         bool avisado = false;      ///< su error ya fue al registro
+        bool igualar = false;      ///< la copia a la otra generación (ver kIgualar)
         std::chrono::steady_clock::time_point reintento{};
     };
     void encolar(Tipo t, const std::filesystem::path& ruta, std::string bytes, Pedido p);

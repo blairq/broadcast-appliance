@@ -944,7 +944,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         bus_->setMediciones(control::BusEventos::medicionesDeFabrica());
         armarBitacora();
         // Con un evento en curso, lo que se graba va a su carpeta (H4).
+        // (Y las grabaciones que esperaban, tras un corte, vuelven ahí: no a la de fábrica.)
         if (evento_) rt_.setCarpetaDelEvento([this]() { return evento_->carpetaEvento(); });
+        else rt_.retomarGrabaciones();
         // El cue en que va el guion, al bus («evento/cue»): lo muestra la botonera entre
         // sus botones «◀ Cue» y «Cue ▶», y cualquier superficie que lo quiera.
         if (evento_) {

@@ -13,6 +13,11 @@ using Reloj = std::chrono::steady_clock;
 namespace {
 std::string clave(const fs::path& ruta) { return ruta.lexically_normal().string(); }
 constexpr auto kReintento = std::chrono::milliseconds(500);
+/// Una generación escrita y nada nuevo en este tiempo: lo mismo va a la otra. Sin esto
+/// la otra se queda con el estado de antes del último cambio, que puede ser de hace
+/// horas (se escribe solo al cambiar): un corte a mitad de la escritura siguiente
+/// volvería a eso. Así pierde, a lo sumo, lo de este último momento.
+constexpr auto kIgualar = std::chrono::seconds(1);
 } // namespace
 
 ColaEscritura::ColaEscritura() {
@@ -50,6 +55,7 @@ void ColaEscritura::encolar(Tipo t, const fs::path& ruta, std::string bytes, Ped
         e.pedido = std::move(p);
         e.version = ++version_;
         e.reintento = {};
+        e.igualar = false;
     }
     hay_.notify_one();
 }
@@ -168,8 +174,19 @@ void ColaEscritura::correr() {
         auto it = pendientes_.find(k);
         if (ok) {
             ++cuentas_.escrituras;
-            if (it != pendientes_.end() && it->second.version == e.version)
-                pendientes_.erase(it);
+            if (it != pendientes_.end() && it->second.version == e.version) {
+                if (e.tipo == Tipo::Generacion && !e.igualar) {
+                    // Lo mismo a la otra generación, si en kIgualar no llega nada nuevo.
+                    Entrada& c = it->second;
+                    c.igualar = true;
+                    c.enCurso = false;
+                    c.version = ++version_;
+                    c.pedido = Pedido{e.pedido.durabilidad, e.pedido.prioridad, e.pedido.permisos, {}};
+                    c.reintento = Reloj::now() + kIgualar;
+                } else {
+                    pendientes_.erase(it);
+                }
+            }
             else if (it != pendientes_.end())
                 it->second.enCurso = false; // llegó uno más nuevo mientras tanto
         } else {

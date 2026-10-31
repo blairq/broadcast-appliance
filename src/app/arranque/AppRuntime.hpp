@@ -106,7 +106,12 @@ class AppRuntime {
     // --- Lo que sale ------------------------------------------------------------
     /// La carpeta del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H4): con
     /// uno, lo que se graba va a <evento>/Grabaciones/. Vacía = Recordings/.
-    void setCarpetaDelEvento(std::function<std::filesystem::path()> fn) { carpetaDelEvento_ = std::move(fn); }
+    /// La carpeta del evento abierto (lo grabado va ahí). Al ponerla se retoman las
+    /// grabaciones que esperaban saber dónde (tras un corte: restoreOutputs).
+    void setCarpetaDelEvento(std::function<std::filesystem::path()> fn);
+    /// Retoma las grabaciones pendientes de un corte, si las hay. La interfaz la llama
+    /// sola sin evento abierto (con evento, la llama setCarpetaDelEvento).
+    void retomarGrabaciones();
     /// Dónde va la próxima grabación: <evento>/Grabaciones o la de la configuración.
     std::string carpetaGrabacion() const;
     /// Dónde buscar grabaciones (para subir, listar): la del evento y Recordings/.
@@ -305,6 +310,7 @@ class AppRuntime {
     std::vector<std::pair<int, std::function<void(Cambio)>>> observadores_;
     int proximoObservador_ = 0;
     std::function<std::filesystem::path()> carpetaDelEvento_;
+    bool grabacionesPorRetomar_ = false; ///< restoreOutputs: esperan la carpeta del evento
     void addAudioInputs();
     /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
     /// con --restore para retomar la emision tras una caida.
