@@ -58,7 +58,10 @@ LineaViewModel::LineaViewModel(EventoViewModel& evento, BroadcastEngine& engine,
         connect(&ev_, senal, this, &LineaViewModel::pedirRecalculo);
     // Lo que no cambia con el evento: la línea de «ahora», la edad de las fotos.
     segundo_.setInterval(1000);
-    connect(&segundo_, &QTimer::timeout, this, &LineaViewModel::recalcular);
+    // Corriendo, el evento ya avisa cada segundo (relojChanged): este es para cuando no corre.
+    connect(&segundo_, &QTimer::timeout, this, [this]() {
+        if (!corriendo()) recalcular();
+    });
     if (acciones_) {
         // El estante en la Botonera: un adlib por ítem («linea_adlib:<id>»).
         acciones_->ganchos().estante = [this]() {
@@ -178,7 +181,7 @@ void LineaViewModel::recalcular() {
             pendientes_ = json::array();
             pendientesUi_.clear();
             emit pendientesChanged();
-            ev_.notify(tr("Los cambios sin confirmar ya no entran en la línea: se descartaron (%1).")
+            emit ev_.notify(tr("Los cambios sin confirmar ya no entran en la línea: se descartaron (%1).")
                            .arg(QString::fromStdString(ed.error)),
                        "warn");
         }
