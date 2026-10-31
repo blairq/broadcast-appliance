@@ -1324,7 +1324,7 @@ void RackManager::sincronizarEntradas() {
             const std::string clave = nombre + "\n" + nodo;
             hablasVivas.insert(clave);
             auto& ring = anillosHabla_[clave];
-            if (!ring) ring = std::make_shared<anillo::Ring>();
+            if (!ring) ring = std::make_shared<anillo::Ring>(anillo::kCapacidadAgendado); // recibe lo agendado (pushEn)
             f->rack->setEntradaAnillo(nodo, ring);
         }
     }
