@@ -65,7 +65,7 @@ class AlarmasViewModel : public QObject {
     /// se piden cada vez.
     struct Fuentes {
         AppRuntime& rt;            ///< el motor, el disco, la persistencia; Config/alertas.json y el sonido
-        EnergiaAire& energia;      ///< la alarma «en batería»
+        EnergiaAire& energia;      ///< la alarma «en batería» (estadoAhora, desde el vigía)
         ConferenceViewModel& sala; ///< la foto de la sala y su chat
         ChatOverlayRenderer& chat; ///< el chat de las plataformas
         std::function<RecursosViewModel*()> recursos; ///< lo lee el hilo del vigía
@@ -107,6 +107,9 @@ class AlarmasViewModel : public QObject {
     static agent::AlertInputs deLaInterfaz(const Fuentes& f);
     /// Las seguras entre hilos (el motor, la foto de las salidas, la persistencia, los recursos).
     static agent::AlertInputs directas(const Fuentes& f);
+    /// Lo de la interfaz que también se le puede preguntar a su dueño (la sala, a B): el
+    /// vigía lo usa solo si la foto de la interfaz se quedó quieta (EntradasAlarmas).
+    static agent::AlertInputs sinLaInterfaz();
 
     std::unique_ptr<agent::EntradasAlarmas> entradas_;
     std::unique_ptr<agent::AlertEngine> motor_;

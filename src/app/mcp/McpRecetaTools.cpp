@@ -101,6 +101,8 @@ void McpService::registerRecetaTools() {
                                                  "su id y su nombre.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
                     "despues nadie sabe cual es la buena.");
+        // Config/recetas.json: en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [&rt](const json&, Done done) { done(ToolResult().data(json{{"recetas", leer(rt)}})); };
         core_.addTool(std::move(t));
     }

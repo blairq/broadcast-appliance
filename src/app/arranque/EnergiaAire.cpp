@@ -32,6 +32,19 @@ bool igual(const platform::EstadoEnergia& a, const platform::EstadoEnergia& b) {
            a.porcentaje == b.porcentaje && a.minutos == b.minutos && a.fuente == b.fuente;
 }
 
+nlohmann::json aJson(const platform::EstadoEnergia& e, platform::AccionEnergia accion, bool emergencia) {
+    const platform::PoliticaEnergia p = politica();
+    return {{"conocido", e.conocido},
+            {"hay_bateria", e.hayBateria},
+            {"en_bateria", e.enBateria},
+            {"porcentaje", e.porcentaje},
+            {"minutos", e.minutos},
+            {"fuente", e.fuente},
+            {"accion", nombre(accion)},
+            {"emergencia", emergencia},
+            {"umbral", {{"porcentaje", p.porcentaje}, {"minutos", p.minutos}, {"cerrar_grabaciones", p.cerrarGrabaciones}}}};
+}
+
 } // namespace
 
 EnergiaAire::EnergiaAire(Acciones acciones, QObject* parent) : QObject(parent), acciones_(std::move(acciones)) {
@@ -73,20 +86,15 @@ void EnergiaAire::evaluar(const platform::EstadoEnergia& e) {
     }
     ultimo_ = e;
     accion_ = a;
+    emergencia_ = acciones_.emergencia();
     if (cambio_) emit cambio();
 }
 
-nlohmann::json EnergiaAire::estado() const {
-    const platform::PoliticaEnergia p = politica();
-    return {{"conocido", ultimo_.conocido},
-            {"hay_bateria", ultimo_.hayBateria},
-            {"en_bateria", ultimo_.enBateria},
-            {"porcentaje", ultimo_.porcentaje},
-            {"minutos", ultimo_.minutos},
-            {"fuente", ultimo_.fuente},
-            {"accion", nombre(accion_)},
-            {"emergencia", acciones_.emergencia()},
-            {"umbral", {{"porcentaje", p.porcentaje}, {"minutos", p.minutos}, {"cerrar_grabaciones", p.cerrarGrabaciones}}}};
+nlohmann::json EnergiaAire::estado() const { return aJson(ultimo_, accion_, acciones_.emergencia()); }
+
+nlohmann::json EnergiaAire::estadoAhora() const {
+    const platform::EstadoEnergia e = platform::leerEnergia();
+    return aJson(e, platform::decidirEnergia(e, politica()), emergencia_.load());
 }
 
 } // namespace ba::app

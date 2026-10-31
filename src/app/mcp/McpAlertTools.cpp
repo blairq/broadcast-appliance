@@ -56,17 +56,6 @@ void McpService::registerAlertTools() {
 
     {
         Tool t;
-        t.name = "notificador_listar";
-        t.title = ba::i18n::traducir("mcp", "Notificadores");
-        t.category = "alertas";
-        t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Los avisos fuera del programa (webhook, Telegram, mail SMTP) que puede usar un disparador "
-                        "(`notificar` en alert_create): id, tipo, nombre y si ya tiene cargado su secreto.");
-        t.run = [this](const json&, Done done) { done(ToolResult().data({{"notificadores", vm_.notificador().lista()}})); };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "notificador_agregar";
         t.title = ba::i18n::traducir("mcp", "Agregar un notificador");
         t.category = "alertas";
@@ -253,8 +242,10 @@ void McpService::registerAlertTools() {
         t.description = QT_TRANSLATE_NOOP("mcp", "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y "
                         "los plugins que "
                         "se declaran disparadores (`plugins`: se prenden y apagan con plugin_activar).");
+        // Los disparadores, del vigía (seguro entre hilos: al día aunque la interfaz no
+        // ande); los plugins (sus procesos son de la interfaz), de una copia.
         auto* pl = vm_.plugins();
-        t.run = [&eng, pl](const json&, Done done) {
+        auto plugins = std::make_shared<CopiaDeLaInterfaz>(std::function<json()>([pl]() {
             json dePlugins = json::array();
             if (pl != nullptr)
                 for (const auto& p : pl->listar())
@@ -263,7 +254,14 @@ void McpService::registerAlertTools() {
                                              {"nombre", p.value("nombre", "")},
                                              {"estado", p.value("estado", "")},
                                              {"descripcion", p.value("descripcion", "")}});
-            done(ToolResult().data(json{{"alerts", eng.list()}, {"plugins", dePlugins}}));
+            return dePlugins;
+        }));
+        t.hilo = Hilo::Foto;
+        t.run = [this, &eng, plugins, espera = EsperaDeLaCopia::deLosAjustes()](const json&, Done done) {
+            const CopiaDeLaInterfaz::Lectura c = plugins->leer(core_, espera.ms);
+            done(ToolResult().data(json{{"alerts", eng.list()},
+                                        {"plugins", c.valor.is_array() ? c.valor : json::array()},
+                                        {"interfaz", estadoDeLaCopia(c)}}));
         };
         core_.addTool(std::move(t));
     }

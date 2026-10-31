@@ -29,8 +29,16 @@
 //      el acto; nada corre en la interfaz (contador) y los avisos a las vistas le llegan
 //      encolados cuando vuelve. Con la interfaz trabada ADENTRO del motor (con el turno)
 //      más que el tope, contestan «motor ocupado» y no se hacen después; menos, esperan.
+//   9. Lo que solo sabe la interfaz, por copia (copiarDeLaInterfaz: linea_estado,
+//      linea_ver, stream_salud, monitors): trabada, la última copia con su edad en el
+//      acto; libre, al día. Y las alarmas de la sala (de B si la foto de la interfaz se
+//      quedó quieta), la energía y el disco (directas) salen en el hilo de control con la
+//      interfaz trabada. Las de la sala, el modo vivo, las caídas, el sistema y los
+//      notificadores van en el 7 (room_status, network_status, modo_vivo_estado,
+//      supervisor_caidas, system_info, notificador_listar).
 // ============================================================================
 #include "agent/AlertEngine.hpp"
+#include "agent/EntradasAlarmas.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "emision/DocumentoAire.hpp"
 #include "emision/TurnoMotor.hpp"
@@ -54,6 +62,8 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -364,6 +374,35 @@ int main(int argc, char** argv) {
         return json{{"tope", 4}, {"salidas", json::array({{{"id", "principal"}, {"armada", "Entrevista"}}})}};
     };
     f.esperaInterfazMs = 100;
+    // Lo que la interfaz tenía y ahora da su dueño sin ella: la sala (B), el modo en vivo
+    // y la caída (la foto de AppViewModel), los archivos del sistema, los notificadores.
+    f.sala = [&](const std::string& ruta) -> std::optional<json> {
+        leida();
+        if (ruta == "/api/v1/room")
+            return json{{"room", "Sala"}, {"participants", json::array({{{"id", "p1"}, {"name", "Ana"}}})}, {"chat", json::array()}};
+        if (ruta == "/api/v1/network") return json{{"https", true}};
+        return std::nullopt;
+    };
+    f.modoVivo = [&]() {
+        leida();
+        return json{{"en_vivo", true}, {"activo", true}};
+    };
+    f.caidas = [&](int) {
+        leida();
+        return json::array({{{"causa", "colgado"}}});
+    };
+    f.caidaReciente = [&]() {
+        leida();
+        return json{{"causa", "colgado"}, {"habia_aire", true}};
+    };
+    f.sistema = [&]() {
+        leida();
+        return json{{"dataRoot", datos.string()}, {"credentials", json::array()}};
+    };
+    f.notificadores = [&]() {
+        leida();
+        return json::array({{{"id", "n-1"}, {"tipo", "webhook"}}});
+    };
     core.setHayAire([&]() { return doc.hayAire(); });
     const std::size_t antes = core.tools().size();
     ba::app::mcp::registrarHerramientasDeFoto(core, f);
@@ -425,6 +464,18 @@ int main(int argc, char** argv) {
         CHECK(!sal.empty() && sal[0].value("placa", json::object()).value("placa", false) && sal[0].value("streaming", false),
               "7: status trabado: cada salida con su placa y lo que sale");
     }
+    {
+        // Las que leían objetos de la interfaz: con ella trabada, lo de su dueño.
+        std::map<std::string, json> r;
+        for (const auto& p : pedidos) {
+            const json j = json::parse(p.resultado, nullptr, false);
+            if (j.is_object()) r[p.herramienta] = j["result"].value("structuredContent", json::object());
+        }
+        CHECK(r["room_status"].value("participants", json::array()).size() == 1 && r["network_status"].value("https", false) &&
+                  r["modo_vivo_estado"].value("en_vivo", false) && r["supervisor_caidas"].value("recien", json::object()).value("habia_aire", false) &&
+                  r["system_info"].contains("dataRoot") && r["notificador_listar"].value("notificadores", json::array()).size() == 1,
+              "7: room_status, network_status, modo_vivo_estado, supervisor_caidas, system_info y notificador_listar, trabada, con lo de su dueño");
+    }
     atender(300); // la interfaz vuelve: la copia pedida se hace (una por herramienta)
     CHECK(copiasStatus.load() == 1 && copiasSalidas.load() == 1 && !copiaFueraDeLaInterfaz.load(),
           "7: la copia se pidió una sola vez y se hizo en la interfaz al volver");
@@ -445,6 +496,166 @@ int main(int argc, char** argv) {
     CHECK(ba::app::salidas::aJson(doc.foto()).dump() == aireAntes && doc.escrituras() == escriturasAntes,
           "7: el documento de aire quedó igual (ni se puso ni se escribió nada)");
     fs::remove_all(datos);
+
+    // --- 9. Lo que solo sabe la interfaz, por copia; y las alarmas que no la esperan ------
+    // (a) Una de lectura cuyo dato es SOLO de la interfaz (como linea_estado, linea_ver,
+    // stream_salud, monitors): copiarDeLaInterfaz la pasa al pool con una copia por
+    // argumentos. Libre: al día. Trabada: la última de esos argumentos, con su edad, en
+    // el acto; la de unos argumentos que nunca se copiaron espera la primera vez y dice
+    // que no hay copia. Las copias se hacen en la interfaz.
+    std::atomic<int> copiasLinea{0};
+    std::atomic<bool> copiaLineaFuera{false};
+    std::atomic<int> pasoDeLaLinea{1};
+    {
+        Tool t;
+        t.name = "linea_sintetica";
+        t.clase = Clase::Lectura;
+        copiarDeLaInterfaz(core, t,
+                           [&](const json& a) -> LeidoEnLaInterfaz {
+                               ++copiasLinea;
+                               if (QThread::currentThread() != interfaz) copiaLineaFuera = true;
+                               if (a.value("salida", std::string()) == "nadie") return {{}, "No hay esa salida en la línea."};
+                               return {json{{"salida", a.value("salida", std::string("principal"))}, {"paso", pasoDeLaLinea.load()}}, {}};
+                           },
+                           EsperaDeLaCopia{100, 300});
+        core.addTool(std::move(t));
+    }
+    CHECK(core.findTool("linea_sintetica") != nullptr && core.findTool("linea_sintetica")->hilo == Hilo::Foto,
+          "9a: la de la copia corre en el pool");
+    const auto llamarLibre = [&](const json& args, int id) {
+        std::string r;
+        std::thread c([&]() { r = llamar(http.port(), token, "linea_sintetica", id, args); });
+        while (r.empty()) atender(10);
+        c.join();
+        return json::parse(r, nullptr, false);
+    };
+    {
+        const json j = llamarLibre(json::object(), 900);
+        const json st = j.is_object() ? j["result"].value("structuredContent", json::object()) : json::object();
+        CHECK(st.value("paso", 0) == 1 && st.value("interfaz", json::object()).value("al_dia", false),
+              "9a: con la interfaz libre, la copia al día");
+        const json e = llamarLibre({{"salida", "nadie"}}, 901);
+        CHECK(e.is_object() && e["result"].value("isError", false), "9a: el error de la herramienta llega como error");
+    }
+    pasoDeLaLinea = 2; // cambia en la interfaz, que se traba antes de copiarlo
+    {
+        std::string rVieja, rNueva;
+        double msVieja = -1, msNueva = -1;
+        const int antes = copiasLinea.load();
+        std::thread c([&]() {
+            auto t = std::chrono::steady_clock::now();
+            rVieja = llamar(http.port(), token, "linea_sintetica", 902, json::object());
+            msVieja = msDesde(t);
+            t = std::chrono::steady_clock::now();
+            rNueva = llamar(http.port(), token, "linea_sintetica", 903, {{"salida", "otra"}});
+            msNueva = msDesde(t);
+        });
+        trabarInterfaz(1500);
+        c.join();
+        const int enLaTraba = copiasLinea.load() - antes;
+        const json jv = json::parse(rVieja, nullptr, false);
+        const json sv = jv.is_object() ? jv["result"].value("structuredContent", json::object()) : json::object();
+        std::printf("  medido: copia con la interfaz trabada %.1f ms (espera 100); sin copia previa %.1f ms (espera la primera 300)\n",
+                    msVieja, msNueva);
+        CHECK(jv.is_object() && !jv["result"].value("isError", true) && sv.value("paso", 0) == 1 &&
+                  !sv.value("interfaz", json::object()).value("al_dia", true) &&
+                  sv.value("interfaz", json::object()).value("edad_ms", -1) >= 0 && msVieja < 400,
+              "9a: trabada: la última copia, con su edad, en el acto");
+        const json jn = json::parse(rNueva, nullptr, false);
+        CHECK(jn.is_object() && jn["result"].value("isError", false) &&
+                  !jn["result"].value("structuredContent", json::object()).value("interfaz", json::object()).value("al_dia", true) &&
+                  msNueva >= 250 && msNueva < 900,
+              "9a: trabada y sin copia de esos argumentos: espera la primera vez y lo dice");
+        CHECK(enLaTraba == 0, "9a: nada se copió durante la traba");
+        atender(300);
+        CHECK(copiasLinea.load() - antes == 2 && !copiaLineaFuera.load(), "9a: al volver, una copia por argumentos, en la interfaz");
+        const json j = llamarLibre(json::object(), 904);
+        CHECK(j.is_object() && j["result"].value("structuredContent", json::object()).value("paso", 0) == 2,
+              "9a: y la siguiente, al día");
+    }
+
+    // (b) Las alarmas de la sala, la energía y el disco con la interfaz trabada. Como en
+    // la app (AlarmasViewModel): la sala viene de la foto de la interfaz y, si se queda
+    // quieta, de B (el respaldo); la energía y el disco, directas (se miden en el vigía).
+    std::mutex bMu;
+    bool anaConectada = true;
+    std::atomic<bool> enBateria{false};
+    std::atomic<double> libreGb{200.0};
+    std::atomic<int> preguntasAB{0}, preguntasEnLaInterfaz{0};
+    const auto sala = [&]() {
+        const std::lock_guard<std::mutex> l(bMu);
+        return json{{"serverNowMs", 0},
+                    {"participants", json::array({{{"id", "p1"}, {"name", "Ana"}, {"state", "admitted"}, {"connected", anaConectada}}})},
+                    {"chat", json::array()}};
+    };
+    ba::app::agent::AlertInputs deLaInterfaz;
+    deLaInterfaz.room = sala; // la interfaz la tiene de los eventos de B: la misma
+    ba::app::agent::AlertInputs directas;
+    directas.status = []() {
+        ba::app::agent::AlertInputs::Status st;
+        st.recording = true;
+        return st;
+    };
+    directas.energia = [&]() {
+        return json{{"en_bateria", enBateria.load()}, {"porcentaje", 80}, {"minutos", 60}, {"fuente", "ups"}, {"accion", "avisar"}};
+    };
+    directas.disco = [&]() { return json{{"libre_gb", libreGb.load()}, {"horas", -1}}; };
+    ba::app::agent::AlertInputs respaldo;
+    respaldo.room = [&]() {
+        ++preguntasAB;
+        if (QThread::currentThread() == interfaz) ++preguntasEnLaInterfaz;
+        return sala();
+    };
+    ba::app::agent::EntradasAlarmas entradas(deLaInterfaz, directas, respaldo, 500);
+    entradas.refrescar();
+    ba::app::agent::AlertEngine vigia9(entradas.paraElVigia(), "");
+    for (const std::string tipo : {"guest_drop", "energia", "disk"})
+        vigia9.create({{"type", tipo}, {"name", tipo}, {"params", tipo == "disk" ? json{{"minGb", 5.0}} : json::object()}});
+    std::mutex disparosMu;
+    std::map<std::string, const QThread*> disparos9;
+    QObject::connect(
+        &vigia9, &ba::app::agent::AlertEngine::fired, &vigia9,
+        [&](const json& ev) {
+            const std::lock_guard<std::mutex> l(disparosMu);
+            disparos9[ev.value("type", std::string())] = QThread::currentThread();
+        },
+        Qt::DirectConnection);
+    vigia9.start(100);
+    plano.adoptar(&vigia9);
+    // El reloj de la interfaz copia su foto (en la app, cada 200 ms).
+    QTimer refresco;
+    QObject::connect(&refresco, &QTimer::timeout, [&]() { entradas.refrescar(); });
+    refresco.start(100);
+    atender(600); // el vigía se entera de cómo está todo (Ana conectada)
+    const int preguntasAntes = preguntasAB.load();
+    {
+        const std::lock_guard<std::mutex> l(disparosMu);
+        CHECK(disparos9.empty() && preguntasAntes == 0, "9b: con la interfaz andando, nada que avisar y nada que preguntarle a B");
+    }
+    {
+        // Se traba la interfaz; recién ahí Ana se cae, se corta la luz y se llena el disco.
+        std::thread cambios([&]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            {
+                const std::lock_guard<std::mutex> l(bMu);
+                anaConectada = false;
+            }
+            enBateria = true;
+            libreGb = 1.0;
+        });
+        trabarInterfaz(2500);
+        cambios.join();
+    }
+    {
+        const std::lock_guard<std::mutex> l(disparosMu);
+        for (const std::string tipo : {"guest_drop", "energia", "disk"}) {
+            const bool salio = disparos9.count(tipo) && disparos9[tipo] == plano.hilo();
+            CHECK(salio, ("9b: con la interfaz trabada, la alarma «" + tipo + "» sale en el hilo de control").c_str());
+        }
+    }
+    CHECK(preguntasAB.load() > 0 && preguntasEnLaInterfaz.load() == 0,
+          "9b: la sala se le preguntó a B desde el vigía, solo mientras la foto de la interfaz estaba quieta");
+    refresco.stop();
 
     // --- 8. Las de aire, en el control y con el turno del motor -------------------------
     // Como en la app: participan del turno la interfaz (el dueño del motor) y el control.
@@ -647,7 +858,7 @@ int main(int argc, char** argv) {
     fs::remove_all(datos8);
 
     plano.detener();
-    CHECK(http.thread() == interfaz && vigia.thread() == interfaz, "6: lo adoptado vuelve a su hilo");
+    CHECK(http.thread() == interfaz && vigia.thread() == interfaz && vigia9.thread() == interfaz, "6: lo adoptado vuelve a su hilo");
     pool.waitForDone();
     std::printf(g_fallos == 0 ? "test_plano_control: OK\n" : "test_plano_control: %d fallo(s)\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;

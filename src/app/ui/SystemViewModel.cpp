@@ -90,6 +90,21 @@ bool SystemViewModel::canRollback() const {
     return QFileInfo(programa() + "/.actualizacion-anterior").isDir();
 }
 
+nlohmann::json SystemViewModel::info() const {
+    nlohmann::json creds = nlohmann::json::array();
+    for (const QString& n : credentials()) creds.push_back(n.toStdString());
+    nlohmann::json respaldos = nlohmann::json::array();
+    for (const QVariant& v : backups()) {
+        const QVariantMap m = v.toMap();
+        respaldos.push_back({{"name", m.value("name").toString().toStdString()}, {"path", m.value("path").toString().toStdString()}});
+    }
+    return {{"dataRoot", dataRoot().toStdString()},
+            {"programDate", version().toStdString()},
+            {"credentials", creds},
+            {"backups", respaldos},
+            {"canRollback", canRollback()}};
+}
+
 QVariantMap SystemViewModel::inicioEstado() const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(inicio::estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }

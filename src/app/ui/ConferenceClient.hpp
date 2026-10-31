@@ -24,6 +24,7 @@
 #include <QUrl>
 
 #include <functional>
+#include <optional>
 
 class QNetworkReply;
 
@@ -62,6 +63,12 @@ class ConferenceClient : public QObject {
     /// Puerto y token de la API de B (Runtime/gateway-admin.json). Sin estado: lo usa
     /// también quien habla con B desde otro hilo (AvisoFueraDeUi).
     static bool leerAdmin(int& puerto, QString& token);
+    /// GET a la API de B SIN la interfaz (F3-03): bloqueante, desde cualquier hilo (sin
+    /// bucle de eventos: un socket propio que espera hasta `topeMs`). Para lo que tiene que
+    /// saber de la sala con la interfaz trabada (el MCP en el pool, el vigía de las alarmas
+    /// en el plano de control): la misma foto que llega por eventos, preguntada a su dueño.
+    /// El cuerpo si B contestó 2xx; nada si no está o no contesta a tiempo.
+    static std::optional<QJsonObject> pedirSinInterfaz(const QString& ruta, int topeMs = 2000);
 
    signals:
     void onlineChanged(bool online);

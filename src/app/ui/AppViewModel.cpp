@@ -102,6 +102,10 @@ AppViewModel::AppViewModel(Partes p, QObject* parent) : QObject(parent), p_(std:
     // que se cierre de golpe parecía una caída. El launcher ya está esperando que cierre.
     connect(system_.get(), &SystemViewModel::quitForUpdate, this, &AppViewModel::contarHastaCerrar);
     leerCaida();
+    // La foto para los otros hilos, cada vez que cambia lo que muestra.
+    connect(this, &AppViewModel::estadoCambio, this, &AppViewModel::publicarFoto);
+    connect(this, &AppViewModel::caidaChanged, this, &AppViewModel::publicarFoto);
+    publicarFoto();
     if (!configRecuperada().empty())
         QTimer::singleShot(3000, this, [this]() {
             emit notify(tr("La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó "
@@ -160,7 +164,7 @@ void AppViewModel::cerrarCartelCaida() {
     emit caidaChanged();
 }
 
-nlohmann::json AppViewModel::caidas(int n) const {
+nlohmann::json AppViewModel::caidas(int n) {
     std::ifstream f(ba::platform::dataRoot() / "Runtime" / "caidas.jsonl");
     std::vector<nlohmann::json> todas;
     std::string l;
@@ -190,6 +194,7 @@ void AppViewModel::vigilar(control::BusEventos& bus) {
     if (const bool vivo = modoVivo(); vivo != estabaEnVivo_) {
         estabaEnVivo_ = vivo;
         if (!vivo) desbloqueadas_.clear();
+        publicarFoto();
         bus.publicar("aire/modo_vivo", {{"activo", vivo}});
     }
 }
@@ -212,13 +217,30 @@ void AppViewModel::desbloquearPagina(const QString& id, const QString& motivo) {
     emit estadoCambio();
 }
 
-nlohmann::json AppViewModel::modoVivoEstado() const {
+void AppViewModel::publicarFoto() {
     nlohmann::json pg = nlohmann::json::array();
     for (const QString& x : modoVivoCfg_->paginas()) pg.push_back(x.toStdString());
     nlohmann::json d = nlohmann::json::array();
     for (const QString& x : desbloqueadas_) d.push_back(x.toStdString());
-    return {{"en_vivo", modoVivo()}, {"activo", modoVivoCfg_->activo()}, {"incluir_grabando", modoVivoCfg_->incluirGrabando()},
-            {"paginas_protegidas", pg}, {"desbloqueadas", d},
+    nlohmann::json caida = nlohmann::json::object();
+    if (!caida_.isEmpty()) {
+        caida = {{"causa", caida_.value("causa").toString().toStdString()}, {"habia_aire", caida_.value("habia_aire").toBool()}};
+        if (caida_.contains("aire_vuelta_s")) caida["aire_vuelta_s"] = caida_.value("aire_vuelta_s").toDouble();
+    }
+    foto_.poner({{"activo", modoVivoCfg_->activo()}, {"incluir_grabando", modoVivoCfg_->incluirGrabando()},
+                 {"paginas_protegidas", pg}, {"desbloqueadas", d}, {"caida", caida}});
+}
+
+nlohmann::json AppViewModel::caidaRecienteFoto() const { return foto_.leer().value("caida", nlohmann::json::object()); }
+
+nlohmann::json AppViewModel::modoVivoEstado() const {
+    const nlohmann::json f = foto_.leer();
+    const bool activo = f.value("activo", false);
+    // Como modoVivo(), con lo de la foto: si sale algo lo dice el motor desde cualquier hilo.
+    const bool enVivo = activo && p_.rt.engine().haySalida(f.value("incluir_grabando", false));
+    return {{"en_vivo", enVivo}, {"activo", activo}, {"incluir_grabando", f.value("incluir_grabando", false)},
+            {"paginas_protegidas", f.value("paginas_protegidas", nlohmann::json::array())},
+            {"desbloqueadas", f.value("desbloqueadas", nlohmann::json::array())},
             {"que_protege", ba::i18n::traducir("asistente", "las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican")}};
 }
 

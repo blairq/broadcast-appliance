@@ -158,29 +158,6 @@ void McpService::registerRoomTools() {
 
     {
         Tool t;
-        t.name = "room_status";
-        t.title = ba::i18n::traducir("mcp", "Estado de la conferencia");
-        t.category = "sala";
-        t.clase = Clase::Lectura;
-        t.description =
-            QT_TRANSLATE_NOOP("mcp", "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
-            "microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), "
-            "archivos compartidos, chat reciente y config de oradores.");
-        t.run = [&vm, conf](const json&, Done done) {
-            if (!conf->online()) return done(ToolResult::error(ba::i18n::traducir("mcp", "La conferencia (gateway) no esta conectada.")));
-            json s = roomSnapshot(vm);
-            if (s.contains("chat") && s["chat"].size() > 20) {
-                json last = json::array();
-                for (size_t i = s["chat"].size() - 20; i < s["chat"].size(); ++i)
-                    last.push_back(s["chat"][i]);
-                s["chat"] = last;
-            }
-            done(ToolResult().data(s));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "room_set";
         t.title = ba::i18n::traducir("mcp", "Lobby / conferencia cerrada");
         t.category = "sala";
@@ -1176,21 +1153,6 @@ void McpService::registerRoomTools() {
                 enlaces.tablero(remoto, alVolver);
             else
                 enlaces.ingreso(remoto, a.value("withPin", false), alVolver);
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "network_status";
-        t.title = ba::i18n::traducir("mcp", "Red y acceso de invitados");
-        t.category = "sala";
-        t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
-                        "enlaces y puertos WebRTC del gateway.");
-        t.run = [&control](const json&, Done done) {
-            control.verRed([done](const std::string& err, const json& r) {
-                done(err.empty() ? ToolResult().data(r) : ToolResult::error(ba::i18n::traducir("mcp", "La conferencia no responde.")));
-            });
         };
         core_.addTool(std::move(t));
     }

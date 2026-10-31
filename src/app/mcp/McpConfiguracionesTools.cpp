@@ -33,6 +33,8 @@ void McpService::registerConfiguracionesTools() {
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Los eventos que hay (cuál está abierto, de dónde salió cada uno, cuánto ocupa, cuáles son "
                         "plantilla) y las plantillas para crear uno nuevo.");
+        // Carpetas y archivos (Configuraciones: los tamaños, con su candado): en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [cf](const json&, Done done) {
             done(ToolResult().data({{"eventos", cf->listar()}, {"abierto", cf->activa()}, {"plantillas", cf->plantillas()}}));
         };
@@ -184,6 +186,8 @@ void McpService::registerConfiguracionesTools() {
         t.clase = Clase::Lectura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Las configuraciones que hay (cuál es la activa, su descripción, de dónde salió y cuánto ocupa) "
                         "y las demos que trae el programa.");
+        // Carpetas y archivos (Configuraciones: los tamaños, con su candado): en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [cf](const json&, Done done) {
             done(ToolResult().data({{"configuraciones", cf->listar()}, {"activa", cf->activa()}, {"demos", cf->demos()}}));
         };
@@ -272,6 +276,8 @@ void McpService::registerConfiguracionesTools() {
         t.description = QT_TRANSLATE_NOOP("mcp", "Todas las plantillas en su orden: id (la carpeta: «plantilla:<id>» en evento_nuevo), el nombre que "
                         "se ve, descripción, escenario (su guía: evento_escenario), si es visible, si viene con el programa, "
                         "si es propia o una del programa editada, y si está abierta.");
+        // Carpetas y archivos: en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [cf](const json&, Done done) { done(ToolResult().data({{"plantillas", cf->plantillasAdmin()}})); };
         core_.addTool(std::move(t));
     }

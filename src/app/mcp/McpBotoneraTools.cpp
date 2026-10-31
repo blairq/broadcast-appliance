@@ -29,6 +29,7 @@
 #include "control/Acciones.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "mcp/McpCore.hpp"
+#include "mcp/McpFoto.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -778,17 +779,6 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     // --- Modo en vivo (protege la interfaz) -------------------------------------------------
     {
         Tool t;
-        t.name = "modo_vivo_estado";
-        t.title = ba::i18n::traducir("mcp", "Modo en vivo");
-        t.category = "botonera";
-        t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Si el modo en vivo esta activo (transmitiendo o con el evento en vivo; opcionalmente grabando), "
-                        "que paginas protege (piden escribir CONFIRMAR con un motivo) y cuales se desbloquearon.");
-        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.app().modoVivoEstado())); };
-        core.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "modo_vivo_ajustes";
         t.title = ba::i18n::traducir("mcp", "Ajustes del modo en vivo");
         t.category = "botonera";
@@ -809,27 +799,6 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     }
 
     // --- Recuperación: caídas y generaciones de la configuración -----------------------------
-    {
-        Tool t;
-        t.name = "supervisor_caidas";
-        t.title = ba::i18n::traducir("mcp", "Las ultimas caidas");
-        t.category = "botonera";
-        t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Las ultimas `n` (10 de fabrica) caidas que anoto el supervisor: que se cayo (app o gateway), la "
-                        "causa (error de memoria, abortado, colgado…), el codigo y la hora. La ultima la muestra un cartel "
-                        "al volver, con cuanto tardo el aire en volver.");
-        t.inputSchema = {{"type", "object"}, {"properties", {{"n", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}}}};
-        t.run = [&vm](const json& a, Done done) {
-            json d{{"caidas", vm.app().caidas(a.value("n", 10))}};
-            const QVariantMap c = vm.app().caidaReciente();
-            if (!c.isEmpty()) {
-                d["recien"] = {{"causa", c.value("causa").toString().toStdString()}, {"habia_aire", c.value("habia_aire").toBool()}};
-                if (c.contains("aire_vuelta_s")) d["recien"]["aire_vuelta_s"] = c.value("aire_vuelta_s").toDouble();
-            }
-            done(ToolResult().data(d));
-        };
-        core.addTool(std::move(t));
-    }
     {
         Tool t;
         t.name = "config_generaciones";
@@ -901,11 +870,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                         "ultima. Con `destino` y `minutos` (hasta 10), la serie de a un punto por segundo.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"destino", {{"type", "string"}}}, {"minutos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 10}}}}}};
-        t.run = [&vm](const json& a, Done done) {
+        // La muestrea la interfaz una vez por segundo (EmisionViewModel): una copia.
+        copiarDeLaInterfaz(core, t, [&vm](const json& a) -> LeidoEnLaInterfaz {
             json d{{"destinos", vm.emision().saludActual()}};
             if (a.contains("destino")) d["serie"] = vm.emision().saludSerie(a.value("destino", std::string()), a.value("minutos", 5));
-            done(ToolResult().data(d));
-        };
+            return {std::move(d), {}};
+        });
         core.addTool(std::move(t));
     }
 

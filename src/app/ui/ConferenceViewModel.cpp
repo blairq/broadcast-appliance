@@ -483,15 +483,21 @@ void ConferenceViewModel::onSnapshot() {
     emit roomChanged();
 }
 
+QJsonObject ConferenceViewModel::mensajeDelChat(const QJsonObject& msg) {
+    const QString seq = QString::number(msg.value("seq").toInteger());
+    QJsonObject m = msg;
+    m.insert("id", seq);
+    m.insert("uid", seq);
+    m.insert("mine", m.value("fromId").toString() == "host");
+    return m;
+}
+
 void ConferenceViewModel::onChatMsg(const QJsonObject& msg, bool live) {
     const qint64 seq = msg.value("seq").toInteger();
     if (seq <= lastSeq_) return; // ya estaba (llega por snapshot y por evento)
     lastSeq_ = seq;
-    QJsonObject m = msg;
-    m.insert("id", QString::number(seq));
-    m.insert("uid", QString::number(seq));
-    const bool mine = m.value("fromId").toString() == "host";
-    m.insert("mine", mine);
+    const QJsonObject m = mensajeDelChat(msg);
+    const bool mine = m.value("mine").toBool();
     chat_->append(m);
     ++chatRev_;
     emit chatRevChanged();

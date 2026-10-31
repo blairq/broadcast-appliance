@@ -16,6 +16,8 @@
 
 #include <functional>
 
+#include <nlohmann/json.hpp>
+
 namespace ba::app {
 
 class SystemViewModel : public QObject {
@@ -35,6 +37,9 @@ class SystemViewModel : public QObject {
     QStringList credentials() const;
     QVariantList backups() const;
     bool canRollback() const;
+    /// {dataRoot, programDate, credentials, backups, canRollback} (system_info). Todo de
+    /// archivos y sin estado propio: DESDE CUALQUIER HILO (el MCP lo lee en el pool, F3-03).
+    nlohmann::json info() const;
     QString version() const;
     QVariantList preparacion() const;
     /// Los chequeos del equipo (F4-07: sesiones de codificador, placas a 48 kHz, PTP,

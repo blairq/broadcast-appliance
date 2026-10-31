@@ -625,7 +625,7 @@ endif()
     # El plano de control con la interfaz trabada (F3-03): MCP, alarmas y relojes, sin QML; y
     # las herramientas de la foto (McpFoto) contra un documento de aire de verdad.
     add_executable(test_plano_control tests/test_plano_control.cpp arranque/PlanoControl.cpp arranque/PlanoControl.hpp
-                   agent/AlertEngine.cpp agent/AlertEngine.hpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp
+                   agent/AlertEngine.cpp agent/AlertEngine.hpp agent/EntradasAlarmas.cpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp
                    mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp mcp/McpFoto.cpp mcp/McpMando.cpp
                    emision/DocumentoAire.cpp emision/SalidasConfig.cpp emision/TurnoMotor.cpp)
     target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

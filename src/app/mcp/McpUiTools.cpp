@@ -716,29 +716,6 @@ void McpService::registerUiTools() {
 
     {
         Tool t;
-        t.name = "system_info";
-        t.title = ba::i18n::traducir("mcp", "Carpeta del sistema, credenciales y respaldos");
-        t.category = "sistema";
-        t.clase = Clase::Lectura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Donde vive el sistema (todo en una carpeta portable), que credenciales hay "
-                        "guardadas (solo nombres; "
-                        "estan cifradas en Credenciales/), los respaldos de datos y si hay una version "
-                        "anterior para volver.");
-        t.run = [&vm](const json&, Done done) {
-            auto* sys = static_cast<SystemViewModel*>(vm.system());
-            json creds = json::array();
-            for (const QString& n : sys->credentials())
-                creds.push_back(n.toStdString());
-            done(ToolResult().data(json{{"dataRoot", sys->dataRoot().toStdString()},
-                                        {"programDate", sys->version().toStdString()},
-                                        {"credentials", creds},
-                                        {"backups", qvToJson(sys->backups())},
-                                        {"canRollback", sys->canRollback()}}));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "system_update";
         t.title = ba::i18n::traducir("mcp", "Actualizar el sistema");
         t.category = "sistema";

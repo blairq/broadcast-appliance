@@ -298,13 +298,14 @@ void McpService::registerSystemTools() {
             "con el orden en que prenden), resolucion en pixeles, posicion, escala, Hz y si es el principal. "
             "Es la misma lista de Salidas -> Pantallas y monitor_listar.");
         MonitoresModel* mon = vm_.monitoresModelo();
-        t.run = [mon](const json&, Done done) {
-            done(ToolResult().data(
-                json{{"monitors", screensJson(mon)},
-                     {"hint", ba::i18n::traducir("mcp", "Para mostrar algo: monitor_asignar (fijo, se espera si no esta) u "
-                                                        "output_window (ventana suelta; screen = id, orden o "
-                                                        "nombre). Lo abierto: dashboard_list.")}}));
-        };
+        // Las pantallas (QScreen) son del hilo de la interfaz: una copia.
+        copiarDeLaInterfaz(core_, t, [mon](const json&) -> LeidoEnLaInterfaz {
+            return {json{{"monitors", screensJson(mon)},
+                         {"hint", ba::i18n::traducir("mcp", "Para mostrar algo: monitor_asignar (fijo, se espera si no esta) u "
+                                                            "output_window (ventana suelta; screen = id, orden o "
+                                                            "nombre). Lo abierto: dashboard_list.")}},
+                    {}};
+        });
         core_.addTool(std::move(t));
     }
     {

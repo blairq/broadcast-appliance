@@ -13,6 +13,7 @@
 //
 // El estado (`estado()`) lo leen la alarma, `status` y la tarjeta de preparación.
 // Vive en el hilo de la interfaz: leer la energía es barato (una consulta al sistema).
+// La alarma no espera a la interfaz: mide por su lado con estadoAhora().
 // Lo que hace sobre el aire va por `Acciones` (la app le pasa las de AppRuntime:
 // cerrar/retomarGrabacionesPorEnergia; el test, falsas).
 // ============================================================================
@@ -23,6 +24,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <atomic>
 #include <functional>
 #include <string>
 #include <vector>
@@ -45,6 +47,11 @@ class EnergiaAire : public QObject {
 
     /// {conocido, hay_bateria, en_bateria, porcentaje, minutos, fuente, accion, emergencia, umbral{…}}
     nlohmann::json estado() const;
+    /// DESDE CUALQUIER HILO (F3-03): el mismo estado, medido AHORA (una consulta al
+    /// sistema) en vez de el de la última vuelta, con `emergencia` de la última vuelta. Lo
+    /// lee el vigía de las alarmas en el plano de control: con la interfaz trabada, el
+    /// corte de luz igual se avisa.
+    nlohmann::json estadoAhora() const;
     /// Una vuelta con este estado de la energía.
     void evaluar(const platform::EstadoEnergia& e);
 
@@ -59,6 +66,7 @@ class EnergiaAire : public QObject {
     QTimer timer_;
     platform::EstadoEnergia ultimo_;
     platform::AccionEnergia accion_ = platform::AccionEnergia::Nada;
+    std::atomic<bool> emergencia_{false}; ///< acciones_.emergencia() de la última vuelta (estadoAhora)
 };
 
 } // namespace ba::app

@@ -402,6 +402,8 @@ void McpService::registerVideoTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"tipo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "rostros, seguir, ptz, color…")}}}}}};
         t.examples = {R"({"tipo": "rostros"})", R"({"tipo": "seguir"})"};
+        // Documentación fija (GrafoVideo::catalogo): en el pool (F3-03), aunque la interfaz no ande.
+        t.hilo = Hilo::Foto;
         t.run = [](const json& a, Done done) {
             const std::string tipo = a.value("tipo", std::string());
             const json cat = video::GrafoVideo::catalogo();
