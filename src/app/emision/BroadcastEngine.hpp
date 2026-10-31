@@ -473,6 +473,9 @@ class BroadcastEngine {
     std::vector<std::pair<std::string, CanvasRect>> itemsVisibles(const std::string& scene) const;
     /// El reloj del estudio: sistema, ntp, ptp o red. Si cambia con el motor andando, se rearma.
     bool ponerReloj(const std::string& tipo, const std::string& servidor, int puerto, int dominio);
+    /// El reloj pedido y, si no arrancó (PTP sin permisos, NTP que no sincroniza), por qué
+    /// (la tarjeta de preparación, F4-07).
+    std::pair<std::string, std::string> relojEstado() const;
     /// Publica el reloj del estudio en la red (0 = no). "" o el error.
     std::string publicarReloj(int puerto);
     /// El canal de control «ba/control» de una entrada. "" o el error.

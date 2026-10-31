@@ -1377,8 +1377,13 @@ std::string Transmision::armar(Envio& en) {
     desarmar(en);
     const bool srt = esSrt(en.url);
     if (!srt && !esRtmp(en.url)) return traducir("motor", "la dirección tiene que empezar con rtmp://, rtmps:// o srt://");
+    // DSCP (F4-06): AF41 (video interactivo) en el byte TOS del socket SRT, salvo que la
+    // dirección ya diga otro (`iptos` es una opción de SRT que srtsink toma de la URI).
+    const std::string urlSrt = srt && ajustes::siNo("red.dscpSrt", true) && en.url.find("iptos=") == std::string::npos
+                                   ? en.url + (en.url.find('?') == std::string::npos ? "?" : "&") + "iptos=136"
+                                   : en.url;
     std::string d = srt ? "mpegtsmux name=mux alignment=7 ! identity name=sale ! srtsink name=red wait-for-connection=false uri=" +
-                              entreComillas(en.url) + " "
+                              entreComillas(urlSrt) + " "
                         : "flvmux name=mux streamable=true ! identity name=sale ! rtmp2sink name=red async-connect=true location=" +
                               entreComillas(en.url) + " ";
     // La misma cola para el video y el audio (F2-16): si la red se traba, las dos tiran lo

@@ -252,7 +252,7 @@ void sinRelojPropio(GstElement* pipeline);
 /// (si está el plugin baaudio): sigue el reloj de la placa y remuestrea al del estudio,
 /// sin los saltos de 50 ms del reanclaje.
 int horaDeCapturaEnAudio(GstElement* pipeline);
-/// La deriva de cada placa abierta: ppm, reanclajes (los de la placa cruda y los que
+/// La deriva de cada placa abierta (y a qué frecuencia da, `hz`): ppm, reanclajes (los de la placa cruda y los que
 /// llegan al programa), si está corregida y enganchada. Para `sistema_recursos`.
 nlohmann::json derivaDePlacas();
 

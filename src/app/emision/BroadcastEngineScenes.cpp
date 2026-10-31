@@ -968,6 +968,10 @@ bool BroadcastEngine::ponerReloj(const std::string& tipo, const std::string& ser
     return !started_ || resetVideo(video_);
 }
 
+std::pair<std::string, std::string> BroadcastEngine::relojEstado() const {
+    return {relojTipo_.empty() ? std::string("sistema") : relojTipo_, motor_ ? motor_->reloj().error() : std::string()};
+}
+
 std::string BroadcastEngine::publicarReloj(int puerto) {
     relojPublicar_ = std::max(0, puerto);
     return motor_ ? motor_->publicarReloj(relojPublicar_) : std::string();
