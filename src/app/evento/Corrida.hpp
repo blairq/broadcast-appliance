@@ -225,6 +225,9 @@ class Corrida {
     /// Vuelve a evaluar las condiciones y hace los disparadores que pasaron a cumplirse.
     void actualizarCondiciones(int64_t ahora, std::vector<Accion>& acc);
     void hacerDisparador(const Disparador& d, int64_t ahora, std::vector<Accion>& acc);
+    /// ¿El disparador vale ahora? (su `activo` + `en`: todo el evento, mientras un paso o
+    /// un bloque esté al aire, o desde que entró).
+    bool vigente(const Disparador& d) const;
 
     Linea linea_;
     Entrada base_;

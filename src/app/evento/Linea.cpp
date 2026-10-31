@@ -359,7 +359,9 @@ ItemEstante ItemEstante::deJson(const json& j) {
 }
 
 json Disparador::aJson() const {
-    return json{{"id", id}, {"cuando", cuando}, {"hacer", hacer}, {"activo", nombreEn(kVidas, activo)}};
+    json j{{"id", id}, {"cuando", cuando}, {"hacer", hacer}, {"activo", nombreEn(kVidas, activo)}};
+    if (!en.empty()) j["en"] = en;
+    return j;
 }
 
 Disparador Disparador::deJson(const json& j) {
@@ -368,6 +370,7 @@ Disparador Disparador::deJson(const json& j) {
     d.cuando = leerTexto(j, "cuando");
     if (j.contains("hacer")) d.hacer = j["hacer"];
     d.activo = j.contains("activo") ? valorEn(kVidas, leerTexto(j, "activo")) : Vida::Evento;
+    d.en = leerTexto(j, "en");
     return d;
 }
 
@@ -1432,6 +1435,10 @@ std::vector<Reparo> revisar(const Linea& l, const OpcionesRevision& o) {
         condicionMal({}, {}, {}, d.cuando);
         if (const std::string e = errorDeHacer(d.hacer); !e.empty())
             reparo({}, {}, {}, true, llenar(traducir("linea", "el disparador «%1»: %2"), {d.id, e}));
+        // `en`: un paso o un bloque que existan (si no, no vale nunca).
+        if (!d.en.empty() && l.paso(d.en) == nullptr &&
+            std::none_of(l.bloques.begin(), l.bloques.end(), [&](const Bloque& b) { return b.id == d.en; }))
+            reparo({}, {}, {}, true, llenar(traducir("linea", "el disparador «%1» vale en «%2», que no es un paso ni un bloque"), {d.id, d.en}));
     }
 
     for (const Pista& pi : l.pistas)

@@ -81,6 +81,8 @@ struct Edicion {
 ///   {op:"paso_agregar", bloque, paso:{…}, despuesDe?}   ídem dentro del bloque
 ///   {op:"pieza_agregar", paso, pieza:{…}, despuesDe?}
 ///   {op:"pista_agregar", pista:{…}}   {op:"estante_agregar", item:{…}}
+///   {op:"disparador_agregar", disparador:{id, cuando, hacer, activo?, en?}}
+///   {op:"plantilla_agregar", plantilla:{id, nombre, pasos}}
 ///   {op:"mover", id, bloque?|paso?, despuesDe?}         un bloque, un paso (a `bloque`) o una pieza (a `paso`)
 ///   {op:"quitar", id}
 ///   {op:"cambiar", id, campos:{…}}                       las claves de `campos` reemplazan las del objeto

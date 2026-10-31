@@ -296,10 +296,18 @@ void testPlantillas() {
     const json od = bloqueDeOrdenDelDia(l, "punto", json::parse(R"([{"n": 1, "titulo": "Presupuesto", "estado": "pendiente"},
                                                                     {"n": 2, "titulo": "Obras", "estado": "pendiente"}])"),
                                         "Sesión");
-    CHECK(od["ok"] == true && od["pasos"].size() == 2 && !od["avisos"].empty(), "un paso por punto, y avisa que la plantilla es de fábrica");
+    CHECK(od["ok"] == true && od["pasos"].size() == 2, "un paso por punto");
+    bool sumada = false;
+    for (const json& o : od["ops"]) sumada = sumada || (o["op"] == "plantilla_agregar" && o["plantilla"]["id"] == "punto");
+    CHECK(sumada, "la plantilla de fábrica se suma a las del evento en el mismo lote");
     const Edicion e3 = editar(l, od["ops"]);
     CHECK(e3.ok && e3.linea.bloques.back().origen == "asamblea/orden-del-dia" && e3.linea.bloques.back().plantilla == "punto",
           "el bloque queda con su origen (para re-expandirlo)");
+    bool quejaPlantilla = false;
+    if (e3.ok)
+        for (const Reparo& rp : revisar(e3.linea)) quejaPlantilla = quejaPlantilla || rp.texto.find("plantilla") != std::string::npos;
+    CHECK(e3.ok && e3.linea.plantillas.size() == 1 && e3.linea.plantillas[0].id == "punto" && !quejaPlantilla,
+          "y con su plantilla en el evento: la revisión no se queja");
     CHECK(bloqueDeOrdenDelDia(l, "punto", json::array(), "")["ok"] == false, "sin puntos, no");
     DesdePlantilla d3;
     d3.plantilla = "no-existe";

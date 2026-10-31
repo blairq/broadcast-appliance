@@ -391,14 +391,14 @@ Evaluacion evaluarNodo(const Nodo& n, const Mundo& m) {
     return ev;
 }
 
-void temasDeNodo(const Nodo& n, std::vector<std::string>& out) {
+/// Las referencias de una clase de átomo (los temas del bus, los pulsos), sin repetir.
+void refsDeNodo(const Nodo& n, Atomo::Clase clase, std::vector<std::string>& out) {
     if (n.tipo == Nodo::Tipo::Hoja) {
-        if (n.atomo.clase == Atomo::Clase::Bus && std::find(out.begin(), out.end(), n.atomo.ref) == out.end())
-            out.push_back(n.atomo.ref);
+        if (n.atomo.clase == clase && std::find(out.begin(), out.end(), n.atomo.ref) == out.end()) out.push_back(n.atomo.ref);
         return;
     }
     for (const Nodo& h : n.hijos)
-        temasDeNodo(h, out);
+        refsDeNodo(h, clase, out);
 }
 
 /// Leída una sola vez por texto (se evalúa en cada tick). Nunca se borra (las
@@ -434,7 +434,14 @@ std::string errorDeCondicion(const Condicion& c) {
 
 std::vector<std::string> temasDe(const Condicion& c) {
     std::vector<std::string> out;
-    if (const Nodo* n = leida(c)) temasDeNodo(*n, out);
+    if (const Nodo* n = leida(c)) refsDeNodo(*n, Atomo::Clase::Bus, out);
+    return out;
+}
+
+std::vector<std::string> pulsosDe(const Linea& l) {
+    std::vector<std::string> out;
+    for (const Condicion& c : condicionesDe(l))
+        if (const Nodo* n = leida(c)) refsDeNodo(*n, Atomo::Clase::Pulso, out);
     return out;
 }
 

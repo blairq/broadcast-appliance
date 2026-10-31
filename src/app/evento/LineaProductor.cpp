@@ -644,10 +644,9 @@ json bloqueDeOrdenDelDia(const Linea& l, const std::string& plantilla, const jso
         for (Pieza& z : p.piezas) z.pista = pistaPara(l, z.pista, s, nuevas, out["ops"]);
         out["pasos"].push_back(p.id);
     }
-    if (!delEvento)
-        out["avisos"].push_back(llenar(traducir("linea", "la plantilla «%1» es de fábrica: si el orden del día cambia, para "
-                                                         "re-expandir el bloque hay que sumarla a las del evento"),
-                                       {pl->id}));
+    // La de fábrica se suma a las del evento en el mismo lote: si el orden del día
+    // cambia, el bloque se re-expande con ella (y el evento la lleva consigo).
+    if (!delEvento) out["ops"].push_back({{"op", "plantilla_agregar"}, {"plantilla", pl->aJson()}});
     out["ops"].push_back({{"op", "bloque_agregar"}, {"bloque", armado.aJson()}});
     out["bloque"] = armado.id;
     out["ok"] = true;
