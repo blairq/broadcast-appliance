@@ -65,6 +65,8 @@ class Conmutador : public QObject {
     std::string take(const std::string& tipo = {}, int ms = -1);
     /// La T-bar: `t` de 0 a 1 hacia la armada; `soltar` la termina. "" o por qué no.
     std::string tbar(double t, bool soltar);
+    /// Por dónde va la T-bar (0…1; 0 = quieta). Para mostrarla (el bus: aire/<salida>/tbar).
+    double tbarPosicion() const { return tbarPos_; }
 
     std::string alAire() const;
     std::string armada() const { return armada_; }
@@ -98,6 +100,7 @@ class Conmutador : public QObject {
     Conmutadores& registro_;
     const std::string salida_;
     std::string armada_;
+    double tbarPos_ = 0; ///< ver tbarPosicion
     Afv afv_;
 };
 

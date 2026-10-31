@@ -16,6 +16,8 @@
 #include <QStringList>
 #include <QVariantList>
 
+#include <nlohmann/json.hpp>
+
 #include <map>
 #include <mutex>
 #include <set>
@@ -173,14 +175,22 @@ class MixerModel : public QAbstractListModel {
     /// Las tiras de un grupo, como modelo propio (los mismos roles; se actualiza solo): la
     /// grilla del grupo compactado. Es del MixerModel, uno por grupo.
     Q_INVOKABLE QAbstractItemModel* delGrupo(const QString& grupo);
-    /// Silenciar (o no) todas las tiras de un grupo.
+    /// Silenciar (o no) todas las tiras de un grupo (en la salida que muestra).
     Q_INVOKABLE void setMutedGrupo(const QString& grupo, bool muted);
+    /// Lo mismo en la mezcla de `salida` ("" = la por omisión): el MCP va a la que pide.
+    void setMutedGrupoEn(const std::string& grupo, bool muted, const std::string& salida);
     /// El volumen general de un grupo (VCA), de -60 a +12 dB: mueve el grupo entero sin tocar
     /// el fader de cada uno (las diferencias entre ellos quedan); 0 dB = como si no estuviera.
     Q_INVOKABLE bool setGananciaGrupoDb(const QString& grupo, double db);
-    /// Los grupos de ahora: [{grupo, nombre, tiras: [nombres], compacto, volumenDb}] (MCP y la
-    /// ventana del mezclador, que arma sus tiras con esto).
-    Q_INVOKABLE QVariantList grupos() const;
+    /// Los grupos de ahora: [{grupo, nombre, tiras: [nombres], compacto, volumenDb, mudo}] (la
+    /// ventana del mezclador, que arma sus tiras con esto). `mudo`: todas sus tiras, en la
+    /// salida que muestra.
+    Q_INVOKABLE QVariantList grupos() const { return gruposEn(salida_); }
+    /// Lo mismo con el mudo de `salida` (el MCP).
+    QVariantList gruposEn(const std::string& salida) const;
+    /// {pico_db, volumen_db, mudo} de la fila en la mezcla de `salida` (redondeados: lo que
+    /// publica el BusEventos en audio/nivel/<fuente> y audio/<salida>/nivel/<fuente>).
+    nlohmann::json nivelEn(int fila, const std::string& salida) const;
     /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.
     double picoDe(const std::string& nombre) const;
     /// La mezcla de qué salida muestra y mueve (volumen y mute de cada tira; PLAN-SALIDAS:

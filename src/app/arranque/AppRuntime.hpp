@@ -108,14 +108,20 @@ class AppRuntime {
     // Cada una un operador completo (ver BroadcastEngine, LAS SALIDAS). Se guardan
     // en Config/salidas.json (emision/SalidasConfig.hpp); la por omisión existe
     // siempre. En todo lo que sigue, `salida` "" = la por omisión.
-    /// {tope, salidas: [{id, nombre, color, orden, por_omision, escena}]}.
+    /// {tope, salidas: [{id, nombre, color, orden, por_omision, andando, escena, codificador}]}.
     nlohmann::json salidas() const;
     /// Una salida nueva, andando (en caliente), hasta el tope. "" o por qué no.
     std::string crearSalida(const std::string& id, const std::string& nombre, const std::string& color = {});
-    /// Cambia nombre y/o color ({nombre, color}). "" o por qué no.
+    /// Cambia nombre, color y/o codificador ({nombre, color, codificador}; el codificador
+    /// rige desde lo próximo que arranque). "" o por qué no.
     std::string editarSalida(const std::string& id, const nlohmann::json& cambios);
-    /// Para todo lo que sale de ella y la saca (la por omisión no). "" o por qué no.
-    std::string borrarSalida(const std::string& id);
+    /// Para todo lo que sale de ella y la saca (la por omisión no). Sus destinos guardados
+    /// van a donde diga `susDestinos`: "borrar" o el id de otra salida (con destinos y
+    /// sin decirlo, no la borra: SalidasConfig::destinosDeBorrada). "" o por qué no.
+    std::string borrarSalida(const std::string& id, const std::string& susDestinos = {});
+    /// La codificación con la que sale `salida`: la de la configuración, con el
+    /// codificador de video que eligió esa salida (Config/salidas.json) si eligió uno.
+    EncoderConfig codificadorDe(const std::string& salida) const;
     /// Cuántas salidas se pueden tener (1…16). "" o por qué no.
     std::string setTopeSalidas(int tope);
 
@@ -232,7 +238,7 @@ class AppRuntime {
     /// guardado con la configuración.
     bool setGananciaGrupo(const std::string& grupo, float mul);
     /// El fader y el mute de la fuente en la mezcla de `salida` ("" = la por omisión, la
-    /// que se guarda en la escena; las demás viven en su salida del motor).
+    /// que se guarda en la escena; las demás, en Config/salidas.json: vuelven al arrancar).
     bool setVolume(const std::string& name, float mul, const std::string& salida = "");
     bool setMuted(const std::string& name, bool muted, const std::string& salida = "");
 
@@ -336,6 +342,9 @@ class AppRuntime {
 
    private:
     void avisar(Cambio c) const;
+    /// Anota en Config/salidas.json el fader y el mute que tiene ahora `fuente` en la
+    /// salida `salida` (otra que la por omisión): vuelven al arrancar.
+    void guardarMando(const std::string& salida, const std::string& fuente);
     /// La lista de salidas para otros hilos (salidasPublicadas).
     void publicarSalidas(const EngineStatus& st);
     std::vector<std::pair<int, std::function<void(Cambio)>>> observadores_;

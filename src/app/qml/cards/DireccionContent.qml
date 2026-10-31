@@ -186,14 +186,15 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 14
+            // Los de la salida que maneja la interfaz (con una sola, la de siempre).
             StatusPill {
-                text: Studio.streaming ? qsTr("AL AIRE · %1").arg(Studio.streamTime) : qsTr("fuera del aire")
-                dot: Studio.streaming ? Theme.live : Theme.textFaint
-                pulse: Studio.streaming
+                text: Studio.aireActiva.transmitiendo ? qsTr("AL AIRE · %1").arg(Studio.aireActiva.tiempoTransmision) : qsTr("fuera del aire")
+                dot: Studio.aireActiva.transmitiendo ? Theme.live : Theme.textFaint
+                pulse: !!Studio.aireActiva.transmitiendo
             }
             StatusPill {
-                visible: Studio.recording
-                text: qsTr("REC · %1").arg(Studio.recordTime)
+                visible: !!Studio.aireActiva.grabando
+                text: qsTr("REC · %1").arg(Studio.aireActiva.tiempoGrabacion)
                 dot: Theme.live; pulse: true
             }
             Item { Layout.fillWidth: true }

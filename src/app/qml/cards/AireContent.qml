@@ -15,8 +15,10 @@ import "../controls"
 
 Item {
     id: t
-    property var placa: Studio.estadoPlacaUi()
-    Connections { target: Studio; function onPlacaChanged() { t.placa = Studio.estadoPlacaUi() } }
+    readonly property var placa: Studio.placa
+    // Lo que sale de la salida que maneja la interfaz (con una sola, la de siempre).
+    readonly property var aire: Studio.aireActiva
+    readonly property bool porOmision: !Studio.salidaActivaDatos.id || !!Studio.salidaActivaDatos.porOmision
 
     // Un renglón de estado: etiqueta, reloj y el botón.
     component Fila: Rectangle {
@@ -51,7 +53,7 @@ Item {
                        elide: Text.ElideRight; Layout.fillWidth: true }
             }
             Text { text: f.reloj; visible: f.prendida; color: Theme.text; font { family: Theme.mono; pixelSize: 16 } }
-            GlassButton { compact: true; text: f.accion; active: f.prendida; activeColor: f.tono; onClicked: f.tocar() }
+            GlassButton { compact: true; visible: f.accion !== ""; text: f.accion; active: f.prendida; activeColor: f.tono; onClicked: f.tocar() }
         }
     }
 
@@ -103,29 +105,39 @@ Item {
         BotonesSeguridad { Layout.fillWidth: true }
 
         // --- Transmisión y grabación -----------------------------------------------------
+        // La transmisión principal es de la por omisión; las demás salen por sus destinos
+        // (se arrancan y se cortan en la página Salidas).
         Fila {
-            etiqueta: Studio.streaming ? qsTr("TRANSMITIENDO") : qsTr("TRANSMISIÓN")
-            reloj: Studio.streamTime
-            detalle: Studio.streaming ? Studio.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor configurado"))
-            prendida: Studio.streaming
+            etiqueta: t.aire.transmitiendo ? qsTr("TRANSMITIENDO") : qsTr("TRANSMISIÓN")
+            reloj: t.aire.tiempoTransmision
+            detalle: !t.porOmision ? qsTr("por sus destinos (página Salidas)")
+                     : t.aire.transmitiendo ? Studio.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor configurado"))
+            prendida: !!t.aire.transmitiendo
             tono: Theme.live
-            accion: Studio.streaming ? qsTr("Cortar") : qsTr("Salir al aire")
-            onTocar: Studio.streaming ? ApplicationWindow.window.confirmStopStream() : ApplicationWindow.window.openStreamDialog()
+            accion: !t.porOmision ? "" : t.aire.transmitiendo ? qsTr("Cortar") : qsTr("Salir al aire")
+            onTocar: t.aire.transmitiendo ? ApplicationWindow.window.confirmStopStream() : ApplicationWindow.window.openStreamDialog()
         }
         Fila {
-            etiqueta: Studio.recording ? qsTr("GRABANDO") : qsTr("GRABACIÓN")
-            reloj: Studio.recordTime
-            prendida: Studio.recording
+            id: filaGrabacion
+            etiqueta: t.aire.grabando ? qsTr("GRABANDO") : qsTr("GRABACIÓN")
+            reloj: t.aire.tiempoGrabacion
+            prendida: !!t.aire.grabando
             tono: Theme.live
-            accion: Studio.recording ? qsTr("Detener") : qsTr("Grabar")
+            accion: t.aire.grabando ? qsTr("Detener") : qsTr("Grabar")
+            // La de la por omisión con lo suyo de siempre (el aviso del disco); las demás, la de su salida.
+            function grabar(si) {
+                if (t.porOmision) { if (si !== Studio.recording) Studio.toggleRecording(); return }
+                const e = Studio.grabarSalida(Studio.salidaActiva, si)
+                if (e !== "") Studio.notify(e, "error")
+            }
             onTocar: {
-                if (!Studio.recording) { Studio.toggleRecording(); return }
+                if (!t.aire.grabando) { filaGrabacion.grabar(true); return }
                 ApplicationWindow.window.confirm({
                     title: qsTr("¿Detener la grabación?"),
-                    text: Studio.streaming ? qsTr("El archivo se cierra y lo que siga no queda grabado. La transmisión sigue al aire.")
-                                           : qsTr("El archivo se cierra y lo que siga no queda grabado."),
+                    text: t.aire.transmitiendo ? qsTr("El archivo se cierra y lo que siga no queda grabado. La transmisión sigue al aire.")
+                                               : qsTr("El archivo se cierra y lo que siga no queda grabado."),
                     accept: qsTr("Detener"), reject: qsTr("Seguir grabando"),
-                    action: function() { if (Studio.recording) Studio.toggleRecording() }
+                    action: function() { filaGrabacion.grabar(false) }
                 })
             }
         }

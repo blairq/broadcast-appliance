@@ -4298,7 +4298,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 835
+        "linea": 839
       },
       "roles": [
         "asistente",
@@ -4506,7 +4506,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 895
+        "linea": 899
       },
       "roles": [
         "asistente",
@@ -4953,7 +4953,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 662
+        "linea": 666
       },
       "roles": [
         "asistente",
@@ -5031,7 +5031,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 756
+        "linea": 760
       },
       "roles": [
         "asistente",
@@ -5116,7 +5116,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 756
+        "linea": 760
       },
       "roles": [
         "asistente",
@@ -5190,7 +5190,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 1083
+        "linea": 1087
       },
       "roles": [
         "asistente",
@@ -5234,7 +5234,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 521
+        "linea": 525
       },
       "roles": [
         "asistente",
@@ -5326,7 +5326,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 756
+        "linea": 760
       },
       "roles": [
         "asistente",
@@ -5484,7 +5484,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 756
+        "linea": 760
       },
       "roles": [
         "asistente",
@@ -5555,7 +5555,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 928
+        "linea": 932
       },
       "roles": [
         "asistente",
@@ -5630,7 +5630,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 756
+        "linea": 760
       },
       "roles": [
         "asistente",
@@ -5661,7 +5661,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 1065
+        "linea": 1069
       },
       "roles": [
         "asistente",
@@ -5793,7 +5793,7 @@
       "nombre": "audio_mezclador_grupos",
       "titulo": "Grupos del mezclador",
       "categoria": "audio_rack",
-      "descripcion": "Los grupos de tiras del mezclador (tiras seguidas del mismo tipo: «Invitado 1…N (audio)», los remotos) y cuáles están compactados. Con `grupo` y `compacto`, compacta uno (sin faders: un bloque con una casilla por tira) o lo despliega, como el botón de su primera tira; con `grupo` y `mudo`, silencia o abre todo el grupo; con `grupo` y `volumenDb`, el volumen general del grupo (un VCA: mueve a todos juntos sin tocar el fader de cada uno, así las diferencias entre ellos quedan; 0 dB = como si no estuviera).",
+      "descripcion": "Los grupos de tiras del mezclador (tiras seguidas del mismo tipo: «Invitado 1…N (audio)», los remotos) y cuáles están compactados. Con `grupo` y `compacto`, compacta uno (sin faders: un bloque con una casilla por tira) o lo despliega, como el botón de su primera tira; con `grupo` y `mudo`, silencia o abre todo el grupo en la mezcla de la `salida` (cada una tiene la suya; sin ella, la por omisión); con `grupo` y `volumenDb`, el volumen general del grupo (un VCA de todas las salidas: mueve a todos juntos sin tocar el fader de cada uno, así las diferencias entre ellos quedan; 0 dB = como si no estuviera).",
       "esquema": {
         "type": "object",
         "properties": {
@@ -5810,6 +5810,10 @@
           "volumenDb": {
             "type": "number",
             "description": "de -60 a +12; 0 = sin cambio"
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -5829,7 +5833,8 @@
       "roles": [
         "asistente",
         "tecnico"
-      ]
+      ],
+      "porSalida": true
     },
     {
       "nombre": "audio_module_add",
@@ -5890,7 +5895,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 416
+        "linea": 420
       },
       "roles": [
         "asistente",
@@ -5933,7 +5938,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 685
+        "linea": 689
       },
       "roles": [
         "asistente",
@@ -5973,7 +5978,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 642
+        "linea": 646
       },
       "roles": [
         "asistente",
@@ -6013,7 +6018,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 494
+        "linea": 498
       },
       "roles": [
         "asistente",
@@ -6059,7 +6064,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 716
+        "linea": 720
       },
       "roles": [
         "asistente",
@@ -6086,7 +6091,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 247
+        "linea": 251
       },
       "roles": [
         "asistente",
@@ -6184,7 +6189,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 756
+        "linea": 760
       },
       "roles": [
         "asistente",
@@ -6223,7 +6228,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 601
+        "linea": 605
       },
       "roles": [
         "asistente",
@@ -6264,7 +6269,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 1001
+        "linea": 1005
       },
       "roles": [
         "asistente",
@@ -6291,7 +6296,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 983
+        "linea": 987
       },
       "roles": [
         "asistente",
@@ -6406,7 +6411,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 540
+        "linea": 544
       },
       "roles": [
         "asistente",
@@ -6457,7 +6462,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 178
+        "linea": 182
       },
       "roles": [
         "asistente",
@@ -6496,7 +6501,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 289
+        "linea": 293
       },
       "roles": [
         "asistente",
@@ -6531,7 +6536,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 229
+        "linea": 233
       },
       "roles": [
         "asistente",
@@ -6569,7 +6574,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 621
+        "linea": 625
       },
       "roles": [
         "asistente",
@@ -6608,7 +6613,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 1035
+        "linea": 1039
       },
       "roles": [
         "asistente",
@@ -6635,7 +6640,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAudioTools.cpp",
-        "linea": 159
+        "linea": 163
       },
       "roles": [
         "asistente",
@@ -7333,7 +7338,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 772
+        "linea": 780
       },
       "roles": [
         "asistente"
@@ -7359,7 +7364,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 712
+        "linea": 720
       },
       "roles": [
         "asistente"
@@ -7399,7 +7404,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 736
+        "linea": 744
       },
       "roles": [
         "asistente"
@@ -7432,7 +7437,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 757
+        "linea": 765
       },
       "roles": [
         "asistente"
@@ -7458,7 +7463,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 724
+        "linea": 732
       },
       "roles": [
         "asistente"
@@ -7488,7 +7493,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 980
+        "linea": 988
       },
       "roles": [
         "asistente"
@@ -7521,7 +7526,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 606
+        "linea": 610
       },
       "roles": [
         "asistente"
@@ -7584,7 +7589,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 395
+        "linea": 399
       },
       "roles": [
         "asistente"
@@ -7629,7 +7634,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 459
+        "linea": 463
       },
       "roles": [
         "asistente"
@@ -7719,7 +7724,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 354
+        "linea": 358
       },
       "roles": [
         "asistente"
@@ -7756,7 +7761,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 336
+        "linea": 340
       },
       "roles": [
         "asistente"
@@ -7796,7 +7801,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 537
+        "linea": 541
       },
       "roles": [
         "asistente"
@@ -7822,7 +7827,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 516
+        "linea": 520
       },
       "roles": [
         "asistente"
@@ -7860,7 +7865,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 556
+        "linea": 560
       },
       "roles": [
         "asistente"
@@ -7886,7 +7891,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 622
+        "linea": 626
       },
       "roles": [
         "asistente"
@@ -7919,7 +7924,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 220
+        "linea": 224
       },
       "roles": [
         "asistente"
@@ -7952,7 +7957,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 235
+        "linea": 239
       },
       "roles": [
         "asistente"
@@ -7989,7 +7994,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 318
+        "linea": 322
       },
       "roles": [
         "asistente"
@@ -8038,7 +8043,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 270
+        "linea": 274
       },
       "roles": [
         "asistente"
@@ -8088,7 +8093,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 293
+        "linea": 297
       },
       "roles": [
         "asistente"
@@ -8121,7 +8126,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 254
+        "linea": 258
       },
       "roles": [
         "asistente"
@@ -8154,7 +8159,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 205
+        "linea": 209
       },
       "roles": [
         "asistente"
@@ -8187,7 +8192,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 160
+        "linea": 164
       },
       "roles": [
         "asistente"
@@ -8232,7 +8237,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 181
+        "linea": 185
       },
       "roles": [
         "asistente"
@@ -8258,7 +8263,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 138
+        "linea": 142
       },
       "roles": [
         "asistente"
@@ -8284,7 +8289,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 149
+        "linea": 153
       },
       "roles": [
         "asistente"
@@ -8341,7 +8346,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 482
+        "linea": 486
       },
       "roles": [
         "asistente"
@@ -8374,7 +8379,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 589
+        "linea": 593
       },
       "roles": [
         "asistente"
@@ -8412,7 +8417,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 954
+        "linea": 962
       },
       "roles": [
         "asistente"
@@ -8438,7 +8443,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 942
+        "linea": 950
       },
       "roles": [
         "asistente"
@@ -8468,7 +8473,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 862
+        "linea": 870
       },
       "roles": [
         "asistente"
@@ -8509,7 +8514,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 93
+        "linea": 97
       },
       "roles": [
         "asistente"
@@ -8519,7 +8524,7 @@
       "nombre": "eventos_temas",
       "titulo": "Temas del bus de eventos",
       "categoria": "botonera",
-      "descripcion": "Los temas que publica la app con su ultimo valor: aire/escena, aire/armada, aire/tally {programa, preview, fuentes_programa, fuentes_preview, transmitiendo, grabando}, salida/stream, salida/grabacion, audio/nivel/<fuente> {pico_db, volumen_db, mudo}, audio/loudness {m, s, i, tp, lra, fuera_de_objetivo}, alarma/<regla>, entrada/senal, oradores/al_aire, sala/participantes y plugin/<id>/<canal>. `patron` filtra: «+» un nivel, «#» el resto (audio/nivel/+, aire/#). Sirven para ligaduras de la botonera y @plugin.escuchar.",
+      "descripcion": "Los temas que publica la app con su ultimo valor: aire/escena, aire/armada, aire/tally {programa, preview, fuentes_programa, fuentes_preview, transmitiendo, grabando}, salida/stream, salida/grabacion, audio/nivel/<fuente> {pico_db, volumen_db, mudo}, audio/loudness {m, s, i, tp, lra, fuera_de_objetivo}, alarma/<regla>, entrada/senal, oradores/al_aire, sala/participantes y plugin/<id>/<canal>. Además aire/medios, aire/dsk y aire/tbar {hacia, posicion}. Esos son de la salida por omisión; los de cada salida llevan su id: aire/<salida>/escena|armada|tally|medios|dsk|tbar, salida/<salida>/stream|grabacion|estado, audio/<salida>/nivel/<fuente> (su fader y su mudo) y `salidas` {lista}. Una ligadura con el tema sin id sigue a la salida que maneja el aparato. `patron` filtra: «+» un nivel, «#» el resto (audio/nivel/+, aire/#). Sirven para ligaduras de la botonera y @plugin.escuchar.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -8572,7 +8577,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 78
+        "linea": 82
       },
       "roles": [
         "asistente"
@@ -8598,7 +8603,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 901
+        "linea": 909
       },
       "roles": [
         "asistente"
@@ -8637,7 +8642,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 819
+        "linea": 827
       },
       "roles": [
         "asistente"
@@ -8663,7 +8668,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 808
+        "linea": 816
       },
       "roles": [
         "asistente"
@@ -8695,7 +8700,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 841
+        "linea": 849
       },
       "roles": [
         "asistente"
@@ -12126,10 +12131,15 @@
       "nombre": "dsk_capas_ver",
       "titulo": "Capas DSK",
       "categoria": "dsk",
-      "descripcion": "Las capas del DSK, por encima de todas las escenas (logo, intérprete, reloj): qué tienen y si están arriba.",
+      "descripcion": "Las capas del DSK, por encima de todas las escenas (logo, intérprete, reloj): qué tienen y si están arriba en la `salida` (cada una sube y baja las suyas; sin ella, la por omisión).",
       "esquema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
+          }
+        }
       },
       "clase": "lectura",
       "hilo": "interfaz",
@@ -12142,11 +12152,12 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 642
+        "linea": 646
       },
       "roles": [
         "asistente"
       ],
+      "porSalida": true,
       "antes": [
         "dsk_listar"
       ]
@@ -12203,7 +12214,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 653
+        "linea": 658
       },
       "roles": [
         "asistente"
@@ -12213,7 +12224,7 @@
       "nombre": "dsk_mostrar",
       "titulo": "Subir o bajar una capa DSK",
       "categoria": "dsk",
-      "descripcion": "Sube (`visible` true) o baja la `capa` con su fundido. Es de aire. Bajar una capa FIJA (el interprete de LSA) necesita `confirmar`: true, y solo si el operador lo pidio.",
+      "descripcion": "Sube (`visible` true) o baja la `capa` con su fundido en la `salida` (sin ella, la por omisión). Es de aire. Bajar una capa FIJA (el interprete de LSA) necesita `confirmar`: true, y solo si el operador lo pidio.",
       "esquema": {
         "type": "object",
         "required": [
@@ -12231,6 +12242,10 @@
           },
           "confirmar": {
             "type": "boolean"
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
           }
         }
       },
@@ -12245,7 +12260,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 688
+        "linea": 693
       },
       "roles": [
         "asistente"
@@ -12253,7 +12268,8 @@
       "aire": {
         "cuando": "siempre",
         "por_que": "sube o baja una capa (DSK) encima del programa"
-      }
+      },
+      "porSalida": true
     },
     {
       "nombre": "camara_agregar",
@@ -28873,7 +28889,7 @@
       "nombre": "salida_borrar",
       "titulo": "Borrar una salida",
       "categoria": "salidas",
-      "descripcion": "Para todo lo que sale de ella (transmisiones, grabación, repetición, señal limpia) y la saca. La por omisión no se borra. Sus destinos guardados quedan en stream_destinos: pasalos a otra salida con stream_destino_editar.",
+      "descripcion": "Para todo lo que sale de ella (transmisiones, grabación, repetición, señal limpia) y la saca. La por omisión no se borra. Si tiene destinos guardados, `destinos` dice qué pasa con ellos: el id de otra salida (pasan a ella) o «borrar» (se borran con su clave); sin decirlo no se borra nada y el error dice cuántos tiene. Preguntale al operador antes de borrarlos.",
       "esquema": {
         "type": "object",
         "required": [
@@ -28883,6 +28899,10 @@
           "id": {
             "type": "string",
             "description": "Id de la salida (letras, números, - y _)."
+          },
+          "destinos": {
+            "type": "string",
+            "description": "Sus destinos guardados: el id de otra salida o «borrar»."
           }
         }
       },
@@ -28897,7 +28917,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSalidasTools.cpp",
-        "linea": 172
+        "linea": 178
       },
       "roles": [
         "asistente"
@@ -28942,7 +28962,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSalidasTools.cpp",
-        "linea": 93
+        "linea": 94
       },
       "roles": [
         "asistente"
@@ -28950,9 +28970,9 @@
     },
     {
       "nombre": "salida_editar",
-      "titulo": "Cambiar el nombre o el color de una salida (o el tope)",
+      "titulo": "Cambiar el nombre, el color o el codificador de una salida (o el tope)",
       "categoria": "salidas",
-      "descripcion": "`id` con `nombre` y/o `color` (#RRGGBB). `tope` (1 a 16) cambia cuántas salidas puede tener el aparato (no baja de las que ya hay: borrá alguna antes).",
+      "descripcion": "`id` con `nombre`, `color` (#RRGGBB) y/o `codificador` (el de video de esa salida: auto, nvenc, qsv, amf, vaapi, videotoolbox o x264; vacío = el de la configuración; la por omisión usa siempre el de la configuración; rige desde lo próximo que arranque en ella). `tope` (1 a 16) cambia cuántas salidas puede tener el aparato (no baja de las que ya hay: borrá alguna antes).",
       "esquema": {
         "type": "object",
         "properties": {
@@ -28964,6 +28984,9 @@
             "type": "string"
           },
           "color": {
+            "type": "string"
+          },
+          "codificador": {
             "type": "string"
           },
           "tope": {
@@ -28984,7 +29007,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSalidasTools.cpp",
-        "linea": 136
+        "linea": 137
       },
       "roles": [
         "asistente"
@@ -29048,7 +29071,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSalidasTools.cpp",
-        "linea": 74
+        "linea": 75
       },
       "roles": [
         "asistente"
@@ -29288,7 +29311,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpBotoneraTools.cpp",
-        "linea": 922
+        "linea": 930
       },
       "roles": [
         "asistente"

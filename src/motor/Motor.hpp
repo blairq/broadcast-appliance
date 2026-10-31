@@ -8,7 +8,9 @@
 // LOS BUSES (cada uno un audiomixer en su pipeline):
 //   programa    pista 1: lo que sale. Limitador del máster (el loudness lo mide la app).
 //   pista2…6    la grabación multipista: cada entrada va a las pistas que diga
-//               su ruteo (la Matriz). Se arman cuando alguien las usa.
+//               su ruteo (la Matriz). Una tanda por salida (pista<n> la por
+//               omisión, pista<n>:<id> las demás), con el mando de ESA salida.
+//               Se arman cuando alguien las usa.
 //   retornoN    lo que oye el invitado N en mix_minus (todo menos su voz), uno
 //               por salida: retornoN de la por omisión, retornoN:<id> de las demás.
 //   directo     la sala sin demora, para la escucha «directo».
@@ -78,9 +80,9 @@
 // los mezclaba un hilo de la app con las tomas de cada entrada (escucharEntrada) y los
 // sacaba con Qt Multimedia: un colchón y un dominio de reloj más.
 //
-// POR AHORA siguen a la salida por omisión: las pistas 2-6 y el multiview (su
-// PROGRAMA y su PREVIEW son los de la por omisión; el tally rojo es «al aire en
-// ALGUNA salida»). Los retornos son de cada salida; la escucha, de la que se elige.
+// POR AHORA sigue a la salida por omisión el multiview (su PROGRAMA y su PREVIEW
+// son los de la por omisión; el tally rojo es «al aire en ALGUNA salida»). Las
+// pistas 2-6 y los retornos son de cada salida; la escucha, de la que se elige.
 // ============================================================================
 #pragma once
 
@@ -172,8 +174,9 @@ class Motor {
     nlohmann::json propiedadesEntrada(const std::string& id, const std::string& elemento) const;
     /// El canal de control «ba/control» de la entrada (ver Entrada::control).
     std::string controlEntrada(const std::string& id, const nlohmann::json& campos);
-    /// El fader y el mute de la entrada en la mezcla de una salida. Los de la por
-    /// omisión valen también para las pistas, los retornos y la escucha «selección».
+    /// El fader y el mute de la entrada en la mezcla de una salida: su bus, sus pistas
+    /// 2-6, sus retornos y la escucha si la sigue a ella. El mute de la por omisión vale
+    /// además para la Matriz (sus tomas y sus buses).
     std::string ponerNivel(const std::string& id, double lineal, const std::string& salida = "");
     std::string ponerMute(const std::string& id, bool mute, const std::string& salida = "");
     /// A qué pistas va (1 = el programa de cada salida; 2…6 = la grabación multipista).
@@ -261,8 +264,8 @@ class Motor {
     bool tomaViva(int toma) const;
     bool ponerLimitador(bool activo, double techoDb, const std::string& salida = "");
     /// El loudness de lo que sale por `salida`: el AGC lento hacia `objetivoLufs`
-    /// (opcional) y el techo del limitador (dBTP); la por omisión, también el techo de
-    /// las pistas 2-6. En la cola del motor: "" o el error.
+    /// (opcional) y el techo del limitador (dBTP), también el de sus pistas 2-6. En la
+    /// cola del motor: "" o el error.
     std::string ponerLoudness(bool agc, double objetivoLufs, double techoDb, const std::string& salida = "");
     void ponerTopeEstudio(std::int64_t ms);
 
@@ -326,8 +329,9 @@ class Motor {
     /// aparatos lo usen (reloj «red»). 0 = dejar de publicar. "" o el error.
     std::string publicarReloj(int puerto);
     const Lienzo& lienzo() const { return cfg_.lienzo; }
-    /// Lo que entrega un bus (para la grabación, más adelante): "programa" (de `salida`,
-    /// o "programa:<id>"), "pista2"… y cuánto tarda en salir (ns). "" si no existe.
+    /// Lo que entrega un bus (para la grabación): "programa" o "pista2"… (de `salida`, o
+    /// de la que diga la clave: "programa:<id>", "pista2:<id>") y cuánto tarda en salir
+    /// (ns). "" si no existe.
     std::string productorDeBus(const std::string& bus, std::int64_t* latenciaNs = nullptr, const std::string& salida = "");
 
    private:
@@ -352,7 +356,7 @@ class Motor {
     };
     /// Una salida (ver LAS SALIDAS arriba): todo lo del aire que antes era único.
     struct Salida {
-        std::string nombre;
+        std::string id, nombre;
         std::unique_ptr<Mezcla> mezcla;                   ///< bus:programa[:<id>]
         std::unique_ptr<Composicion> programa, preview;   ///< video:programa[:<id>], video:preview[:<id>]
         std::string alAire, armada;
@@ -365,6 +369,8 @@ class Motor {
         /// El mix-minus de cada invitado en esta salida (buses de oído): retorno<n>[:<id>]
         /// → BA.Audio.Return[.<id>].<n>. Uno por cada retorno de `retornos_` que no está apagado.
         std::map<int, std::unique_ptr<Mezcla>> retornos;
+        /// Sus pistas 2-6 (pista<n>[:<id>]), con su mando: se arman cuando alguien las usa.
+        std::map<int, std::unique_ptr<Mezcla>> pistas;
         // El loudness (ponerLoudness): queda acá para que un bus rearmado lo vuelva a tener.
         bool agc = false;
         double objetivoLufs = -23, techoDb = -1;
@@ -382,8 +388,8 @@ class Motor {
     void enBus(Mezcla& m, const std::string& id, const Canal& c, const Mando& k, bool incluir, int fundidoMs);
     /// Lleva un canal a todos los buses donde corresponde (los de todas las salidas).
     void aplicar(const std::string& id, int fundidoMs);
-    /// Lo mismo, solo en lo que depende de una salida: su bus, sus retornos, la escucha
-    /// si la sigue a ella y, si es la por omisión, lo que por ahora la sigue (las pistas).
+    /// Lo mismo, solo en lo que depende de una salida: su bus, sus retornos, sus pistas
+    /// y la escucha si la sigue a ella.
     void aplicarEnSalida(Salida& s, const std::string& id, int fundidoMs);
     /// La entrada en los buses de oído de la escucha (directo, selección, afl) con el
     /// mando `k` de la salida que sigue la escucha. Sin fundidos: no tocan el aire.
@@ -407,7 +413,8 @@ class Motor {
     std::string borrarSalidaYa(const std::string& id);
     std::string productorDeVideoYa(const std::string& bus, std::int64_t* latenciaNs, const std::string& salida);
     nlohmann::json estadoYa() const;
-    Mezcla* pista(int n, bool crear);
+    /// La pista n (2…6) de la salida; con `crear`, la arma si no está.
+    Mezcla* pista(Salida& s, int n, bool crear);
     /// El retorno del invitado n en la salida `sid` (lo arma de nuevo con lo que pide
     /// retornos_[n]; si está apagado, lo saca). false si no arrancó.
     bool armarRetorno(int n, const std::string& sid, Salida& s);
@@ -435,8 +442,6 @@ class Motor {
     std::unique_ptr<Mezcla> directo_;
     std::unique_ptr<Mezcla> seleccion_; ///< la escucha «selección»
     std::unique_ptr<Mezcla> afl_;       ///< la escucha «afl»
-    std::map<int, std::unique_ptr<Mezcla>> pistas_;
-    double techoPistas_ = -1.0; ///< el techo de sus limitadores (lo pone ponerLoudness)
     std::map<int, Retorno> retornos_;
     std::unique_ptr<Escucha> escucha_;
     std::unique_ptr<Vistas> vistas_;

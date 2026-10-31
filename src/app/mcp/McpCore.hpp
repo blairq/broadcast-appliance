@@ -282,6 +282,11 @@ class McpCore {
     /// persona; y la voz y los disparadores solo leen o hacen lo reversible.
     void setHayAire(std::function<bool()> fn) { hayAire_ = std::move(fn); }
     bool hayAire() const { return hayAire_ && hayAire_(); }
+    /// ¿Esta llamada cambia el aire AHORA? Una herramienta de aire (McpAire) y, si es de
+    /// salida, que salga la que pide (`salida` de los args, o `salidaDeQuien`: la del
+    /// aparato o el perfil); si no, que salga cualquiera. Lo mismo que mira callTool:
+    /// la botonera lo usa para pedir confirmación en el aparato.
+    bool cambiaElAire(const std::string& herramienta, const json& args, const std::string& salidaDeQuien) const;
     McpAire& aire() { return aire_; }
 
     /// --- Las salidas (PLAN-SALIDAS, etapa 3) -----------------------------------
@@ -458,6 +463,9 @@ class McpCore {
    private:
     void handleOne(const json& msg, std::function<void(json)> reply, const CallContext& ctx);
     /// callTool desde que se sabe qué herramienta es: en el hilo de ella.
+    /// La guarda de aire de `tool` con la salida ya resuelta: si es de salida, que salga
+    /// ESA (otra transmitiendo no la vuelve de aire); si no, que salga cualquiera.
+    bool hayAireEn(const Tool& tool, const std::string& salida) const;
     void procesar(const Tool* tool, const std::string& name, const json& args, std::function<void(json)> done,
                   const CallContext& ctx);
     /// Dónde está el que llama (para devolverle `done` ahí).

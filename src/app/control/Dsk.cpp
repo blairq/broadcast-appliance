@@ -57,13 +57,37 @@ json* Dsk::buscar(int capa) {
     return nullptr;
 }
 
-json Dsk::capas() const {
+namespace {
+bool esPorOmision(const std::string& salida) { return salida.empty() || salida == BroadcastEngine::kSalidaPorOmision; }
+} // namespace
+
+bool Dsk::arriba(int capa, const std::string& salida) const {
+    for (const auto& c : capas_)
+        if (c.value("capa", 0) == capa) {
+            if (esPorOmision(salida)) return c.value("visible", false);
+            const json en = c.value("visible_en", json::object());
+            return en.is_object() && en.value(salida, false);
+        }
+    return false;
+}
+
+json Dsk::capas(const std::string& salida) const {
     json out = capas_;
-    const json e = engine_.dskEstado();
-    for (auto& c : out)
+    const json e = engine_.dskEstado(esPorOmision(salida) ? std::string() : salida);
+    for (auto& c : out) {
+        c["visible"] = arriba(c.value("capa", 0), salida);
+        c.erase("visible_en");
         for (const auto& x : e)
             if (x.value("capa", 0) == c.value("capa", 0)) c["opacidad"] = x.value("opacidad", 0.0);
+    }
     return out;
+}
+
+void Dsk::setSalida(const std::string& salida) {
+    const std::string s = esPorOmision(salida) ? std::string() : salida;
+    if (s == salidaUi_) return;
+    salidaUi_ = s;
+    emit cambio();
 }
 
 void Dsk::avisar() {
@@ -99,7 +123,7 @@ std::string Dsk::mostrar(int capa, bool visible, bool confirmada, const std::str
                                 {c->value("nombre", std::string())});
     if (visible && c->value("contenido", json::array()).empty())
         return ba::i18n::traducir("dsk", "la capa no tiene contenido: definila primero");
-    const bool porOmision = salida.empty() || salida == BroadcastEngine::kSalidaPorOmision;
+    const bool porOmision = esPorOmision(salida);
     if (!porOmision && visible) {
         // La definición es una para todas: se arma en esa salida antes de subirla.
         std::vector<std::string> cont;
@@ -149,10 +173,10 @@ void Dsk::restaurar() {
     emit cambio();
 }
 
-QVariantList Dsk::capasUi() const { return aQv(capas()).toList(); }
+QVariantList Dsk::capasUi() const { return aQv(capas(salidaUi_)).toList(); }
 QString Dsk::definirUi(int capa, const QVariantMap& def) { return QString::fromStdString(definir(capa, deQv(def))); }
 QString Dsk::mostrarUi(int capa, bool visible, bool confirmada) {
-    return QString::fromStdString(mostrar(capa, visible, confirmada));
+    return QString::fromStdString(mostrar(capa, visible, confirmada, salidaUi_));
 }
 QString Dsk::plantillaLsaUi(int capa, const QString& entrada) {
     return QString::fromStdString(plantillaLsa(capa, entrada.toStdString(), "abajo_derecha", 0.28));

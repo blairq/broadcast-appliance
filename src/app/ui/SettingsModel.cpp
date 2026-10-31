@@ -519,6 +519,12 @@ QHash<int, QByteArray> SettingsModel::roleNames() const {
             {AvanzadoRole, "avanzado"}};
 }
 
+QVariantList SettingsModel::codificadores() const {
+    for (const auto& f : fields_)
+        if (f.key == QLatin1String("encoder.video")) return f.options;
+    return {};
+}
+
 bool SettingsModel::dirty() const { return draft_ != saved_; }
 
 QStringList SettingsModel::sections() const {
@@ -838,6 +844,9 @@ QString SettingsModel::apply() {
         g.vistasRemotas = i("room.vistasRemotas");
         g.programVideoW = i("gateway.programaW");
         g.programVideoH = i("gateway.programaH");
+        // El retorno de cada salida (BA.Program, BA.Salida.<id>) se compone a ese tamaño en la
+        // GPU (F2-13): cambiado acá, cada una rehace su canal ya (si es el mismo, no hace nada).
+        rt_.engine().ponerTopeRetorno(g.programVideoW, g.programVideoH);
         g.pinIntentos = i("room.pinIntentos");
         g.pinBloqueoS = i("room.pinBloqueo");
         g.adminPort = static_cast<std::uint16_t>(i("room.adminPort"));

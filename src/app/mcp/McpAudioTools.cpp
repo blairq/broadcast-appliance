@@ -128,29 +128,33 @@ void McpService::registerAudioTools() {
         t.description = ba::i18n::traducir("mcp", "Los grupos de tiras del mezclador (tiras seguidas del mismo tipo: «Invitado 1…N (audio)», los "
                         "remotos) y cuáles están compactados. Con `grupo` y `compacto`, compacta uno (sin faders: un "
                         "bloque con una casilla por tira) o lo despliega, como el botón de su primera tira; con `grupo` "
-                        "y `mudo`, silencia o abre todo el grupo; con `grupo` y `volumenDb`, el volumen general del "
-                        "grupo (un VCA: mueve a todos juntos sin tocar el fader de cada uno, así las diferencias entre "
-                        "ellos quedan; 0 dB = como si no estuviera).");
+                        "y `mudo`, silencia o abre todo el grupo en la mezcla de la `salida` (cada una tiene la suya; "
+                        "sin ella, la por omisión); con `grupo` y `volumenDb`, el volumen general del "
+                        "grupo (un VCA de todas las salidas: mueve a todos juntos sin tocar el fader de cada uno, así "
+                        "las diferencias entre ellos quedan; 0 dB = como si no estuviera).");
+        t.porSalida = true;
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"grupo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la clave, como la lista esta herramienta")}}},
                            {"compacto", {{"type", "boolean"}}},
                            {"mudo", {{"type", "boolean"}}},
                            {"volumenDb", {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "de -60 a +12; 0 = sin cambio")}}}}}};
-        t.run = [vm](const json& a, Done done) {
+        t.run = [vm, this](const json& a, Done done) {
             auto* m = qobject_cast<MixerModel*>(vm->mixer());
+            const std::string salida = core_.salidaDe(a); // la pedida, no la que muestra la interfaz
             if (m == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay mezclador en este proceso.")));
             const QString g = QString::fromStdString(a.value("grupo", std::string()));
-            const QVariantList antes = m->grupos();
+            const QVariantList antes = m->gruposEn(salida);
             if (!g.isEmpty() && std::none_of(antes.begin(), antes.end(), [&g](const QVariant& x) {
                     return x.toMap().value("grupo").toString() == g;
                 }))
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay un grupo «%1»: los grupos los lista esta herramienta sin argumentos."), {g.toStdString()})));
             if (!g.isEmpty() && a.contains("compacto")) m->setCompacto(g, a["compacto"].get<bool>());
-            if (!g.isEmpty() && a.contains("mudo")) m->setMutedGrupo(g, a["mudo"].get<bool>());
+            if (!g.isEmpty() && a.contains("mudo")) m->setMutedGrupoEn(g.toStdString(), a["mudo"].get<bool>(), salida);
             if (!g.isEmpty() && a.contains("volumenDb") && a["volumenDb"].is_number())
                 m->setGananciaGrupoDb(g, a["volumenDb"].get<double>());
-            done(ToolResult().data(json{{"grupos", json::parse(QJsonDocument(QJsonArray::fromVariantList(m->grupos())).toJson().toStdString())}}));
+            done(ToolResult().data(
+                json{{"grupos", json::parse(QJsonDocument(QJsonArray::fromVariantList(m->gruposEn(salida))).toJson().toStdString())}}));
         };
         core_.addTool(std::move(t));
     }

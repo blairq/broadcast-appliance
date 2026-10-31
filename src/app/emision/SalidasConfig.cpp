@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <set>
 
 namespace ba::app::salidas {
 
@@ -53,12 +54,20 @@ Lista leer(const json& j) {
             s.nombre = x.value("nombre", s.id);
             s.color = x.value("color", std::string());
             s.orden = x.value("orden", static_cast<int>(l.salidas.size()));
+            if (s.id != kPorOmision) {
+                s.codificador = x.value("codificador", std::string());
+                const json mezcla = x.value("mezcla", json::object());
+                if (mezcla.is_object())
+                    for (const auto& [f, m] : mezcla.items())
+                        if (m.is_object() && m.value("volumen", json()).is_number())
+                            s.mezcla[f] = {std::clamp(m["volumen"].get<double>(), 0.0, 4.0), m.value("mute", false)};
+            }
             l.salidas.push_back(std::move(s));
         }
     }
     // La por omisión existe siempre (un archivo viejo o borrado a mano no la saca).
     if (l.buscar(kPorOmision) == nullptr) {
-        Salida p{kPorOmision, kPorOmision, {}, -1};
+        Salida p{kPorOmision, kPorOmision, {}, -1, {}, {}};
         l.salidas.insert(l.salidas.begin(), std::move(p));
     }
     std::stable_sort(l.salidas.begin(), l.salidas.end(), [](const Salida& a, const Salida& b) {
@@ -76,7 +85,16 @@ Lista leer(const json& j) {
 
 json aJson(const Lista& l) {
     json arr = json::array();
-    for (const auto& s : l.salidas) arr.push_back({{"id", s.id}, {"nombre", s.nombre}, {"color", s.color}, {"orden", s.orden}});
+    for (const auto& s : l.salidas) {
+        json x{{"id", s.id}, {"nombre", s.nombre}, {"color", s.color}, {"orden", s.orden}};
+        if (!s.codificador.empty()) x["codificador"] = s.codificador;
+        if (!s.mezcla.empty()) {
+            json m = json::object();
+            for (const auto& [f, k] : s.mezcla) m[f] = {{"volumen", k.volumen}, {"mute", k.mute}};
+            x["mezcla"] = m;
+        }
+        arr.push_back(std::move(x));
+    }
     return {{"tope", l.tope}, {"salidas", arr}};
 }
 
@@ -111,6 +129,15 @@ std::string editar(Lista& l, const std::string& id, const json& cambios) {
         if (!colorValido(c)) return ba::i18n::traducir("salidas", "`color`: #RRGGBB");
         s->color = c;
     }
+    if (cambios.contains("codificador")) {
+        const std::string c = cambios.value("codificador", std::string());
+        static const std::set<std::string> kAlias{"", "auto", "nvenc", "qsv", "amf", "vaapi", "videotoolbox", "x264"};
+        if (!kAlias.count(c))
+            return ba::i18n::traducir("salidas", "`codificador`: auto, nvenc, qsv, amf, vaapi, videotoolbox o x264 (vacío: el de la configuración)");
+        if (s->id == kPorOmision && !c.empty())
+            return ba::i18n::traducir("salidas", "el codificador de la salida por omisión es el de la configuración");
+        s->codificador = c;
+    }
     if (cambios.contains("nombre")) {
         const std::string n = cambios.value("nombre", std::string());
         s->nombre = n.empty() ? s->id : n;
@@ -118,9 +145,57 @@ std::string editar(Lista& l, const std::string& id, const json& cambios) {
     return {};
 }
 
+bool ponerMando(Lista& l, const std::string& id, const std::string& fuente, const Mando& m) {
+    if (id.empty() || id == kPorOmision || fuente.empty()) return false;
+    for (auto& s : l.salidas)
+        if (s.id == id) {
+            const auto it = s.mezcla.find(fuente);
+            if (it != s.mezcla.end() && it->second == m) return false;
+            s.mezcla[fuente] = m;
+            return true;
+        }
+    return false;
+}
+
 std::string salidaDeDestino(const json& destino) {
     const std::string s = destino.is_object() ? destino.value("salida", std::string()) : std::string();
     return s.empty() ? std::string(kPorOmision) : s;
+}
+
+int destinosDe(const json& destinos, const std::string& salida) {
+    int n = 0;
+    if (destinos.is_array())
+        for (const auto& d : destinos)
+            if (salidaDeDestino(d) == salida) ++n;
+    return n;
+}
+
+std::string destinosDeBorrada(json& destinos, const Lista& l, const std::string& salida, const std::string& aDonde,
+                              std::vector<std::string>* borrados) {
+    const int n = destinosDe(destinos, salida);
+    if (n == 0) return {};
+    if (aDonde.empty())
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "«%1» tiene %2 destinos guardados: decí si pasan a otra salida "
+                                                              "(su id) o se borran («borrar»)"),
+                                {salida, std::to_string(n)});
+    const bool borrar = aDonde == "borrar";
+    if (!borrar && (aDonde == salida || l.buscar(aDonde) == nullptr))
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "los destinos no pueden pasar a «%1»: tiene que ser otra salida"),
+                                {aDonde});
+    json quedan = json::array();
+    for (auto d : destinos) {
+        if (salidaDeDestino(d) != salida) {
+            quedan.push_back(std::move(d));
+        } else if (borrar) {
+            if (borrados != nullptr) borrados->push_back(d.value("id", std::string()));
+        } else {
+            if (aDonde == kPorOmision) d.erase("salida");
+            else d["salida"] = aDonde;
+            quedan.push_back(std::move(d));
+        }
+    }
+    destinos = std::move(quedan);
+    return {};
 }
 
 const Aire& AlAire::de(const std::string& id) const {

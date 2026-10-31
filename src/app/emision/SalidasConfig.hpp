@@ -4,9 +4,12 @@
 // docs/planes/PLAN-SALIDAS.md, etapa 2. Lo que se guarda de las salidas, en JSON
 // puro (lo usan AppRuntime y BroadcastEngine; los tests lo prueban sin motor):
 //
-//   Config/salidas.json   {"tope": 4, "salidas": [{id, nombre, color, orden}]}
+//   Config/salidas.json   {"tope": 4, "salidas": [{id, nombre, color, orden, codificador?,
+//                         mezcla?: {<fuente>: {volumen, mute}}}]}
 //                         La por omisión («principal») está siempre, aunque el
-//                         archivo no exista o no la nombre: es la de siempre.
+//                         archivo no exista o no la nombre: es la de siempre. Su
+//                         mezcla y su codificador son los de siempre (la escena y
+//                         app.json); los de las demás van acá y vuelven al arrancar.
 //   Config/destinos.json  cada destino con `salida` (sin campo = la por omisión).
 //   Runtime/al-aire.json  EL DOCUMENTO DE AIRE (F3-04): lo único que dice qué está al
 //                         aire. Lo de siempre (streaming, recording, escena, cerrado)
@@ -38,11 +41,23 @@ inline constexpr const char* kPorOmision = "principal";
 inline constexpr int kTopeDeFabrica = 4;
 inline constexpr int kTopeMaximo = 16;
 
+/// El fader (lineal) y el mute de una fuente en la mezcla de una salida.
+struct Mando {
+    double volumen = 1.0;
+    bool mute = false;
+    bool operator==(const Mando&) const = default;
+};
+
 struct Salida {
     std::string id;
     std::string nombre;
     std::string color; ///< "#RRGGBB": el del tally, el multiview y las superficies
     int orden = 0;
+    /// El codificador de video que pide (un alias de EncoderConfig::videoEncoder: auto,
+    /// nvenc, qsv, amf, vaapi, videotoolbox, x264); "" = el de la configuración.
+    std::string codificador;
+    /// Lo que se movió en su mezcla (las demás; la por omisión lo guarda en la escena).
+    std::map<std::string, Mando> mezcla;
 };
 
 struct Lista {
@@ -61,13 +76,25 @@ std::string validarId(const std::string& id);
 std::string agregar(Lista& l, Salida s);
 /// La saca (la por omisión no). "" o por qué no.
 std::string quitar(Lista& l, const std::string& id);
-/// Cambia nombre y color (lo que traiga `cambios`). "" o por qué no.
+/// Cambia nombre, color y codificador (lo que traiga `cambios`; `codificador` "" = el de la
+/// configuración, y la por omisión no lleva: el suyo es el de la configuración). "" o por qué no.
 std::string editar(Lista& l, const std::string& id, const nlohmann::json& cambios);
+/// Anota el fader y el mute de `fuente` en la mezcla de la salida `id`. false si no está
+/// (o es la por omisión) o si ya estaba así (no hay nada que guardar).
+bool ponerMando(Lista& l, const std::string& id, const std::string& fuente, const Mando& m);
 /// El color que le toca a la salida número `n` (0 = la por omisión) si no eligió uno.
 std::string colorDeFabrica(int n);
 
 /// La salida de un destino de destinos.json (sin campo, o vacío = la por omisión).
 std::string salidaDeDestino(const nlohmann::json& destino);
+/// Cuántos destinos de `destinos` (destinos.json) salen con `salida`.
+int destinosDe(const nlohmann::json& destinos, const std::string& salida);
+/// Qué pasa con los destinos de la salida `salida` que se borra: una decisión, nunca
+/// basura. `aDonde` = "borrar" los saca de `destinos` (sus ids van a `borrados`, para
+/// sacar sus claves); el id de otra salida de `l` los pasa a ella (a la por omisión:
+/// sin campo). Vacío solo si no tiene ninguno. "" o por qué no (sin tocar `destinos`).
+std::string destinosDeBorrada(nlohmann::json& destinos, const Lista& l, const std::string& salida,
+                              const std::string& aDonde, std::vector<std::string>* borrados);
 
 /// El negro (FTB) y la placa de seguridad de una salida, encima de todo lo que sale
 /// (emision/SeguridadAire). Las claves en JSON son las de BroadcastEngine::estadoPlaca.

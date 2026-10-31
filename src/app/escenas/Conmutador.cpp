@@ -91,6 +91,7 @@ std::string Conmutador::tbar(double t, bool soltar) {
     const std::string sale = alAire();
     bool llego = false;
     if (!rt_.engine().transicionManual(entra, static_cast<float>(t), soltar, &llego, salida_)) return rt_.engine().lastError();
+    tbarPos_ = soltar || llego ? 0.0 : std::clamp(t, 0.0, 1.0);
     if (llego) {
         if (salida_ == kPorOmision) rt_.config().currentScene = entra;
         aplicarAfv(entra, 0);

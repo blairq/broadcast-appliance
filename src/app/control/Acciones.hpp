@@ -60,7 +60,8 @@ class Acciones : public QObject {
         std::function<std::vector<std::string>()> escenas;
         std::function<std::vector<std::string>()> fuentesAudio;
         std::function<bool(const std::string& fuente, const std::string& salida)> mudo;
-        std::function<bool(int capa)> dskArriba;
+        /// ¿La capa está arriba en esa salida? ("" = la por omisión: cada una sube las suyas).
+        std::function<bool(int capa, const std::string& salida)> dskArriba;
         /// El estante de la línea de tiempo: [{id, texto, esPaso}] (lo pone LineaViewModel).
         std::function<json()> estante;
     };

@@ -6,8 +6,9 @@
 // Acá se crean (hasta el tope, mirando el margen de la máquina: lo mismo que dice
 // sistema_recursos), se les pone nombre y color (el del tally, el multiview y las
 // superficies), se elige cuál maneja esta interfaz, se ven sus destinos y su
-// grabación, y se borran. Todo sale de Studio.salidas (el modelo avisa); esta vista
-// solo muestra y pide.
+// grabación, se elige su codificador y se borran (con sus destinos guardados: pasan
+// a otra salida o se borran, lo que se decida). Todo sale de Studio.salidas (el
+// modelo avisa); esta vista solo muestra y pide.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -42,6 +43,70 @@ Rectangle {
     }
 
     DialogoDestino { id: nuevoDestino }
+
+    // Borrar una salida: lo que sale de ella se corta; sus destinos guardados, a otra
+    // salida o borrados (una decisión: nunca quedan colgados).
+    Popup {
+        id: borrarDlg
+        property string salida: ""
+        property string nombre: ""
+        property int destinos: 0
+        /// Las otras salidas (a donde pueden pasar sus destinos) y, al final, borrarlos:
+        /// se arman al abrir (mientras está abierto es modal: no cambian).
+        property var opciones: []
+        function abrir(id, n, cuantos) {
+            const out = []
+            for (let i = 0; i < Studio.salidas.count; ++i) {
+                const f = Studio.salidas.fila(i)
+                if (f.uid !== id) out.push({ value: f.uid, label: qsTr("Pasarlos a «%1»").arg(f.nombre) }) // fila(): «id» es «uid»
+            }
+            out.push({ value: "borrar", label: qsTr("Borrarlos (con su clave)") })
+            salida = id; nombre = n; destinos = cuantos; opciones = out
+            aDonde.currentIndex = 0
+            open()
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        padding: 16
+        width: 440
+        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+            Text { text: qsTr("¿Borrar «%1»?").arg(borrarDlg.nombre); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: qsTr("Se corta todo lo que sale por ella (transmisión, destinos, grabación) y desaparece.")
+                color: Theme.textDim; font.pixelSize: 12
+            }
+            Text {
+                visible: borrarDlg.destinos > 0
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: qsTr("Tiene %n destino(s) guardado(s): ¿qué pasa con ellos?", "", borrarDlg.destinos)
+                color: Theme.text; font.pixelSize: 12
+            }
+            ComboBox {
+                id: aDonde
+                visible: borrarDlg.destinos > 0
+                Layout.fillWidth: true
+                model: borrarDlg.opciones
+                textRole: "label"
+                valueRole: "value"
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: borrarDlg.close() }
+                GlassButton {
+                    compact: true; active: true; activeColor: Theme.live; text: qsTr("Borrar")
+                    onClicked: {
+                        const e = Studio.borrarSalida(borrarDlg.salida, borrarDlg.destinos > 0 ? aDonde.currentValue : "")
+                        if (e !== "") Studio.notify(e, "error"); else borrarDlg.close()
+                    }
+                }
+            }
+        }
+    }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -109,7 +174,7 @@ Rectangle {
                         color: page.nueva.puede === false ? Theme.live : page.nueva.aviso ? Theme.amber : Theme.textFaint
                         font.pixelSize: 11
                     }
-                    Text { text: qsTr("Codificador: %1 (el mismo para todas)").arg(Studio.encoder || "—"); color: Theme.textFaint; font.pixelSize: 11 }
+                    Text { text: qsTr("Codificador en uso: %1").arg(Studio.encoder || "—"); color: Theme.textFaint; font.pixelSize: 11 }
                 }
             }
         }
@@ -212,6 +277,33 @@ Rectangle {
                                     }
                                 }
                             }
+                            // Su codificador de video: la por omisión, el de la configuración; las
+                            // demás pueden pedir otro (rige desde lo próximo que arranque en ella).
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Text { text: qsTr("Codificador"); color: Theme.textDim; font.pixelSize: 12 }
+                                Text {
+                                    visible: tarjeta.porOmision
+                                    Layout.fillWidth: true; elide: Text.ElideRight
+                                    text: qsTr("el de la configuración")
+                                    color: Theme.textFaint; font.pixelSize: 12
+                                }
+                                ComboBox {
+                                    visible: !tarjeta.porOmision
+                                    Layout.fillWidth: true
+                                    model: [{ value: "", label: qsTr("El de la configuración") }].concat(Studio.settings.codificadores)
+                                    textRole: "label"
+                                    valueRole: "value"
+                                    currentIndex: Math.max(0, model.findIndex(o => o.value === (tarjeta.model.codificador || "")))
+                                    onActivated: (i) => {
+                                        const e = Studio.setCodificadorSalida(tarjeta.salida, model[i].value)
+                                        if (e !== "") Studio.notify(e, "error")
+                                    }
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: qsTr("El de video de esta salida: rige desde lo próximo que arranque en ella (transmisión, destino o grabación)")
+                                }
+                            }
                             // Sus destinos (salen con su programa).
                             Text { text: qsTr("Destinos"); color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } }
                             Text {
@@ -253,15 +345,7 @@ Rectangle {
                                 GlassButton {
                                     compact: true; visible: !tarjeta.porOmision
                                     text: qsTr("Borrar salida")
-                                    onClicked: {
-                                        const id = tarjeta.salida, n = tarjeta.model.nombre
-                                        ApplicationWindow.window.confirm({
-                                            title: qsTr("¿Borrar «%1»?").arg(n),
-                                            text: qsTr("Se corta todo lo que sale por ella (transmisión, destinos, grabación) y desaparece. Sus destinos quedan guardados: vuelven si se crea otra salida con el mismo nombre."),
-                                            accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
-                                            action: function() { const e = Studio.borrarSalida(id); if (e !== "") Studio.notify(e, "error") }
-                                        })
-                                    }
+                                    onClicked: borrarDlg.abrir(tarjeta.salida, tarjeta.model.nombre, tarjeta.destinos.length)
                                 }
                             }
                         }

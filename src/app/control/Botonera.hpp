@@ -83,8 +83,9 @@ class Botonera : public QObject {
             ejecutar;
         /// Las salidas del aparato: [{id, nombre, color, por_omision}], la por omisión primera.
         std::function<json()> salidas;
-        /// ¿Esta llamada cambia el aire y ahora hay aire? (pide confirmación).
-        std::function<bool(const std::string& herramienta, const json& args)> deAireAhora;
+        /// ¿Esta llamada cambia el aire y ahora sale la salida que toca? (pide confirmación).
+        /// `salida`: la que maneja el aparato (la de una herramienta de salida, si no dice otra).
+        std::function<bool(const std::string& herramienta, const json& args, const std::string& salida)> deAireAhora;
         /// Para las plantillas: escenas, fuentes de audio, bancas.
         std::function<std::vector<std::string>()> escenas;
         std::function<std::vector<std::string>()> fuentesAudio;
