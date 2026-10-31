@@ -1112,6 +1112,8 @@ void McpService::registerTools() {
     registerPreguntaTools(core_, vm_, rt_);
 
     AppRuntime& rt = rt_;
+    // Si corre con --test: de la configuración que publica el dueño (la foto), sin entrar.
+    const bool modoPrueba = vm_.ventanilla().foto().configuracion.app->modoPrueba;
     StudioViewModel& vm = vm_;
     const auto persist = [&rt]() { rt.save(); };
     // La invariante, puesta una vez y para todas: lo que se toca por MCP queda
@@ -3559,7 +3561,7 @@ void McpService::registerTools() {
                          {"properties",
                           {{"priorizar", {{"type", "boolean"}}},
                            {"modo", {{"type", "string"}, {"enum", {"preguntar", "auto", "nunca"}}}}}}};
-        if (rt.config().modoPrueba)
+        if (modoPrueba)
             t.inputSchema["properties"]["probar_trabado_ms"] = {
                 {"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo con --test: la grabación del programa, como con el disco trabado tantos ms.")}};
         // Solo el motor y la configuración: en el dueño (F3-03).
@@ -3582,7 +3584,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
-    if (rt.config().modoPrueba) {
+    if (modoPrueba) {
         // Solo con --test: para probar que una caída deja su volcado bien hecho
         // (diag/Caidas.cpp + launcher/Volcados.cpp). Tira la app abajo.
         Tool t;
@@ -3626,7 +3628,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
-    if (rt.config().modoPrueba) {
+    if (modoPrueba) {
         // Solo con --test: la interfaz trabada a propósito (un bucle ocupado en su
         // hilo), para probar lo que tiene que seguir andando sin ella: el latido, el
         // aire y la alarma al control web y a los notificadores (F1-13, banco de caos).
@@ -3652,7 +3654,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
-    if (rt.config().modoPrueba) {
+    if (modoPrueba) {
         // Solo con --test: el banco de caos (tools/caos/) rompe a propósito el codificador
         // o el sumidero de una salida a los N s (FallasProgramadas → motor/Fallas.hpp).
         Tool t;
