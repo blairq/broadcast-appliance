@@ -29910,11 +29910,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>A configuração “%1” estava danificada: foi carregada a versão anterior (a danificada ficou como .corrupto).</translation>
     </message>
     <message>
-        <location line="+118" />
-        <source>Modo seguro</source>
-        <translation>Modo seguro</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>O aplicativo fechou várias vezes seguidas e iniciou em modo seguro: suas cenas não foram carregadas (não foram apagadas). Feche e abra de novo para tentar a inicialização normal.</translation>
@@ -30147,11 +30142,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>Não foi possível adicionar a pergunta: %1</translation>
     </message>
     <message>
-        <location line="+71" />
-        <source>Nombres del cuerpo: %1</source>
-        <translation>Nomes do colegiado: %1</translation>
-    </message>
-    <message>
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>Novo dia: a conferência tem PIN novo (%1)</translation>
@@ -30295,6 +30285,17 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 fecha o aplicativo e %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AsistenteViewModel</name>
+    <message>
+        <source>Modo seguro</source>
+        <translation>Modo seguro</translation>
+    </message>
+    <message>
+        <source>Nombres del cuerpo: %1</source>
+        <translation>Nomes do colegiado: %1</translation>
     </message>
 </context>
 <context>

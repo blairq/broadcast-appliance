@@ -30029,11 +30029,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Конфигурация «%1» была повреждена: загружена предыдущая версия (повреждённая сохранена как .corrupto).</translation>
     </message>
     <message>
-        <location line="+118" />
-        <source>Modo seguro</source>
-        <translation>Безопасный режим</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>Приложение несколько раз подряд закрылось и запустилось в безопасном режиме: ваши сцены не загружены (но и не удалены). Закройте и откройте снова, чтобы попробовать обычный запуск.</translation>
@@ -30266,11 +30261,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Не удалось добавить вопрос: %1</translation>
     </message>
     <message>
-        <location line="+71" />
-        <source>Nombres del cuerpo: %1</source>
-        <translation>Имена состава: %1</translation>
-    </message>
-    <message>
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>Новый день: у конференции новый PIN (%1)</translation>
@@ -30417,6 +30407,17 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AsistenteViewModel</name>
+    <message>
+        <source>Modo seguro</source>
+        <translation>Безопасный режим</translation>
+    </message>
+    <message>
+        <source>Nombres del cuerpo: %1</source>
+        <translation>Имена состава: %1</translation>
     </message>
 </context>
 <context>

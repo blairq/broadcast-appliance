@@ -29,6 +29,7 @@
 #include "emision/SeguridadAire.hpp"
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AsambleaViewModel.hpp"
+#include "ui/AsistenteViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
 #include "ui/CuentasViewModel.hpp"
 #include "ui/EmisionViewModel.hpp"
@@ -254,7 +255,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     // La configuración chica que se guarda (modelo): se lee una vez, acá.
     modoVivoCfg_ = std::make_unique<config::ModoVivoConfig>(rt.dataRoot());
-    rotulo_ = std::make_unique<agent::RotuloTraduccionConfig>(rt.dataRoot());
     ajustesEscenas_ = std::make_unique<escenas::AjustesEscenas>(rt.dataRoot());
     interfaz_ = std::make_unique<config::InterfazConfig>(rt.dataRoot());
     // El arranque, medido: cada etapa que tarde más de 150 ms queda en el registro
@@ -688,11 +688,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             .sala = *conference_,
             .chat = *chatOverlay_,
             .recursos = [this]() { return recursos_.get(); },
-            .flujos = [this]() { return flujos_.get(); },
+            .flujos = [this]() { return asistente_ ? &asistente_->flujos() : nullptr; },
             .video = [this]() { return video_.get(); }});
         connect(alarmas_.get(), &AlarmasViewModel::notify, this, &StudioViewModel::notify);
         marca("alerts");
-        vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
         bus_ = std::make_unique<control::BusEventos>();
         // Cada disparo, al bus (lo ve el control web).
         alarmas_->setPublicar([this](const std::string& tema, const nlohmann::json& d) { bus_->publicar(tema, d, true); });
@@ -772,194 +771,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                 .arg(QString::fromStdString(configRecuperada())),
                             "warn");
             });
-        agent_ = std::make_unique<agent::AgentViewModel>(rt, alarmas_->motor(), "evento");
-        // El de automatización: el que recibe las alertas (siempre levantado).
-        agenteAuto_ = std::make_unique<agent::AgentViewModel>(rt, alarmas_->motor(), "automatizacion");
-        marca("agent");
-        connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
-        connect(agenteAuto_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
-        // Reiniciada con una conversación para retomar (--reanudar-asistente=<id>|<proveedor>|<modelo>,
-        // ver el reinicio de Configuraciones): el asistente arranca con ella y se muestra.
-        for (const QString& a : QCoreApplication::arguments())
-            if (a.startsWith("--reanudar-asistente=")) {
-                const QStringList p = a.mid(21).split('|');
-                QString evento;
-                for (const QString& b : QCoreApplication::arguments())
-                    if (b.startsWith("--asistente-evento=")) evento = b.mid(19);
-                const QString seguir =
-                    evento.isEmpty() ? QString()
-                                     : QCoreApplication::translate(
-                                           "asistente",
-                                           "La app se reinició y ya está abierto el evento «%1». Si estabas en medio "
-                                           "de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.")
-                                           .arg(evento);
-                agent_->reanudarAlArrancar(p.value(0), p.value(1), p.mid(2).join('|'), seguir);
-            }
-        // Las reglas las cambia el motor (interfaz, MCP, plugins): la lista del
-        // asistente se entera por él, sin que cada llamador se acuerde de avisar.
-        connect(&alarmas_->motor(), &agent::AlertEngine::reglasCambio, agent_.get(), &agent::AgentViewModel::alertsChanged);
-        connect(&alarmas_->motor(), &agent::AlertEngine::reglasCambio, agenteAuto_.get(), &agent::AgentViewModel::alertsChanged);
-        // Los roles automaticos: un disparo que un rol activo reclama va a un
-        // agente de un tiro y NO al chat del asistente interactivo.
-        roles_ = std::make_unique<agent::Roles>(rt.dataRoot() / "Config" / "roles.json");
-        marca("roles");
-        despachador_ = std::make_unique<agent::Despachador>(*roles_, agent_->motores());
-        agent_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
-        agenteAuto_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
-        marca("despachador");
-        // Los manuales de usuario (Configuración → Sistema → Manuales): los arma el asistente de evento.
-        manuales_ = std::make_unique<ManualesViewModel>(ManualesViewModel::Partes{
+        // Los asistentes, la voz, las salidas de texto y la barra de mensajes (ui/AsistenteViewModel).
+        asistente_ = std::make_unique<AsistenteViewModel>(AsistenteViewModel::Partes{
+            .rt = rt,
+            .alarmas = *alarmas_,
+            .sala = *conference_,
+            .evento = evento_.get(),
             .enVivo = [this]() { return modoVivo(); },
-            .encargar = [this](const QString& t) { if (agent_) agent_->encargar(t); },
-            .faltaAsistente = [this]() { return agent_ ? agent_->faltaParaEncargo() : QString("El asistente no está disponible."); },
-            .paginas = []() { return RielConfig::idsDePaginas(); }});
-        connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
-        // Las alertas las recibe el de automatización: él se las ofrece primero a los roles
-        // (una sola vez por alerta; el del evento ya no las mira).
-        agenteAuto_->setReclamado([this](const nlohmann::json& ev) { return despachador_->evento(ev); });
-        // El modelo local: sus archivos en Modelos/ (portable), el motor junto a ba-app.
-        modelos_ =
-            std::make_unique<agent::ModelosLocales>(rt.dataRoot(), QCoreApplication::applicationDirPath());
-        connect(modelos_.get(), &agent::ModelosLocales::notify, this, &StudioViewModel::notify);
-        QTimer::singleShot(0, modelos_.get(), [m = modelos_.get()]() { m->arrancarSiCorresponde(); });
-        voz_ = std::make_unique<agent::Voz>(rt, *modelos_);
-        marca("voz");
-        modelos_->setProbadorTc([v = voz_.get()](const QString& frase, agent::ModelosLocales::Respuesta r) {
-            v->probarTc(frase, std::move(r));
-        });
-        connect(voz_.get(), &agent::Voz::notify, this, &StudioViewModel::notify);
-        vozPrompter_ = std::make_unique<agent::VozPrompter>(rt, *voz_, conference_.get());
-        marca("vozPrompter");
-        // El modelo local como motor de agentes y del asistente (proveedor «local»).
-        if (agent_) {
-            agent::Voz* v = voz_.get();
-            agent_->setLocal([v](const QString& quien, const QString& texto, bool disparador) {
-                v->atenderDesde(texto, quien, disparador);
-            });
-            // El chat del modelo local (pi + llama-server): qué .gguf y cómo bajar el que falta.
-            for (agent::AgentViewModel* a : {agent_.get(), agenteAuto_.get()})
-                a->setModeloChat(
-                    [m = modelos_.get()](const QString& pedido, QString* falta, QString* repo) {
-                        return m->ggufParaChat(pedido, falta, repo);
-                    },
-                    [m = modelos_.get()](const QString& repo) { m->descargar(repo); });
-            // El llama-server carga la visión del modelo (--mmproj) si está bajada: la usan
-            // el chat y el tótem (el dorso de un documento). Quién va con qué, ModelosLocales.
-            agent::ServidorModeloLocal::el().setMmprojPara(
-                [m = modelos_.get()](const QString& gguf) { return m->mmprojPara(gguf); });
-            agenteAuto_->setLocal([v](const QString& quien, const QString& texto, bool disparador) {
-                v->atenderDesde(texto, quien, disparador);
-            });
-            v->setAsistenteGrande([a = agent_.get()]() { return a->asistenteGrande(); });
-            v->setAsistenteLocal([a = agent_.get()]() { return a->asistenteLocal(); });
-        }
-        // El micrófono del operador se cambia en Configuración: Sala lo muestra.
-        connect(voz_.get(), &agent::Voz::cambio, conference_.get(), &ConferenceViewModel::operatorChanged);
-        // Barra de mensajes del asistente al operador (y respuestas a invitados).
-        messages_ = std::make_unique<OperatorMessages>();
-        marca("messages");
-        if (ba::fault::delProceso().activo()) {
-            // El launcher arrancó en modo seguro tras varias caídas (F1-10): que el
-            // operador sepa qué se apagó (nivel 1-2: las escenas están) o por qué
-            // no ve sus escenas (nivel 3).
-            messages_->post({{"kind", "message"},
-                             {"priority", "critical"},
-                             {"title", tr("Modo seguro").toStdString()},
-                             {"text", ba::fault::delProceso().aviso()}});
-        }
-        messages_->setChatSender([this](const QString& to, const QString& text) {
-            conference_->sendChat(to, text);
-            return QString();
-        });
-        messages_->setCredentialSink([this](const QString& platform, const QVariantMap& values) {
-            return cuentas_->saveAccountCredential(platform, values);
-        });
-        messages_->setLateAnswerSink([this](const nlohmann::json& item) {
-            const std::string kind = item.value("kind", "");
-            const std::string st = item.value("status", "");
-            const QString text = QString::fromStdString(item.value("text", ""));
-            const QString answer = QString::fromStdString(item.value("answer", ""));
-            // Sin el nombre (lo eligio el invitado): solo su id.
-            const QString who = QCoreApplication::translate("asistente", "el invitado %1")
-                                    .arg(QString::fromStdString(item.value("participantId", "?")));
-            // Las marcas «[OPERADOR]» y «[RESPUESTA DEL OPERADOR]» no se traducen: la ayuda
-            // del MCP y las descripciones de las herramientas le dicen al asistente que las busque.
-            const QString op = QStringLiteral("[OPERADOR] ");
-            QString note;
-            if (kind == "question")
-                note = st == "answered" ? QStringLiteral("[RESPUESTA DEL OPERADOR] ") +
-                                              QCoreApplication::translate("asistente", "a tu pregunta \"%1\": %2")
-                                                  .arg(text, answer)
-                                        : op + QCoreApplication::translate("asistente", "descarto tu pregunta \"%1\".")
-                                                   .arg(text);
-            else if (kind == "reply")
-                note = st == "sent" ? op + QCoreApplication::translate("asistente", "le mando a %1: \"%2\"").arg(who, answer)
-                                    : op + QCoreApplication::translate("asistente", "ignoro el mensaje de %1.").arg(who);
-            else if (kind == "credential") {
-                const QString p = QString::fromStdString(item.value("platform", ""));
-                if (p.startsWith("camaras:"))
-                    note = op + (st == "saved"
-                                     ? QCoreApplication::translate(
-                                           "asistente",
-                                           "guardo usuario y clave de las camaras %1 (las que dejo sin clave, no). "
-                                           "Siguiente paso: camara_ficha de cada una.")
-                                           .arg(p.mid(8))
-                                     : QCoreApplication::translate(
-                                           "asistente", "cerro el formulario de las camaras %1 sin guardar.")
-                                           .arg(p.mid(8)));
-                else if (p.startsWith("camara:"))
-                    note = op + (st == "saved"
-                                     ? QCoreApplication::translate(
-                                           "asistente",
-                                           "guardo usuario y clave de la camara %1. Siguiente paso: camara_ficha {\"ip\": \"%1\"}.")
-                                           .arg(p.mid(7))
-                                     : QCoreApplication::translate(
-                                           "asistente", "cerro el formulario de la camara %1 sin guardar.")
-                                           .arg(p.mid(7)));
-                else
-                    note = op + (st == "saved"
-                                     ? QCoreApplication::translate(
-                                           "asistente", "guardo la credencial de %1. Siguiente paso: %1_login.")
-                                           .arg(p)
-                                     : QCoreApplication::translate(
-                                           "asistente", "cerro el formulario de credenciales de %1 sin guardar.")
-                                           .arg(p));
-            }
-            // Al asistente que lo pidió (el de automatización atiende el lobby y los avisos).
-            if (!note.isEmpty())
-                (item.value("asistente", "") == "automatizacion" ? agenteAuto_ : agent_)->deliverNote(note);
-        });
-    }
-    // Las salidas de texto (antes que la Voz las use).
-    flujos_ = std::make_unique<agent::FlujosTexto>(rt.dataRoot());
-    if (evento_) flujos_->setCarpetaDelEvento([this]() { return evento_->carpetaEvento(); });
-    marca("flujos");
-    // El puesto web del corrector de subtítulos (/correccion/, T44).
-    puestoCorreccion_ = std::make_unique<PuestoCorreccion>(static_cast<ConferenceViewModel*>(conference_.get())->client(),
-                                                           *flujos_, this);
-    // Los cuadros «Subtítulos» de las escenas muestran una salida de texto.
-    subtitulos_ = std::make_unique<agent::Subtitulos>(*flujos_);
-    // Subtítulos ocultos (CC) en la transmisión: 608 o la API de YouTube.
-    cc_ = std::make_unique<agent::SubtitulosCC>(*flujos_, rt.dataRoot(), [this](const QString& t, double s) {
-        return rt_.engine().enviarCaption(t.toStdString(), s);
-    });
-    // «Traducción automática» rotulada mientras sale una traducción (pantalla o CC).
-    rotuloApagar_.setSingleShot(true);
-    connect(&rotuloApagar_, &QTimer::timeout, this, [this]() {
-        if (control_) control_->dsk().mostrar(rotulo_->capa(), false, true);
-    });
-    connect(flujos_.get(), &agent::FlujosTexto::fraseConOrigen, this,
-            [this](const QString& flujo, const QString&, const QString& origen) { rotularTraduccion(flujo, origen); });
-    if (voz_) voz_->setFlujos(flujos_.get());
-    // Las tarjetas «Texto a voz»: dicen lo que llega por una salida de texto.
-    if (modelos_) {
-        voces_ = std::make_unique<agent::VocesRack>(*modelos_);
-        marca("voces");
-        voces_->setFlujos(flujos_.get());
-        voces_->setVozSistema([v = voz_.get()]() { return v != nullptr ? v->vozElegida() : QString(); });
-        // La traducción en vivo: de una salida de texto a otra, en otro idioma.
-        traductor_ = std::make_unique<agent::Traductor>(rt.dataRoot(), *modelos_, *flujos_);
-        marca("traductor");
+            .guardarCredencial = [this](const QString& pl, const QVariantMap& v) { return cuentas_->saveAccountCredential(pl, v); },
+            .dsk = [this]() { return control_ ? &control_->dsk() : nullptr; },
+            .cuerpo = [this]() { return asamblea_ ? &asamblea_->cuerpo().cuerpo() : nullptr; }});
+        connect(asistente_.get(), &AsistenteViewModel::notify, this, &StudioViewModel::notify);
+        marca("asistente");
     }
     // La documentación del evento (docs/): cada cambio republica la web del evento.
     documentos_ = std::make_unique<DocumentosViewModel>([&rt]() { return rt.dataRoot(); });
@@ -968,9 +791,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Los PDF en las escenas: la lista para elegir es la documentación del evento.
     pdfEscena_ = std::make_unique<PdfEscena>(rt);
     connect(documentos_.get(), &DocumentosViewModel::cambio, pdfEscena_.get(), &PdfEscena::refrescarDocumentos);
-    // Lo que no anda de la IA, junto (la pastilla «IA» y ia_estado).
-    estadoIA_ = std::make_unique<agent::EstadoIA>(agent_.get(), modelos_.get(), voz_.get(), vozPrompter_.get(),
-                                                  traductor_.get());
     inputs_ = std::make_unique<InputsViewModel>(rt, *this);
     marca("inputs");
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
@@ -1214,7 +1034,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                       video_.get(), camaras_.get());
     marca("red");
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
-    plugins_ = std::make_unique<plugins::Plugins>(rt, video_.get(), camaras_.get(), messages_.get());
+    plugins_ = std::make_unique<plugins::Plugins>(rt, video_.get(), camaras_.get(), &asistente_->mensajes());
     // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)
     // y los temas de la app les llegan a los que escuchan.
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
@@ -1250,7 +1070,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         .camaras = *camaras_,
         .plugins = [this]() { return plugins_.get(); },
         .evento = evento_.get(),
-        .archivosDeSesion = [this]() { return flujos_ ? flujos_->archivosDeSesion() : QStringList{}; }});
+        .archivosDeSesion = [this]() { return asistente_->flujos().archivosDeSesion(); }});
     connect(asamblea_.get(), &AsambleaViewModel::notify, this, &StudioViewModel::notify);
     bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
         if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
@@ -1294,7 +1114,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                                  "dispositivos.json");
     marca("dispositivos");
     dispositivos::registrarTodo(*dispositivos_, {red_.get(), plugins_.get(), video_.get(), camaras_.get(),
-                                                 messages_.get(), &rt, inputs_.get()});
+                                                 &asistente_->mensajes(), &rt, inputs_.get()});
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());
@@ -1306,40 +1126,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El mezclador de las tarjetas la nota en su vuelta de 100 ms (reload = modelReset).
     connect(mixer_.get(), &QAbstractItemModel::modelReset, audio_.get(), [this]() { audio_->refresh(); });
     marca("audio");
-    if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
-    // Las salidas de texto: las de las tarjetas «Voz a texto» y las traducidas.
-    flujos_->setConfig([r = racks_.get(), t = traductor_.get()](const QString& flujo) {
-        nlohmann::json c = r->textoDe(flujo.toStdString());
-        if (c.is_null() && t != nullptr) c = t->salidaDe(flujo.toStdString());
-        return c;
-    });
-    flujos_->setLista([r = racks_.get(), t = traductor_.get()]() {
-        nlohmann::json l = r->textos();
-        if (t != nullptr)
-            for (const auto& s : t->salidas())
-                l.push_back(s);
-        return l;
-    });
-    if (voces_) {
-        voces_->setRacks(racks_.get());
-        connect(racks_.get(), &audio::RackManager::changed, voces_.get(), &agent::VocesRack::cambio);
-    }
-    connect(racks_.get(), &audio::RackManager::changed, flujos_.get(), &agent::FlujosTexto::cambio);
-    // Cada traducción es una tarjeta «Traducir» de un rack.
-    if (traductor_) {
-        auto* r = racks_.get();
-        traductor_->setTarjetas(
-            {[r]() { return r->traducciones(); },
-             [r](const nlohmann::json& t, std::string* id) {
-                 std::string e;
-                 *id = r->addTraduccion(t, &e);
-                 return e;
-             },
-             [r](const std::string& id, const nlohmann::json& c) { return r->setTraduccionOpciones(id, c); },
-             [r](const std::string& id) { return r->quitarTraduccion(id); }});
-        connect(racks_.get(), &audio::RackManager::changed, traductor_.get(), &agent::Traductor::sincronizar);
-        connect(racks_.get(), &audio::RackManager::editado, traductor_.get(), &agent::Traductor::sincronizar);
-    }
+    // La voz, las salidas de texto, las tarjetas «Texto a voz» y las traducciones, con los racks.
+    asistente_->conRacks(*racks_);
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
     marca("matriz");
     // El ruteo (escucha, pistas) es del motor: cuando cambia, por el camino que sea,
@@ -1475,20 +1263,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         }
     }
     // La atención a quien se conecta (Sala y Asamblea): con todo lo que usa ya armado.
-    if (voz_ && modelos_ && despachador_) {
-        atencion_ = std::make_unique<AtencionViewModel>(rt, *this, *voz_, *modelos_);
+    {
+        atencion_ = std::make_unique<AtencionViewModel>(rt, *this, asistente_->voz(), asistente_->modelos());
         connect(atencion_.get(), &AtencionViewModel::notify, this, &StudioViewModel::notify);
         marca("atencion");
     }
     // El registro de personas por tótem (docs/funciones/REGISTRO-TOTEM.md): con la
     // atención (su voz), Personas, el evento y la sala ya armados. Existe aunque
     // no haya motor de voz: la configuración y el catálogo no dependen de él.
-    totems_ = std::make_unique<TotemsViewModel>(rt, *this, voz_.get(), modelos_.get());
+    totems_ = std::make_unique<TotemsViewModel>(rt, *this, &asistente_->voz(), &asistente_->modelos());
     connect(totems_.get(), &TotemsViewModel::notify, this, &StudioViewModel::notify);
     // El modelo que entiende en los tótems es el del rol «registro» (pestaña Agentes): si lo
     // cambian (motor, modelo, apagarlo), la página de tótems dice con qué entiende.
-    if (roles_) totems_->setRoles(roles_.get());
-    if (despachador_) connect(despachador_.get(), &agent::Despachador::cambio, totems_.get(), &TotemsViewModel::cambio);
+    totems_->setRoles(&asistente_->roles());
+    connect(&asistente_->despachador(), &agent::Despachador::cambio, totems_.get(), &TotemsViewModel::cambio);
     if (catalogo_) connect(totems_.get(), &TotemsViewModel::cambio, catalogo_.get(), [this]() { catalogo_->refrescar(); });
     if (qr_) qr_->setTotems([this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; });
     if (catalogo_) catalogo_->refrescar();
@@ -1530,7 +1318,7 @@ StudioViewModel::~StudioViewModel() {
     // pregunten la carpeta a un EventoViewModel que ya no está.
     rt_.setCarpetaDelEvento(nullptr);
     if (video_) video_->setEstimadorSr(nullptr);
-    if (flujos_) flujos_->setCarpetaDelEvento(nullptr);
+    asistente_->flujos().setCarpetaDelEvento(nullptr);
     // La bitácora antes que el bus y el evento de los que cuelga (anota «la app se cierra»).
     bitacoraEvento_.reset();
 }
@@ -1614,14 +1402,8 @@ void StudioViewModel::onTick() {
     // Un corte pedido es un aviso corto; uno que nadie pidio (red, servidor,
     // disco lleno) queda fijo en la barra del operador hasta que lo cierre.
     const auto dropped = [this](const QString& title, const QString& text) {
-        if (messages_) {
-            messages_->post({{"kind", "message"},
-                             {"priority", "critical"},
-                             {"title", title.toStdString()},
-                             {"text", text.toStdString()}});
-        } else {
-            emit notify(title, "error");
-        }
+        asistente_->mensajes().post(
+            {{"kind", "message"}, {"priority", "critical"}, {"title", title.toStdString()}, {"text", text.toStdString()}});
     };
     if (recording_ && !st.recording) {
         if (rt_.recordStopWanted()) {
@@ -1751,13 +1533,13 @@ QObject* StudioViewModel::cuentasQml() const {
     return cuentas_.get();
 }
 QObject* StudioViewModel::system() const { return system_.get(); }
-QObject* StudioViewModel::agent() const { return agent_.get(); }
-QObject* StudioViewModel::manualesQml() const { return manuales_.get(); }
-QObject* StudioViewModel::agenteAutomatizacion() const { return agenteAuto_.get(); }
-QObject* StudioViewModel::modelos() const { return modelos_.get(); }
+QObject* StudioViewModel::agent() const { return asistente_->agenteQml(); }
+QObject* StudioViewModel::manualesQml() const { return asistente_->manualesQml(); }
+QObject* StudioViewModel::agenteAutomatizacion() const { return asistente_->agenteAutomatizacionQml(); }
+QObject* StudioViewModel::modelos() const { return asistente_->modelosQml(); }
 QObject* StudioViewModel::descargas() const { return &net::Descargas::la(); }
-QObject* StudioViewModel::voz() const { return voz_.get(); }
-QObject* StudioViewModel::vozPrompter() const { return vozPrompter_.get(); }
+QObject* StudioViewModel::voz() const { return asistente_->vozQml(); }
+QObject* StudioViewModel::vozPrompter() const { return asistente_->vozPrompterQml(); }
 QObject* StudioViewModel::mezcladorQml() const {
 #if defined(BA_HAVE_CLAP)
     return mezclador_.get();
@@ -1780,16 +1562,20 @@ QObject* StudioViewModel::red() const { return red_.get(); }
 QObject* StudioViewModel::pluginsQml() const { return plugins_.get(); }
 QObject* StudioViewModel::seguidor() const { return seguidor_.get(); }
 QObject* StudioViewModel::dispositivosQml() const { return dispositivos_.get(); }
-QObject* StudioViewModel::flujos() const { return flujos_.get(); }
-QObject* StudioViewModel::voces() const { return voces_.get(); }
-QObject* StudioViewModel::traductor() const { return traductor_.get(); }
-QObject* StudioViewModel::estadoIA() const { return estadoIA_.get(); }
+QObject* StudioViewModel::flujos() const { return asistente_->flujosQml(); }
+QObject* StudioViewModel::voces() const { return asistente_->vocesQml(); }
+QObject* StudioViewModel::traductor() const { return asistente_->traductorQml(); }
+QObject* StudioViewModel::estadoIA() const { return asistente_->estadoIAQml(); }
 QObject* StudioViewModel::documentosQml() const { return documentos_.get(); }
 QObject* StudioViewModel::pdfEscenaQml() const { return pdfEscena_.get(); }
 QObject* StudioViewModel::superres() const { return superres_.get(); }
 QObject* StudioViewModel::bancoSrObj() const { return bancoSr_.get(); }
-QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
-QObject* StudioViewModel::messages() const { return messages_.get(); }
+QObject* StudioViewModel::despachadorQml() const { return asistente_->despachadorQml(); }
+QObject* StudioViewModel::messages() const { return asistente_->mensajesQml(); }
+QObject* StudioViewModel::asistenteQml() const {
+    QQmlEngine::setObjectOwnership(asistente_.get(), QQmlEngine::CppOwnership);
+    return asistente_.get();
+}
 
 QObject* StudioViewModel::audio() const {
 #if defined(BA_HAVE_CLAP)
@@ -2371,51 +2157,7 @@ void StudioViewModel::revisarSenales() {
 
 QStringList StudioViewModel::sinSenal() const { return respaldo_ ? respaldo_->sinSenal() : QStringList(); }
 
-QObject* StudioViewModel::ccQml() const { return cc_.get(); }
-
-} // namespace ba::app
-
-namespace ba::app {
-
-namespace {
-QVariant vocabQv(const nlohmann::json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
-        .object()
-        .value("v")
-        .toVariant();
-}
-} // namespace
-
-QVariantMap StudioViewModel::vocabularioUi() const {
-    QVariantMap m = vocabQv(vocabulario_->todo()).toMap();
-    m["reemplazos"] = vocabQv(vocabulario_->ultimosReemplazos());
-    return m;
-}
-
-QString StudioViewModel::vocabularioAgregarUi(const QString& termino, const QString& variantes, const QString& grupo) {
-    std::vector<std::string> v;
-    for (const QString& x : variantes.split(',', Qt::SkipEmptyParts))
-        if (!x.trimmed().isEmpty()) v.push_back(x.trimmed().toStdString());
-    return QString::fromStdString(vocabulario_->agregar(termino.trimmed().toStdString(), v, grupo.toStdString()));
-}
-
-bool StudioViewModel::vocabularioQuitarUi(const QString& termino) { return vocabulario_->quitar(termino.toStdString()); }
-
-void StudioViewModel::vocabularioGrupoUi(const QString& grupo, bool activo) {
-    vocabulario_->activarGrupo(grupo.toStdString(), activo);
-}
-
-QVariantMap StudioViewModel::vocabularioProbarUi(const QString& texto) {
-    nlohmann::json r = nlohmann::json::array();
-    const std::string t = vocabulario_->corregir(texto.toStdString(), &r);
-    return {{"texto", QString::fromStdString(t)}, {"reemplazos", vocabQv(r)}};
-}
-
-int StudioViewModel::vocabularioDelCuerpoUi() {
-    const int n = vocabulario_->cargarCuerpo(asamblea_->cuerpo().cuerpo());
-    emit notify(tr("Nombres del cuerpo: %1").arg(n), "info");
-    return n;
-}
+QObject* StudioViewModel::ccQml() const { return asistente_->ccQml(); }
 
 } // namespace ba::app
 
@@ -2702,7 +2444,7 @@ QString StudioViewModel::medirSincroUi(int segundos) {
 QString StudioViewModel::cupoUi(int n) { return QString::fromStdString(cupoSala_->cambiar(n)); }
 
 QObject* StudioViewModel::playlistQml() const { return playlist_.get(); }
-QObject* StudioViewModel::puestoCorreccionQml() const { return puestoCorreccion_.get(); }
+QObject* StudioViewModel::puestoCorreccionQml() const { return asistente_->puestoCorreccionQml(); }
 
 QVariantMap StudioViewModel::scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const {
     video::TipoScope t = video::TipoScope::Onda;
@@ -2818,47 +2560,6 @@ QString StudioViewModel::armarRepeticion(const QString& archivo, const std::stri
 } // namespace ba::app
 
 namespace ba::app {
-
-void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& origen) {
-    if (!rotulo_->activo() || !control_ || !origen.startsWith("Traducción")) return;
-    control::Dsk& dsk = control_->dsk();
-    const int capa = rotulo_->capa();
-    // ¿Se está mostrando? En un cuadro «Subtítulos» o en los subtítulos ocultos.
-    const bool enPantalla = subtitulos_ && subtitulos_->cuadrosDe(flujo) > 0;
-    const QVariantMap cc = cc_ ? cc_->estado() : QVariantMap{};
-    const bool enCc = cc.value("activo").toBool() && cc.value("flujo").toString() == flujo;
-    if (!enPantalla && !enCc) return;
-    const std::string nombre = "Traducción automática (rótulo)";
-    if (!rt_.engine().textoGlobal(nombre, "Traducción automática")) return;
-    // La capa se arma una vez con el rótulo arriba a la izquierda.
-    const nlohmann::json capas = dsk.capas();
-    bool armada = false;
-    for (const auto& c : capas)
-        if (c.value("capa", 0) == capa) {
-            const auto cont = c.value("contenido", nlohmann::json::array());
-            armada = cont.size() == 1 && cont[0] == nombre;
-        }
-    if (!armada)
-        dsk.definir(capa, {{"nombre", "Traducción automática"},
-                                    {"contenido", nlohmann::json::array({nombre})},
-                                    {"recuadro", {{"posicion", "arriba_izquierda"}, {"tamano", 0.22}, {"margen", 0.03}}},
-                                    {"fijo", false},
-                                    {"transicion_ms", 300}});
-    for (const auto& c : dsk.capas())
-        if (c.value("capa", 0) == capa && !c.value("visible", false)) dsk.mostrar(capa, true, false);
-    rotuloApagar_.start(ba::ajustes::sAMs("traductor.rotuloApagarS", 15)); // se va después de la última frase traducida
-}
-
-bool StudioViewModel::rotuloTraduccionActivo() const { return rotulo_->activo(); }
-
-void StudioViewModel::setRotuloTraduccion(bool activo) {
-    rotulo_->setActivo(activo);
-    if (!activo && control_) control_->dsk().mostrar(rotulo_->capa(), false, true);
-}
-
-nlohmann::json StudioViewModel::rotuloTraduccionEstado() const {
-    return {{"activo", rotulo_->activo()}, {"capa", rotulo_->capa()}, {"arriba", rotuloApagar_.isActive()}};
-}
 
 } // namespace ba::app
 
@@ -3033,10 +2734,10 @@ QString StudioViewModel::reiniciarPrograma(const QString& aviso) {
         if (a == "--test" || a == "--debug") args << a;
     // La conversación del asistente sigue después del reinicio (la retoma al abrir y le
     // avisa en qué evento quedó, para que siga con lo que estaba haciendo).
-    if (agent_)
-        if (const QString s = agent_->sesionParaReanudar(); !s.isEmpty())
-            args << "--app-arg=--reanudar-asistente=" + s + "|" + agent_->provider() + "|" + agent_->model()
-                 << "--app-arg=--asistente-evento=" + configuraciones_->activaUi();
+    agent::AgentViewModel& agente = asistente_->agente();
+    if (const QString s = agente.sesionParaReanudar(); !s.isEmpty())
+        args << "--app-arg=--reanudar-asistente=" + s + "|" + agente.provider() + "|" + agente.model()
+             << "--app-arg=--asistente-evento=" + configuraciones_->activaUi();
     return system_->launch(args, aviso);
 }
 

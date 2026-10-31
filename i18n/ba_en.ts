@@ -29910,11 +29910,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The configuration “%1” was damaged: the previous version was loaded (the damaged one was kept as .corrupto).</translation>
     </message>
     <message>
-        <location line="+118" />
-        <source>Modo seguro</source>
-        <translation>Safe mode</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>The application closed several times in a row and started in safe mode: your scenes weren't loaded (they weren't deleted). Close and reopen to try a normal startup.</translation>
@@ -30147,11 +30142,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Couldn't add the question: %1</translation>
     </message>
     <message>
-        <location line="+71" />
-        <source>Nombres del cuerpo: %1</source>
-        <translation>Body names: %1</translation>
-    </message>
-    <message>
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>New day: the conference has a new PIN (%1)</translation>
@@ -30295,6 +30285,17 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AsistenteViewModel</name>
+    <message>
+        <source>Modo seguro</source>
+        <translation>Safe mode</translation>
+    </message>
+    <message>
+        <source>Nombres del cuerpo: %1</source>
+        <translation>Body names: %1</translation>
     </message>
 </context>
 <context>

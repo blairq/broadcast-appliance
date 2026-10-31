@@ -29910,11 +29910,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>La configuration « %1 » était endommagée : la version précédente a été chargée (celle endommagée a été gardée en .corrupto).</translation>
     </message>
     <message>
-        <location line="+118" />
-        <source>Modo seguro</source>
-        <translation>Mode sans échec</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>L'application s'est fermée plusieurs fois de suite et a démarré en mode sans échec : vos scènes n'ont pas été chargées (elles n'ont pas été supprimées). Fermez et rouvrez pour tenter un démarrage normal.</translation>
@@ -30147,11 +30142,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Impossible d'ajouter la question : %1</translation>
     </message>
     <message>
-        <location line="+71" />
-        <source>Nombres del cuerpo: %1</source>
-        <translation>Noms de l'Assemblée plénière : %1</translation>
-    </message>
-    <message>
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>Nouveau jour : la conférence a un nouveau PIN (%1)</translation>
@@ -30295,6 +30285,17 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AsistenteViewModel</name>
+    <message>
+        <source>Modo seguro</source>
+        <translation>Mode sans échec</translation>
+    </message>
+    <message>
+        <source>Nombres del cuerpo: %1</source>
+        <translation>Noms de l'Assemblée plénière : %1</translation>
     </message>
 </context>
 <context>

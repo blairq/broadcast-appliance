@@ -30,6 +30,7 @@
 #include <functional>
 #include "comun/UsoCpu.hpp"
 #include "ui/AsambleaViewModel.hpp"
+#include "ui/AsistenteViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
 #include "ui/EmisionViewModel.hpp"
 #include "ui/SalidasViewModel.hpp"
@@ -224,6 +225,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
     /// El área de la asamblea (ui/AsambleaViewModel): presidenciaHabla y los mandos del operador.
     Q_PROPERTY(QObject* asamblea READ asambleaQml CONSTANT)
+    /// El área del asistente y la voz (ui/AsistenteViewModel): el vocabulario y el rótulo de traducción.
+    Q_PROPERTY(QObject* asistente READ asistenteQml CONSTANT)
     /// El cuerpo deliberativo (integrantes, bancas, presets, micrófonos): asamblea/CuerpoViewModel.
     Q_PROPERTY(QObject* cuerpo READ cuerpoQml CONSTANT)
     /// La fila de oradores presenciales (bancas): asamblea/Bancas.
@@ -519,7 +522,7 @@ class StudioViewModel : public QObject {
     asamblea::Votaciones* votaciones() { return asamblea_->votaciones(); }
     asamblea::Presidencia* presidencia() { return asamblea_->presidencia(); }
     QObject* ccQml() const;
-    agent::SubtitulosCC& cc() { return *cc_; }
+    agent::SubtitulosCC& cc() { return asistente_->cc(); }
     asamblea::Bancas& bancas() { return asamblea_->bancas(); }
     asamblea::ConferenciaDcn& dcn() { return asamblea_->dcn(); }
     asamblea::SesionRemota* sesionRemota() { return asamblea_->sesionRemota(); }
@@ -533,26 +536,14 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void quitarDestacadoChatUi(const QString& key);
     /// Suma un mensaje del chat (por su key) a la cola de preguntas. "" o el error.
     Q_INVOKABLE QString preguntaDesdeChatUi(const QString& key);
-    /// «Traducción automática»: mientras salga una traducción en pantalla o en CC, una capa DSK lo rotula.
-    Q_INVOKABLE bool rotuloTraduccionActivo() const;
-    Q_INVOKABLE void setRotuloTraduccion(bool activo);
-    nlohmann::json rotuloTraduccionEstado() const;
     asamblea::CuerpoViewModel& cuerpo() { return asamblea_->cuerpo(); }
     /// El área de la asamblea (sus modelos, la web del evento, los vínculos, el acta).
     AsambleaViewModel& asamblea() { return *asamblea_; }
     QObject* asambleaQml() const;
-    /// Vocabulario del reconocedor de voz (agent/Vocabulario): grupos, términos,
-    /// probar una frase y traer los nombres del Cuerpo.
-    Q_INVOKABLE QVariantMap vocabularioUi() const;
-    Q_INVOKABLE QString vocabularioAgregarUi(const QString& termino, const QString& variantes, const QString& grupo);
-    Q_INVOKABLE bool vocabularioQuitarUi(const QString& termino);
-    Q_INVOKABLE void vocabularioGrupoUi(const QString& grupo, bool activo);
-    /// {texto, reemplazos: [{original, reemplazo}]}.
-    Q_INVOKABLE QVariantMap vocabularioProbarUi(const QString& texto);
-    /// Pone los nombres y apellidos del Cuerpo en el grupo «cuerpo» (agent::Vocabulario::cargarCuerpo)
-    /// y avisa cuántos. Devuelve cuántos.
-    Q_INVOKABLE int vocabularioDelCuerpoUi();
-    agent::Vocabulario& vocabulario() { return *vocabulario_; }
+    agent::Vocabulario& vocabulario() { return asistente_->vocabulario(); }
+    /// El área del asistente y la voz (sus modelos, el vocabulario, el rótulo de traducción).
+    AsistenteViewModel& asistente() { return *asistente_; }
+    QObject* asistenteQml() const;
     control::BusEventos& bus() { return *bus_; }
     control::Botonera& botonera() { return control_->botonera(); }
     /// El área de las superficies de control (sus modelos, el tema web, la API remota).
@@ -782,13 +773,13 @@ class StudioViewModel : public QObject {
     DocumentosViewModel* documentos() const { return documentos_.get(); }
     QObject* pdfEscenaQml() const;
     PdfEscena* pdfEscena() const { return pdfEscena_.get(); }
-    agent::EstadoIA* estadoIAModelo() const { return estadoIA_.get(); }
+    agent::EstadoIA* estadoIAModelo() const { return &asistente_->estadoIA(); }
     QObject* superres() const;
     QObject* bancoSrObj() const;
     video::BancoSuperRes* bancoSr() const { return bancoSr_.get(); }
     video::SuperRes* superresVideo() const { return superres_.get(); }
-    agent::Traductor* traductorAgent() const { return traductor_.get(); }
-    agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
+    agent::Traductor* traductorAgent() const { return asistente_->traductor(); }
+    agent::ModelosLocales* modelosLocales() const { return &asistente_->modelos(); }
     QObject* messages() const;
     QObject* inputs() const;
     QObject* audio() const;
@@ -799,7 +790,7 @@ class StudioViewModel : public QObject {
     agent::AlertEngine& alerts();
     /// El área de las alarmas (ui/AlarmasViewModel): Studio.alarmas en QML.
     QObject* alarmasQml() const;
-    agent::Despachador& despachador() { return *despachador_; }
+    agent::Despachador& despachador() { return asistente_->despachador(); }
     QObject* despachadorQml() const;
 
     // --- Comandos ---------------------------------------------------------------
@@ -1031,16 +1022,9 @@ class StudioViewModel : public QObject {
     std::unique_ptr<plugins::Plugins> plugins_;
     std::unique_ptr<Seguidor> seguidor_;
     std::unique_ptr<dispositivos::Dispositivos> dispositivos_;
-    std::unique_ptr<agent::FlujosTexto> flujos_;
-    std::unique_ptr<PuestoCorreccion> puestoCorreccion_;
     bool modoTest_ = false;
-    std::unique_ptr<agent::VocesRack> voces_;
-    std::unique_ptr<agent::Traductor> traductor_;
-    std::unique_ptr<agent::EstadoIA> estadoIA_;
     std::unique_ptr<DocumentosViewModel> documentos_;
     std::unique_ptr<PdfEscena> pdfEscena_;
-    std::unique_ptr<agent::Subtitulos> subtitulos_;
-    std::unique_ptr<agent::SubtitulosCC> cc_;
     std::unique_ptr<video::SuperRes> superres_;
     std::unique_ptr<video::BancoSuperRes> bancoSr_;
     std::unique_ptr<audio::AudioViewModel> audio_;
@@ -1051,7 +1035,6 @@ class StudioViewModel : public QObject {
     QVariantMap reinicio_;     ///< ver la propiedad reinicio
     bool eventoNuevo_ = false; ///< el reinicio que viene abre un evento recién creado
     std::unique_ptr<AlarmasViewModel> alarmas_; ///< el área de las alarmas (y su vigía)
-    std::unique_ptr<agent::Vocabulario> vocabulario_;
     std::unique_ptr<control::BusEventos> bus_;
     /// La asamblea y sus modelos (ui/AsambleaViewModel). Después del bus (se desuscriben
     /// de él): lo que usa sus modelos (la grilla, la atención, los tótems) va más abajo.
@@ -1090,9 +1073,6 @@ class StudioViewModel : public QObject {
     QHash<QString, qint64> salidaVistaMs_;
     std::unique_ptr<EmisionViewModel> emision_; ///< grabar, transmitir y lo que los rodea (ui/EmisionViewModel)
     qint64 caidaMs_ = 0;
-    std::unique_ptr<agent::RotuloTraduccionConfig> rotulo_; ///< Config/rotulo-traduccion.json (modelo)
-    QTimer rotuloApagar_;
-    void rotularTraduccion(const QString& flujo, const QString& origen);
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;
@@ -1105,22 +1085,16 @@ class StudioViewModel : public QObject {
     int observadorRt_ = 0;
     std::atomic<unsigned> avisosPendientes_{0};
     void refrescarAvisos();
-    /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::unique_ptr<escenas::AjustesEscenas> ajustesEscenas_; ///< Config/escenas.json (modelo)
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
     std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y el conmutador de la por omisión
     void revisarSenales();
-    std::unique_ptr<agent::AgentViewModel> agent_;
-    std::unique_ptr<ManualesViewModel> manuales_;
-    std::unique_ptr<agent::AgentViewModel> agenteAuto_;
-    std::unique_ptr<agent::Roles> roles_;
-    std::unique_ptr<agent::Despachador> despachador_;
-    std::unique_ptr<agent::ModelosLocales> modelos_;
-    std::unique_ptr<agent::Voz> voz_;
-    std::unique_ptr<agent::VozPrompter> vozPrompter_;
-    std::unique_ptr<OperatorMessages> messages_;
+    /// Los asistentes, la voz, las salidas de texto y la barra de mensajes
+    /// (ui/AsistenteViewModel). Usa las alarmas (su vigía) y la sala; la atención y los
+    /// tótems usan su voz y sus modelos (van más abajo).
+    std::unique_ptr<AsistenteViewModel> asistente_;
     std::unique_ptr<InputsViewModel> inputs_;
     std::unique_ptr<ChatOverlayRenderer> chatOverlay_;
     std::unique_ptr<FuenteQrPintor> fuenteQr_; ///< pinta las fuentes «Código QR» de las escenas

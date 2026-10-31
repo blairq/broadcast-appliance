@@ -29791,11 +29791,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>配置「%1」已损坏：已载入上一版本（损坏的文件保存为 .corrupto）。</translation>
     </message>
     <message>
-        <location line="+118" />
-        <source>Modo seguro</source>
-        <translation>安全模式</translation>
-    </message>
-    <message>
         <location line="+2" />
         <source>La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.</source>
         <translation>应用连续多次关闭，已以安全模式启动：您的场景未载入（并未删除）。请关闭后重新打开，尝试正常启动。</translation>
@@ -30028,11 +30023,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无法添加提问：%1</translation>
     </message>
     <message>
-        <location line="+71" />
-        <source>Nombres del cuerpo: %1</source>
-        <translation>议事机构名单：%1</translation>
-    </message>
-    <message>
         <location line="+29" />
         <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
         <translation>新的一天：会议已更换新 PIN（%1）</translation>
@@ -30173,6 +30163,17 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>AsistenteViewModel</name>
+    <message>
+        <source>Modo seguro</source>
+        <translation>安全模式</translation>
+    </message>
+    <message>
+        <source>Nombres del cuerpo: %1</source>
+        <translation>议事机构名单：%1</translation>
     </message>
 </context>
 <context>
