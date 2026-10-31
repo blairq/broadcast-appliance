@@ -9,9 +9,18 @@
 //   - Estado: flujo SSE /api/v1/events. "room" trae el snapshot completo;
 //     "chat", un mensaje. Reconexion automatica con espera creciente y un
 //     vigia que corta si el servidor deja de latir (B manda ": ping" cada 15 s).
+//     Cada evento trae su id; al reconectar se manda Last-Event-ID y B reenvía
+//     los de un solo disparo que se perdieron (o dice que no pudo: `reanudado`).
 //   - Acciones: POST/DELETE con Bearer.
 //
-// La vista no tiene logica de sala propia: todo lo decide B.
+// A ES LA FUENTE DE VERDAD; B, EL BORDE (gateway/Sesion.hpp). Lo que A le dice a B
+// de estado (las salidas, el tally, el teleprompter, las claves del evento…) B lo
+// olvida si se reinicia. Cada modelo que le dice algo así registra cómo volver a
+// decírselo (registrarRepublicador) y este cliente los llama TODOS cuando vuelve
+// una B que no lo sabe: otro arranque (`epoch` del primer "room") o una
+// reconexión que no pudo reenviar lo perdido. Un modelo nuevo que le manda estado
+// a B y no se registra queda sin dueño tras una caída: lo vigila
+// tests/test_republicadores.py.
 // ============================================================================
 #pragma once
 
@@ -20,11 +29,14 @@
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QObject>
+#include <QPointer>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 
 #include <functional>
 #include <optional>
+#include <vector>
 
 class QNetworkReply;
 
@@ -51,6 +63,16 @@ class ConferenceClient : public QObject {
     /// el gateway vuelve (un gateway reiniciado arranca sin lista: todo a BA.Program).
     void ponerSalidas(const QJsonArray& lista);
 
+    /// Cómo volver a decirle a B algo de estado que A le dijo (ver arriba). `fn` se
+    /// llama con B en línea: enseguida si ya lo está (en la vuelta siguiente del
+    /// bucle, no adentro de esta llamada) y cada vez que vuelve una B que no lo sabe.
+    /// Un `nombre` ya registrado se reemplaza; se borra solo cuando `dueno` muere.
+    void registrarRepublicador(const QString& nombre, QObject* dueno, std::function<void()> fn);
+    /// Los registrados (para el diagnóstico y los tests).
+    QStringList republicadores() const;
+    /// El arranque de la B con la que se habla ("" = todavía ninguna).
+    const QString& epoch() const { return epoch_; }
+
     /// POST a la API (`path` absoluto, p. ej. "/api/v1/room").
     void post(const QString& path, const QJsonObject& body = {}, Done done = {}, int timeoutMs = 5000);
     /// PUT (la configuración en caliente: /api/v1/config/<sección>).
@@ -72,6 +94,9 @@ class ConferenceClient : public QObject {
 
    signals:
     void onlineChanged(bool online);
+    /// Volvió una B que no sabe lo que A le había dicho (ver registrarRepublicador):
+    /// los republicadores ya corrieron.
+    void salaNueva();
     void snapshotChanged();
     void chatReceived(const QJsonObject& msg);
     /// La botonera (superficie de control): solicitud, entrada o conexión de una tablet.
@@ -87,6 +112,9 @@ class ConferenceClient : public QObject {
     void hablanEvento(const QJsonObject& ev);
     /// Los tótems de registro (/registro/): conexión, canal, audio, foto, toque, intento.
     void registroEvento(const QJsonObject& ev);
+    /// Cambió un teleprompter o quién lo mira: {prompter, estado (con `texto` solo si se
+    /// cargó un discurso), clientes} o {prompter, quitado}.
+    void prompterEvento(const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 
@@ -99,6 +127,14 @@ class ConferenceClient : public QObject {
     void setOnline(bool on);
     void scheduleReconnect();
     void send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done, int timeoutMs = 5000);
+    void republicarTodo();
+
+    struct Republicador {
+        QString nombre;
+        QPointer<QObject> dueno;
+        const QObject* crudo = nullptr; ///< el mismo, para reconocerlo cuando muere
+        std::function<void()> fn;
+    };
 
     QNetworkAccessManager nam_;
     QNetworkReply* sse_ = nullptr;
@@ -110,6 +146,9 @@ class ConferenceClient : public QObject {
     int miranPrograma_ = -1;
     QJsonObject miranSalidas_;
     QJsonArray salidas_; ///< la última lista de ponerSalidas (vacía = nunca se mandó)
+    std::vector<Republicador> republicadores_;
+    QString epoch_;
+    QByteArray ultimoId_; ///< el id del último evento (Last-Event-ID al reconectar)
     QTimer retry_;
     QTimer watchdog_;
     int backoffMs_ = 1000;

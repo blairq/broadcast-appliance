@@ -83,7 +83,9 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -469,16 +471,60 @@ class SignalingServer {
     bool adminAuthorized(const std::string& headers, const std::string& method) const;
     /// PUT /api/v1/config/<sección>: la configuración en caliente (F3-06; ver sala/ConfigSala.hpp de la app).
     void aplicarConfig(long long fd, const std::string& seccion, const nlohmann::json& req);
-    void adminEvents(long long fd);
+    void adminEvents(long long fd, const std::string& headers);
     void adminShareContent(long long fd, const std::string& id);
     void broadcastToHosts(const std::string& event, const nlohmann::json& data);
+    /// Lo que una superficie recién conectada tiene que mostrar, según su tipo.
+    void saludarSuperficie(const std::string& pid);
+    /// Cambió un teleprompter (o quién lo mira): evento «prompter» a A ({prompter,
+    /// estado, clientes}; con el texto solo si `conTexto`, que es lo pesado) y, con
+    /// `aPaginas`, el estado a sus páginas por el canal (ellas tienen el texto).
+    void avisarPrompter(const std::string& id, bool conTexto, bool aPaginas);
+    /// Quiénes lo miran: los del canal y los que todavía preguntan por HTTP.
+    nlohmann::json clientesPrompter(const std::string& id, const Prompter& p) const;
 
+    // --- Los eventos a la app (SSE) -------------------------------------------
+    // Cada evento lleva un id «<epoch>:<n>». Los de UN SOLO DISPARO (una solicitud de la
+    // botonera, una corrección, un intento de la sesión…) quedan además en una cola corta:
+    // si la app se desconectó un momento, al volver con Last-Event-ID se le mandan los que
+    // se perdió. Los de ESTADO (room, programa, direcciones…) no: al reconectar recibe la
+    // foto entera, que es más nueva. Ver adminEvents.
+    //
+    // Nadie le escribe a la app desde el hilo que emite: cada conexión tiene su cola y su
+    // propio hilo (el de la conexión) que escribe. Una app trabada llena SU cola y, pasado
+    // el tope, se le corta el flujo (vuelve a entrar y recibe la foto): el hilo del
+    // WebSocket de un invitado, que es el que suele emitir, nunca espera a la app.
     struct SseConn {
         long long fd = -1;
-        std::mutex sendLock;
+        std::mutex m;
+        std::condition_variable cv;
+        std::deque<std::string> cola;
+        std::size_t bytes = 0;
+        std::uint64_t ultimo = 0; ///< el último evento que ya está en su cola
+        bool cortar = false;      ///< la cola se llenó: se la corta
     };
+    /// El arranque de esta sala: va en el primer `room` y en cada id de evento. Uno
+    /// distinto le dice a la app que esta sala no sabe nada de lo que ella le había dicho.
+    std::string epoch_;
     std::vector<std::shared_ptr<SseConn>> sse_;
-    std::mutex sseLock_;
+    std::mutex sseLock_; ///< sse_, sseSeq_, guardados_ y descartadoHasta_
+    std::uint64_t sseSeq_ = 0;
+    struct EventoGuardado {
+        std::uint64_t seq = 0;
+        std::string texto; ///< el evento ya armado (id, event, data)
+    };
+    std::deque<EventoGuardado> guardados_; ///< los de un solo disparo, los últimos
+    std::uint64_t descartadoHasta_ = 0;    ///< el último que se cayó de la cola corta
+    /// Lo encola en una conexión (con sseLock_ tomado: así cada cola sale en orden).
+    static void encolarSse(SseConn& c, std::uint64_t seq, const std::string& texto);
+
+   public:
+    /// El de este arranque (también en gateway-admin.json).
+    const std::string& epoch() const { return epoch_; }
+    /// ¿Es un evento de estado (la foto al reconectar lo cubre) y no de un solo disparo?
+    static bool eventoDeEstado(const std::string& event);
+
+   private:
 
     Cfg cfg_;
     TokenAuth& auth_;

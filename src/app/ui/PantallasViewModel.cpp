@@ -455,10 +455,10 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, VentanillaMotor& ventanil
                        "dirección IP.");
     // Los carruseles viven en la MEMORIA del gateway: si se reinicia, se los
     // olvida y las pantallas que los estuvieran mostrando dirían «no encuentro
-    // ese carrusel». Por eso se republican cada vez que vuelve.
+    // ese carrusel». Por eso se republican cada vez que vuelve (y al registrarse,
+    // si ya estaba).
     if (sala != nullptr) {
-        connect(&sala->client(), &ConferenceClient::onlineChanged, this, [this](bool online) {
-            if (!online) return;
+        sala->client().registrarRepublicador("carruseles", this, [this]() {
             for (const Carrusel& c : d_->carruseles)
                 publicarCarrusel(c.id);
         });
@@ -476,12 +476,6 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, VentanillaMotor& ventanil
     // Al arrancar se busca una vez: sin eso, una pantalla con IP nueva no se
     // encontraría hasta que alguien apretara el botón.
     QTimer::singleShot(4000, this, [this]() { buscar(); });
-    // Al arrancar: si el gateway ya estaba en linea, el aviso de arriba no va
-    // a llegar nunca, asi que se publica igual.
-    QTimer::singleShot(2500, this, [this]() {
-        for (const Carrusel& c : d_->carruseles)
-            publicarCarrusel(c.id);
-    });
 
     // Las direcciones de esta máquina, para armar URLs que el televisor pueda
     // alcanzar. Se pregunta una vez al arrancar y en cada búsqueda.

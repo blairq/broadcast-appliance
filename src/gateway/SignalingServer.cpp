@@ -255,6 +255,11 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     room_.setSinks(std::move(sinks));
     // Sin entropia queda vacia y el tablero no abre (401), nunca con clave predecible.
     if (!ba::security::randomSecretHex(16, boardToken_)) boardToken_.clear();
+    // El arranque (ver epoch_): sin entropía, la hora alcanza (solo tiene que no repetirse).
+    if (!ba::security::randomSecretHex(8, epoch_))
+        epoch_ = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    std::chrono::system_clock::now().time_since_epoch())
+                                    .count());
 }
 
 SignalingServer::~SignalingServer() { stop(); }
@@ -1024,6 +1029,9 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, Esc
         const std::string pid = wsOpen(fd, headers, query, clientIp);
         if (pid.empty()) return;
         const uint64_t gen = registerConn(pid, fd);
+        // Una superficie que entra recibe enseguida lo que muestra (el tally, el texto
+        // del teleprompter): no pregunta, se le avisa (ver saludarSuperficie).
+        if (pid.rfind("superficie:", 0) == 0) saludarSuperficie(pid);
         // La pantalla no espera nada de la sala: se le dice ya que arme su
         // PeerConnection (un invitado espera a tener lugar).
         if (esPantalla(pid))
@@ -1037,7 +1045,15 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, Esc
         const bool current = unregisterConn(pid, gen);
         releaseSession(pid, gen, false);
         if (pid.rfind("superficie:", 0) == 0) {
+            std::string prompter;
+            bool eraPrompter = false;
+            for (const Superficies::Conectada& c : superficies_.conectadas("prompter"))
+                if (c.pid == pid) {
+                    eraPrompter = true;
+                    prompter = c.extra.value("p", std::string());
+                }
             superficies_.desconectar(pid);
+            if (eraPrompter) avisarPrompter(prompter, false, false); // A ve que se fue
             return;
         }
         if (esPantalla(pid)) {
@@ -1302,6 +1318,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 return;
             }
             prompter->comandar(req);
+            avisarPrompter(req.value("prompter", std::string()), false, true);
             http::sendResponse(fd, 200, "application/json", prompter->estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
@@ -2210,7 +2227,11 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
             id = "sup-" + hex;
         }
         const std::string pid = "superficie:" + id;
-        superficies_.conectar(pid, arg("superficie"), id);
+        // Lo que la página dice de sí (el teleprompter: cuál, qué vista y su nombre).
+        json extra = json::object();
+        for (const char* k : {"p", "vista", "nombre"})
+            if (!arg(k).empty()) extra[k] = arg(k);
+        superficies_.conectar(pid, arg("superficie"), id, clientIp, extra);
         log_.info(llenar(traducir("gateway", "ws: superficie %1 (%2) conectada"), {arg("superficie"), id}));
         return pid;
     }
@@ -3015,6 +3036,66 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
     }
 }
 
+json SignalingServer::clientesPrompter(const std::string& id, const Prompter& p) const {
+    // Los que están por el canal (las páginas de ahora) y los que preguntan por HTTP
+    // (una página vieja todavía abierta): los mismos campos, los oradores primero.
+    json out = json::array();
+    for (const Superficies::Conectada& c : superficies_.conectadas("prompter")) {
+        if (Prompters::idValido(c.extra.value("p", std::string())) != id) continue;
+        out.push_back(json{{"id", c.pid.substr(11)},
+                           {"vista", c.extra.value("vista", std::string()) == "control" ? "control" : "orador"},
+                           {"nombre", c.extra.value("nombre", std::string())},
+                           {"ip", c.ip},
+                           {"haceMs", 0},
+                           {"desdeMs", c.desdeMs},
+                           {"canal", true}});
+    }
+    for (const json& c : p.clientes()) out.push_back(c);
+    std::stable_sort(out.begin(), out.end(), [](const json& a, const json& b) {
+        return (a.value("vista", "") == "orador") > (b.value("vista", "") == "orador");
+    });
+    return out;
+}
+
+void SignalingServer::avisarPrompter(const std::string& pedido, bool conTexto, bool aPaginas) {
+    const std::string id = Prompters::idValido(pedido);
+    if (id.empty()) return;
+    const auto p = prompters_.de(id);
+    if (!p) return;
+    json e = p->estado();
+    // A ve la lista de los conectados (la tablet del atril, el control en la mano).
+    json alApp{{"prompter", id}, {"clientes", clientesPrompter(id, *p)}};
+    if (!conTexto) e.erase("texto");
+    alApp["estado"] = e;
+    broadcastToHosts("prompter", alApp);
+    if (!aPaginas) return;
+    const json msg{{"type", "prompter"}, {"estado", e}};
+    for (const Superficies::Conectada& c : superficies_.conectadas("prompter"))
+        if (Prompters::idValido(c.extra.value("p", std::string())) == id) sendToGuest(c.pid, msg);
+}
+
+void SignalingServer::saludarSuperficie(const std::string& pid) {
+    const std::string tipo = superficies_.tipoDe(pid);
+    if (tipo == "prompter") {
+        // Lo que tiene cargado, entero (con el texto), y a A que hay uno más.
+        std::string p;
+        for (const Superficies::Conectada& c : superficies_.conectadas("prompter"))
+            if (c.pid == pid) p = c.extra.value("p", std::string());
+        if (const auto pr = prompters_.de(p)) sendToGuest(pid, json{{"type", "prompter"}, {"estado", pr->estado()}});
+        avisarPrompter(p, false, false);
+        return;
+    }
+    if (tipo == "tally") {
+        json t;
+        {
+            std::lock_guard<std::mutex> lock(tallyLock_);
+            t = tally_;
+        }
+        // Vacío: la app todavía no lo dijo (la página sigue en «no sé»).
+        if (!t.empty()) sendToGuest(pid, json{{"type", "tally"}, {"tally", t}});
+    }
+}
+
 void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, const json& msg) {
     {
         const std::string type = msg.value("type", "");
@@ -3029,6 +3110,11 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
                 superficies_.dice(pid, msg.value("que", ""));
             } else if (type == "ping") {
                 sendToGuest(pid, json{{"type", "pong"}});
+            } else if (type == "nombre" && superficies_.tipoDe(pid) == "prompter") {
+                // El nombre del aparato («Atril 1»), escrito en la página.
+                superficies_.ponerExtra(pid, "nombre", msg.value("nombre", ""));
+                for (const Superficies::Conectada& c : superficies_.conectadas("prompter"))
+                    if (c.pid == pid) avisarPrompter(c.extra.value("p", std::string()), false, false);
             }
             return;
         }

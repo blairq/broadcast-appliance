@@ -72,9 +72,7 @@ void Presidencia::conectar() {
     });
     connect(s, &SesionRemota::credencialesCambio, this, &Presidencia::sincronizar);
     connect(s, &SesionRemota::cambio, this, [this]() { aplicarVistas(); });
-    connect(&p_.sala, &ConferenceClient::onlineChanged, this, [this](bool on) {
-        if (on) sincronizar();
-    });
+    p_.sala.registrarRepublicador("presidencia", this, [this]() { sincronizar(); });
 
     // La consola web de la presidencia: el estado (como mucho 4 veces por segundo) y lo que pide.
     consolaTimer_.setSingleShot(true);

@@ -49,18 +49,23 @@ ControlSala::ControlSala(AppRuntime& rt, VentanillaMotor& ventanilla, Conference
     // La sala arranca después que el programa (y se reinicia sola): cada vez
     // que conecta se le dice si el asistente atiende el lobby. Con el asistente
     // atendiendo, la pantalla de ingreso del invitado no le pide los datos.
-    alConectar_ = QObject::connect(&sala_, &ConferenceClient::onlineChanged, &sala_, [this](bool on) {
-        if (on) pedir(sala_, "POST", "/api/v1/room", {{"intake", atencionAutomatica()}}, {});
+    // Lo mismo con la entrada que pidió el operador (lobby, cerrada): una sala reiniciada
+    // arranca con lo de la configuración, no con lo que se eligió andando.
+    sala_.registrarRepublicador("sala", &vida_, [this]() {
+        nlohmann::json b = entradaPedida_;
+        b["intake"] = atencionAutomatica();
+        pedir(sala_, "POST", "/api/v1/room", b, {});
     });
 }
 
-ControlSala::~ControlSala() { QObject::disconnect(alConectar_); }
+ControlSala::~ControlSala() = default;
 
 std::string ControlSala::entrada(std::optional<bool> lobby, std::optional<bool> cerrada, Listo listo) {
     nlohmann::json b = nlohmann::json::object();
     if (lobby) b["lobby"] = *lobby;
     if (cerrada) b["locked"] = *cerrada;
     if (b.empty()) return ba::i18n::traducir("sala", "no hay nada para cambiar");
+    entradaPedida_.update(b);
     pedir(sala_, "POST", "/api/v1/room", b, std::move(listo));
     return {};
 }

@@ -16,11 +16,15 @@
 // varias personas y "Apertura/intendente.txt" se encuentra; veinte archivos
 // sueltos, no.
 //
-// EL ESTADO SE CONSULTA, NO SE GUARDA. El dueño del teleprompter es el
-// gateway: si la app se reinicia en medio de un discurso, el texto sigue
-// corriendo en la tablet y al volver la app lo ve andando. Por eso acá no hay
-// copia del estado: se pregunta cada medio segundo mientras la página está a
-// la vista, y nada más (preguntar cuando nadie mira es gastar).
+// A ES EL DUEÑO DEL DISCURSO; EL GATEWAY LO MUESTRA. El gateway tiene el estado
+// vivo (lo mueve también el control del celular) y avisa cada cambio (evento
+// «prompter»): acá se guarda lo último de cada teleprompter, con el texto que se
+// cargó. Si la app se reinicia en medio de un discurso, el texto sigue corriendo
+// en la tablet y al volver la app lo lee del gateway; si el que se reinicia es el
+// gateway, la app le vuelve a dar el discurso, la posición (la de ahora, si
+// estaba corriendo), la velocidad y lo demás (republicador «prompter»). Nadie
+// pregunta cada medio segundo: el avance de la barra lo calcula el reloj de acá
+// mientras corre y alguien mira.
 //
 // LAS ÓRDENES SON DEL MODELO. Cargar, arrancar, la velocidad… y la consulta
 // son operaciones de sala::Teleprompter, las mismas que usa el cue
@@ -46,6 +50,8 @@
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+
+#include <nlohmann/json.hpp>
 
 namespace ba::app {
 
@@ -89,10 +95,10 @@ class PrompterViewModel : public QObject {
     Q_PROPERTY(bool enLinea READ enLinea NOTIFY estadoCambio)
     /// Qué documento está cargado en el teleprompter, por su título.
     Q_PROPERTY(QString cargado READ cargado NOTIFY estadoCambio)
-    /// Por dónde va la lectura, de 0 a 1.
-    Q_PROPERTY(double avance READ avance NOTIFY estadoCambio)
+    /// Por dónde va la lectura, de 0 a 1 (se mueve sola mientras corre y alguien mira).
+    Q_PROPERTY(double avance READ avance NOTIFY avanceCambio)
     /// Cuánto falta para terminar, a la velocidad actual, en segundos.
-    Q_PROPERTY(int faltaSeg READ faltaSeg NOTIFY estadoCambio)
+    Q_PROPERTY(int faltaSeg READ faltaSeg NOTIFY avanceCambio)
     /// Los aparatos conectados: [{id, vista, nombre, ip, haceMs}].
     Q_PROPERTY(QVariantList conectados READ conectados NOTIFY estadoCambio)
     /// Cuántos de cada clase, para el resumen de arriba.
@@ -180,7 +186,8 @@ class PrompterViewModel : public QObject {
     Q_INVOKABLE void avisar(const QString& texto);
     /// Para en seco donde esté, sin mover la posición.
     Q_INVOKABLE void panico();
-    /// Empieza o deja de preguntar el estado (lo llama la página al mostrarse).
+    /// La página se muestra o se esconde: al mostrarse se trae el estado una vez (lo
+    /// demás llega solo) y, mientras se ve y corre, se mueve la barra.
     Q_INVOKABLE void mirar(bool si);
     /// Una consulta suelta, para quien no está mirando la página: por MCP el
     /// estado tiene que estar fresco aunque el operador esté en otra pantalla.
@@ -196,11 +203,18 @@ class PrompterViewModel : public QObject {
     void documentosCambio();
     void editorCambio();
     void estadoCambio();
+    void avanceCambio();
     void qrListo(const QString& url, const QStringList& modulos, const QString& mensaje,
                  const QString& clave);
     void notify(const QString& texto, const QString& tipo);
 
    private:
+    /// Lo que dijo el gateway de un teleprompter (evento o consulta).
+    void tomarDelGateway(const std::string& id, const nlohmann::json& estado, const nlohmann::json* clientes);
+    /// A un gateway nuevo: lo que A sabe de cada teleprompter.
+    void republicar();
+    void mirarReloj();
+
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

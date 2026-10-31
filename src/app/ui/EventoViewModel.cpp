@@ -196,7 +196,13 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Co
     vigiaEnCurso_.setInterval(ba::ajustes::sAMs("evento.vigiaS", 60));
     connect(&vigiaEnCurso_, &QTimer::timeout, this, &EventoViewModel::asegurarEnCurso);
     vigiaEnCurso_.start();
-    // La página web del evento en vivo: a la sala cuando cambia algo y cada 10 s.
+    // La página web del evento en vivo: a la sala cuando cambia algo, cada 10 s (lo que
+    // cambia sin avisar: las preguntas, el padrón) y enseguida a una sala nueva.
+    if (sala_ != nullptr)
+        sala_->client().registrarRepublicador("evento-web", this, [this]() {
+            webUltimo_.clear();
+            publicarWeb();
+        });
     webTimer_.setInterval(ba::ajustes::sAMs("evento.webReenvioS", 10));
     connect(&webTimer_, &QTimer::timeout, this, [this]() { webUltimo_.clear(); publicarWeb(); });
     webTimer_.start();

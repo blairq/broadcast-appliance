@@ -75,6 +75,7 @@
 #include "ipc/CanalesRegistro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "ipc/ProtocoloSala.hpp"
 #include "security/CredentialStore.hpp"
 #include "security/SecretsStore.hpp" // randomSecretHex (clave HMAC por arranque)
 
@@ -1270,7 +1271,10 @@ int main(int argc, char** argv) {
             const nlohmann::json info{{"port", server.adminPort()},
                                       {"token", adminToken},
                                       {"pid", static_cast<long long>(pid)},
-                                      {"guestPort", cfg.port}};
+                                      {"guestPort", cfg.port},
+                                      // El arranque y la versión del contrato (ipc/ProtocoloSala.hpp).
+                                      {"epoch", server.epoch()},
+                                      {"protocolo", ba::ipc::kProtocoloSala}};
             // Cómo encontrar la API de control: puerto y token, legible SOLO por el
             // usuario (0600 en POSIX; en Windows rige la ACL del perfil). La app Qt lo lee.
             if (!ba::persist::escribir(adminFile, info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),

@@ -73,6 +73,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <system_error>
 
 #include "HttpIo.hpp"
@@ -89,6 +90,7 @@
 #include "MediaPump.hpp"
 #include "Grillas.hpp"
 #include "ipc/CanalesSalida.hpp"
+#include "ipc/ProtocoloSala.hpp"
 
 #include "diag/Registro.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -514,6 +516,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         if (method == "POST") {
             const std::string id = req.value("quitar", std::string());
             if (!prompters_.quitar(id)) return sendErr(fd, 400, "prompter");
+            broadcastToHosts("prompter", json{{"prompter", Prompters::idValido(id)}, {"quitado", true}});
             sendJson(fd, 200, json{{"ok", true}, {"prompters", prompters_.lista()}});
             return;
         }
@@ -526,6 +529,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // «*»: a todos (lo del presentador de la línea de tiempo va a cada atril).
         if (method == "POST" && id == "*") {
             prompters_.comandarTodos(req);
+            for (const json& p : prompters_.lista()) avisarPrompter(p.value("id", std::string()), false, true);
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }
@@ -534,8 +538,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // A ve siempre la clave del control: la necesita para armar el enlace
         // que le manda al operador. Por la superficie de invitados no sale.
         const auto conClave = [this, &prompter, &id](json e) {
-            e["clave"] = cfg_.prompterKey;
-            e["clientes"] = prompter->clientes();
+            e["clave"] = prompterKey();
+            e["clientes"] = clientesPrompter(Prompters::idValido(id), *prompter);
             e["prompter"] = Prompters::idValido(id);
             return e;
         };
@@ -550,6 +554,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             }
             if (req.value("panico", false)) prompter->pararEnSeco();
             prompter->comandar(req);
+            avisarPrompter(id, req.contains("texto"), true);
             sendJson(fd, 200, conClave(prompter->estado()));
             return;
         }
@@ -834,18 +839,21 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
     // EL TALLY lo publica A en cada cambio de escena. El gateway no sabe de
-    // escenas ni quiere saber: guarda lo que le dan y lo sirve en
-    // /pantalla/tally.json.
+    // escenas ni quiere saber: guarda lo que le dan, se lo manda a las pantallas
+    // de tally por su canal (y a la que entra, ver saludarSuperficie) y lo sirve
+    // en /pantalla/tally.json (para quien lo lea de afuera). Si B se reinicia, A
+    // se lo vuelve a dar (republicador «tally»).
     if (path == "/api/v1/tally" && method == "POST") {
         {
             std::lock_guard<std::mutex> lock(tallyLock_);
             tally_ = req.is_object() ? req : json::object();
         }
-        // Y se les avisa a las pantallas de tally que hay algo nuevo, para que
-        // no tengan que preguntar cada medio segundo: un tally que llega tarde
-        // es peor que no tenerlo, porque alguien se confia.
+        // Y se les manda a las pantallas de tally, entero: que no tengan que
+        // preguntar. Un tally que llega tarde es peor que no tenerlo, porque
+        // alguien se confia.
+        const json aviso{{"type", "tally"}, {"tally", req}};
         for (const std::string& pid : superficies_.conexionesDe("tally"))
-            sendToGuest(pid, json{{"type", "tally"}});
+            sendToGuest(pid, aviso);
         sendJson(fd, 200, json{{"ok", true}});
         return;
     }
@@ -1076,7 +1084,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
     if (path == "/api/v1/events" && method == "GET") {
-        adminEvents(fd);
+        adminEvents(fd, headers);
         return;
     }
     if (path == "/api/v1/pin" && method == "POST") {
@@ -1225,7 +1233,50 @@ void SignalingServer::adminShareContent(long long fd, const std::string& id) {
     }
 }
 
-void SignalingServer::adminEvents(long long fd) {
+namespace {
+
+/// Cuántos eventos de un solo disparo se guardan para reenviar (ver SseConn). Un corte de
+/// la app de unos segundos junta pocos; esto alcanza para un reinicio de la app entero.
+constexpr std::size_t kGuardadosSse = 1024;
+/// Lo más que se le junta a una conexión sin poder escribirle: pasado esto se la corta.
+constexpr std::size_t kTopeColaSse = 8u * 1024u * 1024u;
+/// El latido del flujo (la app corta si no oye nada en room.salaMuertaS).
+constexpr auto kLatidoSse = std::chrono::seconds(15);
+
+/// Last-Event-ID «<epoch>:<n>» -> (epoch, n). n = 0 si no se entiende.
+std::pair<std::string, std::uint64_t> idDeEvento(const std::string& v) {
+    const auto dos = v.find(':');
+    if (dos == std::string::npos) return {};
+    try {
+        return {v.substr(0, dos), std::stoull(v.substr(dos + 1))};
+    } catch (...) {
+        return {};
+    }
+}
+
+} // namespace
+
+bool SignalingServer::eventoDeEstado(const std::string& event) {
+    // Lo que dice CÓMO ESTÁ algo (la foto al reconectar, o el próximo aviso, lo cubre):
+    // reenviarlo viejo después de la foto la pisaría con algo más viejo.
+    static const std::set<std::string> kEstado{"room", "programa", "direcciones", "hablan", "prompter",
+                                               "superficies", "red", "web"};
+    return kEstado.count(event) > 0;
+}
+
+void SignalingServer::encolarSse(SseConn& c, std::uint64_t seq, const std::string& texto) {
+    {
+        std::lock_guard<std::mutex> l(c.m);
+        if (c.cortar || seq <= c.ultimo) return;
+        c.cola.push_back(texto);
+        c.bytes += texto.size();
+        c.ultimo = seq;
+        if (c.bytes > kTopeColaSse) c.cortar = true;
+    }
+    c.cv.notify_one();
+}
+
+void SignalingServer::adminEvents(long long fd, const std::string& headers) {
     const std::string head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
                              "Cache-Control: no-store\r\nConnection: keep-alive\r\n\r\n";
     if (!http::sendAll(fd, head.data(), head.size())) return;
@@ -1235,52 +1286,79 @@ void SignalingServer::adminEvents(long long fd) {
 
     auto conn = std::make_shared<SseConn>();
     conn->fd = fd;
+    const auto [epochPedido, desde] = idDeEvento(http::getHeader(headers, "Last-Event-ID"));
     {
-        // Primero el estado completo; despues, cambios. Se registra con el
-        // envio del snapshot bajo su lock para que ningun evento se adelante.
-        std::lock_guard<std::mutex> sendLock(conn->sendLock);
-        {
-            std::lock_guard<std::mutex> lock(sseLock_);
-            sse_.push_back(conn);
-        }
-        const std::string first = "retry: 2000\n\nevent: room\ndata: " + room_.snapshot().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n";
-        http::sendAll(fd, first.data(), first.size());
+        // Primero la foto; después, si la app viene de esta misma sala y la cola corta
+        // tiene todo lo que se perdió, los eventos de un solo disparo que no le llegaron;
+        // después, lo nuevo. Todo con sseLock_: ningún evento se cuela en el medio.
+        std::lock_guard<std::mutex> lock(sseLock_);
+        const bool reanudado = !epochPedido.empty() && epochPedido == epoch_ && desde <= sseSeq_ && descartadoHasta_ <= desde;
+        json foto = room_.snapshot();
+        foto["epoch"] = epoch_;
+        foto["protocolo"] = ba::ipc::kProtocoloSala;
+        foto["reanudado"] = reanudado;
+        conn->cola.push_back("retry: 2000\nid: " + epoch_ + ":" + std::to_string(sseSeq_) + "\nevent: room\ndata: " +
+                             foto.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n");
+        if (reanudado)
+            for (const EventoGuardado& g : guardados_)
+                if (g.seq > desde) conn->cola.push_back(g.texto);
+        conn->ultimo = sseSeq_;
+        sse_.push_back(conn);
     }
 
-    // El cliente no manda nada: se espera su cierre, con un latido cada 15 s
-    // que ademas detecta conexiones muertas (el envio falla).
+    // Este hilo es el que le escribe a la app (ver SseConn): saca de la cola y escribe;
+    // sin nada, un latido cada 15 s que además detecta conexiones muertas. El cliente no
+    // manda nada: lo que llega es su cierre.
+    auto ultimoEnvio = std::chrono::steady_clock::now();
     while (!stop_.load(std::memory_order_relaxed)) {
-        const int r = http::waitReadable(fd, 15000);
+        std::deque<std::string> lote;
+        bool cortar = false;
+        {
+            std::unique_lock<std::mutex> l(conn->m);
+            conn->cv.wait_for(l, std::chrono::seconds(1), [&]() { return !conn->cola.empty() || conn->cortar; });
+            lote.swap(conn->cola);
+            conn->bytes = 0;
+            cortar = conn->cortar;
+        }
+        if (cortar) {
+            log_.warn(traducir("gateway", "control: la app no lee sus eventos; se le corta el flujo (vuelve a entrar con la foto)"),
+                      -1);
+            break;
+        }
+        bool ok = true;
+        for (const std::string& m : lote)
+            if (!(ok = http::sendAll(fd, m.data(), m.size()))) break;
+        if (!ok) break;
+        const auto ahora = std::chrono::steady_clock::now();
+        if (!lote.empty()) {
+            ultimoEnvio = ahora;
+        } else if (ahora - ultimoEnvio >= kLatidoSse) {
+            if (!http::sendAll(fd, ": ping\n\n", 8)) break;
+            ultimoEnvio = ahora;
+        }
+        const int r = http::waitReadable(fd, 0);
         if (r < 0) break;
         if (r > 0) {
             uint8_t sink[256];
             if (http::recvSome(fd, sink, sizeof(sink)) <= 0) break;
-            continue;
         }
-        std::lock_guard<std::mutex> lock(conn->sendLock);
-        if (!http::sendAll(fd, ": ping\n\n", 8)) break;
     }
-    {
-        std::lock_guard<std::mutex> lock(sseLock_);
-        sse_.erase(std::remove(sse_.begin(), sse_.end(), conn), sse_.end());
-    }
-    std::lock_guard<std::mutex> lock(conn->sendLock);
-    conn->fd = -1;
+    std::lock_guard<std::mutex> lock(sseLock_);
+    sse_.erase(std::remove(sse_.begin(), sse_.end(), conn), sse_.end());
 }
 
 void SignalingServer::broadcastToHosts(const std::string& event, const json& data) {
-    std::vector<std::shared_ptr<SseConn>> conns;
-    {
-        std::lock_guard<std::mutex> lock(sseLock_);
-        conns = sse_;
-    }
-    if (conns.empty()) return;
-    const std::string msg = "event: " + event + "\ndata: " + data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n";
-    for (const auto& c : conns) {
-        std::lock_guard<std::mutex> lock(c->sendLock);
-        if (c->fd >= 0 && !http::sendAll(c->fd, msg.data(), msg.size())) {
-            http::shutdownFd(c->fd); // su thread lo da de baja
-        }
+    const std::string cuerpo = data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    const bool estado = eventoDeEstado(event);
+    std::lock_guard<std::mutex> lock(sseLock_);
+    const std::uint64_t seq = ++sseSeq_;
+    std::string msg = "id: " + epoch_ + ":" + std::to_string(seq) + "\nevent: " + event + "\ndata: " + cuerpo + "\n\n";
+    for (const auto& c : sse_) encolarSse(*c, seq, msg);
+    if (estado) return;
+    guardados_.push_back({seq, std::move(msg)});
+    while (guardados_.size() > kGuardadosSse) {
+        descartadoHasta_ = guardados_.front().seq;
+        guardados_.pop_front();
     }
 }
 
