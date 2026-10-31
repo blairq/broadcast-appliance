@@ -13,7 +13,10 @@ Rectangle {
     property string subtitulo: ""
     /// Lo que va a la derecha del título (un botón, un estado).
     property alias extra: extraFila.data
-    default property alias contenido: cuerpo.data
+    /// Lo de adentro va directo en la columna (sin otra columna en el medio): cada
+    /// layout anidado le suma al de arriba una vuelta más de acomodarse cuando un
+    /// texto que corta cambia de alto, y Qt corta en la tercera («polish loop»).
+    default property alias contenido: col.data
     /// Resaltada (algo abierto, al aire): el borde de ese color.
     property color resaltado: "transparent"
 
@@ -40,11 +43,6 @@ Rectangle {
                        text: sec.subtitulo; color: Theme.textFaint; font.pixelSize: 11 }
             }
             RowLayout { id: extraFila; spacing: 8 }
-        }
-        ColumnLayout {
-            id: cuerpo
-            Layout.fillWidth: true
-            spacing: 8
         }
     }
 }

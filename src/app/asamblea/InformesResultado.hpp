@@ -76,6 +76,8 @@ class InformesResultado : public QObject {
     void guardarIndice(const json& i) const;
     /// La de fábrica, si todavía no hay ninguna.
     void asegurarUna();
+    /// Lo de crear() sin avisar (cambio): para asegurarUna, que corre al leer.
+    std::string agregar(const std::string& nombre, const std::string& texto, std::string* error);
     std::filesystem::path carpeta_;
     std::function<json()> contenido_;
     std::function<std::filesystem::path()> salida_;

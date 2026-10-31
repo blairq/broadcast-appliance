@@ -35,7 +35,8 @@ Dialog {
     }
 
     anchors.centerIn: parent
-    width: Math.min(parent ? parent.width - 60 : 560, 560)
+    // Sigue al ancho de la ventana solo abierto (cerrado, su padre arranca en 0: binding loop).
+    width: visible && parent ? Math.min(parent.width - 60, 560) : 560
     modal: true
     title: qsTr("QR para manejar las escenas")
     onOpened: generar()

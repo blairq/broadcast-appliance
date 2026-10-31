@@ -118,7 +118,9 @@ Item {
                             ToolTip.text: (filaRec.f.texto || "") + (filaRec.f.pico ? "  ·  " + filaRec.f.pico : "")
                         }
                         // El pico, solo si entra: si no, empujaba la fila fuera de la tarjeta.
-                        Text { id: picoRec; visible: filaRec.width >= 300; text: filaRec.f.pico || ""; color: Theme.textFaint; font.pixelSize: 10 }
+                        // Por el ancho de la tarjeta, no el de la fila: la fila lo pone el layout
+                        // y, mientras se arma, mostrarlo o no cambiaba lo que pide la fila (ciclo).
+                        Text { id: picoRec; visible: tarjeta.width >= 300; text: filaRec.f.pico || ""; color: Theme.textFaint; font.pixelSize: 10 }
                     }
                 }
                 // Nuestros procesos (la app, el gateway, el launcher): CPU y memoria de cada uno.

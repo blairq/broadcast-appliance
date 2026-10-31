@@ -562,7 +562,7 @@ Rectangle {
                 }
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: width > 900 ? 2 : 1
+                    columns: pg.width > 900 ? 2 : 1 // por el ancho de la página, no el suyo (lo pone el layout)
                     columnSpacing: 12; rowSpacing: 12
                     // --- 1. El token del plan ---
                     Seccion {

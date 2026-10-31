@@ -620,4 +620,41 @@ Rectangle {
             }
         }
     }
+
+    // Gráfico nuevo (los botones «+ Descripción» y «+ QML» de la lista). Se había ido
+    // con el zócalo del asistente y los botones quedaban llamando a un id que no estaba.
+    Dialog {
+        id: nuevoDlg
+        anchors.centerIn: parent
+        width: 420
+        modal: true
+        title: qsTr("Gráfico nuevo")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property bool declarativo: true
+        function abrir(decl) { declarativo = decl; nombreCampo.text = ""; open() }
+        onAccepted: {
+            const e = page.g.crear(nombreCampo.text.trim(), declarativo)
+            if (e !== "") page.g.notify(e, "error")
+        }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: Theme.textDim
+                font.pixelSize: 12
+                text: nuevoDlg.declarativo
+                      ? qsTr("Se arma con capas y animaciones de un repertorio, sin escribir código.")
+                      : qsTr("QML a mano. Mirá docs/GRAFICOS.md antes: hay cuatro o cinco trampas que cuestan tiempo.")
+            }
+            TextField {
+                id: nombreCampo
+                Layout.fillWidth: true
+                placeholderText: "zocalo-evento"
+                color: Theme.text
+                onAccepted: nuevoDlg.accept()
+            }
+        }
+    }
 }

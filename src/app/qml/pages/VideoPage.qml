@@ -1504,8 +1504,9 @@ Rectangle {
     Popup {
         id: superresPop
         anchors.centerIn: parent
-        width: Math.min(parent.width - 80, 980)
-        height: Math.min(parent.height - 80, 760)
+        // Sigue al tamaño de la página solo abierto (cerrado, la página arranca en 0: binding loop).
+        width: visible ? Math.min(parent.width - 80, 980) : 980
+        height: visible ? Math.min(parent.height - 80, 760) : 760
         modal: true
         padding: 18
         background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
