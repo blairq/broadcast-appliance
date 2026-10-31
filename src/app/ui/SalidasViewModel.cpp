@@ -412,6 +412,14 @@ void SalidasViewModel::pedir(const char* que, std::function<std::string(AppRunti
         });
 }
 
+void SalidasViewModel::pedir(const char* que, std::function<std::string(AppRuntime&)> orden, Listo listo) {
+    p_.ventanilla.pedir(
+        this, que, [&rt = p_.rt, orden = std::move(orden)]() { return orden(rt); },
+        [listo = std::move(listo)](const std::string& e) {
+            if (listo) listo(e);
+        });
+}
+
 QString SalidasViewModel::crear(const QString& nombre, const QString& color) {
     // El id sale del nombre (letras y números, sin acentos: va en los nombres de los
     // canales y los archivos) y no se repite; sin nada útil, «salida-<n>».
@@ -453,23 +461,48 @@ QString SalidasViewModel::grabar(const QString& id, bool grabar) {
 }
 
 QString SalidasViewModel::crearSalida(const QString& id, const QString& nombre, const QString& color) {
-    pedir("salida_crear", [i = id.toStdString(), n = nombre.toStdString(), c = color.toStdString()](AppRuntime& rt) {
-        return rt.crearSalida(i, n, c);
+    crearSalida(id.toStdString(), nombre.toStdString(), color.toStdString(), [this](const std::string& e) {
+        if (!e.empty()) emit notify(qs(e), "error");
     });
     return {};
+}
+
+void SalidasViewModel::crearSalida(const std::string& id, const std::string& nombre, const std::string& color,
+                                   Listo listo) {
+    pedir("salida_crear", [id, nombre, color](AppRuntime& rt) { return rt.crearSalida(id, nombre, color); },
+          std::move(listo));
 }
 
 QString SalidasViewModel::editar(const QString& id, const QString& nombre, const QString& color) {
     nlohmann::json cambios = nlohmann::json::object();
     if (!nombre.isEmpty()) cambios["nombre"] = nombre.toStdString();
     if (!color.isEmpty()) cambios["color"] = color.toStdString();
-    pedir("salida_editar", [i = id.toStdString(), cambios](AppRuntime& rt) { return rt.editarSalida(i, cambios); });
+    editar(id.toStdString(), cambios, -1, [this](const std::string& e) {
+        if (!e.empty()) emit notify(qs(e), "error");
+    });
     return {};
 }
 
+void SalidasViewModel::editar(const std::string& id, const nlohmann::json& cambios, int tope, Listo listo) {
+    pedir("salida_editar",
+          [id, cambios, tope](AppRuntime& rt) {
+              if (tope >= 0)
+                  if (std::string e = rt.setTopeSalidas(tope); !e.empty()) return e;
+              return cambios.empty() ? std::string() : rt.editarSalida(id, cambios);
+          },
+          std::move(listo));
+}
+
 QString SalidasViewModel::borrar(const QString& id, const QString& susDestinos) {
-    pedir("salida_borrar", [i = id.toStdString(), d = susDestinos.toStdString()](AppRuntime& rt) { return rt.borrarSalida(i, d); });
+    borrar(id.toStdString(), susDestinos.toStdString(), [this](const std::string& e) {
+        if (!e.empty()) emit notify(qs(e), "error");
+    });
     return {};
+}
+
+void SalidasViewModel::borrar(const std::string& id, const std::string& susDestinos, Listo listo) {
+    pedir("salida_borrar", [id, susDestinos](AppRuntime& rt) { return rt.borrarSalida(id, susDestinos); },
+          std::move(listo));
 }
 
 QString SalidasViewModel::setCodificador(const QString& id, const QString& codificador) {
@@ -496,6 +529,11 @@ QString SalidasViewModel::placaUi(bool activar, const QString& texto, const QStr
 }
 
 QStringList SalidasViewModel::textosPlaca() const {
+    const FotoMotor::Salida* s = p_.ventanilla.foto().salida({});
+    return textosDePlaca(s != nullptr ? QString::fromStdString(s->placa.value("placa_texto", std::string())) : QString());
+}
+
+QStringList SalidasViewModel::textosDePlaca(const QString& usado) {
     // Salen al aire: en el idioma del evento (se arman cada vez que se piden, así que un
     // cambio de idioma se ve en la lista siguiente; una placa ya al aire queda como salió).
     const auto ev = [](const std::string& s) { return QString::fromStdString(s); };
@@ -504,8 +542,6 @@ QStringList SalidasViewModel::textosPlaca() const {
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Minuto de silencio")),
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Sesión suspendida")),
                   ev(ba::i18n::traducirEvento("SalidasViewModel", "Dificultades técnicas"))};
-    const FotoMotor::Salida* s = p_.ventanilla.foto().salida({});
-    const QString usado = s != nullptr ? QString::fromStdString(s->placa.value("placa_texto", std::string())) : QString();
     if (!usado.isEmpty() && !l.contains(usado)) l.prepend(usado);
     return l;
 }

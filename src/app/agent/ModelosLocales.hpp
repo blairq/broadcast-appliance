@@ -184,6 +184,12 @@ class ModelosLocales : public QObject {
     Q_INVOKABLE QVariantMap limpiarViejos();
     /// Borra las descargas cortadas (no la que está bajando ahora). {borrados, bytes}
     Q_INVOKABLE QVariantMap limpiarRestos();
+    /// borrar, borrarCarpeta y las limpiezas («viejos» | «restos») con el borrado (gigas) en
+    /// otro hilo: lo que es de este objeto (apagar el activo, elegir qué) acá, el disco allá, y
+    /// `listo` de vuelta en el hilo de este objeto, después de avisar (cambio, revisarDisco).
+    void borrar(const QString& repo, std::function<void()> listo);
+    void borrarCarpeta(const QString& carpeta, std::function<void(bool)> listo);
+    void limpiar(const QString& que, std::function<void(QVariantMap)> listo);
     /// Carga el modelo (y apaga el que hubiera).
     Q_INVOKABLE void activar(const QString& repo);
     /// El .gguf para el CHAT del modelo local (pi + llama-server, pestaña
@@ -321,6 +327,13 @@ class ModelosLocales : public QObject {
     void registrarActualizaciones();
     std::string errorPedido_;
     std::set<QString> enCurso_;
+    /// La carpeta de Modelos/ que se puede borrar con ese nombre (vacía si no es una de las
+    /// que borrarCarpeta acepta); si es la del activo, lo apaga antes.
+    std::filesystem::path carpetaParaBorrar(const QString& carpeta);
+    /// Borra `dirs` en otro hilo; `listo(bytes liberados, cuántas)` acá, después de avisar.
+    /// `soloRestos`: en vez de `dirs`, las descargas cortadas de Modelos/ (se buscan allá).
+    void borrarAparte(std::vector<std::filesystem::path> dirs, bool soloRestos,
+                      std::function<void(double bytes, int borradas)> listo);
     /// revisarDisco, fuera del hilo de la interfaz.
     std::pair<QVariantList, QVariantMap> calcularDisco(const std::set<std::string>& bajando,
                                                        const QString& activo) const;

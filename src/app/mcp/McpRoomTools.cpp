@@ -46,9 +46,7 @@ namespace ba::app::mcp {
 
 json roomSnapshot(StudioViewModel& vm) {
     auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
-    const QByteArray raw = QJsonDocument(conf->client().snapshot()).toJson(QJsonDocument::Compact);
-    json s = json::parse(raw.toStdString(), nullptr, false);
-    return s.is_object() ? s : json::object();
+    return toJson(conf->client().snapshot()); // sin pasar por texto (toJson)
 }
 
 bool resolveParticipant(const json& snapshot, const std::string& query, json& out, std::string& err) {
@@ -98,8 +96,8 @@ std::string personFeedKey(const json& p) {
 namespace {
 
 
-/// QR (matriz de '0'/'1') -> PNG en base64.
-std::string qrPng(const json& modules) {
+/// QR (matriz de '0'/'1') -> imagen (nula si no hay matriz).
+QImage qrImagen(const json& modules) {
     const int n = static_cast<int>(modules.size());
     if (n == 0) return {};
     const int cell = 8;
@@ -113,11 +111,7 @@ std::string qrPng(const json& modules) {
             if (row[x] == '1') p.fillRect((x + quiet) * cell, (y + quiet) * cell, cell, cell, Qt::black);
     }
     p.end();
-    QByteArray bytes;
-    QBuffer buf(&bytes);
-    buf.open(QIODevice::WriteOnly);
-    img.save(&buf, "PNG");
-    return bytes.toBase64().toStdString();
+    return img;
 }
 
 } // namespace
@@ -478,6 +472,7 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_clave";
+            t.destructivaSi = "borrar"; // borrar=true borra
             t.title = ba::i18n::traducir("mcp", "Acceso remoto: guardar o borrar una clave (pinggy o Cloudflare)");
             t.category = "sala";
             t.clase = Clase::Escritura;
@@ -1016,31 +1011,35 @@ void McpService::registerRoomTools() {
             auto vistos = std::make_shared<std::set<std::string>>();
             for (const auto& m : leer())
                 if (m.is_object()) vistos->insert(m.value("uid", ""));
-            const std::int64_t vence = QDateTime::currentMSecsSinceEpoch() + a.value("timeoutSec", 60) * 1000;
-            auto* timer = new QTimer(conf);
-            timer->setInterval(400);
-            QObject::connect(timer, &QTimer::timeout, conf, [timer, leer, vistos, id, vence, done]() {
+            // El chat avisa cuando cambia (chatRevChanged): se mira ahí, no cada 400 ms
+            // serializando la lista entera.
+            const auto nuevosDe = [leer, vistos, id]() {
                 json nuevos = json::array();
                 for (const auto& m : leer()) {
                     if (!m.is_object() || vistos->count(m.value("uid", "")) != 0) continue;
                     if (m.value("fromId", "") == id && !m.value("mine", false)) nuevos.push_back(m);
                 }
-                const bool vencio = QDateTime::currentMSecsSinceEpoch() >= vence;
-                if (nuevos.empty() && !vencio) return;
-                timer->stop();
-                timer->deleteLater();
-                ToolResult r;
-                r.data(json{{"messages", nuevos}, {"timedOut", nuevos.empty()}});
-                if (!nuevos.empty()) r.untrusted = true; // escrito por un invitado
-                done(r);
-            });
-            timer->start();
+                return nuevos;
+            };
+            esperarHasta(
+                conf, &ConferenceViewModel::chatRevChanged,
+                [nuevosDe]() -> std::optional<ToolResult> {
+                    const json nuevos = nuevosDe();
+                    if (nuevos.empty()) return std::nullopt;
+                    ToolResult r;
+                    r.data(json{{"messages", nuevos}, {"timedOut", false}});
+                    r.untrusted = true; // escrito por un invitado
+                    return r;
+                },
+                a.value("timeoutSec", 60) * 1000,
+                []() { return ToolResult().data(json{{"messages", json::array()}, {"timedOut", true}}); }, done);
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "share_list";
+        t.untrustedOutput = true; // siempre trae archivos de invitados
         t.title = ba::i18n::traducir("mcp", "Archivos compartidos");
         t.category = "sala";
         t.clase = Clase::Lectura;
@@ -1054,6 +1053,7 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "compartida_revisar";
+        t.untrustedOutput = true; // siempre trae archivos de invitados
         t.title = ba::i18n::traducir("mcp", "Ver un archivo compartido");
         t.category = "sala";
         t.clase = Clase::Lectura;
@@ -1065,17 +1065,21 @@ void McpService::registerRoomTools() {
             {"properties",
              {{"id", {{"type", "string"}}}, {"maxWidth", {{"type", "integer"}, {"default", 1280}}}}},
             {"required", {"id"}}};
-        t.run = [&control](const json& a, Done done) {
-            control.verArchivo(a["id"].get<std::string>(), [a, done](const std::string& err, const json& share,
-                                                                      const QByteArray& bytes) {
+        t.run = [&control, &core = core_, raiz = rt_.dataRoot()](const json& a, Done done) {
+            const DestinoImagen destino = destinoImagen(core, raiz);
+            control.verArchivo(a["id"].get<std::string>(), [a, done, destino](const std::string& err, const json& share,
+                                                                               const QByteArray& bytes) {
                 if (!err.empty()) return done(ToolResult::error(err + " " + ba::i18n::traducir("mcp", "share_list dice cuáles hay.")));
                 if (bytes.isEmpty()) return done(ToolResult().data(share)); // video o audio: sus datos
-                QImage img;
-                if (!img.loadFromData(bytes)) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo leer la imagen.")));
-                ToolResult r;
-                r.text(share.value("name", "") + " — de " + share.value("participantName", ""));
-                addImage(r, img, a, 1280);
-                done(r);
+                // Decodificar, escalar y codificar, fuera de la interfaz.
+                enPool(qApp, [a, share, bytes, destino]() {
+                    QImage img;
+                    if (!img.loadFromData(bytes)) return ToolResult::error(ba::i18n::traducir("mcp", "No se pudo leer la imagen."));
+                    ToolResult r;
+                    r.text(share.value("name", "") + " — de " + share.value("participantName", ""));
+                    addImage(r, img, a, 1280, destino);
+                    return r;
+                }, done);
             });
         };
         core_.addTool(std::move(t));
@@ -1135,9 +1139,10 @@ void McpService::registerRoomTools() {
              {{"target", {{"type", "string"}, {"enum", {"local", "remote"}}, {"default", "local"}}},
               {"withPin", {{"type", "boolean"}, {"default", false}}},
               {"board", {{"type", "boolean"}, {"default", false}}}}}};
-        t.run = [&enlaces](const json& a, Done done) {
+        t.run = [&enlaces, &core = core_, raiz = rt_.dataRoot()](const json& a, Done done) {
             const bool remoto = a.value("target", std::string("local")) == "remote";
-            const auto alVolver = [done, remoto](const sala::Enlace& e) {
+            const DestinoImagen destino = destinoImagen(core, raiz); // contesta después: se lee ya
+            const auto alVolver = [done, remoto, destino](const sala::Enlace& e) {
                 if (!e.ok) return done(ToolResult::error(e.mensaje.empty() ? ba::i18n::traducir("mcp", "sin enlace") : e.mensaje));
                 ToolResult res;
                 const std::string url = e.url;
@@ -1149,8 +1154,8 @@ void McpService::registerRoomTools() {
                                                 "room_link {\"target\": \"remote\"}.")
                                   : std::string()) + ")");
                 res.structured = json{{"url", url}, {"remoto", remoto}};
-                const std::string png = qrPng(json(e.filas));
-                if (!png.empty()) res.image(png, "image/png");
+                if (const QImage qr = qrImagen(json(e.filas)); !qr.isNull())
+                    addImage(res, qr, json{{"format", "png"}}, 0, destino); // a quien no mira, como archivo
                 done(res);
             };
             if (a.value("board", false))
@@ -1217,6 +1222,7 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "remotos_fila_ver";
+        t.untrustedConGente = true; // nombres, datos o video de invitados si hay gente
         t.title = ba::i18n::traducir("mcp", "Fila de oradores");
         t.category = "oradores";
         t.clase = Clase::Lectura;

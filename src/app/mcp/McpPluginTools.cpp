@@ -55,6 +55,7 @@ void McpService::registerPluginTools() {
     {
         Tool t;
         t.name = "plugin_ver";
+        t.hilo = Hilo::Foto; // solo lee la carpeta del plugin: en el pool
         t.title = ba::i18n::traducir("mcp", "Ver un plugin (o un ejemplo)");
         t.category = "plugins";
         t.clase = Clase::Lectura;

@@ -401,6 +401,7 @@ void McpCore::addTool(Tool tool) {
     tool.readOnly = tool.clase == Clase::Lectura;
     // Lo de fábrica es la interfaz: ver Hilo en McpCore.hpp (por qué no se deduce de la clase).
     if (tool.hilo == Hilo::SegunClase) tool.hilo = Hilo::Interfaz;
+    if (tool.destructivaSi != nullptr) tool.destructive = true; // puede borrar (ver esDestructiva)
     // Una de aire sin motivo deja a mcp_aire_lista diciendo nada; la prueba del
     // inventario no la deja pasar, pero se avisa igual (una armada en ejecución).
     if (tool.clase == Clase::Aire && tool.porQueAire == nullptr)
@@ -1271,7 +1272,7 @@ void McpCore::procesar(const Tool* tool, const std::string& name, const json& ar
         // canal ni a que valor no sirve para entender nada despues.
         const std::string resumenArgs = Traza::resumir(args, 220);
         try {
-            tool->run(args, [this, finish, called, session, untrustedOut, name, modifica, arranque, quien,
+            tool->run(args, [this, tool, finish, called, session, untrustedOut, name, modifica, arranque, quien,
                              resumenArgs, orden](ToolResult r) {
                 if (*called) return; // una sola respuesta por pedido
                 *called = true;
@@ -1292,7 +1293,10 @@ void McpCore::procesar(const Tool* tool, const std::string& name, const json& ar
                     r.isError ? ba::i18n::llenar(ba::i18n::traducir("mcp", "%1%2 FALLO (%3 ms) %4 -> %5"),
                                                  {name, quien, std::to_string(ms), resumenArgs, primerTexto(r)})
                               : name + quien + " (" + std::to_string(ms) + " ms) " + resumenArgs);
-                if (untrustedOut || r.untrusted) taint(session, name);
+                // Con gente en la sala, lo que la muestra contamina (Tool::untrustedConGente): se
+                // mira al contestar, que es lo que se llevó la respuesta.
+                if (untrustedOut || r.untrusted || (tool->untrustedConGente && hayGente_ && hayGente_()))
+                    taint(session, name);
                 // Si modifico algo y salio bien, las vistas se enteran ANTES de
                 // que se conteste: asi no hay un instante en el que el
                 // asistente ya sabe algo que la pantalla todavia no muestra.

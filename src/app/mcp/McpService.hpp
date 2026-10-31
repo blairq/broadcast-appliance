@@ -17,6 +17,8 @@
 // ============================================================================
 #pragma once
 
+#include <atomic>
+
 #include <filesystem>
 
 #include <QImage>
@@ -123,7 +125,6 @@ class McpService : public QObject {
     /// conmutadores, la seguridad del aire y el runtime, con el turno del motor.
     MandoDeAire mandoDeAire();
     void applyApprovalPolicy();
-    bool roomHasUntrusted();
 
    public:
     /// Prompt del sistema para el agente de la pestaña Asistente (markdown).
@@ -139,6 +140,12 @@ class McpService : public QObject {
     std::unique_ptr<PropertiesModel> props_;  ///< propio: no toca el panel de la vista
     std::unique_ptr<SettingsModel> settings_; ///< propio: borrador independiente
     std::function<QQuickWindow*()> mainWindow_;
+    /// ¿Hay alguien en la sala? Lo pone la interfaz cuando cambia la sala (la copia de
+    /// ConferenceClient avisa con snapshotChanged) y lo lee el núcleo desde cualquier
+    /// hilo (McpCore::setHayGente, Tool::untrustedConGente).
+    std::atomic<bool> hayGente_{false};
+    /// Hay un guardado armado que junta los cambios del MCP (ver setSincronizador en el .cpp).
+    std::shared_ptr<std::atomic<bool>> guardadoPendiente_ = std::make_shared<std::atomic<bool>>(false);
 };
 
 // --- Utilidades compartidas por los archivos de herramientas ---------------------
@@ -146,8 +153,6 @@ class McpService : public QObject {
 /// QImage -> base64 (jpeg o png), achicada a `maxWidth` si hace falta.
 std::string encodeImage(const QImage& img, const std::string& format, int maxWidth, int quality,
                         std::string& mime);
-/// Agrega la imagen al resultado (+ una linea con su tamaño).
-void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth);
 /// Guarda una captura en Runtime/capturas/ y devuelve su ruta (vacía si no se
 /// pudo). Es a donde van a parar las imágenes que NO se mandan por la
 /// conversación; ver el comentario de `puedeVerImagenes` en el .cpp.
@@ -160,6 +165,15 @@ QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, con
 /// es que una imagen de más cuelga la sesión del que está operando.
 void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth, McpCore& core,
               const std::filesystem::path& raiz);
+/// A quién va la imagen, leído AL ENTRAR a la herramienta: una que contesta después
+/// (un pedido a B, al renderizador) ya no tiene el contexto de la llamada
+/// (McpCore::contextoEnCurso) cuando llega la imagen.
+struct DestinoImagen {
+    bool ver = false; ///< el rol que mira (puedeVerImagenes): la imagen en la conversación
+    std::filesystem::path raiz;
+};
+DestinoImagen destinoImagen(McpCore& core, const std::filesystem::path& raiz);
+void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth, const DestinoImagen& destino);
 /// Rectangulo en fracciones del lienzo a partir de un preset o {x,y,w,h}.
 /// :returns: false (con `err`) si no se entiende.
 /// `{x,y,w,h}` en fracciones del lienzo (o un preset). Si vino en píxeles (algún

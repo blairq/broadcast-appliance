@@ -90,6 +90,7 @@ void McpService::registerOperatorTools() {
     {
         Tool t;
         t.name = "operator_message";
+        t.mediated = true; // lo decide una persona con un click
         t.title = ba::i18n::traducir("mcp", "Mensaje al operador");
         t.category = "operador";
         t.clase = Clase::Escritura;
@@ -115,6 +116,7 @@ void McpService::registerOperatorTools() {
     {
         Tool t;
         t.name = "operator_ask";
+        t.mediated = true; // lo decide una persona con un click
         t.title = ba::i18n::traducir("mcp", "Preguntarle al operador");
         t.category = "operador";
         t.clase = Clase::Escritura;
@@ -214,6 +216,7 @@ void McpService::registerOperatorTools() {
     {
         Tool t;
         t.name = "guest_reply_suggest";
+        t.mediated = true; // lo decide una persona con un click
         t.title = ba::i18n::traducir("mcp", "Sugerir respuestas a un invitado");
         t.category = "operador";
         t.clase = Clase::Escritura;

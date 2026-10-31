@@ -20,7 +20,9 @@
 
 #include "arranque/AppRuntime.hpp"
 
+#include <QCoreApplication>
 #include <QFile>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
@@ -672,20 +674,25 @@ void McpService::registerPtzTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "posicion"}},
                          {"properties", {{"entrada", entrada}, {"posicion", posicion}}}};
-        t.run = [c](const json& a, Done done) {
+        t.run = [c, &core = core_, raiz = rt_.dataRoot()](const json& a, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
             const QString clave = qarg(a, "posicion");
             for (const QVariant& v : c->posiciones(qarg(a, "entrada"))) {
                 const QVariantMap m = v.toMap();
                 if (m["id"].toString() != clave && m["nombre"].toString().compare(clave, Qt::CaseInsensitive) != 0) continue;
-                QFile f(m.value("miniatura_ruta").toString());
-                if (!f.open(QIODevice::ReadOnly))
-                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "la posición «%1» no tiene foto"),
-                                                                  {m["nombre"].toString().toStdString()})));
-                ToolResult r;
-                r.text("«" + m["nombre"].toString().toStdString() + "» (" + m.value("miniatura_ruta").toString().toStdString() + ")");
-                r.image(f.readAll().toBase64().toStdString(), "image/jpeg");
-                return done(r);
+                const QString ruta = m.value("miniatura_ruta").toString();
+                const std::string nombre = m["nombre"].toString().toStdString();
+                // Leerla y mandarla (a quien no mira, como archivo: addImage), fuera de la interfaz.
+                enPool(qApp, [ruta, nombre, a, destino = destinoImagen(core, raiz)]() {
+                    const QImage img(ruta);
+                    if (img.isNull())
+                        return ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "la posición «%1» no tiene foto"), {nombre}));
+                    ToolResult r;
+                    r.text("«" + nombre + "» (" + ruta.toStdString() + ")");
+                    addImage(r, img, a, 0, destino);
+                    return r;
+                }, done);
+                return;
             }
             done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay una posición «%1» en esa entrada"), {clave.toStdString()})));
         };
@@ -702,19 +709,27 @@ void McpService::registerPtzTools() {
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [c](const json&, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-            c->buscarOnvif();
-            QTimer::singleShot(3300, c.data(), [c, done]() {
-                if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
-                json lista = json::array();
+            const auto lista = [c]() {
+                json l = json::array();
                 for (const QVariant& v : c->encontradas()) {
                     const QVariantMap m = v.toMap();
-                    lista.push_back({{"direccion", m["direccion"].toString().toStdString()},
-                                     {"host", m["host"].toString().toStdString()},
-                                     {"nombre", m["nombre"].toString().toStdString()},
-                                     {"modelo", m["modelo"].toString().toStdString()}});
+                    l.push_back({{"direccion", m["direccion"].toString().toStdString()},
+                                 {"host", m["host"].toString().toStdString()},
+                                 {"nombre", m["nombre"].toString().toStdString()},
+                                 {"modelo", m["modelo"].toString().toStdString()}});
                 }
-                done(ToolResult().data({{"encontradas", lista}}));
-            });
+                return ToolResult().data({{"encontradas", l}});
+            };
+            c->buscarOnvif();
+            // La búsqueda avisa al terminar (busquedaCambio con `buscando` en false): no una
+            // espera fija. Tope 6 s, por las dudas.
+            esperarHasta(
+                c.data(), &ptz::ControlCamaras::busquedaCambio,
+                [c, lista]() -> std::optional<ToolResult> {
+                    if (c->buscando()) return std::nullopt;
+                    return lista();
+                },
+                6000, lista, done);
         };
         core_.addTool(std::move(t));
     }
@@ -749,7 +764,6 @@ void McpService::registerPtzTools() {
             if (a.contains("color")) m.color = std::clamp(a.value("color", m.color), 0, 100);
             if (a.contains("nitidez")) m.nitidez = std::clamp(a.value("nitidez", m.nitidez), 0, 100);
             if (cambia) {
-                rt.save();
                 rt.fotoSucia(FotoMotor::Ajustes);
             }
             done(ToolResult().data(

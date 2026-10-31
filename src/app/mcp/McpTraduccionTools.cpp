@@ -8,6 +8,7 @@
 // ============================================================================
 
 #include "i18n/I18n.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "agent/Subtitulos.hpp"
 #include "agent/Traductor.hpp"
 #include "agent/Voz.hpp"
@@ -283,7 +284,7 @@ void McpService::registerTraduccionTools() {
         x.name = "glosario_exportar";
         x.title = ba::i18n::traducir("mcp", "Exportar el glosario para revisión");
         x.category = "traduccion";
-        x.clase = Clase::Lectura;
+        x.clase = Clase::Escritura; // con `archivo` escribe en el disco: no es una lectura
         x.description = QT_TRANSLATE_NOOP("mcp", "El glosario en CSV («es;en;pt;fr;de;ru;zh;grupo;revisado_por», las formas en castellano "
                         "separadas por «|») para que lo revise la institución. Con `archivo`, lo escribe ahí.");
         x.inputSchema = {{"type", "object"}, {"properties", {{"archivo", {{"type", "string"}}}}}};
@@ -292,9 +293,8 @@ void McpService::registerTraduccionTools() {
             const std::string csv = t->glosarioCsv();
             const std::string ruta = a.value("archivo", std::string());
             if (!ruta.empty()) {
-                std::ofstream o(ruta);
-                if (!o) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no pude escribir %1"), {ruta})));
-                o << csv;
+                // Por el escritor único (temporal + rename, fuera de la interfaz).
+                ba::persist::cola().escribir(std::filesystem::u8path(ruta), csv);
                 return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Escrito en %1"), {ruta})));
             }
             done(ToolResult().text(csv));
