@@ -10,6 +10,8 @@
 #include "evento/LineaPlantillas.hpp"
 
 #include <cctype>
+#include <cstdlib>
+#include <map>
 #include <cstdio>
 #include <set>
 
@@ -693,6 +695,34 @@ json lineaDeGuia(const Linea& l, Linea g) {
     }
     if (!renombrar.empty())
         out["avisos"].push_back(llenar(traducir("linea", "%1 ids ya estaban en la línea y se renombraron"), {std::to_string(renombrar.size())}));
+    return out;
+}
+
+// --- Grabar la línea ---------------------------------------------------------------------
+
+json tiemposGrabados(const Linea& l, const std::vector<Instancia>& instancias, int toleranciaSeg) {
+    json out{{"ops", json::array()}, {"pasos", json::array()}, {"totalAntesSeg", 0}, {"totalGrabadoSeg", 0}};
+    // El último paso de cada id que terminó (repetir o volver con «ir a» pisa lo de antes).
+    std::map<std::string, int64_t> duro;
+    for (const Instancia& x : instancias)
+        if (x.hastaMs > x.desdeMs) duro[x.paso] = x.hastaMs - x.desdeMs;
+    int antesTotal = 0, grabadoTotal = 0;
+    for (const Bloque& b : l.bloques)
+        for (const Paso& p : b.pasos) {
+            const auto it = duro.find(p.id);
+            if (it == duro.end()) continue; // no salió (o es una copia insertada)
+            const int antes = static_cast<int>(p.duracionPlanMs() / 1000);
+            const int grabado = static_cast<int>((it->second + 500) / 1000);
+            antesTotal += antes;
+            grabadoTotal += grabado;
+            if (std::abs(grabado - antes) <= toleranciaSeg) continue;
+            json campos{{"duracionPrevistaSeg", grabado}};
+            if (p.fin.modo == ModoFin::Duracion) campos["fin"] = {{"duracion", grabado}};
+            out["ops"].push_back({{"op", "cambiar"}, {"id", p.id}, {"campos", campos}});
+            out["pasos"].push_back({{"paso", p.id}, {"nombre", p.nombre}, {"antesSeg", antes}, {"grabadoSeg", grabado}});
+        }
+    out["totalAntesSeg"] = antesTotal;
+    out["totalGrabadoSeg"] = grabadoTotal;
     return out;
 }
 

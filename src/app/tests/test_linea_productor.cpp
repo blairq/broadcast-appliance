@@ -11,6 +11,8 @@
 //   5. La línea desde una guía (el guion v1 de su plantilla), con ids que chocan.
 //   6. El vigía del over/under: umbral, escalón, silencio y recuperación.
 //   7. Las superficies: la vista con escena, enSeg y estante; los planos por cámara.
+//   8. L10: la escaleta en CSV y en MOS (ida y vuelta, y de otro sistema) y los
+//      tiempos grabados de un ensayo.
 //
 // Todo puro: sin motor y con el reloj inyectado.
 // ============================================================================
@@ -21,6 +23,7 @@
 #include "evento/Evento.hpp"
 #include "evento/Linea.hpp"
 #include "evento/LineaEdicion.hpp"
+#include "evento/LineaIntercambio.hpp"
 #include "evento/LineaProductor.hpp"
 
 using namespace ba::evento::linea;
@@ -403,6 +406,102 @@ void testSuperficies() {
 
 } // namespace
 
+// --- 8. L10: CSV, MOS y los tiempos grabados ---------------------------------------------
+
+void testIntercambio() {
+    CHECK(segundosDe("1:30") == 90 && segundosDe("1:02:03") == 3723 && segundosDe("45") == 45 && segundosDe("x") == -1 &&
+              segundosDe("") == -1,
+          "las duraciones");
+    CHECK(textoDeSegundos(90) == "1:30" && textoDeSegundos(3723) == "1:02:03", "y al revés");
+    Paso a = paso("a", 90);
+    a.piezas = {pieza("za", "escena", "escena", json{{"escena", "Cam 1"}})};
+    a.guion = "Buenas noches, \"bienvenidos\"";
+    Paso b = paso("b", 300);
+    b.inicio = Inicio::deJson(json{{"modo", "hora"}, {"hora", "19:30"}, {"politica", "esperar"}});
+    b.fin = Fin::deJson(json{{"abierto", true}});
+    b.piezas = {pieza("zb", "graficos", "grafico", json{{"fuente", "Zócalo"}, {"grafico", "nombre"}, {"valores", {{"titulo", "Ana"}}}})};
+    const Linea l = base({bloque("b1", {a, b})});
+    const Resolucion r = resolver(l, entrada(T0));
+    const std::string csv = escaletaCsv(l, &r, "principal", [](int64_t ms) { return std::to_string(ms / 1000); });
+    CHECK(csv.find("bloque,id,nombre,entra") == 0, "el encabezado con las claves");
+    CHECK(csv.find("hora 19:30 esperar") != std::string::npos && csv.find("abierto") != std::string::npos &&
+              csv.find("Cam 1") != std::string::npos && csv.find("\"Buenas noches, \"\"bienvenidos\"\"\"") != std::string::npos,
+          "cómo entra, cómo termina, la escena y las comillas");
+    // Vuelve: a una línea vacía, como lote.
+    Leida c = leerCsv(csv);
+    CHECK(c.ok && c.linea.bloques.size() == 1 && c.linea.bloques[0].pasos.size() == 2, "el CSV se lee");
+    if (c.ok && c.linea.bloques[0].pasos.size() == 2) {
+        const Paso& pb = c.linea.bloques[0].pasos[1];
+        CHECK(pb.inicio.modo == ModoInicio::Hora && pb.inicio.hora == "19:30" && pb.inicio.politica == Politica::Esperar &&
+                  pb.fin.modo == ModoFin::Abierto && pb.duracionPrevistaSeg == 300,
+              "con su hard start y su fin");
+        CHECK(c.linea.bloques[0].pasos[0].guion == "Buenas noches, \"bienvenidos\"" && escenaDePaso(c.linea, c.linea.bloques[0].pasos[0]) == "Cam 1",
+              "el guion y la escena");
+    }
+    const json lote = importar(l, c);
+    CHECK(lote["ok"] == true && !lote["ops"].empty(), "como lote");
+    const Edicion e = editar(l, lote["ops"]);
+    CHECK(e.ok && e.linea.bloques.size() == 2 && e.linea.bloques[1].pasos[0].id != "a", "al final, con los ids que chocan renombrados");
+    // Una planilla de otro lado: en inglés, con punto y coma.
+    const Leida otra = leerCsv("Segment;Title;Duration;Script;Notes\nApertura;Bienvenida;0:45;Hola;luz baja\nApertura;Himno;2:10;;\n");
+    CHECK(otra.ok && otra.linea.bloques.size() == 1 && otra.linea.bloques[0].pasos.size() == 2 &&
+              otra.linea.bloques[0].pasos[1].fin.duracionSeg == 130 && otra.linea.bloques[0].pasos[0].notaOperador == "luz baja",
+          "Rundown Studio o una planilla: segment, title, duration, script, notes");
+    CHECK(!leerCsv("a,b\n1,2\n").ok, "sin columna de nombre no se adivina");
+    const Leida malEntra = leerCsv("nombre,entra\nUno,volando\n");
+    CHECK(malEntra.ok && malEntra.avisos.size() == 1, "una entrada que no se entiende se avisa y entra con GO");
+
+    // MOS: ida y vuelta exacta de lo nuestro.
+    const std::string mos = escaletaMos(l, "evento-1", "Evento & <cierre>");
+    CHECK(mos.find("<roCreate>") != std::string::npos && mos.find("<storyID>a</storyID>") != std::string::npos &&
+              mos.find("Evento &amp; &lt;cierre&gt;") != std::string::npos,
+          "roCreate con un story por paso, escapado");
+    const Leida m = leerMos(mos);
+    CHECK(m.ok && m.linea.bloques.size() == 1 && m.linea.bloques[0].nombre == "Bloque b1" && m.linea.bloques[0].pasos.size() == 2,
+          "vuelve con su bloque");
+    if (m.ok && m.linea.bloques[0].pasos.size() == 2) {
+        const Paso& mb = m.linea.bloques[0].pasos[1];
+        CHECK(mb.inicio.modo == ModoInicio::Hora && mb.fin.modo == ModoFin::Abierto && mb.piezas.size() == 1 &&
+                  mb.piezas[0].tipo == "grafico" && mb.piezas[0].datos["valores"]["titulo"] == "Ana" && mb.piezas[0].pista == "graficos",
+              "y cada paso con sus piezas enteras");
+    }
+    // De otro sistema: lo básico.
+    const Leida ajeno = leerMos(R"(<mos><roStoryAppend><roID>X</roID><story><storyID>S1</storyID><storySlug>Titulares</storySlug>
+        <item><itemID>1</itemID><itemSlug>VT apertura</itemSlug></item></story>
+        <story><storyID>S2</storyID><storySlug>Entrevista</storySlug></story></roStoryAppend></mos>)");
+    CHECK(ajeno.ok && ajeno.linea.bloques[0].pasos.size() == 2 && ajeno.linea.bloques[0].pasos[0].nombre == "Titulares" &&
+              ajeno.linea.bloques[0].pasos[0].piezas.size() == 1 && ajeno.linea.bloques[0].pasos[0].piezas[0].texto == "VT apertura",
+          "un roStoryAppend de otro sistema: stories e items como notas");
+    CHECK(!leerMos("<mos></mos>").ok, "sin stories, no");
+
+    // Los tiempos grabados de un ensayo.
+    std::vector<Instancia> xs;
+    Instancia x1;
+    x1.salida = "principal";
+    x1.paso = "a";
+    x1.desdeMs = T0;
+    x1.hastaMs = T0 + 120 * S + 400; // duró 2:00 (no 1:30)
+    Instancia x2 = x1;
+    x2.paso = "b";
+    x2.desdeMs = x1.hastaMs;
+    x2.hastaMs = x2.desdeMs + 300 * S; // igual que lo previsto
+    Instancia copia = x1;
+    copia.paso = "a-ins-1"; // lo insertado no cuenta
+    xs = {x1, x2, copia};
+    const json g = tiemposGrabados(l, xs);
+    CHECK(g["pasos"].size() == 1 && g["pasos"][0]["paso"] == "a" && g["pasos"][0]["grabadoSeg"] == 120 && g["pasos"][0]["antesSeg"] == 90,
+          "solo lo que cambió, redondeado al segundo");
+    CHECK(g["totalGrabadoSeg"] == 420 && g["totalAntesSeg"] == 390, "y el total");
+    const Edicion eg = editar(l, g["ops"]);
+    CHECK(eg.ok && eg.linea.paso("a")->fin.duracionSeg == 120 && eg.linea.paso("a")->duracionPrevistaSeg == 120, "se aplica con editar");
+    Instancia abierto = x2;
+    abierto.hastaMs = abierto.desdeMs + 200 * S;
+    const json g2 = tiemposGrabados(l, {abierto});
+    const Edicion eg2 = editar(l, g2["ops"]);
+    CHECK(eg2.ok && eg2.linea.paso("b")->fin.modo == ModoFin::Abierto && eg2.linea.paso("b")->duracionPrevistaSeg == 200,
+          "a un paso abierto solo se le cambia lo previsto");
+}
+
 int main() {
     testEtiquetas();
     testFin();
@@ -411,6 +510,7 @@ int main() {
     testGuia();
     testVigia();
     testSuperficies();
+    testIntercambio();
     if (g_fallos == 0) std::printf("test_linea_productor: todo bien\n");
     return g_fallos == 0 ? 0 : 1;
 }
