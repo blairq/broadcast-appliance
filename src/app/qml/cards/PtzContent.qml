@@ -20,8 +20,8 @@ Item {
     property string panelId: ""
     property bool enVentana: false
 
-    /// La tarjeta misma, con otro nombre: `Joystick { tarjeta: t }` buscaría `t`
-    /// primero en el Joystick (que tiene uno) y se enlazaría consigo mismo.
+    /// La tarjeta misma, con otro nombre: `PtzVentana { tarjeta: t }` buscaría `t`
+    /// primero en PtzVentana (que tiene uno) y se enlazaría consigo mismo.
     readonly property var estaTarjeta: t
     readonly property var cc: Studio.camaras
     readonly property string entrada: {
@@ -38,8 +38,10 @@ Item {
     readonly property var caps: cam === null ? ({}) : (mueveDigital ? cam.capacidadesDigital : cam.capacidades)
     property real velocidad: 0.6
     property string error: ""
-    property var pos: ({})
-    property var posiciones: []
+    // El encuadre digital (lo avisa el modelo mientras se mueve, a quien lo mira).
+    readonly property var pos: cc && cc.encuadres[entrada] ? cc.encuadres[entrada] : ({})
+    readonly property var posiciones: cam ? cam.posiciones : []
+    readonly property bool alAire: cc ? cc.alAireEntradas.indexOf(entrada) >= 0 : false
     // Rostros y seguimiento (Studio.seguidor): las caras que se vieron, la elegida y si se la sigue.
     readonly property var sg: Studio.seguidor
     readonly property var caras: sg && sg.caras[entrada] ? sg.caras[entrada] : []
@@ -65,27 +67,18 @@ Item {
     }
 
     function avisar(e) { t.error = e || "" }
-    function leerPosiciones() { t.posiciones = cc && entrada !== "" ? cc.posiciones(entrada) : [] }
-    onEntradaChanged: leerPosiciones()
-    Connections { target: t.cc; function onCambio() { t.leerPosiciones() } }
 
     // La imagen en vivo se pide solo afuera del tablero (renderizarla cuesta). Con el
     // PTZ digital, también la toma entera (antes del recorte), para manejarlo encima.
     Suscripcion { objetivo: Studio.frames; que: "entrada:" + t.entrada; activa: t.enVentana && t.entrada !== "" }
     Suscripcion { objetivo: Studio.frames; que: "entrada-entera:" + t.entrada; activa: t.enVentana && t.mueveDigital && t.entrada !== "" }
-    Component.onCompleted: leerPosiciones()
+    Suscripcion { objetivo: t.cc; que: t.entrada; activa: t.visible && t.cam !== null && t.cam.digital }
 
     // En su ventana: el panel completo (imágenes, puntos a la vista, configuración).
     Loader {
         anchors.fill: parent
         active: t.enVentana && t.cam !== null
         sourceComponent: PtzVentana { tarjeta: estaTarjeta }
-    }
-
-    Timer {
-        interval: 150; repeat: true
-        running: t.visible && t.cam !== null && t.cam.digital
-        onTriggered: t.pos = t.cc.posicion(t.entrada)
     }
 
     ColumnLayout {
@@ -156,26 +149,22 @@ Item {
             visible: t.cam !== null
             Layout.fillWidth: true
             spacing: 10
-            Joystick { tarjeta: estaTarjeta; Layout.preferredWidth: 120; Layout.preferredHeight: 120 }
+            Joystick {
+                entrada: t.entrada; velocidad: t.velocidad
+                Layout.preferredWidth: 120; Layout.preferredHeight: 120
+                onAviso: (e) => t.avisar(e)
+            }
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 6
                 Repeater {
                     model: t.caps.zoom === true ? [{t: qsTr("+ Acercar"), v: 1}, {t: qsTr("− Alejar"), v: -1}] : []
-                    delegate: Rectangle {
+                    delegate: BotonMantener {
                         required property var modelData
                         Layout.fillWidth: true
-                        height: 30; radius: 10
-                        color: zm.pressed ? Theme.accent : Qt.rgba(1, 1, 1, 0.08)
-                        border.color: Qt.rgba(1, 1, 1, 0.16)
-                        Text { anchors.centerIn: parent; text: modelData.t; color: Theme.text; font.pixelSize: 12 }
-                        MouseArea {
-                            id: zm
-                            anchors.fill: parent
-                            onPressed: t.avisar(t.cc.mover(t.entrada, 0, 0, modelData.v * t.velocidad))
-                            onReleased: t.cc.parar(t.entrada)
-                            onCanceled: t.cc.parar(t.entrada)
-                        }
+                        text: modelData.t
+                        onPresionado: t.avisar(t.cc.mover(t.entrada, 0, 0, modelData.v * t.velocidad))
+                        onSoltado: t.cc.parar(t.entrada)
                     }
                 }
                 RowLayout {
@@ -210,7 +199,7 @@ Item {
                     compact: true
                     text: modelData.nombre
                     // Al aire, en gris con candado: tocarla pregunta (se vería el movimiento).
-                    opacity: t.cc && t.cc.alAire(t.entrada) ? 0.55 : 1
+                    opacity: t.alAire ? 0.55 : 1
                     onClicked: {
                         const ir = function() { const r = t.cc.irAPosicion(t.entrada, modelData.id, -1); t.avisar(r.ok ? (r.aviso || "") : r.error) }
                         // La regla del interlock es del modelo: si pide confirmar, se pregunta.

@@ -86,7 +86,8 @@ QVariantMap ControlCamaras::sacarFoto(const QString& entrada) {
     }
     c->foto.movimientos = c->movimientos;
     c->foto.cuando = Posiciones::ahora();
-    // La imagen llega aparte; la interfaz se entera con cambio().
+    emit fotosCambio();
+    // La imagen llega aparte; la interfaz se entera con fotosCambio().
     const std::string fuente = c->entrada;
     capturar(fuente, 1280, [this, entrada](const QImage& img) {
         Camara* c = camara(entrada, nullptr);
@@ -105,7 +106,7 @@ QVariantMap ControlCamaras::sacarFoto(const QString& entrada) {
         }
         c->foto.archivo = nombre;
         ++c->foto.rev;
-        emit cambio();
+        emit fotosCambio();
     });
     return {{"ok", true}, {"aviso", aviso}};
 }

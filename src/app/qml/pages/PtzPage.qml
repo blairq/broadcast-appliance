@@ -35,8 +35,7 @@ Rectangle {
     }
     readonly property bool conHw: cam !== null && cam.backend !== "ninguno"
     // Si la entrada es una cámara de red: ip, marca, modelo, onvif, ptz (sí/no/no se sabe), usuario…
-    property int redTick: 0
-    readonly property var red: { redTick; return Studio.red && sel !== "" ? Studio.red.camaraDeEntrada(sel) : ({}) }
+    readonly property var red: cam && cam.red ? cam.red : ({})
     readonly property bool esDeRed: page.red.ip !== undefined
     property string ptzMsg: ""
     property bool ptzOk: false
@@ -46,7 +45,8 @@ Rectangle {
     readonly property var caps: cam === null ? ({}) : (mueveDigital ? cam.capacidadesDigital : cam.capacidades)
     property real velocidad: 0.6
     property string error: ""
-    property var pos: ({})
+    // El encuadre digital (lo avisa el modelo mientras se mueve, a quien lo mira).
+    readonly property var pos: cc && cc.encuadres[sel] ? cc.encuadres[sel] : ({})
     // La grilla del recinto en lugar del control de una cámara.
     property bool verRecinto: false
 
@@ -59,11 +59,7 @@ Rectangle {
             if (page.sel === "" && page.cc.camaras.length > 0) page.sel = page.cc.camaras[0].entrada
         }
     }
-    // El encuadre digital se lee seguido mientras se ve la página (es barato).
-    Timer {
-        interval: 150; repeat: true; running: page.visible && page.cam !== null && page.cam.digital
-        onTriggered: page.pos = page.cc.posicion(page.sel)
-    }
+    Suscripcion { objetivo: page.cc; que: page.sel; activa: page.visible && page.cam !== null && page.cam.digital }
 
     function avisar(e) { page.error = e }
     // Lo que termina después (la foto de una posición) avisa por acá.
@@ -78,7 +74,7 @@ Rectangle {
             page.verRecinto = false
         }
     }
-    onSelChanged: { page.ptzMsg = ""; page.redTick++ }
+    onSelChanged: page.ptzMsg = ""
     // La imagen en vivo de la elegida, solo mientras se ve la página (renderizarla cuesta).
     Suscripcion { objetivo: Studio.frames; que: "entrada:" + page.sel; activa: page.visible && !page.verRecinto && page.sel !== "" }
     Connections {
@@ -88,9 +84,7 @@ Rectangle {
             page.activandoPtz = false
             page.ptzOk = ok
             page.ptzMsg = texto
-            page.redTick++
         }
-        function onCambio() { page.redTick++ }
     }
 
     RowLayout {
@@ -146,7 +140,7 @@ Rectangle {
                             }
                             Text { visible: modelData.mejoraActiva; text: qsTr("✦ Mejorar imagen"); color: Theme.accentSoft; font.pixelSize: 10 }
                             Text {
-                                readonly property var r: { page.redTick; return Studio.red ? Studio.red.camaraDeEntrada(modelData.entrada) : ({}) }
+                                readonly property var r: modelData.red || ({})
                                 visible: modelData.backend === "ninguno" && r.ip !== undefined && r.ptz !== false
                                 text: r.ptz === true ? qsTr("⚙ PTZ real disponible: configuralo") : qsTr("⚙ Cámara de red: ¿tiene PTZ real?")
                                 color: Theme.amber; font.pixelSize: 10
@@ -377,50 +371,12 @@ Rectangle {
                         }
                         RowLayout {
                             spacing: 24
-                            // Joystick: el centro es quieto; cuanto más lejos, más rápido.
-                            Rectangle {
-                                id: pad
+                            Joystick {
                                 visible: page.caps.panTilt === true
-                                implicitWidth: 170; implicitHeight: 170; radius: 85
-                                color: Qt.rgba(1, 1, 1, 0.05); border.color: Qt.rgba(1, 1, 1, 0.18)
-                                property real px: 0
-                                property real py: 0
-                                Text { anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 6 }
-                                       text: "▲"; color: Theme.textFaint }
-                                Text { anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 6 }
-                                       text: "▼"; color: Theme.textFaint }
-                                Text { anchors { verticalCenter: parent.verticalCenter; left: parent.left; leftMargin: 8 }
-                                       text: "◀"; color: Theme.textFaint }
-                                Text { anchors { verticalCenter: parent.verticalCenter; right: parent.right; rightMargin: 8 }
-                                       text: "▶"; color: Theme.textFaint }
-                                Rectangle {
-                                    width: 46; height: 46; radius: 23
-                                    color: area.pressed ? Theme.accent : Qt.rgba(1, 1, 1, 0.22)
-                                    x: pad.width / 2 - width / 2 + pad.px * (pad.width / 2 - 23)
-                                    y: pad.height / 2 - height / 2 - pad.py * (pad.height / 2 - 23)
-                                }
-                                Timer {
-                                    id: envio
-                                    interval: 60; repeat: true; running: area.pressed
-                                    onTriggered: page.cc.mover(page.sel, pad.px * page.velocidad, pad.py * page.velocidad, 0)
-                                }
-                                MouseArea {
-                                    id: area
-                                    anchors.fill: parent
-                                    function leer(m) {
-                                        let dx = (m.x - pad.width / 2) / (pad.width / 2 - 23)
-                                        let dy = -(m.y - pad.height / 2) / (pad.height / 2 - 23)
-                                        const r = Math.sqrt(dx * dx + dy * dy)
-                                        if (r > 1) { dx /= r; dy /= r }
-                                        // Zona muerta chica en el centro.
-                                        pad.px = Math.abs(dx) < 0.08 ? 0 : dx
-                                        pad.py = Math.abs(dy) < 0.08 ? 0 : dy
-                                    }
-                                    onPressed: (m) => { leer(m); page.avisar(page.cc.mover(page.sel, pad.px * page.velocidad, pad.py * page.velocidad, 0)) }
-                                    onPositionChanged: (m) => leer(m)
-                                    onReleased: { pad.px = 0; pad.py = 0; page.cc.parar(page.sel) }
-                                    onCanceled: { pad.px = 0; pad.py = 0; page.cc.parar(page.sel) }
-                                }
+                                implicitWidth: 170; implicitHeight: 170
+                                flechas: true
+                                entrada: page.sel; velocidad: page.velocidad
+                                onAviso: (e) => page.avisar(e)
                             }
                             ColumnLayout {
                                 spacing: 8
@@ -431,19 +387,12 @@ Rectangle {
                                     Text { text: qsTr("Zoom"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 46 }
                                     Repeater {
                                         model: [{t: qsTr("− Alejar"), v: -1}, {t: qsTr("+ Acercar"), v: 1}]
-                                        delegate: Rectangle {
+                                        delegate: BotonMantener {
                                             required property var modelData
-                                            width: 96; height: 34; radius: 10
-                                            color: zm.pressed ? Theme.accent : Qt.rgba(1, 1, 1, 0.08)
-                                            border.color: Qt.rgba(1, 1, 1, 0.16)
-                                            Text { anchors.centerIn: parent; text: modelData.t; color: Theme.text; font.pixelSize: 12 }
-                                            MouseArea {
-                                                id: zm
-                                                anchors.fill: parent
-                                                onPressed: page.avisar(page.cc.mover(page.sel, 0, 0, modelData.v * page.velocidad))
-                                                onReleased: page.cc.parar(page.sel)
-                                                onCanceled: page.cc.parar(page.sel)
-                                            }
+                                            implicitHeight: 34
+                                            text: modelData.t
+                                            onPresionado: page.avisar(page.cc.mover(page.sel, 0, 0, modelData.v * page.velocidad))
+                                            onSoltado: page.cc.parar(page.sel)
                                         }
                                     }
                                 }
@@ -453,19 +402,12 @@ Rectangle {
                                     Text { text: qsTr("Foco"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 46 }
                                     Repeater {
                                         model: [{t: qsTr("Cerca"), v: -1}, {t: qsTr("Lejos"), v: 1}]
-                                        delegate: Rectangle {
+                                        delegate: BotonMantener {
                                             required property var modelData
-                                            width: 96; height: 34; radius: 10
-                                            color: fm.pressed ? Theme.accent : Qt.rgba(1, 1, 1, 0.08)
-                                            border.color: Qt.rgba(1, 1, 1, 0.16)
-                                            Text { anchors.centerIn: parent; text: modelData.t; color: Theme.text; font.pixelSize: 12 }
-                                            MouseArea {
-                                                id: fm
-                                                anchors.fill: parent
-                                                onPressed: page.avisar(page.cc.enfocar(page.sel, modelData.v * 0.5))
-                                                onReleased: page.cc.enfocar(page.sel, 0)
-                                                onCanceled: page.cc.enfocar(page.sel, 0)
-                                            }
+                                            implicitHeight: 34
+                                            text: modelData.t
+                                            onPresionado: page.avisar(page.cc.enfocar(page.sel, modelData.v * 0.5))
+                                            onSoltado: page.cc.enfocar(page.sel, 0)
                                         }
                                     }
                                     GlassButton { compact: true; text: qsTr("Auto"); visible: page.cam !== null && page.cam.capacidades.autoFoco === true

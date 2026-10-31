@@ -111,6 +111,10 @@ ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p
     red_ = std::make_unique<red::Red>(ba::platform::bundleRoot() / "data" / "red",
                                       QString::fromStdWString((ba::platform::credentialsDir()).wstring()), videoVm_.get(),
                                       camaras_.get());
+    // Lo de la cámara de red de cada entrada va en la fila de la cámara (la página PTZ).
+    camaras_->setDatosDeRed([r = red_.get()](const QString& e) { return r->camaraDeEntrada(e); });
+    connect(red_.get(), &red::Red::cambio, camaras_.get(), &ptz::ControlCamaras::revisarRed);
+    connect(red_.get(), &red::Red::ptzListo, camaras_.get(), &ptz::ControlCamaras::revisarRed);
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(p_.personas, camaras_.get());
     // Ir a una posición a pedido (enfocar, dar la palabra, un preset) corta el

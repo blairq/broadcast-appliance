@@ -13,7 +13,6 @@ Popup {
     property var red: Studio.red
     property var escenas: []
     property string sel: ""
-    property int tick: 0
     modal: true
     anchors.centerIn: Overlay.overlay
     width: Math.min(1180, (Overlay.overlay ? Overlay.overlay.width : 1200) - 80)
@@ -21,7 +20,6 @@ Popup {
     padding: 0
     background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: Theme.glassBorder }
     onOpened: if (red && red.equipos.length === 0 && !red.escaneando) red.escanear()
-    Connections { target: bus.red; function onCambio() { bus.tick++ } }
     // Agregar, sumar a otra escena o configurar el PTZ: lo hace el motor y la respuesta llega acá.
     property string reusarEn: ""
     Connections {
@@ -31,17 +29,15 @@ Popup {
             else if (que === "ptz") agregarMsg.text = qsTr("PTZ configurado: se mueve desde Cámaras PTZ.")
             else if (que === "reusar") agregarMsg.text = qsTr("Sumada a «%1» (el mismo stream, no otro).").arg(bus.reusarEn)
             else agregarMsg.text = qsTr("Agregada: la conexión tarda unos segundos (Video → su grafo, y el PTZ si tiene).")
-            bus.tick++
         }
     }
 
-    readonly property var equipos: { tick; return red ? red.equipos : [] }
+    readonly property var equipos: red ? red.equipos : []
     readonly property var actual: {
-        tick
         for (const e of bus.equipos) if (e.ip === bus.sel) return e
         return null
     }
-    readonly property var ficha: { tick; return red && sel !== "" ? red.fichaDe(sel) : ({}) }
+    readonly property var ficha: red && sel !== "" && red.fichas[sel] ? red.fichas[sel] : ({})
     function estadoRtsp(e) {
         const rs = e.rtsp || []
         if (rs.some(r => r.codigo === 200)) return { t: qsTr("se ve"), c: Theme.ok }
@@ -239,7 +235,7 @@ Popup {
                     }
                     // Si ya está conectada: su PTZ (cuando la clave llegó después) y otra escena.
                     ColumnLayout {
-                        readonly property var ya: { bus.tick; return bus.red && bus.sel !== "" ? bus.red.entradasDe(bus.sel) : [] }
+                        readonly property var ya: bus.red && bus.sel !== "" && bus.red.conectadas[bus.sel] ? bus.red.conectadas[bus.sel] : []
                         id: yaCol
                         visible: ya.length > 0
                         Layout.fillWidth: true

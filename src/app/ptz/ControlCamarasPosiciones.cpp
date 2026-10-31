@@ -395,7 +395,7 @@ QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& i
                               .arg(idONombre, entrada,
                                    nombres.isEmpty() ? QStringLiteral("ninguna") : nombres.join(", "))}};
     }
-    ++c->movimientos;
+    movida(*c);
     if (dejarDeSeguir_) dejarDeSeguir_(entrada); // a pedido: el seguimiento no le pelea
     QStringList avisos;
     bool algo = false;

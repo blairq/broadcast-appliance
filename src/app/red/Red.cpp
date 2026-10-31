@@ -197,6 +197,8 @@ Red::Red(const std::filesystem::path& datos, const QString& dirCredenciales, Vid
     biblioteca_.leer((datos / "camaras-urls.json").string());
     oui_.leer((datos / "oui.tsv").string());
     http_ = new QNetworkAccessManager(this);
+    connect(this, &Red::cambio, this, &Red::conectadasCambio);
+    if (video_ != nullptr) connect(video_, &VideoViewModel::cambio, this, &Red::conectadasCambio);
 }
 
 Red::~Red() = default;
@@ -952,9 +954,10 @@ void Red::pedirFicha(const QString& ip) {
     ficha(ip.toStdString(), [](json) {});
 }
 
-QVariantMap Red::fichaDe(const QString& ip) const {
-    const auto it = fichas_.find(ip.toStdString());
-    return it == fichas_.end() ? QVariantMap() : aVariant(it->second).toMap();
+QVariantMap Red::fichas() const {
+    QVariantMap out;
+    for (const auto& [ip, f] : fichas_) out[QString::fromStdString(ip)] = aVariant(f);
+    return out;
 }
 
 // --- Agregar al estudio ------------------------------------------------------------------------
@@ -1077,6 +1080,15 @@ QString Red::agregarDesdeUi(const QString& ip, const QString& nombre, const QStr
         if (yo) emit yo->agregarListo(QStringLiteral("agregar"), QString::fromStdString(e));
     });
     return {};
+}
+
+QVariantMap Red::conectadas() const {
+    QVariantMap out;
+    for (const auto& e : equipos_) {
+        const QString ip = QString::fromStdString(e.value("ip", std::string()));
+        if (const QVariantList ya = entradasDe(ip); !ya.isEmpty()) out[ip] = ya;
+    }
+    return out;
 }
 
 QVariantList Red::entradasDe(const QString& ip) const {

@@ -22,14 +22,9 @@ ColumnLayout {
     required property var tarjeta
     readonly property var t: tarjeta
     property bool configurar: false
-    property var fotoInfo: ({ hay: false })
+    // La foto (y si se movió desde entonces): la avisa el modelo.
+    readonly property var fotoInfo: v.t.cc && v.t.cc.fotos[v.t.entrada] ? v.t.cc.fotos[v.t.entrada] : ({ hay: false })
     spacing: 8
-
-    function leerFoto() { v.fotoInfo = v.t.cc && v.t.entrada !== "" ? v.t.cc.foto(v.t.entrada) : ({ hay: false }) }
-    Component.onCompleted: leerFoto()
-    Connections { target: v.t.cc; function onCambio() { v.leerFoto() } }
-    // «movida» cambia sin aviso (la mueve el joystick): se relee seguido mientras se mira.
-    Timer { interval: 700; repeat: true; running: v.visible && !v.t.mueveDigital; onTriggered: v.leerFoto() }
 
     /// Mueve si se puede; si la cámara está al aire, pregunta primero (la regla es del modelo).
     function conPermiso(fn) {
@@ -186,26 +181,23 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
-                Joystick { tarjeta: v.t; Layout.preferredWidth: 104; Layout.preferredHeight: 104 }
+                Joystick {
+                    entrada: v.t.entrada; velocidad: v.t.velocidad
+                    Layout.preferredWidth: 104; Layout.preferredHeight: 104
+                    onAviso: (e) => v.t.avisar(e)
+                }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
                     Repeater {
                         model: v.t.caps.zoom === true ? [{t: qsTr("+ Acercar"), v: 1}, {t: qsTr("− Alejar"), v: -1}] : []
-                        delegate: Rectangle {
+                        delegate: BotonMantener {
                             required property var modelData
                             Layout.fillWidth: true
-                            height: 28; radius: 10
-                            color: zm.pressed ? Theme.accent : Qt.rgba(1, 1, 1, 0.08)
-                            border.color: Qt.rgba(1, 1, 1, 0.16)
-                            Text { anchors.centerIn: parent; text: modelData.t; color: Theme.text; font.pixelSize: 12 }
-                            MouseArea {
-                                id: zm
-                                anchors.fill: parent
-                                onPressed: v.t.avisar(v.t.cc.mover(v.t.entrada, 0, 0, modelData.v * v.t.velocidad))
-                                onReleased: v.t.cc.parar(v.t.entrada)
-                                onCanceled: v.t.cc.parar(v.t.entrada)
-                            }
+                            implicitHeight: 28
+                            text: modelData.t
+                            onPresionado: v.t.avisar(v.t.cc.mover(v.t.entrada, 0, 0, modelData.v * v.t.velocidad))
+                            onSoltado: v.t.cc.parar(v.t.entrada)
                         }
                     }
                     RowLayout {
@@ -256,7 +248,7 @@ ColumnLayout {
             border.color: ma.containsMouse ? Theme.accent : Qt.rgba(1, 1, 1, 0.14)
             border.width: ma.containsMouse ? 2 : 1
             // Al aire, apagada: tocarla pregunta (se vería el movimiento).
-            opacity: v.t.cc && v.t.cc.alAire(v.t.entrada) ? 0.7 : 1
+            opacity: v.t.alAire ? 0.7 : 1
             Rectangle {
                 id: miniatura
                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: 4 }

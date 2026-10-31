@@ -2,6 +2,7 @@
 
 #include "ptz/ControlCamarasCamara.hpp"
 #include "arranque/ArchivoConfigQt.hpp"
+#include "comun/UsoPorVistas.hpp"
 #include "platform/Paths.hpp"
 
 #include "ajustes/Ajustes.hpp"
@@ -62,7 +63,22 @@ ControlCamaras::ControlCamaras(AppRuntime& rt, VentanillaMotor& ventanilla, std:
     // cuando cambian (la parte Video se rearma con la revisión de las entradas).
     connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
         if ((partes & (FotoMotor::Video | FotoMotor::Escenas | FotoMotor::Ajustes)) != 0) sincronizar();
+        // Lo que está al aire se rearma con cada corte (Salidas) y con lo que sale (Emision).
+        if ((partes & (FotoMotor::Salidas | FotoMotor::Escenas | FotoMotor::Emision)) != 0) revisarAlAire();
     });
+    // El encuadre digital no avisa (lo mueve el filtro en el motor): se relee solo el de las
+    // entradas que alguien mira y mientras se mueve (despertarEncuadre, con cada orden).
+    usoEncuadre_ = std::make_unique<UsoPorVistas>(this, [this](const QString& entrada) {
+        if (usoEncuadre_->activo(entrada)) {
+            despertarEncuadre(entrada.toStdString());
+            leerEncuadres();
+        } else if (encuadres_.remove(entrada) > 0) {
+            despiertos_.erase(entrada.toStdString());
+            emit encuadresCambio();
+        }
+    });
+    lecturaEncuadres_.setInterval(150);
+    connect(&lecturaEncuadres_, &QTimer::timeout, this, &ControlCamaras::leerEncuadres);
     guardado_.setSingleShot(true);
     guardado_.setInterval(1500);
     connect(&guardado_, &QTimer::timeout, this, &ControlCamaras::guardar);
@@ -71,6 +87,72 @@ ControlCamaras::ControlCamaras(AppRuntime& rt, VentanillaMotor& ventanilla, std:
 
 ControlCamaras::~ControlCamaras() {
     if (guardado_.isActive()) guardar();
+}
+
+void ControlCamaras::usar(QObject* vista, bool si, const QString& entrada) {
+    if (!entrada.isEmpty()) usoEncuadre_->usar(vista, si, entrada);
+}
+
+void ControlCamaras::despertarEncuadre(const std::string& entrada) {
+    if (!usoEncuadre_->activo(qs(entrada))) return;
+    // Un rato aunque todavía no se mueva: la orden le llega al filtro un poco después.
+    despiertos_[entrada] = QDateTime::currentMSecsSinceEpoch() + 600;
+    if (!lecturaEncuadres_.isActive()) lecturaEncuadres_.start();
+}
+
+void ControlCamaras::leerEncuadres() {
+    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+    bool cambio = false;
+    for (auto it = despiertos_.begin(); it != despiertos_.end();) {
+        const QString e = qs(it->first);
+        const QVariantMap p = posicion(e);
+        if (encuadres_.value(e).toMap() != p) {
+            encuadres_[e] = p;
+            cambio = true;
+        }
+        if (!p.value("moviendo").toBool() && ahora > it->second)
+            it = despiertos_.erase(it);
+        else
+            ++it;
+    }
+    if (despiertos_.empty()) lecturaEncuadres_.stop();
+    if (cambio) emit encuadresCambio();
+}
+
+void ControlCamaras::movida(Camara& c) {
+    // La foto deja de valer con el primer movimiento desde que se la sacó.
+    const bool fotoVigente = !c.foto.archivo.isEmpty() && c.movimientos == c.foto.movimientos;
+    ++c.movimientos;
+    despertarEncuadre(c.entrada);
+    if (fotoVigente) emit fotosCambio();
+}
+
+void ControlCamaras::revisarAlAire() {
+    QStringList aire;
+    for (const std::string& e : ventanilla_.foto().alAire) aire << qs(e);
+    aire.sort();
+    if (aire == alAire_) return;
+    alAire_ = aire;
+    emit alAireCambio();
+}
+
+void ControlCamaras::revisarRed() {
+    std::map<std::string, QVariantMap> red;
+    if (datosDeRed_)
+        for (const auto& [nombre, tipo] : tipoEntrada_)
+            if (tipo == QLatin1String("red")) red[nombre] = datosDeRed_(qs(nombre));
+    if (red == red_) return;
+    red_ = std::move(red);
+    emit cambio();
+}
+
+QVariantMap ControlCamaras::fotos() const {
+    QVariantMap out;
+    for (const auto& [nombre, tipo] : tipoEntrada_) {
+        Q_UNUSED(tipo);
+        out[qs(nombre)] = foto(qs(nombre));
+    }
+    return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +265,8 @@ QVariantMap ControlCamaras::fila(const Camara& c) const {
                             : (c.digital ? QCoreApplication::translate("ptz", "Digital (recorte en la GPU)")
                                          : QStringLiteral("PTZ apagado"))},
             {"estadoDigital", c.dig ? c.dig->estado() : QString()},
-            {"posiciones", posiciones(qs(c.entrada))}};
+            {"posiciones", posiciones(qs(c.entrada))},
+            {"red", red_.count(c.entrada) ? red_.at(c.entrada) : QVariantMap{}}};
 }
 
 QVariantList ControlCamaras::camaras() const {
@@ -248,6 +331,9 @@ void ControlCamaras::sincronizar() {
         aplicarFiltros(*c, general);
     }
     if (cambiaron) emit cambio();
+    // La dirección de una entrada de red llega con la parte Video: lo de su cámara también.
+    revisarRed();
+    if (cambiaron) emit fotosCambio();
 }
 
 void ControlCamaras::aplicarFiltros(Camara& c, bool mejoraGeneral) {
@@ -304,7 +390,7 @@ PtzBackend* ControlCamaras::activo(Camara& c) const {
     PtzBackend* b = activo(*c);                                                                              \
     if (b == nullptr)                                                                                        \
         return QCoreApplication::translate("ptz", "«%1» no tiene PTZ: prendé el digital o elegí un backend").arg(entrada);        \
-    ++c->movimientos;
+    movida(*c);
 
 void ControlCamaras::pulsar(const QString& entrada, double pan, double tilt, double zoom) {
     Camara* c = camara(entrada, nullptr);
@@ -331,6 +417,7 @@ QString ControlCamaras::parar(const QString& entrada) {
     // Para todo lo que pueda estar moviéndose (por si cambió el modo en medio).
     if (c->hw) c->hw->parar();
     if (c->dig) c->dig->parar();
+    despertarEncuadre(c->entrada);
     guardarPronto();
     return {};
 }
@@ -366,7 +453,7 @@ QString ControlCamaras::irPreset(const QString& entrada, int n) {
     }
     // Sin posición con ese número: el preset propio de la cámara (grabado en ella), si tiene.
     if (c->hw && activo(*c) == c->hw.get() && n >= 1 && n <= c->hw->capacidades().presets) {
-        ++c->movimientos;
+        movida(*c);
         c->hw->irAPreset(n);
         emit cambio();
         return {};
@@ -400,7 +487,7 @@ QString ControlCamaras::encuadre(const QString& entrada, double x, double y, dou
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
     if (!c->digital || !c->dig) return QCoreApplication::translate("ptz", "El PTZ digital está apagado en «%1»").arg(entrada);
-    ++c->movimientos;
+    movida(*c);
     if (!c->dig->ir(qBound(0.0, x, 1.0), qBound(0.0, y, 1.0), qBound(1.0, zoom, 8.0),
                     qBound(0.0, segundos, 10.0)))
         return c->dig->estado();

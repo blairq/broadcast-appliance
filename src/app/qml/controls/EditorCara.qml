@@ -23,7 +23,8 @@ Popup {
     property string modo: "archivo"          // archivo | camara
     property string entrada: ""
     property real segundos: 5
-    property var pos: ({})
+    // El encuadre digital (lo avisa el modelo mientras se mueve, a quien lo mira).
+    readonly property var pos: cc && cc.encuadres[entrada] ? cc.encuadres[entrada] : ({})
     readonly property var cam: {
         const l = cc ? cc.camaras : []
         for (let i = 0; i < l.length; ++i) if (l[i].entrada === entrada) return l[i]
@@ -41,10 +42,7 @@ Popup {
     // La imagen en vivo se pide solo mientras se ve (renderizarla cuesta).
     Suscripcion { objetivo: Studio.frames; que: "entrada:" + dlg.entrada; activa: dlg.opened && dlg.modo === "camara" && dlg.entrada !== "" }
 
-    Timer {
-        interval: 150; repeat: true; running: dlg.opened && dlg.digital
-        onTriggered: dlg.pos = dlg.cc.posicion(dlg.entrada)
-    }
+    Suscripcion { objetivo: dlg.cc; que: dlg.entrada; activa: dlg.opened && dlg.digital && dlg.entrada !== "" }
     // Interlock: la regla es del modelo (chequearMovimiento); si pide confirmar, se pregunta.
     function siNoAlAire(accion) {
         const motivo = dlg.cc ? dlg.cc.chequearMovimiento(dlg.entrada, false, "") : ""

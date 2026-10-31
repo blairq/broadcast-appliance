@@ -37,6 +37,7 @@
 #include <QImage>
 #include <QJsonObject>
 #include <QObject>
+#include <QStringList>
 #include <QString>
 #include <QTimer>
 #include <QVariantList>
@@ -51,6 +52,7 @@
 namespace ba::app {
 class AppRuntime;
 class VentanillaMotor;
+class UsoPorVistas;
 }
 
 namespace ba::app::ptz {
@@ -64,8 +66,15 @@ class ControlCamaras : public QObject {
     Q_OBJECT
     /// [{entrada, tipoEntrada, backend, conf, tieneClave, digital, mejora,
     ///   mejoraActiva, modo, capacidades, capacidadesDigital, listo, estado,
-    ///   presetsDigitales}]
+    ///   posiciones, red (la cámara de red de la entrada: Red::camaraDeEntrada; {} si no es)}]
     Q_PROPERTY(QVariantList camaras READ camaras NOTIFY cambio)
+    /// Las entradas que se ven al aire ahora (el interlock): cambia con cada corte.
+    Q_PROPERTY(QStringList alAireEntradas READ alAireEntradas NOTIFY alAireCambio)
+    /// {entrada: {x, y, zoom, moviendo}}: el encuadre del PTZ digital de las entradas que
+    /// alguna vista usa (`usar(vista, si, entrada)`). Se lee mientras se mueve.
+    Q_PROPERTY(QVariantMap encuadres READ encuadres NOTIFY encuadresCambio)
+    /// {entrada: foto(entrada)}: la foto del panel PTZ de cada cámara (y si se movió desde entonces).
+    Q_PROPERTY(QVariantMap fotos READ fotos NOTIFY fotosCambio)
     /// Los backends de hardware que se pueden elegir y sus campos.
     Q_PROPERTY(QVariantList backends READ backends CONSTANT)
     Q_PROPERTY(bool buscando READ buscando NOTIFY busquedaCambio)
@@ -83,12 +92,25 @@ class ControlCamaras : public QObject {
     bool buscando() const;
     QVariantList encontradas() const;
     bool mejoraGeneral() const;
+    QStringList alAireEntradas() const { return alAire_; }
+    QVariantMap encuadres() const { return encuadres_; }
+    QVariantMap fotos() const;
+    /// Una vista empieza o deja de mirar el encuadre de `entrada` (la cuenta es por vista:
+    /// comun/UsoPorVistas; en QML, `Suscripcion { objetivo: Studio.camaras; que: entrada }`).
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& entrada);
+    /// De dónde salen los datos de la cámara de red de una entrada (red::Red, que se arma
+    /// después); `revisarRed()` cuando cambian.
+    void setDatosDeRed(std::function<QVariantMap(const QString&)> fn) {
+        datosDeRed_ = std::move(fn);
+        revisarRed();
+    }
+    void revisarRed();
 
     // --- Mover (lo del joystick) -------------------------------------------
     /// Velocidades -1..1 (pan + derecha, tilt + arriba, zoom + acercar).
     // --- Interlock: no mover la cámara que está AL AIRE -----------------------
     /// La cámara (su entrada) está en la escena al aire.
-    Q_INVOKABLE bool alAire(const QString& entrada) const;
+    bool alAire(const QString& entrada) const;
     /// {activo, seguir_suave_permitido} (Config/ptz-interlock.json).
     Q_INVOKABLE QVariantMap interlock() const;
     Q_INVOKABLE void setInterlock(const QVariantMap& cambios);
@@ -120,7 +142,7 @@ class ControlCamaras : public QObject {
     /// cuántos grados hay en el cuadro).
     Q_INVOKABLE QString apuntar(const QString& entrada, double u, double v, double ancho, double alto);
     /// {x, y, zoom, moviendo} del PTZ digital (vacío si está apagado).
-    Q_INVOKABLE QVariantMap posicion(const QString& entrada) const;
+    QVariantMap posicion(const QString& entrada) const;
 
     // --- Configurar ------------------------------------------------------------
     /// backend: "ninguno" | "visca" | "onvif" | "panasonic"; conf: host,
@@ -189,7 +211,7 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE QVariantMap sacarFoto(const QString& entrada);
     /// {hay, url, conMemoria (puede volver a donde se sacó), movida (se movió desde
     /// entonces), cuando}.
-    Q_INVOKABLE QVariantMap foto(const QString& entrada) const;
+    QVariantMap foto(const QString& entrada) const;
     /// Apunta al punto (u, v) de la FOTO (y, con ancho/alto, encuadra ese cuadro):
     /// si la cámara no se movió desde la foto, ya; si se movió, primero vuelve a
     /// donde estaba (su memoria) y después apunta. "" o el error.
@@ -201,12 +223,21 @@ class ControlCamaras : public QObject {
    signals:
     void cambio();
     void busquedaCambio();
+    void alAireCambio();
+    void encuadresCambio();
+    void fotosCambio();
     /// Lo que salió mal en algo que terminó después (la foto de una posición).
     void aviso(const QString& texto);
 
    private:
     struct Camara;
     Camara* camara(const QString& entrada, QString* error);
+    /// Se la movió: la foto puede dejar de valer y el encuadre se relee hasta que pare.
+    void movida(Camara& c);
+    /// Relee el encuadre de `entrada` (si alguien lo mira) hasta que deje de moverse.
+    void despertarEncuadre(const std::string& entrada);
+    void leerEncuadres();
+    void revisarAlAire();
     QString guardarMiniatura(const QString& entrada, const QString& idONombre, const QImage& img);
     /// El backend que recibe el joystick y los presets.
     PtzBackend* activo(Camara& c) const;
@@ -256,6 +287,13 @@ class ControlCamaras : public QObject {
     std::map<std::string, QString> tipoEntrada_; ///< las presentes ahora: hardware | red | ndi
     std::unique_ptr<OnvifBusqueda> busqueda_;
     QTimer guardado_;
+    QStringList alAire_;
+    std::function<QVariantMap(const QString&)> datosDeRed_;
+    std::map<std::string, QVariantMap> red_; ///< por entrada presente: lo de la red (vacío si no es)
+    std::unique_ptr<UsoPorVistas> usoEncuadre_;
+    QVariantMap encuadres_;
+    std::map<std::string, qint64> despiertos_; ///< las que se releen: hasta cuándo aunque no se muevan
+    QTimer lecturaEncuadres_;
 };
 
 } // namespace ba::app::ptz

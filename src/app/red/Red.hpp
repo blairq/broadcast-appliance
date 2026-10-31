@@ -61,6 +61,11 @@ class Red : public QObject {
     /// El último escaneo, para la interfaz (lo mismo que red_escanear).
     Q_PROPERTY(QVariantList equipos READ equiposQml NOTIFY cambio)
     Q_PROPERTY(QString progreso READ progreso NOTIFY cambio)
+    /// Lo último de ficha() de cada equipo, para la interfaz: {ip: ficha}.
+    Q_PROPERTY(QVariantMap fichas READ fichas NOTIFY cambio)
+    /// Las entradas que ya toman video de cada equipo escaneado: {ip: [{entrada, url}]}.
+    /// Cambia con el escaneo y con las entradas (la parte Video de la foto).
+    Q_PROPERTY(QVariantMap conectadas READ conectadas NOTIFY conectadasCambio)
 
    public:
     using Listo = std::function<void(nlohmann::json)>;
@@ -94,8 +99,7 @@ class Red : public QObject {
     /// La ficha ONVIF + análisis + plan. Hace falta la clave si ONVIF la pide.
     void ficha(const std::string& ip, Listo listo);
     Q_INVOKABLE void pedirFicha(const QString& ip);
-    /// Lo último de ficha() para la interfaz.
-    Q_INVOKABLE QVariantMap fichaDe(const QString& ip) const;
+    QVariantMap fichas() const;
     /// Analiza una URL con GStreamer (GstDiscoverer): códec, tamaño, fps,
     /// entrelazado, colorimetría, audio. En otro hilo.
     void analizar(const QString& uri, Listo listo);
@@ -106,14 +110,15 @@ class Red : public QObject {
     /// Para la interfaz: "" (lo que pasó llega por agregarListo, con `que`: agregar).
     Q_INVOKABLE QString agregarDesdeUi(const QString& ip, const QString& nombre, const QString& escena);
     /// Las entradas que ya toman video de esta cámara: [{entrada, url}].
-    Q_INVOKABLE QVariantList entradasDe(const QString& ip) const;
+    QVariantList entradasDe(const QString& ip) const;
+    QVariantMap conectadas() const;
     /// Solo el PTZ de una entrada que ya existe (la clave llegó después): agregarListo «ptz».
     Q_INVOKABLE QString ptzDesdeUi(const QString& ip, const QString& entrada);
     /// La misma entrada (sin otro stream) en otra escena: agregarListo «reusar».
     Q_INVOKABLE QString reusarDesdeUi(const QString& ip, const QString& escena);
     /// Si la entrada es una cámara de red: {ip, marca, modelo, onvif, ptz (true/false/null = no se sabe),
     /// tieneClave, usuario, notas}. Vacío si no lo es. Para la página PTZ.
-    Q_INVOKABLE QVariantMap camaraDeEntrada(const QString& entrada) const;
+    QVariantMap camaraDeEntrada(const QString& entrada) const;
     /// El PTZ real de una cámara de red desde la página PTZ: guarda usuario y clave (si vienen), la
     /// consulta por ONVIF y, si tiene PTZ, lo configura. El resultado llega por `ptzListo`.
     Q_INVOKABLE void activarPtzReal(const QString& entrada, const QString& usuario, const QString& clave);
@@ -126,6 +131,7 @@ class Red : public QObject {
 
    signals:
     void cambio();
+    void conectadasCambio();
     void ptzListo(const QString& entrada, bool ok, const QString& texto);
     /// Terminó un agregarDesdeUi / ptzDesdeUi / reusarDesdeUi: `error` vacío si salió.
     void agregarListo(const QString& que, const QString& error);
