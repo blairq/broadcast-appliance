@@ -1726,7 +1726,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "source_types";
-        t.hilo = Hilo::Control;
+        t.hilo = Hilo::Foto; // son fijos (BroadcastEngine::tiposDeFuente): no espera a nadie
         t.title = ba::i18n::traducir("mcp", "Tipos de fuente disponibles");
         t.category = "fuentes";
         t.clase = Clase::Lectura;
@@ -1734,9 +1734,9 @@ void McpService::registerTools() {
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Tipos de fuente que esta instalacion puede crear (id, nombre, si tiene video "
             "y/o audio). El id es el `type` de crear_fuente / scene_define.");
-        t.run = [&rt](const json&, Done done) {
+        t.run = [](const json&, Done done) {
             json out = json::array();
-            for (const SourceType& s : rt.engine().inputTypes())
+            for (const SourceType& s : BroadcastEngine::tiposDeFuente())
                 out.push_back(
                     json{{"type", s.id}, {"name", s.displayName}, {"video", s.video}, {"audio", s.audio}});
             done(ToolResult().data(json{{"types", out}}));

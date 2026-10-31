@@ -27,6 +27,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/CarruselViewModel.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -38,7 +39,6 @@ void McpService::registerLaminaTools() {
                       "lámina cualquiera es instantaneo. Un PDF o un PowerPoint se desarma solo."));
 
     auto* cc = qobject_cast<CarruselViewModel*>(vm_.carruseles());
-    AppRuntime& rt = rt_;
     const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
 
     {
@@ -410,21 +410,25 @@ void McpService::registerLaminaTools() {
               {"escena", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "por defecto, la que esta al aire")}}}}},
             {"required", {"carrusel"}}};
         t.examples = {R"({"carrusel": "Apertura"})"};
-        t.run = [cc, &rt](const json& a, Done done) {
+        t.run = [cc, &v = vm_.ventanilla()](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
-            const std::string escena = a.value("escena", rt.engine().currentScene());
+            // La escena al aire, de la foto (corre en la interfaz: la lee como las vistas).
+            const FotoMotor::Salida* aire = v.foto().salida({});
+            const std::string escena = a.value("escena", aire != nullptr ? aire->alAire : std::string());
             if (escena.empty()) {
                 done(ToolResult::error(ba::i18n::traducir("mcp", "No hay ninguna escena al aire; deci en cual.")));
                 return;
             }
-            if (!cc->aplicarAEscena(n, QString::fromStdString(escena))) {
-                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo poner «%1» en «%2». carruseles_listar dice cuales hay."),
-                                         {n.toStdString(), escena})));
-                return;
-            }
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» quedo en «%2». Ahora laminas_ir cambia lo que se ve. Verifica con "
-                                  "foto_fuente."),
-                                {n.toStdString(), escena})));
+            cc->aplicarAEscena(n, QString::fromStdString(escena), [n, escena, done](const QString& e) {
+                if (!e.isEmpty()) {
+                    done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo poner «%1» en «%2». carruseles_listar dice cuales hay."),
+                                             {n.toStdString(), escena})));
+                    return;
+                }
+                done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» quedo en «%2». Ahora laminas_ir cambia lo que se ve. Verifica con "
+                                      "foto_fuente."),
+                                    {n.toStdString(), escena})));
+            });
         };
         core_.addTool(std::move(t));
     }

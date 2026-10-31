@@ -2,8 +2,6 @@
 
 #include "control/CarasBotonera.hpp"
 
-#include "arranque/AppRuntime.hpp"
-#include "emision/BroadcastEngine.hpp"
 #include "platform/Hilo.hpp"
 
 #include <gst/app/gstappsink.h>
@@ -113,8 +111,8 @@ QVector<QImage> cuadrosDeVideo(const QString& ruta, int max, QString& error) {
 }
 } // namespace
 
-CarasBotonera::CarasBotonera(AppRuntime& rt, fs::path dataRoot, QObject* parent)
-    : QObject(parent), rt_(rt), raiz_(std::move(dataRoot)) {}
+CarasBotonera::CarasBotonera(Capturar capturar, fs::path dataRoot, QObject* parent)
+    : QObject(parent), capturar_(std::move(capturar)), raiz_(std::move(dataRoot)) {}
 
 fs::path CarasBotonera::carpeta(const QString& id) const {
     return raiz_ / "Media" / "botonera" / id.toStdWString();
@@ -215,7 +213,7 @@ QVariantMap CarasBotonera::capturarFoto(const QString& entrada) {
     const QString id = nuevoId();
     empezar(QCoreApplication::translate("caras", "Sacando la foto…"));
     QPointer<CarasBotonera> yo(this);
-    rt_.engine().capturarAparte(
+    capturar_(
         entrada.toStdString(), 1280, [yo, id, entrada](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
             const QImage img = e.empty() ? deRgba(rgba, w, h) : QImage();
             QMetaObject::invokeMethod(
@@ -271,7 +269,7 @@ QVariantMap CarasBotonera::grabar(const QString& entrada, double segundos) {
         const int i = toma->pedidos++;
         estado_ = QCoreApplication::translate("caras", "Grabando… %1 s").arg((n - i + kFps - 1) / kFps);
         emit cambio();
-        rt_.engine().capturarAparte(
+        capturar_(
             entrada.toStdString(), 320, [yo, toma, i, n, cerrar](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
                 const QImage img = e.empty() ? deRgba(rgba, w, h) : QImage();
                 QMetaObject::invokeMethod(

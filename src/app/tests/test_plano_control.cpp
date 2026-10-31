@@ -51,10 +51,18 @@
 //      esperaba y fallaba); el histórico se lee en el pool con la raíz de los eventos; la
 //      atención automática, el micrófono de la fila y el corte de la línea se piden y se
 //      hacen en el control con la interfaz trabada, con la parte Sala de la foto al volver.
+//   C. CONTROL Y DSK (control/Dsk.hpp: las capas son del dueño del motor), con el modelo de
+//      verdad (CapasDsk, su archivo) y un motor sintético: lo que pide la interfaz (subir
+//      una capa) y lo que pide una herramienta del control (subirla en otra salida) se
+//      hacen en el control con el turno mientras la interfaz está trabada; lo que ve la
+//      interfaz (control::Dsk) no cambia en la traba y al volver trae las dos, con la parte
+//      Superficies; lo que no se puede se dice en el acto sin pedir nada, y lo que el motor
+//      rechaza llega después como `fallo`.
 // ============================================================================
 #include "agent/AlertEngine.hpp"
 #include "agent/EntradasAlarmas.hpp"
 #include "arranque/PlanoControl.hpp"
+#include "control/Dsk.hpp"
 #include "emision/DocumentoAire.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
@@ -63,6 +71,7 @@
 #include "mcp/McpFoto.hpp"
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpMando.hpp"
+#include "persist/ArchivoConfig.hpp"
 #include "persist/ColaEscritura.hpp"
 
 #include <QAbstractEventDispatcher>
@@ -1204,6 +1213,131 @@ int main(int argc, char** argv) {
         CHECK(!atencionPedida && atencion() && v.foto().salida({})->alAire == "Orador" && !m.mudo["Banca 3"] &&
                   (partesS & (FotoMotor::Sala | FotoMotor::Salidas)) == (FotoMotor::Sala | FotoMotor::Salidas),
               "S: al volver, la foto trae la parte Sala y el corte, y el pendiente se suelta");
+    // --- C. Control y DSK: las capas son del dueño del motor; la interfaz pide y lee la foto --
+    {
+        using ba::app::FotoMotor;
+        using ba::app::VentanillaMotor;
+        using ba::app::control::CapasDsk;
+        const fs::path datosC = fs::temp_directory_path() / "ba-test-plano-control-dsk";
+        fs::remove_all(datosC);
+        fs::create_directories(datosC / "Config");
+        // El motor sintético: qué capa está arriba en cada salida; lo que se le pide, contado
+        // por hilo y por turno.
+        std::map<std::string, std::map<int, bool>> arriba;
+        std::atomic<int> llamadasMotor{0}, motorEnLaInterfaz{0}, motorSinTurno{0};
+        const auto contar = [&]() {
+            ++llamadasMotor;
+            if (QThread::currentThread() == interfaz) ++motorEnLaInterfaz;
+            if (!turno.loTengo()) ++motorSinTurno;
+        };
+        CapasDsk::Motor m;
+        m.armar = [&](int, const std::vector<std::string>& cont, const json&, const std::string&) {
+            contar();
+            return cont.empty() || cont.front() != "rota"; // una fuente que el motor no tiene
+        };
+        m.mostrar = [&](int capa, bool visible, int, const std::string& salida) {
+            contar();
+            arriba[salida.empty() ? "principal" : salida][capa] = visible;
+            return true;
+        };
+        m.estado = [](const std::string&) { return json::array(); };
+        m.error = []() { return std::string("no hay una fuente «rota»"); };
+        CapasDsk capas(datosC, std::move(m));
+        std::shared_ptr<const FotoMotor> ultimaC;
+        VentanillaMotor* vp = nullptr;
+        // Lo que hacen AppRuntime::publicarFoto y el aporte de ControlViewModel.
+        const auto publicarC = [&]() {
+            auto f = std::make_shared<FotoMotor>();
+            for (const char* id : {"principal", "sala"}) {
+                FotoMotor::Salida s;
+                s.id = id;
+                s.porOmision = std::string(id) == "principal";
+                f->salidas.push_back(s);
+            }
+            f->dsk = capas.paraLaFoto({"principal", "sala"});
+            unsigned partes = FotoMotor::Todas;
+            if (ultimaC) partes = f->dsk != ultimaC->dsk ? static_cast<unsigned>(FotoMotor::Superficies) : 0u;
+            if (partes == 0) return;
+            ultimaC = f;
+            vp->publicar(f, partes);
+        };
+        VentanillaMotor vC({.encolar = [&plano](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); },
+                            .alTerminarOrden = publicarC,
+                            .adoptar = [&plano](QObject* o) { plano.adoptar(o); }});
+        vp = &vC;
+        // Lo que cambia una herramienta del control ensucia la foto (AppRuntime::fotoSucia).
+        capas.setAlCambiar([&]() { plano.encolarConTurno(publicarC); });
+        turno.tomar();
+        publicarC();
+        turno.soltar();
+        vC.recibirAhora();
+        ba::app::control::Dsk dsk(capas, vC);
+        int cambiosUi = 0, avisosBus = 0;
+        std::vector<QString> fallos;
+        QObject::connect(&dsk, &ba::app::control::Dsk::cambio, &dsk, [&]() { ++cambiosUi; });
+        QObject::connect(&dsk, &ba::app::control::Dsk::fallo, &dsk, [&](const QString& e) { fallos.push_back(e); });
+        dsk.setAlCambiar([&](const json&) { ++avisosBus; });
+        // Una herramienta del control como dsk_mostrar (mcp/McpBotoneraTools.cpp): al modelo, en el control.
+        {
+            Tool t;
+            t.name = "dsk_mostrar_c";
+            t.clase = Clase::Escritura;
+            t.hilo = Hilo::Control;
+            t.run = [&capas](const json& a, Done done) {
+                const std::string e = capas.mostrar(a.value("capa", 1), a.value("visible", true), false, a.value("salida", std::string()));
+                done(e.empty() ? ToolResult::ok("arriba") : ToolResult::error(e));
+            };
+            core.addTool(std::move(t));
+        }
+        // Armar dos capas (desde la interfaz) y volver.
+        CHECK(dsk.definir(1, {{"nombre", "Logo"}, {"contenido", {"Mosca"}}}).empty() &&
+                  dsk.plantillaLsa(2, "Cámara LSA", "abajo_derecha", 0.28).empty(),
+              "C: definir se pide (no espera al motor)");
+        atender(200);
+        CHECK(dsk.capas().size() == 4 && dsk.capas()[0].value("nombre", std::string()) == "Logo" && dsk.fija(2),
+              "C: la interfaz ve las definiciones en la foto");
+        const int llamadasAntes = llamadasMotor.load();
+        const int cambiosAntes = cambiosUi;
+        // Lo que no se puede, en el acto y sin pedir nada.
+        CHECK(!dsk.mostrar(3, true, false).empty() && !dsk.mostrar(2, false, false).empty() && !dsk.mostrar(9, true, false).empty(),
+              "C: vacía, fija sin confirmar o fuera de rango: el error en el acto");
+        // La interfaz sube la 1 y se traba; mientras, una herramienta sube la 2 en «sala».
+        CHECK(dsk.mostrarUi(1, true, false).isEmpty(), "C: subir se pide");
+        std::string rC;
+        double msC = -1;
+        std::thread cliente([&]() {
+            const auto t = std::chrono::steady_clock::now();
+            rC = llamar(http.port(), token, "dsk_mostrar_c", 700, {{"capa", 2}, {"visible", true}, {"salida", "sala"}});
+            msC = msDesde(t);
+        });
+        trabarInterfaz(1200);
+        cliente.join();
+        const bool hechoEnLaTraba = arriba["principal"][1] && arriba["sala"][2];
+        const bool vistaQuieta = !dsk.arriba(1) && !dsk.arriba(2, "sala") && cambiosUi == cambiosAntes;
+        std::printf("  medido: con la interfaz trabada, la capa subió en el control (la herramienta contestó a los %.1f ms); "
+                    "%d llamadas al motor\n",
+                    msC, llamadasMotor.load() - llamadasAntes);
+        const json jC = json::parse(rC, nullptr, false);
+        CHECK(jC.is_object() && !jC["result"].value("isError", true) && msC < 600 && hechoEnLaTraba,
+              "C: con la interfaz trabada, lo pedido (la interfaz y la herramienta) se hace en el acto");
+        CHECK(motorEnLaInterfaz.load() == 0 && motorSinTurno.load() == 0, "C: el motor, solo en el control y con el turno");
+        CHECK(vistaQuieta, "C: lo que ve la interfaz no cambia durante la traba");
+        atender(200);
+        CHECK(dsk.arriba(1) && !dsk.arriba(2) && dsk.arriba(2, "sala") && !dsk.arriba(1, "sala") && cambiosUi > cambiosAntes &&
+                  avisosBus > 0,
+              "C: al volver, la foto trae las dos (cada salida la suya) y la vista y el bus se enteran");
+        // Lo que el motor rechaza: se pide y llega como fallo.
+        CHECK(dsk.definir(3, {{"contenido", {"rota"}}}).empty(), "C: definir con una fuente que el motor no tiene se pide");
+        atender(200);
+        CHECK(fallos.size() == 1 && fallos[0].contains("rota") && dsk.capas()[2].value("contenido", json::array()).empty(),
+              "C: el motor la rechaza: llega como fallo y no queda guardada");
+        CHECK(ba::persist::cola().vaciar(), "C: el archivo de las capas quedó escrito");
+        const json guardado = ba::persist::leerConfig(datosC / "Config" / "dsk.json");
+        bool enArchivo = false;
+        for (const auto& c : guardado.value("capas", json::array()))
+            if (c.value("capa", 0) == 2) enArchivo = c.value("visible_en", json::object()).value("sala", false);
+        CHECK(enArchivo, "C: y dice lo que está arriba en cada salida (vuelve tras un corte)");
+        fs::remove_all(datosC);
     }
 
     plano.detener();

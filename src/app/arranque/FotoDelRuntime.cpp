@@ -73,6 +73,7 @@ void AppRuntime::publicarFoto() {
         if (n.ajustes != a.ajustes) cambiaron |= FotoMotor::Ajustes;
         if (n.medios != a.medios || n.salud != a.salud || n.loudness != a.loudness) cambiaron |= FotoMotor::Medidas;
         if (n.sala != a.sala) cambiaron |= FotoMotor::Sala;
+        if (n.dsk != a.dsk || n.temaWeb != a.temaWeb) cambiaron |= FotoMotor::Superficies;
     }
     if (cambiaron == 0) return;
     foto_ = f;
@@ -226,6 +227,9 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         a.claveGuardada = streamKeySaved();
         a.sala = gateway_.room;
     }
+
+    // --- Las superficies: el tema web (las capas DSK las suma CapasDsk, un aporte) ---------
+    if ((p & (FotoMotor::Superficies | FotoMotor::Ajustes)) != 0) f.temaWeb = cfg_.temaWeb;
 
     // --- Lo que se mueve siempre ---------------------------------------------------------
     if ((p & FotoMotor::Medidas) != 0) {

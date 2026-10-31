@@ -57,6 +57,7 @@
 #include <functional>
 
 #include <memory>
+#include <set>
 
 #include <QObject>
 #include <QString>
@@ -66,6 +67,7 @@
 namespace ba::app {
 
 class AppRuntime;
+class VentanillaMotor;
 class ConferenceViewModel;
 
 class PantallasViewModel : public QObject {
@@ -85,7 +87,9 @@ class PantallasViewModel : public QObject {
     Q_PROPERTY(QVariantList carruseles READ carruseles NOTIFY carruselesCambio)
 
    public:
-    PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala, QObject* parent = nullptr);
+    /// `ventanilla`: los canales de escena son del motor (del plano de control, F3-03): se
+    /// le piden; las escenas que hay, de su foto.
+    PantallasViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, ConferenceViewModel* sala, QObject* parent = nullptr);
     ~PantallasViewModel() override;
 
     QVariantList pantallas() const;
@@ -193,6 +197,10 @@ class PantallasViewModel : public QObject {
     QString mostrarEscena(const QString& id, const QString& escena);
     /// Suelta los canales de escena que ninguna pantalla está usando.
     void revisarCanales();
+    /// Los canales de escena que usan las pantallas (los que no se sueltan).
+    std::set<int> canalesUsados() const;
+    /// Ya con el canal (lo dio el dueño del motor): el enlace de la sala y la URL.
+    void enviarEscena(const QString& id, const QString& escena, int canal);
 
     struct Impl;
     std::unique_ptr<Impl> d_;

@@ -622,8 +622,8 @@ void MixerModel::avisarCambio(const std::string& fuente) {
 // SourceTypesModel
 // ============================================================================
 
-SourceTypesModel::SourceTypesModel(AppRuntime& rt, QObject* parent) : QAbstractListModel(parent) {
-    for (const auto& t : rt.engine().inputTypes()) {
+SourceTypesModel::SourceTypesModel(AppRuntime&, QObject* parent) : QAbstractListModel(parent) {
+    for (const auto& t : BroadcastEngine::tiposDeFuente()) {
         // ba_guest_* se manejan desde Invitados, no se agregan a mano.
         if (t.id.rfind("ba_guest", 0) == 0) {
             continue;

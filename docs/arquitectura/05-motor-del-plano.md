@@ -2,7 +2,7 @@
 
 Cómo se migra un área de la interfaz para que no toque el motor. Hecho para escenas,
 fuentes del editor, salidas, emisión, las pastillas de la raíz y las vistas de video
-(`FrameService`); falta para Mezcla/audio, Imagen/video, Control/DSK, Asamblea, Sala,
+(`FrameService`); Control/DSK (con rótulos, carrusel y pantallas); falta para Mezcla/audio, Imagen/video, Asamblea, Sala,
 Asistente y Escritorio.
 
 ## Quién es dueño de qué
@@ -49,6 +49,15 @@ Patrones que salieron al migrar:
   cuando se lo necesita (un medidor puede sondear a su ritmo).
 - Los avisos del runtime (`AppRuntime::observar`) llegan en el dueño: quien escucha y
   es de la interfaz se los encarga a su bucle.
+- Un modelo con estado propio que le pide al motor (las capas DSK) se parte en dos: el
+  modelo es del DUEÑO (`control::CapasDsk`: lo usan las órdenes y las herramientas con
+  `Hilo::Control`, y aporta su parte a la foto) y la interfaz tiene una vista que lee la
+  foto y pide (`control::Dsk`). Las reglas que se ven en el acto (capa fija, vacía) son
+  funciones del modelo que la vista usa con lo que trae la foto: el error inmediato no se
+  pierde y no hay dos copias de las reglas; lo que dice el motor después llega como señal.
+- Lo que la interfaz ya tiene en otro modelo no se vuelve a pedir al motor: las acciones y
+  la botonera leen las fuentes de audio y su mudo del `MixerModel` (la misma vista que el
+  Mezclador), y las escenas de la foto.
 
 Para sumar algo a la foto: un campo en `FotoMotor` (con su parte), lo arma
 `AppRuntime::armarFoto` (o un modelo del dueño con `aportarALaFoto`), y quien lo cambia

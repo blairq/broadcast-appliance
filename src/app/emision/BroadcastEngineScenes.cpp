@@ -1009,8 +1009,7 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
     return true;
 }
 
-std::vector<SourceType> BroadcastEngine::inputTypes() const {
-    const TurnoMotor::Guarda turno(turno_);
+std::vector<SourceType> BroadcastEngine::tiposDeFuente() {
     return {{inputs::kVideoType, ba::i18n::traducir("emision", "Cámara o capturadora (USB, HDMI)"), true, true},
             {inputs::kMicType, ba::i18n::traducir("emision", "Entrada por GStreamer (pipeline propio)"), true, true},
             {inputs::kMedioType, ba::i18n::traducir("emision", "Archivo de video o audio"), true, true},

@@ -6,6 +6,8 @@
 
 #include <QDir>
 
+#include <tuple>
+
 #include <algorithm>
 #include <filesystem>
 #include <QFileInfo>
@@ -13,6 +15,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "carrusel/Carrusel.hpp"
 #include "carrusel/CarruselStore.hpp"
 #include "carrusel/Conversion.hpp"
@@ -40,7 +43,8 @@ QString comoCarpeta(const QString& nombre) {
 
 } // namespace
 
-CarruselViewModel::CarruselViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+CarruselViewModel::CarruselViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QObject(parent), rt_(rt), v_(ventanilla) {
     const QDir raiz(QString::fromStdWString(rt_.dataRoot().wstring()));
     store_ = std::make_unique<carrusel::Store>(
         std::filesystem::path(raiz.absoluteFilePath("Config/carruseles.json").toStdWString()));
@@ -266,10 +270,13 @@ int CarruselViewModel::posicion() const {
 QString CarruselViewModel::enEscena() const { return enEscena_; }
 
 void CarruselViewModel::revisarEscena() {
-    const std::string escena = rt_.engine().currentScene();
+    // La escena al aire de la por omisión, de la foto.
+    const FotoMotor& foto = v_.foto();
+    const FotoMotor::Salida* aire = foto.salida({});
+    const std::string escena = aire != nullptr ? aire->alAire : std::string();
     QString hallado;
     if (!escena.empty()) {
-        const std::vector<std::string> fuentes = rt_.engine().sceneSources(escena);
+        const std::vector<std::string> fuentes = foto.fuentesDe(escena);
         const auto esta = [&fuentes](const carrusel::Carrusel& c) {
             return !c.fuente().empty() && std::find(fuentes.begin(), fuentes.end(), c.fuente()) != fuentes.end();
         };
@@ -303,15 +310,20 @@ QString CarruselViewModel::mostrar(const QString& nombre, int numero) {
     store_->persistir();
     empujar(*c);
     // Y SE VE: en cada escena que lo tiene, su fuente visible y las de los otros carruseles
-    // de esa escena, escondidas.
-    for (const std::string& escena : rt_.engine().sceneNames()) {
-        const std::vector<std::string> fuentes = rt_.engine().sceneSources(escena);
+    // de esa escena, escondidas (las escenas, de la foto; lo cambia el dueño del motor).
+    std::vector<std::tuple<std::string, std::string, bool>> visibles; // escena, fuente, visible
+    for (const FotoMotor::Escena& e : v_.foto().escenas) {
+        const std::vector<std::string> fuentes = v_.foto().fuentesDe(e.nombre);
         if (std::find(fuentes.begin(), fuentes.end(), c->fuente()) == fuentes.end()) continue;
-        rt_.setSourceVisible(escena, c->fuente(), true);
+        visibles.emplace_back(e.nombre, c->fuente(), true);
         for (const carrusel::Carrusel& otro : store_->todos())
             if (&otro != c && !otro.fuente().empty() && std::find(fuentes.begin(), fuentes.end(), otro.fuente()) != fuentes.end())
-                rt_.setSourceVisible(escena, otro.fuente(), false);
+                visibles.emplace_back(e.nombre, otro.fuente(), false);
     }
+    if (!visibles.empty())
+        v_.pedir("carrusel_mostrar", [&rt = rt_, visibles]() {
+            for (const auto& [escena, fuente, visible] : visibles) rt.setSourceVisible(escena, fuente, visible);
+        });
     mostrado_ = nombre;
     if (actual_ == nombre) emit posicionCambio();
     // Que la tarjeta maneje este (aunque ya estuviera en otro de la misma escena).
@@ -355,11 +367,14 @@ void CarruselViewModel::empujar(const carrusel::Carrusel& c) {
     // Se le cambia el archivo a la fuente que ya está en la escena. NO se la
     // vuelve a crear: recrearla en cada salto haría un parpadeo al aire y
     // perdería la ubicación que el operador le dio.
-    rt_.updateSourceSettings(c.fuente(), nlohmann::json{{"file", l->archivo}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+    v_.pedir("carrusel_lamina", [&rt = rt_, fuente = c.fuente(),
+                                 ajustes = nlohmann::json{{"file", l->archivo}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)]() {
+        rt.updateSourceSettings(fuente, ajustes);
+    });
 }
 
 bool CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& escena) {
-    carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
+    const carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
     if (c == nullptr) {
         emit notify(tr("No hay ningún carrusel llamado «%1»").arg(carrusel), "error");
         return false;
@@ -368,35 +383,55 @@ bool CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& e
         emit notify(tr("«%1» no tiene láminas todavía").arg(carrusel), "error");
         return false;
     }
+    aplicarAEscena(carrusel, escena, [](const QString&) {}); // lo que diga el motor, por notify
+    return true;
+}
+
+void CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& escena, std::function<void(const QString&)> listo) {
+    carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
+    if (c == nullptr) return listo(tr("No hay ningún carrusel llamado «%1»").arg(carrusel));
+    if (c->vacio()) return listo(tr("«%1» no tiene láminas todavía").arg(carrusel));
     // El nombre lleva el del carrusel adentro: en la lista de fuentes de la
     // escena tiene que verse de qué es, y dos carruseles en la misma escena no
     // pueden compartir fuente.
     const std::string fuente = "Carrusel · " + carrusel.toStdString();
-    if (c->fuente() != fuente) {
-        SourceSpec spec;
-        spec.id = "image_source";
-        spec.name = fuente;
-        spec.settingsJson = nlohmann::json{{"file", c->laminas().front().archivo}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-        spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f}; // pantalla completa; se acomoda en Escenas
-        spec.visible = true;
-        if (!rt_.addSource(escena.toStdString(), spec)) {
+    const bool crear = c->fuente() != fuente;
+    SourceSpec spec;
+    spec.id = "image_source";
+    spec.name = fuente;
+    spec.settingsJson = nlohmann::json{{"file", c->laminas().front().archivo}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f}; // pantalla completa; se acomoda en Escenas
+    spec.visible = true;
+    // La fuente la crea el dueño del motor; la vuelta sigue acá.
+    v_.pedir(
+        this, "carrusel_aplicar",
+        [&rt = rt_, crear, escena = escena.toStdString(), spec]() -> std::string {
+            if (!crear || rt.addSource(escena, spec)) return {};
             // Puede fallar porque YA existe (el carrusel ya estaba en otra
             // escena): eso no es un error, es reusar la misma fuente.
-            const QString err = QString::fromStdString(rt_.lastError());
-            if (!err.contains("exist", Qt::CaseInsensitive) && !err.contains("ya", Qt::CaseInsensitive)) {
-                emit notify(tr("No se pudo poner en la escena: %1").arg(err), "error");
-                return false;
+            const std::string err = rt.lastError();
+            const QString e = QString::fromStdString(err);
+            return e.contains("exist", Qt::CaseInsensitive) || e.contains("ya", Qt::CaseInsensitive) ? std::string() : err;
+        },
+        [this, carrusel, escena, fuente, listo = std::move(listo)](const std::string& err) {
+            if (!err.empty()) {
+                const QString m = tr("No se pudo poner en la escena: %1").arg(QString::fromStdString(err));
+                emit notify(m, "error");
+                return listo(m);
             }
-        }
-        c->setFuente(fuente);
-        store_->persistir();
-    }
-    empujar(*c);
-    rt_.save();
-    revisarEscena();
-    emit cambio();
-    emit notify(tr("«%1» quedó en «%2». Tocá una lámina para ponerla.").arg(carrusel, escena), "ok");
-    return true;
+            carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
+            if (c == nullptr) return listo(tr("No hay ningún carrusel llamado «%1»").arg(carrusel));
+            if (c->fuente() != fuente) {
+                c->setFuente(fuente);
+                store_->persistir();
+            }
+            empujar(*c);
+            v_.pedir("guardar", [&rt = rt_]() { rt.save(); });
+            revisarEscena();
+            emit cambio();
+            emit notify(tr("«%1» quedó en «%2». Tocá una lámina para ponerla.").arg(carrusel, escena), "ok");
+            listo({});
+        });
 }
 
 bool CarruselViewModel::soltarDeEscena(const QString& carrusel) {

@@ -87,7 +87,7 @@ Flow {
                 id: contenidoF
                 Layout.fillWidth: true
                 editable: true
-                model: Studio.control.nombresParaDsk()
+                model: Studio.control.nombresParaDsk
                 onActivated: (i) => {
                     const actual = editText.split(",").map(s => s.trim()).filter(s => s !== "" && s !== model[i])
                     editText = actual.concat([model[i]]).join(", ")

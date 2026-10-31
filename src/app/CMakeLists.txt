@@ -628,7 +628,8 @@ endif()
                    agent/AlertEngine.cpp agent/AlertEngine.hpp agent/EntradasAlarmas.cpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp
                    mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp mcp/McpFoto.cpp mcp/McpMando.cpp
                    emision/DocumentoAire.cpp emision/SalidasConfig.cpp emision/TurnoMotor.cpp
-                   emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp evento/EventoStore.cpp evento/Evento.cpp)
+                   emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp evento/EventoStore.cpp evento/Evento.cpp
+                   control/Dsk.cpp control/Dsk.hpp)
     target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_plano_control PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

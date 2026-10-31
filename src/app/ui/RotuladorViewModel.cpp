@@ -16,7 +16,7 @@
 #include <QJsonObject>
 #include <QTimer>
 
-#include "arranque/AppRuntime.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"
@@ -26,7 +26,7 @@
 namespace ba::app {
 
 struct RotuladorViewModel::Impl {
-    AppRuntime& rt;
+    VentanillaMotor& v;
     graficos::Emisor& em;
     ConferenceViewModel* sala = nullptr;
     graficos::Vinculos* vin = nullptr;
@@ -42,7 +42,7 @@ struct RotuladorViewModel::Impl {
     /// Qué gráfico eligió el operador para cada fuente.
     std::map<quint64, QString> elegido;
 
-    Impl(AppRuntime& r, graficos::Emisor& e, ConferenceViewModel* s) : rt(r), em(e), sala(s) {}
+    Impl(VentanillaMotor& vm, graficos::Emisor& e, ConferenceViewModel* s) : v(vm), em(e), sala(s) {}
 
     /// Qué gráfico muestra esa fuente: el que eligieron, o el último que salió
     /// al aire, o el que diga la fuente en sus propiedades.
@@ -55,9 +55,9 @@ struct RotuladorViewModel::Impl {
     }
 };
 
-RotuladorViewModel::RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor, ConferenceViewModel* sala,
+RotuladorViewModel::RotuladorViewModel(VentanillaMotor& ventanilla, graficos::Emisor& emisor, ConferenceViewModel* sala,
                                        QObject* parent)
-    : QObject(parent), d_(std::make_unique<Impl>(rt, emisor, sala)) {
+    : QObject(parent), d_(std::make_unique<Impl>(ventanilla, emisor, sala)) {
     connect(&emisor, &graficos::Emisor::cambio, this, &RotuladorViewModel::cambio);
     d_->sincro.setInterval(1000);
     connect(&d_->sincro, &QTimer::timeout, this, [this]() { sincronizar(); });
@@ -66,14 +66,18 @@ RotuladorViewModel::RotuladorViewModel(AppRuntime& rt, graficos::Emisor& emisor,
 
 RotuladorViewModel::~RotuladorViewModel() = default;
 
-QString RotuladorViewModel::escena() const { return QString::fromStdString(d_->rt.engine().currentScene()); }
+QString RotuladorViewModel::escena() const {
+    const FotoMotor::Salida* s = d_->v.foto().salida({});
+    return s != nullptr ? QString::fromStdString(s->alAire) : QString();
+}
 
 QStringList RotuladorViewModel::graficos() const { return d_->em.nombres(); }
 
 QVariantList RotuladorViewModel::fuentes() const {
     QVariantList out;
-    const std::string escenaActual = d_->rt.engine().currentScene();
-    const std::vector<std::string> enEscena = d_->rt.engine().sceneSources(escenaActual);
+    const FotoMotor& foto = d_->v.foto();
+    const std::string escenaActual = escena().toStdString();
+    const std::vector<std::string> enEscena = foto.fuentesDe(escenaActual);
 
     // Primero las de la escena al aire; después las de las otras escenas, que
     // no se ven y por eso se preparan ahí y se ARMAN en el preview (sale con
@@ -83,8 +87,9 @@ QVariantList RotuladorViewModel::fuentes() const {
         if (std::find(enEscena.begin(), enEscena.end(), i.nombre) != enEscena.end()) lista.emplace_back(i, escenaActual);
     for (const auto& i : graficos::instancias()) {
         if (std::find(enEscena.begin(), enEscena.end(), i.nombre) != enEscena.end()) continue;
-        for (const std::string& sc : d_->rt.engine().sceneNames()) {
-            const auto ss = d_->rt.engine().sceneSources(sc);
+        for (const FotoMotor::Escena& e : foto.escenas) {
+            const std::string& sc = e.nombre;
+            const auto ss = foto.fuentesDe(sc);
             if (std::find(ss.begin(), ss.end(), i.nombre) != ss.end()) {
                 lista.emplace_back(i, sc);
                 break;

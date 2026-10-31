@@ -30,6 +30,9 @@
 //            (gateway.json: el puerto, el túnel, pinggy, el proxy, la atención automática),
 //            con qué aparece el operador ante el lobby, la carpeta de grabación, las
 //            fuentes con audio y la fuente «Banca con la palabra» (si hay y en qué escenas).
+//   Superficies  lo de las superficies de control que es del dueño: las capas DSK
+//            (control::CapasDsk: sus definiciones y cómo está cada una en cada salida) y el
+//            tema de las páginas web de control.
 // ============================================================================
 #pragma once
 
@@ -51,8 +54,9 @@ struct FotoMotor {
         Emision = 1u << 3,
         Ajustes = 1u << 4,
         Medidas = 1u << 5,
+        Superficies = 1u << 11,
         Sala = 1u << 12, // (los bits de cada área: I 9, M 10, C 11, S 12, R 13; el 8 es de AppRuntime)
-        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Sala,
+        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Sala | Superficies,
     };
 
     // --- Escenas ---------------------------------------------------------------------
@@ -171,6 +175,11 @@ struct FotoMotor {
         bool operator==(const SalaYEvento&) const = default;
     };
     SalaYEvento sala;
+    // --- Superficies ---------------------------------------------------------------------
+    /// {capas: las definiciones (Config/dsk.json, con visible_en), salidas: {<salida>:
+    /// control::CapasDsk::capas(salida)}}: lo arma CapasDsk (un aporte del dueño).
+    nlohmann::json dsk = nlohmann::json::object();
+    std::string temaWeb; ///< el de las páginas web de control (control/TemasWeb.hpp)
 
     // --- Para leerla -----------------------------------------------------------------
     const Escena* escena(const std::string& nombre) const {
