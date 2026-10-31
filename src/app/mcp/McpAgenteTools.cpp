@@ -33,7 +33,7 @@ void McpService::registerAgenteTools() {
         t.name = "agente_roles";
         t.title = ba::i18n::traducir("mcp", "Roles automaticos");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Como esta configurado cada rol: si esta activo, con que proveedor y modelo, que "
                         "categorias ve, que eventos atiende y si esta trabajando ahora.");
         t.run = [&d](const json&, Done done) {
@@ -51,6 +51,7 @@ void McpService::registerAgenteTools() {
         t.name = "agente_configurar";
         t.title = ba::i18n::traducir("mcp", "Prender, apagar o cambiar el motor de un rol");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el "
                         "asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que "
@@ -108,6 +109,7 @@ void McpService::registerAgenteTools() {
         t.name = "agente_encargar";
         t.title = ba::i18n::traducir("mcp", "Encargarle algo a un rol");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         // No se ejecuta nada con esta llamada: se ENCOLA un encargo para otro
         // agente, que tiene su propio juego de herramientas, su propio prompt
         // (medir antes de tocar) y su propia salvaguarda. Si cada encargo
@@ -157,7 +159,7 @@ void McpService::registerAgenteTools() {
         t.name = "agente_corridas";
         t.title = ba::i18n::traducir("mcp", "Corridas recientes");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Las ultimas corridas de los roles (la mas nueva primero): rol, origen, estado, "
             "duracion, cuantas herramientas uso y el resumen final. Sin los pasos: agente_corrida.");
@@ -176,7 +178,7 @@ void McpService::registerAgenteTools() {
         t.name = "agente_corrida";
         t.title = ba::i18n::traducir("mcp", "Una corrida, paso a paso");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Una corrida completa: el encargo, cada paso (lo que dijo el agente, que herramienta "
                         "llamo y con que, que le contesto) y el resultado.");
         t.inputSchema = {
@@ -197,6 +199,7 @@ void McpService::registerAgenteTools() {
         t.name = "agente_detener";
         t.title = ba::i18n::traducir("mcp", "Detener una corrida");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Mata el agente de esa corrida (o la saca de la cola si no arranco). Queda como "
                         "«detenida», con lo que alcanzo a hacer.");

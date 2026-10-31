@@ -46,6 +46,7 @@ void McpService::registerInputTools() {
         t.name = "entrada_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar una entrada");
         t.category = "entradas";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Borra la entrada `nombre` (cámara, capturadora, de red, de un plugin): la saca de "
                         "TODAS las escenas y de "
@@ -68,6 +69,7 @@ void McpService::registerInputTools() {
         t.name = "video_input_add";
         t.title = ba::i18n::traducir("mcp", "Agregar una camara o capturadora");
         t.category = "entradas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Agrega a una escena una camara USB o capturadora (el `device` de video_devices). Entra por "
             "GStreamer (ba_gst_fuente: sus tarjetas y filtros corren en su cadena). `modo` opcional: tamaño y "
@@ -113,6 +115,7 @@ void McpService::registerInputTools() {
         t.name = "network_input_add";
         t.title = ba::i18n::traducir("mcp", "Agregar una camara o señal de red");
         t.category = "entradas";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "SI HAY QUE SINCRONIZARLA con otras (varios streams, varias camaras de red), usá "
@@ -188,7 +191,7 @@ void McpService::registerInputTools() {
         t.name = "ndi_sources";
         t.title = ba::i18n::traducir("mcp", "Fuentes NDI en la red");
         t.category = "entradas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Busca emisores NDI(R) en la red local (mDNS) durante `seconds` y los lista con IP y puerto. "
@@ -213,6 +216,7 @@ void McpService::registerInputTools() {
         t.name = "ndi_input_add";
         t.title = ba::i18n::traducir("mcp", "Agregar una fuente NDI");
         t.category = "entradas";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Agrega a una escena una señal NDI(R) por su `ndiName` (de ndi_sources) o por `host` + `port`. "
@@ -275,7 +279,7 @@ void McpService::registerInputTools() {
         t.name = "input_status";
         t.title = ba::i18n::traducir("mcp", "Estado de las entradas");
         t.category = "entradas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Las fuentes de camara/capturadora y de red: tipo, dispositivo o URL (sin clave), si llega "
             "imagen y de que tamaño, y el estado de reproduccion de las de red.");

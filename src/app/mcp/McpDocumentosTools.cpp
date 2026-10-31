@@ -37,7 +37,7 @@ void McpService::registerDocumentosTools() {
         t.name = "documentos_listar";
         t.title = ba::i18n::traducir("mcp", "Los documentos del evento");
         t.category = "documentos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los documentos del evento abierto: id, título, descripción, páginas, tamaño, si es público, a qué "
                         "puntos del orden del día y secciones del guion está relacionado y si tiene carátula. Sin relaciones "
                         "es documentación del evento en general. Con `punto` o `seccion`, solo los de ese punto del orden "
@@ -71,6 +71,7 @@ void McpService::registerDocumentosTools() {
         t.name = "documento_agregar";
         t.title = ba::i18n::traducir("mcp", "Agregar un documento al evento");
         t.category = "documentos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Agrega un documento a la documentación del evento: un PDF o una imagen tal cual, y un Word, "
                         "planilla, presentación, HTML, Markdown o texto pasado a PDF antes (WordCraft, DeckCraft, GridCraft o Qt, del bundle). "
                         "Lo copia a la carpeta docs/ del evento y "
@@ -98,6 +99,7 @@ void McpService::registerDocumentosTools() {
         t.name = "pdf_convertir";
         t.title = ba::i18n::traducir("mcp", "Convertir a PDF");
         t.category = "documentos";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Convierte a PDF con lo que viaja en el sistema (sin Chrome ni nada instalado): `archivo` (Word, Excel, "
             "PowerPoint, OpenDocument, RTF, CSV, HTML, Markdown, texto o imagen) o `texto` que escribas vos, con "
@@ -163,6 +165,7 @@ void McpService::registerDocumentosTools() {
         t.name = "documento_editar";
         t.title = ba::i18n::traducir("mcp", "Describir o relacionar un documento");
         t.category = "documentos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Cambia lo que se pase: `titulo`, `descripcion`, `publico`, `puntos` (del orden del día) y `secciones` "
                         "(del guion; las listas reemplazan a las de antes), y `pagina_tapa` (otra página del PDF como "
                         "carátula: rehace la miniatura). La web del evento se actualiza sola.");
@@ -184,6 +187,7 @@ void McpService::registerDocumentosTools() {
         t.name = "documento_quitar";
         t.title = ba::i18n::traducir("mcp", "Quitar un documento del evento");
         t.category = "documentos";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Lo saca de la documentación del evento (el archivo va a la papelera del evento, se puede recuperar).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
@@ -198,6 +202,7 @@ void McpService::registerDocumentosTools() {
         t.name = "documento_abrir";
         t.title = ba::i18n::traducir("mcp", "Abrir un documento en pantalla");
         t.category = "documentos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Abre el documento con el visor del sistema (el visor de PDF), en esta máquina: lo mismo que el "
                         "doble clic en la pestaña Documentos o el botón 📄 de un punto del orden del día.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
@@ -214,7 +219,7 @@ void McpService::registerDocumentosTools() {
         t.name = "documento_texto";
         t.title = ba::i18n::traducir("mcp", "Leer el texto de un documento");
         t.category = "documentos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "El texto de un PDF del evento, de la página `desde` a `hasta` (por defecto todo): para resumirlo, "
                         "describirlo o saber a qué punto del orden del día corresponde.");
         t.inputSchema = {{"type", "object"},
@@ -235,7 +240,7 @@ void McpService::registerDocumentosTools() {
         t.name = "pdf_escena_ver";
         t.title = ba::i18n::traducir("mcp", "Los PDF en las escenas");
         t.category = "documentos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las fuentes PDF de las escenas (ba_pdf: un PDF a pantalla, una página por vez): qué documento y qué "
                         "página muestra cada una (de cuántas), y los PDF de la documentación del evento que se pueden elegir. "
                         "Para mostrar un PDF en vivo sin desarmarlo en láminas.");
@@ -247,6 +252,7 @@ void McpService::registerDocumentosTools() {
         t.name = "pdf_escena_poner";
         t.title = ba::i18n::traducir("mcp", "Elegir el PDF o la página de una fuente PDF");
         t.category = "documentos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "En la fuente PDF `fuente` (sin ella, la primera): `documento` (el id de uno de la documentación del "
                         "evento: pdf_escena_ver / documentos_listar) o `archivo` (la ruta de otro PDF), y/o `pagina` (1 = la "
                         "primera) o `paso` (+1 la siguiente, -1 la anterior); y el encuadre: `zoom` (1 = la página entera, "
@@ -281,6 +287,7 @@ void McpService::registerDocumentosTools() {
         t.name = "pdf_escena_crear";
         t.title = ba::i18n::traducir("mcp", "Armar una escena para mostrar PDF");
         t.category = "documentos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Crea la escena `nombre` (de fábrica «PDF») con una fuente PDF a pantalla completa (si ya existe, le "
                         "agrega la fuente si no la tiene). Después: pdf_escena_poner para elegir el documento y pasar páginas, "
                         "y la tarjeta «PDF» del tablero hace lo mismo a mano.");

@@ -36,7 +36,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_listar";
         t.title = ba::i18n::traducir("mcp", "Plugins instalados y ejemplos");
         t.category = "plugins";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los plugins (estado: corriendo, apagado, caído…, lo que declararon: entradas, "
                         "tarjetas, PTZ, controles) y "
                         "los ejemplos para copiar (con su `categoria`: inicio, video, automatizacion, equipo, "
@@ -57,7 +57,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_ver";
         t.title = ba::i18n::traducir("mcp", "Ver un plugin (o un ejemplo)");
         t.category = "plugins";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "El manifiesto (plugin.json), la lista de archivos y el contenido de `archivo` (de "
                         "fábrica, el principal) "
                         "de un plugin o de un EJEMPLO (con su nombre: «ejemplo-basico», «ejemplo-video-gst», "
@@ -83,6 +83,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_escribir";
         t.title = ba::i18n::traducir("mcp", "Crear o cambiar un plugin");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Escribe los `archivos` del plugin `id` ({\"plugin.py\": \"...código...\"}; pisa los "
                         "que nombres, deja los "
                         "demás) y mezcla `manifiesto` en su plugin.json (nombre, descripcion, version, "
@@ -118,6 +119,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_desde_ejemplo";
         t.title = ba::i18n::traducir("mcp", "Copiar un ejemplo como plugin nuevo");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Copia el `ejemplo` (plugin_listar los lista) a un plugin nuevo `id`, para cambiarlo "
                         "con plugin_escribir. Los moldes: «ejemplo-video-gst» (un efecto, filtro o análisis de "
                         "video: tarjeta del grafo con GStreamer y un elemento propio en Python), "
@@ -142,7 +144,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_probar";
         t.title = ba::i18n::traducir("mcp", "Probar un plugin sin tocar el sistema");
         t.category = "plugins";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Baja sus dependencias y lo corre APARTE (no toca lo que está al aire): junta lo que "
                         "declara, le pasa "
                         "cuadros y audio de prueba a cada tarjeta (cuánto tarda, qué cambió), recibe "
@@ -180,6 +182,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_activar";
         t.title = ba::i18n::traducir("mcp", "Prender o apagar un plugin");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Prende (`activo`, de fábrica true) o apaga el plugin, y queda así al reiniciar la app. Al "
             "prenderse: sus "
@@ -208,7 +211,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_aprobados";
         t.title = ba::i18n::traducir("mcp", "Plugins aprobados para el aire");
         t.category = "plugins";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Los plugins aprobados para el aire: con el modo en vivo solo arrancan (y se reinician) esos, y solo "
             "si su código no cambió desde la aprobación (`vigente`; si no, `cambiaron` dice qué archivos). "
@@ -229,6 +232,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_reiniciar";
         t.title = ba::i18n::traducir("mcp", "Reiniciar un plugin");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Lo cierra y lo vuelve a arrancar (después de cambiar su código con plugin_escribir).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}}}};
@@ -247,7 +251,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_registro";
         t.title = ba::i18n::traducir("mcp", "El registro de un plugin");
         t.category = "plugins";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las últimas `lineas` de lo que escribió (print, errores de Python, pip).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
@@ -263,6 +267,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_control";
         t.title = ba::i18n::traducir("mcp", "Pedirle algo a un plugin");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Llama el control `control` del plugin (los que declaró con @plugin.control; "
                         "plugin_listar los muestra) con "
                         "`args`, y devuelve lo que conteste. Sin `control`: le pide `info` (lo que declaró y "
@@ -292,6 +297,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_panel";
         t.title = ba::i18n::traducir("mcp", "El panel de un plugin (lo mismo que ve el operador)");
         t.category = "plugins";
+        t.clase = Clase::Ui;
         t.description = ba::i18n::traducir("mcp", "Sin `clave`: el panel del plugin (sus controles: deslizador, interruptor, opcion, "
                         "texto, numero, boton, "
                         "indicador, medidor) con los valores de ahora. Con `clave` y `valor`: mueve ese "
@@ -324,7 +330,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_eventos";
         t.title = ba::i18n::traducir("mcp", "Lo que publican los plugins (canales de datos)");
         t.category = "plugins";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "El último evento de cada canal (p. ej. «kandao-1/hablando») y los más recientes, de "
                         "un plugin (`id`) o de "
                         "todos, de un `canal` o de todos.");
@@ -343,6 +349,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_tarjeta";
         t.title = ba::i18n::traducir("mcp", "Poner una tarjeta de un plugin");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Una tarjeta de VIDEO del plugin al final del sub-grafo de la `entrada` (como "
                         "cualquier tarjeta: se mueve, "
                         "se ajusta y se saca con las herramientas de video; también va en video_pipeline con "
@@ -381,6 +388,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_credenciales";
         t.title = ba::i18n::traducir("mcp", "Pedir las claves de un plugin");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Muestra al operador UN formulario seguro en la barra con las claves que declara el "
                         "plugin (\"secretos\" en "
                         "plugin.json: [{\"clave\": \"clave\", \"etiqueta\": \"Clave de la cámara\"}]) y "
@@ -432,6 +440,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_exportar";
         t.title = ba::i18n::traducir("mcp", "Exportar un plugin (para otro aparato)");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Arma un .zip con el plugin (código, plugin.json y sus archivos; sin las bibliotecas "
                         "ni sus datos) en Datos/Exportado. "
                         "En el otro aparato: plugin_importar.");
@@ -450,6 +459,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_importar";
         t.title = ba::i18n::traducir("mcp", "Instalar un plugin desde un .zip");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Instala el plugin de un .zip exportado (plugin_exportar). Si ya existe, "
                         "`reemplazar: true` pisa su código (conserva "
                         "_libs y datos). Queda apagado: después plugin_probar y plugin_activar.");
@@ -472,6 +482,7 @@ void McpService::registerPluginTools() {
         t.name = "plugin_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar un plugin");
         t.category = "plugins";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Lo apaga y mueve su carpeta a Plugins/.papelera (no se pierde el código). Sus "
                         "entradas quedan sin señal.");
@@ -489,7 +500,7 @@ void McpService::registerPluginTools() {
         t.name = "dispositivos_listar";
         t.title = ba::i18n::traducir("mcp", "Qué equipos hay conectados (cámaras, micrófonos, USB, HID, serie)");
         t.category = "plugins";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las cámaras y micrófonos que ve GStreamer, cada uno con el `gst` listo para el "
                         "pipeline de una entrada "
                         "(p. ej. «avfvideosrc device-index=1») y sus formatos; y los equipos USB (vid:pid, "

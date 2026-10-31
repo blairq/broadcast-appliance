@@ -28,7 +28,7 @@ void McpService::registerControlTools() {
         t.name = "control_estado";
         t.title = ba::i18n::traducir("mcp", "Permisos del control del sistema");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Si el asistente puede manejar el escritorio de esta máquina (servidor MCP `control`, las "
                         "mismas herramientas system_* en Windows, macOS y Linux: mouse, teclado, capturas, abrir "
                         "programas, buscar, ventanas, portapapeles, procesos, comandos, datos del equipo, los elementos "
@@ -61,6 +61,7 @@ void McpService::registerControlTools() {
         t.name = "control_configurar";
         t.title = ba::i18n::traducir("mcp", "Cambiar los permisos del control del sistema");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Prende o apaga el control del sistema (el escritorio de esta máquina) y sus permisos. `habilitado`: el "
                         "interruptor general. `preguntar`: que el asistente pida permiso antes de cada acción. "

@@ -52,7 +52,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_estado";
         t.title = ba::i18n::traducir("mcp", "Quién está en la banca virtual");
         t.category = "sesion";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los integrantes con link de la banca virtual: si están conectados, si esperan que los "
                         "habiliten o ya están habilitados (cuentan como presentes), desde dónde (sala o afuera) y "
                         "quién los habilitó. `presentes` es cuántos cuentan para el quórum por acá.");
@@ -72,6 +72,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_credencial";
         t.title = ba::i18n::traducir("mcp", "Link y PIN de un integrante");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "El link personal y el PIN de la banca virtual de un integrante. Sin acceso fijo, genera "
                         "uno nuevo (el anterior deja de andar) y se muestra UNA sola vez. Con acceso fijo "
@@ -98,6 +99,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_acceso_opciones";
         t.title = ba::i18n::traducir("mcp", "Opciones del acceso de los integrantes");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Cómo es el acceso de los integrantes de la asamblea por el navegador. `pin_en_qr`: el PIN va "
                         "adentro del QR (escanea y entra sin tipear; el QR solo ya es la credencial entera). "
                         "`acceso_fijo`: el link y el PIN de cada uno quedan guardados (cifrados) y no cambian salvo que "
@@ -119,6 +121,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_clave";
         t.title = ba::i18n::traducir("mcp", "Usuario y contraseña de un integrante");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Le da usuario y contraseña para entrar tipeando en …/sesion/ (sin el link). La contraseña "
                         "(12 caracteres fáciles de dictar) reemplaza a la anterior y se muestra UNA sola vez. Necesita "
@@ -141,6 +144,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_datos";
         t.title = ba::i18n::traducir("mcp", "Datos de contacto de un conferencista");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Guarda su `email`, `telefono` y una `nota` (para la secretaría; no se publican).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -162,6 +166,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_revocar";
         t.title = ba::i18n::traducir("mcp", "Revocar el link de un integrante");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Su link deja de andar (y si está conectado, se lo corta). Para volver a entrar necesita uno nuevo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"banca", quien}}}, {"required", {"banca"}}};
@@ -179,6 +184,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_habilitar";
         t.title = ba::i18n::traducir("mcp", "Habilitar a un integrante de la banca virtual");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Con `habilitado: true` (de fábrica) cuenta como presente y, en las fases siguientes, puede "
                         "pedir la palabra y votar; con false vuelve a esperar. Solo después de VERLO por la cámara "
                         "(la interfaz muestra su foto): nunca habilites a alguien sin que una persona lo haya visto.");
@@ -200,6 +206,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_expulsar";
         t.title = ba::i18n::traducir("mcp", "Sacar a alguien de la banca virtual");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Corta su conexión (su link sigue andando: si vuelve a entrar, hay que habilitarlo de nuevo). "
                         "`motivo` es lo que ve en su pantalla.");
@@ -221,6 +228,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_votacion";
         t.title = ba::i18n::traducir("mcp", "Votación en los celulares");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Los integrantes habilitados votan desde el celular (cartel rojo con el tema, las opciones y la "
                         "cuenta regresiva). Si la central abre una votación, los celulares la siguen solos; esto es para "
                         "votar SIN la central (o ver cómo va): `accion` abrir {tema, menu: si_no | si_no_abstencion | "
@@ -264,6 +272,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_consola";
         t.title = ba::i18n::traducir("mcp", "Acceso a la consola web de la presidencia");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "La consola web de la presidencia (…/presidencia/): el recinto con las caras, habilitar, la fila de "
                         "oradores y su tiempo, la votación, el programa en vivo y el integrante que habla, y «apretar para "
@@ -288,6 +297,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_vistas";
         t.title = ba::i18n::traducir("mcp", "Lo que ven los remotos en su celular");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Además de su propia cámara (siempre, en un recuadro), el integrante remoto puede mirar en "
                         "su celular hasta dos canales por WebRTC y cambiar entre ellos: `canales` = [{nombre, fuente}] "
                         "con fuente «programa» (la salida principal) o el nombre de una escena. Sin argumentos dice "
@@ -326,6 +336,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_hablar";
         t.title = ba::i18n::traducir("mcp", "Hablarle a un remoto (apretar para hablar)");
         t.category = "sesion";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Con `activo: true` el integrante remoto (`banca`) oye tu voz (tu micrófono de la sala, el "
                         "mismo con el que le hablás a los invitados) mezclada en el sonido de su celular y ve «Te están "
                         "hablando»; con false se corta. Es para hablarle un momento: no lo dejes prendido.");
@@ -349,7 +360,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_registro";
         t.title = ba::i18n::traducir("mcp", "Registro de la banca virtual");
         t.category = "sesion";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Quién entró, desde dónde, quién lo habilitó, intentos fallidos y bloqueos: lo que va "
                         "anexado al acta. `texto: true` lo da como en el acta.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"texto", {{"type", "boolean"}}}}}};

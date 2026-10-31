@@ -40,7 +40,7 @@ void McpService::registerAssistantTools() {
         t.name = "ia_estado";
         t.title = ba::i18n::traducir("mcp", "Qué parte de la IA no anda o falta configurar");
         t.category = "asistente";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "La lista de lo que falta para que la asistencia con IA ande entera: el asistente (instalado, "
             "clave, corriendo, MCP), el modelo local, el dictado y la voz del operador (reconocedor, "
@@ -65,6 +65,7 @@ void McpService::registerAssistantTools() {
         t.destructive = true; // borra (la lista sola no toca nada)
         t.title = ba::i18n::traducir("mcp", "Limpiar los asistentes");
         t.category = "asistente";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Lo que ocupan los asistentes (Claude Code, Antigravity, opencode) y su limpieza: los chats guardados "
             "que se acumulan, las versiones viejas del programa, o reinstalar si algo falla.");
@@ -125,7 +126,7 @@ void McpService::registerAssistantTools() {
         t.name = "assistant_status";
         t.title = ba::i18n::traducir("mcp", "Estado del asistente");
         t.category = "asistente";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"asistente", propAsistente}}}};
@@ -150,6 +151,7 @@ void McpService::registerAssistantTools() {
         t.name = "assistant_config";
         t.title = ba::i18n::traducir("mcp", "Configurar el asistente");
         t.category = "asistente";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Cambia proveedor, modelo, arranque automatico y si los avisos de disparadores van al "
             "chat. `assistant_status` lista los proveedores que hay y los modelos de cada uno. La "
@@ -184,6 +186,7 @@ void McpService::registerAssistantTools() {
         t.name = "assistant_install";
         t.title = ba::i18n::traducir("mcp", "Instalar el agente");
         t.category = "asistente";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Descarga el agente del proveedor elegido (version fijada, SHA-256) a la carpeta portable. "
@@ -215,6 +218,7 @@ void McpService::registerAssistantTools() {
         t.name = "assistant_run";
         t.title = ba::i18n::traducir("mcp", "Arrancar / detener el asistente");
         t.category = "asistente";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "action: start | stop | restart.");
         t.inputSchema = {
             {"type", "object"},
@@ -248,6 +252,7 @@ void McpService::registerAssistantTools() {
         t.name = "assistant_send";
         t.title = ba::i18n::traducir("mcp", "Mandar un pedido al asistente");
         t.category = "asistente";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Escribe el texto en el prompt del agente de la pestaña y lo manda (como si lo "
                         "tipeara la persona).");
         t.inputSchema = {

@@ -317,6 +317,8 @@ set(BA_HAVE_MOTOR ${BA_HAVE_GST})
 if(BA_HAVE_GST)
     add_subdirectory(src/gst-plugins)
     add_subdirectory(src/motor)
+    # El emisor aparte (F3-01): codifica, graba y transmite una salida fuera de A.
+    add_subdirectory(src/emisor)
 endif()
 add_subdirectory(src/app)
 add_subdirectory(src/grafico)

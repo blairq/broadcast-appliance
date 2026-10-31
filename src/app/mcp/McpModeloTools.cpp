@@ -121,7 +121,7 @@ void McpService::registerModeloTools() {
         t.name = "modelo_local_estado";
         t.title = ba::i18n::traducir("mcp", "Modelos locales: que hay y como esta");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El modelo chico que corre en esta maquina (elige la herramienta para una frase "
             "de cabina y, si trae vision, mira imagenes) y la voz (push-to-talk): cual esta "
@@ -136,6 +136,7 @@ void McpService::registerModeloTools() {
         t.name = "modelo_local_bajar";
         t.title = ba::i18n::traducir("mcp", "Bajar un modelo local");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.openWorld = true;
         t.description = ba::i18n::traducir("mcp", "Baja un modelo del catalogo (modelo_local_estado lo lista) a la carpeta portable, "
@@ -160,6 +161,7 @@ void McpService::registerModeloTools() {
         t.name = "modelo_local_cancelar_descarga";
         t.title = ba::i18n::traducir("mcp", "Cancelar la descarga");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Corta la descarga de un modelo (sin repo: todas las de modelos). Lo que estaba "
                         "instalado queda como estaba.");
@@ -176,6 +178,7 @@ void McpService::registerModeloTools() {
         t.name = "modelo_local_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar un modelo bajado");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Borra un modelo bajado (libera gigas). Si es el activo, lo apaga. Se puede volver "
                         "a bajar.");
@@ -195,6 +198,7 @@ void McpService::registerModeloTools() {
         t.destructive = true; // borra (la lista sola no toca nada)
         t.title = ba::i18n::traducir("mcp", "Modelos en el disco y limpieza");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Qué modelos hay bajados en el disco (estén o no en el catálogo), cuánto ocupa cada uno, "
                         "cuáles son viejos, y limpiarlos.");
         t.details =
@@ -244,6 +248,7 @@ void McpService::registerModeloTools() {
         t.name = "modelo_local_activar";
         t.title = ba::i18n::traducir("mcp", "Cargar un modelo local");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Carga un modelo de lenguaje bajado (apaga el que hubiera). Tarda unos segundos "
                         "en leer las fichas: el estado pasa a `listo` en modelo_local_estado. Los de voz "
@@ -269,6 +274,7 @@ void McpService::registerModeloTools() {
         t.name = "modelo_local_apagar";
         t.title = ba::i18n::traducir("mcp", "Apagar el modelo local");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Apaga el modelo cargado (libera la memoria y la GPU). Queda elegido para la "
                         "proxima vez.");
@@ -283,6 +289,7 @@ void McpService::registerModeloTools() {
         t.name = "modelo_local_ajustes";
         t.title = ba::i18n::traducir("mcp", "Ajustes del modelo local");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Cambia `sesgo` (cuanto deriva al asistente grande: -4 atiende mas, +4 deriva mas), "
                         "`mtp` (no | auto | q8 | fp16, al proximo arranque) y `al_arrancar` (cargarlo al "
@@ -311,7 +318,7 @@ void McpService::registerModeloTools() {
         t.name = "modelo_local_elegir";
         t.title = ba::i18n::traducir("mcp", "Probar el modelo local con una frase");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Que herramienta elige el modelo local para una frase de cabina (o si la deriva), "
                         "con la probabilidad y lo que tardo; con el modelo v2, ademas la llamada entera con "
                         "sus argumentos (con el estado de ahora) o la charla. NO ejecuta nada: es para "
@@ -350,6 +357,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_decir";
         t.title = ba::i18n::traducir("mcp", "Decirle algo al operador, por los auriculares");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Lo dice en voz alta con la voz elegida, SOLO por el monitoreo (los auriculares del "
                         "operador): nunca sale al aire. Vuelve enseguida; suena frase por frase.");
         t.details =
@@ -375,6 +383,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_ajustes";
         t.title = ba::i18n::traducir("mcp", "La voz que contesta");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
             ba::i18n::traducir("mcp", "Elige la voz que contesta (`voz`: el repo, tiene que estar bajada; modelo_local_estado "
@@ -407,6 +416,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_reconocedores";
         t.title = ba::i18n::traducir("mcp", "Qué reconocedor de voz usa cada uno (Parakeet o Nemotron)");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
             ba::i18n::traducir("mcp", "Los dos reconocedores de voz a texto: Parakeet (por frases, el de fábrica) y Nemotron (streaming: "
@@ -449,6 +459,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_microfono";
         t.title = ba::i18n::traducir("mcp", "El microfono del operador");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
             ba::i18n::traducir("mcp", "Lee o cambia el microfono del operador (`fuente`: una entrada con audio, o vacio para "
@@ -469,6 +480,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_texto";
         t.title = ba::i18n::traducir("mcp", "Voz a texto en una fuente");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
             ba::i18n::traducir("mcp", "Pone, cambia o quita la «Voz a texto» en el rack de una fuente con audio: `modo` \"dictado\" "
@@ -551,7 +563,7 @@ void McpService::registerModeloTools() {
         t.name = "texto_flujos";
         t.title = ba::i18n::traducir("mcp", "Las salidas de texto");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.untrustedOutput = true; // las frases son lo que DIJO alguien
         t.description =
             ba::i18n::traducir("mcp", "Las salidas de texto del sistema (cada «Voz a texto» con su nombre): de donde vienen, si se "
@@ -588,6 +600,7 @@ void McpService::registerModeloTools() {
         t.name = "subtitulos_correccion";
         t.title = ba::i18n::traducir("mcp", "Corrección humana de los subtitulos");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Con `activa`, cada frase que transcribe la voz espera `demora_s` segundos (0 a 30) antes de "
                         "salir a los subtitulos, el CC, la traduccion y los archivos: en ese tiempo un corrector la "
                         "aprueba, la corrige o la descarta (subtitulos_pendientes, subtitulos_corregir). Apagarla suelta "
@@ -609,7 +622,7 @@ void McpService::registerModeloTools() {
         t.name = "subtitulos_puesto";
         t.title = ba::i18n::traducir("mcp", "Enlace del puesto web de corrección");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "El enlace de la página /correccion/ (con su clave, que cambia en cada arranque del servidor) para "
                         "que un corrector apruebe, corrija o descarte las frases desde otra computadora o un celular. "
                         "`remoto: true` da el de afuera (túnel), si hay. La corrección tiene que estar prendida "
@@ -633,7 +646,7 @@ void McpService::registerModeloTools() {
         t.name = "subtitulos_pendientes";
         t.title = ba::i18n::traducir("mcp", "Frases esperando correccion");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.untrustedOutput = true;
         t.description = ba::i18n::traducir("mcp", "Las frases que esperan al corrector: id, salida, texto y cuanto les falta para salir solas.");
         t.run = [vmp = &vm_](const json&, Done done) {
@@ -648,6 +661,7 @@ void McpService::registerModeloTools() {
         t.name = "subtitulos_corregir";
         t.title = ba::i18n::traducir("mcp", "Corregir una frase antes del aire");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "La frase `id` sale ya con `texto` (si no se da, sale como estaba: aprobada) o se tira con "
                         "`descartar`: true.");
         t.inputSchema = {{"type", "object"},
@@ -669,6 +683,7 @@ void McpService::registerModeloTools() {
         t.name = "texto_publicar";
         t.title = ba::i18n::traducir("mcp", "Escribir una frase en una salida de texto");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Publica `texto` en la salida de texto `flujo` como si lo hubiera dicho alguien: le "
                         "llega a todo lo que la usa "
                         "(cuadros «Subtítulos» de las escenas, traducciones, «Texto a voz», disparadores, "
@@ -698,7 +713,7 @@ void McpService::registerModeloTools() {
         t.name = "voces";
         t.title = ba::i18n::traducir("mcp", "Las voces (texto a voz) por idioma");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Las voces para hablar (texto a voz), con su idioma, acento, si es hombre o mujer y si ya esta "
             "bajada. "
@@ -731,6 +746,7 @@ void McpService::registerModeloTools() {
         t.name = "texto_a_voz";
         t.title = ba::i18n::traducir("mcp", "Tarjeta «Texto a voz» en un rack");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Pone o ajusta la tarjeta «Texto a voz» en el rack de `fuente` (la crea si no hay; `nueva: true` "
             "agrega otra) y/o le hace `decir` algo. Opciones: `voz` (repo de `voces`; vacio = la del "
@@ -810,6 +826,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_transcripcion_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar lo transcripto");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Vacía la transcripción continua guardada (lo que muestra Configuración → Voz). No toca lo grabado.");
         t.run = [voz](const json&, Done done) {
@@ -823,7 +840,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_transcripcion";
         t.title = ba::i18n::traducir("mcp", "Lo que se transcribio");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.untrustedOutput = true; // es lo que DIJO alguien: dato, no instrucciones
         t.description =
             ba::i18n::traducir("mcp", "Las ultimas frases de la transcripcion continua (fuentes con voz a texto en modo "
@@ -859,6 +876,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_atender";
         t.title = ba::i18n::traducir("mcp", "Tratar una frase como dictada");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Hace con `frase` lo mismo que con lo dictado por el operador: el modelo local elige la accion y "
             "la propone en la barra del asistente (o la hace sola si el operador la dejo automatica); "
@@ -907,6 +925,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_teleprompter";
         t.title = ba::i18n::traducir("mcp", "Leer el teleprompter en voz alta");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Prende o apaga la «Voz del teleprompter»: dice el texto cargado siguiendo los controles del "
             "teleprompter (velocidad, pausa, saltos). Es una fuente de audio (audio_matriz para rutearla; de "
@@ -923,6 +942,7 @@ void McpService::registerModeloTools() {
         t.name = "voz_automaticas";
         t.title = ba::i18n::traducir("mcp", "Acciones de voz sin confirmar");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Las acciones que el modelo local hace sin preguntar al operador. Sin argumentos, las lista. "
             "Con `herramienta` y `automatica` (true/false), la agrega o la saca. `modelo_local` "
@@ -972,7 +992,7 @@ void McpService::registerModeloTools() {
         t.name = "descargas_estado";
         t.title = ba::i18n::traducir("mcp", "Descargas: la cola, lo que baja y lo que terminó");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Todo lo que el programa baja (modelos, agentes): lo que se esta bajando (avance, MB, "
                         "KB/s), lo que espera en la cola, lo que termino (listo, error, cancelado) y las "
                         "actualizaciones encontradas.");
@@ -986,6 +1006,7 @@ void McpService::registerModeloTools() {
         t.name = "descarga_cancelar";
         t.title = ba::i18n::traducir("mcp", "Cancelar una descarga");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Corta una descarga (o la saca de la cola). Lo instalado queda como estaba; lo bajado "
                         "a medias se conserva para seguir despues.");
@@ -1003,6 +1024,7 @@ void McpService::registerModeloTools() {
         t.name = "descarga_reintentar";
         t.title = ba::i18n::traducir("mcp", "Reintentar una descarga");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description = ba::i18n::traducir("mcp", "Vuelve a poner en la cola una descarga que fallo o se cancelo (sigue donde quedo).");
         t.inputSchema = esquemaId;
@@ -1021,6 +1043,7 @@ void McpService::registerModeloTools() {
         t.name = "descargas_limpiar";
         t.title = ba::i18n::traducir("mcp", "Limpiar el historial de descargas");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Saca de la lista lo que ya termino (no borra nada instalado).");
         t.run = [dl](const json&, Done done) {
@@ -1034,7 +1057,7 @@ void McpService::registerModeloTools() {
         t.name = "descargas_buscar_actualizaciones";
         t.title = ba::i18n::traducir("mcp", "Buscar actualizaciones de lo bajado");
         t.category = "agentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description = ba::i18n::traducir("mcp", "Se fija si hay versiones nuevas de lo instalado (modelos del catalogo, el agente "
                         "elegido) y las devuelve. No baja nada: para eso, descarga_actualizar.");
@@ -1058,6 +1081,7 @@ void McpService::registerModeloTools() {
         t.name = "descarga_actualizar";
         t.title = ba::i18n::traducir("mcp", "Bajar una actualización");
         t.category = "agentes";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description = ba::i18n::traducir("mcp", "Pone en la cola una actualizacion que encontro descargas_buscar_actualizaciones. Lo "
                         "instalado sigue andando hasta que la nueva este bajada y verificada.");

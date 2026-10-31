@@ -11,6 +11,7 @@
 #include "Integrity.hpp"
 #include "Log.hpp"
 #include "i18n/I18n.hpp"
+#include "ipc/CanalesSalida.hpp"
 #include "RecoveryUi.hpp"
 #include "ShadowCopy.hpp"
 #include "Sha256.hpp"
@@ -91,13 +92,11 @@ Supervisor::~Supervisor() {
 
 void Supervisor::requestStop() { stopRequested_.store(true); }
 
-bool Supervisor::inStartupGrace(bool isA) const {
-    const std::uint64_t at = launchedAtMs_[isA ? 1 : 0];
-    if (at == 0) return false;
-    const std::uint64_t pasado = nowMs() - at;
+bool Supervisor::inStartupGrace(const Hijo& h) const {
+    if (h.lanzadoMs == 0) return false;
+    const std::uint64_t pasado = nowMs() - h.lanzadoMs;
     if (pasado < cfg_.graciaArranqueMs) return true;
-    const bool latio =
-        health_.read(isA ? cfg_.slotA : cfg_.slotB).lastBeatQpc != latidoAlLanzar_[isA ? 1 : 0];
+    const bool latio = health_.read(h.slot).lastBeatQpc != h.latidoAlLanzar;
     return !latio && pasado < kPrimerLatidoMs();
 }
 
@@ -140,7 +139,9 @@ int Supervisor::run() {
 
     // Bloque de salud: el launcher es el owner (crea); los hijos abren. Si ya
     // existe (launcher anterior caido con A/B vivos), se reabre para readoptar.
-    const std::size_t slotCount = std::max<std::size_t>(ba::ipc::kSlotsSalud, std::max(cfg_.slotA, cfg_.slotB) + 1);
+    armarHijos();
+    std::size_t slotCount = ba::ipc::kSlotsSalud;
+    for (const auto& h : hijos_) slotCount = std::max<std::size_t>(slotCount, h->slot + 1);
     auto st = ba::ipc::HealthBlock::open(ba::ipc::HealthBlock::kName, health_);
     if (!st.ok) {
         st = ba::ipc::HealthBlock::create(ba::ipc::HealthBlock::kName, slotCount, health_);
@@ -167,7 +168,7 @@ void Supervisor::applyExecRoot(const std::filesystem::path& execRoot) {
         BA_LOG_INFO("shadow", 0, traducir("shadow", "ejecutando desde la raiz original"));
         return;
     }
-    // Reapunta A y B a la copia conservando su ruta relativa (bin/64bit/..).
+    // Reapunta los hijos a la copia conservando su ruta relativa (bin/64bit/..).
     // El workDir sigue siendo la raiz REAL: Config/, Logs/ y Recordings/ viven
     // en el disco, no en la copia (spec 3.1.5).
     auto rebase = [&](const std::filesystem::path& exe) {
@@ -176,6 +177,7 @@ void Supervisor::applyExecRoot(const std::filesystem::path& execRoot) {
     };
     cfg_.appExe = rebase(cfg_.appExe);
     cfg_.gatewayExe = rebase(cfg_.gatewayExe);
+    if (!cfg_.emisorExe.empty()) cfg_.emisorExe = rebase(cfg_.emisorExe);
     BA_LOG_INFO("shadow", 0, llenar(traducir("shadow", "ejecutando desde la copia sombra: %1"), {execRoot.string()}));
 }
 
@@ -236,79 +238,113 @@ void Supervisor::verificarEnElFondo() {
     for (const auto& f : r.failures) m << toUtf8Path(f) << "\n";
 }
 
-void Supervisor::launchChildren() {
-    // B primero, luego A (spec 3.1.6).
-    launchOne(false);
-    launchOne(true);
+void Supervisor::armarHijos() {
+    hijos_.clear();
+    const auto nuevo = [this](Rol rol, std::string nombre, std::string componente, std::filesystem::path exe,
+                              std::vector<std::string> args, std::uint32_t slot, std::string canal, std::string log) {
+        auto h = std::make_unique<Hijo>();
+        h->rol = rol;
+        h->nombre = std::move(nombre);
+        h->componente = std::move(componente);
+        h->exe = std::move(exe);
+        h->args = std::move(args);
+        h->slot = slot;
+        h->canalControl = std::move(canal);
+        h->log = std::move(log);
+        hijos_.push_back(std::move(h));
+        return hijos_.back().get();
+    };
+    // B primero, luego los emisores y A al final (spec 3.1.6): cuando A arranca y pide
+    // salir al aire, su emisor ya está.
+    nuevo(Rol::Sala, "B", "gateway", cfg_.gatewayExe, cfg_.gatewayArgs, cfg_.slotB, ControlChannel::kGatewayChannel, "gateway.log");
+    std::string emisores;
+    std::size_t k = 0;
+    for (const std::string& id : cfg_.emisores) {
+        if (!ba::ipc::idDeSalidaValido(id) || cfg_.emisorExe.empty()) continue;
+        if (k >= ba::ipc::kMaxEmisores) {
+            BA_LOG_WARN("sup", 0,
+                        llenar(traducir("sup", "emisor de «%1»: no hay más lugar en BA.Health; esa salida la codifica la app"), {id}));
+            continue;
+        }
+        Hijo* e = nuevo(Rol::Emisor, "E." + id, "emisor", cfg_.emisorExe, {"--salida=" + id}, ba::ipc::slotSaludEmisor(k++),
+                        ba::ipc::canalControlEmisor(id), "emisor-" + id + ".log");
+        e->env["BA_SLOT_SALUD"] = std::to_string(e->slot);
+        emisores += (emisores.empty() ? "" : ",") + id;
+    }
+    Hijo* a = nuevo(Rol::App, "A", "app", cfg_.appExe, cfg_.appArgs, cfg_.slotA, ControlChannel::kAppChannel, "app.log");
+    // A deja de codificar esas salidas y se las pide a su emisor (BroadcastEngine).
+    if (!emisores.empty()) {
+        a->env["BA_EMISOR"] = emisores;
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "emisor aparte para: %1"), {emisores}));
+    }
 }
 
-void Supervisor::launchOne(bool isA) {
-    const std::uint32_t slot = isA ? cfg_.slotA : cfg_.slotB;
-    const std::string name = isA ? "A" : "B";
+void Supervisor::launchChildren() {
+    for (auto& h : hijos_) launchOne(*h);
+}
+
+void Supervisor::launchOne(Hijo& h) {
     // Readopt (spec 3.1.9): si hay un PID publicado, vivo Y con heartbeat
     // fresco, adoptarlo. El heartbeat es la prueba de que es NUESTRO proceso:
     // un PID viejo podria haber sido reutilizado por cualquier otro programa.
     // El adoptado sigue escribiendo en su archivo de Logs/, que ya tiene
     // abierto: no se rota ni se encabeza hasta que haya que relanzarlo.
-    // Y tiene que ser de ESTA versión: tras actualizar, un A o B viejo que quedó
+    // Y tiene que ser de ESTA versión: tras actualizar, un hijo viejo que quedó
     // corriendo no se adopta; se cierra en orden y se lanza el nuevo. Con salidas
     // al aire eso cortaría la emisión: se lo adopta por ahora, se avisa y se lo
     // reemplaza en cuanto no haya aire (watchdogLoop).
-    const ba::ipc::Snapshot snap = health_.read(slot);
-    const bool vivo = snap.pid != 0 && !health_.isStale(slot) && child(isA).attach(snap.pid, name);
+    const ba::ipc::Snapshot snap = health_.read(h.slot);
+    const bool vivo = snap.pid != 0 && !health_.isStale(h.slot) && h.proceso.attach(snap.pid, h.nombre);
     const bool otra = vivo && snap.version != ba::ipc::kVersionProceso;
     const std::string pid = std::to_string(snap.pid);
     const std::string v = std::to_string(snap.version);
     const std::string esperada = std::to_string(ba::ipc::kVersionProceso);
     switch (decidirReadopcion(vivo, snap.version, ba::ipc::kVersionProceso, otra && hayAire(health_, runtimeDir()))) {
         case Readopcion::Lanzar:
-            startChild(isA);
+            startChild(h);
             return;
         case Readopcion::Adoptar:
-            BA_LOG_INFO("sup", 0, llenar(traducir("sup", "readopt: adoptado %1 pid=%2"), {name, pid}));
-            relanzador(isA).lanzado(nowMs());
+            BA_LOG_INFO("sup", 0, llenar(traducir("sup", "readopt: adoptado %1 pid=%2"), {h.nombre, pid}));
+            h.relanzador.lanzado(nowMs());
             return;
         case Readopcion::Posponer:
             BA_LOG_WARN("sup", 0,
                         llenar(traducir("sup", "readopt: %1 pid=%2 es de otra versión (%3; esta es %4) y hay salidas al "
                                                "aire: se adopta hasta que terminen y después se reemplaza"),
-                               {name, pid, v, esperada}));
-            otraVersion_[isA ? 1 : 0] = true;
-            relanzador(isA).lanzado(nowMs());
+                               {h.nombre, pid, v, esperada}));
+            h.otraVersion = true;
+            h.relanzador.lanzado(nowMs());
             return;
         case Readopcion::Reemplazar:
             BA_LOG_WARN("sup", 0,
                         llenar(traducir("sup", "readopt: %1 pid=%2 es de otra versión (%3; esta es %4): se cierra y se "
                                                "lanza el de esta versión"),
-                               {name, pid, v, esperada}));
-            reemplazarOtraVersion(isA);
+                               {h.nombre, pid, v, esperada}));
+            reemplazarOtraVersion(h);
             return;
     }
 }
 
-void Supervisor::reemplazarOtraVersion(bool isA) {
-    stopChild(isA);
-    child(isA).close();
-    startChild(isA);
+void Supervisor::reemplazarOtraVersion(Hijo& h) {
+    stopChild(h);
+    h.proceso.close();
+    startChild(h);
 }
 
 std::filesystem::path Supervisor::runtimeDir() const {
     return (cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot) / "Runtime";
 }
 
-bool Supervisor::startChild(bool isA) {
-    const std::uint32_t slot = isA ? cfg_.slotA : cfg_.slotB;
+bool Supervisor::startChild(Hijo& h) {
     ChildProcess::Config c;
-    c.exePath = isA ? cfg_.appExe : cfg_.gatewayExe;
+    c.exePath = h.exe;
     // Los hijos trabajan en la raiz de los DATOS (y la reciben en BA_DATA_ROOT):
     // en macOS es la carpeta al lado de la .app, no el bundle.
     c.workDir = cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot;
-    c.name = isA ? "A" : "B";
-    c.args = isA ? cfg_.appArgs : cfg_.gatewayArgs;
-    if (isA && appNeedsRestore_) {
-        c.args.emplace_back("--restore"); // spec 3.1.8
-    }
-    if (isA) {
+    c.name = h.nombre;
+    c.args = h.args;
+    if (h.rol == Rol::App) {
+        if (appNeedsRestore_) c.args.emplace_back("--restore"); // spec 3.1.8
         // El modo seguro escalonado (F1-10): el nivel y lo que se apaga por la causa.
         for (const std::string& a : modoSeguro_.argumentos()) c.args.push_back(a);
     }
@@ -318,24 +354,25 @@ bool Supervisor::startChild(bool isA) {
     // lwIP, un abort() o una biblioteca que no carga.
     // Un archivo por proceso, con el nombre del proceso: es lo que el visor
     // usa para saber de donde salio cada linea.
-    c.outputFile = cfg_.logsDir / (isA ? "app.log" : "gateway.log");
+    c.outputFile = cfg_.logsDir / h.log;
     // El canal para que avise si se cae (y el volcado salga con la excepción).
     c.env = volcados_->canalPara(c.name, c.outputFile);
-    if (!child(isA).start(c)) {
+    for (const auto& [k, v] : h.env) c.env[k] = v;
+    if (!h.proceso.start(c)) {
         return false;
     }
-    volcados_->lanzado(c.name, child(isA).pid());
-    launchedAtMs_[isA ? 1 : 0] = nowMs();
-    relanzador(isA).lanzado(launchedAtMs_[isA ? 1 : 0]);
-    otraVersion_[isA ? 1 : 0] = false; // lo que se lanza es siempre de esta versión
-    health_.setIdentity(slot, child(isA).pid(), ba::ipc::kVersionProceso);
-    latidoAlLanzar_[isA ? 1 : 0] = health_.read(slot).lastBeatQpc;
-    health_.setState(slot, ba::ipc::ProcessState::Running);
+    volcados_->lanzado(c.name, h.proceso.pid());
+    h.lanzadoMs = nowMs();
+    h.relanzador.lanzado(h.lanzadoMs);
+    h.otraVersion = false; // lo que se lanza es siempre de esta versión
+    health_.setIdentity(h.slot, h.proceso.pid(), ba::ipc::kVersionProceso);
+    h.latidoAlLanzar = health_.read(h.slot).lastBeatQpc;
+    health_.setState(h.slot, ba::ipc::ProcessState::Running);
     return true;
 }
 
-void Supervisor::restartChild(bool isA) {
-    if (isA) {
+void Supervisor::restartChild(Hijo& h) {
+    if (h.rol == Rol::App) {
         appCrashTimes_.push_back(nowMs());
         const std::uint64_t now = nowMs();
         const std::uint64_t cutoff = now > cfg_.ventanaCaidasMs ? now - cfg_.ventanaCaidasMs : 0;
@@ -360,10 +397,10 @@ void Supervisor::restartChild(bool isA) {
         appNeedsRestore_ = true;
     }
     // Se AGENDA, no se duerme: mientras uno espera su backoff el bucle sigue
-    // vigilando (y relanzando) al otro. Sin espera, se relanza en esta misma vuelta.
-    const std::uint64_t espera = relanzador(isA).caida(nowMs());
+    // vigilando (y relanzando) a los demás. Sin espera, se relanza en esta misma vuelta.
+    const std::uint64_t espera = h.relanzador.caida(nowMs());
     if (espera > 0) {
-        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1: reinicio en %2 s"), {isA ? "A" : "B", std::to_string(espera / 1000)}));
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1: reinicio en %2 s"), {h.nombre, std::to_string(espera / 1000)}));
     }
     relanzarAgendados();
 }
@@ -371,23 +408,24 @@ void Supervisor::restartChild(bool isA) {
 void Supervisor::relanzarAgendados() {
     if (stopRequested_.load()) return;
     const std::uint64_t ahora = nowMs();
-    // B primero, como al arrancar (spec 3.1.6).
-    for (bool isA : {false, true}) {
-        if (!relanzador(isA).toca(ahora)) continue;
-        if (startChild(isA)) {
-            if (isA) appNeedsRestore_ = false;
+    // En el orden de lanzamiento (B primero, como al arrancar: spec 3.1.6).
+    for (auto& hp : hijos_) {
+        Hijo& h = *hp;
+        if (!h.relanzador.toca(ahora)) continue;
+        if (startChild(h)) {
+            if (h.rol == Rol::App) appNeedsRestore_ = false;
         } else {
             // No arrancó: otra vuelta del backoff (no se reintenta cada 250 ms).
-            const std::uint64_t espera = relanzador(isA).caida(ahora);
+            const std::uint64_t espera = h.relanzador.caida(ahora);
             BA_LOG_WARN("sup", 0,
                         llenar(traducir("sup", "%1 no se pudo lanzar; reintento en %2 s"),
-                               {isA ? "A" : "B", std::to_string(espera / 1000)}));
+                               {h.nombre, std::to_string(espera / 1000)}));
         }
     }
 }
 
 
-void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const Volcado* v) {
+void Supervisor::anotarCaida(Hijo& h, const std::string& causa, std::optional<int> code, const Volcado* v) {
     // Runtime/ultima-caida.json lo lee la app al volver (el cartel con la causa);
     // Runtime/caidas.jsonl queda como historial (supervisor_caidas).
     const std::filesystem::path dir = runtimeDir();
@@ -396,29 +434,29 @@ void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<i
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                         std::chrono::system_clock::now().time_since_epoch())
                         .count();
-    nlohmann::json j{{"componente", isA ? "app" : "gateway"},
+    nlohmann::json j{{"componente", h.componente},
                      {"causa", causa},
                      {"codigo", code ? nlohmann::json(*code) : nlohmann::json()},
                      {"volcado", v == nullptr || v->dmp.empty() ? nlohmann::json() : nlohmann::json(v->dmp.filename().string())},
                      {"hora_ms", ms}};
+    if (h.rol == Rol::Emisor) j["proceso"] = h.nombre; // de qué salida (E.<id>)
     // De quién fue (F1-12): el módulo de la pila del que se cayó y la pieza que el
     // modo seguro puede apagar (F1-10). Para saber qué aislar (F3-05).
     const ba::fault::Atribucion at = v != nullptr ? v->atribucion : ba::fault::Atribucion{};
     if (!at.modulo.empty()) j["modulo"] = at.modulo;
     if (at.pieza) j["pieza"] = ba::fault::clave(*at.pieza);
-    if (isA) ultimaPiezaA_ = at.pieza;
+    if (h.rol == Rol::App) ultimaPiezaA_ = at.pieza;
     {
         std::ofstream o(dir / "ultima-caida.json", std::ios::trunc);
         o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
-    std::ofstream h(dir / "caidas.jsonl", std::ios::app);
-    h << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+    std::ofstream hist(dir / "caidas.jsonl", std::ios::app);
+    hist << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
 }
 
-void Supervisor::handleCrash(bool isA) {
-    const std::optional<int> code = child(isA).exitCode();
-    const std::string name = isA ? "A" : "B";
-    child(isA).close();
+void Supervisor::handleCrash(Hijo& h) {
+    const std::optional<int> code = h.proceso.exitCode();
+    h.proceso.close();
     if (code == ba::platform::exit_code::kEnvironment) {
         // El hijo avisa que el entorno no le permite funcionar (p. ej. A sin
         // contexto grafico). Relanzarlo cada pocos segundos solo llenaria el
@@ -427,53 +465,51 @@ void Supervisor::handleCrash(bool isA) {
         BA_LOG_ERROR("sup", *code,
                      llenar(traducir("sup", "%1 no puede funcionar en este entorno (ver su log: p. ej. sin sesion "
                                             "grafica); reintento en %2 s"),
-                            {name, std::to_string(kEnvironmentRetryMs() / 1000)}));
-        relanzador(isA).agendar(nowMs(), kEnvironmentRetryMs());
+                            {h.nombre, std::to_string(kEnvironmentRetryMs() / 1000)}));
+        h.relanzador.agendar(nowMs(), kEnvironmentRetryMs());
         return;
     }
     // La sala cerrada EN ORDEN (código 0): la app la reinició a propósito para que
     // relea gateway.json (Configuración → aplicar). No es una caída: no va al cartel
     // «se reinició» ni cuenta para el cortacircuito; se relanza ya.
     // Dos seguidas en menos de 10 s ya no es un reinicio pedido: camino normal.
-    if (!isA && esCierreOrdenadoB(code)) {
+    if (h.rol == Rol::Sala && esCierreOrdenadoB(code)) {
         ultimoCierreOrdenadoB_ = nowMs();
         BA_LOG_INFO("sup", 0, traducir("sup", "B se cerró en orden (reinicio de la sala); se relanza"));
-        startChild(false);
+        startChild(h);
         return;
     }
-    BA_LOG_WARN("sup", code.value_or(-1), llenar(traducir("sup", "%1 termino inesperadamente; reiniciando con backoff"), {name}));
+    BA_LOG_WARN("sup", code.value_or(-1), llenar(traducir("sup", "%1 termino inesperadamente; reiniciando con backoff"), {h.nombre}));
     // Si avisó la caída, la causa sale del volcado (qué excepción y en qué módulo).
-    const std::optional<Volcado> v = volcados_->tomarCaida(name);
-    anotarCaida(isA, v ? v->causa : causaDeCodigo(code), code, v ? &*v : nullptr);
-    restartChild(isA);
+    const std::optional<Volcado> v = volcados_->tomarCaida(h.nombre);
+    anotarCaida(h, v ? v->causa : causaDeCodigo(code), code, v ? &*v : nullptr);
+    restartChild(h);
 }
 
 bool Supervisor::esCierreOrdenadoB(std::optional<int> code) {
-    if (!code) code = gateway_.exitCode();
+    if (!code) code = sala().proceso.exitCode();
     return code && *code == 0 && !volcados_->hayCaida("B") && nowMs() - ultimoCierreOrdenadoB_ > 10000;
 }
 
-void Supervisor::handleHang(bool isA) {
-    const std::uint32_t slot = isA ? cfg_.slotA : cfg_.slotB;
-    const std::string name = isA ? "A" : "B";
-    if (volcados_->hayCaida(name)) {
+void Supervisor::handleHang(Hijo& h) {
+    if (volcados_->hayCaida(h.nombre)) {
         // No es un cuelgue: se cayó (ya avisó y está volcado) y Windows lo
         // retiene mientras arma su informe. Se lo trata como la caída que es.
-        const std::optional<Volcado> v = volcados_->tomarCaida(name);
+        const std::optional<Volcado> v = volcados_->tomarCaida(h.nombre);
         BA_LOG_WARN("sup", 0,
-                    llenar(traducir("sup", "%1 se cayó (%2); terminar y relanzar"), {name, v ? v->causa : std::string("?")}));
-        anotarCaida(isA, v ? v->causa : traducir("caidas", "se cayó"), std::nullopt, v ? &*v : nullptr);
+                    llenar(traducir("sup", "%1 se cayó (%2); terminar y relanzar"), {h.nombre, v ? v->causa : std::string("?")}));
+        anotarCaida(h, v ? v->causa : traducir("caidas", "se cayó"), std::nullopt, v ? &*v : nullptr);
     } else {
-        BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 colgado (heartbeat estancado); volcado + terminar"), {name}));
+        BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 colgado (heartbeat estancado); volcado + terminar"), {h.nombre}));
         // Uno por cuelgue, con la hora y un .json que dice qué pasó (Volcados.hpp).
-        const Volcado v = volcados_->porCuelgue(name, child(isA).pid(), cfg_.logsDir / (isA ? "app.log" : "gateway.log"));
-        anotarCaida(isA, traducir("caidas", "se colgó (dejó de latir)"), std::nullopt, &v);
+        const Volcado v = volcados_->porCuelgue(h.nombre, h.proceso.pid(), cfg_.logsDir / h.log);
+        anotarCaida(h, traducir("caidas", "se colgó (dejó de latir)"), std::nullopt, &v);
     }
-    child(isA).kill();
-    child(isA).waitExit(kTerminateMs());
-    health_.setState(slot, ba::ipc::ProcessState::Hung);
-    child(isA).close();
-    restartChild(isA);
+    h.proceso.kill();
+    h.proceso.waitExit(kTerminateMs());
+    health_.setState(h.slot, ba::ipc::ProcessState::Hung);
+    h.proceso.close();
+    restartChild(h);
 }
 
 void Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung) {
@@ -483,11 +519,11 @@ void Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool g
     inc.childADown = appDown || appHung;
     inc.childBDown = gwDown || gwHung;
     if (appDown) {
-        inc.appExitCode = static_cast<std::uint32_t>(app_.exitCode().value_or(-1));
+        inc.appExitCode = static_cast<std::uint32_t>(app().proceso.exitCode().value_or(-1));
         inc.appCodeValid = true;
     }
     if (gwDown) {
-        inc.gatewayExitCode = static_cast<std::uint32_t>(gateway_.exitCode().value_or(-1));
+        inc.gatewayExitCode = static_cast<std::uint32_t>(sala().proceso.exitCode().value_or(-1));
         inc.gwCodeValid = true;
     }
     // Un hijo caido podria deberse a un archivo corrupto: se muestra la
@@ -507,25 +543,34 @@ void Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool g
 }
 
 void Supervisor::forceRestart() {
+    // A y B desde 0. Los emisores NO: son justamente lo que mantiene la salida al aire
+    // mientras A vuelve (si el que falla es un emisor, se relanza solo como cualquier hijo).
     BA_LOG_WARN("sup", 0, traducir("sup", "forzar reinicio: terminando hijos y relanzando desde 0"));
-    for (bool isA : {true, false}) {
-        child(isA).kill();
-        child(isA).waitExit(kTerminateMs());
-        child(isA).close();
+    for (auto& hp : hijos_) {
+        Hijo& h = *hp;
+        if (h.rol == Rol::Emisor) continue;
+        h.proceso.kill();
+        h.proceso.waitExit(kTerminateMs());
+        h.proceso.close();
+        health_.setState(h.slot, ba::ipc::ProcessState::Terminated);
+        h.relanzador.olvidar();
     }
-    health_.setState(cfg_.slotA, ba::ipc::ProcessState::Terminated);
-    health_.setState(cfg_.slotB, ba::ipc::ProcessState::Terminated);
-    relanzador(true).olvidar();
-    relanzador(false).olvidar();
     recentFailures_ = 0;
     appCrashTimes_.clear();
     modoSeguro_ = {};
     ultimaPiezaA_.reset();
     appNeedsRestore_ = true;
-    launchChildren();
+    for (auto& hp : hijos_)
+        if (hp->rol != Rol::Emisor) launchOne(*hp);
 }
 
 void Supervisor::watchdogLoop() {
+    // Lo que se ve de cada hijo en una vuelta (en el orden de hijos_).
+    struct Visto {
+        bool fuera = false; ///< espera su relanzamiento agendado: ya se lo atendió
+        bool caido = false, colgado = false;
+    };
+    std::vector<Visto> vistos(hijos_.size());
     while (!shuttingDown_) {
         if (stopRequested_.load()) {
             BA_LOG_INFO("sup", 0, traducir("sup", "cierre pedido (señal/sesion)"));
@@ -534,15 +579,19 @@ void Supervisor::watchdogLoop() {
         }
         // El que espera su relanzamiento agendado no está «caído» de nuevo: ya se lo
         // atendió; se lo lanza cuando toque (relanzarAgendados, al final de la vuelta).
-        const bool appFuera = relanzador(true).agendado();
-        const bool gwFuera = relanzador(false).agendado();
-        const bool appDown = !appFuera && !app_.alive();
-        const bool gwDown = !gwFuera && !gateway_.alive();
-        const bool appHung = !appFuera && !appDown && !inStartupGrace(true) && health_.isStale(cfg_.slotA, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL);
-        const bool gwHung = !gwFuera && !gwDown && !inStartupGrace(false) && health_.isStale(cfg_.slotB, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL);
+        for (std::size_t i = 0; i < hijos_.size(); ++i) {
+            Hijo& h = *hijos_[i];
+            Visto& v = vistos[i];
+            v.fuera = h.relanzador.agendado();
+            v.caido = !v.fuera && !h.proceso.alive();
+            v.colgado = !v.fuera && !v.caido && !inStartupGrace(h) &&
+                        health_.isStale(h.slot, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL);
+        }
+        const Visto a = vistos.back();  // A
+        const Visto b = vistos.front(); // B
 
         // A salio con codigo 0: cierre ordenado del operador, no es un fallo.
-        if (appDown && app_.exitCode() == 0) {
+        if (a.caido && app().proceso.exitCode() == 0) {
             BA_LOG_INFO("sup", 0, traducir("sup", "A salio limpiamente (codigo 0); cierre ordenado"));
             orderedShutdown();
             break;
@@ -553,8 +602,8 @@ void Supervisor::watchdogLoop() {
         // handleCrash, que la relanza, SIN contar para el cartel de recuperación. Antes
         // contaba: al tercer reinicio seguido salía el diálogo de «la sala se cerró» y
         // la sala quedaba abajo esperando que alguien contestara.
-        if (gwDown && !appDown && !appHung && esCierreOrdenadoB()) {
-            handleCrash(false);
+        if (b.caido && !a.caido && !a.colgado && esCierreOrdenadoB()) {
+            handleCrash(sala());
             sleepInterruptible(kPollMs, stopRequested_);
             continue;
         }
@@ -572,10 +621,9 @@ void Supervisor::watchdogLoop() {
             continue;
         }
 
-        if (appDown || appHung || gwDown || gwHung) {
-            if (appDown || appHung) MetricasLauncher::falla(true, appHung);
-            if (gwDown || gwHung) MetricasLauncher::falla(false, gwHung);
-            RecoveryAction action = RecoveryAction::Retry;
+        if (std::any_of(vistos.begin(), vistos.end(), [](const Visto& v) { return v.caido || v.colgado; })) {
+            if (a.caido || a.colgado) MetricasLauncher::falla(true, a.colgado);
+            if (b.caido || b.colgado) MetricasLauncher::falla(false, b.colgado);
             const std::uint64_t failAt = nowMs();
             if (failAt - lastFailureMs_ > cfg_.ventanaCaidasMs) {
                 recentFailures_ = 0;
@@ -583,47 +631,38 @@ void Supervisor::watchdogLoop() {
             lastFailureMs_ = failAt;
             ++recentFailures_;
             // Se pregunta solo si la que falla una y otra vez es la interfaz/motor (A): la
-            // sala sola (B) se relanza sin molestar (la app ya avisa en su pantalla).
-            if (cfg_.recoveryUi && recentFailures_ > cfg_.reiniciosSinPreguntar && (appDown || appHung)) {
-                presentRecovery(appDown, appHung, gwDown, gwHung);
+            // sala (B) o un emisor se relanzan sin molestar (la app ya avisa en su pantalla).
+            if (cfg_.recoveryUi && recentFailures_ > cfg_.reiniciosSinPreguntar && (a.caido || a.colgado)) {
+                presentRecovery(a.caido, a.colgado, b.caido, b.colgado);
             }
-            if (action == RecoveryAction::Exit) {
-                orderedShutdown();
-                break;
-            }
-            if (action == RecoveryAction::ForceRestart) {
-                forceRestart();
-            } else {
-                if (appDown) {
-                    handleCrash(true);
-                } else if (appHung) {
-                    handleHang(true);
-                }
-                if (gwDown) {
-                    handleCrash(false);
-                } else if (gwHung) {
-                    handleHang(false);
-                }
+            for (std::size_t i = 0; i < hijos_.size(); ++i) {
+                if (vistos[i].caido)
+                    handleCrash(*hijos_[i]);
+                else if (vistos[i].colgado)
+                    handleHang(*hijos_[i]);
             }
         }
         // Los que andan bien hace rato: sus caídas viejas se olvidan (sin esto, en
         // un evento largo cada caída aislada esperaba más que la anterior, hasta 10 s).
         const std::uint64_t ahora = nowMs();
-        const bool anda[2] = {!gwFuera && !gwDown && !gwHung && !inStartupGrace(false),
-                              !appFuera && !appDown && !appHung && !inStartupGrace(true)};
-        for (bool isA : {false, true}) {
-            if (anda[isA ? 1 : 0] && relanzador(isA).vigilar(ahora, true, kEstableMs()))
-                BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 estable: las caídas anteriores se olvidan"), {isA ? "A" : "B"}));
+        std::vector<bool> anda(hijos_.size());
+        for (std::size_t i = 0; i < hijos_.size(); ++i) {
+            Hijo& h = *hijos_[i];
+            anda[i] = !vistos[i].fuera && !vistos[i].caido && !vistos[i].colgado && !inStartupGrace(h);
+            if (anda[i] && h.relanzador.vigilar(ahora, true, kEstableMs()))
+                BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 estable: las caídas anteriores se olvidan"), {h.nombre}));
         }
         // Un hijo readoptado de otra versión espera a que no haya aire para irse.
-        if ((otraVersion_[0] || otraVersion_[1]) && ahora - ultimaMiradaAire_ >= kMirarAireMs) {
+        const bool hayOtra = std::any_of(hijos_.begin(), hijos_.end(), [](const auto& h) { return h->otraVersion; });
+        if (hayOtra && ahora - ultimaMiradaAire_ >= kMirarAireMs) {
             ultimaMiradaAire_ = ahora;
             if (!hayAire(health_, runtimeDir())) {
-                for (bool isA : {false, true}) {
-                    if (!otraVersion_[isA ? 1 : 0] || !anda[isA ? 1 : 0]) continue;
+                for (std::size_t i = 0; i < hijos_.size(); ++i) {
+                    Hijo& h = *hijos_[i];
+                    if (!h.otraVersion || !anda[i]) continue;
                     BA_LOG_WARN("sup", 0,
-                                llenar(traducir("sup", "%1 de otra versión: ya no hay aire, se reemplaza"), {isA ? "A" : "B"}));
-                    reemplazarOtraVersion(isA);
+                                llenar(traducir("sup", "%1 de otra versión: ya no hay aire, se reemplaza"), {h.nombre}));
+                    reemplazarOtraVersion(h);
                 }
             }
         }
@@ -635,23 +674,21 @@ void Supervisor::watchdogLoop() {
     }
 }
 
-void Supervisor::stopChild(bool isA) {
-    ChildProcess& c = child(isA);
+void Supervisor::stopChild(Hijo& h) {
+    ChildProcess& c = h.proceso;
     if (!c.alive()) {
         return;
     }
-    const std::string name = isA ? "A" : "B";
     // 1) Pedido por el canal de control. 2) SIGTERM (POSIX). 3) Matar.
-    if (control_.requestShutdown(isA ? ControlChannel::kAppChannel : ControlChannel::kGatewayChannel) &&
-        c.waitExit(kGracefulMs())) {
-        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro por el canal de control"), {name}));
+    if (control_.requestShutdown(h.canalControl) && c.waitExit(kGracefulMs())) {
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro por el canal de control"), {h.nombre}));
         return;
     }
     if (c.terminate() && c.waitExit(kTerminateMs())) {
-        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro tras la señal de terminacion"), {name}));
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro tras la señal de terminacion"), {h.nombre}));
         return;
     }
-    BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 no cerro a tiempo; se fuerza"), {name}));
+    BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 no cerro a tiempo; se fuerza"), {h.nombre}));
     c.kill();
     c.waitExit(kTerminateMs());
 }
@@ -661,14 +698,16 @@ void Supervisor::orderedShutdown() {
         return;
     }
     shuttingDown_ = true;
-    BA_LOG_INFO("sup", 0, traducir("sup", "cierre ordenado: A primero (corta la emision), despues B"));
-    stopChild(true);
-    stopChild(false);
-    health_.setState(cfg_.slotA, ba::ipc::ProcessState::Terminated);
-    health_.setState(cfg_.slotB, ba::ipc::ProcessState::Terminated);
-    // Sin PIDs publicados: un launcher futuro no debe intentar readoptar.
-    health_.setIdentity(cfg_.slotA, 0, ba::ipc::kVersionProceso);
-    health_.setIdentity(cfg_.slotB, 0, ba::ipc::kVersionProceso);
+    // A primero, los emisores después (cortan la emisión, cierran sus archivos y dejan
+    // su estado «cerrado»: al volver no retoman ese pedido) y B al final.
+    BA_LOG_INFO("sup", 0, traducir("sup", "cierre ordenado: A primero (corta la emision), despues los emisores y B"));
+    stopChild(app());
+    for (auto it = hijos_.rbegin() + 1; it != hijos_.rend(); ++it) stopChild(**it);
+    for (auto& h : hijos_) {
+        health_.setState(h->slot, ba::ipc::ProcessState::Terminated);
+        // Sin PIDs publicados: un launcher futuro no debe intentar readoptar.
+        health_.setIdentity(h->slot, 0, ba::ipc::kVersionProceso);
+    }
     Integrity::guardarCache(cacheIntegridad());
     perro_.desarmar(); // salir en orden no reinicia la máquina
     BA_LOG_INFO("sup", 0, traducir("sup", "clean_shutdown marcado"));

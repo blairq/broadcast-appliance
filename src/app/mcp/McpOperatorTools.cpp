@@ -92,6 +92,7 @@ void McpService::registerOperatorTools() {
         t.name = "operator_message";
         t.title = ba::i18n::traducir("mcp", "Mensaje al operador");
         t.category = "operador";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Muestra un mensaje en la barra de abajo de la app, con el color de la prioridad. Los "
             "info/success/warning se van solos a los `ttlSec` (30 por defecto); critical queda hasta que "
@@ -116,6 +117,7 @@ void McpService::registerOperatorTools() {
         t.name = "operator_ask";
         t.title = ba::i18n::traducir("mcp", "Preguntarle al operador");
         t.category = "operador";
+        t.clase = Clase::Escritura;
         //: no traducir [OPERADOR] ni [RESPUESTA DEL OPERADOR]
         t.description =
             ba::i18n::traducir("mcp", "Le hace una pregunta al operador en la barra de abajo: con `options` (botones) y/o texto libre "
@@ -175,7 +177,7 @@ void McpService::registerOperatorTools() {
         t.name = "operator_messages";
         t.title = ba::i18n::traducir("mcp", "Barra del operador");
         t.category = "operador";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Lo que esta en la barra ahora (y con `history`, lo ya contestado/cerrado con sus respuestas).");
         t.inputSchema = {{"type", "object"},
@@ -195,7 +197,7 @@ void McpService::registerOperatorTools() {
         t.name = "guest_chat_pending";
         t.title = ba::i18n::traducir("mcp", "Mensajes de invitados sin responder");
         t.category = "operador";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Conversaciones del chat de la conferencia donde un invitado escribio y el operador todavia no "
             "contesto (privadas al operador y la general), con los mensajes pendientes.");
@@ -214,6 +216,7 @@ void McpService::registerOperatorTools() {
         t.name = "guest_reply_suggest";
         t.title = ba::i18n::traducir("mcp", "Sugerir respuestas a un invitado");
         t.category = "operador";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Muestra en la barra del operador el mensaje de un invitado con 1 a 4 respuestas "
                         "sugeridas: el operador "
                         "toca una (o la edita) y se le manda al invitado (en privado si el invitado escribio "

@@ -11,8 +11,8 @@
 // como guion de cues (EventoViewModel). Esto es la puerta directa a la línea.
 //
 // Las de vivo que cambian lo que sale (linea_go, linea_ir, linea_repetir,
-// linea_insertar, linea_adlib, linea_soltar) están en la lista de aire (McpAire):
-// pedidas por algo automático con el aire andando, las confirma una persona.
+// linea_insertar, linea_adlib, linea_soltar) se declaran de clase aire (en la llamada
+// a `vivo`): pedidas por algo automático con el aire andando, las confirma una persona.
 // ============================================================================
 #include "i18n/I18n.hpp"
 #include "mcp/McpEventoTools.hpp"
@@ -59,7 +59,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.name = "linea_ver";
         t.title = traducir("mcp", "Ver el pronóstico de la línea");
         t.category = "linea";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = traducir("mcp", "El pronóstico compacto de una salida: bloques, pasos (y sus piezas con `nivel` piezas) "
                                         "con su hora de entrada y salida, back time, estado y cómo entran.");
         t.details = traducir(
@@ -95,7 +95,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.name = "linea_estado";
         t.title = traducir("mcp", "Estado de la línea");
         t.category = "linea";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = traducir("mcp", "Por salida: qué está al aire y cuánto lleva, el próximo y si entra solo, HOLD, "
                                         "over/under, el próximo hard start; la pausa y la retoma tras un corte.");
         t.details = traducir(
@@ -119,7 +119,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.name = "linea_recorrido";
         t.title = traducir("mcp", "Lo que pasó en la línea");
         t.category = "linea";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = traducir("mcp", "Lo emitido (Eventos/<evento>/recorrido.jsonl): qué paso entró, cuándo y cómo, las "
                                         "piezas, los HOLD, los saltos, lo insertado, los cortes, lo que se contó y lo que se decidió.");
         t.details = traducir(
@@ -140,7 +140,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.name = "linea_revisar";
         t.title = traducir("mcp", "Revisar la línea");
         t.category = "linea";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = traducir("mcp", "Los reparos propios de la línea: ids repetidos, pistas o salidas que no existen, piezas "
                                         "incompletas, escenas que faltan, anclas rotas, hard starts imposibles, cadenas "
                                         "automáticas largas y conflictos entre salidas (PTZ, gráficos).");
@@ -159,6 +159,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.name = "linea_editar";
         t.title = traducir("mcp", "Editar la línea en lote");
         t.category = "linea";
+        t.clase = Clase::Escritura;
         t.description = traducir("mcp", "Un lote de operaciones (agregar, mover, quitar, cambiar pasos, piezas, bloques, pistas y "
                                         "el estante) que se aplica entero o nada. Con `probar` devuelve el diff y el "
                                         "pronóstico resultante SIN aplicar.");
@@ -206,6 +207,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.name = "linea_deshacer";
         t.title = traducir("mcp", "Deshacer el último cambio de la línea");
         t.category = "linea";
+        t.clase = Clase::Escritura;
         t.description = traducir("mcp", "Vuelve la línea a como estaba antes del último linea_editar aplicado (la última "
                                         "revisión de Respaldos/).");
         t.run = [&ev](const json&, Done done) {
@@ -220,7 +222,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.name = "linea_ajustar";
         t.title = traducir("mcp", "Llegar a horario");
         t.category = "linea";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = traducir("mcp", "Para terminar a una hora: propone recortar los pasos que vienen con la etiqueta "
                                         "«recortable» y, si no alcanza, saltear los «opcional». Nunca aplica.");
         t.details = traducir(
@@ -247,12 +249,16 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
 
     // --- Vivo -------------------------------------------------------------------------
     // Las de vivo: todas devuelven el estado de la línea después (o por qué no).
-    const auto vivo = [&core, &ev](const char* nombre, const std::string& titulo, const std::string& descripcion, json props,
-                                   std::function<std::string(const json&)> hacer, std::vector<std::string> requeridos = {}) {
+    // La clase va declarada en cada llamada (F3-02): las que entran algo al aire, con su porqué.
+    const auto vivo = [&core, &ev](const char* nombre, Clase clase, const char* porQueAire, const std::string& titulo,
+                                   const std::string& descripcion, json props, std::function<std::string(const json&)> hacer,
+                                   std::vector<std::string> requeridos = {}) {
         Tool t;
         t.name = nombre;
         t.title = titulo;
         t.category = "linea";
+        t.clase = clase;
+        t.porQueAire = porQueAire;
         t.description = descripcion;
         props["salida"] = salidaEsquema();
         t.inputSchema = {{"type", "object"}, {"properties", props}};
@@ -262,12 +268,13 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
     };
     const auto sal = [](const json& a) { return a.value("salida", std::string()); };
 
-    vivo("linea_go", traducir("mcp", "GO: entra el próximo paso"),
+    vivo("linea_go", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "entra el próximo paso de la línea de tiempo"),
+         traducir("mcp", "GO: entra el próximo paso"),
          traducir("mcp", "Entra el próximo paso de la salida (con su escena por el PVW y TAKE). Sin correr, "
                          "arranca. Sin próximo, la salida termina. Tras un corte, además suelta el HOLD tal cual. "
                          "SALE AL AIRE."),
          json::object(), [&ev, sal](const json& a) { return ev.lineaGo(sal(a)); });
-    vivo("linea_hold", traducir("mcp", "HOLD del paso al aire"),
+    vivo("linea_hold", Clase::Escritura, nullptr, traducir("mcp", "HOLD del paso al aire"),
          traducir("mcp", "Congela el avance automático del paso al aire (la cuenta sigue en «+» y el pronóstico "
                          "empuja). Con `hold` true/false lo fija; sin eso, alterna. Soltarlo tras un corte es "
                          "seguir como estaba."),
@@ -276,35 +283,39 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
              return ev.lineaHold(sal(a), a.contains("hold") && a["hold"].is_boolean() ? std::optional<bool>(a["hold"].get<bool>())
                                                                                        : std::nullopt);
          });
-    vivo("linea_siguiente", traducir("mcp", "Mover el próximo para adelante"),
+    vivo("linea_siguiente", Clase::Escritura, nullptr, traducir("mcp", "Mover el próximo para adelante"),
          traducir("mcp", "Mueve el próximo un paso para adelante (F10) sin tocar el aire; los del medio quedan "
                          "salteados. `pasos`: cuántos (1 por defecto)."),
          json{{"pasos", {{"type", "integer"}, {"minimum", 1}}}},
          [&ev, sal](const json& a) { return ev.lineaMoverProximo(sal(a), a.value("pasos", 1)); });
-    vivo("linea_anterior", traducir("mcp", "Mover el próximo para atrás"),
+    vivo("linea_anterior", Clase::Escritura, nullptr, traducir("mcp", "Mover el próximo para atrás"),
          traducir("mcp", "Mueve el próximo un paso para atrás (F9) sin tocar el aire: sirve para volver a "
                          "pasar por algo. `pasos`: cuántos (1 por defecto)."),
          json{{"pasos", {{"type", "integer"}, {"minimum", 1}}}},
          [&ev, sal](const json& a) { return ev.lineaMoverProximo(sal(a), -a.value("pasos", 1)); });
-    vivo("linea_saltar", traducir("mcp", "Saltear el próximo paso"),
+    vivo("linea_saltar", Clase::Escritura, nullptr, traducir("mcp", "Saltear el próximo paso"),
          traducir("mcp", "Marca el próximo como salteado: no entra y el pronóstico corre lo que sigue."),
          json::object(), [&ev, sal](const json& a) { return ev.lineaSaltar(sal(a)); });
-    vivo("linea_ir", traducir("mcp", "Ir a un paso"),
+    vivo("linea_ir", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "entra otro paso de la línea de tiempo"),
+         traducir("mcp", "Ir a un paso"),
          traducir("mcp", "Entra ese paso ya, con el estado que tendría el aire ahí: repone la música y los "
                          "gráficos de vida larga que corresponden y saca los que no van (lo del asistente se "
                          "pregunta). SALE AL AIRE."),
          json{{"paso", {{"type", "string"}}}}, [&ev, sal](const json& a) { return ev.lineaIr(sal(a), a.value("paso", std::string())); },
          {"paso"});
-    vivo("linea_repetir", traducir("mcp", "Repetir el paso al aire"),
+    vivo("linea_repetir", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "vuelve a entrar el paso al aire"),
+         traducir("mcp", "Repetir el paso al aire"),
          traducir("mcp", "Vuelve a entrar el paso al aire, con sus piezas. SALE AL AIRE."), json::object(),
          [&ev, sal](const json& a) { return ev.lineaRepetir(sal(a)); });
-    vivo("linea_insertar", traducir("mcp", "Insertar un paso del estante"),
+    vivo("linea_insertar", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "mete un paso del estante en la línea (al aire, si se pide)"),
+         traducir("mcp", "Insertar un paso del estante"),
          traducir("mcp", "Un paso del estante (`item`, su id) va de próximo; con `alAire` entra ya. Lo planeado no "
                          "se toca: va una copia, anotada como insertada."),
          json{{"item", {{"type", "string"}}}, {"alAire", {{"type", "boolean"}}}},
          [&ev, sal](const json& a) { return ev.lineaInsertar(sal(a), a.value("item", std::string()), a.value("alAire", false)); },
          {"item"});
-    vivo("linea_adlib", traducir("mcp", "Disparar una pieza a mano"),
+    vivo("linea_adlib", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "dispara una pieza de la línea (escena, gráfico, música)"),
+         traducir("mcp", "Disparar una pieza a mano"),
          traducir("mcp", "Dispara ya una pieza: un adlib del paso al aire (o una que todavía no llegó a su "
                          "hora), o una pieza del estante (por el id del ítem o de su pieza). SALE AL AIRE."),
          json{{"pieza", {{"type", "string"}}}}, [&ev, sal](const json& a) { return ev.lineaAdlib(sal(a), a.value("pieza", std::string())); },
@@ -316,6 +327,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.name = "linea_retomar";
         t.title = traducir("mcp", "Contar qué está pasando tras un corte");
         t.category = "linea";
+        t.clase = Clase::Escritura;
         t.description = traducir("mcp", "Tras un corte la línea vuelve en HOLD y pregunta «¿Qué está pasando?». Esto deja la "
                                         "descripción (la que la persona dictó o escribió) en el recorrido. No suelta nada.");
         t.details = traducir(
@@ -338,7 +350,8 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         };
         core.addTool(std::move(t));
     }
-    vivo("linea_soltar", traducir("mcp", "Soltar el HOLD del corte"),
+    vivo("linea_soltar", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "suelta el HOLD tras un corte: lo que se pasó de hora entra solo"),
+         traducir("mcp", "Soltar el HOLD del corte"),
          traducir("mcp", "Suelta el HOLD en que volvió la línea tras un corte, con lo que se decidió (`decision`, "
                          "queda en el recorrido). Lo que se pasó de su hora entra en el acto. Solo cuando la "
                          "persona lo confirmó."),

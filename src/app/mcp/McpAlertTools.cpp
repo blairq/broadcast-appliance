@@ -59,7 +59,7 @@ void McpService::registerAlertTools() {
         t.name = "notificador_listar";
         t.title = ba::i18n::traducir("mcp", "Notificadores");
         t.category = "alertas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los avisos fuera del programa (webhook, Telegram, mail SMTP) que puede usar un disparador "
                         "(`notificar` en alert_create): id, tipo, nombre y si ya tiene cargado su secreto.");
         t.run = [this](const json&, Done done) { done(ToolResult().data({{"notificadores", vm_.notificador().lista()}})); };
@@ -70,6 +70,7 @@ void McpService::registerAlertTools() {
         t.name = "notificador_agregar";
         t.title = ba::i18n::traducir("mcp", "Agregar un notificador");
         t.category = "alertas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Crea (o cambia, con `id`) un notificador: `tipo` webhook, telegram (`chat_id`) o smtp "
                         "(`servidor`, `puerto` 465 o 587, `usuario`, `de`, `para`). El SECRETO (URL del webhook, token del "
                         "bot, contraseña del mail) NO va por aca: lo carga una persona en la pagina Asistente, seccion "
@@ -98,6 +99,7 @@ void McpService::registerAlertTools() {
         t.name = "notificador_probar";
         t.title = ba::i18n::traducir("mcp", "Probar un notificador");
         t.category = "alertas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Manda un aviso de prueba por el notificador `id` y dice si llego.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [this](const json& a, Done done) {
@@ -115,6 +117,7 @@ void McpService::registerAlertTools() {
         t.destructive = true;
         t.title = ba::i18n::traducir("mcp", "Borrar un notificador");
         t.category = "alertas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Borra el notificador `id` (y su secreto guardado).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [this](const json& a, Done done) {
@@ -128,7 +131,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_types";
         t.title = ba::i18n::traducir("mcp", "Que se puede vigilar");
         t.category = "alertas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Referencia tecnica: que parametros admite cada tipo y con que valores vienen. "
                         "Es documentacion, no hace nada.");
         t.details = ba::i18n::traducir("mcp", "No crea ningun disparador: para eso es `alert_create`.");
@@ -140,6 +143,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_create";
         t.title = ba::i18n::traducir("mcp", "Crear un disparador");
         t.category = "alertas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "AVISAME CUANDO: crea un disparador que avisa solo al pasar algo (entra alguien, hay silencio "
             "al aire, satura el audio, se cae un invitado). Crea un disparador que el servidor evalua solo "
@@ -204,6 +208,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_reconocer";
         t.title = ba::i18n::traducir("mcp", "Reconocer alarmas");
         t.category = "alertas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Reconoce una alarma (`id` del evento, de alert_events o alert_list) o todas (`todas`: true): "
                         "deja de sonar la crítica y sale de la lista de la tarjeta Sistema. Sin argumentos, lista "
                         "las que esperan.");
@@ -223,6 +228,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_fabrica";
         t.title = ba::i18n::traducir("mcp", "Disparadores de fábrica");
         t.category = "alertas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Los disparadores que vienen prendidos: silencio al aire del programa (crítico), saturación del "
             "programa, la transmisión pierde cuadros o se cae (crítico), poco disco (menos de 30 min, también sin "
@@ -240,7 +246,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_list";
         t.title = ba::i18n::traducir("mcp", "Disparadores activos");
         t.category = "alertas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y "
                         "los plugins que "
                         "se declaran disparadores (`plugins`: se prenden y apagan con plugin_activar).");
@@ -263,6 +269,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_update";
         t.title = ba::i18n::traducir("mcp", "Cambiar un disparador");
         t.category = "alertas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador. "
             "`silenciada`: true le saca el sonido (sus alarmas siguen apareciendo en la tarjeta Sistema).");
@@ -297,6 +304,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_delete";
         t.title = ba::i18n::traducir("mcp", "Borrar disparadores");
         t.category = "alertas";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Borra un disparador (`id`) o todos (`all`: true).");
         t.inputSchema = {{"type", "object"},
@@ -316,7 +324,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_events";
         t.title = ba::i18n::traducir("mcp", "Avisos recientes");
         t.category = "alertas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Los avisos disparados (los mas nuevos al final). `sinceId` para leer solo los nuevos.");
         t.inputSchema = {
@@ -339,7 +347,7 @@ void McpService::registerAlertTools() {
         t.name = "alert_wait";
         t.title = ba::i18n::traducir("mcp", "Esperar el proximo aviso");
         t.category = "alertas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Vuelve apenas salta un disparador (o al vencer `timeoutSec`, max. 300) con los avisos "
             "nuevos "

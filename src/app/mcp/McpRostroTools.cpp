@@ -138,7 +138,7 @@ void McpService::registerRostroTools() {
         t.name = "persona_identificar";
         t.title = ba::i18n::traducir("mcp", "Quien aparece en una camara");
         t.category = "rostros";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Dice QUIÉN es la persona que se ve en un feed (programa, armada, invitado); solo identifica, no "
             "mueve la cámara ni pone nada al aire. Busca caras en un video (claves de feeds_list: program, "
             "armada, guest:N...) y dice a quien se parece cada una, con cuanta confianza.");
@@ -189,6 +189,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_guardar";
         t.title = ba::i18n::traducir("mcp", "Dar de alta o corregir a una persona");
         t.category = "rostros";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Guarda la ficha de una persona (nombre, cargo para el rotulo, nota) y, si se le pasa un "
             "`feed`, le suma la cara que se vea ahi.");
@@ -281,7 +282,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_listar";
         t.title = ba::i18n::traducir("mcp", "La libreta de personas");
         t.category = "rostros";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Todas las personas guardadas: nombre, cargo, nota, cuantas caras tiene "
                         "guardadas y cuando se la vio por ultima vez.");
         t.details = ba::i18n::traducir("mcp", "`caras` en 0 quiere decir que la ficha existe pero nunca se le mostro la cara: "
@@ -302,6 +303,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar una persona de la libreta");
         t.category = "rostros";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Borra la ficha y TODAS sus caras. No se puede deshacer: hay que darla de alta "
                         "de nuevo y volver a mostrarle la cara al sistema.");
@@ -332,7 +334,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_calidad";
         t.title = ba::i18n::traducir("mcp", "Si la cara que se ve sirve para reconocer, y que pedir si no");
         t.category = "rostros";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Mide cada cara que se ve en un video y dice si sirve para guardarla, y si no sirve, QUE "
             "pedirle a la persona (que se acerque, que mire de frente, que prenda una luz).");
@@ -400,6 +402,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_sumar";
         t.title = ba::i18n::traducir("mcp", "Sumarle una pose mas a alguien que ya esta");
         t.category = "rostros";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Le suma a una ficha la cara que se vea ahora en un video. Dice si la pose APORTO algo o "
             "si ya la tenia, que es lo que hay que saber para pedir otra.");
@@ -482,7 +485,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_pendientes";
         t.title = ba::i18n::traducir("mcp", "Las fichas sin nombre, esperando que alguien diga quien es");
         t.category = "rostros";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las personas que el sistema anoto solo (interruptor `rostro_autoalta`) y todavia no "
                         "tienen nombre. Son las que hay que completar con `rostro_guardar {id, nombre}`.");
         t.details = ba::i18n::traducir("mcp", "Cada una trae su foto en `foto` (archivo al lado de la libreta) para que alguien "
@@ -507,6 +510,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_fusionar";
         t.title = ba::i18n::traducir("mcp", "Juntar dos fichas de la misma persona");
         t.category = "rostros";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Pasa las caras de `otro` a `id` y borra `otro`. Para cuando la misma persona quedo "
                         "anotada dos veces.");
@@ -553,6 +557,7 @@ void McpService::registerRostroTools() {
         t.name = "padron_puerta";
         t.title = ba::i18n::traducir("mcp", "La camara de la entrada: acreditar sola a quien llega");
         t.category = "padron";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Prende o apaga la camara de la PUERTA: reconoce a quien entra al lugar y lo marca como "
             "llegado en el padron del evento abierto.");
@@ -607,6 +612,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_autoalta";
         t.title = ba::i18n::traducir("mcp", "Anotar sola a cada persona nueva que pase por una camara");
         t.category = "rostros";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Prende o apaga el anotado automatico: con el puesto, cada cara que pase por la camara "
             "elegida y no este en la libreta queda anotada SIN NOMBRE y con su foto, y a las que ya "
@@ -671,7 +677,7 @@ void McpService::registerRostroTools() {
         t.name = "rostro_lobby";
         t.title = ba::i18n::traducir("mcp", "Quien es cada uno de los que estan esperando");
         t.category = "rostros";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien "
                         "reconoce, si su camara sirve para guardarle la cara, y que pedirle si no.");
         t.details =

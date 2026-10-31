@@ -1,26 +1,42 @@
-"""Las herramientas del MCP leidas del CODIGO (src/app/mcp/*.cpp), sin el aparato andando.
+"""El registro de herramientas del MCP leido del CODIGO (src/app/mcp/*.cpp), sin el aparato andando.
 
 POR QUE. El inventario de verdad es el que da el aparato (tools/list), pero
-pide compilar y levantar la app. Para saber que herramientas hay y entrenar el
-modelo con sus fichas alcanza con leer los registros, SI se reproduce
-exactamente lo que el aparato manda: el modelo se entrena con la descripcion y
-el esquema, y la app compara la huella de cada esquema con la del modelo
-(modelo.json). Un caracter distinto y la herramienta queda «no cubierta».
+pide compilar y levantar la app. Para saber que herramientas hay, con que clase
+(F3-02: lectura / escritura / aire / ui) y entrenar el modelo con sus fichas
+alcanza con leer los registros, SI se reproduce exactamente lo que el aparato
+manda: el modelo se entrena con la descripcion y el esquema, y la app compara la
+huella de cada esquema con la del modelo (modelo.json). Un caracter distinto y
+la herramienta queda «no cubierta».
 
-QUE LEE de cada bloque `t.name = "x"; ... core_.addTool(...)`:
-  title, description, inputSchema, readOnly, destructive, idempotent, openWorld
-(lo que McpCore::toolListEntry pone en tools/list), mas category.
+QUE LEE de cada bloque `t.name = …; … core_.addTool(…)`: lo que
+McpCore::toolListEntry pone en tools/list (title, description, inputSchema,
+readOnly, destructive, idempotent, openWorld) y lo que declara el registro
+(category, clase, hilo, porQueAire, aireSi, reversible, porSalida, antes,
+mediated, untrustedOutput).
+
+TRES MANERAS DE REGISTRAR, y las tres se leen:
+  - un bloque con el nombre literal: `t.name = "scene_list";`
+  - un bucle sobre una tabla: `for (const Def& d : defs) { t.name = d.nombre; … }`
+    (la tabla se evalua fila por fila con los campos de su struct);
+  - una funcion auxiliar: `const auto vivo = [&](const char* nombre, …) { t.name = nombre; … };`
+    y cada llamada `vivo("linea_go", …)` es una herramienta con sus argumentos.
 
 COMO. Los literales de C++ se evaluan: cadenas pegadas ("a" "b"), crudas
-(R"(...)"), concatenaciones con + y constantes del mismo archivo; y las listas
-de inicializacion de nlohmann::json con SU regla: una lista es un objeto si
-TODOS sus elementos son pares {cadena, valor}; si no, es un arreglo. Los textos
-marcados para traducir (`ba::i18n::traducir("mcp", "…")`, `tr`,
-`QCoreApplication::translate`, `QT_TRANSLATE_NOOP`; `llenar(…, {…})` con datos
-literales) valen su original en espanol, que es lo que manda el aparato sin
-traduccion y con lo que se entrena el modelo. Lo que no
-se puede evaluar (una funcion, un bucle) queda marcado «sin_extraer»: nunca se
-adivina.
+(R"(...)"), concatenaciones con +, el ternario, constantes del mismo archivo y
+funciones de un solo `return`; y las listas de inicializacion de nlohmann::json
+con SU regla: una lista es un objeto si TODOS sus elementos son pares {cadena,
+valor}; si no, es un arreglo. Los textos marcados para traducir
+(`ba::i18n::traducir("mcp", "…")`, `tr`, `QCoreApplication::translate`,
+`QT_TRANSLATE_NOOP`; `llenar(…, {…})` con datos literales) valen su original en
+espanol, que es lo que manda el aparato sin traduccion y con lo que se entrena el
+modelo. Las enumeraciones del registro (`Clase::Lectura`, `AireSi::AlActivar`)
+valen su nombre en minusculas («lectura», «al_activar»), el mismo que usa la app.
+
+NUNCA SE ADIVINA. Lo que no se puede evaluar (una funcion de la app, un bucle
+sobre un catalogo, una variable que se modifica en el bloque) queda en `errores`
+de ESE campo, con el motivo; los demas campos de la herramienta salen igual. Un
+campo que se asigna adentro de un if/for cuenta como no evaluable salvo las
+condiciones simples (`!x.empty()`).
 
 LO QUE LO VALIDA: verificar() lo compara con un inventario sacado del aparato
 (docs/mcp.json): las herramientas que estan en los dos tienen que coincidir.
@@ -37,6 +53,13 @@ class NoSe(Exception):
     """Algo que no se puede evaluar sin compilar."""
 
 
+class _Falla:
+    """Un valor que no se pudo evaluar (un argumento, una fila): usarlo es NoSe."""
+
+    def __init__(self, motivo):
+        self.motivo = motivo
+
+
 # --- tokens -------------------------------------------------------------------
 _TOK = re.compile(r'''
     (?P<cruda>(?:u8|u|U|L)?R"(?P<delim>[^(\s]*)\((?P<crudo>.*?)\)(?P=delim)")
@@ -45,7 +68,7 @@ _TOK = re.compile(r'''
   | (?P<num>\d+\.\d*(?:[eE][-+]?\d+)?[fFlL]?|\.\d+(?:[eE][-+]?\d+)?[fFlL]?|\d+(?:[eE][-+]?\d+)?[uUlLfF]*)
   | (?P<id>[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)
   | (?P<com>//[^\n]*|/\*.*?\*/)
-  | (?P<op>::|->|[{}()\[\],;=+\-*/<>!&|?:.])
+  | (?P<op>::|->|==|!=|&&|\|\||[{}()\[\],;=+\-*/<>!&|?:.])
   | (?P<esp>\s+)
 ''', re.S | re.X)
 
@@ -102,6 +125,35 @@ def tokens(txt):
     return out
 
 
+def _op(tok, *ops):
+    """Un operador (no una cadena que diga lo mismo: el literal "{" no abre nada)."""
+    return tok[0] == "op" and tok[1] in ops
+
+
+def _cierre(toks, i):
+    """El indice del token que cierra el que abre en `i` ( ( [ { )."""
+    par = {"(": ")", "[": "]", "{": "}"}
+    abre, cierra, prof = toks[i][1], par[toks[i][1]], 0
+    for k in range(i, len(toks)):
+        if _op(toks[k], abre):
+            prof += 1
+        elif _op(toks[k], cierra):
+            prof -= 1
+            if prof == 0:
+                return k
+    raise NoSe(f"{abre} sin cerrar")
+
+
+def _fin_sentencia(toks, k):
+    """El `;` que termina la sentencia que empieza en `k` (saltando lo que va entre
+    parentesis, corchetes y llaves: el cuerpo de una lambda no la termina)."""
+    while k < len(toks) and not _op(toks[k], ";"):
+        if _op(toks[k], "(", "[", "{"):
+            k = _cierre(toks, k)
+        k += 1
+    return k
+
+
 # --- evaluacion ---------------------------------------------------------------
 class _Lista(list):
     """Una lista de inicializacion todavia sin decidir (objeto o arreglo)."""
@@ -109,6 +161,8 @@ class _Lista(list):
 
 def _a_json(v):
     """La regla de nlohmann::json para una lista de inicializacion."""
+    if isinstance(v, _Falla):
+        raise NoSe(v.motivo)
     if isinstance(v, _Lista):
         hijos = [x for x in v]
         if hijos and all(isinstance(x, _Lista) and len(x) == 2 and isinstance(x[0], str) for x in hijos):
@@ -126,11 +180,24 @@ def _a_json(v):
 _TRADUCIR = {"traducir": 1, "translate": 1, "QT_TRANSLATE_NOOP": 1, "tr": 0, "qsTr": 0, "QT_TR_NOOP": 0,
              "llenar": None}
 
+# Las enumeraciones del registro (McpCore.hpp, McpAire.hpp): valen su nombre como
+# lo escribe la app en mcp.json (nombreClase, nombreHilo, McpAire::nombre).
+_ENUMS = ("Clase", "Hilo", "AireSi")
+
+
+def _serpiente(x):
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", x).lower()
+
+
+# Lo que se puede preguntar de un valor ya evaluado (`d.props.is_object()`).
+_METODOS = {"is_object": lambda v: isinstance(v, dict), "is_array": lambda v: isinstance(v, list),
+            "is_string": lambda v: isinstance(v, str), "empty": lambda v: len(v) == 0}
+
 
 class _Eval:
     def __init__(self, archivo_txt, toks, i, resolver, ambito=None):
         self.txt, self.t, self.i, self.resolver = archivo_txt, toks, i, resolver
-        self.ambito = ambito or {}  # los parametros de la funcion que se esta evaluando
+        self.ambito = ambito or {}  # los parametros (o la fila) que se estan evaluando
 
     def ver(self, k=0):
         return self.t[self.i + k] if self.i + k < len(self.t) else ("fin", "", -1)
@@ -142,14 +209,58 @@ class _Eval:
         self.i += 1
         return tok
 
+    def saltar(self):
+        """Hasta la proxima `,` (o el cierre) del mismo nivel: lo que no se pudo evaluar."""
+        while self.ver()[0] != "fin" and not _op(self.ver(), ",", "}", ")", "]", ";"):
+            if _op(self.ver(), "(", "[", "{"):
+                self.i = _cierre(self.t, self.i)
+            self.i += 1
+
+    def tolerante(self, fin):
+        """Un elemento de una lista o un argumento: si no se puede, _Falla (y se sigue)."""
+        ini = self.i
+        try:
+            v = self.expr()
+            if self.ver()[1] not in (",", fin):
+                raise NoSe(f"sobra {self.ver()[1]!r}")
+            return v
+        except (NoSe, IndexError, KeyError, ValueError) as e:
+            self.i = ini
+            self.saltar()
+            return _Falla(str(e))
+
     def expr(self):
+        v = self.suma()
+        if self.ver()[1] == "?":
+            self.comer("?")
+            a = self.tolerante(":")
+            self.comer(":")
+            b = self.tolerante_hasta_fin()
+            if isinstance(v, _Falla):
+                raise NoSe(v.motivo)
+            r = a if v else b
+            if isinstance(r, _Falla):
+                raise NoSe(r.motivo)
+            return r
+        return v
+
+    def tolerante_hasta_fin(self):
+        ini = self.i
+        try:
+            return self.expr()
+        except NoSe as e:
+            self.i = ini
+            self.saltar()
+            return _Falla(str(e))
+
+    def suma(self):
         v = self.termino()
         while self.ver()[1] == "+":
             self.comer("+")
             w = self.termino()
             if isinstance(v, str) and isinstance(w, str):
                 v = v + w
-            elif isinstance(v, (int, float)) and isinstance(w, (int, float)):
+            elif isinstance(v, (int, float)) and isinstance(w, (int, float)) and not isinstance(v, bool):
                 v = v + w
             else:
                 raise NoSe("suma de tipos mezclados")
@@ -163,6 +274,12 @@ class _Eval:
             if not isinstance(x, (int, float)):
                 raise NoSe("menos de algo que no es numero")
             return -x
+        if v == "!":
+            self.comer()
+            x = self.termino()
+            if isinstance(x, _Falla):
+                raise NoSe(x.motivo)
+            return not x
         if k == "cad":
             s = ""
             while self.ver()[0] == "cad":  # «"a" "b"» = «"ab"»
@@ -175,7 +292,7 @@ class _Eval:
         if v == "{":
             return self.lista()
         if k == "id":
-            return self.identificador()
+            return self.postfijo(self.identificador())
         if v == "(":
             self.comer("(")
             x = self.expr()
@@ -183,11 +300,37 @@ class _Eval:
             return x
         raise NoSe(f"no se evaluar {v!r}")
 
+    def postfijo(self, x):
+        """`x.campo` (una fila de tabla) y `x.metodo()` (los de _METODOS)."""
+        while self.ver()[1] == "." and self.ver(1)[0] == "id":
+            nombre = self.ver(1)[1]
+            if self.ver(2)[1] == "(":
+                if nombre not in _METODOS or self.ver(3)[1] != ")":
+                    raise NoSe(f"llamada a .{nombre}()")
+                self.i += 4
+                if isinstance(x, _Falla):
+                    raise NoSe(x.motivo)
+                x = _a_json(x) if isinstance(x, _Lista) else x
+                try:
+                    x = _METODOS[nombre](x)
+                except TypeError:
+                    raise NoSe(f".{nombre}() de un {type(x).__name__}")
+                continue
+            if not isinstance(x, dict):
+                raise NoSe(f"miembro .{nombre} de algo que no es una fila")
+            self.i += 2
+            x = x.get(nombre, _Falla(f"la fila no tiene {nombre}"))
+            if isinstance(x, _Falla):
+                raise NoSe(x.motivo)
+        if self.ver()[1] in ("->", "["):
+            raise NoSe("miembro o subindice")
+        return x
+
     def lista(self):
         self.comer("{")
         out = _Lista()
         while self.ver()[1] != "}":
-            out.append(self.expr())
+            out.append(self.tolerante("}"))
             if self.ver()[1] == ",":
                 self.comer(",")
         self.comer("}")
@@ -197,7 +340,7 @@ class _Eval:
         self.comer("(")
         out = []
         while self.ver()[1] != ")":
-            out.append(self.expr())
+            out.append(self.tolerante(")"))
             if self.ver()[1] == ",":
                 self.comer(",")
         self.comer(")")
@@ -206,10 +349,13 @@ class _Eval:
     def identificador(self):
         k, v, pos = self.comer()
         base = v.split("::")[-1]
+        partes = v.split("::")
         if v in ("true", "false"):
             return v == "true"
         if v in ("nullptr", "NULL"):
             return None
+        if len(partes) == 2 and partes[0] in _ENUMS:
+            return _serpiente(partes[1])
         if base in ("json", "ordered_json") and self.ver()[1] in ("{", "("):
             if self.ver()[1] == "{":
                 return self.lista()
@@ -237,10 +383,15 @@ class _Eval:
             return self.traducir(base)
         if self.ver()[1] == "(":
             return self.llamada(v)
-        if self.ver()[1] in (".", "->", "["):
-            raise NoSe(f"miembro de {v}")
+        if self.ver()[1] == "{" and base[:1].isupper():  # una fila con su tipo: `Friendly{"audio_eq", …}`
+            return self.lista()
         if v in self.ambito:
-            return self.ambito[v]
+            x = self.ambito[v]
+            if isinstance(x, _Falla):
+                raise NoSe(f"{v}: {x.motivo}")
+            return x
+        if self.ver()[1] in ("->", "["):
+            raise NoSe(f"miembro de {v}")
         return self.resolver(v, pos)
 
     def traducir(self, base):
@@ -281,7 +432,7 @@ class _Eval:
                         r"(\w+)\[\1\.key\(\)\]\s*=\s*\1\.value\(\);")
         bucle = re.search(patron_bucle, cuerpo, re.S)
         resto = re.sub(patron_bucle, "", cuerpo, flags=re.S) if bucle else cuerpo
-        if not re.fullmatch(r"\s*(?://[^\n]*\s*)*return\b.*;\s*", resto, re.S):
+        if not _solo_return(resto):
             raise NoSe(f"{nombre}(): no es un solo return")
         if bucle:
             constante, destino = bucle.group(2), bucle.group(3)
@@ -295,18 +446,52 @@ class _Eval:
         return e.expr()
 
 
+def _solo_return(cuerpo):
+    """Un `return` y, antes, a lo sumo constantes json (`const json campo{…};`): las
+    resuelve el resolvedor, que las ve porque estan en el mismo cuerpo."""
+    t = tokens(cuerpo)
+    k = 0
+    while k < len(t):
+        fin = _fin_sentencia(t, k)
+        s = [x[1] for x in t[k:fin]]
+        if s[:1] == ["return"]:
+            return fin >= len(t) - 1
+        s = s[1:] if s[:1] == ["const"] else s
+        if len(s) < 3 or s[0] not in ("json", "nlohmann::json") or s[2] not in ("=", "{"):
+            return False
+        k = fin + 1
+    return False
+
+
 _DECL = r"(?:(?:static|const|constexpr|inline)\s+)*(?:nlohmann::)?(?:json|auto|std::string|const\s+char\s*\*|char\s+const\s*\*|std::string_view|QString)\s*(?:const\s+)?\b{n}\b\s*(=|\{{)"
 
 
 def _resolvedor(txt, toks):
     pos_tok = {t[2]: i for i, t in enumerate(toks)}
+    # Hasta donde se ve cada token: la llave que cierra el bloque que lo contiene. Una
+    # declaracion adentro del run de otra herramienta (`const std::string entrada = a.value(…)`)
+    # no es la constante `entrada` de afuera.
+    se_ve_hasta, pila = [len(toks)] * len(toks), []
+    for i, t in enumerate(toks):
+        if _op(t, "{"):
+            # las llaves de un namespace no esconden nada: lo de adentro se ve despues
+            ns = toks[i - 1][1] == "namespace" or (i > 1 and toks[i - 2][1] == "namespace")
+            pila.append(None if ns else i)
+        elif _op(t, "}") and pila:
+            ini = pila.pop()
+            if ini is None:
+                continue
+            for k in range(ini + 1, i):
+                if se_ve_hasta[k] == len(toks):
+                    se_ve_hasta[k] = i
 
     def resolver(nombre, pos, profundidad=[0]):
         if profundidad[0] > 20:
             raise NoSe("demasiadas vueltas")
         mejor = None
+        aca = pos_tok.get(pos, len(toks))
         for m in re.finditer(_DECL.format(n=re.escape(nombre)), txt):
-            if m.start() < pos:
+            if m.start() < pos and se_ve_hasta[pos_tok.get(m.end() - 1, 0)] >= aca:
                 mejor = m
         if not mejor:
             raise NoSe(f"no encuentro {nombre}")
@@ -315,6 +500,24 @@ def _resolvedor(txt, toks):
         i = next((pos_tok[p] for p in range(ini, ini + 1) if p in pos_tok), None)
         if i is None:
             raise NoSe(f"declaracion rara de {nombre}")
+        # Entre la declaracion y el uso, ¿se modifica? (`json tipos = json::array();` y despues
+        # un for con `tipos.push_back(…)`): lo declarado no es lo que se usa.
+        fin_decl = _fin_sentencia(toks, i)
+        tapadas = []  # otra variable con el mismo nombre (`const std::string entrada = …` en un run): hasta donde vale
+        for k in range(fin_decl + 1, min(aca, len(toks) - 2)):
+            if toks[k][1] != nombre or toks[k][0] != "id" or _op(toks[k - 1], ".", "->"):
+                continue
+            if (toks[k - 1][0] == "id" and toks[k - 1][1] not in ("return", "case", "else", "do")) \
+                    or _op(toks[k - 1], ">", "&", "*"):
+                tapadas.append((k, se_ve_hasta[k]))
+                continue
+            if any(a <= k <= b for a, b in tapadas):
+                continue
+            q = k + 1
+            while _op(toks[q], "["):
+                q = _cierre(toks, q) + 1
+            if _op(toks[q], "=") or (_op(toks[k + 1], ".") and toks[k + 2][1] in _MUTA):
+                raise NoSe(f"{nombre} se modifica después de declararla")
         profundidad[0] += 1
         try:
             e = _Eval(txt, toks, i, resolver)
@@ -329,69 +532,356 @@ def _resolvedor(txt, toks):
     return resolver
 
 
+# --- tablas y funciones auxiliares ---------------------------------------------
+def _campos_struct(txt, toks, tipo, resolver):
+    """[(campo, valor por omision o _Falla)] de `struct tipo { … };` del archivo."""
+    for i in range(len(toks) - 2):
+        if toks[i][1] == "struct" and toks[i + 1][1] == tipo and toks[i + 2][1] == "{":
+            fin = _cierre(toks, i + 2)
+            campos, ini = [], i + 3
+            while ini < fin:
+                k = _fin_sentencia(toks, ini)
+                decl = toks[ini:min(k, fin)]
+                desde, ini = ini, k + 1
+                igual = next((q for q, t in enumerate(decl) if _op(t, "=")), None)
+                nombre = [t for t in (decl[:igual] if igual is not None else decl) if t[0] == "id"]
+                if not nombre:
+                    continue
+                defecto = _Falla(f"{tipo}.{nombre[-1][1]} sin valor")
+                if igual is not None:
+                    defecto = _Eval(txt, toks, desde + igual + 1, resolver).tolerante(";")
+                campos.append((nombre[-1][1], defecto))
+            return campos
+    raise NoSe(f"no encuentro struct {tipo}")
+
+
+def tabla(txt, toks, resolver, nombre_o_indice, tipo):
+    """Las filas de una tabla `const T x[] = {…}` (o un `{T{…}, …}` en el lugar) como
+    dicts con los campos del struct `tipo`. Una fila que no se pudo evaluar entera
+    trae _Falla en los campos que fallaron."""
+    if isinstance(nombre_o_indice, int):
+        i = nombre_o_indice
+    else:
+        m = None
+        for m in re.finditer(r"\b" + re.escape(nombre_o_indice) + r"\s*(?:\[\s*\])?\s*=?\s*\{", txt):
+            break
+        if not m:
+            raise NoSe(f"no encuentro la tabla {nombre_o_indice}")
+        i = next(k for k, t in enumerate(toks) if t[2] >= m.end() - 1)
+    campos = _campos_struct(txt, toks, tipo, resolver)
+    filas = _Eval(txt, toks, i, resolver).lista()
+    out = []
+    for f in filas:
+        if not isinstance(f, _Lista):
+            out.append({c: _Falla("fila sin evaluar") for c, _ in campos})
+            continue
+        d = {}
+        for q, (c, defecto) in enumerate(campos):
+            d[c] = f[q] if q < len(f) else defecto
+        out.append(d)
+    return out
+
+
+def _parametros(toks, abre):
+    """[(nombre, indice del valor por omision o None)] de la lista de parametros en `abre`."""
+    cierra = _cierre(toks, abre)
+    out, ini, k, angulos = [], abre + 1, abre + 1, 0
+    while k <= cierra:
+        t = toks[k]
+        if k < cierra and _op(t, "(", "[", "{"):  # std::function<std::string(const json&)>, = {}
+            k = _cierre(toks, k) + 1
+            continue
+        if _op(t, "<"):
+            angulos += 1
+        elif _op(t, ">"):
+            angulos -= 1
+        elif k == cierra or (_op(t, ",") and angulos == 0):
+            decl = toks[ini:k]
+            igual = next((q for q, x in enumerate(decl) if _op(x, "=")), None)
+            nombres = [x for x in (decl[:igual] if igual is not None else decl) if x[0] == "id"]
+            if nombres:
+                out.append((nombres[-1][1], ini + igual + 1 if igual is not None else None))
+            ini = k + 1
+        k += 1
+    return out, cierra
+
+
+def _llamadas_de_auxiliar(txt, toks, resolver, i_nombre):
+    """Si `X.name = p;` esta adentro de `const auto f = [...](... p ...) { … };`: las
+    llamadas `f(…)` con sus argumentos ligados a los parametros."""
+    param = toks[i_nombre + 4][1]
+    for k in range(i_nombre, 0, -1):
+        if not (toks[k][1] == "[" and toks[k - 1][1] == "=" and toks[k - 2][0] == "id"
+                and toks[k - 3][1] in ("auto",)):
+            continue
+        cierra_cap = _cierre(toks, k)
+        if toks[cierra_cap + 1][1] != "(":
+            continue
+        params, cierra_par = _parametros(toks, cierra_cap + 1)
+        q = cierra_par + 1
+        while toks[q][1] != "{":
+            q += 1
+        fin_cuerpo = _cierre(toks, q)
+        if not (q < i_nombre < fin_cuerpo) or param not in [p for p, _ in params]:
+            continue
+        aux = toks[k - 2][1]
+        llamadas = []
+        for c in range(fin_cuerpo, len(toks) - 1):
+            if toks[c][1] == aux and toks[c + 1][1] == "(" and toks[c - 1][1] not in (".", "->"):
+                e = _Eval(txt, toks, c + 1, resolver)
+                args = e.args()
+                ambito = {}
+                for n, (p, defecto) in enumerate(params):
+                    if n < len(args):
+                        ambito[p] = args[n]
+                    elif defecto is not None:
+                        ambito[p] = _Eval(txt, toks, defecto, resolver).tolerante(")")
+                    else:
+                        ambito[p] = _Falla(f"{aux}(): falta {p}")
+                llamadas.append((ambito, txt.count("\n", 0, toks[c][2]) + 1))
+        return llamadas, (q, fin_cuerpo)
+    return None, None
+
+
+def _filas_de_bucle(txt, toks, resolver, i_nombre):
+    """Si `X.name = v.campo;` esta adentro de `for (const T& v : tabla) { … }`: una
+    fila por herramienta."""
+    var = toks[i_nombre + 4][1]
+    for k in range(i_nombre, 0, -1):
+        if toks[k][1] != "for" or toks[k + 1][1] != "(":
+            continue
+        cierra = _cierre(toks, k + 1)
+        dos = next((q for q in range(k + 2, cierra) if toks[q][1] == ":"), None)
+        if dos is None or toks[dos - 1][1] != var:
+            continue
+        q = cierra + 1
+        if toks[q][1] != "{":
+            continue
+        fin_cuerpo = _cierre(toks, q)
+        if not (q < i_nombre < fin_cuerpo):
+            continue
+        tipo = next(t[1] for t in reversed(toks[k + 2:dos - 1]) if t[0] == "id")
+        rango = toks[dos + 1]
+        filas = tabla(txt, toks, resolver, dos + 1 if rango[1] == "{" else rango[1], tipo)
+        return [({var: f}, txt.count("\n", 0, toks[k][2]) + 1) for f in filas], (q, fin_cuerpo)
+    return None, None
+
+
 # --- bloques de herramientas -------------------------------------------------
-_CAMPOS = ("title", "description", "inputSchema", "readOnly", "destructive", "idempotent", "openWorld", "category")
+_CAMPOS = {"title": "titulo", "description": "descripcion", "inputSchema": "esquema", "readOnly": "soloLectura",
+           "destructive": "destructiva", "idempotent": "idempotente", "openWorld": "mundoAbierto",
+           "category": "categoria", "clase": "clase", "hilo": "hilo", "porQueAire": "porQueAire",
+           "aireSi": "aireSi", "reversible": "reversible", "porSalida": "porSalida", "antes": "antes",
+           "mediated": "mediada", "untrustedOutput": "contenidoNoConfiable"}
+_DEFECTO = {"titulo": "", "categoria": None, "descripcion": "", "esquema": None, "soloLectura": False,
+            "destructiva": False, "idempotente": False, "mundoAbierto": False, "clase": None, "hilo": None,
+            "porQueAire": None, "aireSi": "siempre", "reversible": False, "porSalida": False, "antes": [],
+            "mediada": False, "contenidoNoConfiable": False}
+# Lo que McpCore::addTool le suma al esquema de una herramienta de salida.
+SALIDA = {"type": "string", "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión "
+                                           "(o la de quien llama)."}
+_MUTA = ("push_back", "emplace_back", "erase", "insert", "update", "merge_patch", "emplace", "clear")
+
+
+def _condicion(toks, k, ambito):
+    """Para `if (cond) X.campo = …;`: la condicion si es simple (`!p.empty()`,
+    `p.empty()`); None si no se sabe."""
+    if toks[k - 1][1] != ")":
+        return True  # no es condicional
+    q = k - 1
+    prof = 0
+    while q > 0:
+        prof += {")": 1, "(": -1}.get(toks[q][1], 0) if toks[q][0] == "op" else 0
+        if prof == 0:
+            break
+        q -= 1
+    if toks[q - 1][1] != "if":
+        return None
+    cond = [t[1] for t in toks[q + 1:k - 1]]
+    neg = cond[:1] == ["!"]
+    cond = cond[1:] if neg else cond
+    if len(cond) == 5 and cond[1:] == [".", "empty", "(", ")"] and cond[0] in ambito:
+        v = ambito[cond[0]]
+        if isinstance(v, _Falla):
+            return None
+        v = _a_json(v) if isinstance(v, _Lista) else v
+        return (len(v) == 0) != neg
+    return None
+
+
+def _bloque(txt, toks, resolver, var, ini, fin, ambito):
+    """Los campos del bloque `var.name = … ; … addTool` (de `ini` a `fin`) con `ambito`
+    (la fila o los argumentos). -> (campos, errores {campo: motivo})."""
+    ambito = dict(ambito)
+    d = {k: (list(v) if isinstance(v, list) else v) for k, v in _DEFECTO.items()}
+    d["esquema"] = {"type": "object", "properties": {}}
+    errores = {}
+    # La profundidad de llaves desde el nombre: lo de un if/for adentro no es seguro.
+    prof, base = 0, {}
+    for k in range(ini, fin):
+        base[k] = prof
+        if toks[k][0] == "op":
+            prof += {"{": 1, "}": -1}.get(toks[k][1], 0)
+    k = ini
+    while k < fin:
+        t = toks[k]
+        # Otro miembro (t.run = [...](...) {...};): se saltea entero, con su lambda.
+        if t[0] == "id" and t[1] == var and _op(toks[k + 1], ".") and toks[k + 2][1] not in _CAMPOS:
+            k = _fin_sentencia(toks, k) + 1
+            continue
+        # Una variable (parametro o local) que se modifica en el bloque: lo que la use no se sabe.
+        if t[0] == "id" and t[1] != var and not _op(toks[k - 1], ".", "->") and (
+                _op(toks[k + 1], "[") or (_op(toks[k + 1], ".") and toks[k + 2][1] in _MUTA)):
+            fin_st = _fin_sentencia(toks, k)
+            asigna = _op(toks[k + 1], ".") or any(_op(x, "=") for x in toks[k:fin_st])
+            if asigna:
+                ruta, q = [], k + 1
+                while toks[q][1] == "[" and toks[q + 1][0] == "cad" and toks[q + 2][1] == "]":
+                    ruta.append(toks[q + 1][1])
+                    q += 3
+                directo = base[k] == 0 and toks[k - 1][1] in (";", "{", "}") and ruta and toks[q][1] == "="
+                obj = ambito.get(t[1])
+                if directo and t[1] not in ambito:
+                    # una local del bloque (`json props = relaciones; props["x"] = …;`): desde su declaracion
+                    try:
+                        obj = resolver(t[1], t[2])
+                    except NoSe as x:
+                        obj = _Falla(str(x))
+                if directo and not isinstance(obj, _Falla):
+                    try:
+                        e = _Eval(txt, toks, q + 1, resolver, ambito)
+                        v = _a_json(e.expr())
+                        obj = _a_json(obj) if isinstance(obj, _Lista) else obj
+                        if not isinstance(obj, dict):
+                            raise NoSe("no es un objeto")
+                        obj = json.loads(json.dumps(obj))
+                        cur = obj
+                        for r in ruta[:-1]:
+                            cur = cur.setdefault(r, {})
+                        cur[ruta[-1]] = v
+                        ambito[t[1]] = obj
+                    except NoSe as x:
+                        ambito[t[1]] = _Falla(f"se modifica en el bloque ({x})")
+                else:
+                    ambito[t[1]] = _Falla("se modifica en el bloque")
+            k = fin_st + 1
+            continue
+        if not (t[0] == "id" and t[1] == var and toks[k + 1][1] == "." and toks[k + 2][1] in _CAMPOS):
+            k += 1
+            continue
+        clave = _CAMPOS[toks[k + 2][1]]
+        try:
+            cond = _condicion(toks, k, ambito)
+            if cond is None or (base[k] > 0 and toks[k - 1][1] != ")"):
+                raise NoSe("asignación condicional")
+            if toks[k + 3][1] == "=":
+                e = _Eval(txt, toks, k + 4, resolver, ambito)
+                v = _a_json(e.expr())
+                if e.ver()[1] != ";":
+                    raise NoSe(f"sobra {e.ver()[1]!r}")
+                if cond:
+                    d[clave] = v
+            elif toks[k + 3][1] == "[" and clave == "esquema":
+                # t.inputSchema["required"] = {...};  t.inputSchema["properties"]["x"] = {...};
+                ruta, q = [], k + 3
+                while toks[q][1] == "[":
+                    if toks[q + 1][0] != "cad" or toks[q + 2][1] != "]":
+                        raise NoSe("subindice no literal en inputSchema")
+                    ruta.append(toks[q + 1][1])
+                    q += 3
+                if toks[q][1] != "=":
+                    raise NoSe("inputSchema[...] sin asignacion")
+                e = _Eval(txt, toks, q + 1, resolver, ambito)
+                v = _a_json(e.expr())
+                if cond:
+                    obj = d["esquema"]
+                    for r in ruta[:-1]:
+                        obj = obj.setdefault(r, {})
+                    obj[ruta[-1]] = v
+            else:
+                raise NoSe(f"{toks[k + 3][1]!r} raro")
+        except (NoSe, IndexError, KeyError, ValueError) as x:
+            errores.setdefault(clave, str(x))
+        k = _fin_sentencia(toks, k) + 1
+    if not isinstance(d["descripcion"], str):
+        errores.setdefault("descripcion", "no es texto")
+    if not isinstance(d["esquema"], dict):
+        errores.setdefault("esquema", "no es un objeto")
+    return d, errores
 
 
 def herramientas():
     """{nombre: {titulo, categoria, descripcion, esquema, soloLectura, destructiva,
-    idempotente, mundoAbierto, archivo, linea}} o {"sin_extraer": motivo}."""
+    idempotente, mundoAbierto, clase, hilo, porQueAire, aireSi, reversible, porSalida,
+    antes, mediada, contenidoNoConfiable, archivo, linea, errores, repetida?}}.
+
+    `errores`: {campo: motivo} de lo que no se pudo leer (el valor queda el de
+    fabrica). `clase` y `hilo` ya resueltos como McpCore::addTool (la clase sin
+    declarar queda None y se anota en errores)."""
     out = {}
     for f in sorted(MCP.glob("*.cpp")):
         txt = f.read_text(encoding="utf-8")
         toks = tokens(txt)
         resolver = _resolvedor(txt, toks)
+        rel = f.relative_to(RAIZ).as_posix()
         nombres = [i for i, t in enumerate(toks)
-                   if t[0] == "id" and i + 3 < len(toks) and toks[i + 1][1] == "." and toks[i + 2][1] == "name"
-                   and toks[i + 3][1] == "=" and i + 4 < len(toks) and toks[i + 4][0] == "cad"]
+                   if t[0] == "id" and i + 4 < len(toks) and toks[i + 1][1] == "." and toks[i + 2][1] == "name"
+                   and toks[i + 3][1] == "="]
+        # Solo los de un `Tool var` declarado entre el nombre anterior y este: los otros son
+        # `spec.name = …` de otra estructura (adentro del run de alguna herramienta).
+        nombres = [i for j, i in enumerate(nombres)
+                   if any(toks[q][1] == "Tool" and toks[q + 1][1] == toks[i][1]
+                          for q in range(nombres[j - 1] if j else 0, i))]
         for j, i in enumerate(nombres):
             var = toks[i][1]
-            nombre = toks[i + 4][1]
-            if not re.fullmatch(r"[a-z][a-z0-9_]*", nombre):  # «x.name = "Invitado "» de otra estructura
-                continue
-            fin = nombres[j + 1] if j + 1 < len(nombres) else len(toks)
+            sig = nombres[j + 1] if j + 1 < len(nombres) else len(toks)
             # el bloque termina en el addTool que lo registra (si viene antes del siguiente)
-            for k in range(i, fin):
-                if toks[k][1].endswith("addTool"):
-                    fin = k
-                    break
-            d = {"titulo": "", "categoria": None, "descripcion": "",
-                 "esquema": {"type": "object", "properties": {}},
-                 "soloLectura": False, "destructiva": False, "idempotente": False, "mundoAbierto": False,
-                 "archivo": f.relative_to(RAIZ).as_posix(), "linea": txt.count("\n", 0, toks[i][2]) + 1}
-            clave = {"title": "titulo", "description": "descripcion", "inputSchema": "esquema",
-                     "readOnly": "soloLectura", "destructive": "destructiva", "idempotent": "idempotente",
-                     "openWorld": "mundoAbierto", "category": "categoria"}
-            try:
-                for k in range(i + 5, fin):
-                    if not (toks[k][0] == "id" and toks[k][1] == var and toks[k + 1][1] == "."
-                            and toks[k + 2][1] in _CAMPOS):
-                        continue
-                    if toks[k + 3][1] == "=":
-                        e = _Eval(txt, toks, k + 4, resolver)
-                        d[clave[toks[k + 2][1]]] = _a_json(e.expr())
-                    elif toks[k + 3][1] == "[" and toks[k + 2][1] == "inputSchema":
-                        # t.inputSchema["required"] = {...};  t.inputSchema["properties"]["x"] = {...};
-                        ruta, q = [], k + 3
-                        while toks[q][1] == "[":
-                            if toks[q + 1][0] != "cad" or toks[q + 2][1] != "]":
-                                raise NoSe("subindice no literal en inputSchema")
-                            ruta.append(toks[q + 1][1])
-                            q += 3
-                        if toks[q][1] != "=":
-                            raise NoSe("inputSchema[...] sin asignacion")
-                        e = _Eval(txt, toks, q + 1, resolver)
-                        v = _a_json(e.expr())
-                        obj = d["esquema"]
-                        for r in ruta[:-1]:
-                            obj = obj.setdefault(r, {})
-                        obj[ruta[-1]] = v
-                if not isinstance(d["descripcion"], str) or not isinstance(d["esquema"], dict):
-                    raise NoSe("descripcion o esquema de otro tipo")
+            fin = next((k for k in range(i, sig) if toks[k][1].endswith("addTool")), None)
+            if fin is None:
+                continue
+            linea = txt.count("\n", 0, toks[i][2]) + 1
+            rhs = toks[i + 4]
+            if rhs[0] == "cad" and toks[i + 5][1] == ";":
+                ligaduras = [({}, linea)]
+            elif rhs[0] == "id" and toks[i + 5][1] == "." and toks[i + 7][1] == ";":
+                ligaduras, _ = _filas_de_bucle(txt, toks, resolver, i)
+            elif rhs[0] == "id" and toks[i + 5][1] == ";":
+                ligaduras, _ = _llamadas_de_auxiliar(txt, toks, resolver, i)
+            else:
+                ligaduras = None
+            if ligaduras is None:
+                out.setdefault(f"?{rel}:{linea}", {"archivo": rel, "linea": linea,
+                                                    "errores": {"nombre": "no se sabe leer este registro"}})
+                continue
+            for ambito, lin in ligaduras:
+                try:
+                    nombre = _Eval(txt, toks, i + 4, resolver, ambito).expr()
+                except NoSe as e:
+                    out[f"?{rel}:{lin}"] = {"archivo": rel, "linea": lin, "errores": {"nombre": str(e)}}
+                    continue
+                if not isinstance(nombre, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", nombre):
+                    continue  # «x.name = "Invitado "» de otra estructura
+                d, errores = _bloque(txt, toks, resolver, var, i + 5, fin, ambito)
+                d.update({"archivo": rel, "linea": lin, "errores": errores})
+                _como_addtool(d)
+                if nombre in out:
+                    d["repetida"] = f"{out[nombre]['archivo']}:{out[nombre]['linea']}"
                 out[nombre] = d
-            except NoSe as e:
-                out[nombre] = {"sin_extraer": str(e), "archivo": d["archivo"], "linea": d["linea"]}
     return out
+
+
+def _como_addtool(d):
+    """Lo que McpCore::addTool resuelve al registrar (la clase manda sobre readOnly)."""
+    if d["clase"] is None:
+        d["errores"].setdefault("clase", "sin declarar (t.clase = Clase::…)")
+        d["clase"] = "lectura" if d["soloLectura"] else "escritura"
+    d["soloLectura"] = d["clase"] == "lectura"
+    if d["hilo"] is None:
+        d["hilo"] = {"lectura": "foto", "ui": "interfaz"}.get(d["clase"], "control")
+    if d["porSalida"] and isinstance(d["esquema"], dict):
+        props = d["esquema"].setdefault("properties", {})
+        if isinstance(props, dict) and "salida" not in props:
+            props["salida"] = dict(SALIDA)
 
 
 def huella_esquema(esquema):
@@ -400,25 +890,26 @@ def huella_esquema(esquema):
                                      ensure_ascii=False).encode()).hexdigest()[:16]
 
 
+_LO_DEL_PROTOCOLO = ("titulo", "descripcion", "esquema")
+
+
 def verificar(inventario=RAIZ / "docs/mcp.json"):
-    """Contra un inventario del aparato: cuantas coinciden campo por campo."""
+    """Contra un inventario del aparato: cuantas coinciden campo por campo (lo que
+    viaja en tools/list y se pudo leer del codigo)."""
     inv = {h["nombre"]: h for h in json.loads(Path(inventario).read_text(encoding="utf-8"))["herramientas"]}
-    cod = herramientas()
+    cod = {n: c for n, c in herramientas().items() if not n.startswith("?")}
     comunes = [n for n in inv if n in cod]
     res = {"aparato": len(inv), "codigo": len(cod), "en_los_dos": len(comunes),
-           "sin_extraer": sorted(n for n in comunes if "sin_extraer" in cod[n]),
+           "sin_extraer": sorted(n for n in comunes if any(c in cod[n]["errores"] for c in _LO_DEL_PROTOCOLO)),
            "solo_en_aparato": sorted(n for n in inv if n not in cod), "distintas": {}}
     for n in comunes:
-        c = cod[n]
-        if "sin_extraer" in c:
-            continue
-        a = inv[n]
+        c, a = cod[n], inv[n]
         dif = [campo for campo, x, y in (("titulo", a.get("titulo"), c["titulo"]),
                                            ("descripcion", a.get("descripcion"), c["descripcion"]),
                                            ("esquema", huella_esquema(a.get("esquema")), huella_esquema(c["esquema"])),
                                            ("soloLectura", a.get("soloLectura"), c["soloLectura"]),
                                            ("destructiva", a.get("destructiva"), c["destructiva"]))
-               if x != y]
+               if x != y and campo not in c["errores"]]
         if dif:
             res["distintas"][n] = dif
     res["iguales"] = len(comunes) - len(res["sin_extraer"]) - len(res["distintas"])

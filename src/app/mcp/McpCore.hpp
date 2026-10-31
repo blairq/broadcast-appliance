@@ -73,6 +73,38 @@ struct ToolResult {
 
 using Done = std::function<void(ToolResult)>;
 
+/// Qué hace una herramienta: lo DECLARA cada una al registrarse (F3-02, el
+/// registro declarativo). De acá salen `readOnly` (lo pone addTool), la guarda de
+/// aire (McpAire), el hilo por omisión y la columna `clase` de docs/mcp.json.
+///
+/// POR QUE DECLARADA Y NO DEDUCIDA. Se deducía: «de aire» era estar en una lista
+/// de McpAire.cpp, «lectura» era readOnly, y nada decía cuáles solo mueven la
+/// interfaz. Una herramienta nueva que cortaba el aire y nadie sumaba a la lista
+/// quedaba como escritura común, sin confirmación en vivo, y no lo notaba nadie.
+/// Con la clase al lado del nombre, el que la escribe tiene que decidirlo, y la
+/// prueba del inventario (tools/docs/mcp-inventario.py --verificar) no deja
+/// registrar una sin declarar.
+enum class Clase {
+    SinDeclarar, ///< solo las armadas en ejecución (pruebas): addTool la deduce de readOnly
+    Lectura,     ///< solo mira: no cambia el estado (ni la foto que leen los demás)
+    Escritura,   ///< cambia el estado de la app, no lo que sale
+    Aire,        ///< puede cambiar lo que sale: ver porQueAire, aireSi y McpAire
+    Ui,          ///< mueve la interfaz del operador (páginas, ventanas, avisos)
+};
+/// En qué hilo corre. Hoy el despacho corre todas en el hilo de la app; F3-03
+/// despacha por esto (la lectura sobre la foto en el pool, la escritura y el aire
+/// en la cola del control, la ui en el hilo de la interfaz).
+enum class Hilo {
+    SegunClase, ///< addTool lo deduce: lectura→foto, escritura/aire→control, ui→interfaz
+    Interfaz,   ///< toca objetos de la interfaz (QML, ventanas, capturas de la vista)
+    Control,
+    Foto,
+};
+/// "lectura" | "escritura" | "aire" | "ui" (los nombres de mcp.json; no se traducen).
+const char* nombreClase(Clase c);
+/// "interfaz" | "control" | "foto".
+const char* nombreHilo(Hilo h);
+
 struct Tool {
     std::string name;
     std::string title;
@@ -81,6 +113,20 @@ struct Tool {
     std::string details; ///< explicacion larga para `help tool=...`
     json inputSchema = json{{"type", "object"}, {"properties", json::object()}};
     std::vector<std::string> examples; ///< argumentos de ejemplo (JSON) con comentario
+    /// La clase declarada (ver Clase). Toda herramienta registrada en src/app/mcp la
+    /// declara con un literal: `t.clase = Clase::Lectura;`.
+    Clase clase = Clase::SinDeclarar;
+    Hilo hilo = Hilo::SegunClase;
+    /// Clase::Aire: por qué cambia lo que sale, marcado con QT_TRANSLATE_NOOP("mcp", …)
+    /// (se traduce al mostrarlo en mcp_aire_lista).
+    const char* porQueAire = nullptr;
+    /// Clase::Aire: con qué argumentos cuenta (de fábrica, siempre).
+    AireSi aireSi = AireSi::Siempre;
+    /// En vivo, la voz y un disparador la piden sin confirmar: es reversible al
+    /// toque (mute, volumen, prompter, parar una cámara).
+    bool reversible = false;
+    /// Lo pone addTool desde `clase` (clase == Lectura). Se asigna a mano solo en una
+    /// herramienta armada en ejecución, sin clase (Clase::SinDeclarar).
     bool readOnly = false;
     bool destructive = false;
     bool idempotent = false;
@@ -341,8 +387,7 @@ class McpCore {
     /// solo las comunes: un rol desconocido es un rol sin permisos, no uno
     /// con todos.
     void setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol,
-                  std::set<std::string> comunes);
-    /// Avisa si algun juego nombra una categoria que no usa ninguna
+                  std::set<std::string> comunes);    /// Avisa si algun juego nombra una categoria que no usa ninguna
     /// herramienta. Llamar CUANDO YA ESTAN TODAS REGISTRADAS: antes da falsos
     /// positivos de las que se registran mas tarde.
     void verificarJuegos() const;
@@ -398,7 +443,7 @@ class McpCore {
     std::function<bool()> hayAire_;
     std::function<json()> salidasLista_;
     std::function<bool(const std::string&)> salidaSale_;
-    McpAire aire_;
+    McpAire aire_{*this};
     std::function<void()> sincronizar_;
     ApprovalPolicy policy_ = ApprovalPolicy::Untrusted;
     bool sinAprobaciones_ = false;

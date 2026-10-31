@@ -248,6 +248,8 @@ const std::vector<Definicion>& registro() {
         {"turn.nonceS", "Pinggy", QT_TRANSLATE_NOOP("ajustes", "TURN: renovar el desafío cada"), "int", {}, 30, 86400, "s", "", "gateway", json(600), Destino::Sala},
         {"turn.colaTcpKB", "Pinggy", QT_TRANSLATE_NOOP("ajustes", "TURN: cola por conexión"), "int", {}, 64, 65536, "KB", QT_TRANSLATE_NOOP("ajustes", "Lo que se guarda si la conexión con el navegador no da abasto (después se descarta)."), "gateway", json(1024), Destino::Sala},
         {"turn.credencialS", "Pinggy", QT_TRANSLATE_NOOP("ajustes", "TURN: vida de la credencial"), "int", {}, 60, 86400, "s", QT_TRANSLATE_NOOP("ajustes", "La que reciben los navegadores para usar el TURN (se renueva sola)."), "live", json(3600), Destino::Sala},
+        {"emisor.aparte", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Emisor aparte (prueba)"), "bool", {}, 0, 0, "", QT_TRANSLATE_NOOP("ajustes", "La salida principal la codifica, graba y transmite otro proceso (ba-emisor): si el programa se cae, la transmisión no se corta y la grabación sigue en el mismo archivo, con la placa «Volvemos enseguida» hasta que vuelve. Todavía en prueba: las pistas 2-6 de la grabación, la repetición y la señal limpia siguen en el programa."), "restart", json(false), Destino::Launcher},
+        {"emisor.sinSenalMs", "Sistema y datos", QT_TRANSLATE_NOOP("ajustes", "Emisor aparte: placa a los"), "int", {}, 100, 10000, "ms", QT_TRANSLATE_NOOP("ajustes", "Cuánto tiempo sin cuadros del programa espera el emisor antes de sacar la placa."), "restart", json(500), Destino::Launcher},
     };
     // clang-format on
     return tabla;

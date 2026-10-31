@@ -80,6 +80,7 @@ void McpService::registerMediaTools() {
         t.name = "playlist_crear";
         t.title = ba::i18n::traducir("mcp", "Armar la playlist de medios");
         t.category = "medios";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Reemplaza la playlist: `items` = [{path (de las carpetas de medios), nombre?, in_s?, out_s?}] "
             "(in/out en segundos; 0 = desde el principio / hasta el final). Se pasan uno detrás del otro en "
@@ -121,6 +122,7 @@ void McpService::registerMediaTools() {
         t.name = "playlist_control";
         t.title = ba::i18n::traducir("mcp", "Playlist: play, siguiente, anterior, parar, armar");
         t.category = "medios";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "`accion`: play (desde `indice`, base 0, o el actual), next, prev, stop o armar (deja la escena "
                         "«Playlist» armada en PVW para el take). `auto_next` y `loop` cambian el modo. Sin acción, "
                         "informa (ítem actual y cuánto le queda).");
@@ -179,7 +181,7 @@ void McpService::registerMediaTools() {
         t.name = "media_list";
         t.title = ba::i18n::traducir("mcp", "Archivos de medios");
         t.category = "medios";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Lista imagenes, videos y audios de las carpetas de medios (Media/ por defecto; Shares/, "
             "Recordings/ o all), los mas nuevos primero, con tamaño y dimensiones de las imagenes.");
@@ -218,7 +220,7 @@ void McpService::registerMediaTools() {
         t.name = "media_find";
         t.title = ba::i18n::traducir("mcp", "Buscar un archivo de medios");
         t.category = "medios";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Encuentra la RUTA de un archivo por su nombre. "
             "Busca por nombre en todas las carpetas de medios (sin importar mayusculas, tildes ni guiones): "
@@ -277,7 +279,7 @@ void McpService::registerMediaTools() {
         t.name = "media_view";
         t.title = ba::i18n::traducir("mcp", "Ver una imagen de medios");
         t.category = "medios";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Devuelve la imagen (achicada) para confirmar que es la que se busca, con su tamaño original.");
         t.inputSchema = {
@@ -318,6 +320,7 @@ void McpService::registerMediaTools() {
         t.name = "medio_poner";
         t.title = ba::i18n::traducir("mcp", "Usar un archivo de medios en una escena");
         t.category = "medios";
+        t.clase = Clase::Escritura;
         t.description =
              ba::i18n::traducir("mcp", "PONE en una escena un archivo de la biblioteca de medios (música, video, imagen), por su ruta. Pone "
             "una imagen (logo, placa, fondo), un video o un audio de las carpetas de medios en una escena, en la "
@@ -377,7 +380,7 @@ void McpService::registerMediaTools() {
         t.name = "media_carpetas";
         t.title = ba::i18n::traducir("mcp", "Como estan ordenados los medios");
         t.category = "medios";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El arbol de carpetas de medios, con cuantos archivos tiene cada una (los propios y "
             "los de sus subcarpetas). Es por donde se empieza para ordenar: `media_list` da los "
@@ -402,6 +405,7 @@ void McpService::registerMediaTools() {
         t.name = "media_ordenar";
         t.title = ba::i18n::traducir("mcp", "Mover, renombrar, crear carpetas y borrar");
         t.category = "medios";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Acomoda los archivos: `mover` (a otra carpeta), `renombrar`, `carpeta` (crear una) y "
             "`borrar`.\n\n"

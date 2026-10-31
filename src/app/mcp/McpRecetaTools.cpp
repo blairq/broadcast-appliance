@@ -105,7 +105,7 @@ void McpService::registerRecetaTools() {
         t.name = "receta_listar";
         t.title = ba::i18n::traducir("mcp", "Recetas que hay");
         t.category = "recetas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Que recetas hay disponibles para correr, con su nombre.");
         t.details = ba::i18n::traducir("mcp", "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
                     "despues nadie sabe cual es la buena.");
@@ -118,6 +118,7 @@ void McpService::registerRecetaTools() {
         t.name = "receta_guardar";
         t.title = ba::i18n::traducir("mcp", "Guardar una receta");
         t.category = "recetas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "GUARDA una receta: una secuencia de pasos para repetirla despues igual. Guarda (o "
                         "reemplaza) una serie de pasos con un nombre.");
         t.details = ba::i18n::traducir("mcp", "Un paso es `{ \"tool\": \"<herramienta>\", \"args\": { ... } }`. Los pasos corren EN "
@@ -191,6 +192,7 @@ void McpService::registerRecetaTools() {
         t.name = "receta_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar una receta");
         t.category = "recetas";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Saca una receta de la lista.");
         t.inputSchema = {
@@ -214,6 +216,7 @@ void McpService::registerRecetaTools() {
         t.name = "receta_correr";
         t.title = ba::i18n::traducir("mcp", "Correr una receta");
         t.category = "recetas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Ejecuta los pasos de una receta, en orden.");
         t.details = ba::i18n::traducir("mcp", "Si un paso falla, SE FRENA AHI y te dice cual y por que: en vivo, seguir dejaria el "
                     "sistema a mitad de camino y sin que nadie sepa donde.\n\n"

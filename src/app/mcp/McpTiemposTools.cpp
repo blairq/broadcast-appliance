@@ -31,7 +31,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_mapa";
         t.title = ba::i18n::traducir("mcp", "Los tiempos del pipeline");
         t.category = "tiempos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "El grafo de demoras de ahora: `nodos` (entrada, tarjeta, modulo, escena, mezcla, transmision, "
                         "grabacion) con `ms` (lo que agrega ese nodo), `acumulado_ms` (desde la captura), `fuente` "
                         "(medido | declarado | sin_medir) y `estado` (bien | justo | tarde: contra la latencia del "
@@ -50,6 +50,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_medir";
         t.title = ba::i18n::traducir("mcp", "Correr un análisis de tiempos");
         t.category = "tiempos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Mide `segundos` (de fábrica 10, de 2 a 120) y devuelve la mediana y el p95 de lo que agrega "
                         "cada nodo y del total de cada salida. Mientras mide, cada elemento del pipeline de las entradas "
                         "(todas, o las de `entradas`) lleva una sonda: `pipelines` trae por entrada cada elemento con "
@@ -79,7 +80,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_eventos";
         t.title = ba::i18n::traducir("mcp", "Los eventos de la línea de tiempo");
         t.category = "tiempos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Lo que pasó en los últimos `segundos` (de fábrica 600; hasta 1800): conexion / desconexion "
                         "de entradas, escena (lo que salió al aire), salida (arrancó o paró), latencia (del estudio), "
                         "tarde (una entrada que llega tarde a la mezcla), rearme, y nota (las que puso el operador o el "
@@ -93,6 +94,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_evento_agregar";
         t.title = ba::i18n::traducir("mcp", "Marcar un momento en la línea de tiempo");
         t.category = "tiempos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Agrega una nota con `texto` en la línea de tiempo de Latencias del pipeline: ahora, o hace "
                         "`hace_s` segundos, o en `t_ms` (ms de época). Sirve para marcar algo que el sistema no ve solo "
                         "(«se movió el cable», «entró el presidente») y después ver con tiempos_evento_impacto qué "
@@ -113,7 +115,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_evento_impacto";
         t.title = ba::i18n::traducir("mcp", "Qué cambió alrededor de un momento");
         t.category = "tiempos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Para el momento `t_ms` (el `t` de un evento de tiempos_eventos) o hace `hace_s` segundos: la "
                         "mediana de lo que agrega cada nodo (y de lo acumulado desde la captura) en los `segundos` de "
                         "antes (de fábrica 10) contra los de después, ordenado por cuánto cambió. Así se ve si un cambio "
@@ -135,6 +137,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_linea";
         t.title = ba::i18n::traducir("mcp", "Qué tarjetas se ven en la línea de tiempo");
         t.category = "tiempos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Elige los `nodos` (ids de tiempos_mapa) que la página Latencias del pipeline muestra en su "
                         "línea de tiempo, cada uno con su color (en ese orden). Sin `nodos`, dice cuáles están. "
                         "`agregar` / `sacar` cambian uno sin tocar los demás.");
@@ -165,7 +168,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_nodo";
         t.title = ba::i18n::traducir("mcp", "Un nodo de los tiempos, con su historia");
         t.category = "tiempos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Un nodo de tiempos_mapa por su `id` (p. ej. «entrada:Cámara 1», «tarjeta:Cámara 1:superres», "
                         "«salida:transmision») con su detalle y su historia de los últimos `segundos` (de fábrica "
                         "60; hasta 1800: se junta siempre, una muestra por segundo).");
@@ -185,6 +188,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_pipeline";
         t.title = ba::i18n::traducir("mcp", "La cadena de una entrada por dentro (elemento por elemento)");
         t.category = "tiempos";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Analiza el pipeline de UNA `entrada` (el nombre de tiempos_mapa / video_estado; o «programa» = la "
             "composición del programa, «programa:audio» = la mezcla: lo que pasa DESPUÉS de las entradas) durante "
@@ -234,7 +238,7 @@ void McpService::registerTiemposTools() {
         t.name = "resolucion_plan";
         t.title = ba::i18n::traducir("mcp", "El plan de resolución de las entradas");
         t.category = "tiempos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Cuánto hace falta de cada entrada y qué sobra o falta (solo lectura: dice qué haría y por qué). "
             "`demanda`: el tamaño más grande con que se ve en las escenas. `pasos`: cada tarjeta en orden con lo que "
@@ -260,7 +264,7 @@ void McpService::registerTiemposTools() {
         t.name = "tiempos_plugin";
         t.title = ba::i18n::traducir("mcp", "Cómo trabaja un plugin (y cómo trabaja en esta cadena)");
         t.category = "tiempos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Cómo trabaja un plugin de video por dentro. Con `elemento` (la fábrica de GStreamer, p. ej. videobalance, "
             "bavtsuperres, glcolorbalance): su documentación, clase, plugin, las memorias que aceptan sus pads "

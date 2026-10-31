@@ -31,43 +31,44 @@ void McpService::registerDcnTools() {
         const char* titulo;
         const char* descripcion;
         json props;
-        bool soloLectura;
+        Clase clase; ///< la declarada (registro de F3-02)
         bool destructiva;
+        const char* porQueAire = nullptr; ///< las de Clase::Aire: por qué cambian lo que sale
     };
     const std::vector<Def> defs = {
         {"dcn_estado", "estado", QT_TRANSLATE_NOOP("mcp", "Estado de la central"),
          QT_TRANSLATE_NOOP("mcp", "Todo lo de la central: enlace, modo, máximo de abiertos, unidades con su banca, micrófonos abiertos, "
          "pedidos de palabra en orden (`siguiente` = el primero), oradores, bancas sin unidad."),
-         json::object(), true, false},
+         json::object(), Clase::Lectura, false},
         {"dcn_puertos", "puertos", QT_TRANSLATE_NOOP("mcp", "Puertos serie del equipo"),
-         QT_TRANSLATE_NOOP("mcp", "Los puertos serie (adaptadores USB-serie) para conectar la central."), json::object(), true, false},
+         QT_TRANSLATE_NOOP("mcp", "Los puertos serie (adaptadores USB-serie) para conectar la central."), json::object(), Clase::Lectura, false},
         {"dcn_desconectar", "desconectar", QT_TRANSLATE_NOOP("mcp", "Soltar la central"),
-         QT_TRANSLATE_NOOP("mcp", "Deja de controlar la central. La sala sigue andando sola."), json::object(), false, true},
+         QT_TRANSLATE_NOOP("mcp", "Deja de controlar la central. La sala sigue andando sola."), json::object(), Clase::Escritura, true},
         {"dcn_microfono", "microfono", QT_TRANSLATE_NOOP("mcp", "Abrir o cerrar el micrófono de una banca"),
          QT_TRANSLATE_NOOP("mcp", "Abre (abierto=true) o cierra el micrófono de la banca en la central. Si ya está el máximo de abiertos, "
          "la central lo rechaza y se dice. El del presidente: cerrarlo pide `confirmar: true`."),
-         {{"banca", banca}, {"abierto", {{"type", "boolean"}}}, {"confirmar", {{"type", "boolean"}}}}, false, false},
+         {{"banca", banca}, {"abierto", {{"type", "boolean"}}}, {"confirmar", {{"type", "boolean"}}}}, Clase::Aire, false, QT_TRANSLATE_NOOP("mcp", "abre o cierra el micrófono de una banca en la central de conferencia")},
         {"dcn_siguiente", "siguiente", QT_TRANSLATE_NOOP("mcp", "Dar la palabra al siguiente"),
          QT_TRANSLATE_NOOP("mcp", "Le da la palabra al primero de la lista de pedidos (abre su micrófono; según el modo cierra el más viejo)."),
-         json::object(), false, false},
+         json::object(), Clase::Aire, false, QT_TRANSLATE_NOOP("mcp", "le da la palabra (y el micrófono) al primero de la lista")},
         {"dcn_cerrar_todos", "cerrar_todos", QT_TRANSLATE_NOOP("mcp", "Cerrar todos los micrófonos"),
          QT_TRANSLATE_NOOP("mcp", "Cierra todos los micrófonos abiertos de la sala, menos el del presidente (salvo `incluir_presidente`)."),
-         {{"incluir_presidente", {{"type", "boolean"}}}}, false, true},
+         {{"incluir_presidente", {{"type", "boolean"}}}}, Clase::Aire, true, QT_TRANSLATE_NOOP("mcp", "cierra los micrófonos de la sala")},
         {"dcn_pedidos", "pedidos", QT_TRANSLATE_NOOP("mcp", "Quién pidió la palabra"),
-         QT_TRANSLATE_NOOP("mcp", "La lista de pedidos de palabra en orden, con banca, nombre y turno."), json::object(), true, false},
+         QT_TRANSLATE_NOOP("mcp", "La lista de pedidos de palabra en orden, con banca, nombre y turno."), json::object(), Clase::Lectura, false},
         {"dcn_pedido", "pedido", QT_TRANSLATE_NOOP("mcp", "Editar la lista de pedidos"),
          QT_TRANSLATE_NOOP("mcp", "`accion`: agregar (al final), quitar, primero (lo pasa adelante) o antes_de (`referencia`: otra banca)."),
          {{"banca", banca},
           {"accion", {{"type", "string"}, {"enum", {"agregar", "quitar", "primero", "antes_de"}}}},
           {"referencia", {{"type", "string"}}}},
-         false, false},
+         Clase::Escritura, false},
         {"dcn_pedidos_limpiar", "pedidos_limpiar", QT_TRANSLATE_NOOP("mcp", "Vaciar la lista de pedidos"),
-         QT_TRANSLATE_NOOP("mcp", "Borra todos los pedidos de palabra de la central."), json::object(), false, true},
+         QT_TRANSLATE_NOOP("mcp", "Borra todos los pedidos de palabra de la central."), json::object(), Clase::Escritura, true},
         {"dcn_oradores", "oradores", QT_TRANSLATE_NOOP("mcp", "Quién tiene la palabra"),
-         QT_TRANSLATE_NOOP("mcp", "La lista de oradores de la central, con el micrófono prendido o no."), json::object(), true, false},
+         QT_TRANSLATE_NOOP("mcp", "La lista de oradores de la central, con el micrófono prendido o no."), json::object(), Clase::Lectura, false},
         {"dcn_orador_quitar", "orador_quitar", QT_TRANSLATE_NOOP("mcp", "Sacar a un orador"),
-         QT_TRANSLATE_NOOP("mcp", "Saca a la banca de la lista de oradores de la central (su micrófono se cierra)."), {{"banca", banca}}, false,
-         false},
+         QT_TRANSLATE_NOOP("mcp", "Saca a la banca de la lista de oradores de la central (su micrófono se cierra)."), {{"banca", banca}}, Clase::Aire,
+         false, QT_TRANSLATE_NOOP("mcp", "saca a un orador de la lista (su micrófono se cierra)")},
         {"dcn_modo", "modo", QT_TRANSLATE_NOOP("mcp", "Modo de los micrófonos"),
          QT_TRANSLATE_NOOP("mcp", "Cambia el modo de operación de la central (operador = la app y la botonera dan la palabra; voz, "
          "delegado_lista, reemplazo, pulsar…) y los máximos de micrófonos abiertos y de pedidos."),
@@ -77,7 +78,7 @@ void McpService::registerDcnTools() {
                       "operador_sin_ac", "voz_sin_ac"}}}},
           {"max_abiertos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}},
           {"max_pedidos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}},
-         false, false},
+         Clase::Aire, false, QT_TRANSLATE_NOOP("mcp", "cambia cómo se abren los micrófonos de la sala")},
         {"dcn_ajustes", "ajustes", QT_TRANSLATE_NOOP("mcp", "Ajustes de la central"),
          QT_TRANSLATE_NOOP("mcp", "Lee de la central todos sus ajustes globales (modo, max_abiertos, max_pedidos, cancelar_pedidos, "
          "apagar_micro, tono, ambiente y prio_cancela_todo: si el botón de prioridad del presidente también borra los "
@@ -93,10 +94,10 @@ void McpService::registerDcnTools() {
           {"tono", {{"type", "integer"}}},
           {"ambiente", {{"type", "boolean"}}},
           {"prio_cancela_todo", {{"type", "boolean"}}}},
-         false, false},
+         Clase::Escritura, false},
         {"dcn_simular_prioridad", "simular_prioridad", QT_TRANSLATE_NOOP("mcp", "Simular la prioridad del presidente"),
          QT_TRANSLATE_NOOP("mcp", "Solo con el simulador: el presidente aprieta (`activa: true`) o suelta su botón de prioridad."),
-         {{"activa", {{"type", "boolean"}}}}, false, false},
+         {{"activa", {{"type", "boolean"}}}}, Clase::Escritura, false},
         {"dcn_tiempo", "tiempo", QT_TRANSLATE_NOOP("mcp", "Tiempo de uso de la palabra"),
          QT_TRANSLATE_NOOP("mcp", "`{limite_min, reloj}` configura el reloj de las unidades (cuenta para atrás); `{banca, aviso}` muestra en la "
          "unidad de esa banca «queda un minuto» (ultimo_minuto) o «se terminó el tiempo» (terminado). La fila de "
@@ -105,7 +106,7 @@ void McpService::registerDcnTools() {
           {"aviso", {{"type", "string"}, {"enum", {"ultimo_minuto", "terminado"}}}},
           {"limite_min", {{"type", "integer"}, {"minimum", 0}, {"maximum", 120}}},
           {"reloj", {{"type", "boolean"}}}},
-         false, false},
+         Clase::Escritura, false},
         {"dcn_votacion", "votacion", QT_TRANSLATE_NOOP("mcp", "Votación en la central"),
          QT_TRANSLATE_NOOP("mcp", "`accion`: preparar (`tema`, `menu` si_no_abstencion de fábrica, `abierta` para el voto nominal; `numero` "
          "opcional: sin él, la que sigue a la última de la central), "
@@ -117,23 +118,23 @@ void McpService::registerDcnTools() {
           {"menu", {{"type", "string"}, {"enum", {"si_no", "si_no_abstencion", "a_favor_en_contra", "si_no_abstencion_nppv"}}}},
           {"abierta", {{"type", "boolean"}}},
           {"mostrar", {{"type", "boolean"}}}},
-         false, false},
+         Clase::Escritura, false},
         {"dcn_votacion_resultado", "votacion_resultado", QT_TRANSLATE_NOOP("mcp", "Resultado de la votación de la central"),
          QT_TRANSLATE_NOOP("mcp", "Totales por opción, presentes, los que no votaron y el voto de cada banca (parcial si sigue abierta)."),
-         json::object(), true, false},
+         json::object(), Clase::Lectura, false},
         {"dcn_asistencia", "asistencia", QT_TRANSLATE_NOOP("mcp", "Presentes según la central"),
-         QT_TRANSLATE_NOOP("mcp", "Presentes y ausentes según la asistencia de la central, por banca."), json::object(), true, false},
+         QT_TRANSLATE_NOOP("mcp", "Presentes y ausentes según la asistencia de la central, por banca."), json::object(), Clase::Lectura, false},
         {"dcn_simular_voto", "simular_voto", QT_TRANSLATE_NOOP("mcp", "Simular un voto"),
          QT_TRANSLATE_NOOP("mcp", "Solo con el simulador: la banca vota (0 afirmativo, 1 negativo, 2 abstención)."),
-         {{"banca", banca}, {"voto", {{"type", "integer"}}}}, false, false},
+         {{"banca", banca}, {"voto", {{"type", "integer"}}}}, Clase::Escritura, false},
         {"dcn_simular_presencia", "simular_presencia", QT_TRANSLATE_NOOP("mcp", "Simular presencia"),
          QT_TRANSLATE_NOOP("mcp", "Solo con el simulador: la banca se registra presente o ausente."),
-         {{"banca", banca}, {"presente", {{"type", "boolean"}}}}, false, false},
+         {{"banca", banca}, {"presente", {{"type", "boolean"}}}}, Clase::Escritura, false},
         {"dcn_unidades", "unidades", QT_TRANSLATE_NOOP("mcp", "Unidades y bancas"),
          QT_TRANSLATE_NOOP("mcp", "Las unidades de la central con su tipo (delegado, presidente; `tipo_nombre` dice qué equipo es) y la banca "
          "asignada; bancas sin unidad y unidades sin banca. Una DCN-DDI en modo doble son DOS micrófonos: la mitad "
          "izquierda es la unidad y la derecha la unidad + 256 (`mitad`, `ddi`); cada una va en su banca."),
-         json::object(), true, false},
+         json::object(), Clase::Lectura, false},
         {"dcn_unidad_asignar", "unidad_asignar", QT_TRANSLATE_NOOP("mcp", "Asignar la unidad de una banca"),
          QT_TRANSLATE_NOOP("mcp", "`{banca, unidad}` la asigna (queda en el Cuerpo como dcn_unidad). `{aprender: banca}` espera el próximo "
          "botón de micrófono que se apriete en la sala; `{aprender_todas: true}` recorre las bancas sin unidad una "
@@ -143,50 +144,51 @@ void McpService::registerDcnTools() {
           {"aprender", {{"type", "string"}}},
           {"aprender_todas", {{"type", "boolean"}}},
           {"cancelar", {{"type", "boolean"}}}},
-         false, false},
+         Clase::Escritura, false},
         {"dcn_traza", "traza", QT_TRANSLATE_NOOP("mcp", "Tramas crudas"),
          QT_TRANSLATE_NOOP("mcp", "Para diagnóstico: `{activa: true}` registra las tramas en hexadecimal; `{ultimas: n}` las devuelve con los "
          "contadores de reenvíos, NAK y checksum mal."),
-         {{"activa", {{"type", "boolean"}}}, {"ultimas", {{"type", "integer"}}}}, false, false},
+         {{"activa", {{"type", "boolean"}}}, {"ultimas", {{"type", "integer"}}}}, Clase::Escritura, false},
         {"dcn_funciones", "funciones", QT_TRANSLATE_NOOP("mcp", "Funciones sin documentar de la central"),
          QT_TRANSLATE_NOOP("mcp", "Las 56 funciones del Open Interface que no están en los manuales (salen del software de Bosch del DVD; "
          "las 10 de descarga de firmware a la CCU no se ofrecen): nombre, código, parámetros, respuesta, si el "
          "formato está verificado y si es peligrosa. Filtros: `texto`, `clase` (pedido | aviso). Ninguna está "
          "probada contra una CCU real."),
-         {{"texto", {{"type", "string"}}}, {"clase", {{"type", "string"}, {"enum", {"pedido", "aviso"}}}}}, true, false},
+         {{"texto", {{"type", "string"}}}, {"clase", {{"type", "string"}, {"enum", {"pedido", "aviso"}}}}}, Clase::Lectura, false},
         {"dcn_funcion", "funcion", QT_TRANSLATE_NOOP("mcp", "Llamar una función sin documentar"),
          QT_TRANSLATE_NOOP("mcp", "`nombre` (de dcn_funciones, el nombre de Bosch o el código) y `args` con sus parámetros. Las peligrosas "
          "(licencias, visor de las unidades) piden `confirmar: true`. `args.hex` manda los bytes tal cual. Si la "
          "central no la conoce, contesta un error y se dice."),
          {{"nombre", {{"type", "string"}}}, {"args", {{"type", "object"}}}, {"confirmar", {{"type", "boolean"}}}},
-         false, false},
+         Clase::Escritura, false},
         {"dcn_proximo", "proximo", QT_TRANSLATE_NOOP("mcp", "Próximo en hablar"),
          QT_TRANSLATE_NOOP("mcp", "Quién es el próximo en hablar según la central y, en una votación por llamado nominal, a quién le toca "
          "votar."),
-         json::object(), true, false},
+         json::object(), Clase::Lectura, false},
         {"dcn_cerrar_tras_siguiente", "cerrar_tras_siguiente", QT_TRANSLATE_NOOP("mcp", "Cerrar micrófonos al pasar al siguiente"),
          QT_TRANSLATE_NOOP("mcp", "Con `activo: true`, cada «siguiente» cierra los micrófonos de los que estaban hablando (lo hace la central)."),
-         {{"activo", {{"type", "boolean"}}}}, false, false},
+         {{"activo", {{"type", "boolean"}}}}, Clase::Escritura, false},
         {"dcn_llamado_nominal", "llamado_nominal", QT_TRANSLATE_NOOP("mcp", "Orden del llamado nominal"),
          QT_TRANSLATE_NOOP("mcp", "El orden en que votan las bancas en una votación por llamado nominal (`bancas`, o `delegados` de la central)."),
          {{"bancas", {{"type", "array"}, {"items", {{"type", "string"}}}}},
           {"delegados", {{"type", "array"}, {"items", {{"type", "integer"}}}}}},
-         false, false},
+         Clase::Escritura, false},
         {"dcn_simular_aviso", "simular_aviso", QT_TRANSLATE_NOOP("mcp", "Simular un aviso de la central"),
          QT_TRANSLATE_NOOP("mcp", "Solo con el simulador: la central manda un aviso sin documentar (por ejemplo votacion_pedido_iniciar "
          "{numero}, como si el presidente abriera la votación desde su unidad)."),
-         {{"nombre", {{"type", "string"}}}, {"datos", {{"type", "object"}}}}, false, false},
+         {{"nombre", {{"type", "string"}}}, {"datos", {{"type", "object"}}}}, Clase::Escritura, false},
         {"dcn_simular_boton", "simular_boton", QT_TRANSLATE_NOOP("mcp", "Simular un botón de la sala"),
          QT_TRANSLATE_NOOP("mcp", "Solo con el simulador (transporte simulador): aprieta el botón de micrófono de una banca (o unidad), como "
          "si un delegado pidiera la palabra."),
-         {{"banca", banca}, {"unidad", {{"type", "integer"}}}}, false, false},
+         {{"banca", banca}, {"unidad", {{"type", "integer"}}}}, Clase::Escritura, false},
     };
     for (const Def& d : defs) {
         Tool t;
         t.name = d.nombre;
         t.title = ba::i18n::traducir("mcp", d.titulo);
         t.category = "conferencia";
-        t.readOnly = d.soloLectura;
+        t.clase = d.clase;
+        t.porQueAire = d.porQueAire;
         t.destructive = d.destructiva;
         t.description = ba::i18n::traducir("mcp", d.descripcion);
         t.inputSchema = {{"type", "object"}, {"properties", d.props.is_object() ? d.props : json::object()}};
@@ -206,6 +208,7 @@ void McpService::registerDcnTools() {
         t.name = "dcn_votacion_a_quorum";
         t.title = ba::i18n::traducir("mcp", "Llevar la votación de la central a Quórum");
         t.category = "conferencia";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Carga la última votación CERRADA de la central como resultado oficial en Quórum (totales, "
                         "presentes y el voto de cada integrante), para el acta, el CSV nominal y el gráfico de votación. "
                         "`asunto` reemplaza el tema que tenía en la central.");
@@ -222,6 +225,7 @@ void McpService::registerDcnTools() {
         t.name = "dcn_presentes_quorum";
         t.title = ba::i18n::traducir("mcp", "Presentes de Quórum desde la central");
         t.category = "conferencia";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Con `activo: true`, Quórum cuenta los presentes que dice la asistencia de la central (en vez "
                         "del padrón del evento). Sin argumentos, dice cómo está y los dos números.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
@@ -236,6 +240,7 @@ void McpService::registerDcnTools() {
         t.name = "dcn_conectar";
         t.title = ba::i18n::traducir("mcp", "Conectar la central de conferencia");
         t.category = "conferencia";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Conecta con la central Bosch DCN (instala y prende el plugin bosch-dcn si hace falta). Lo que se pasa "
             "queda guardado: `transporte` serie (RS-232 por adaptador USB; `puerto` de dcn_puertos; de fábrica el "

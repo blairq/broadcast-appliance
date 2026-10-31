@@ -38,7 +38,7 @@ void McpService::registerRegistroTools() {
         t.name = "log_leer";
         t.title = ba::i18n::traducir("mcp", "Leer el registro");
         t.category = "registro";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las últimas líneas del registro, de los tres procesos, con filtros.");
         t.details = ba::i18n::traducir("mcp", "Cada línea trae hora (UTC, en milisegundos desde la época), nivel, módulo, código y "
                     "descripción.\n\n"
@@ -114,6 +114,7 @@ void McpService::registerRegistroTools() {
         t.name = "log_nivel";
         t.title = ba::i18n::traducir("mcp", "Cuánto se registra");
         t.category = "registro";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Lee o cambia, en vivo, el nivel desde el que este proceso registra.");
         t.details = ba::i18n::traducir("mcp", "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (GStreamer solo ya es muy "
                     "hablador). Sirve para reproducir un problema con detalle, pero no para dejarlo así: "
@@ -176,7 +177,7 @@ void McpService::registerRegistroTools() {
         t.name = "ext_listar";
         t.title = ba::i18n::traducir("mcp", "Tarjetas de extension");
         t.category = "registro";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las tarjetas que viven en Extensiones/, con su estado.");
         t.details = ba::i18n::traducir("mcp", "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
                     "dibuja como una tarjeta mas del dashboard. Las escribis vos: la carpeta esta en el "
@@ -211,6 +212,7 @@ void McpService::registerRegistroTools() {
         t.name = "ext_prender";
         t.title = ba::i18n::traducir("mcp", "Prender una extension apagada");
         t.category = "registro";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Vuelve a cargar una tarjeta que el arranque habia apagado.");
         t.details = ba::i18n::traducir("mcp", "Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola "
                     "y vas a haber gastado dos reinicios del programa.");
@@ -230,6 +232,7 @@ void McpService::registerRegistroTools() {
         t.name = "log_marcar";
         t.title = ba::i18n::traducir("mcp", "Dejar una marca");
         t.category = "registro";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Escribe una línea propia en el registro.");
         t.details = ba::i18n::traducir("mcp", "Se pone ANTES de probar algo («voy a probar la camara 2»): después se busca esa marca "
                     "y todo lo que sigue es lo que pasó por eso. Es la forma barata de separar lo que "

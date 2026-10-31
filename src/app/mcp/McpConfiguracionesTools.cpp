@@ -30,7 +30,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "eventos_listar";
         t.title = ba::i18n::traducir("mcp", "Los eventos");
         t.category = "eventos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los eventos que hay (cuál está abierto, de dónde salió cada uno, cuánto ocupa, cuáles son "
                         "plantilla) y las plantillas para crear uno nuevo.");
         t.run = [cf](const json&, Done done) {
@@ -43,6 +43,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "evento_nuevo";
         t.title = ba::i18n::traducir("mcp", "Crear un evento nuevo (arrancar de cero o desde otro)");
         t.category = "eventos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Crea un evento APARTE con todo lo suyo, sin tocar el abierto (antes de prepararlo: la guía de su "
                         "tipo, evento_escenarios / evento_escenario). Es lo que corresponde cuando "
                         "piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica, "
@@ -85,6 +86,8 @@ void McpService::registerConfiguracionesTools() {
         t.name = "evento_cambiar";
         t.title = ba::i18n::traducir("mcp", "Abrir otro evento");
         t.category = "eventos";
+        t.clase = Clase::Aire;
+        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "abre otro evento (reinicia el programa: corta todo lo que sale)");
         t.description = ba::i18n::traducir("mcp", "Pasa al evento `nombre` (sus escenas, mezclador, medios, asamblea, web…): la app se REINICIA y "
                         "se corta todo lo que sale (el programa, la sala, las pantallas, la conferencia). No con una "
                         "transmisión o una grabación en curso; pedile confirmación al operador antes.");
@@ -109,6 +112,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "evento_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar un evento (a la papelera)");
         t.category = "eventos";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Manda el evento `nombre` a la papelera con TODO lo suyo (escenas, medios, grabaciones, "
                         "historial…). El abierto no se borra, ni uno que se esté copiando. Se puede recuperar con "
@@ -136,6 +140,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "evento_recuperar";
         t.title = ba::i18n::traducir("mcp", "Recuperar un evento borrado");
         t.category = "eventos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Sin `id`: lo que hay en la papelera (lo último primero). Con `id` (de esa lista): lo vuelve a "
                         "la lista de eventos con su nombre de antes, o con `como` si ese nombre ya está usado.");
         t.inputSchema = {{"type", "object"},
@@ -154,6 +159,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "evento_papelera_vaciar";
         t.title = ba::i18n::traducir("mcp", "Vaciar la papelera de eventos (borrar de verdad)");
         t.category = "eventos";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Borra DEFINITIVAMENTE de la papelera el `id` (de evento_recuperar), o todo si no viene: libera "
                         "el disco y ya no se puede recuperar. Pedile confirmación al operador (con cuánto ocupa).");
@@ -170,7 +176,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "configuraciones_listar";
         t.title = ba::i18n::traducir("mcp", "Las configuraciones");
         t.category = "configuraciones";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las configuraciones que hay (cuál es la activa, su descripción, de dónde salió y cuánto ocupa) "
                         "y las demos que trae el programa.");
         t.run = [cf](const json&, Done done) {
@@ -183,6 +189,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "configuracion_crear";
         t.title = ba::i18n::traducir("mcp", "Crear una configuración");
         t.category = "configuraciones";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Crea una configuración nueva (no la activa). `desde`: «vacia» (la de fábrica, de fábrica), "
                         "«actual» (una copia de la activa), el nombre de otra, «demo:<nombre>» (una demo del programa: "
                         "configuraciones_listar las dice) o «evento:<carpeta>/<inicio|cierre|ultima>» (la configuración "
@@ -209,6 +216,8 @@ void McpService::registerConfiguracionesTools() {
         t.name = "configuracion_cambiar";
         t.title = ba::i18n::traducir("mcp", "Cambiar de configuración");
         t.category = "configuraciones";
+        t.clase = Clase::Aire;
+        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia de configuración (reinicia el programa: corta todo lo que sale)");
         t.description = ba::i18n::traducir("mcp", "Pasa a la configuración `nombre`: queda anotada y la app se REINICIA con ella (no copia nada). "
                         "Se corta todo lo que esté andando (transmisión, grabación, conferencia): pedile confirmación al "
                         "operador antes.");
@@ -227,6 +236,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "configuracion_editar";
         t.title = ba::i18n::traducir("mcp", "Renombrar, describir o borrar una configuración");
         t.category = "configuraciones";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "`renombrar_a`: le cambia el nombre; `descripcion`: la anota; `borrar: true`: la manda a la "
                         "papelera (Configuraciones/.papelera). La activa no se renombra ni se borra.");
         t.inputSchema = {{"type", "object"},
@@ -253,7 +263,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "plantillas_listar";
         t.title = ba::i18n::traducir("mcp", "Las plantillas de evento (para administrarlas)");
         t.category = "eventos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Todas las plantillas en su orden: id (la carpeta: «plantilla:<id>» en evento_nuevo), el nombre que "
                         "se ve, descripción, escenario (su guía: evento_escenario), si es visible, si viene con el programa, "
                         "si es propia o una del programa editada, y si está abierta.");
@@ -265,6 +275,7 @@ void McpService::registerConfiguracionesTools() {
         t.name = "plantilla_ajustar";
         t.title = ba::i18n::traducir("mcp", "Ordenar, renombrar u ocultar una plantilla");
         t.category = "eventos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Cambia de la plantilla `id` lo que venga: `nombre` (el que se ve; \"\" = el de la carpeta), "
                         "`descripcion`, `visible` (si aparece en «Evento nuevo» y en «Prepararlo con el asistente») y "
                         "`mover` (-1 un lugar arriba, +1 abajo). Para EDITAR su contenido hay que abrirla (desde el menú "

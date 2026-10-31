@@ -36,7 +36,7 @@ list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas c
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEnginePlaca\\.cpp$")
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/WindowingPlatform\\.cpp$")
 if(NOT BA_HAVE_MOTOR)
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Dsk)?\\.cpp$")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Dsk|Emisor)?\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AppSettings\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/EngineSelfTest\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/OperateMode\\.cpp$")
@@ -381,7 +381,7 @@ endif()
 
 # --- Motor de emision: GStreamer (src/motor) --------------------------------
 if(BA_HAVE_MOTOR)
-    target_link_libraries(ba-app PRIVATE ba_motor)
+    target_link_libraries(ba-app PRIVATE ba_motor ba_emisor_pedido) # el pedido al emisor aparte (F3-01)
     if(BA_HAVE_NDI)
         # Solo libNoIDea: el SpeedHQ lo decodifica GStreamer (avdec_speedhq).
         target_link_libraries(ba-app PRIVATE ba_noidea)
@@ -618,10 +618,26 @@ endif()
                    mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
     target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_mcp PRIVATE ba_core Qt6::Core Qt6::Network)
-    target_compile_definitions(test_mcp PRIVATE BA_MCP_BRIDGE="$<TARGET_FILE:ba-mcp>")
+    # BA_MCP_INVENTARIO: el registro (docs/mcp.json) para la prueba genérica de cada herramienta.
+    target_compile_definitions(test_mcp PRIVATE BA_MCP_BRIDGE="$<TARGET_FILE:ba-mcp>"
+                                                BA_MCP_INVENTARIO="${CMAKE_SOURCE_DIR}/docs/mcp.json")
     set_target_properties(test_mcp PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_dependencies(test_mcp ba-mcp)
     add_test(NAME test_mcp COMMAND test_mcp)
+
+    # El registro de herramientas (F3-02): docs/mcp.json y la tabla de MCP.md son lo que
+    # sale del código, y toda herramienta declara su clase. Agregar una sin regenerar
+    # (tools/docs/mcp-inventario.py --desde-codigo) rompe la suite.
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME test_mcp_registro COMMAND "${Python3_EXECUTABLE}" -B
+                 "${CMAKE_SOURCE_DIR}/tools/docs/mcp-inventario.py" --verificar)
+        ba_test_entradas(test_mcp_registro mcp agent/Roles.cpp "${CMAKE_SOURCE_DIR}/tools/docs"
+                         "${CMAKE_SOURCE_DIR}/docs/mcp.json" "${CMAKE_SOURCE_DIR}/docs/funciones/MCP.md"
+                         "${CMAKE_SOURCE_DIR}/assets/idiomas/es/ayuda")
+    else()
+        ba_falta("test_mcp_registro" "Python 3 (tools/docs/mcp-inventario.py --verificar)")
+    endif()
 
     # El buscador de herramientas: que el indice encuentre lo que una persona
     # pediria con SUS palabras, y que ninguna herramienta quede sin etiquetar.

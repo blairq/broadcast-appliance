@@ -100,7 +100,7 @@ McpCore::McpCore() {
     help.name = "help";
     help.title = ba::i18n::traducir("mcp", "Ayuda del appliance");
     help.category = "ayuda";
-    help.readOnly = true;
+    help.clase = Clase::Lectura;
     help.idempotent = true;
     help.description =
         ba::i18n::traducir("mcp", "Sistema de ayuda. Sin argumentos: guia general, flujos de trabajo y catalogo completo de "
@@ -141,7 +141,7 @@ McpCore::McpCore() {
     sec.name = "security_status";
     sec.title = ba::i18n::traducir("mcp", "Salvaguarda de esta sesion");
     sec.category = "ayuda";
-    sec.readOnly = true;
+    sec.clase = Clase::Lectura;
     sec.description =
         ba::i18n::traducir("mcp", "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
         "video). Si lo leyo, toda accion que modifica algo espera que el operador la apruebe con un "
@@ -155,7 +155,7 @@ McpCore::McpCore() {
     search.name = "help_search";
     search.title = ba::i18n::traducir("mcp", "Buscar en la ayuda");
     search.category = "ayuda";
-    search.readOnly = true;
+    search.clase = Clase::Lectura;
     search.idempotent = true;
     search.description =
         ba::i18n::traducir("mcp", "Busca por palabras en todas las herramientas y temas de ayuda (tolera tildes). Devuelve "
@@ -266,6 +266,7 @@ json McpCore::catalogo() const {
                                                    {"etiquetas", etiquetas},
                                                    {"ejemplo", ejemplo},
                                                    {"solo_lectura", t.readOnly},
+                                                   {"clase", nombreClase(t.clase)},
                                                    {"destructiva", t.destructive}});
     }
     json sin = json::array();
@@ -338,7 +339,42 @@ bool McpCore::permitida(const Tool& t, const std::string& rol) const {
     return it != roles_.end() && it->second.count(t.category) != 0;
 }
 
+const char* nombreClase(Clase c) {
+    switch (c) {
+        case Clase::Lectura: return "lectura";
+        case Clase::Aire: return "aire";
+        case Clase::Ui: return "ui";
+        case Clase::Escritura:
+        case Clase::SinDeclarar: break;
+    }
+    return "escritura";
+}
+
+const char* nombreHilo(Hilo h) {
+    switch (h) {
+        case Hilo::Interfaz: return "interfaz";
+        case Hilo::Foto: return "foto";
+        case Hilo::Control:
+        case Hilo::SegunClase: break;
+    }
+    return "control";
+}
+
 void McpCore::addTool(Tool tool) {
+    // La clase declarada manda: `readOnly` sale de ella (no son dos cosas que
+    // puedan decir distinto). Sin clase solo llega una armada en ejecución (una
+    // prueba): se deduce de readOnly, como era antes del registro declarativo.
+    if (tool.clase == Clase::SinDeclarar) tool.clase = tool.readOnly ? Clase::Lectura : Clase::Escritura;
+    tool.readOnly = tool.clase == Clase::Lectura;
+    if (tool.hilo == Hilo::SegunClase)
+        tool.hilo = tool.clase == Clase::Lectura ? Hilo::Foto : tool.clase == Clase::Ui ? Hilo::Interfaz : Hilo::Control;
+    // Una de aire sin motivo deja a mcp_aire_lista diciendo nada; la prueba del
+    // inventario no la deja pasar, pero se avisa igual (una armada en ejecución).
+    if (tool.clase == Clase::Aire && tool.porQueAire == nullptr)
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Aviso, "mcp", 0,
+            ba::i18n::llenar(ba::i18n::traducir("mcp", "la herramienta de aire «%1» no dice por qué (porQueAire)"),
+                             {tool.name}));
     // Una herramienta de salida acepta `salida` sin que cada una lo escriba en su
     // esquema: así dicen todas lo mismo y ninguna se olvida.
     if (tool.porSalida) {
@@ -952,7 +988,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     const bool enAire = !ctx.humano && (tool->porSalida && salidaSale_ ? salidaSale_(salida) : hayAire());
     const bool deAire = enAire && aire_.esDeAire(name, args);
     const bool automaticoEnVivo = enAire && !deAire && mutating(*tool) &&
-                                  (ctx.origen == "voz" || ctx.origen == "disparador") && !reversibleEnVivo(name);
+                                  (ctx.origen == "voz" || ctx.origen == "disparador") && !tool->reversible;
     const bool needApproval =
         deAire || automaticoEnVivo ||
         (mutating(*tool) && !ctx.humano && // una persona apretando no es el asistente
@@ -1126,6 +1162,12 @@ std::string McpCore::helpTool(const std::string& name) const {
               ? ba::i18n::llenar(ba::i18n::traducir("mcp", "**Tipo:** %1 (destructiva: borra, corta o saca algo)"), {tipo})
               : ba::i18n::llenar(ba::i18n::traducir("mcp", "**Tipo:** %1"), {tipo}))
       << "\n";
+    // La de aire lo dice en su ficha: con la transmisión andando, si la pide algo
+    // automático, la confirma una persona (McpAire).
+    if (t->clase == Clase::Aire && t->porQueAire != nullptr)
+        o << ba::i18n::llenar(ba::i18n::traducir("mcp", "**De aire:** %1 (al aire, la confirma una persona)."),
+                              {ba::i18n::traducir("mcp", t->porQueAire)})
+          << "\n";
     const json props = t->inputSchema.value("properties", json::object());
     if (!props.empty()) {
         o << "\n" << ba::i18n::traducir("mcp", "## Argumentos") << "\n";
