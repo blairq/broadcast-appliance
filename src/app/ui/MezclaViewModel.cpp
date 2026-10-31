@@ -108,10 +108,25 @@ void MezclaViewModel::setBalistica(const QString& b) {
 
 QString MezclaViewModel::pfl() const { return qs(p_.rt.engine().pfl()); }
 
+QString MezclaViewModel::pflModo() const { return qs(p_.rt.engine().pflModo()); }
+
+QString MezclaViewModel::salidaEscucha() const { return qs(p_.rt.engine().salidaEscucha()); }
+
+void MezclaViewModel::setSalidaEscucha(const QString& salida) {
+    // El aviso llega por la matriz (pflChanged).
+    if (const QString e = matriz_->ponerSalidaEscucha(salida); !e.isEmpty()) emit notify(e, "error");
+}
+
 QString MezclaViewModel::pflUi(const QString& fuente) {
     // Tocar la que está en PFL la apaga. Uno solo a la vez y sin tocar la escucha fija
     // (Matriz::ponerPfl); el aviso llega por el motor (pflChanged).
-    return matriz_->ponerPfl(pfl() == fuente ? QString() : fuente);
+    return matriz_->ponerPfl(pfl() == fuente && pflModo() == "pfl" ? QString() : fuente);
+}
+
+QString MezclaViewModel::aflUi(const QString& fuente) {
+    // Como pflUi, con el fader de la salida que muestra el Mezclador.
+    const QString salida = qs(mezclador_->salida());
+    return matriz_->ponerPfl(pfl() == fuente && pflModo() == "afl" ? QString() : fuente, QStringLiteral("afl"), salida);
 }
 
 int MezclaViewModel::retardoUi(const QString& fuente) const { return p_.rt.engine().sourceSyncOffset(fuente.toStdString()); }

@@ -1190,10 +1190,11 @@ float BroadcastEngine::sourceOutputPeakDb(const std::string& name) const {
 bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
-    // La escucha fija: las marcadas suenan juntas. Si además está en PFL, sigue sonando.
+    // La escucha fija: las marcadas suenan juntas (con un solo prendido, el motor solo la
+    // marca: suena al soltarlo).
     const bool cambia = it->second.monitor != on;
     it->second.monitor = on;
-    const std::string e = motor_->ponerEscucha(name, on || pfl_ == name);
+    const std::string e = motor_->ponerEscucha(name, on);
     if (!e.empty()) setError(e);
     if (cambia && cambioAudio_) cambioAudio_(name, "escucha");
     return e.empty();
@@ -1209,29 +1210,58 @@ bool BroadcastEngine::sourceEscuchaFija(const std::string& name) const {
     return it != sources_.end() && it->second.monitor;
 }
 
-bool BroadcastEngine::setPfl(const std::string& name) {
-    if (name == pfl_) return true;
+std::string BroadcastEngine::aplicarEscucha() {
+    const auto idMotor = [this](const std::string& salida) {
+        const Salida* s = laSalida(salida);
+        return s == nullptr || s->porOmision() ? std::string() : s->id;
+    };
+    // Sin solo, la selección (las marcadas) con el fader de su salida; sin ninguna marcada
+    // el motor la apaga.
+    if (pfl_.empty()) return motor_->escuchar("seleccion", "", idMotor(salidaEscucha_));
+    return motor_->escuchar(pflModo_, pfl_, pflModo_ == "afl" ? idMotor(pflSalida_) : std::string());
+}
+
+bool BroadcastEngine::setPfl(const std::string& name, const std::string& modo, const std::string& salida) {
+    if (modo != "pfl" && modo != "afl") {
+        setError(ba::i18n::traducir("emision", "el solo de la escucha es «pfl» o «afl»"));
+        return false;
+    }
     if (!name.empty() && sources_.count(name) == 0) return false;
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
+    if (name == pfl_ && (name.empty() || (modo == pflModo_ && s->id == pflSalida_))) return true;
     const std::string antes = pfl_;
     pfl_ = name;
-    // El que estaba en PFL vuelve a lo que diga su escucha fija; el nuevo suena.
-    if (auto it = sources_.find(antes); it != sources_.end()) {
-        const std::string e = motor_->ponerEscucha(antes, it->second.monitor);
-        if (!e.empty()) setError(e);
-    }
-    bool ok = true;
-    if (!name.empty()) {
-        const std::string e = motor_->ponerEscucha(name, true);
-        if (!e.empty()) {
-            setError(e);
-            ok = false;
-        }
+    pflModo_ = modo;
+    pflSalida_ = s->id;
+    // Uno solo a la vez: el nuevo reemplaza al anterior; soltarlo devuelve la escucha fija.
+    const std::string e = aplicarEscucha();
+    if (!e.empty()) {
+        setError(e);
+        pfl_.clear();
+        aplicarEscucha();
     }
     if (cambioAudio_) {
         if (!antes.empty()) cambioAudio_(antes, "escucha");
-        if (!name.empty()) cambioAudio_(name, "escucha");
+        if (!name.empty() && name != antes) cambioAudio_(name, "escucha");
     }
-    return ok;
+    return e.empty();
+}
+
+bool BroadcastEngine::setSalidaEscucha(const std::string& salida) {
+    const Salida* s = laSalida(salida);
+    if (s == nullptr) return false;
+    if (s->id == salidaEscucha_) return true;
+    salidaEscucha_ = s->id;
+    // Con un solo prendido queda para cuando se suelte.
+    if (pfl_.empty()) {
+        const std::string e = aplicarEscucha();
+        if (!e.empty()) {
+            setError(e);
+            return false;
+        }
+    }
+    return true;
 }
 
 bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
@@ -1449,8 +1479,9 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video, const std::function<V
         if (f.pistas != std::vector<int>{1}) setSourcePistas(n, f.pistas);
         if (f.monitor) setSourceMonitoring(n, true);
     }
-    // El PFL que estaba sonando sigue sonando en el motor nuevo.
-    if (!pfl_.empty() && sources_.count(pfl_) > 0) motor_->ponerEscucha(pfl_, true);
+    // La escucha como estaba (el solo, o la fija con su salida) en el motor nuevo.
+    if (!pfl_.empty() && sources_.count(pfl_) == 0) pfl_.clear();
+    aplicarEscucha();
     micInputs_ = mics;
     scenes_ = escenas;
     for (const auto& e : scenes_) publicarEscena(e);

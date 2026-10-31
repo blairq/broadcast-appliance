@@ -315,6 +315,11 @@ bool BroadcastEngine::borrarSalida(const std::string& id) {
             setError(e);
             return false;
         }
+    // La escucha que seguía su fader (el motor la apagó) vuelve con la por omisión.
+    const bool escuchaSuya = salidaEscucha_ == id || (!pfl_.empty() && pflModo_ == "afl" && pflSalida_ == id);
+    if (salidaEscucha_ == id) salidaEscucha_ = kSalidaPorOmision;
+    if (pflSalida_ == id) pflSalida_ = kSalidaPorOmision;
+    if (escuchaSuya && motor_) aplicarEscucha();
     return true;
 }
 

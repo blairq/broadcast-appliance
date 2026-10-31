@@ -322,9 +322,10 @@ Item {
                         Text { anchors.centerIn: parent; text: muted ? qsTr("MUDO") : qsTr("M", "botón de silenciar un canal"); color: Theme.text; font { pixelSize: 10; weight: Font.Bold } }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Studio.mixer.setMuted(name, !muted) }
                     }
-                    // PFL: escucharla por el monitor sin tocar el aire (uno a la vez, amarillo).
+                    // PFL: escucharla sola por el monitor sin tocar el aire (uno a la vez, amarillo;
+                    // el AFL está en el Mezclador).
                     Rectangle {
-                        readonly property bool on: Studio.mezcla.pfl === name
+                        readonly property bool on: Studio.mezcla.pfl === name && Studio.mezcla.pflModo === "pfl"
                         Layout.fillWidth: true
                         height: 18; radius: 6
                         color: on ? Theme.canalPfl : Qt.rgba(1, 1, 1, 0.05)
@@ -335,7 +336,7 @@ Item {
                             onClicked: { const e = Studio.mezcla.pflUi(name); if (e !== "") Studio.notify(e, "error") }
                         }
                         ToolTip.visible: pflMa.containsMouse; ToolTip.delay: 500
-                        ToolTip.text: qsTr("Escucharla en los auriculares sin tocar lo que sale al aire (se suma a lo que ya va ahí, como la voz del asistente). Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla.")
+                        ToolTip.text: qsTr("Escucharla sola en los auriculares, antes del fader, sin tocar lo que sale al aire. Lo que ya iba ahí (como la voz del asistente) vuelve al soltarla. Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla.")
                     }
                     // AFV: el audio sigue al video (sube y baja con su escena).
                     Rectangle {

@@ -95,6 +95,18 @@ json leerJson(const fs::path& p) {
     return j.is_object() ? j : json::object(); // sin archivo (o roto): vacío, nunca null
 }
 
+/// Los cuadros por segundo de un lienzo como los guarda video.fps: "25" o "30000/1001" ("" =
+/// sin cambiar).
+bool cpsValido(const std::string& cps) {
+    if (cps.empty()) return true;
+    const std::size_t barra = cps.find('/');
+    const auto cifras = [](const std::string& s) {
+        return !s.empty() && s.size() <= 6 && s.front() != '0' &&
+               std::all_of(s.begin(), s.end(), [](char c) { return c >= '0' && c <= '9'; });
+    };
+    return barra == std::string::npos ? cifras(cps) : cifras(cps.substr(0, barra)) && cifras(cps.substr(barra + 1));
+}
+
 void escribirJson(const fs::path& p, const json& j) {
     std::error_code ec;
     fs::create_directories(p.parent_path(), ec);
@@ -351,8 +363,8 @@ std::string Configuraciones::crearSinAvisar(const std::string& nombre, const std
 }
 
 std::string Configuraciones::nuevoEvento(const std::string& nombre, const std::string& desde,
-                                         const std::string& descripcion) {
-    const std::string e = crearEvento(nombre, desde, descripcion, nullptr);
+                                         const std::string& descripcion, const std::string& cps) {
+    const std::string e = crearEvento(nombre, desde, descripcion, nullptr, cps);
     if (e.empty()) emit cambio();
     return e;
 }
@@ -374,8 +386,11 @@ std::string Configuraciones::origenDe(const std::string& desde, std::filesystem:
 }
 
 std::string Configuraciones::crearEvento(const std::string& nombre, const std::string& desde,
-                                         const std::string& descripcion, std::atomic<std::uintmax_t>* hechos) {
+                                         const std::string& descripcion, std::atomic<std::uintmax_t>* hechos,
+                                         const std::string& cps) {
     if (const std::string e = nombreValido(nombre); !e.empty()) return e;
+    if (!cpsValido(cps))
+        return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "«%1» no son cuadros por segundo (25, 50, 30000/1001…)"), {cps});
     const fs::path dst = carpeta(nombre);
     std::error_code ec;
     if (fs::exists(dst, ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "ya hay un evento «%1»"), {nombre});
@@ -428,6 +443,13 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
         }
         store.iniciar(ruta, QDateTime::currentMSecsSinceEpoch(), &e2);
     }
+    // El lienzo de la región que se eligió (F2-17): se ofrece al crear, nunca se cambia solo.
+    if (!cps.empty()) {
+        const fs::path app = dst / "Config" / "app.json";
+        json j = leerJson(app);
+        j["video"]["fps"] = cps.find('/') == std::string::npos ? json(std::stoi(cps)) : json(cps);
+        escribirJson(app, j);
+    }
     escribirJson(dst / "configuracion.json", {{"descripcion", descripcion},
                                               {"creada_ms", QDateTime::currentMSecsSinceEpoch()},
                                               {"desde", origen},
@@ -436,8 +458,10 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
 }
 
 QString Configuraciones::nuevoEventoAparte(const QString& nombre, const QString& desde, bool abrir,
-                                           std::function<void(QString)> listo) {
-    const std::string n = nombre.toStdString(), d = desde.toStdString();
+                                           std::function<void(QString)> listo, const QString& cpsQ) {
+    const std::string n = nombre.toStdString(), d = desde.toStdString(), cps = cpsQ.toStdString();
+    if (!cpsValido(cps))
+        return QString::fromStdString(ba::i18n::llenar(ba::i18n::traducir("configuraciones", "«%1» no son cuadros por segundo (25, 50, 30000/1001…)"), {cps}));
     if (!copia_.isEmpty()) return QString::fromStdString(ba::i18n::llenar(ba::i18n::traducir("configuraciones", "ya se está copiando «%1»"), {copia_.value("nombre").toString().toStdString()}));
     if (const std::string e = nombreValido(n); !e.empty()) return QString::fromStdString(e);
     std::error_code ec;
@@ -460,13 +484,13 @@ QString Configuraciones::nuevoEventoAparte(const QString& nombre, const QString&
     QPointer<Configuraciones> yo(this);
     auto hechos = std::make_shared<std::atomic<std::uintmax_t>>(0);
     copiaContador_ = hechos;
-    QThreadPool::globalInstance()->start([yo, n, d, abrir, hechos, listo = std::move(listo), total, de]() mutable {
+    QThreadPool::globalInstance()->start([yo, n, d, cps, abrir, hechos, listo = std::move(listo), total, de]() mutable {
         std::uintmax_t t = total;
         if (t == 0 && !de.empty()) t = bytesDe(de);
         QMetaObject::invokeMethod(
             QCoreApplication::instance(), [yo, t]() { if (yo && !yo->copia_.isEmpty()) yo->copia_["total"] = static_cast<double>(t); },
             Qt::QueuedConnection);
-        const std::string e = yo ? yo->crearEvento(n, d, {}, hechos.get()) : ba::i18n::traducir("configuraciones", "se cerró la app");
+        const std::string e = yo ? yo->crearEvento(n, d, {}, hechos.get(), cps) : ba::i18n::traducir("configuraciones", "se cerró la app");
         QMetaObject::invokeMethod(
             QCoreApplication::instance(),
             [yo, n, e, abrir, listo = std::move(listo)]() {
@@ -874,10 +898,10 @@ QString Configuraciones::vaciarPapeleraUi(const QString& id) { return QString::f
 QString Configuraciones::crearUi(const QString& n, const QString& d, const QString& desc) {
     return QString::fromStdString(crear(n.toStdString(), d.toStdString(), desc.toStdString()));
 }
-QString Configuraciones::nuevoEventoUi(const QString& n, const QString& desde, bool abrir) {
+QString Configuraciones::nuevoEventoUi(const QString& n, const QString& desde, bool abrir, const QString& cps) {
     // Una copia puede ser de varios GB (grabaciones): en otro hilo, con progreso (`copia`).
     if (n.toStdString() == activa() && abrir) return tr("ya es el evento abierto");
-    return nuevoEventoAparte(n, desde, abrir, {});
+    return nuevoEventoAparte(n, desde, abrir, {}, cps);
 }
 QString Configuraciones::marcarPlantillaUi(const QString& n, bool p) {
     return QString::fromStdString(marcarPlantilla(n.toStdString(), p));

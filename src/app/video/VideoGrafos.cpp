@@ -15,6 +15,7 @@
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "Piezas.hpp" // motor::redElectricaDelSistema, cadenciasDeLaRed
 #include "emision/InputSpecs.hpp"
 
 #include "emision/FuentesApp.hpp"
@@ -1722,6 +1723,15 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     out["lienzo"] = {{"ancho", v.baseWidth},
                      {"alto", v.baseHeight},
                      {"fps", v.fpsDen > 0 ? static_cast<double>(v.fpsNum) / v.fpsDen : 0.0}};
+    // La red eléctrica del país y las cadencias que no parpadean con ella (F2-17): lo que
+    // se le ofrece al operador, no se cambia solo.
+    {
+        const int hz = motor::redElectricaDelSistema();
+        json cad = json::array();
+        for (const auto& [n, d] : motor::cadenciasDeLaRed(hz)) cad.push_back(textoDeFps(n, d));
+        out["lienzo"]["red_hz"] = hz;
+        out["lienzo"]["cadencias_de_la_red"] = cad;
+    }
     const json sale = e.value("sale", json::object());
     out["ancho"] = sale.is_object() ? sale.value("ancho", 0) : 0;
     out["alto"] = sale.is_object() ? sale.value("alto", 0) : 0;

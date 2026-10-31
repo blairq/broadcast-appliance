@@ -92,6 +92,21 @@ int main(int argc, char** argv) {
         ba::evento::EventoStore copia(c / "Eventos");
         CHECK(copia.enCurso() == dos, "su evento en curso es el de la copia (no uno nuevo vacío)");
 
+        // El lienzo de la región (F2-17): se elige al crear; sin elegir, el que traiga.
+        CHECK(cf.nuevoEvento("Con red de 50", "cero", {}, "25").empty(), "uno de cero a 25 cps");
+        const auto app = [&](const char* n) {
+            std::ifstream f(datos / "Configuraciones" / n / "Config" / "app.json");
+            return nlohmann::json::parse(f, nullptr, false);
+        };
+        CHECK(app("Con red de 50").value("video", nlohmann::json::object()).value("fps", 0) == 25, "su lienzo, a 25 cps");
+        CHECK(cf.nuevoEvento("NTSC", "Principal", {}, "30000/1001").empty(), "una copia a 29,97");
+        CHECK(app("NTSC")["video"].value("fps", std::string()) == "30000/1001", "como lo guarda video.fps");
+        CHECK(!cf.nuevoEvento("Mal", "cero", {}, "rápido").empty() && !fs::exists(datos / "Configuraciones" / "Mal"),
+              "unos cps que no son, error y nada creado");
+        CHECK(!fs::exists(datos / "Configuraciones" / "Copia de trabajo" / "Config" / "app.json") ||
+                  !app("Copia de trabajo").value("video", nlohmann::json::object()).contains("fps"),
+              "sin elegir, no se toca");
+
         // Borrar va a la papelera y se recupera con su nombre (o con otro si ya está usado).
         escribir(datos / "configuraciones.json", R"({"activa": "Principal"})");
         CHECK(!cf.borrar("Principal").empty(), "el abierto no se borra");

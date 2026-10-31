@@ -3,6 +3,7 @@
 #include "ui/ImagenViewModel.hpp"
 
 #include "Motor.hpp"
+#include "Piezas.hpp" // motor::redElectricaDelSistema, cadenciasDeLaRed, avisosDeLaRed
 #include "arranque/AppRuntime.hpp"
 #include "control/BusEventos.hpp"
 #include "platform/Paths.hpp"
@@ -216,6 +217,20 @@ QObject* ImagenViewModel::seguidorQml() const { return deCpp(seguidor_.get()); }
 void ImagenViewModel::ajustesAplicados() {
     camaras_->sincronizar(); // Mejorar imagen general: rige ya
     video_->setLegalizar(p_.rt.config().legalizar);
+    emit redElectricaChanged(); // el lienzo pudo cambiar
+}
+
+QVariantMap ImagenViewModel::redElectrica() const {
+    const int hz = motor::redElectricaDelSistema();
+    const VideoConfig& v = p_.rt.config().video;
+    motor::Lienzo l;
+    l.fpsN = v.fpsNum;
+    l.fpsD = std::max(1, v.fpsDen);
+    const std::vector<std::string> avisos = motor::avisosDeLaRed(l, hz);
+    QVariantList cadencias;
+    for (const auto& [n, d] : motor::cadenciasDeLaRed(hz))
+        cadencias << QVariantMap{{"valor", qs(textoDeFps(n, d))}, {"texto", qs(fpsLegible(n, d))}};
+    return {{"hz", hz}, {"aviso", avisos.empty() ? QString() : qs(avisos.front())}, {"cadencias", cadencias}};
 }
 
 QVariantList ImagenViewModel::chequeosDelAparato(bool hayDestino) const {

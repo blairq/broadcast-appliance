@@ -224,6 +224,32 @@ Rectangle {
                             }
                         }
                     }
+                    // Video: un lienzo que parpadea con la red eléctrica del país (F2-17). Se
+                    // avisa y se ofrecen las cadencias de esa red; elegir una la pone en el
+                    // borrador (rige al aplicar, como cualquier otro cambio): nunca sola.
+                    Seccion {
+                        id: secRed
+                        readonly property var red: Studio.imagen ? Studio.imagen.redElectrica : ({})
+                        visible: page.section === "Video" && !!red.aviso
+                        titulo: qsTr("Red eléctrica de %1 Hz").arg(red.hz || 0)
+                        subtitulo: red.aviso || ""
+                        RowLayout {
+                            spacing: 8
+                            Text { text: qsTr("Usar:"); color: Theme.textDim; font.pixelSize: 12 }
+                            Repeater {
+                                model: secRed.red.cadencias || []
+                                delegate: GlassButton {
+                                    required property var modelData
+                                    compact: true
+                                    text: qsTr("%1 cps").arg(modelData.texto)
+                                    active: Studio.settings.draft["video.fps"] === modelData.valor
+                                    onClicked: Studio.settings.setValue("video.fps", modelData.valor)
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: qsTr("Lo pone en «Cuadros por segundo»; rige al aplicar (reinicia el video)")
+                                }
+                            }
+                        }
+                    }
                     CamposDeSeccion { Layout.fillWidth: true; seccion: page.section }
                     GlassButton {
                         Layout.topMargin: 10

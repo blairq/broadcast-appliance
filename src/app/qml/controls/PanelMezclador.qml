@@ -3,7 +3,7 @@
 // Lo que maneja: lo que SALE de cada entrada (después de su rack: los racks siguen
 // en la página Audio) y ADÓNDE va (la matriz de salida, desplegable abajo).
 //   - Entradas: una tira por fuente con audio: vúmetro (pico, RMS y retención por
-//     canal, dibujado en la GPU: Vumetro), fader, mute, escucha (PFL), AFV,
+//     canal, dibujado en la GPU: Vumetro), fader, mute, escucha (PFL/AFL), AFV,
 //     retardo, y los chips de sus envíos (clic: su fila en la matriz).
 //   - Salidas: Programa (con el loudness EBU R128 contra el objetivo), las pistas
 //     que reciben algo, los buses virtuales y las salidas de la placa.
@@ -227,16 +227,30 @@ Item {
                 color: Theme.textDim
                 font { family: Theme.font; pixelSize: 10 }
             }
-            // Mute, escucha, AFV.
+            // Mute, AFV.
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 3
                 Boton { texto: "M"; on: !!t.st.mute; colorOn: Theme.canalMute; ayuda: qsTr("Mute")
                         alTocar: () => { Studio.mixer.setMuted(t.nombre, !t.st.mute); m.leerTiras() } }
-                Boton { texto: "PFL"; on: !!t.st.pfl; colorOn: Theme.canalPfl; textoOn: "#1a1a1a"; ayuda: qsTr("Escucharla en los auriculares (se suma a lo que ya va ahí, como la voz del asistente)")
-                        alTocar: () => { const e = Studio.mezcla.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error"); m.leerTiras() } }
                 Boton { texto: "AFV"; on: Studio.escenas.afvFuentes.indexOf(t.nombre) >= 0; colorOn: Theme.canalAfv; ayuda: qsTr("Sigue al video: sube cuando su escena sale al aire")
                         alTocar: () => Studio.escenas.setAfv(t.nombre, Studio.escenas.afvFuentes.indexOf(t.nombre) < 0) }
+            }
+            // El solo de la escucha (uno a la vez, del modelo: Studio.mezcla.pfl/pflModo):
+            // PFL antes del fader; AFL con el fader y el mute de la salida que se ve acá.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 3
+                Boton { texto: "PFL"; on: Studio.mezcla.pfl === t.nombre && Studio.mezcla.pflModo === "pfl"
+                        colorOn: Theme.canalPfl; textoOn: "#1a1a1a"
+                        ayuda: qsTr("Escucharla sola en los auriculares, antes del fader (lo que entrega la entrada). Lo que ya iba ahí vuelve al soltarla")
+                        alTocar: () => { const e = Studio.mezcla.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error") } }
+                Boton { texto: "AFL"; on: Studio.mezcla.pfl === t.nombre && Studio.mezcla.pflModo === "afl"
+                        colorOn: Theme.canalPfl; textoOn: "#1a1a1a"
+                        ayuda: Studio.salidas.varias
+                               ? qsTr("Escucharla sola en los auriculares con el fader y el mute de «%1». Lo que ya iba ahí vuelve al soltarla").arg(Studio.salidas.activaDatos.nombre || "")
+                               : qsTr("Escucharla sola en los auriculares con su fader y su mute. Lo que ya iba ahí vuelve al soltarla")
+                        alTocar: () => { const e = Studio.mezcla.aflUi(t.nombre); if (e !== "") Studio.notify(e, "error") } }
             }
             // Sincronizar con el video (sincro labios): el retardo del canal.
             Boton {
@@ -644,6 +658,32 @@ Item {
         // Los faders, el mute y el AFV de las tiras mueven la mezcla de la elegida; el
         // rack, la matriz y las salidas de la placa son de las entradas: los mismos.
         SelectorSalida { Layout.fillWidth: true; visible: Studio.salidas.varias && m.pestana === "consola" }
+        // La salida de la escucha: de cuál son el fader y el mute de lo que va fijo a los
+        // auriculares (la tecla Escucha de la matriz). Del modelo (Studio.mezcla.salidaEscucha).
+        RowLayout {
+            Layout.fillWidth: true
+            visible: Studio.salidas.varias && m.pestana === "consola"
+            spacing: 6
+            Text {
+                text: qsTr("Auriculares con el fader de:")
+                color: Theme.textFaint
+                font { family: Theme.font; pixelSize: 11 }
+            }
+            Repeater {
+                model: Studio.salidas.lista
+                delegate: GlassButton {
+                    // Por `model`: el rol «id» choca con el del ítem.
+                    required property var model
+                    compact: true
+                    text: model.nombre
+                    active: Studio.mezcla.salidaEscucha === model.id
+                    onClicked: Studio.mezcla.salidaEscucha = model.id
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: qsTr("Lo que va fijo a los auriculares suena con el fader y el mute de «%1»").arg(model.nombre)
+                }
+            }
+            Item { Layout.fillWidth: true }
+        }
 
         // --- Calibración de sala (se crea la primera vez que se abre) ------------------
         Loader {

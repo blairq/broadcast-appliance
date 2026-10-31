@@ -52,14 +52,18 @@ void McpService::registerConfiguracionesTools() {
                         "(copia total de ese), «plantilla:<nombre>» (copia total de una plantilla; eventos_listar dice "
                         "cuáles) o «evento:<carpeta>/<inicio|cierre|ultima>» (solo los ajustes con que se hizo un "
                         "evento cerrado). Una copia puede tardar (grabaciones): la respuesta llega al terminar. Si no "
-                        "dijeron desde dónde, preguntá. `abrir: true` pasa a él (reinicia la app: no con algo al aire).");
+                        "dijeron desde dónde, preguntá. `abrir: true` pasa a él (reinicia la app: no con algo al aire). "
+                        "`cps`: los cuadros por segundo de su lienzo («25», «50», «30000/1001»; sin esto, los que "
+                        "traiga): con una red eléctrica de 50 Hz el lienzo de fábrica (30) puede parpadear con luces "
+                        "LED; video_estado (lienzo) dice la red y sus cadencias. Ofrecelo, no lo elijas solo.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"nombre", "desde"}},
                          {"properties",
                           {{"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "El nombre del evento.")}}},
                            {"desde", {{"type", "string"}}},
                            {"descripcion", {{"type", "string"}}},
-                           {"abrir", {{"type", "boolean"}}}}}};
+                           {"abrir", {{"type", "boolean"}}},
+                           {"cps", {{"type", "string"}}}}}};
         StudioViewModel* vm = &vm_;
         t.run = [cf, vm](const json& a, Done done) {
             const std::string n = a.value("nombre", std::string());
@@ -76,7 +80,8 @@ void McpService::registerConfiguracionesTools() {
                                                    "grabación en curso (abrirlo reinicia la app). Abrilo con "
                                                    "evento_cambiar cuando termine."), {n})));
                     done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Creado «%1». Para abrirlo: evento_cambiar (reinicia la app)."), {n})));
-                });
+                },
+                QString::fromStdString(a.value("cps", std::string())));
             if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
         };
         core_.addTool(std::move(t));

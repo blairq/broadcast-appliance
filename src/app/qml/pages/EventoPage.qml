@@ -1389,7 +1389,7 @@ Rectangle {
         width: 500
         modal: true
         title: qsTr("Evento nuevo")
-        onAboutToShow: { nombreEv.text = ""; modo = "cero"; abrirlo.checked = !(Studio.streaming || Studio.recording) }
+        onAboutToShow: { nombreEv.text = ""; modo = "cero"; cpsEv.currentIndex = 0; abrirlo.checked = !(Studio.streaming || Studio.recording) }
         ColumnLayout {
             width: nuevoEventoDlg.availableWidth
             spacing: 8
@@ -1442,6 +1442,24 @@ Rectangle {
                     valueRole: "carpeta"
                 }
             }
+            // El lienzo de la región (F2-17): las cadencias que no parpadean con la red eléctrica
+            // del país del sistema. Se ofrecen; de fábrica queda el que traiga.
+            RowLayout {
+                readonly property var red: Studio.imagen ? Studio.imagen.redElectrica : ({})
+                visible: (red.hz || 0) > 0
+                Layout.fillWidth: true
+                Text { text: qsTr("Cuadros por segundo:"); color: Theme.textDim; font.pixelSize: 12 }
+                ComboBox {
+                    id: cpsEv
+                    Layout.fillWidth: true
+                    textRole: "texto"
+                    valueRole: "valor"
+                    model: [{ texto: qsTr("los que traiga"), valor: "" }].concat(
+                               (parent.red.cadencias || []).map(c => ({ texto: qsTr("%1 (red de %2 Hz)").arg(c.texto).arg(parent.red.hz), valor: c.valor })))
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: qsTr("Con una red eléctrica de %1 Hz, un lienzo de otra cadencia puede hacer parpadear las luces LED en cámara.").arg(parent.red.hz || 0)
+                }
+            }
             CheckBox {
                 id: abrirlo
                 text: (Studio.streaming || Studio.recording) ? qsTr("Abrirlo ahora (no: hay algo al aire o grabando)") : qsTr("Abrirlo ahora (la app se reinicia con él)")
@@ -1458,7 +1476,8 @@ Rectangle {
                         const m = nuevoEventoDlg.modo
                         const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentValue : m
                         // En otro hilo (una copia puede tardar): el progreso arriba, el aviso al terminar.
-                        const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked && !(Studio.streaming || Studio.recording))
+                        const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked && !(Studio.streaming || Studio.recording),
+                                                                  cpsEv.currentValue || "")
                         if (e !== "") { Studio.notify(e, "error"); return }
                         nuevoEventoDlg.close()
                     }

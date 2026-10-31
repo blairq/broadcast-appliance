@@ -19,8 +19,14 @@
 //      baja a la profundidad con la constante de ataque (10 ms), no sube en los huecos
 //      entre sílabas (sin bombeo) y, 150 ms después de la voz, vuelve con la liberación
 //      (300 ms), sin saltos.
+//   6. Las voces de B (F2-14, F3-13; LectorVoz.hpp: operador, atendedor, asistente del
+//      registro): con un escritor a 100 bloques/s y callado (el anillo abierto, nada
+//      escrito), el bucle de antes (cada 2 ms) contra el de ahora (dormido en el timbre):
+//      despertadas del sistema y vueltas por segundo, bloques perdidos y demora. Sin
+//      anillo, un intento cada medio segundo.
 
 #include "Ducking.hpp"
+#include "LectorVoz.hpp"
 #include "MediaRoute.hpp"
 #include "RetornoLugar.hpp"
 #include "Room.hpp"
@@ -28,6 +34,7 @@
 #include "ipc/MedidaTransporte.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "platform/Ritmo.hpp"
+#include "tests/Despertadas.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -371,6 +378,125 @@ void ducking() {
     CHECK(std::fabs(db(hondo.ganancia()) + 20.0) < 0.5, "con −20 dB baja a −20 dB");
 }
 
+// --- 6. Las voces (F2-14, F3-13) ---------------------------------------------------------
+
+/// Lo que se midió en una fase de las voces.
+struct FaseVoz {
+    double despertadasS = 0; ///< del proceso, menos las del escritor solo
+    double vueltasS = 0;     ///< vueltas del bucle del lector
+    std::uint64_t escritos = 0, leidos = 0;
+    double demoraMediaMs = 0;
+};
+
+/// Un escritor como la app (un bloque cada 10 ms, `escribe` = false: el anillo abierto y nadie
+/// habla) y, si `lector`, el bucle de una voz de B: el de antes (cada 2 ms con platform::Ritmo)
+/// o el de ahora (voz::leer, el de MediaPump::bajarVoz, dormido en el timbre).
+FaseVoz faseVoz(const char* base, bool escribe, int lector, double segundos) {
+    enum { kNinguno = 0, kAntes = 1, kAhora = 2 };
+    const std::wstring n = nombre(base);
+    SharedAudioRing esc;
+    CHECK(SharedAudioRing::init(n.c_str(), 2, 16, static_cast<uint32_t>(ba_getpid()), 1, esc).ok, "anillo de la voz");
+    std::atomic<bool> fin{false};
+    std::atomic<std::uint64_t> vueltas{0}, leidos{0}, demora{0};
+    const auto alBloque = [&](const PoppedBlock& b, std::size_t) {
+        leidos.fetch_add(1);
+        demora.fetch_add(HealthBlock::nowQpc() - b.qpc);
+    };
+    std::thread t;
+    if (lector == kAntes)
+        t = std::thread([&] {
+            SharedAudioRing r;
+            CHECK(SharedAudioRing::openReader(n.c_str(), r).ok, "abrir la voz");
+            std::vector<float> buf;
+            ba::platform::Ritmo ritmo{std::chrono::milliseconds(2)};
+            while (!fin.load()) {
+                vueltas.fetch_add(1);
+                leerPendientes(r, buf, alBloque);
+                ritmo.esperar();
+            }
+        });
+    else if (lector == kAhora)
+        t = std::thread([&] {
+            std::vector<float> buf;
+            ba::gateway::voz::leer(
+                n, [&] { return !fin.load(); }, [] {}, [&](SharedAudioRing& r) { leerPendientes(r, buf, alBloque); },
+                [&] { vueltas.fetch_add(1); });
+        });
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // que abra y se duerma
+    std::vector<float> b(kFloats, 0.1f);
+    const long d0 = ba::pruebas::despertadasDelProceso();
+    const std::uint64_t v0 = vueltas.load();
+    const auto desde = std::chrono::steady_clock::now();
+    auto proximo = desde;
+    std::uint64_t escritos = 0;
+    while (std::chrono::steady_clock::now() - desde < std::chrono::duration<double>(segundos)) {
+        proximo += std::chrono::milliseconds(10);
+        ba::platform::dormirHasta(proximo);
+        if (escribe) {
+            esc.push(b.data(), HealthBlock::nowQpc());
+            ++escritos;
+        }
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    const double seg = std::chrono::duration<double>(std::chrono::steady_clock::now() - desde).count();
+    FaseVoz f;
+    f.despertadasS = static_cast<double>(ba::pruebas::despertadasDelProceso() - d0) / seg;
+    f.vueltasS = static_cast<double>(vueltas.load() - v0) / seg;
+    fin.store(true);
+    if (t.joinable()) t.join();
+    f.escritos = escritos;
+    f.leidos = leidos.load();
+    f.demoraMediaMs = static_cast<double>(demora.load()) / static_cast<double>(std::max<std::uint64_t>(1, f.leidos)) / 1e6;
+    return f;
+}
+
+void voces() {
+    const double seg = 2.0;
+    const double base = faseVoz("VozBase", true, 0, seg).despertadasS; // el escritor solo
+    const FaseVoz antes = faseVoz("VozAntes", true, 1, seg);
+    const FaseVoz ahora = faseVoz("VozAhora", true, 2, seg);
+    const double baseQuieta = faseVoz("VozBaseQuieta", false, 0, seg).despertadasS;
+    const FaseVoz quietaAntes = faseVoz("VozQuietaAntes", false, 1, seg);
+    const FaseVoz quietaAhora = faseVoz("VozQuietaAhora", false, 2, seg);
+    const auto mostrar = [](const char* que, const FaseVoz& f, double b) {
+        std::printf("  %-36s %6.1f despertadas/s, %6.1f vueltas/s, %llu de %llu leídos, demora media %.2f ms\n", que,
+                    std::max(0.0, f.despertadasS - b), f.vueltasS, (unsigned long long)f.leidos,
+                    (unsigned long long)f.escritos, f.demoraMediaMs);
+    };
+    std::printf("voces de B (un bloque cada 10 ms; despertadas del lector: las del proceso menos las del escritor solo, "
+                "%.1f/s y %.1f/s quieto)\n",
+                base, baseQuieta);
+    mostrar("hablando, cada 2 ms (antes)", antes, base);
+    mostrar("hablando, timbre (ahora)", ahora, base);
+    mostrar("callada, cada 2 ms (antes)", quietaAntes, baseQuieta);
+    mostrar("callada, timbre (ahora)", quietaAhora, baseQuieta);
+    CHECK(ahora.leidos + 1 >= ahora.escritos, "con el timbre la voz no pierde bloques");
+    CHECK(ahora.vueltasS < 0.5 * antes.vueltasS, "bastante menos vueltas que cada 2 ms");
+    CHECK(ahora.demoraMediaMs <= antes.demoraMediaMs + 0.5, "la demora media no crece");
+    if (Timbre::hayPrimitiva()) {
+        CHECK(ahora.vueltasS < 1.3 * 100, "con el timbre, una vuelta por bloque");
+        CHECK(quietaAhora.vueltasS <= 2.0, "callada, con el timbre, casi ninguna vuelta");
+        if (antes.despertadasS > 0)
+            CHECK(ahora.despertadasS - base < 0.5 * (antes.despertadasS - base), "bastante menos despertadas del sistema");
+    }
+    // Un anillo que no está (el canal no conversa): un intento cada kReintento, no cada 50 ms.
+    std::atomic<int> vueltasSin{0};
+    std::atomic<bool> fin{false};
+    std::thread t([&] {
+        ba::gateway::voz::leer(
+            nombre("VozQueNoEsta"), [&] { vueltasSin.fetch_add(1); return !fin.load(); }, [] {},
+            [](SharedAudioRing&) {}, [] {});
+    });
+    std::this_thread::sleep_for(std::chrono::duration<double>(seg));
+    fin.store(true);
+    const auto parar = std::chrono::steady_clock::now();
+    t.join();
+    const double pararMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - parar).count();
+    std::printf("  %-36s %6.1f vueltas/s; para en %.0f ms\n", "sin anillo", vueltasSin.load() / seg, pararMs);
+    CHECK(vueltasSin.load() / seg < 5.0, "sin anillo, un intento cada medio segundo (antes: de a 50 ms)");
+    CHECK(pararMs < 600.0, "sin anillo, para en menos de un reintento");
+}
+
 } // namespace
 
 int main() {
@@ -382,6 +508,7 @@ int main() {
     sinSuVoz(false);
     salaPublica();
     ducking();
+    voces();
     std::printf("== test_retorno_ritmo: %s ==\n", g_fallos == 0 ? "OK" : "FALLOS");
     return g_fallos == 0 ? 0 : 1;
 }

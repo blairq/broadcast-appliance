@@ -407,8 +407,8 @@ Item {
                                             color: "#0b0b0d"; font { pixelSize: 9; weight: Font.Bold; family: Theme.mono }
                                         }
                                     }
-                                    // PFL (escuchar un canal un rato, se suma a la escucha fija): aro
-                                    // amarillo como el botón PFL; la tecla sigue siendo la escucha fija.
+                                    // En solo (PFL/AFL: escuchar un canal solo un rato; la escucha fija
+                                    // espera): aro amarillo como el botón; la tecla sigue siendo la fija.
                                     Rectangle {
                                         visible: !!x0.c.pfl
                                         anchors.centerIn: parent
@@ -439,7 +439,7 @@ Item {
                                         ToolTip.visible: containsMouse
                                         ToolTip.delay: 450
                                         ToolTip.text: x0.f + " → " + x0.modelData.nombre +
-                                            (x0.c.pfl ? "\n" + qsTr("en PFL (se suma mientras esté prendido; el clic cambia la escucha fija)") : "") +
+                                            (x0.c.pfl ? "\n" + qsTr("en solo (PFL/AFL: mientras dure suena solo esta; el clic cambia la escucha fija)") : "") +
                                             (x0.modelData.tipo === "pista" ? "" : "\n" + qsTr("clic derecho: nivel, pan y mute"))
                                     }
                                 }

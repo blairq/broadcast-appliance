@@ -85,6 +85,7 @@ class Mezclador : public QObject {
     /// loudness (PLAN-SALIDAS: la salida activa de la interfaz, que tiene su propia mezcla;
     /// "" = la por omisión). Lo mueve el modelo del estudio con la salida activa.
     void setSalida(const std::string& salida) { salida_ = salida; }
+    const std::string& salida() const { return salida_; }
     /// A qué destinos va cada entrada: {nombre: [ids]} (para los chips de envío).
     Q_INVOKABLE QVariantMap envios() const;
     QVariantList analisisLsp() const;

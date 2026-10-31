@@ -18,6 +18,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "dispositivos/Dispositivos.hpp"
 #include "emision/InputSpecs.hpp"
+#include "Piezas.hpp" // motor::avisoDeCadenciaDeCamara
 #include "video/Camaras.hpp"
 #if defined(BA_HAVE_NDI)
 #include "emision/NdiSource.hpp"
@@ -284,6 +285,17 @@ void InputsViewModel::rebuildInputs() {
             {"state", QString::fromStdString(media.count(n) ? media[n] : std::string())},
             {"scenes", inScenes}};
         fila.insert(disp);
+        // Una cámara a otra cadencia casi igual que el lienzo (29,97 en 30, F2-17): videorate
+        // repite o tira un cuadro cada tanto. El modo que eligió el motor dice su cadencia.
+        if (hw) {
+            const json est = e.estadoEntrada(n);
+            const json modo = est.is_object() ? est.value("modo_camara", json()) : json();
+            motor::Lienzo l;
+            l.fpsN = rt_.config().video.fpsNum;
+            l.fpsD = std::max(1, rt_.config().video.fpsDen);
+            const std::string aviso = motor::avisoDeCadenciaDeCamara(modo.is_object() ? modo.value("cps", 0.0) : 0.0, l);
+            if (!aviso.empty()) fila["aviso"] = QString::fromStdString(aviso);
+        }
         // Lo técnico queda a mano (tooltip); a la vista, el nombre del dispositivo.
         fila["tecnico"] = fila.value("where");
         if (!disp.value("dispositivo").toString().isEmpty()) fila["where"] = disp.value("dispositivo");

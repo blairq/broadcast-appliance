@@ -45,8 +45,12 @@ class MezclaViewModel : public QObject {
     Q_OBJECT
     /// Balística de los medidores (T31): "pico", "ppm" (EBU tipo IIb) o "vu".
     Q_PROPERTY(QString balistica READ balistica WRITE setBalistica NOTIFY balisticaChanged)
-    /// La fuente que se escucha por el monitor (PFL), "" si ninguna.
+    /// La fuente en solo por el monitor (PFL o AFL), "" si ninguna.
     Q_PROPERTY(QString pfl READ pfl NOTIFY pflChanged)
+    /// Cómo es el solo: "pfl" (antes del fader) o "afl" (con el fader de la salida activa); "" sin solo.
+    Q_PROPERTY(QString pflModo READ pflModo NOTIFY pflChanged)
+    /// La salida de la escucha fija: de cuál son su fader y su mute ("" = la por omisión).
+    Q_PROPERTY(QString salidaEscucha READ salidaEscucha WRITE setSalidaEscucha NOTIFY pflChanged)
    public:
     struct Partes {
         AppRuntime& rt;
@@ -78,8 +82,13 @@ class MezclaViewModel : public QObject {
     QString balistica() const;
     void setBalistica(const QString& b);
     QString pfl() const;
+    QString pflModo() const;
+    QString salidaEscucha() const;
+    void setSalidaEscucha(const QString& salida);
     /// PFL exclusivo: escucha `fuente` por el monitor (o la apaga si ya era esa). "" o el error.
     Q_INVOKABLE QString pflUi(const QString& fuente);
+    /// AFL: lo mismo con el fader y el mute de la salida activa (la del Mezclador).
+    Q_INVOKABLE QString aflUi(const QString& fuente);
     /// Retardo del audio de una fuente respecto de su video (ms, como audio_sincro).
     Q_INVOKABLE int retardoUi(const QString& fuente) const;
     Q_INVOKABLE QString setRetardoUi(const QString& fuente, int ms);

@@ -178,7 +178,9 @@ QVariantMap Mezclador::tira(const QString& nombre) const {
     return {{"nombre", nombre},
             {"volumenDb", v > 1e-5f ? 20.0 * std::log10(v) : -100.0},
             {"mute", eng.sourceMuted(n, salida_)},
-            {"pfl", eng.pfl() == n},
+            // El solo de la escucha (F2-03): antes del fader (PFL) o con el de esta salida (AFL).
+            {"pfl", eng.pfl() == n && eng.pflModo() == "pfl"},
+            {"afl", eng.pfl() == n && eng.pflModo() == "afl"},
             // El retardo respecto de su video (sincro labios, audio_sincro): positivo atrasa.
             {"retardoMs", eng.sourceSyncOffset(n)},
             {"envios", matriz_ != nullptr ? matriz_->enviosDe(nombre) : QStringList{}}};
@@ -215,6 +217,7 @@ nlohmann::json Mezclador::estado() const {
                {"volumen_db", std::round(t.value("volumenDb").toDouble() * 10) / 10},
                {"mute", t.value("mute").toBool()},
                {"pfl", t.value("pfl").toBool()},
+               {"afl", t.value("afl").toBool()},
                {"retardo_ms", t.value("retardoMs").toInt()}};
         json env = json::array();
         for (const QString& s : t.value("envios").toStringList()) env.push_back(s.toStdString());
