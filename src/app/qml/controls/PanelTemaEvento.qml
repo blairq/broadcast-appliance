@@ -13,11 +13,15 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import BA
 
-ColumnLayout {
+// La raíz no es un layout: el panel va adentro de la columna de la página, y una columna
+// adentro de otra le suma una vuelta de acomodarse por nivel a cada texto que se parte
+// (con los avisos cambiando, «polish loop»). Su alto sale de `cuerpo`, que se acomoda solo.
+Item {
     id: raiz
-    spacing: 12
+    implicitHeight: cuerpo.implicitHeight
 
     readonly property var te: Studio.temaEvento
+    readonly property bool hay: !!te && te.hayEvento
     readonly property var tema: te ? te.tema : ({})
     readonly property var res: te ? te.resuelto : ({})
     readonly property var col: res.colores || ({})
@@ -50,30 +54,32 @@ ColumnLayout {
         }
     }
 
-    Text {
-        Layout.fillWidth: true
-        text: qsTr("La cara del evento abierto en todas las páginas web: la del evento, la de invitados, la sesión remota, las consultas del público, el tótem y las pantallas de la sala. Las consolas de los operadores toman lo que diga el alcance.")
-        color: Theme.textDim
-        font.pixelSize: 13
-        wrapMode: Text.WordWrap
-    }
-
-    Text {
-        visible: !raiz.te || !raiz.te.hayEvento
-        Layout.fillWidth: true
-        text: qsTr("No hay ningún evento abierto: el tema es de cada evento (abrí uno en Guion).")
-        color: Theme.warn
-        font.pixelSize: 13
-        wrapMode: Text.WordWrap
-    }
-
     ColumnLayout {
-        visible: !!raiz.te && raiz.te.hayEvento
-        Layout.fillWidth: true
+        id: cuerpo
+        anchors { left: parent.left; right: parent.right; top: parent.top }
         spacing: 12
 
         Text {
-            visible: raiz.te && raiz.te.delSitio
+            Layout.fillWidth: true
+            text: qsTr("La cara del evento abierto en todas las páginas web: la del evento, la de invitados, la sesión remota, las consultas del público, el tótem y las pantallas de la sala. Las consolas de los operadores toman lo que diga el alcance.")
+            color: Theme.textDim
+            font.pixelSize: 13
+            wrapMode: Text.WordWrap
+        }
+
+        Text {
+            visible: !raiz.hay
+            Layout.fillWidth: true
+            text: qsTr("No hay ningún evento abierto: el tema es de cada evento (abrí uno en Guion).")
+            color: Theme.warn
+            font.pixelSize: 13
+            wrapMode: Text.WordWrap
+        }
+
+        // Lo del evento abierto, directo en la columna (sin otra columna en el medio: ver arriba);
+        // sin evento, cada cosa se esconde con `hay`.
+        Text {
+            visible: raiz.hay && raiz.te.delSitio
             Layout.fillWidth: true
             text: qsTr("Por ahora el acento y el fondo salen de los colores del sitio del evento. Al cambiar algo acá, el evento pasa a tener su tema propio.")
             color: Theme.textDim
@@ -83,6 +89,7 @@ ColumnLayout {
 
         // --- La muestra, con los colores que van a salir -----------------------------------
         Rectangle {
+            visible: raiz.hay
             Layout.fillWidth: true
             Layout.preferredHeight: 150
             radius: 12
@@ -140,7 +147,7 @@ ColumnLayout {
 
         // Los avisos de contraste (los calcula el modelo, igual que el gateway).
         Repeater {
-            model: raiz.te ? raiz.te.avisos : []
+            model: raiz.hay ? raiz.te.avisos : []
             delegate: Text {
                 required property string modelData
                 Layout.fillWidth: true
@@ -153,6 +160,7 @@ ColumnLayout {
 
         // --- Colores ---------------------------------------------------------------------
         Seccion {
+            visible: raiz.hay
             titulo: qsTr("Colores")
             subtitulo: qsTr("Vacío = se calcula (el texto encima del acento sale del contraste). En #rrggbb.")
             RowLayout {
@@ -212,6 +220,7 @@ ColumnLayout {
 
         // --- Marca -----------------------------------------------------------------------
         Seccion {
+            visible: raiz.hay
             titulo: qsTr("Nombre y logo")
             subtitulo: qsTr("SVG, PNG o WebP de hasta 2 MB. El logo claro es para los fondos oscuros; el favicon, la pestaña del navegador (si no hay, va el logo).")
             RowLayout {
@@ -257,6 +266,7 @@ ColumnLayout {
 
         // --- Tipografía ----------------------------------------------------------------
         Seccion {
+            visible: raiz.hay
             titulo: qsTr("Letra")
             subtitulo: qsTr("Fuentes propias (WOFF2, WOFF, TTF u OTF de hasta 4 MB): viajan con el evento, sin internet. Lo que la fuente no tiene (chino, árabe…) sale con la del sistema.")
             RowLayout {
@@ -313,6 +323,7 @@ ColumnLayout {
 
         // --- Alcance ----------------------------------------------------------------------
         Seccion {
+            visible: raiz.hay
             titulo: qsTr("Dónde se aplica")
             subtitulo: qsTr("Nunca cambian los colores con significado: tally, al aire y armado, vúmetros, sí y no de la votación.")
             Repeater {
@@ -349,6 +360,7 @@ ColumnLayout {
         }
 
         RowLayout {
+            visible: raiz.hay
             Layout.fillWidth: true
             spacing: 8
             GlassButton {

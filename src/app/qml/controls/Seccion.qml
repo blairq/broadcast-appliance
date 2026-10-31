@@ -31,18 +31,25 @@ Rectangle {
         id: col
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12; leftMargin: 14; rightMargin: 14 }
         spacing: 8
-        RowLayout {
+        // El encabezado, sin layouts adentro: el subtítulo se parte según el ancho y, en una
+        // fila con una columna adentro, cada cambio de alto le costaba a `col` una vuelta más
+        // de acomodarse por nivel (angosta o con el texto cambiando, «polish loop»). Así su
+        // alto sale del ancho que le da `col`, en una sola vuelta.
+        Item {
+            id: cabeza
             Layout.fillWidth: true
             visible: sec.titulo !== "" || extraFila.children.length > 0
-            spacing: 8
-            ColumnLayout {
-                Layout.fillWidth: true
+            implicitHeight: Math.max(textos.implicitHeight, extraFila.implicitHeight)
+            Column {
+                id: textos
+                anchors { left: parent.left; right: extraFila.left; rightMargin: extraFila.width > 0 ? 8 : 0; verticalCenter: parent.verticalCenter }
                 spacing: 1
-                Text { visible: sec.titulo !== ""; text: sec.titulo; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
-                Text { Layout.fillWidth: true; visible: sec.subtitulo !== ""; wrapMode: Text.WordWrap
+                Text { width: parent.width; visible: sec.titulo !== ""; text: sec.titulo; elide: Text.ElideRight
+                       color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                Text { width: parent.width; visible: sec.subtitulo !== ""; wrapMode: Text.WordWrap
                        text: sec.subtitulo; color: Theme.textFaint; font.pixelSize: 11 }
             }
-            RowLayout { id: extraFila; spacing: 8 }
+            RowLayout { id: extraFila; anchors { right: parent.right; verticalCenter: parent.verticalCenter } spacing: 8 }
         }
     }
 }
