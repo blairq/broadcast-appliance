@@ -1216,13 +1216,13 @@ int main(int argc, char** argv) {
         return d.first == "callado" && d.second == plano.hilo();
     });
     std::printf("  medido: M: %d órdenes de la mezcla hechas con la interfaz trabada (%.0f ms); %zu alarmas de audio en la traba; "
-                "%zu lecturas del canalM desde otro hilo\n",
+                "%zu lecturas del canal desde otro hilo\n",
                 ordenesM.load(), msDesde(desdeTrabaM), enLaTrabaM.size(), picosLeidosM.size());
     CHECK(ordenesM.load() == 3 && enLaInterfazM.load() == 0 && sinTurnoM.load() == 0,
           "M: con la interfaz trabada, el fader, el mute y el PFL se hacen en el control, con el turno");
     CHECK(fotoQuietaM, "M: la foto de la mezcla de la interfaz no cambió durante la traba");
     CHECK(!picosLeidosM.empty() && std::all_of(picosLeidosM.begin(), picosLeidosM.end(), [](float p) { return p > -1.0f; }),
-          "M: los niveles se leen del canalM sin el turno ni la interfaz");
+          "M: los niveles se leen del canal sin el turno ni la interfaz");
     CHECK(saturaEnControl, "M: la saturación de un micrófono sale en el control con la interfaz trabada");
     CHECK(calladoEnControl, "M: el silencio de un micrófono también");
     CHECK(dondeLeyoAudioM.load() == plano.hilo(), "M: el audio de cada entrada lo lee el vigía (directo), no la interfaz");
