@@ -1100,10 +1100,7 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
         ctx["guion"] = guion;
         ctx["evento"] = QJsonObject{{"nombre", evento_->property("nombre").toString()}};
     }
-    ctx["hora"] = QTime::currentTime().toString("HH:mm");
-    // Campos vivos (T43): cambian cada segundo; en un vínculo «vivo» el gráfico se
-    // actualiza sin volver a entrar.
-    ctx["hora_s"] = QTime::currentTime().toString("HH:mm:ss");
+    // La hora ({hora}, {hora_s}) la pone Vinculos: su reloj sigue sin la interfaz.
     // El punto en tratamiento, el orador presencial (manda sobre el de la sala), el
     // quórum y la última votación oficial: los de la asamblea.
     if (asamblea_) asamblea_->completarVinculos(ctx);

@@ -1308,6 +1308,13 @@ endif()
     target_link_libraries(test_correccion PRIVATE ba_core Qt6::Core)
     set_target_properties(test_correccion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_correccion COMMAND test_correccion)
+    # F3-03: lo que sale al aire se pinta en su hilo, con la interfaz trabada también.
+    add_executable(test_pintor_aire tests/test_pintor_aire.cpp emision/PintorAire.cpp agent/Subtitulos.cpp
+                   agent/FlujosTexto.cpp agent/FlujosTexto.hpp emision/FuentesApp.cpp)
+    target_include_directories(test_pintor_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_pintor_aire PRIVATE ba_core Qt6::Core Qt6::Gui)
+    set_target_properties(test_pintor_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_pintor_aire COMMAND test_pintor_aire)
     add_executable(test_notificador tests/test_notificador.cpp agent/Notificador.cpp agent/Notificador.hpp)
     target_include_directories(test_notificador PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_notificador PRIVATE ba_core Qt6::Core Qt6::Network)

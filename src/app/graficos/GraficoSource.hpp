@@ -57,7 +57,9 @@ void registerSourceType();
 /// Las instancias que hay en las escenas.
 std::vector<InstanciaInfo> instancias();
 
-/// Le da a una instancia los cuadros ya dibujados y arranca la reproducción.
+/// Le da a una instancia los cuadros ya dibujados y arranca la reproducción. La llama el
+/// hilo que dibuja para el aire (Emisor), no la interfaz: un gráfico sigue entrando
+/// aunque la interfaz esté trabada.
 ///
 /// :param fps: a cuántos cuadros por segundo se dibujaron.
 /// :param repetir: para un ticker; para un zócalo va en false y el último

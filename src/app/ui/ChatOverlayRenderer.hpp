@@ -6,6 +6,12 @@
 // dibuja con QPainter sobre fondo transparente (burbujas con nombre en color)
 // y entrega el cuadro a cada instancia de la fuente (ChatOverlaySource), con
 // su propio tamaño y estilo. Solo redibuja cuando algo cambio.
+//
+// DOS HILOS. Juntar los mensajes es leer modelos de la interfaz: eso queda en
+// la interfaz (cada 400 ms), y deja una COPIA. Filtrar, desvanecer los viejos
+// (fade_sec), dibujar y entregar corre en su hilo («chat-aire», ver
+// emision/PintorAire.hpp): con la interfaz trabada, el chat al aire sigue
+// desvaneciendo lo que tiene.
 // ============================================================================
 #pragma once
 
@@ -15,6 +21,14 @@
 #include <QSet>
 #include <QStringList>
 #include <QTimer>
+
+#include <memory>
+#include <mutex>
+#include <vector>
+
+namespace ba::app::fuentes {
+class PintorAire;
+}
 
 namespace ba::app {
 
@@ -38,6 +52,7 @@ class ChatOverlayRenderer : public QObject {
 
     ChatOverlayRenderer(YouTubeViewModel& yt, ConferenceViewModel& conf, TwitchViewModel& tw,
                         FacebookViewModel& fb, QObject* parent = nullptr);
+    ~ChatOverlayRenderer() override;
 
     /// Dibuja un cuadro (lo usan tambien los tests y el MCP para mostrarlo).
     static QImage render(const std::vector<Message>& msgs, int width, int height, int fontSize, int bgOpacity,
@@ -50,14 +65,22 @@ class ChatOverlayRenderer : public QObject {
     QStringList destacados() const { return QStringList(destacados_.begin(), destacados_.end()); }
 
    private:
-    void tick();
+    /// En la interfaz: junta los mensajes y deja la copia para el hilo que pinta.
+    void recoger();
+    /// En el hilo que pinta: filtra, desvanece, dibuja y entrega lo que cambió.
+    void pintar();
     YouTubeViewModel& yt_;
     ConferenceViewModel& conf_;
     TwitchViewModel& tw_;
     FacebookViewModel& fb_;
     QTimer timer_;
-    QHash<quint64, QString> lastSig_; // instancia -> firma de lo ultimo entregado
-    QSet<QString> destacados_;        // keys de los mensajes destacados
+    QSet<QString> destacados_; // keys de los mensajes destacados (interfaz)
+    /// La copia que pinta el otro hilo (bajo fotoM_).
+    std::mutex fotoM_;
+    std::vector<Message> foto_;
+    QSet<QString> fotoDestacados_;
+    QHash<quint64, QString> lastSig_; // instancia -> firma de lo ultimo entregado (solo el hilo que pinta)
+    std::unique_ptr<fuentes::PintorAire> pintor_; ///< último: se apaga primero
 };
 
 } // namespace ba::app

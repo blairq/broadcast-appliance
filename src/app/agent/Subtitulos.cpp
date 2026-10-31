@@ -4,6 +4,7 @@
 #include "ajustes/Ajustes.hpp"
 
 #include "emision/FuentesApp.hpp"
+#include "emision/PintorAire.hpp"
 #include "agent/FlujosTexto.hpp"
 
 #include <QColor>
@@ -187,11 +188,11 @@ Subtitulos::Subtitulos(FlujosTexto& flujos, QObject* parent) : QObject(parent), 
     t.botones["limpiar"] = [this](const std::string& fuente) { limpiar(fuente, {}); };
     fuentes::registrar(std::move(t));
     connect(&flujos_, &FlujosTexto::frase, this, &Subtitulos::alFrase);
-    connect(&timer_, &QTimer::timeout, this, &Subtitulos::tic);
-    timer_.start(kTicMs);
+    pintor_ = std::make_unique<fuentes::PintorAire>("subtitulos", std::chrono::milliseconds(kTicMs), [this]() { tic(); });
 }
 
 Subtitulos::~Subtitulos() {
+    pintor_.reset(); // antes que el estado que usa
     if (gActivo == this) gActivo = nullptr;
 }
 
@@ -200,6 +201,7 @@ Subtitulos* Subtitulos::activo() { return gActivo; }
 void Subtitulos::alFrase(const QString& flujo, const QString& texto) {
     const std::string fl = flujo.toStdString(), t = texto.toStdString();
     if (t.empty()) return;
+    std::lock_guard<std::mutex> l(mu_);
     for (const auto& f : fuentes::de(kTipo)) {
         if (f.ajustes.value("flujo", std::string()) != fl) continue;
         Estado& e = estados_[f.id];
@@ -220,6 +222,7 @@ int Subtitulos::cuadrosDe(const QString& flujo) const {
 
 int Subtitulos::limpiar(const std::string& nombre, const std::string& flujo) {
     int n = 0;
+    std::lock_guard<std::mutex> l(mu_);
     for (const auto& f : fuentes::de(kTipo)) {
         if (!nombre.empty() && f.nombre != nombre) continue;
         if (!flujo.empty() && f.ajustes.value("flujo", std::string()) != flujo) continue;
@@ -235,6 +238,15 @@ int Subtitulos::limpiar(const std::string& nombre, const std::string& flujo) {
 
 void Subtitulos::tic() {
     const double seg = kTicMs / 1000.0;
+    // Lo que hay que redibujar, para dibujarlo FUERA del mutex (una frase que llega
+    // no espera al dibujo).
+    struct Dibujo {
+        std::uint64_t id;
+        json ajustes;
+        std::vector<std::string> lineas;
+    };
+    std::vector<Dibujo> dibujos;
+    std::unique_lock<std::mutex> l(mu_);
     std::map<std::uint64_t, Estado> vivos;
     for (const auto& f : fuentes::de(kTipo)) {
         Estado e = std::move(estados_[f.id]);
@@ -269,12 +281,16 @@ void Subtitulos::tic() {
         if (e.restante > 0) e.vacio = 0;
         if (e.cambio) {
             e.cambio = false;
-            const QImage img = dibujar(a, e.actual);
-            fuentes::empujar(f.id, img.constBits(), img.width(), img.height(), static_cast<int>(img.bytesPerLine()));
+            dibujos.push_back({f.id, a, e.actual});
         }
         vivos[f.id] = std::move(e);
     }
     estados_ = std::move(vivos);
+    l.unlock();
+    for (const Dibujo& d : dibujos) {
+        const QImage img = dibujar(d.ajustes, d.lineas);
+        fuentes::empujar(d.id, img.constBits(), img.width(), img.height(), static_cast<int>(img.bytesPerLine()));
+    }
 }
 
 } // namespace ba::app::agent

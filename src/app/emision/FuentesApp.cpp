@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <atomic>
 #include <mutex>
+#include <shared_mutex>
 
 namespace ba::app::fuentes {
 
@@ -21,6 +22,10 @@ std::map<std::string, Instancia> gVivas; // por nombre
 std::uint64_t gProximo = 1;
 std::uint64_t gVersion = 0;
 Salida gSalida;
+/// Quien entrega un cuadro lo tiene compartido MIENTRAS llama a la salida: lo pintan
+/// varios hilos (el de los gráficos, el de los subtítulos…) y, al apagarse el motor,
+/// ponerSalida(nullptr) espera a que terminen antes de que el motor se vaya.
+std::shared_mutex gSalidaUso;
 Cambiar gCambiar;
 Consultas gConsultas;
 std::atomic<BroadcastEngine*> gMotor{nullptr};
@@ -100,21 +105,23 @@ std::vector<Instancia> de(const std::string& t) {
 }
 
 void ponerSalida(Salida s) {
+    std::unique_lock<std::shared_mutex> uso(gSalidaUso);
     std::lock_guard<std::mutex> l(gMu);
     gSalida = std::move(s);
 }
 
 void empujar(std::uint64_t id, const std::uint8_t* bgra, int ancho, int alto, int stride) {
+    if (bgra == nullptr || ancho <= 0 || alto <= 0) return;
+    std::shared_lock<std::shared_mutex> uso(gSalidaUso);
     std::string nombre;
-    Salida s;
     {
         std::lock_guard<std::mutex> l(gMu);
         for (const auto& [n, i] : gVivas)
             if (i.id == id) nombre = n;
-        s = gSalida;
+        if (nombre.empty() || !gSalida) return;
     }
-    if (nombre.empty() || !s || bgra == nullptr || ancho <= 0 || alto <= 0) return;
-    s(nombre, bgra, ancho, alto, stride > 0 ? stride : ancho * 4);
+    // gSalida no cambia mientras se tenga `uso` (ponerSalida lo pide exclusivo).
+    gSalida(nombre, bgra, ancho, alto, stride > 0 ? stride : ancho * 4);
 }
 
 void ponerCambiar(Cambiar c) {

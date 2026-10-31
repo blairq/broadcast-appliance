@@ -40,22 +40,44 @@ constexpr int kPrimeraTanda = 2;
 /// DIBUJAR LO QUE SALE AL AIRE, EN OTRO HILO. Un zócalo de 15 s son 450 cuadros que
 /// `ba-grafico` dibuja de a tandas; hecho en el hilo de la interfaz la congelaba hasta
 /// terminar (36 s con «Siguiente» en el guion del evento, y el supervisor la mataba).
-/// Acá, con SU renderizador (el del editor y las vistas previas sigue en la interfaz):
-/// cada tanda vuelve a la interfaz apenas está, y la primera ya sale al aire.
+/// Acá, con SU renderizador (el del editor y las vistas previas sigue en la interfaz).
+///
+/// Y TAMBIÉN SE ENTREGA ACÁ. Cada tanda va directo a la fuente (GraficoSource: reproducir
+/// la primera, agregar las demás), sin pasar por la interfaz: con la interfaz trabada, un
+/// gráfico que estaba entrando seguía esperando sus cuadros y quedaba congelado a medio
+/// entrar. A la interfaz solo vuelven los avisos (empezó, falló), encolados.
+///
+/// EL RELOJ DE LOS CAMPOS VIVOS. Un rótulo con la hora con segundos (un vínculo «vivo»
+/// con {hora_s}) se redibujaba desde la interfaz una vez por segundo; trabada, el reloj
+/// al aire se paraba. Quien lo pone deja acá cómo calcular sus valores AHORA (una función
+/// que no lee nada de la interfaz: una foto del contexto y la hora) y este hilo, una vez
+/// por segundo, los calcula y, si cambiaron, dibuja el cuadro quieto con ellos.
 class DibujoAire {
    public:
     struct Pedido {
         std::uint64_t fuente = 0;
-        int generacion = 0;
+        int generacion = 0; ///< la del Emisor (para los avisos a la interfaz)
         QJsonObject pedido;
         /// Un cuadro por entrada: el milisegundo a dibujar, o -1 = el mismo de antes
         /// (lo quieto entre la entrada y la salida: no se dibuja ni ocupa memoria).
         std::vector<int> plan;
+        bool repetir = false;
+        /// Avisar a la interfaz cuando salga (un gráfico que entra; no un campo que cambia).
+        bool avisar = true;
+        /// Con el primer cuadro ya en el motor (ver graficos::reproducir).
+        std::function<void(std::int64_t)> alEmpezar;
+        std::uint64_t turno = 0; ///< lo pone pedir(): el más nuevo de su fuente manda
     };
-    /// Una tanda dibujada (o el error), en el hilo del dibujo.
-    using Tanda = std::function<void(const Pedido&, std::vector<QImage>, bool fin, QString error)>;
+    /// Los avisos a la interfaz (se llaman desde el hilo del dibujo).
+    struct Avisos {
+        std::function<void(std::uint64_t fuente, int generacion)> empezo;
+        std::function<void(std::uint64_t fuente, int generacion, QString error)> fallo;
+    };
+    /// Los valores de AHORA de un campo vivo. Corre en el hilo del dibujo: no lee nada de
+    /// la interfaz. Vacío = no se pudo (se deja lo que está).
+    using ValoresAhora = std::function<QJsonObject()>;
 
-    DibujoAire(QString binario, Tanda tanda) : binario_(std::move(binario)), tanda_(std::move(tanda)) {
+    DibujoAire(QString binario, Avisos avisos) : binario_(std::move(binario)), avisos_(std::move(avisos)) {
         hilo_ = std::thread([this]() { ba::platform::nombrarHilo("dibujo-aire"); trabajar(); });
     }
     ~DibujoAire() {
@@ -69,36 +91,144 @@ class DibujoAire {
     void pedir(Pedido p) {
         {
             std::lock_guard<std::mutex> l(mu_);
-            // Lo que estaba esperando para la misma fuente ya no va.
-            cola_.erase(std::remove_if(cola_.begin(), cola_.end(), [&](const Pedido& x) { return x.fuente == p.fuente; }),
-                        cola_.end());
-            vigente_[p.fuente] = p.generacion;
-            cola_.push_back(std::move(p));
+            relojes_.erase(p.fuente); // lo nuevo manda: el reloj de antes ya no
+            encolar(std::move(p));
         }
         cv_.notify_all();
     }
+    /// Lo que estaba por salir en esa fuente ya no va (se oculta). Vuelve con la entrega
+    /// que estuviera en curso terminada: quien llama oculta después y nada lo pisa.
+    void cancelar(std::uint64_t fuente) {
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            cola_.erase(std::remove_if(cola_.begin(), cola_.end(), [&](const Pedido& x) { return x.fuente == fuente; }),
+                        cola_.end());
+            vigente_[fuente] = 0; // ningún turno es 0
+            relojes_.erase(fuente);
+        }
+        std::lock_guard<std::mutex> e(entregaM_);
+    }
+    /// El campo vivo de esa fuente: desde ahora, una vez por segundo, `valores` y, si
+    /// cambiaron desde `actuales`, el cuadro `ms` de `base` con ellos.
+    void conReloj(std::uint64_t fuente, int generacion, QJsonObject base, int ms, QJsonObject actuales,
+                  ValoresAhora valores) {
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            relojes_[fuente] = {generacion, std::move(base), ms, std::move(actuales), std::move(valores)};
+        }
+        cv_.notify_all();
+    }
+    bool conReloj(std::uint64_t fuente) {
+        std::lock_guard<std::mutex> l(mu_);
+        return relojes_.count(fuente) > 0;
+    }
 
    private:
+    struct Reloj {
+        int generacion = 0;
+        QJsonObject base;
+        int ms = 0;
+        QJsonObject ultimos;
+        ValoresAhora valores;
+    };
+    /// Con mu_ tomado.
+    void encolar(Pedido p) {
+        // Lo que estaba esperando para la misma fuente ya no va.
+        cola_.erase(std::remove_if(cola_.begin(), cola_.end(), [&](const Pedido& x) { return x.fuente == p.fuente; }),
+                    cola_.end());
+        p.turno = ++turnos_;
+        vigente_[p.fuente] = p.turno;
+        cola_.push_back(std::move(p));
+    }
     bool vigente(const Pedido& p) {
         std::lock_guard<std::mutex> l(mu_);
-        return !fin_ && vigente_[p.fuente] == p.generacion;
+        return !fin_ && vigente_[p.fuente] == p.turno;
+    }
+    /// Una vuelta del reloj: los campos vivos que cambiaron, a la cola.
+    void tictac() {
+        std::map<std::uint64_t, Reloj> relojes;
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            relojes = relojes_;
+        }
+        for (auto& [fuente, r] : relojes) {
+            const QJsonObject v = r.valores ? r.valores() : QJsonObject{};
+            if (v.isEmpty() || v == r.ultimos) continue;
+            QJsonObject p = r.base;
+            QJsonObject par = p.value("parametros").toObject();
+            for (auto it = v.begin(); it != v.end(); ++it) par[it.key()] = it.value();
+            p["parametros"] = par;
+            std::lock_guard<std::mutex> l(mu_);
+            const auto it = relojes_.find(fuente);
+            // Mientras se calculaba, otro pedido lo sacó (o lo puso de nuevo): ese manda.
+            if (it == relojes_.end() || it->second.ultimos != r.ultimos) continue;
+            it->second.ultimos = v;
+            Pedido pd;
+            pd.fuente = fuente;
+            pd.generacion = r.generacion;
+            pd.pedido = std::move(p);
+            pd.plan = {r.ms};
+            pd.avisar = false;
+            encolar(std::move(pd));
+        }
+    }
+    /// Una tanda a la fuente: la primera arranca la reproducción, las demás se suman.
+    /// Bajo entregaM_ y solo si sigue vigente (cancelar espera a que termine).
+    void entregar(const Pedido& p, std::vector<QImage> cuadros, bool fin, const QString& err, bool& empezado) {
+        std::lock_guard<std::mutex> e(entregaM_);
+        if (!vigente(p)) return;
+        if (!err.isEmpty()) {
+            if (empezado) graficos::agregar(p.fuente, {}, true); // queda lo que llegó
+            if (avisos_.fallo) avisos_.fallo(p.fuente, p.generacion, err);
+            return;
+        }
+        if (empezado) {
+            graficos::agregar(p.fuente, std::move(cuadros), fin);
+            return;
+        }
+        if (cuadros.empty()) return;
+        if (!graficos::reproducir(p.fuente, std::move(cuadros), kFps, p.repetir, !fin, p.alEmpezar)) {
+            if (avisos_.fallo)
+                avisos_.fallo(p.fuente, p.generacion, QCoreApplication::translate("graficos", "esa fuente ya no está"));
+            return;
+        }
+        empezado = true;
+        if (p.avisar && avisos_.empezo) avisos_.empezo(p.fuente, p.generacion);
     }
     void trabajar() {
         // El renderizador se crea en este hilo: su proceso se usa solo desde acá. Se
         // levanta ya (repertorio no dibuja nada): el primer gráfico no espera su arranque.
         GraficoProceso proc(binario_);
         if (proc.disponible()) proc.repertorio();
+        using Hora = std::chrono::steady_clock;
+        auto tic = Hora::now() + std::chrono::seconds(1);
         for (;;) {
             Pedido p;
+            bool vuelta = false;
             {
                 std::unique_lock<std::mutex> l(mu_);
-                cv_.wait(l, [this]() { return fin_ || !cola_.empty(); });
+                // Con campos vivos, se despierta también a la vuelta del reloj.
+                if (relojes_.empty())
+                    cv_.wait(l, [this]() { return fin_ || !cola_.empty() || !relojes_.empty(); });
+                else
+                    cv_.wait_until(l, tic, [this]() { return fin_ || !cola_.empty(); });
                 if (fin_) return;
-                p = std::move(cola_.front());
-                cola_.pop_front();
+                // Un dibujo largo (o una cola que no se vacía) no saltea el reloj.
+                vuelta = !relojes_.empty() && Hora::now() >= tic;
+                if (!vuelta && !cola_.empty()) {
+                    p = std::move(cola_.front());
+                    cola_.pop_front();
+                }
             }
+            if (vuelta) {
+                tic = Hora::now() + std::chrono::seconds(1);
+                tictac();
+                continue;
+            }
+            if (p.plan.empty()) continue; // despertó un reloj nuevo: espera su vuelta
             const int total = static_cast<int>(p.plan.size());
             QImage ultimo;
+            bool empezado = false;
             for (int desde = 0; desde < total;) {
                 if (!vigente(p)) break; // otro pedido para esa fuente lo reemplazó
                 // La primera tanda, chica: el gráfico entra enseguida y el resto llega andando.
@@ -114,25 +244,31 @@ class DibujoAire {
                 while (desde < total && p.plan[static_cast<std::size_t>(desde)] < 0) ++desde;
                 QString err;
                 const auto parte = momentos.isEmpty() ? QVector<Cuadro>{} : proc.tira(p.pedido, momentos, &err);
+                if (err.isEmpty() && !momentos.isEmpty() && parte.isEmpty())
+                    err = QCoreApplication::translate("graficos", "el renderizador no devolvió el cuadro");
                 std::vector<QImage> cuadros;
                 int k = 0;
                 for (int i = inicio; i < desde && err.isEmpty(); ++i) {
                     if (p.plan[static_cast<std::size_t>(i)] >= 0 && k < parte.size()) ultimo = parte[k++].imagen;
                     if (!ultimo.isNull()) cuadros.push_back(ultimo); // QImage comparte los datos
                 }
-                tanda_(p, std::move(cuadros), desde >= total || !err.isEmpty(), err);
+                entregar(p, std::move(cuadros), desde >= total || !err.isEmpty(), err, empezado);
                 if (!err.isEmpty()) break;
             }
         }
     }
 
     QString binario_;
-    Tanda tanda_;
+    Avisos avisos_;
     std::mutex mu_;
     std::condition_variable cv_;
     std::deque<Pedido> cola_;
-    std::map<std::uint64_t, int> vigente_;
+    std::map<std::uint64_t, std::uint64_t> vigente_; ///< por fuente: el turno que manda
+    std::map<std::uint64_t, Reloj> relojes_;
+    std::uint64_t turnos_ = 0;
     bool fin_ = false;
+    /// Lo toma la entrega a la fuente (y cancelar, para esperarla).
+    std::mutex entregaM_;
     std::thread hilo_;
 };
 
@@ -148,8 +284,6 @@ struct Emisor::Impl {
     std::map<QString, QJsonObject> dePlugins;
     std::unique_ptr<DibujoAire> aire; ///< se crea con el primer gráfico al aire
     std::map<std::uint64_t, int> generacion; ///< por fuente: el último pedido
-    std::map<std::uint64_t, bool> empezado;  ///< por fuente: ya salió la primera tanda
-    std::map<std::uint64_t, bool> repetir;
     /// Lo último que se disparó en cada fuente, para poder cambiarle un texto
     /// sin tener que volver a escribir todos los valores.
     struct Ultimo {
@@ -176,15 +310,56 @@ Emisor::Emisor(const std::filesystem::path& raizDatos, QObject* padre)
 void Emisor::prepararAire() {
     if (d_->aire) return;
     QPointer<Emisor> yo(this);
-    d_->aire = std::make_unique<DibujoAire>(
-        d_->proc.binario(), [yo](const DibujoAire::Pedido& pd, std::vector<QImage> cuadros, bool fin, QString err) {
+    // Los cuadros ya fueron a la fuente desde el hilo del dibujo; a la interfaz, el aviso.
+    DibujoAire::Avisos avisos;
+    avisos.empezo = [yo](std::uint64_t fuente, int generacion) {
+        QMetaObject::invokeMethod(
+            qApp, [yo, fuente, generacion]() { if (yo) yo->salioAlAire(fuente, generacion); }, Qt::QueuedConnection);
+    };
+    avisos.fallo = [yo](std::uint64_t fuente, int generacion, QString error) {
+        QMetaObject::invokeMethod(
+            qApp, [yo, fuente, generacion, error]() { if (yo) yo->fallaAlAire(fuente, generacion, error); },
+            Qt::QueuedConnection);
+    };
+    d_->aire = std::make_unique<DibujoAire>(d_->proc.binario(), std::move(avisos));
+}
+
+void Emisor::encargar(std::uint64_t fuente, int generacion, QJsonObject pedido, std::vector<int> plan, bool repetir,
+                      bool avisar) {
+    prepararAire();
+    DibujoAire::Pedido pd;
+    pd.fuente = fuente;
+    pd.generacion = generacion;
+    pd.pedido = std::move(pedido);
+    pd.plan = std::move(plan);
+    pd.repetir = repetir;
+    pd.avisar = avisar;
+    // Con video adentro: su animación arranca con el primer cuadro que sale (el dibujo
+    // tarda lo que tarda; el reloj del gráfico empieza recién ahí). Se llama desde el hilo
+    // que entrega los cuadros: a la interfaz, encolado. Un campo que cambia (sin `avisar`)
+    // no vuelve a arrancar el video.
+    if (const auto v = d_->video.find(fuente); avisar && v != d_->video.end() && v->second.generacion == generacion) {
+        QPointer<Emisor> yo(this);
+        pd.alEmpezar = [yo, fuente, generacion](std::int64_t ns) {
             QMetaObject::invokeMethod(
                 qApp,
-                [yo, pd, cuadros = std::move(cuadros), fin, err]() mutable {
-                    if (yo) yo->recibirTanda(pd.fuente, pd.generacion, std::move(cuadros), fin, err);
+                [yo, fuente, generacion, ns]() {
+                    if (!yo) return;
+                    const auto it = yo->d_->video.find(fuente);
+                    if (it == yo->d_->video.end() || it->second.generacion != generacion) return;
+                    if (yo->d_->capasVideo.empezar) yo->d_->capasVideo.empezar(it->second.nombre, ns);
+                    // Un gráfico que se va solo: al terminar su salida, el video también.
+                    if (const int dura = it->second.finMs - it->second.inicioMs; it->second.finMs > 0)
+                        QTimer::singleShot(dura + 300, yo, [yo, fuente, generacion]() {
+                            if (!yo) return;
+                            const auto v2 = yo->d_->video.find(fuente);
+                            if (v2 != yo->d_->video.end() && v2->second.generacion == generacion) yo->quitarVideo(fuente);
+                        });
                 },
                 Qt::QueuedConnection);
-        });
+        };
+    }
+    d_->aire->pedir(std::move(pd));
 }
 
 Emisor::~Emisor() = default;
@@ -403,65 +578,46 @@ QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObj
     }
     // Se dibuja en otro hilo (DibujoAire): sale al aire con la primera tanda y el resto
     // se suma mientras se reproduce. Lo que falle después se avisa con `fallo`.
-    prepararAire();
     const int gen = ++d_->generacion[fuente];
-    d_->empezado[fuente] = false;
-    d_->repetir[fuente] = repetir;
     // El video en vivo que lo acompaña (si declara): entra, queda y se va con él.
     {
         const int salidaDur = std::clamp(p.value("declarativo").toObject().value("salida").toObject().value("duracion").toInt(800), 0, 5000);
         const int finMs = salidaEn > 0 && !repetir ? static_cast<int>(plan.size()) * 1000 / kFps : 0;
         prepararVideo(fuente, grafico, p, gen, 0, salidaEn, salidaDur, finMs);
     }
-    d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
+    encargar(fuente, gen, std::move(p), std::move(plan), repetir, true);
     d_->ultimos[fuente] = {grafico, valores};
     return {};
 }
 
-void Emisor::recibirTanda(std::uint64_t fuente, int generacion, std::vector<QImage> cuadros, bool fin, const QString& error) {
-    if (d_->generacion[fuente] != generacion) return; // ya hay otro gráfico para esa fuente
-    if (!error.isEmpty()) {
-        if (d_->empezado[fuente]) graficos::agregar(fuente, {}, true); // queda lo que llegó
-        quitarVideo(fuente);
-        emit fallo(tr("El gráfico no se pudo dibujar: %1").arg(error));
-        return;
-    }
-    if (!d_->empezado[fuente]) {
-        if (cuadros.empty()) return;
-        // Con video adentro: su animación arranca con el primer cuadro que sale (el dibujo
-        // tarda lo que tarda; el reloj del gráfico empieza recién ahí).
-        std::function<void(std::int64_t)> alEmpezar;
-        if (const auto v = d_->video.find(fuente); v != d_->video.end() && v->second.generacion == generacion) {
-            QPointer<Emisor> yo(this);
-            alEmpezar = [yo, fuente, generacion](std::int64_t ns) {
-                QMetaObject::invokeMethod(
-                    qApp,
-                    [yo, fuente, generacion, ns]() {
-                        if (!yo) return;
-                        const auto it = yo->d_->video.find(fuente);
-                        if (it == yo->d_->video.end() || it->second.generacion != generacion) return;
-                        if (yo->d_->capasVideo.empezar) yo->d_->capasVideo.empezar(it->second.nombre, ns);
-                        // Un gráfico que se va solo: al terminar su salida, el video también.
-                        if (const int dura = it->second.finMs - it->second.inicioMs; it->second.finMs > 0)
-                            QTimer::singleShot(dura + 300, yo, [yo, fuente, generacion]() {
-                                if (!yo) return;
-                                const auto v2 = yo->d_->video.find(fuente);
-                                if (v2 != yo->d_->video.end() && v2->second.generacion == generacion) yo->quitarVideo(fuente);
-                            });
-                    },
-                    Qt::QueuedConnection);
-            };
-        }
-        if (!graficos::reproducir(fuente, std::move(cuadros), kFps, d_->repetir[fuente], !fin, std::move(alEmpezar))) {
-            emit fallo(tr("No se pudo reproducir el gráfico: esa fuente ya no está"));
-            return;
-        }
-        d_->empezado[fuente] = true;
-        emit cambio();
-        return;
-    }
-    graficos::agregar(fuente, std::move(cuadros), fin);
+void Emisor::salioAlAire(std::uint64_t fuente, int generacion) {
+    if (this->generacion(fuente) == generacion) emit cambio();
 }
+
+void Emisor::fallaAlAire(std::uint64_t fuente, int generacion, const QString& error) {
+    if (this->generacion(fuente) != generacion) return; // ya hay otro gráfico para esa fuente
+    quitarVideo(fuente);
+    emit fallo(tr("El gráfico no se pudo dibujar: %1").arg(error));
+}
+
+QString Emisor::seguirReloj(const QString& grafico, std::uint64_t fuente, const QJsonObject& actuales,
+                            std::function<QJsonObject()> ahora) {
+    if (!d_->proc.disponible()) return tr("el renderizador de gráficos no está en este bundle");
+    const QSize tam = tamanoDe(fuente);
+    if (!tam.isValid()) return tr("esa fuente de gráfico ya no está en ninguna escena");
+    // El pedido sin valores (los de fábrica de la ficha): en cada vuelta se le ponen encima
+    // los de `ahora`, como hace Catalogo::pedido.
+    QString err;
+    QJsonObject base = d_->catalogo.pedido(grafico, {}, &err);
+    if (!err.isEmpty()) return err;
+    base["ancho"] = tam.width();
+    base["alto"] = tam.height();
+    prepararAire();
+    d_->aire->conReloj(fuente, generacion(fuente), std::move(base), msEstable(ficha(grafico)), actuales, std::move(ahora));
+    return {};
+}
+
+bool Emisor::siguiendoReloj(std::uint64_t fuente) const { return d_->aire && d_->aire->conReloj(fuente); }
 
 int Emisor::msEstable(const QJsonObject& ficha) {
     // Pasada la animación de entrada (la duración de la ficha, o 2 s), antes de
@@ -521,25 +677,22 @@ QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, s
             std::vector<int> plan;
             const int dur = Catalogo::duracionCambio(f) + 150;
             for (int ms = 0; ms <= dur; ms += 1000 / kFps) plan.push_back(ms);
-            prepararAire();
-            const int gen = ++d_->generacion[fuente];
-            d_->empezado[fuente] = false;
-            d_->repetir[fuente] = false;
-            d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
+            encargar(fuente, ++d_->generacion[fuente], std::move(p), std::move(plan), false, true);
             return {};
         }
-        QString err;
-        const auto cuadro = d_->proc.tira(p, QVector<int>{msEstable(f)}, &err);
-        if (!err.isEmpty()) return err;
-        if (cuadro.empty()) return tr("el renderizador no devolvió el cuadro");
-        std::vector<QImage> uno{cuadro.front().imagen};
-        if (!graficos::reproducir(fuente, std::move(uno), kFps, false)) return tr("no se pudo actualizar esa fuente");
+        // El cuadro quieto con los valores nuevos, también en el hilo del dibujo (antes se
+        // esperaba al renderizador acá, en la interfaz, una vez por segundo con un reloj).
+        // Es el mismo gráfico: la generación no cambia (el guion lo sigue pudiendo sacar).
+        encargar(fuente, generacion(fuente), std::move(p), {msEstable(f)}, false, false);
         return {};
     });
 }
 
 QString Emisor::ocultar(std::uint64_t fuente) {
     quitarVideo(fuente); // el video del gráfico se va con él (aunque la fuente ya no esté)
+    // Lo que se estaba dibujando para esa fuente (o su reloj) ya no sale: si no, la
+    // próxima tanda lo volvería a poner.
+    if (d_->aire) d_->aire->cancelar(fuente);
     if (!graficos::ocultar(fuente)) return tr("esa fuente de gráfico ya no está");
     emit cambio();
     return {};
@@ -578,13 +731,10 @@ QString Emisor::sacar(std::uint64_t fuente, int siSigue) {
     const int dur = std::clamp(p.value("declarativo").toObject().value("salida").toObject().value("duracion").toInt(800), 0, 3000) + 150;
     std::vector<int> plan;
     for (int ms = kDesde; ms <= kDesde + dur; ms += 1000 / kFps) plan.push_back(ms);
-    prepararAire();
     const int gen = ++d_->generacion[fuente];
-    d_->empezado[fuente] = false;
-    d_->repetir[fuente] = false;
     // El video, desde el mismo punto (ya entrado) hasta irse; lo saca el ocultar del final.
     if (d_->video.count(fuente) > 0) prepararVideo(fuente, grafico, p, gen, kDesde, kDesde, dur - 150, 0);
-    d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
+    encargar(fuente, gen, std::move(p), std::move(plan), false, true);
     d_->ultimos.erase(fuente);
     // Al terminar la salida, fuera (si nadie puso otra cosa mientras tanto).
     QPointer<Emisor> yo(this);

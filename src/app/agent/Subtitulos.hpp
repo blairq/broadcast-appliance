@@ -13,17 +13,26 @@
 // cuadro de tamaño FIJO (`ancho` x lo que ocupan `lineas` líneas): así se ubica
 // en la escena una vez y no salta cuando cambia el texto. Las líneas se apoyan
 // abajo. Lo dibuja Qt y va al motor como entrada «app» (FuentesApp).
+//
+// El reloj de los bloques y el dibujo corren en su hilo («subtitulos», ver
+// emision/PintorAire.hpp): con la interfaz trabada, lo que ya llegó se sigue
+// mostrando a su ritmo y se borra a tiempo. Las frases entran bajo `mu_`.
 #pragma once
 
 #include <QObject>
 #include <QString>
-#include <QTimer>
 
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
+
+namespace ba::app::fuentes {
+class PintorAire;
+}
 
 namespace ba::app::agent {
 
@@ -53,11 +62,13 @@ class Subtitulos : public QObject {
         bool cambio = true;  ///< hay que volver a dibujar
     };
     void alFrase(const QString& flujo, const QString& texto);
+    /// Una vuelta del reloj de los bloques (en el hilo de los subtítulos).
     void tic();
 
     FlujosTexto& flujos_;
-    QTimer timer_;
-    std::map<std::uint64_t, Estado> estados_; // por id de FuentesApp
+    mutable std::mutex mu_;
+    std::map<std::uint64_t, Estado> estados_; // por id de FuentesApp (bajo mu_)
+    std::unique_ptr<fuentes::PintorAire> pintor_; ///< último: se apaga primero
 };
 
 } // namespace ba::app::agent

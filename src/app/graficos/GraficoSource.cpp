@@ -42,6 +42,10 @@ struct Reproduccion {
 
 std::mutex g_lock;
 std::map<std::uint64_t, std::shared_ptr<Reproduccion>> g_rep; // por id de FuentesApp
+/// Arrancar, parar y limpiar reproducciones, de a uno: reproducir llega del hilo del
+/// dibujo (Emisor) y ocultar e instancias, de la interfaz. Sin esto, una reproducción
+/// que se limpia mientras otra la arranca queda con su hilo suelto.
+std::mutex g_orden;
 
 void entregar(std::uint64_t id, const QImage& img) {
     if (img.isNull()) return;
@@ -106,7 +110,10 @@ void registerSourceType() {
 }
 
 std::vector<InstanciaInfo> instancias() {
-    limpiar();
+    {
+        std::lock_guard<std::mutex> o(g_orden);
+        limpiar();
+    }
     std::vector<InstanciaInfo> out;
     for (const auto& f : fuentes::de(kSourceId)) {
         InstanciaInfo info;
@@ -139,6 +146,7 @@ bool setGrafico(std::uint64_t id, const std::string& grafico) {
 bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir, bool llegando,
                 std::function<void(std::int64_t)> alEmpezar) {
     if (cuadros.empty() || fps <= 0 || !viva(id)) return false;
+    std::lock_guard<std::mutex> o(g_orden);
     limpiar();
     auto inst = reproduccion(id, true);
     inst->parar(); // si habia otra animacion andando, esta la reemplaza
@@ -214,6 +222,7 @@ bool agregar(std::uint64_t id, std::vector<QImage> cuadros, bool fin) {
 bool ocultar(std::uint64_t id) {
     fuentes::Instancia f;
     if (!viva(id, &f)) return false;
+    std::lock_guard<std::mutex> o(g_orden);
     if (auto r = reproduccion(id, false)) r->parar();
     // Un cuadro transparente: sin esto seguiria el ultimo.
     QImage vacio(f.ajustes.value("ancho", 900), f.ajustes.value("alto", 220), QImage::Format_ARGB32);
