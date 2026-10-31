@@ -16,6 +16,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QObject>
@@ -41,6 +42,13 @@ class ConferenceClient : public QObject {
     /// Cuántas sesiones del gateway reciben el programa (evento «programa»); -1 = todavía
     /// no lo dijo (un gateway que no lo informa).
     int miranPrograma() const { return online_ ? miranPrograma_ : -1; }
+    /// Lo mismo por cada salida que no es la por omisión y que alguien mira ({id: cuántos},
+    /// mismo evento): la app publica BA.Salida.<id> solo mientras figura acá.
+    QJsonObject miranSalidas() const { return online_ ? miranSalidas_ : QJsonObject(); }
+    /// Las salidas del aparato para el gateway (docs/planes/PLAN-SALIDAS.md):
+    /// [{id, nombre, color, porOmision}]. Se guarda y se vuelve a mandar sola cada vez que
+    /// el gateway vuelve (un gateway reiniciado arranca sin lista: todo a BA.Program).
+    void ponerSalidas(const QJsonArray& lista);
 
     /// POST a la API (`path` absoluto, p. ej. "/api/v1/room").
     void post(const QString& path, const QJsonObject& body = {}, Done done = {}, int timeoutMs = 5000);
@@ -88,6 +96,8 @@ class ConferenceClient : public QObject {
     bool online_ = false;
     QJsonObject snap_;
     int miranPrograma_ = -1;
+    QJsonObject miranSalidas_;
+    QJsonArray salidas_; ///< la última lista de ponerSalidas (vacía = nunca se mandó)
     QTimer retry_;
     QTimer watchdog_;
     int backoffMs_ = 1000;

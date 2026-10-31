@@ -22,7 +22,10 @@
 //                 audio   -> BA.Audio.Registro.<k>  frente a un tótem: la app
 //                                                 reconoce la cara y la pasa a texto)
 //   Bajada (A -> B -> participante):
-//     Program(n): BA.Program + BA.Audio.ContentForReturn
+//     Program(n): BA.Program + BA.Audio.ContentForReturn (la salida por
+//                 omisión); con otra `salida`, BA.Salida.<id> +
+//                 BA.Audio.Salida.<id> (lo mismo para Backstage: la fila, las
+//                 pantallas y las vistas de los remotos)
 //     Lobby(k):   BA.Operator (o una placa si A no lo publica) + la voz del
 //                 operador BA.Audio.Operator solo si talk; con atiende (y sin
 //                 talk), la voz del asistente BA.Audio.Atendedor
@@ -42,6 +45,9 @@
 //   - threads de bajada (audio/video del programa, audio/video del operador, la
 //     voz del que atiende y una voz por canal de registro) con reintento de
 //     apertura cada 500 ms y resuscripcion si A se reinicia.
+//   - un par de threads (video y audio) por cada salida que no es la por
+//     omisión, BAJO DEMANDA: se levantan cuando una ruta la pide y se sueltan
+//     cuando nadie la mira (ajustarBajadas). Con una sola salida no hay ninguno.
 //   - 1 thread de placas.
 //   - forwardAudio/forwardVideo/forwardScreen: desde los threads de libwebrtc;
 //     un lock por canal de salida.
@@ -55,6 +61,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -147,6 +154,16 @@ class MediaPump {
     /// para saber si puede dejar de bajarle el programa (BroadcastEngine::retornoEnUso):
     /// el que lo sabe de verdad es el gateway, no una lista de casos en la app.
     int miranPrograma() const;
+    /// Lo mismo por cada salida que no es la por omisión y que alguien mira ahora:
+    /// {id: cuántos}. La app publica BA.Salida.<id> solo mientras está acá.
+    std::map<std::string, int> miranSalidas() const;
+
+    /// Las salidas que hay (las manda la app). Las rutas guardan la salida que
+    /// pidieron; la que baja de verdad la decide esto (SalidasConocidas), así que
+    /// cambiar la lista re-rutea a todos sin que nadie vuelva a pedir nada.
+    void ponerSalidas(const SalidasConocidas& salidas);
+    /// Las salidas con hilos de bajada levantados ahora (para las pruebas y el log).
+    std::vector<std::string> bajadasVivas() const;
 
     /// Crea los canales (cámara, pantalla, audio) de los lugares hasta `slots`
     /// (a lo sumo kMaxInvitados) que todavía no estén. Se llama al subir el cupo,
@@ -158,6 +175,7 @@ class MediaPump {
 
     /// Ruta de la sesion `session` (1..hub.sessions()).
     void setRoute(int session, const MediaRoute& route);
+    /// La ruta vigente: la pedida, con la salida que baja de verdad (ver ponerSalidas).
     MediaRoute route(int session) const;
 
     /// Subida desde la sesion `session` (se rutea segun su MediaRoute).
@@ -212,12 +230,29 @@ class MediaPump {
         std::vector<float> resampleOut;
     };
 
-    void returnAudioThread();
-    void returnVideoThread();
+    /// La voz del operador para los de adentro que tienen «hablar» prendido (IFB): el
+    /// hilo del retorno de SU salida la mezcla con el sonido (una sola fuente por
+    /// sesión). Una cola por retorno: cada salida tiene el suyo.
+    struct ColaIfb {
+        std::mutex lock;
+        std::deque<float> voz;
+    };
+    /// El audio de retorno de la salida `salida` ("" = la por omisión, con los
+    /// mix-minus por lugar) a las sesiones que la oyen, con el IFB de `ifb` y el tono
+    /// de la prueba técnica. Corre hasta stop() o hasta que `parar` se prenda.
+    void retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb, const std::atomic<bool>* parar);
     /// Un canal de video A->B hacia las sesiones que cumplen `para` (escalado a
-    /// lo sumo a programVideoW x programVideoH). El retorno del programa y cada
-    /// canal de escena son esto mismo con otro nombre y otro filtro.
-    void videoBajadaThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para);
+    /// lo sumo a programVideoW x programVideoH). El retorno del programa, cada
+    /// canal de escena y cada salida son esto mismo con otro nombre y otro filtro.
+    /// `parar`: el de una bajada bajo demanda (nullptr = hasta stop()).
+    void videoBajadaThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para,
+                           const std::atomic<bool>* parar = nullptr);
+    /// Levanta los hilos de las salidas que alguna ruta mira y suelta los de las que
+    /// ya nadie mira. Después de cada cambio de rutas o de salidas.
+    void ajustarBajadas();
+    bool sigue(const std::atomic<bool>* parar) const {
+        return !stop_.load(std::memory_order_relaxed) && (parar == nullptr || !parar->load(std::memory_order_relaxed));
+    }
     void operatorAudioThread();
     /// Una voz sintetizada A->B (`nombre`) a las sesiones que cumplen `para`, sin
     /// mezclar con nada: la del que atiende (MediaRoute::oyeAlAtendedor) y la de cada
@@ -275,10 +310,17 @@ class MediaPump {
     };
     std::array<MonitorRegistro, kMaxTotems + 1> monitorRegistro_;
 
-    // IFB: la voz del operador para los de adentro que tienen «hablar» prendido; el
-    // hilo del retorno la mezcla con el programa (una sola fuente por sesión).
-    std::mutex ifbLock_;
-    std::deque<float> ifb_;
+    ColaIfb ifb_; // el de la salida por omisión
+    // Las bajadas de las otras salidas, por id (bajo demanda). Orden de candados:
+    // bajadasLock_ y adentro routesLock_, nunca al revés.
+    struct BajadaSalida {
+        std::atomic<bool> parar{false};
+        ColaIfb ifb;
+        std::thread video, audio;
+    };
+    mutable std::mutex bajadasLock_;
+    std::map<std::string, std::unique_ptr<BajadaSalida>> bajadas_;
+    std::atomic<bool> enMarcha_{false}; // entre start() y stop(): se pueden levantar bajadas
     // Prueba técnica: la sesión que se prueba, la fase del tono y la energía de 1 kHz
     // que vuelve por su micrófono, en trozos de 20 ms desde que empezó.
     std::atomic<int> pruebaSesion_{0};
@@ -288,7 +330,9 @@ class MediaPump {
     std::vector<double> pruebaBins_;
 
     mutable std::mutex routesLock_;
-    std::vector<MediaRoute> routes_; // por sesion, [0] reservado
+    std::vector<MediaRoute> routes_;  // por sesion, [0] reservado: la vigente (con la salida que baja)
+    std::vector<MediaRoute> pedidas_; // por sesion: la que pidio la sala, tal cual
+    SalidasConocidas salidas_;        // bajo routesLock_
 };
 
 } // namespace ba::gateway

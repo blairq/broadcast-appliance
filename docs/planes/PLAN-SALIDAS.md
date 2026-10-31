@@ -101,6 +101,15 @@ Salida {
    grabación, codificador); `FrameService` con `program:<id>` / `armada:<id>`.
 6. **Gateway** — un canal por salida (`BA.Salida.<id>` video+audio); retorno de cada
    invitado, cast y sesión remota eligen salida.
+   *Hecho del lado del gateway (2026-10-31)*: nombres en `ipc/CanalesSalida.hpp`
+   (`BA.Salida.<id>`, `BA.Audio.Salida.<id>`); la app manda la lista con
+   `ConferenceClient::ponerSalidas` → `POST /api/v1/salidas {lista:[{id, nombre, color,
+   porOmision}]}`; `MediaRoute::salida` en Program/Backstage (`deSalida(id)` para lo que solo
+   mira) y `MediaPump` levanta la bajada de cada salida solo mientras alguien la mira; el
+   evento «programa» trae `salidas: {id: cuántos}`. Invitado: `POST
+   /api/v1/participants/<id>/salida {salida}`; pantalla: `cast-link?salida=<id>`; sesión
+   remota: las otras salidas van solas al lado del programa (`salida:<id>`) o la app pone
+   `fuente: "salida:<id>"`. Falta: el mix-minus por salida (hoy solo la por omisión).
 7. **Línea de tiempo** — la escaleta/línea de tiempo con pistas por salida (diseño aparte,
    investigación en curso: vMix, Sofie, CasparCG/SuperConductor, QLab, Ross…).
 

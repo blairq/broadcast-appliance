@@ -83,6 +83,7 @@
 #include "SignalingServer.hpp"
 #include "MediaPump.hpp"
 #include "Grillas.hpp"
+#include "ipc/CanalesSalida.hpp"
 
 #include "diag/Registro.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -242,7 +243,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200, json{{"ok", false}, {"error", traducir("gateway", "sin token")}});
             return;
         }
-        sendJson(fd, 200, json{{"ok", true}, {"url", "/cast/?token=" + token + "&nombre=Presidencia"}});
+        // `salida`: de qué salida es el programa que mira (sin ella, la por omisión).
+        const auto q = http::parseQuery(query);
+        const std::string salida = q.count("salida") ? http::urlDecode(q.at("salida")) : std::string();
+        sendJson(fd, 200, json{{"ok", true},
+                               {"url", "/cast/?token=" + token + "&nombre=Presidencia" +
+                                           (ba::ipc::idDeSalidaValido(salida) ? "&salida=" + salida : std::string())}});
         return;
     }
     if (sesion_ && sesion_->admin(fd, method, path, query, body)) return;
@@ -257,6 +263,14 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
 
+    // Las salidas del aparato (docs/planes/PLAN-SALIDAS.md): la app manda la lista entera
+    // cada vez que cambia ({lista:[{id, nombre, color, porOmision}]}); se puede leer.
+    if (path == "/api/v1/salidas") {
+        if (method == "POST") ponerSalidas(req.value("lista", json::array()));
+        std::lock_guard<std::mutex> l(salidasMu_);
+        sendJson(fd, 200, json{{"ok", true}, {"lista", salidas_}});
+        return;
+    }
     if (path == "/api/v1/room") {
         if (method == "GET") {
             sendJson(fd, 200, room_.snapshot());
@@ -768,7 +782,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
         const std::string nombre = q.count("nombre") ? http::urlDecode(q.at("nombre")) : "Pantalla";
         // `canal`: una ESCENA en vez del programa (BA.Escena.<k>, la que la app
-        // puso en ese canal). La pantalla lo repite al entrar por /ws.
+        // puso en ese canal). `salida`: el programa de otra salida (sin ella, la por
+        // omisión). La pantalla los repite al entrar por /ws.
+        const std::string salida = q.count("salida") ? http::urlDecode(q.at("salida")) : std::string();
+        if (!salida.empty() && !ba::ipc::idDeSalidaValido(salida)) {
+            sendJson(fd, 200, json{{"ok", false}, {"message", traducir("gateway", "salida invalida")}});
+            return;
+        }
         std::string canal;
         if (q.count("canal")) {
             canal = http::urlDecode(q.at("canal"));
@@ -805,7 +825,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200,
                  json{{"ok", true},
                       {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre) +
-                                  (canal.empty() ? std::string() : "&canal=" + canal)},
+                                  (canal.empty() ? std::string() : "&canal=" + canal) +
+                                  (salida.empty() || !canal.empty() ? std::string() : "&salida=" + salida)},
                       {"token", token}});
         return;
     }
@@ -1005,6 +1026,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendRoomResult(fd, room_.kick(id));
         } else if (action == "talk") {
             sendRoomResult(fd, room_.setTalk(id, req.value("on", true)));
+        } else if (action == "salida") {
+            // De qué salida le baja el retorno ("" = la por omisión).
+            sendRoomResult(fd, room_.setSalida(id, req.value("salida", std::string())));
         } else if (action == "atiende") {
             // La atención hablada del lobby (la app la prende y la apaga).
             sendRoomResult(fd, room_.setAtiende(id, req.value("on", true)));

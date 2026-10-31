@@ -459,21 +459,21 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                 if (medios_.vistaIce) medios_.vistaIce(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
                 continue;
             }
-            int canal;
+            Vista vista;
             bool habla;
             {
                 std::lock_guard<std::mutex> l(mu_);
                 std::string v = m.value("vista", std::string("yo"));
-                if (v.size() > 16) v = "yo";
+                if (v.size() > 48) v = "yo"; // «salida:» y el id de una salida entran
                 vistaDe_[c->id] = v;
-                canal = canalDeVista(v);
+                vista = vistaElegida(v);
                 habla = hablando_[c->id];
             }
             if (t == "vista") {
-                if (medios_.vistaRuta) medios_.vistaRuta(c->id, canal, habla);
+                if (medios_.vistaRuta) medios_.vistaRuta(c->id, vista, habla);
             } else if (medios_.vistaOferta) {
                 std::weak_ptr<Conn> w = c;
-                const bool ok = medios_.vistaOferta(c->id, m.value("sdp", std::string()), canal, habla, [this, w](const json& r) {
+                const bool ok = medios_.vistaOferta(c->id, m.value("sdp", std::string()), vista, habla, [this, w](const json& r) {
                     if (auto cc = w.lock()) enviar(cc, r);
                 });
                 if (!ok)
@@ -669,31 +669,27 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         return true;
     }
     if (que == "vistas") {
-        json lista;
-        std::vector<std::pair<std::string, std::pair<int, bool>>> rutas;
-        std::vector<std::shared_ptr<Conn>> a;
         {
             std::lock_guard<std::mutex> l(mu_);
             vistas_ = json::array();
             for (const auto& v : r.value("vistas", json::array()))
                 if (v.is_object() && !v.value("id", std::string()).empty())
                     vistas_.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())},
-                                       {"canal", v.value("canal", -1)}});
-            lista = listaVistas();
-            for (const auto& [id, v] : vistaDe_) rutas.push_back({id, {canalDeVista(v), hablando_[id]}});
-            for (const auto& [cid, c] : conns_)
-                if (cid.rfind("consola:", 0) != 0) a.push_back(c);
+                                       {"canal", v.value("canal", -1)}, {"salida", v.value("salida", std::string())}});
         }
-        for (const auto& [id, ru] : rutas)
-            if (medios_.vistaRuta) medios_.vistaRuta(id, ru.first, ru.second);
-        for (const auto& c : a) enviar(c, {{"type", "vistas"}, {"lista", lista}});
+        difundirVistas();
+        json lista;
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            lista = listaVistas();
+        }
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"vistas", lista}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "hablar") {
         const std::string id = r.value("id", std::string());
         const bool on = r.value("activo", false);
-        int canal = -2;
+        Vista vista;
         bool conVista = false;
         {
             std::lock_guard<std::mutex> l(mu_);
@@ -701,9 +697,9 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
             if (!on) hablando_.erase(id);
             auto it = vistaDe_.find(id);
             conVista = it != vistaDe_.end();
-            if (conVista) canal = canalDeVista(it->second);
+            if (conVista) vista = vistaElegida(it->second);
         }
-        if (conVista && medios_.vistaRuta) medios_.vistaRuta(id, canal, on);
+        if (conVista && medios_.vistaRuta) medios_.vistaRuta(id, vista, on);
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"con_vista", conVista}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
@@ -842,17 +838,84 @@ bool SesionBorde::subeSoloAudio(const std::string& sdp) {
     return hayAudio;
 }
 
-int SesionBorde::canalDeVista(const std::string& vista) const {
-    if (vista == "programa") return -1;
+namespace {
+/// Las salidas que no son la por omisión se ofrecen como vistas «salida:<id>».
+const std::string kVistaSalida = "salida:";
+} // namespace
+
+SesionBorde::Vista SesionBorde::vistaElegida(const std::string& vista) const {
+    if (vista == "programa") return {-1, {}};
+    if (vista.rfind(kVistaSalida, 0) == 0) {
+        const std::string id = vista.substr(kVistaSalida.size());
+        for (const auto& s : salidas_)
+            if (s.value("id", std::string()) == id) return {-1, s.value("porOmision", false) ? std::string() : id};
+        return {}; // una salida que se borró: sin imagen, con el sonido
+    }
     for (const auto& v : vistas_)
-        if (v.value("id", std::string()) == vista) return v.value("canal", -1);
-    return -2; // "yo" o una que ya no está: sin imagen, con el sonido
+        if (v.value("id", std::string()) == vista) return {v.value("canal", -1), v.value("salida", std::string())};
+    return {}; // "yo" o una que ya no está: sin imagen, con el sonido
 }
 
 json SesionBorde::listaVistas() const {
+    // Con una sola salida, la lista es la de la app tal cual (sin colores).
+    const bool varias = salidas_.size() > 1;
+    const auto salida = [this](const std::string& id) {
+        for (const auto& s : salidas_)
+            if (id.empty() ? s.value("porOmision", false) : s.value("id", std::string()) == id) return s;
+        return json();
+    };
+    std::set<std::string> yaEstan;
+    for (const auto& v : vistas_) yaEstan.insert(v.value("salida", std::string()));
     json out = json::array();
-    for (const auto& v : vistas_) out.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())}});
+    bool agregadas = false;
+    for (const auto& v : vistas_) {
+        json e{{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())}};
+        const bool esPrograma = v.value("canal", -1) == -1;
+        if (!varias || !esPrograma) {
+            out.push_back(e);
+            continue;
+        }
+        const json s = salida(v.value("salida", std::string()));
+        if (s.is_object() && !s.value("color", std::string()).empty()) e["color"] = s["color"];
+        out.push_back(e);
+        // Quien puede mirar el programa puede mirar las otras salidas: van al lado, una
+        // vez, con su nombre y su color (las que la app ya puso con nombre propio, no).
+        if (agregadas || !v.value("salida", std::string()).empty()) continue;
+        agregadas = true;
+        for (const auto& o : salidas_) {
+            const std::string id = o.value("id", std::string());
+            if (o.value("porOmision", false) || yaEstan.count(id) != 0) continue;
+            json x{{"id", kVistaSalida + id}, {"nombre", o.value("nombre", id)}};
+            if (!o.value("color", std::string()).empty()) x["color"] = o["color"];
+            out.push_back(x);
+        }
+    }
     return out;
+}
+
+void SesionBorde::difundirVistas() {
+    json lista;
+    std::vector<std::pair<std::string, std::pair<Vista, bool>>> rutas;
+    std::vector<std::shared_ptr<Conn>> a;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        lista = listaVistas();
+        for (const auto& [id, v] : vistaDe_) rutas.push_back({id, {vistaElegida(v), hablando_[id]}});
+        for (const auto& [cid, c] : conns_)
+            if (cid.rfind("consola:", 0) != 0) a.push_back(c);
+    }
+    for (const auto& [id, ru] : rutas)
+        if (medios_.vistaRuta) medios_.vistaRuta(id, ru.first, ru.second);
+    for (const auto& c : a) enviar(c, {{"type", "vistas"}, {"lista", lista}});
+}
+
+void SesionBorde::ponerSalidas(const json& saneada) {
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        if (salidas_ == saneada) return;
+        salidas_ = saneada.is_array() ? saneada : json::array();
+    }
+    difundirVistas();
 }
 
 void SesionBorde::ponerMedios(const std::vector<std::string>& ids) {

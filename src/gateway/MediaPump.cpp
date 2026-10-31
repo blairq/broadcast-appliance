@@ -12,11 +12,13 @@
 #include <cstdio>
 #include <cstring>
 #include <cmath>
+#include <set>
 #include <thread>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 
+#include "ipc/CanalesSalida.hpp"
 #include "ipc/HealthBlock.hpp"
 
 #if BA_GATEWAY_HAVE_WEBRTC
@@ -253,17 +255,19 @@ void MediaPump::start() {
     {
         std::lock_guard<std::mutex> lock(routesLock_);
         routes_.assign(static_cast<size_t>(hub_.sessions()) + 1, MediaRoute{});
+        pedidas_ = routes_;
     }
 
     stop_.store(false);
-    threads_.emplace_back(&MediaPump::returnAudioThread, this);
-    threads_.emplace_back(&MediaPump::returnVideoThread, this);
+    threads_.emplace_back(&MediaPump::retornoAudioThread, this, cfg_.returnAudioName, std::string(), &ifb_, nullptr);
+    threads_.emplace_back(&MediaPump::videoBajadaThread, this, cfg_.programVideoName, traducir("gateway", "retorno video"),
+                          [](const MediaRoute& r) { return r.miraSalida(""); }, nullptr);
     for (size_t k = 0; k < cfg_.escenaVideoNames.size(); ++k) {
         const int canal = static_cast<int>(k);
         threads_.emplace_back(&MediaPump::videoBajadaThread, this, cfg_.escenaVideoNames[k],
                               llenar(traducir("gateway", "escena %1"), {std::to_string(canal)}), [canal](const MediaRoute& r) {
                                   return r.kind == MediaRoute::Kind::Escena && r.index == canal;
-                              });
+                              }, nullptr);
     }
     threads_.emplace_back(&MediaPump::operatorAudioThread, this);
     if (!cfg_.atendedorAudioName.empty())
@@ -277,6 +281,8 @@ void MediaPump::start() {
     }
     threads_.emplace_back(&MediaPump::operatorVideoThread, this);
     threads_.emplace_back(&MediaPump::plateThread, this);
+    enMarcha_.store(true);
+    ajustarBajadas(); // por si alguna ruta ya pedía una salida
     log_.info(llenar(traducir("gateway", "MediaPump: en marcha (slots=%1, lobby=%2, fila=%3, sesiones=%4)"),
                      {std::to_string(guests), std::to_string(lobby), std::to_string(backstage),
                       std::to_string(hub_.sessions())}));
@@ -284,11 +290,21 @@ void MediaPump::start() {
 
 void MediaPump::stop() {
     if (threads_.empty()) return; // idempotente (main y el destructor)
+    enMarcha_.store(false);
     stop_.store(true);
     for (auto& t : threads_) {
         if (t.joinable()) t.join();
     }
     threads_.clear();
+    std::map<std::string, std::unique_ptr<BajadaSalida>> bajadas;
+    {
+        std::lock_guard<std::mutex> l(bajadasLock_);
+        bajadas.swap(bajadas_);
+    }
+    for (auto& [id, b] : bajadas) {
+        if (b->video.joinable()) b->video.join();
+        if (b->audio.joinable()) b->audio.join();
+    }
     log_.info(traducir("gateway", "MediaPump: detenido"));
 }
 
@@ -353,9 +369,79 @@ int MediaPump::lugares() const {
 // --- Rutas -------------------------------------------------------------------
 
 void MediaPump::setRoute(int session, const MediaRoute& route) {
+    {
+        std::lock_guard<std::mutex> lock(routesLock_);
+        if (session < 1 || session >= static_cast<int>(routes_.size())) return;
+        pedidas_[static_cast<size_t>(session)] = route;
+        routes_[static_cast<size_t>(session)] = salidas_.vigente(route);
+    }
+    ajustarBajadas();
+}
+
+void MediaPump::ponerSalidas(const SalidasConocidas& salidas) {
+    {
+        std::lock_guard<std::mutex> lock(routesLock_);
+        salidas_ = salidas;
+        for (size_t s = 1; s < routes_.size(); ++s) routes_[s] = salidas_.vigente(pedidas_[s]);
+    }
+    ajustarBajadas();
+}
+
+void MediaPump::ajustarBajadas() {
+    // Las que alguien mira, calculadas CON bajadasLock_ tomado: dos cambios de ruta a
+    // la vez no pueden dejar levantada una que el segundo ya soltó.
+    std::vector<std::unique_ptr<BajadaSalida>> sueltas;
+    {
+        std::lock_guard<std::mutex> l(bajadasLock_);
+        std::set<std::string> miradas;
+        if (enMarcha_.load()) {
+            std::lock_guard<std::mutex> lr(routesLock_);
+            for (size_t s = 1; s < routes_.size(); ++s)
+                if (!routes_[s].salida.empty() && routes_[s].miraSalida(routes_[s].salida)) miradas.insert(routes_[s].salida);
+        }
+        for (auto it = bajadas_.begin(); it != bajadas_.end();) {
+            if (miradas.count(it->first) != 0) {
+                ++it;
+                continue;
+            }
+            it->second->parar.store(true);
+            log_.info(llenar(traducir("gateway", "salida %1: nadie la mira, se suelta su bajada"), {it->first}));
+            sueltas.push_back(std::move(it->second));
+            it = bajadas_.erase(it);
+        }
+        for (const std::string& id : miradas) {
+            if (bajadas_.count(id) != 0 || !ba::ipc::idDeSalidaValido(id)) continue;
+            auto b = std::make_unique<BajadaSalida>();
+            const std::string etiqueta = llenar(traducir("gateway", "salida %1"), {id});
+            b->video = std::thread(&MediaPump::videoBajadaThread, this, ba::ipc::nombreCanalSalida(id), etiqueta,
+                                   std::function<bool(const MediaRoute&)>([id](const MediaRoute& r) { return r.miraSalida(id); }),
+                                   &b->parar);
+            b->audio = std::thread(&MediaPump::retornoAudioThread, this, ba::ipc::nombreAudioSalida(id), id, &b->ifb,
+                                   &b->parar);
+            log_.info(llenar(traducir("gateway", "salida %1: alguien la mira, se levanta su bajada"), {id}));
+            bajadas_.emplace(id, std::move(b));
+        }
+    }
+    // Fuera del candado: los hilos tardan a lo sumo un ciclo (50 ms) en ver `parar`.
+    for (auto& b : sueltas) {
+        if (b->video.joinable()) b->video.join();
+        if (b->audio.joinable()) b->audio.join();
+    }
+}
+
+std::vector<std::string> MediaPump::bajadasVivas() const {
+    std::lock_guard<std::mutex> l(bajadasLock_);
+    std::vector<std::string> out;
+    for (const auto& [id, b] : bajadas_) out.push_back(id);
+    return out;
+}
+
+std::map<std::string, int> MediaPump::miranSalidas() const {
+    std::map<std::string, int> out;
     std::lock_guard<std::mutex> lock(routesLock_);
-    if (session < 1 || session >= static_cast<int>(routes_.size())) return;
-    routes_[static_cast<size_t>(session)] = route;
+    for (size_t s = 1; s < routes_.size(); ++s)
+        if (!routes_[s].salida.empty() && routes_[s].miraSalida(routes_[s].salida)) ++out[routes_[s].salida];
+    return out;
 }
 
 MediaRoute MediaPump::route(int session) const {
@@ -375,18 +461,20 @@ template <typename Pred> std::vector<int> MediaPump::sessionsWhere(Pred pred) co
 
 // --- Bajada: programa ---------------------------------------------------------
 
-void MediaPump::returnAudioThread() {
+void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb,
+                                   const std::atomic<bool>* parar) {
     SharedAudioRing reader;
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     std::vector<float> block;
-    // Mix-minus: un lector por slot (se abren cuando A los publica).
-    const size_t nSlots = cfg_.returnSlotNames.size();
+    // Mix-minus: un lector por slot (se abren cuando A los publica). Solo los de la
+    // salida por omisión: las otras bajan su retorno entero.
+    const size_t nSlots = salida.empty() ? cfg_.returnSlotNames.size() : 0;
     std::vector<SharedAudioRing> slotReaders(nSlots);
     std::vector<bool> slotOpen(nSlots, false);
     std::vector<std::vector<float>> slotBlock(nSlots);
     auto lastSlotRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
-    while (!stop_.load(std::memory_order_relaxed)) {
+    while (sigue(parar)) {
         {
             const auto now = std::chrono::steady_clock::now();
             if (now - lastSlotRetry >= std::chrono::milliseconds(1000)) {
@@ -408,9 +496,11 @@ void MediaPump::returnAudioThread() {
             const auto now = std::chrono::steady_clock::now();
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
                 lastRetry = now;
-                if (SharedAudioRing::openReader(cfg_.returnAudioName.c_str(), reader).ok) {
+                if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
                     open = true;
-                    log_.info(traducir("gateway", "retorno audio: BA.Audio.ContentForReturn abierto"));
+                    // La por omisión dice lo mismo que siempre.
+                    log_.info(salida.empty() ? traducir("gateway", "retorno audio: BA.Audio.ContentForReturn abierto")
+                                             : llenar(traducir("gateway", "salida %1: retorno de audio abierto"), {salida}));
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -419,7 +509,9 @@ void MediaPump::returnAudioThread() {
         if (reader.stale()) {
             reader = SharedAudioRing{};
             open = false;
-            log_.info(traducir("gateway", "retorno audio: A cambio o se cerro; reabriendo"));
+            log_.info(salida.empty()
+                          ? traducir("gateway", "retorno audio: A cambio o se cerro; reabriendo")
+                          : llenar(traducir("gateway", "salida %1: retorno de audio: A cambio o se cerro; reabriendo"), {salida}));
             continue;
         }
         const size_t n = reader.blockFloats();
@@ -441,21 +533,18 @@ void MediaPump::returnAudioThread() {
             std::vector<float> voz;
             bool hayVoz = false;
             {
-                std::lock_guard<std::mutex> l(ifbLock_);
-                if (!ifb_.empty()) {
+                std::lock_guard<std::mutex> l(ifb->lock);
+                if (!ifb->voz.empty()) {
                     voz.assign(n, 0.0f);
-                    const size_t k = std::min(n, ifb_.size());
-                    std::copy(ifb_.begin(), ifb_.begin() + static_cast<long>(k), voz.begin());
-                    ifb_.erase(ifb_.begin(), ifb_.begin() + static_cast<long>(k));
+                    const size_t k = std::min(n, ifb->voz.size());
+                    std::copy(ifb->voz.begin(), ifb->voz.begin() + static_cast<long>(k), voz.begin());
+                    ifb->voz.erase(ifb->voz.begin(), ifb->voz.begin() + static_cast<long>(k));
                     hayVoz = true;
                 }
             }
             const int prueba = pruebaSesion_.load();
             std::vector<float> mezcla;
-            for (int s : sessionsWhere([](const MediaRoute& r) {
-                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage ||
-                            r.kind == MediaRoute::Kind::Escena;
-                 })) {
+            for (int s : sessionsWhere([&salida](const MediaRoute& r) { return r.oyeSalida(salida); })) {
                 const MediaRoute r = route(s);
                 const float* fuente = blk.samples;
                 if (r.kind == MediaRoute::Kind::Program && r.index > 0 && static_cast<size_t>(r.index) < nSlots &&
@@ -504,19 +593,11 @@ void MediaPump::returnAudioThread() {
 constexpr int kMiradaMs = 4;
 
 int MediaPump::miranPrograma() const {
-    return static_cast<int>(sessionsWhere([](const MediaRoute& r) {
-                                return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
-                            }).size());
-}
-
-void MediaPump::returnVideoThread() {
-    videoBajadaThread(cfg_.programVideoName, traducir("gateway", "retorno video"), [](const MediaRoute& r) {
-        return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
-    });
+    return static_cast<int>(sessionsWhere([](const MediaRoute& r) { return r.miraSalida(""); }).size());
 }
 
 void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
-                                  std::function<bool(const MediaRoute&)> para) {
+                                  std::function<bool(const MediaRoute&)> para, const std::atomic<bool>* parar) {
     SpoutReceiver receiver;
     bool sub = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
@@ -532,7 +613,7 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
     std::int64_t edadUs = 0;
     std::int64_t cuadros = 0;
     auto ultimoInforme = std::chrono::steady_clock::now();
-    while (!stop_.load(std::memory_order_relaxed)) {
+    while (sigue(parar)) {
         if (!sub) {
             const auto now = std::chrono::steady_clock::now();
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
@@ -659,12 +740,26 @@ void MediaPump::operatorAudioThread() {
                     sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
             }
             // Adentro (programa o fila) no se le empuja aparte: ya recibe el retorno
-            // y dos fuentes en el mismo track se pisan. Va a la cola del IFB.
-            if (!sessionsWhere([](const MediaRoute& r) { return r.kind != MediaRoute::Kind::Lobby && r.talk; }).empty()) {
-                std::lock_guard<std::mutex> l(ifbLock_);
-                ifb_.insert(ifb_.end(), blk.samples, blk.samples + n);
-                const size_t tope = static_cast<size_t>(cfg_.audioRate) * 2 * 3 / 10; // 300 ms estéreo
-                while (ifb_.size() > tope) ifb_.pop_front();
+            // y dos fuentes en el mismo track se pisan. Va a la cola del IFB del
+            // retorno que recibe: el de su salida.
+            std::set<std::string> conIfb;
+            {
+                std::lock_guard<std::mutex> l(routesLock_);
+                for (size_t s = 1; s < routes_.size(); ++s)
+                    if (routes_[s].kind != MediaRoute::Kind::Lobby && routes_[s].talk) conIfb.insert(routes_[s].salida);
+            }
+            const size_t tope = kTopeColaVoz(cfg_.audioRate); // 300 ms estéreo
+            for (const std::string& salida : conIfb) {
+                if (salida.empty()) {
+                    std::lock_guard<std::mutex> l(ifb_.lock);
+                    colavoz::encolar(ifb_.voz, blk.samples, n, tope);
+                    continue;
+                }
+                std::lock_guard<std::mutex> l(bajadasLock_);
+                const auto it = bajadas_.find(salida);
+                if (it == bajadas_.end()) continue;
+                std::lock_guard<std::mutex> lq(it->second->ifb.lock);
+                colavoz::encolar(it->second->ifb.voz, blk.samples, n, tope);
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));

@@ -56,8 +56,9 @@ class EnlacesSala {
     void rotulos(bool remoto, bool conClave, Listo listo);
     /// Lo que sale al aire (o, con `canal` >= 0, la escena de ese canal) para
     /// un televisor de la red local, que entra a la sala como `nombre`. Lleva
-    /// un permiso de un solo uso: se pide cada vez que se lo manda.
-    void pantalla(const std::string& nombre, int canal, Listo listo);
+    /// un permiso de un solo uso: se pide cada vez que se lo manda. Sin canal,
+    /// `salida` elige de qué salida es lo que sale al aire ("" = la por omisión).
+    void pantalla(const std::string& nombre, int canal, Listo listo, const std::string& salida = {});
 
    private:
     void pedirEnlace(const std::string& ruta, Listo listo);

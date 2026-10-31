@@ -58,6 +58,7 @@ button:disabled { opacity: 0.5; }
 .botones-vista { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
 .botones-vista button { font-size: 15px; padding: 8px 14px; background: #3b4252; }
 .botones-vista button.elegida { background: #ff6a2b; }
+.botones-vista button.con-salida { box-shadow: inset 4px 0 0 var(--color-salida); }
 .sonido { font-size: 14px; padding: 8px 12px; background: #3b4252; }
 .sonido.prendido { background: #2e7d32; }
 .aviso { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center;

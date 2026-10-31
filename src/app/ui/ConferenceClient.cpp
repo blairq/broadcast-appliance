@@ -120,6 +120,7 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit registroEvento(obj);
     } else if (event == "programa") {
         miranPrograma_ = obj.value("mirando").toInt(-1);
+        miranSalidas_ = obj.value("salidas").toObject();
     }
 }
 
@@ -141,7 +142,14 @@ void ConferenceClient::scheduleReconnect() {
 void ConferenceClient::setOnline(bool on) {
     if (online_ == on) return;
     online_ = on;
+    if (on && !salidas_.isEmpty()) post("/api/v1/salidas", QJsonObject{{"lista", salidas_}});
     emit onlineChanged(on);
+}
+
+void ConferenceClient::ponerSalidas(const QJsonArray& lista) {
+    if (lista == salidas_) return;
+    salidas_ = lista;
+    if (online_) post("/api/v1/salidas", QJsonObject{{"lista", salidas_}});
 }
 
 void ConferenceClient::post(const QString& path, const QJsonObject& body, Done done, int timeoutMs) {
