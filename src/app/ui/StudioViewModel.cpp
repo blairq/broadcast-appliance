@@ -234,11 +234,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(escenas_.get(), &EscenasViewModel::escenaCambio, this, &StudioViewModel::sceneChanged);
     props_ = std::make_unique<PropertiesModel>(rt);
     marca("props");
-    conference_ = std::make_unique<ConferenceViewModel>(rt);
+    conference_ = std::make_unique<ConferenceViewModel>(rt, ventanilla_);
     // Lo que se maneja de la sala en caliente: el cupo, la configuración, las direcciones,
     // la votación, las preguntas, el PIN y el túnel (ui/SalaViewModel).
     sala_ = std::make_unique<SalaViewModel>(SalaViewModel::Partes{
         .rt = rt,
+        .ventanilla = ventanilla_,
         .conferencia = *conference_,
         .recursos = *recursos_,
         .enVivo = [this]() { return modoVivo(); },
@@ -275,7 +276,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         // El guion abre solo el ultimo evento que se toco, que es un archivo
         // del disco y puede venir de cualquier lado.
         ba::diag::Cargando c("evento");
-        evento_ = std::make_unique<EventoViewModel>(rt, conference_.get(), emisor_.get(), c.saltear());
+        evento_ = std::make_unique<EventoViewModel>(rt, ventanilla_, conference_.get(), emisor_.get(), c.saltear());
         marca("evento");
     }
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
@@ -470,7 +471,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         bus_->setMediciones(control::BusEventos::medicionesDeFabrica());
         // La bitácora del evento en curso y el histórico (ui/BitacoraEvento).
         if (evento_) {
-            bitacoraEvento_ = std::make_unique<BitacoraEvento>(rt_, *evento_, *bus_);
+            bitacoraEvento_ = std::make_unique<BitacoraEvento>(rt_, ventanilla_, *evento_, *bus_);
             connect(bitacoraEvento_.get(), &BitacoraEvento::notify, this, &StudioViewModel::notify);
         }
         // Con un evento en curso, lo que se graba va a su carpeta (H4).
@@ -612,6 +613,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // el quórum, el orden del día, las votaciones y la presidencia (ui/AsambleaViewModel).
     asamblea_ = std::make_unique<AsambleaViewModel>(AsambleaViewModel::Partes{
         .rt = rt,
+        .ventanilla = ventanilla_,
         .bus = *bus_,
         .sala = *conference_,
         .direcciones = sala_->direcciones(),
@@ -639,7 +641,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(control_.get(), &ControlViewModel::mostrarQr, this, &StudioViewModel::mostrarQr);
     connect(control_.get(), &ControlViewModel::dskCambio, this, &StudioViewModel::publicarTally);
     control_->dsk().setSalida(salidas_->activaId());
-    linea_ = std::make_unique<LineaViewModel>(*evento_, rt_.engine(), frames_.get(), &control_->acciones(), bus_.get());
+    linea_ = std::make_unique<LineaViewModel>(*evento_, rt_, ventanilla_, frames_.get(), &control_->acciones(), bus_.get());
     // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,
     // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
     grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(

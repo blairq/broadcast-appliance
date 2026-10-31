@@ -17,6 +17,7 @@
 #include "asamblea/Votaciones.hpp"
 #include "control/BusEventos.hpp"
 #include "escenas/Conmutador.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "evento/APdf.hpp"
 #include "i18n/I18n.hpp"
 #include "ptz/ControlCamaras.hpp"
@@ -90,7 +91,14 @@ AsambleaViewModel::AsambleaViewModel(Partes p, QObject* parent) : QObject(parent
                                      .ordenDia = ordenDia_.get(),
                                      .sala = p_.sala.client(),
                                      .bus = p_.bus,
-                                     .motor = p_.rt.engine(),
+                                     .enMotor =
+                                         [this](std::function<asamblea::Presidencia::Canales(BroadcastEngine&)> reparto,
+                                                std::function<void(asamblea::Presidencia::Canales)> listo) {
+                                             p_.ventanilla.pedir(
+                                                 this, "asamblea_canales",
+                                                 [&rt = p_.rt, reparto = std::move(reparto)]() { return reparto(rt.engine()); },
+                                                 std::move(listo));
+                                         },
                                      .microfonoOperador = [this]() { return !p_.sala.operatorAudio().isEmpty(); }};
     presidencia_ = std::make_unique<asamblea::Presidencia>(std::move(pp), this);
     connect(presidencia_.get(), &asamblea::Presidencia::aviso, this,
@@ -127,18 +135,28 @@ void AsambleaViewModel::armarBancas() {
     };
     g.escenaDe = [this](const std::string& camara) {
         // La primera escena que muestra esa cámara (que no sea la del aire si hay otra).
+        const FotoMotor& foto = p_.ventanilla.foto();
+        const FotoMotor::Salida* s = foto.salida({});
+        const std::string alAire = s != nullptr ? s->alAire : std::string();
         std::string otra;
-        for (const std::string& sc : p_.rt.engine().sceneNames()) {
-            const auto ss = p_.rt.engine().sceneSources(sc);
-            if (std::find(ss.begin(), ss.end(), camara) == ss.end()) continue;
-            if (sc != p_.rt.engine().currentScene()) return sc;
-            otra = sc;
+        for (const FotoMotor::Escena& e : foto.escenas) {
+            const bool la = std::any_of(e.fuentes.begin(), e.fuentes.end(), [&](const FotoMotor::Fuente& f) { return f.nombre == camara; });
+            if (!la) continue;
+            if (e.nombre != alAire) return e.nombre;
+            otra = e.nombre;
         }
         return otra;
     };
-    g.armar = [this](const std::string& e) { p_.conmutador.armar(e); };
-    g.cortar = [this](const std::string& e) { p_.conmutador.poner(e); };
-    g.microfono = [this](const std::string& f, bool abierto) { p_.rt.engine().setSourceMuted(f, !abierto); };
+    // El conmutador y el motor son del dueño: se les pide (en orden, sin esperar).
+    g.armar = [this](const std::string& e) {
+        p_.ventanilla.pedir("asamblea_armar", [&c = p_.conmutador, e]() { c.armar(e); });
+    };
+    g.cortar = [this](const std::string& e) {
+        p_.ventanilla.pedir("asamblea_cortar", [&c = p_.conmutador, e]() { c.poner(e); });
+    };
+    g.microfono = [this](const std::string& f, bool abierto) {
+        p_.ventanilla.pedir("asamblea_microfono", [&rt = p_.rt, f, abierto]() { rt.engine().setSourceMuted(f, !abierto); });
+    };
     g.microfonoBanca = [this](const std::string& banca, bool abierto, bool terminar) {
         // Por la central solo si está conectada y la banca tiene su unidad; si
         // no, sigue valiendo la fuente de audio de la banca (la de arriba).
@@ -170,11 +188,14 @@ void AsambleaViewModel::armarBancas() {
     // La fuente «Banca con la palabra»: si la toma es digital y hay escenas con la
     // fuente, ella la recorta de la toma entera (no se mueve nada).
     g.laEncuadraLaFuente = [this](const std::string& c, const std::string& pos) {
-        if (!p_.rt.engine().hayFuenteBanca()) return false;
+        if (!p_.ventanilla.foto().sala.hayFuenteBanca) return false;
         const QVariantMap d = p_.camaras.datosPosicion(QString::fromStdString(c), QString::fromStdString(pos));
         return d.value("existe").toBool() && d.value("digital").toBool() && !d.value("motorizada").toBool();
     };
-    g.escenaDeRanura = [this](int n) { return p_.rt.engine().escenaDeRanura(n); };
+    g.escenaDeRanura = [this](int n) {
+        const std::vector<std::string>& r = p_.ventanilla.foto().sala.escenaDeRanura;
+        return n >= 1 && n <= static_cast<int>(r.size()) ? r[static_cast<std::size_t>(n - 1)] : std::string();
+    };
     g.posicionesConNombre = [this](const std::string& nombre) {
         std::vector<std::pair<std::string, std::string>> out;
         for (const QVariant& v : p_.camaras.buscarPosicion(QString::fromStdString(nombre))) {
@@ -244,14 +265,15 @@ void AsambleaViewModel::armarBancas() {
     asamblea::CuerpoViewModel::Ganchos gc;
     gc.apuntar = [this](const QString& banca) { return bancas_->apuntar(banca); };
     gc.capturar = [this](const QString& camara, std::function<void(QImage)> listo) {
-        // Sin esperar el cuadro acá (capturarAparte): vuelve a este hilo cuando llega.
-        p_.rt.engine().capturarAparte(
-            camara.toStdString(), 960,
-            [listo = std::move(listo)](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) mutable {
-                QImage img;
-                if (e.empty() && w > 0 && h > 0) img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-                QMetaObject::invokeMethod(qApp, [listo = std::move(listo), img]() { listo(img); }, Qt::QueuedConnection);
-            });
+        // Sin esperar el cuadro (capturarAparte, pedida al dueño): vuelve a este hilo cuando llega.
+        p_.ventanilla.pedir("asamblea_foto", [&rt = p_.rt, c = camara.toStdString(), listo = std::move(listo)]() mutable {
+            rt.engine().capturarAparte(
+                c, 960, [listo = std::move(listo)](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) mutable {
+                    QImage img;
+                    if (e.empty() && w > 0 && h > 0) img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+                    QMetaObject::invokeMethod(qApp, [listo = std::move(listo), img]() { listo(img); }, Qt::QueuedConnection);
+                });
+        });
     };
     cuerpo_->setGanchos(std::move(gc));
     seguirMic_ = std::make_unique<asamblea::SeguirMicrofono>(p_.rt.dataRoot(), p_.bus, cuerpo_->cuerpo(), *bancas_);
@@ -530,7 +552,9 @@ void AsambleaViewModel::actualizarRanurasBanca(bool forzar) {
         }
         ranuras.push_back(r);
     }
-    p_.rt.engine().setRanurasBanca(std::move(ranuras), forzar);
+    p_.ventanilla.pedir("asamblea_ranuras", [&rt = p_.rt, ranuras = std::move(ranuras), forzar]() mutable {
+        rt.engine().setRanurasBanca(std::move(ranuras), forzar);
+    });
 }
 
 nlohmann::json AsambleaViewModel::paraLaWeb() const {

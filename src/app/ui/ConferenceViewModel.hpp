@@ -42,6 +42,7 @@ namespace ba::app {
 
 class AppRuntime;
 class ConferenceClient;
+class VentanillaMotor;
 
 /// Lista generica sobre un arreglo JSON de objetos con campo "id". Cada clave
 /// de `keys` es un rol de QML con el mismo nombre ("id" es palabra reservada
@@ -134,7 +135,9 @@ class ConferenceViewModel : public QObject {
     /// Date.now() + clockOffset.
     Q_PROPERTY(double clockOffset READ clockOffset NOTIFY roomChanged)
    public:
-    ConferenceViewModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// Lo del motor (las fuentes, con qué aparece el operador, lo guardado de la sala) se lee
+    /// de la foto de `ventanilla` y se pide por ella (F3-03).
+    ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~ConferenceViewModel() override;
 
     bool online() const;
@@ -315,7 +318,9 @@ class ConferenceViewModel : public QObject {
     void onSnapshot();
     void onChatMsg(const QJsonObject& msg, bool live);
 
-    AppRuntime& rt_;
+    AppRuntime& rt_; ///< solo para las órdenes que corren en el dueño (y reiniciar la sala)
+    VentanillaMotor& ventanilla_;
+    std::vector<bool> monitorLobby_; ///< lo último pedido al motor (se pide solo si cambia)
     QVariantMap proxy_;
     QVariantMap bloqueosPin_;
 

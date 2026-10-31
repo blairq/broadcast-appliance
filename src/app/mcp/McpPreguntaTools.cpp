@@ -22,10 +22,13 @@
 #include "i18n/I18n.hpp"
 
 #include <QJsonArray>
+#include <map>
 #include <QJsonDocument>
 #include <QJsonObject>
 
 #include "arranque/AppRuntime.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -374,57 +377,78 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
             if (conf == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "El servidor no esta disponible.")));
 
-            const QVariantMap lobby = pv->enLobby();
-            json gente = json::array();
-            for (auto it = lobby.begin(); it != lobby.end(); ++it) {
+            // Lo de la cara, acá; el canal de audio de cada uno (el que tiene su número de
+            // lugar en el nombre), de la foto del motor; su nivel y si está silenciado se le
+            // piden al motor (es del plano de control), todos en una orden.
+            struct Persona {
+                std::string uid, nombre, sugerencia, canal;
+                bool caraOk = false;
+            };
+            std::vector<Persona> lobby;
+            const QVariantMap enLobby = pv->enLobby();
+            const std::vector<std::string>& conAudio = vm.ventanilla().foto().sala.audio;
+            for (auto it = enLobby.begin(); it != enLobby.end(); ++it) {
                 const QVariantMap p = it.value().toMap();
-                const bool caraOk = p.value("sirve").toBool();
-                const QString sugerencia = p.value("sugerencia").toString();
-
-                // El canal de audio del invitado, si ya existe. Se busca por
-                // el numero de lugar, que es como se llama la fuente.
-                std::string canal;
-                for (const std::string& nombre : rt.engine().audioSources())
-                    if (nombre.find(it.key().toStdString()) != std::string::npos) {
-                        canal = nombre;
+                Persona x{it.key().toStdString(), p.value("nombre").toString().toStdString(),
+                          p.value("sugerencia").toString().toStdString(), {}, p.value("sirve").toBool()};
+                for (const std::string& nombre : conAudio)
+                    if (nombre.find(x.uid) != std::string::npos) {
+                        x.canal = nombre;
                         break;
                     }
-                const bool hayAudio = !canal.empty();
-                const double pico = hayAudio ? rt.engine().sourcePeakDb(canal) : -100.0;
-                const bool silenciado = hayAudio && rt.engine().sourceMuted(canal);
-                // -45 dBFS es el piso: por debajo de eso, en una sala con
-                // ruido, la voz se pierde contra el ambiente.
-                const bool audioOk = hayAudio && !silenciado && pico > -45.0;
-
-                std::string decirle;
-                if (!caraOk && !sugerencia.isEmpty()) decirle = sugerencia.toStdString();
-                if (!hayAudio) {
-                    if (!decirle.empty()) decirle += " ";
-                    decirle += ba::i18n::traducir("mcp", "Todavia no te escucho: fijate que el navegador tenga permiso para usar el "
-                               "microfono.");
-                } else if (silenciado) {
-                    if (!decirle.empty()) decirle += " ";
-                    decirle += ba::i18n::traducir("mcp", "Tenes el microfono silenciado.");
-                } else if (!audioOk) {
-                    if (!decirle.empty()) decirle += " ";
-                    decirle += ba::i18n::traducir("mcp", "Se te escucha muy bajito: acercate un poco al microfono o subile el volumen.");
-                }
-
-                gente.push_back(json{{"uid", it.key().toStdString()},
-                                     {"nombre", p.value("nombre").toString().toStdString()},
-                                     {"listo", caraOk && audioOk},
-                                     {"camara", caraOk ? "bien" : "no sirve todavia"},
-                                     {"audio", !hayAudio    ? "no se sabe"
-                                               : silenciado ? "silenciado"
-                                               : audioOk    ? "bien"
-                                                            : "muy bajo"},
-                                     {"picoDb", hayAudio ? pico : -100.0},
-                                     {"quedecirle", decirle}});
+                lobby.push_back(std::move(x));
             }
-            ToolResult r;
-            if (gente.empty()) r.text(ba::i18n::traducir("mcp", "No hay nadie esperando en el lobby."));
-            r.structured = json{{"gente", gente}};
-            done(r);
+            std::vector<std::string> canales;
+            for (const Persona& x : lobby)
+                if (!x.canal.empty()) canales.push_back(x.canal);
+            vm.ventanilla().pedir(
+                &vm, "invitado_chequeo",
+                [&rt, canales]() {
+                    std::map<std::string, std::pair<double, bool>> nivel; // canal -> {pico, silenciado}
+                    for (const std::string& c : canales) nivel[c] = {rt.engine().sourcePeakDb(c), rt.engine().sourceMuted(c)};
+                    return nivel;
+                },
+                [lobby, done](const std::map<std::string, std::pair<double, bool>>& nivel) {
+                    json gente = json::array();
+                    for (const Persona& x : lobby) {
+                        const auto n = nivel.find(x.canal);
+                        const bool hayAudio = !x.canal.empty() && n != nivel.end();
+                        const double pico = hayAudio ? n->second.first : -100.0;
+                        const bool silenciado = hayAudio && n->second.second;
+                        // -45 dBFS es el piso: por debajo de eso, en una sala con
+                        // ruido, la voz se pierde contra el ambiente.
+                        const bool audioOk = hayAudio && !silenciado && pico > -45.0;
+
+                        std::string decirle;
+                        if (!x.caraOk && !x.sugerencia.empty()) decirle = x.sugerencia;
+                        if (!hayAudio) {
+                            if (!decirle.empty()) decirle += " ";
+                            decirle += ba::i18n::traducir("mcp", "Todavia no te escucho: fijate que el navegador tenga permiso para usar el "
+                                       "microfono.");
+                        } else if (silenciado) {
+                            if (!decirle.empty()) decirle += " ";
+                            decirle += ba::i18n::traducir("mcp", "Tenes el microfono silenciado.");
+                        } else if (!audioOk) {
+                            if (!decirle.empty()) decirle += " ";
+                            decirle += ba::i18n::traducir("mcp", "Se te escucha muy bajito: acercate un poco al microfono o subile el volumen.");
+                        }
+
+                        gente.push_back(json{{"uid", x.uid},
+                                             {"nombre", x.nombre},
+                                             {"listo", x.caraOk && audioOk},
+                                             {"camara", x.caraOk ? "bien" : "no sirve todavia"},
+                                             {"audio", !hayAudio    ? "no se sabe"
+                                                       : silenciado ? "silenciado"
+                                                       : audioOk    ? "bien"
+                                                                    : "muy bajo"},
+                                             {"picoDb", hayAudio ? pico : -100.0},
+                                             {"quedecirle", decirle}});
+                    }
+                    ToolResult r;
+                    if (gente.empty()) r.text(ba::i18n::traducir("mcp", "No hay nadie esperando en el lobby."));
+                    r.structured = json{{"gente", gente}};
+                    done(r);
+                });
         };
         core.addTool(std::move(t));
     }

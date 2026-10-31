@@ -50,7 +50,7 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
     });
     direcciones_ = std::make_unique<sala::Direcciones>(cli);
     // El cupo es del modelo; acá solo se muestra lo que pasó.
-    cupoSala_ = std::make_unique<sala::CupoSala>(rt, cli);
+    cupoSala_ = std::make_unique<sala::CupoSala>(rt, p_.ventanilla, cli);
     cupoSala_->alAvisar([this](const std::string& texto, bool error) { emit notify(QString::fromStdString(texto), error ? "error" : "ok"); });
     cupoSala_->alCambiar([this](int n) { emit cupoCambio(n); });
     configSala_ = std::make_unique<sala::ConfigSala>(cli);
@@ -59,7 +59,7 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
     p_.conferencia.setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
         return assistantIntake(id, name, yaAdentro);
     });
-    accesoRemoto_ = std::make_unique<AccesoRemoto>(rt, cli);
+    accesoRemoto_ = std::make_unique<AccesoRemoto>(p_.ventanilla, cli);
     // Con la máquina muy caliente (F4-05), los invitados mandan menos: a los de adentro y a
     // los que entren mientras dure. Al aliviarse, la calidad completa a esos mismos.
     calidadPorCalor_ = std::make_unique<sala::CalidadPorCalor>(

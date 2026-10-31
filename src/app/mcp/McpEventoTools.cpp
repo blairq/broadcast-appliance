@@ -37,9 +37,11 @@
 #include <QJsonObject>
 #include <QTimeZone>
 
+#include "emision/VentanillaMotor.hpp"
 #include "evento/Bitacora.hpp"
 #include "evento/CierreEvento.hpp"
 #include "evento/Evento.hpp"
+#include "evento/EventoStore.hpp"
 #include "evento/Historico.hpp"
 #include "evento/FotosConfig.hpp"
 #include "mcp/McpCore.hpp"
@@ -395,9 +397,13 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"limite", {{"type", "integer"}, {"minimum", 1}, {"maximum", 5000}}}}}};
         t.examples = {R"({"tipos": ["bus"], "limite": 50})", R"({"texto": "votacion"})",
                       R"({"evento": "2026/Octubre/Sesion-ordinaria", "desde": "18:00", "hasta": "19:30"})"};
-        t.run = [&ev](const json& a, Done done) {
+        // Solo lee el disco con la raíz de los eventos: en el pool, aunque la interfaz esté trabada.
+        t.hilo = Hilo::Foto;
+        t.run = [raiz = ev.raizEventos()](const json& a, Done done) {
+            const evento::EventoStore store(raiz);
             const std::string carpeta = a.value("evento", std::string());
-            const auto archivo = ev.archivoBitacoraDe(carpeta);
+            const auto dir = store.carpetaExistente(carpeta);
+            const auto archivo = dir.empty() ? dir : dir / "bitacora.jsonl";
             if (archivo.empty())
                 return done(ToolResult::error(carpeta.empty() ? ba::i18n::traducir("mcp", "no hay un evento en curso") : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta})));
             // «HH:MM» es del día de la bitácora: se toma la fecha de la primera línea.
@@ -421,7 +427,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 x["hora"] = QDateTime::fromMSecsSinceEpoch(x.value("t", std::int64_t{0})).toString("HH:mm:ss").toStdString();
                 out.push_back(std::move(x));
             }
-            done(ToolResult().data(json{{"evento", carpeta.empty() ? ev.enCurso().value("carpeta").toString().toStdString() : carpeta},
+            done(ToolResult().data(json{{"evento", carpeta.empty() ? store.enCurso() : carpeta},
                                         {"lineas", out},
                                         {"total_en_archivo", primera.size()}}));
         };
@@ -515,9 +521,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "(`aire/escena`), en segundos desde el inicio del archivo. Las claves de transmisión nunca se guardan.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"evento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La carpeta (vacío = el en curso).")}}}}}};
-        t.run = [&ev](const json& a, Done done) {
+        t.hilo = Hilo::Foto; // solo lee el disco (con la raíz de los eventos)
+        t.run = [raiz = ev.raizEventos()](const json& a, Done done) {
             const std::string carpeta = a.value("evento", std::string());
-            const auto dir = ev.carpetaEvento(carpeta);
+            const auto dir = evento::EventoStore(raiz).carpetaExistente(carpeta);
             if (dir.empty())
                 return done(ToolResult::error(carpeta.empty() ? ba::i18n::traducir("mcp", "no hay un evento en curso") : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {carpeta})));
             const auto lista = [](const std::filesystem::path& p) {
@@ -584,20 +591,17 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.inputSchema = {{"type", "object"},
                          {"required", {"evento"}},
                          {"properties", {{"evento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La carpeta (guion_listar).")}}}}}};
-        t.run = [&ev](const json& a, Done done) {
-            const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
+        // En el pool (fuera de la interfaz: puede leer gigas), con la raíz de los eventos.
+        t.hilo = Hilo::Foto;
+        t.run = [raiz = ev.raizEventos()](const json& a, Done done) {
+            const evento::EventoStore store(raiz);
+            const auto dir = store.carpetaExistente(a.value("evento", std::string()));
             if (dir.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {a.value("evento", std::string())})));
-            // Fuera del hilo de la interfaz: puede leer gigas.
-            const bool enCurso = dir == ev.carpetaEvento();
-            const std::string avisoEnCurso =
-                ba::i18n::traducir("mcp", "está en curso: se sigue escribiendo (bitácora, ficha…), así que lo que cambió desde "
+            json r = evento::CierreEvento::verificar(dir);
+            if (dir == store.carpetaExistente({}))
+                r["aviso"] = ba::i18n::traducir("mcp", "está en curso: se sigue escribiendo (bitácora, ficha…), así que lo que cambió desde "
                   "su último cierre es normal; los sellos valen cuando deje de estar en curso.");
-            QThreadPool::globalInstance()->start([dir, done, enCurso, avisoEnCurso]() {
-                json r = evento::CierreEvento::verificar(dir);
-                if (enCurso)
-                    r["aviso"] = avisoEnCurso;
-                QMetaObject::invokeMethod(qApp, [r, done]() { done(ToolResult().data(r)); }, Qt::QueuedConnection);
-            });
+            done(ToolResult().data(r));
         };
         core.addTool(std::move(t));
     }
@@ -624,18 +628,13 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                           {{"texto", {{"type", "string"}, {"minLength", 2}}},
                            {"limite", {{"type", "integer"}, {"minimum", 1}, {"maximum", 1000}}}}}};
         t.examples = {R"({"texto": "votación"})", R"({"texto": "sin señal", "limite": 50})"};
-        t.run = [&ev](const json& a, Done done) {
-            const auto raiz = ev.raizEventos();
-            const std::string q = a.value("texto", std::string());
-            const std::size_t lim = static_cast<std::size_t>(a.value("limite", 100));
-            QThreadPool::globalInstance()->start([raiz, q, lim, done]() {
-                json r = evento::Historico::buscar(raiz, q, lim);
-                for (auto& x : r)
-                    if (x.contains("t"))
-                        x["hora"] = QDateTime::fromMSecsSinceEpoch(x["t"].get<std::int64_t>()).toString("dd/MM/yyyy HH:mm:ss").toStdString();
-                QMetaObject::invokeMethod(qApp, [r, done]() { done(ToolResult().data(json{{"resultados", r}, {"cantidad", r.size()}})); },
-                                          Qt::QueuedConnection);
-            });
+        t.hilo = Hilo::Foto; // en el pool, con la raíz de los eventos (lee todo el histórico)
+        t.run = [raiz = ev.raizEventos()](const json& a, Done done) {
+            json r = evento::Historico::buscar(raiz, a.value("texto", std::string()), static_cast<std::size_t>(a.value("limite", 100)));
+            for (auto& x : r)
+                if (x.contains("t"))
+                    x["hora"] = QDateTime::fromMSecsSinceEpoch(x["t"].get<std::int64_t>()).toString("dd/MM/yyyy HH:mm:ss").toStdString();
+            done(ToolResult().data(json{{"resultados", r}, {"cantidad", r.size()}}));
         };
         core.addTool(std::move(t));
     }
@@ -1687,7 +1686,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             // Con un Cuerpo cargado es una sesión de asamblea: lo que le falta (sobre todo
             // escenas) se dice ya, aunque nadie haya pedido revisarlo.
             if (!vm.cuerpo().cuerpo().integrantes().empty()) {
-                const json asam = revisarAsamblea(vm, vm.runtime());
+                const json asam = revisarAsamblea(vm);
                 r.structured["asamblea"] = asam;
                 if (!asam.value("listo", true)) {
                     std::string t = "\n\n" + ba::i18n::traducir("mcp", "Para sesionar todavía falta (asamblea_revisar):");
@@ -1755,7 +1754,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     LineaFuentes fuentes;
     fuentes.camarasDeEscena = [&vm](const std::string& escena) {
         std::vector<std::string> v;
-        for (const auto& [fuente, rect] : vm.runtime().engine().itemsVisibles(escena)) v.push_back(fuente);
+        // Lo visible de la escena, de la foto del motor (en la interfaz).
+        if (const FotoMotor::Escena* e = vm.ventanilla().foto().escena(escena))
+            for (const FotoMotor::Fuente& f : e->fuentes)
+                if (f.visible) v.push_back(f.nombre);
         return v;
     };
     fuentes.ordenDelDia = [&vm]() { return vm.ordenDelDia().puntos(); };

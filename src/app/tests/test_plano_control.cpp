@@ -46,6 +46,11 @@
 //      interfaz que entra directo (por vuelta) tiene el turno hasta que termina su evento;
 //      mientras tanto la agenda reintenta sin trabar el control (sus relojes siguen), lo
 //      pedido se hace al soltarlo y la entrada directa queda contada con su lugar.
+//   S. ASAMBLEA, SALA Y LÍNEA: la copia de linea_estado sembrada al registrarla y puesta al
+//      día por la línea contesta en el acto con la interfaz trabada (recién arrancada
+//      esperaba y fallaba); el histórico se lee en el pool con la raíz de los eventos; la
+//      atención automática, el micrófono de la fila y el corte de la línea se piden y se
+//      hacen en el control con la interfaz trabada, con la parte Sala de la foto al volver.
 // ============================================================================
 #include "agent/AlertEngine.hpp"
 #include "agent/EntradasAlarmas.hpp"
@@ -53,6 +58,7 @@
 #include "emision/DocumentoAire.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
+#include "evento/EventoStore.hpp"
 #include "mcp/McpCore.hpp"
 #include "mcp/McpFoto.hpp"
 #include "mcp/McpHttp.hpp"
@@ -1048,6 +1054,156 @@ int main(int argc, char** argv) {
               "10: la entrada directa quedó contada, con su lugar");
         CHECK(!turno.loTengo(), "10: al terminar el evento la interfaz soltó el turno");
         TurnoMotor::participar("interfaz");
+    }
+
+    // --- S. Asamblea, sala y línea de tiempo (F3-03) ----------------------------------------
+    // (a) La línea vive en la interfaz y el MCP la lee por copia (linea_estado, linea_ver):
+    // la copia se SIEMBRA al registrarla y la línea la pone al día cuando cambia
+    // (CopiaDeLaInterfaz::copiarYa). Recién arrancada, con la interfaz trabada, contesta en
+    // el acto con lo último (antes esperaba la primera copia 5 s y fallaba).
+    {
+        std::atomic<int> pasoS{1};
+        std::shared_ptr<CopiaDeLaInterfaz> copiaS;
+        {
+            Tool t;
+            t.name = "linea_estado_sembrada";
+            t.clase = Clase::Lectura;
+            copiaS = copiarDeLaInterfaz(
+                core, t, [&](const json&) -> LeidoEnLaInterfaz { return {json{{"paso", pasoS.load()}}, {}}; },
+                EsperaDeLaCopia{100, 3000});
+            core.addTool(std::move(t));
+        }
+        copiaS->copiarYa(); // al registrarla, en la interfaz
+        const auto llamarTrabada = [&](int id, double& ms) {
+            std::string r;
+            std::thread c([&]() {
+                const auto t0 = std::chrono::steady_clock::now();
+                r = llamar(http.port(), token, "linea_estado_sembrada", id, json::object());
+                ms = msDesde(t0);
+            });
+            trabarInterfaz(800);
+            c.join();
+            const json j = json::parse(r, nullptr, false);
+            return j.is_object() ? j["result"].value("structuredContent", json::object()) : json::object();
+        };
+        double ms1 = -1, ms2 = -1;
+        const json s1 = llamarTrabada(950, ms1);
+        // La línea avanzó (la interfaz, libre un momento, deja la copia al día al cambiar).
+        pasoS = 2;
+        copiaS->copiarYa();
+        const json s2 = llamarTrabada(951, ms2);
+        std::printf("  medido: linea_estado sembrada con la interfaz trabada: %.1f ms y %.1f ms (sin sembrar esperaba 3000)\n", ms1, ms2);
+        CHECK(s1.value("paso", 0) == 1 && ms1 < 600 && s1.value("interfaz", json::object()).value("edad_ms", -1) >= 0,
+              "S: recién registrada y con la interfaz trabada, la copia sembrada contesta en el acto");
+        CHECK(s2.value("paso", 0) == 2 && ms2 < 600, "S: la línea deja la copia al día cuando cambia (sin que nadie pregunte)");
+        atender(200);
+    }
+
+    // (b) El histórico (evento_bitacora, evento_grabaciones, evento_sellos, historico_buscar)
+    // se lee con la raíz de los eventos, en el pool: con la interfaz trabada encuentra el
+    // evento en curso y su carpeta (EventoStore::carpetaExistente, solo disco).
+    {
+        const fs::path raizS = fs::temp_directory_path() / ("ba-test-plano-s-" + std::to_string(QCoreApplication::applicationPid()));
+        fs::remove_all(raizS);
+        ba::evento::EventoStore store(raizS);
+        std::string err;
+        const std::string carpeta = store.crear("Sesión ordinaria", &err);
+        const bool enCurso = !carpeta.empty() && store.iniciar(carpeta, 1000, &err);
+        std::filesystem::path enElPool, deOtro;
+        double msPool = -1;
+        QThreadPool::globalInstance()->start([&]() {
+            const auto t0 = std::chrono::steady_clock::now();
+            const ba::evento::EventoStore s(raizS);
+            enElPool = s.carpetaExistente({});
+            deOtro = s.carpetaExistente("no/existe");
+            msPool = msDesde(t0);
+        });
+        trabarInterfaz(400);
+        QThreadPool::globalInstance()->waitForDone();
+        CHECK(enCurso && enElPool == raizS / carpeta && deOtro.empty() && msPool >= 0 && msPool < 300,
+              "S: con la interfaz trabada, el pool encuentra el evento en curso con la raíz de los eventos");
+        fs::remove_all(raizS);
+    }
+
+    // (c) Lo que la sala, la asamblea y la línea le hacen al motor se PIDE (corre en el
+    // control, con el turno) y lo que leen sale de la foto, parte Sala: guardar la atención
+    // automática, abrir un micrófono de la fila, cortar a la escena del paso. Lo pedido se
+    // ve como pendiente hasta la respuesta (ControlSala::atencionAutomatica).
+    {
+        using ba::app::FotoMotor;
+        using ba::app::VentanillaMotor;
+        struct Motor {
+            bool atencion = false;
+            std::map<std::string, bool> mudo{{"Banca 3", true}};
+            std::string alAire = "Plano general";
+        } m;
+        std::shared_ptr<const FotoMotor> ultima;
+        VentanillaMotor* vs = nullptr;
+        std::atomic<int> enLaInterfaz{0}, sinTurno{0};
+        const auto publicar = [&]() {
+            auto f = std::make_shared<FotoMotor>();
+            f->sala.atencionAutomatica = m.atencion;
+            f->sala.audio = {"Banca 3"};
+            FotoMotor::Salida s;
+            s.id = "principal";
+            s.porOmision = true;
+            s.alAire = m.alAire;
+            f->salidas.push_back(s);
+            unsigned partes = FotoMotor::Todas;
+            if (ultima) {
+                partes = 0;
+                if (f->sala != ultima->sala) partes |= FotoMotor::Sala;
+                if (f->salidas != ultima->salidas) partes |= FotoMotor::Salidas;
+            }
+            if (partes == 0) return;
+            ultima = f;
+            vs->publicar(f, partes);
+        };
+        VentanillaMotor v({.encolar = [&plano](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); },
+                           .alTerminarOrden = publicar,
+                           .adoptar = {}});
+        vs = &v;
+        turno.tomar();
+        publicar();
+        turno.soltar();
+        v.recibirAhora();
+        unsigned partesS = 0;
+        QObject::connect(&v, &VentanillaMotor::cambio, &v, [&](unsigned p) { partesS |= p; });
+        QObject quien;
+        std::optional<bool> atencionPedida; // el pendiente de ControlSala
+        const auto atencion = [&]() { return atencionPedida ? *atencionPedida : v.foto().sala.atencionAutomatica; };
+        std::vector<double> lat;
+        std::mutex latMu;
+        const auto enControl = [&](std::function<void()> fn) {
+            const auto t0 = std::chrono::steady_clock::now();
+            return [&, fn, t0]() {
+                if (QThread::currentThread() == interfaz) ++enLaInterfaz;
+                if (!turno.loTengo()) ++sinTurno;
+                fn();
+                const std::lock_guard<std::mutex> l(latMu);
+                lat.push_back(msDesde(t0));
+            };
+        };
+        atencionPedida = true;
+        v.pedir(&quien, "sala_atencion", enControl([&]() { m.atencion = true; }), [&]() { atencionPedida.reset(); });
+        v.pedir("asamblea_microfono", enControl([&]() { m.mudo["Banca 3"] = false; }));
+        v.pedir("linea_tomar", enControl([&]() { m.alAire = "Orador"; }));
+        const bool pendienteVisto = atencion();
+        trabarInterfaz(1000);
+        double peor = 0;
+        {
+            const std::lock_guard<std::mutex> l(latMu);
+            for (double x : lat) peor = std::max(peor, x);
+        }
+        const bool quieta = !v.foto().sala.atencionAutomatica && v.foto().salida({})->alAire == "Plano general";
+        std::printf("  medido: sala/asamblea/línea con la interfaz trabada: %zu órdenes, la peor a los %.1f ms\n", lat.size(), peor);
+        CHECK(lat.size() == 3 && peor < 200 && enLaInterfaz.load() == 0 && sinTurno.load() == 0,
+              "S: con la interfaz trabada, la atención, el micrófono y el corte de la línea se hacen en el control");
+        CHECK(pendienteVisto && quieta, "S: lo pedido se ve como pendiente; la foto no cambia durante la traba");
+        atender(200);
+        CHECK(!atencionPedida && atencion() && v.foto().salida({})->alAire == "Orador" && !m.mudo["Banca 3"] &&
+                  (partesS & (FotoMotor::Sala | FotoMotor::Salidas)) == (FotoMotor::Sala | FotoMotor::Salidas),
+              "S: al volver, la foto trae la parte Sala y el corte, y el pendiente se suelta");
     }
 
     plano.detener();

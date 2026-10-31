@@ -51,24 +51,43 @@ CopiaDeLaInterfaz::CopiaDeLaInterfaz(std::function<json()> leer)
 CopiaDeLaInterfaz::CopiaDeLaInterfaz(std::function<json(const json&)> leer)
     : leer_(std::move(leer)), c_(std::make_shared<Copias>()) {}
 
+std::shared_ptr<CopiaDeLaInterfaz::Estado> CopiaDeLaInterfaz::estadoDe(Copias& c, const json& args) {
+    const std::lock_guard<std::mutex> l(c.mu);
+    std::shared_ptr<Estado>& x = c.porArgs[args.dump()];
+    if (!x) x = std::make_shared<Estado>();
+    std::shared_ptr<Estado> e = x;
+    e->usada = ++c.pedidos;
+    // (Una pedida sigue viva en su tarea: la tiene por shared_ptr.)
+    while (c.porArgs.size() > CopiaDeLaInterfaz::kCopiasPorArgumentos) {
+        auto vieja = c.porArgs.begin();
+        for (auto it = c.porArgs.begin(); it != c.porArgs.end(); ++it)
+            if (it->second->usada < vieja->second->usada) vieja = it;
+        c.porArgs.erase(vieja);
+    }
+    return e;
+}
+
+void CopiaDeLaInterfaz::copiarYa(const json& args) const {
+    if (!leer_) return;
+    const std::shared_ptr<Estado> e = estadoDe(*c_, args);
+    json v;
+    try {
+        v = leer_(args);
+    } catch (const std::exception&) {
+        return; // queda la anterior
+    }
+    {
+        const std::lock_guard<std::mutex> l(e->mu);
+        e->valor = std::move(v);
+        e->cuando = std::chrono::steady_clock::now();
+        ++e->vueltas;
+    }
+    e->cv.notify_all();
+}
+
 CopiaDeLaInterfaz::Lectura CopiaDeLaInterfaz::leer(McpCore& core, int esperaMs, const json& args, int esperaPrimeraMs) const {
     if (!leer_) return {};
-    std::shared_ptr<Estado> e;
-    {
-        const std::lock_guard<std::mutex> l(c_->mu);
-        std::shared_ptr<Estado>& x = c_->porArgs[args.dump()];
-        if (!x) x = std::make_shared<Estado>();
-        e = x;
-        e->usada = ++c_->pedidos;
-        // Las de los argumentos que hace más que no se piden se olvidan (una pedida sigue
-        // viva en su tarea: la tiene por shared_ptr).
-        while (c_->porArgs.size() > kCopiasPorArgumentos) {
-            auto vieja = c_->porArgs.begin();
-            for (auto it = c_->porArgs.begin(); it != c_->porArgs.end(); ++it)
-                if (it->second->usada < vieja->second->usada) vieja = it;
-            c_->porArgs.erase(vieja);
-        }
-    }
+    const std::shared_ptr<Estado> e = estadoDe(*c_, args);
     std::uint64_t antes = 0;
     bool pedir = false;
     {
@@ -118,7 +137,8 @@ json estadoDeLaCopia(const CopiaDeLaInterfaz::Lectura& c) {
     return json{{"al_dia", c.alDia}, {"edad_ms", c.edadMs}};
 }
 
-void copiarDeLaInterfaz(McpCore& core, Tool& t, std::function<LeidoEnLaInterfaz(const json& args)> leer, EsperaDeLaCopia espera) {
+std::shared_ptr<CopiaDeLaInterfaz> copiarDeLaInterfaz(McpCore& core, Tool& t, std::function<LeidoEnLaInterfaz(const json& args)> leer,
+                                                      EsperaDeLaCopia espera) {
     // Lo copiado es el dato o el error, envuelto: un dato puede traer su propio «error».
     auto copia = std::make_shared<CopiaDeLaInterfaz>(std::function<json(const json&)>([leer = std::move(leer)](const json& a) {
         const LeidoEnLaInterfaz r = leer(a);
@@ -137,6 +157,7 @@ void copiarDeLaInterfaz(McpCore& core, Tool& t, std::function<LeidoEnLaInterfaz(
         if (dato.is_object()) dato["interfaz"] = estadoDeLaCopia(c);
         done(ToolResult().data(dato));
     };
+    return copia;
 }
 
 namespace {

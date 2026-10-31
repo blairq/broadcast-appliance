@@ -26,6 +26,10 @@
 //   Ajustes  el lienzo, la transición global, el tema, los invitados, el servidor y la clave.
 //   Medidas  lo que se mueve siempre (los medios que suenan y cuánto les queda, la salud de
 //            cada destino, el loudness de cada salida): se lee cuando se lo necesita.
+//   Sala     lo que leen la asamblea, la sala y la línea de tiempo: lo guardado de la sala
+//            (gateway.json: el puerto, el túnel, pinggy, el proxy, la atención automática),
+//            con qué aparece el operador ante el lobby, la carpeta de grabación, las
+//            fuentes con audio y la fuente «Banca con la palabra» (si hay y en qué escenas).
 // ============================================================================
 #pragma once
 
@@ -47,7 +51,8 @@ struct FotoMotor {
         Emision = 1u << 3,
         Ajustes = 1u << 4,
         Medidas = 1u << 5,
-        Todas = (1u << 6) - 1,
+        Sala = 1u << 12, // (los bits de cada área: I 9, M 10, C 11, S 12, R 13; el 8 es de AppRuntime)
+        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Sala,
     };
 
     // --- Escenas ---------------------------------------------------------------------
@@ -144,6 +149,29 @@ struct FotoMotor {
     nlohmann::json salud = nlohmann::json::object();   ///< BroadcastEngine::saludSalidas
     nlohmann::json loudness = nlohmann::json::object(); ///< {salida: LoudnessPrograma::json}
 
+    // --- Sala (la asamblea, la sala y la línea) ---------------------------------------
+    struct SalaYEvento {
+        // Lo guardado de la sala (gateway.json), lo que se lee de este lado.
+        std::string sala;           ///< el nombre (room)
+        int puerto = 8787;          ///< el de su página (port)
+        bool atencionAutomatica = false; ///< autoIntake
+        nlohmann::json proxy = nlohmann::json::object();
+        bool tunel = false;         ///< Cloudflare
+        std::string tunelHost;
+        bool pinggyActivo = false, pinggyTurn = true, pinggyTurnUdp = false;
+        std::string pinggyRegion, pinggyDominioTipo, pinggyHost, pinggyCnameDestino, pinggyListaBlanca;
+        int pinggyPuertoTunel = 8786;
+        // Lo del operador y lo que se graba.
+        std::string operadorVideo, operadorAudio; ///< con qué aparece ante el lobby
+        std::string carpetaGrabacion;             ///< cfg rec.directory
+        std::vector<std::string> audio;           ///< las fuentes con audio (BroadcastEngine::audioSources)
+        // La fuente «Banca con la palabra».
+        bool hayFuenteBanca = false;
+        std::vector<std::string> escenaDeRanura; ///< [ranura - 1]: la primera escena que la muestra
+        bool operator==(const SalaYEvento&) const = default;
+    };
+    SalaYEvento sala;
+
     // --- Para leerla -----------------------------------------------------------------
     const Escena* escena(const std::string& nombre) const {
         for (const Escena& e : escenas)
@@ -161,6 +189,18 @@ struct FotoMotor {
         for (const auto& [n, t] : fuentes)
             if (n == nombre) return t;
         return {};
+    }
+    /// Las escenas en el orden del operador (sus nombres).
+    std::vector<std::string> nombresDeEscenas() const {
+        std::vector<std::string> out;
+        for (const Escena& e : escenas) out.push_back(e.nombre);
+        return out;
+    }
+    /// ¿Existe esa fuente (en alguna escena o global)?
+    bool hayFuente(const std::string& nombre) const {
+        for (const auto& [n, t] : fuentes)
+            if (n == nombre) return true;
+        return false;
     }
     /// Las fuentes de una escena (sus nombres, de abajo hacia arriba).
     std::vector<std::string> fuentesDe(const std::string& escena) const {

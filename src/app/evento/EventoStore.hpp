@@ -138,6 +138,9 @@ class EventoStore {
 
     /// El evento en curso (vacío si ninguno, o si su carpeta ya no está).
     std::string enCurso() const;
+    /// La carpeta del evento `carpeta` ("" = el en curso), si existe; vacía si no. Solo lee
+    /// el disco: sirve desde cualquier hilo (el MCP la usa en el pool, sin la interfaz).
+    std::filesystem::path carpetaExistente(const std::string& carpeta) const;
     /// Lo pone en curso (termina el que estaba). `ahoraMs`: reloj de pared.
     bool iniciar(const std::string& evento, std::int64_t ahoraMs, std::string* err = nullptr);
     /// Termina el que está en curso. false si no había ninguno.

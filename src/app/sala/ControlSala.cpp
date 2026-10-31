@@ -6,6 +6,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"
 #include "arranque/AppSettings.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "sala/ReglasSala.hpp"
 #include "ui/ConferenceClient.hpp"
 
@@ -43,7 +44,8 @@ std::string enRuta(const std::string& id) {
 
 } // namespace
 
-ControlSala::ControlSala(AppRuntime& rt, ConferenceClient& sala) : rt_(rt), sala_(sala) {
+ControlSala::ControlSala(AppRuntime& rt, VentanillaMotor& ventanilla, ConferenceClient& sala)
+    : rt_(rt), ventanilla_(ventanilla), sala_(sala) {
     // La sala arranca después que el programa (y se reinicia sola): cada vez
     // que conecta se le dice si el asistente atiende el lobby. Con el asistente
     // atendiendo, la pantalla de ingreso del invitado no le pide los datos.
@@ -63,13 +65,22 @@ std::string ControlSala::entrada(std::optional<bool> lobby, std::optional<bool> 
     return {};
 }
 
-bool ControlSala::atencionAutomatica() const { return rt_.gateway().autoIntake; }
+bool ControlSala::atencionAutomatica() const {
+    return atencionPedida_ ? *atencionPedida_ : ventanilla_.foto().sala.atencionAutomatica;
+}
 
 void ControlSala::setAtencionAutomatica(bool on) {
     // Es una decisión del evento, no un botón que haya que volver a apretar:
     // queda guardada y sigue al arrancar.
-    rt_.gateway().autoIntake = on;
-    rt_.save();
+    atencionPedida_ = on;
+    ventanilla_.pedir(
+        &sala_, "sala_atencion",
+        [&rt = rt_, on]() {
+            rt.gateway().autoIntake = on;
+            rt.fotoSucia(FotoMotor::Sala);
+            rt.save();
+        },
+        [this]() { atencionPedida_.reset(); });
     pedir(sala_, "POST", "/api/v1/room", {{"intake", on}}, {});
 }
 
@@ -120,14 +131,15 @@ void ControlSala::verArchivo(const std::string& id, Contenido listo) {
                  });
 }
 
-ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
+void ControlSala::tomarArchivo(const std::string& id, std::function<void(Tomado)> listo) {
     namespace fs = std::filesystem;
     Tomado t;
+    const auto fallo = [&t, &listo](std::string e) {
+        t.error = std::move(e);
+        if (listo) listo(t);
+    };
     const QJsonObject a = archivoCompartido(sala_, id);
-    if (a.isEmpty()) {
-        t.error = ba::i18n::traducir("sala", "Ese archivo ya no está.");
-        return t;
-    }
+    if (a.isEmpty()) return fallo(ba::i18n::traducir("sala", "Ese archivo ya no está."));
     // Copia propia: la carpeta de la sala se limpia al reiniciarla, y la
     // escena no debe depender de eso.
     const QString shown = a.value("name").toString();
@@ -143,10 +155,7 @@ ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
     for (int n = 2; fs::exists(dst, ec); ++n)
         dst = mediaDir / ((stem + QString(" (%1)").arg(n)).toStdU16String() + src.extension().u16string());
     fs::copy_file(src, dst, ec);
-    if (ec) {
-        t.error = ba::i18n::llenar(ba::i18n::traducir("sala", "No se pudo copiar el archivo: %1"), {ec.message()});
-        return t;
-    }
+    if (ec) return fallo(ba::i18n::llenar(ba::i18n::traducir("sala", "No se pudo copiar el archivo: %1"), {ec.message()}));
 
     const QString kind = a.value("kind").toString();
     const QString file = QString::fromStdU16String(dst.u16string());
@@ -161,26 +170,35 @@ ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
         settings.insert("looping", kind == "video");
     }
     spec.settingsJson = QJsonDocument(settings).toJson(QJsonDocument::Compact).toStdString();
-    t.escena = rt_.engine().currentScene();
+    // La escena al aire y un nombre libre, de la foto del motor; agregarla, en el dueño.
+    const FotoMotor& foto = ventanilla_.foto();
+    if (const FotoMotor::Salida* s = foto.salida({})) t.escena = s->alAire;
     const QString base = a.value("participantName").toString() + " — " + shown;
     QString name = base;
-    for (int n = 2; rt_.engine().sourceExists(name.toStdString()); ++n)
+    for (int n = 2; foto.hayFuente(name.toStdString()); ++n)
         name = base + QString(" (%1)").arg(n);
     spec.name = name.toStdString();
-    if (!rt_.addSource(t.escena, spec)) {
-        t.error = ba::i18n::llenar(ba::i18n::traducir("sala", "No se pudo agregar la fuente: %1"), {rt_.lastError()});
-        return t;
-    }
-    rt_.save();
     t.fuente = spec.name;
-    if (alTomarArchivo_) alTomarArchivo_();
-    return t;
+    ventanilla_.pedir(
+        &sala_, "sala_tomar_archivo",
+        [&rt = rt_, escena = t.escena, spec]() -> std::string {
+            if (!rt.addSource(escena, spec))
+                return ba::i18n::llenar(ba::i18n::traducir("sala", "No se pudo agregar la fuente: %1"), {rt.lastError()});
+            rt.save();
+            return {};
+        },
+        [this, t, listo = std::move(listo)](const std::string& e) mutable {
+            t.error = e;
+            if (!e.empty()) t.fuente.clear();
+            if (e.empty() && alTomarArchivo_) alTomarArchivo_();
+            if (listo) listo(t);
+        });
 }
 
 void ControlSala::verProxy(Listo listo) {
     pedir(sala_, "GET", "/api/v1/proxy", {}, [this, listo](const std::string& err, const nlohmann::json& r) {
         nlohmann::json out = r.is_object() ? r : nlohmann::json::object();
-        out["configuracion"] = rt_.gateway().proxy;
+        out["configuracion"] = proxyGuardado();
         if (listo) listo(err, out);
     });
 }
@@ -189,12 +207,27 @@ void ControlSala::renovarProxy(const std::string& host, Listo listo) {
     pedir(sala_, "POST", "/api/v1/proxy/renovar", {{"host", host}}, std::move(listo));
 }
 
+nlohmann::json ControlSala::proxyGuardado() const { return ventanilla_.foto().sala.proxy; }
+const FotoMotor::SalaYEvento& ControlSala::guardado() const { return ventanilla_.foto().sala; }
+
 std::string ControlSala::configurarProxy(const nlohmann::json& cambios, Reiniciada reiniciada) {
     nlohmann::json nueva;
-    if (std::string e = mezclarProxy(rt_.gateway().proxy, cambios, nueva); !e.empty()) return e;
-    rt_.gateway().proxy = nueva;
-    if (!rt_.save()) return rt_.lastError();
-    reiniciar(std::move(reiniciada));
+    if (std::string e = mezclarProxy(proxyGuardado(), cambios, nueva); !e.empty()) return e;
+    // Guardarla es del dueño; la sala se reinicia cuando quedó guardada.
+    ventanilla_.pedir(
+        &sala_, "sala_proxy",
+        [&rt = rt_, nueva]() -> std::string {
+            rt.gateway().proxy = nueva;
+            rt.fotoSucia(FotoMotor::Sala);
+            return rt.save() ? std::string() : rt.lastError();
+        },
+        [this, reiniciada = std::move(reiniciada)](const std::string& e) mutable {
+            if (!e.empty()) {
+                if (reiniciada) reiniciada(e);
+                return;
+            }
+            reiniciar(std::move(reiniciada));
+        });
     return {};
 }
 
@@ -227,17 +260,26 @@ std::string ControlSala::accesoDirecto(const std::string& endpoint, const std::s
                   if (listo) listo(ba::i18n::llenar(ba::i18n::traducir("sala", "El gateway no pudo generar la configuracion: %1"), {err}), r);
                   return;
               }
-              // Este equipo queda apuntando a ese servidor, con el túnel prendido.
-              GatewaySettings& g = rt_.gateway();
-              g.wgEnabled = true;
-              g.wgEndpoint = r.value("endpoint", std::string());
-              g.wgServerPublicKey = r.value("serverPublicKey", std::string());
+              // Este equipo queda apuntando a ese servidor, con el túnel prendido (lo
+              // guarda el dueño; la sala se reinicia cuando quedó guardado).
               std::string pub = recortado(direccionPublica);
               if (pub.empty()) pub = ep.substr(0, ep.find(':')); // por defecto, el mismo host
-              g.wgPublicAddress = pub;
-              rt_.save();
-              if (listo) listo({}, r);
-              reiniciar(reiniciada);
+              ventanilla_.pedir(
+                  &sala_, "sala_acceso_directo",
+                  [&rt = rt_, endpoint = r.value("endpoint", std::string()),
+                   clave = r.value("serverPublicKey", std::string()), pub]() {
+                      GatewaySettings& g = rt.gateway();
+                      g.wgEnabled = true;
+                      g.wgEndpoint = endpoint;
+                      g.wgServerPublicKey = clave;
+                      g.wgPublicAddress = pub;
+                      rt.fotoSucia(FotoMotor::Sala);
+                      rt.save();
+                  },
+                  [this, listo, r, reiniciada]() {
+                      if (listo) listo({}, r);
+                      reiniciar(reiniciada);
+                  });
           });
     return {};
 }
