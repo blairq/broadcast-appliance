@@ -43,6 +43,9 @@ namespace graficos {
 class Emisor;
 class Vinculos;
 } // namespace graficos
+namespace escenas {
+class Conmutador;
+}
 
 class EventoViewModel : public QObject {
     Q_OBJECT
@@ -81,6 +84,11 @@ class EventoViewModel : public QObject {
     /// {desvioSeg, enCueSeg, restanteSeg, cueNro, cuesTotal}: el reloj, que
     /// cambia cada segundo (aparte para no redibujar el guion entero).
     Q_PROPERTY(QVariantMap reloj READ reloj NOTIFY relojChanged)
+    /// El aviso «entra solo en 0:05»: los segundos que faltan para que el guion pase
+    /// solo al siguiente, durante los últimos 5 s; 0 = no hay aviso (ver Guion::entraSoloEnSeg).
+    Q_PROPERTY(int entraSoloEnSeg READ entraSoloEnSeg NOTIFY relojChanged)
+    /// HOLD: el cue actual no se va solo aunque se cumpla su duración (ver Guion::setHold).
+    Q_PROPERTY(bool hold READ hold WRITE setHold NOTIFY correChanged)
     /// Lo ultimo que se ejecuto o se intento, para la vista de conduccion.
     Q_PROPERTY(QVariantList bitacora READ bitacora NOTIFY bitacoraChanged)
 
@@ -147,6 +155,8 @@ class EventoViewModel : public QObject {
     QVariantMap actual() const;
     QVariantMap siguiente() const;
     QVariantMap reloj() const;
+    int entraSoloEnSeg() const;
+    bool hold() const { return guionCorriendo_ && guionCorriendo_->hold(); }
     QVariantList bitacora() const { return bitacora_; }
     QVariantList reparos() const;
 
@@ -300,6 +310,9 @@ class EventoViewModel : public QObject {
     void setVinculos(graficos::Vinculos* v) { vinculos_ = v; }
     /// Los carruseles, para el cue «carrusel» (ver CarruselViewModel::mostrar).
     void setCarruseles(CarruselViewModel* c) { carruseles_ = c; }
+    /// La mesa de corte: el cue «escena» se arma en el PVW y entra con TAKE (ver
+    /// armarSiguiente). Con varias salidas, por ahora la de la salida por omisión.
+    void setConmutador(escenas::Conmutador* c) { conmutador_ = c; }
     /// Lo que se sabe de YouTube, Twitch y Facebook para «dónde verlo en vivo» de la
     /// página web (ver evento::armarVivos). Lo pone StudioViewModel.
     void setPlataformas(std::function<nlohmann::json()> f) { plataformas_ = std::move(f); }
@@ -323,6 +336,9 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void irA(int bloque, int cue);
     Q_INVOKABLE void pausar();
     Q_INVOKABLE void reanudar();
+    /// HOLD sobre el cue actual (el botón y la tecla H, y `evento_correr` por MCP).
+    void setHold(bool on);
+    Q_INVOKABLE void alternarHold() { setHold(!hold()); }
     Q_INVOKABLE void parar();
     void setEnsayo(bool on);
 
@@ -437,6 +453,20 @@ class EventoViewModel : public QObject {
     std::function<QString()> anexoActa_;
     /// Ejecuta el cue donde esta parado el guion. En ensayo no toca nada.
     void ejecutarActual();
+    /// Lo que sigue a cada movimiento del guion: ejecutar el cue nuevo, armar el
+    /// siguiente, reprogramar el avance automático y avisar a la vista.
+    void entrarAlCue();
+    /// El LOOKAHEAD: si el cue siguiente es de escena, la deja armada en el PVW, así
+    /// el operador ve lo que va a entrar y el TAKE es inmediato.
+    void armarSiguiente();
+    /// Pone al aire la escena de un cue por el PVW: la arma (si el lookahead no la
+    /// dejó armada) y hace TAKE con la transición del cue o la de entrada de la
+    /// escena. "" o por qué no.
+    std::string tomarEscena(const std::string& escena, const nlohmann::json& datos);
+    /// Programa `avanceSolo_` para cuando el guion diga que toca pasar solo (o lo
+    /// apaga). Se llama después de todo lo que cambia esa cuenta: moverse, pausar,
+    /// reanudar, HOLD.
+    void programarAvanceSolo();
     /// Saca (con su salida) los gráficos que puso el guion y «se van al avanzar»
     /// (títulos, placas): se llama antes de pasar a otra cue.
     void sacarAlAvanzar();
@@ -483,6 +513,7 @@ class EventoViewModel : public QObject {
     std::vector<std::pair<std::uint64_t, int>> alAvanzar_;
     graficos::Vinculos* vinculos_ = nullptr;
     CarruselViewModel* carruseles_ = nullptr;
+    escenas::Conmutador* conmutador_ = nullptr;
     evento::EventoStore store_;
     evento::Evento e_;
     evento::Padron padron_;
@@ -520,6 +551,8 @@ class EventoViewModel : public QObject {
     QVariantList bitacora_;
     std::vector<evento::Reparo> reparos_;
     QTimer reloj_;
+    /// Un disparo, a la hora justa en que el guion pasa solo (ver programarAvanceSolo).
+    QTimer avanceSolo_;
     QTimer vigiaEnCurso_; ///< cada minuto: el cambio de día y el evento automático
     bool automatico_ = true;
 };

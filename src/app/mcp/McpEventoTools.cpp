@@ -1367,8 +1367,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_correr";
         t.title = ba::i18n::traducir("mcp", "Correr el guion");
         t.category = "evento";
-        t.description = ba::i18n::traducir("mcp", "Arranca el guion, avanza al cue siguiente, vuelve atras, salta a uno, pausa o para. "
-                        "Con `ensayo` recorre todo SIN salir al aire.");
+        t.description = ba::i18n::traducir("mcp", "Arranca el guion, avanza al cue siguiente, vuelve atras, salta a uno, pausa, "
+                        "frena el avance automatico (HOLD) o para. Con `ensayo` recorre todo SIN salir al aire.");
         t.details =
             ba::i18n::traducir("mcp", "Esto SALE AL AIRE salvo que `ensayo` este prendido: los cues de escena cambian lo que se ve "
             "y los de orador le dan la palabra a alguien de verdad. Por eso no es de solo lectura y "
@@ -1380,7 +1380,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "  ir          salta a `bloque` y `cue`\n"
             "  pausar      frena el guion; el tiempo pausado NO cuenta como atraso\n"
             "  reanudar\n"
+            "  hold        HOLD: el cue actual no se va solo aunque se cumpla su duracion (la cuenta "
+            "sigue y el atraso corre: no es una pausa). Con `hold` true/false lo fija; sin `hold`, lo "
+            "alterna. Se suelta solo al cambiar de cue\n"
             "  parar       lo deja parado\n\n"
+            "Los cues `automatico` y las `pausa` con duracion pasan SOLOS al siguiente al cumplir su "
+            "duracion (un automatico sin duracion, en el acto; el ultimo nunca). `reloj.entraSoloEnSeg` "
+            "dice cuanto falta en los ultimos 5 s (0 = no hay aviso) y `reloj.hold` si esta frenado.\n\n"
+            "Los cues de escena entran por el PVW con TAKE (con su `transicion`/`ms` si dicen, o la de "
+            "entrada de la escena), y el cue de escena que sigue queda armado en el PVW de antemano.\n\n"
             "`ensayo` es un modo que QUEDA como se lo dejo (como el boton Ensayo de la GUI): despues de "
             "ensayar, para salir al aire de verdad hay que pasar `ensayo`: false (la respuesta dice en "
             "`ensayo` como quedo).\n\n"
@@ -1394,7 +1402,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             {"properties",
              {{"accion",
                {{"type", "string"},
-                {"enum", {"arrancar", "siguiente", "atras", "ir", "pausar", "reanudar", "parar"}}}},
+                {"enum", {"arrancar", "siguiente", "atras", "ir", "pausar", "reanudar", "hold", "parar"}}}},
+              {"hold", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "con accion hold: true lo frena, false lo suelta; sin esto, alterna")}}},
               {"bloque", {{"type", "integer"}, {"minimum", 0}}},
               {"cue", {{"type", "integer"}, {"minimum", 0}}},
               {"ensayo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Recorrer sin salir al aire.")}}},
@@ -1422,6 +1431,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 ev.pausar();
             else if (accion == "reanudar")
                 ev.reanudar();
+            else if (accion == "hold") {
+                if (ev.estado() != "corriendo" && ev.estado() != "pausado")
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "El guion no esta corriendo: no hay cue que frenar.")));
+                ev.setHold(a.contains("hold") && a["hold"].is_boolean() ? a["hold"].get<bool>() : !ev.hold());
+            }
             else if (accion == "parar")
                 ev.parar();
             else

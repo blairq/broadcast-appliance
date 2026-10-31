@@ -834,8 +834,16 @@ Rectangle {
 
                 Panel {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 268
+                    Layout.preferredHeight: 296
                     title: page.ev.ensayo ? qsTr("Conducción (ensayo)") : qsTr("Conducción")
+
+                    // HOLD con la H: frena (o suelta) el avance automático del cue actual.
+                    // Con el foco en un campo de texto la H se escribe: el campo se la queda.
+                    Shortcut {
+                        sequence: "H"
+                        enabled: page.visible && (page.ev.estado === "corriendo" || page.ev.estado === "pausado")
+                        onActivated: page.ev.alternarHold()
+                    }
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -927,6 +935,18 @@ Rectangle {
 
                         Item { Layout.fillHeight: true }
 
+                        // El avance automático: el aviso de los últimos 5 s o, frenado, el HOLD.
+                        // Los dos salen del view model (entraSoloEnSeg, hold).
+                        Text {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            visible: page.ev.hold || page.ev.entraSoloEnSeg > 0
+                            text: page.ev.hold ? qsTr("HOLD: este cue no se va solo")
+                                               : qsTr("entra solo en %1").arg(page.mmss(page.ev.entraSoloEnSeg))
+                            color: page.ev.hold ? Theme.live : Theme.amber
+                            font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
+                        }
+
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 6
@@ -956,6 +976,14 @@ Rectangle {
                                 icon: page.ev.estado === "pausado" ? "▶" : "❚❚"; compact: true
                                 visible: page.ev.estado !== "parado"
                                 onClicked: page.ev.estado === "pausado" ? page.ev.reanudar() : page.ev.pausar()
+                            }
+                            GlassButton {
+                                text: "HOLD"; compact: true
+                                visible: page.ev.estado === "corriendo" || page.ev.estado === "pausado"
+                                active: page.ev.hold
+                                onClicked: page.ev.alternarHold()
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: qsTr("Que este cue no pase solo al siguiente (H). Otra vez lo suelta.")
                             }
                             GlassButton {
                                 icon: "■"; compact: true

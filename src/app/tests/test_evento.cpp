@@ -9,6 +9,8 @@
 //      vacios no frenan el recorrido.
 //   5. El desvio: tarde, adelantado, y que lo pausado NO cuente como atraso.
 //   6. El recorrido guarda lo que realmente paso, con su duracion real.
+//   7. Pasar solo: los automaticos y las pausas avanzan al cumplir su duracion,
+//      con el aviso de los ultimos 5 s; el HOLD lo frena y se suelta.
 // ============================================================================
 
 #include <cstdio>
@@ -338,6 +340,100 @@ void recorrido() {
     CHECK(g.cueActual() == nullptr, "y no queda parado en ningun cue");
 }
 
+// --- 7) Pasar solo ----------------------------------------------------------
+/// Placa (30 s, automatica) → pausa de 10 s → espera (automatica: no vale) →
+/// zocalo automatico sin duracion → camara (manual) → cierre automatico (el ultimo).
+Evento conAutomaticos() {
+    Evento e;
+    Bloque b;
+    b.nombre = "Apertura";
+    Cue placa = cue(Tipo::Escena, "placa", 30, json{{"escena", "Placa"}});
+    placa.automatico = true;
+    Cue espera = cue(Tipo::Espera, "espera", 0);
+    espera.automatico = true;
+    Cue zocalo = cue(Tipo::Grafico, "zocalo", 0, json{{"fuente", "Zocalo"}, {"grafico", "nombre"}});
+    zocalo.automatico = true;
+    Cue cierre = cue(Tipo::Escena, "cierre", 20, json{{"escena", "Placa final"}});
+    cierre.automatico = true;
+    b.cues = {placa, cue(Tipo::Pausa, "pausa", 10), espera, zocalo, cue(Tipo::Escena, "camara", 60), cierre};
+    e.bloques = {b};
+    return e;
+}
+
+void avance_solo() {
+    Guion g(conAutomaticos());
+    CHECK(g.msParaAvanzarSolo(0) == -1, "parado no avanza solo");
+    g.arrancar(0);
+    CHECK(g.avanzaSolo(), "un cue automatico avanza solo");
+    CHECK(g.msParaAvanzarSolo(1000) == 29000, "cuando se cumple su duracion");
+    CHECK(g.entraSoloEnSeg(1000) == 0, "lejos del final no hay aviso");
+    CHECK(g.entraSoloEnSeg(25000) == 5, "el aviso arranca a los 5 s");
+    CHECK(g.entraSoloEnSeg(25001) == 5, "y redondea para arriba (4,999 s se lee 0:05)");
+    CHECK(g.entraSoloEnSeg(29500) == 1, "hasta el ultimo segundo");
+    CHECK(g.msParaAvanzarSolo(30000) == 0, "cumplida la duracion, toca");
+    CHECK(g.msParaAvanzarSolo(31000) == 0, "y pasado tambien (nunca negativo)");
+    CHECK(g.entraSoloEnSeg(30000) == 0, "cuando toca ya no se avisa: entra");
+
+    // La pausa espera y sigue, sin marcarla automatica.
+    g.avanzar(30000);
+    CHECK(g.cueActual()->id == "pausa" && g.avanzaSolo(), "la pausa con duracion sigue sola");
+    CHECK(g.msParaAvanzarSolo(35000) == 5000, "a los 10 s");
+    // La espera no, aunque diga automatica: es para que confirme alguien.
+    g.avanzar(40000);
+    CHECK(g.cueActual()->id == "espera" && !g.avanzaSolo(), "una espera nunca pasa sola");
+    CHECK(g.msParaAvanzarSolo(99000) == -1, "ni aunque pase el tiempo");
+    // Un automatico sin duracion encadena en el acto.
+    g.avanzar(50000);
+    CHECK(g.cueActual()->id == "zocalo" && g.msParaAvanzarSolo(50000) == 0, "sin duracion encadena ya");
+    g.avanzar(50000);
+    CHECK(g.cueActual()->id == "camara" && !g.avanzaSolo(), "un manual espera el clic");
+    // El ultimo no termina el evento solo.
+    g.avanzar(110000);
+    CHECK(g.cueActual()->id == "cierre" && !g.avanzaSolo(), "el ultimo no se va solo aunque sea automatico");
+
+    // Una pausa sin duracion no espera nada: no se va sola (y la revision ya la marca).
+    Evento e = conAutomaticos();
+    e.bloques[0].cues[1].duracionSeg = 0;
+    Guion g2(e);
+    g2.irA({0, 1}, 0);
+    CHECK(!g2.avanzaSolo(), "una pausa sin duracion no pasa sola");
+}
+
+void hold() {
+    Guion g(conAutomaticos());
+    CHECK(!g.setHold(true), "sin cue no hay HOLD");
+    g.arrancar(0);
+    CHECK(g.setHold(true) && g.hold(), "HOLD sobre el cue actual");
+    CHECK(g.msParaAvanzarSolo(40000) == -1, "en HOLD no avanza solo aunque se pase");
+    CHECK(g.entraSoloEnSeg(27000) == 0, "ni avisa");
+    CHECK(g.restanteSeg(40000) == -10, "la cuenta sigue, en +");
+    CHECK(g.desvioSeg(40000) == 40, "el desvio corre: el HOLD no es una pausa");
+    CHECK(g.enCueSeg(40000) == 40, "el reloj del cue no se congela");
+    // Soltarlo: si ya se paso, toca en el acto.
+    CHECK(g.setHold(false) && !g.hold(), "un segundo HOLD lo suelta");
+    CHECK(g.msParaAvanzarSolo(40000) == 0, "suelto y pasado, entra ya");
+    // Es del cue: al cambiar se suelta solo.
+    g.setHold(true);
+    g.avanzar(41000);
+    CHECK(!g.hold(), "el HOLD no pasa al cue siguiente");
+    CHECK(g.desvioSeg(41000) == 11, "y lo que se quedo de mas en HOLD es atraso (no es una pausa)");
+    CHECK(g.msParaAvanzarSolo(41000) == 10000, "la pausa siguiente cuenta normal");
+}
+
+void pausado_no_avanza() {
+    Guion g(conAutomaticos());
+    g.arrancar(0);
+    g.pausar(10000);
+    CHECK(g.msParaAvanzarSolo(60000) == -1, "pausado no avanza solo");
+    CHECK(g.entraSoloEnSeg(60000) == 0, "ni avisa");
+    g.reanudar(70000);
+    // 10 s antes de pausar, 60 s pausado: quedan 20 s, no -40.
+    CHECK(g.msParaAvanzarSolo(70000) == 20000, "lo pausado no cuenta para el avance");
+    CHECK(g.entraSoloEnSeg(86000) == 4, "el aviso tambien descuenta la pausa");
+    g.avanzar(90000); // entra solo a tiempo (30 s netos)
+    CHECK(g.desvioSeg(90000) == 0, "y lo pausado no es desvio: llego en hora");
+}
+
 /// La lista de auto-aceptar del lobby: va y vuelve del JSON, y una entrada sin
 /// ficha de rostro NO sobrevive —dejaria pasar por nombre, que es justo lo que
 /// no se quiere—.
@@ -372,6 +468,9 @@ int main() {
     correr();
     desvio();
     recorrido();
+    avance_solo();
+    hold();
+    pausado_no_avanza();
     auto_aceptar();
     if (g_fallos == 0) std::printf("test_evento: OK\n");
     return g_fallos == 0 ? 0 : 1;

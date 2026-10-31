@@ -31,6 +31,11 @@
 // AUTOMÁTICO O MANUAL. Un cue automático encadena con el que sigue; uno manual
 // espera el clic. Por defecto los cues son MANUALES: en vivo, que algo salga
 // solo cuando no lo esperabas es peor que llegar tarde.
+//
+// CUÁNDO PASA SOLO lo decide el `Guion` (msParaAvanzarSolo): al cumplirse la
+// duración de un automático o de una pausa. Los últimos 5 s se avisan («entra
+// solo en 0:05») y el HOLD lo frena. Quien tiene el reloj (el view model) solo
+// pregunta y dispara: la regla vive acá, donde se prueba sin motor.
 // ============================================================================
 #pragma once
 
@@ -54,7 +59,7 @@ enum class Tipo {
     Carrusel,     ///< pone un carrusel en una lámina y lo muestra (fija los dos)
     Pantalla,     ///< manda contenido a una pantalla
     Audio,        ///< cambia el rack, silencia, hace ducking
-    Pausa,        ///< espera N segundos
+    Pausa,        ///< espera N segundos y sigue sola
     Espera,       ///< espera a que el operador confirme
     Nota,         ///< no hace nada: es una indicación para el operador
 };
@@ -77,7 +82,7 @@ struct Cue {
     std::string texto; ///< lo que lee el operador en la vista de conducción
     nlohmann::json datos = nlohmann::json::object();
     int duracionSeg = 0;     ///< previsto; 0 = no aporta al cálculo
-    bool automatico = false; ///< true: encadena solo con el siguiente
+    bool automatico = false; ///< true: al cumplir su duración pasa solo al siguiente (sin duración, en el acto)
 
     /// Lo que este cue necesita para poder ejecutarse, por tipo. Vacío = está
     /// completo. Es la mitad barata de la revisión previa: se ve sin tocar el
@@ -241,6 +246,26 @@ class Guion {
     /// y el recorrido sirve para el informe.
     void terminar(int64_t nowMs);
 
+    /// HOLD: congela el avance automático del cue actual. NO es una pausa: la
+    /// cuenta sigue (en «+» cuando se pasa) y el desvío corre, porque el evento
+    /// sigue pasando; lo único que se frena es que el guion se vaya solo. Es de
+    /// ESTE cue: al cambiar de cue se suelta solo. false si no hay cue actual.
+    bool setHold(bool on);
+    bool hold() const { return hold_; }
+
+    /// ¿El cue actual pasa solo al siguiente? Los automáticos y las pausas con
+    /// duración. Las esperas nunca (son para que confirme el operador), y el
+    /// último tampoco: terminar el evento lo decide una persona.
+    bool avanzaSolo() const;
+    /// Cuánto falta (ms) para que el guion pase solo al siguiente: 0 = ya toca.
+    /// -1 si ahora no va a pasar solo (no corresponde, HOLD, pausado o parado).
+    /// Lo pausado no cuenta, igual que en el desvío.
+    int64_t msParaAvanzarSolo(int64_t nowMs) const;
+    /// El aviso «entra solo en 0:05»: los segundos que faltan (redondeado para
+    /// arriba) durante los últimos `kAvisoSeg`; 0 fuera de esa ventana.
+    int entraSoloEnSeg(int64_t nowMs) const;
+    static constexpr int kAvisoSeg = 5;
+
     /// Segundos en el cue actual.
     int enCueSeg(int64_t nowMs) const;
     /// Desvío acumulado: positivo = vamos tarde, negativo = vamos adelantados.
@@ -266,6 +291,8 @@ class Guion {
    private:
     void entrarA(Posicion p, int64_t nowMs);
     void cerrarPaso(int64_t nowMs);
+    /// Milisegundos en el cue actual, sin lo pausado.
+    int64_t enCueMs(int64_t nowMs) const;
 
     Evento e_;
     Estado estado_ = Estado::Parado;
@@ -275,6 +302,7 @@ class Guion {
     int64_t pausadoDesdeMs_ = 0;
     int64_t pausadoMs_ = 0;      ///< total pausado, que no cuenta como desvío
     int64_t pausadoEnCueMs_ = 0; ///< lo pausado dentro del cue actual
+    bool hold_ = false;          ///< el cue actual no se va solo (ver setHold)
     std::vector<Paso> recorrido_;
 };
 

@@ -443,6 +443,7 @@ void Guion::entrarA(Posicion p, int64_t nowMs) {
     pos_ = p;
     enCueDesdeMs_ = nowMs;
     pausadoEnCueMs_ = 0;
+    hold_ = false; // el HOLD era del cue que se fue
     // Si se cambia de cue con el guion pausado, la pausa vuelve a empezar
     // aca: si no, el cue nuevo arrancaria contando hacia atras.
     if (estado_ == Estado::Pausado) pausadoDesdeMs_ = nowMs;
@@ -474,6 +475,7 @@ void Guion::terminar(int64_t nowMs) {
     if (estado_ == Estado::Pausado) reanudar(nowMs);
     cerrarPaso(nowMs);
     pos_ = {};
+    hold_ = false;
     estado_ = Estado::Terminado;
 }
 
@@ -486,6 +488,7 @@ bool Guion::avanzar(int64_t nowMs) {
     if (!s.valida()) {
         cerrarPaso(nowMs);
         pos_ = {};
+        hold_ = false;
         estado_ = Estado::Terminado;
         return false;
     }
@@ -541,13 +544,46 @@ void Guion::reanudar(int64_t nowMs) {
     pausadoDesdeMs_ = 0;
 }
 
-int Guion::enCueSeg(int64_t nowMs) const {
+int64_t Guion::enCueMs(int64_t nowMs) const {
     if (!pos_.valida()) return 0;
     // Mientras esta pausado el reloj del cue tampoco corre: el operador paro
     // el evento, no se quedo mirando este cue.
     const int64_t hasta = estado_ == Estado::Pausado ? pausadoDesdeMs_ : nowMs;
-    const int64_t neto = hasta - enCueDesdeMs_ - pausadoEnCueMs_;
-    return static_cast<int>(std::max<int64_t>(0, neto) / 1000);
+    return std::max<int64_t>(0, hasta - enCueDesdeMs_ - pausadoEnCueMs_);
+}
+
+int Guion::enCueSeg(int64_t nowMs) const { return static_cast<int>(enCueMs(nowMs) / 1000); }
+
+bool Guion::setHold(bool on) {
+    if (cueActual() == nullptr) return false;
+    hold_ = on;
+    return true;
+}
+
+bool Guion::avanzaSolo() const {
+    const Cue* c = cueActual();
+    if (c == nullptr || !siguienteDe(pos_).valida()) return false;
+    switch (c->tipo) {
+        // Una pausa ES esperar y seguir: no hace falta marcarla automática.
+        case Tipo::Pausa: return c->duracionSeg > 0;
+        // Una espera existe para que confirme alguien: marcada automática
+        // dejaría de ser una espera.
+        case Tipo::Espera: return false;
+        default: return c->automatico;
+    }
+}
+
+int64_t Guion::msParaAvanzarSolo(int64_t nowMs) const {
+    if (estado_ != Estado::Corriendo || hold_ || !avanzaSolo()) return -1;
+    // Un automático sin duración encadena en el acto («cámara 2» y «zócalo» a la
+    // vez); con duración, cuando se cumple.
+    return std::max<int64_t>(0, cueActual()->duracionSeg * 1000LL - enCueMs(nowMs));
+}
+
+int Guion::entraSoloEnSeg(int64_t nowMs) const {
+    const int64_t ms = msParaAvanzarSolo(nowMs);
+    if (ms <= 0 || ms > kAvisoSeg * 1000LL) return 0;
+    return static_cast<int>((ms + 999) / 1000);
 }
 
 int Guion::desvioSeg(int64_t nowMs) const {

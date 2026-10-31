@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <limits>
 
 #include <QDateTime>
 #include <QPointer>
@@ -35,6 +36,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "escenas/Conmutador.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"
@@ -143,6 +145,19 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
     // sentido redibujar la lista de cues por eso.
     reloj_.setInterval(1000);
     connect(&reloj_, &QTimer::timeout, this, [this]() { emit relojChanged(); });
+    // El avance automático: un solo disparo a la hora justa, no un sondeo. Cuándo
+    // toca lo dice el guion; si al disparar todavía no toca (el reloj de pared se
+    // movió), se reprograma.
+    avanceSolo_.setSingleShot(true);
+    avanceSolo_.setTimerType(Qt::PreciseTimer);
+    connect(&avanceSolo_, &QTimer::timeout, this, [this]() {
+        if (!guionCorriendo_ || guionCorriendo_->msParaAvanzarSolo(ahoraMs()) != 0) {
+            programarAvanceSolo();
+            return;
+        }
+        anotar(tr("Se cumplió el tiempo: entra solo el cue siguiente"), "info");
+        avanzar();
+    });
     // Las plantillas de la página web del evento (Web/evento/plantilla del programa): ANTES
     // de abrir el último evento, que al abrirse actualiza sus páginas con ellas.
     evento::setCarpetaPlantillas(ba::platform::bundleRoot() / "Web" / "evento" / "plantilla");
@@ -1683,7 +1698,10 @@ QVariantMap EventoViewModel::reloj() const {
                   {"horaFinPrevista", QDateTime::fromMSecsSinceEpoch(t + restanteGuion * 1000LL).toString("HH:mm")},
                   // Lo que lleva (sin pausas) contra lo previsto del guion entero.
                   {"transcurridoSeg", guionCorriendo_->transcurridoSeg(t)},
-                  {"totalPrevistoSeg", totalPrevisto}};
+                  {"totalPrevistoSeg", totalPrevisto},
+                  // Lo del avance automático, para el MCP y el bus (la página usa las propiedades).
+                  {"entraSoloEnSeg", guionCorriendo_->entraSoloEnSeg(t)},
+                  {"hold", guionCorriendo_->hold()}};
     if (!e_.inicio.empty()) {
         const QTime ini = QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm");
         if (ini.isValid()) {
@@ -1694,6 +1712,10 @@ QVariantMap EventoViewModel::reloj() const {
         }
     }
     return m;
+}
+
+int EventoViewModel::entraSoloEnSeg() const {
+    return guionCorriendo_ ? guionCorriendo_->entraSoloEnSeg(ahoraMs()) : 0;
 }
 
 void EventoViewModel::setEnsayo(bool on) {
@@ -1735,9 +1757,33 @@ void EventoViewModel::arrancar() {
     ultimoGuion_.reset();
     guionCorriendo_ = std::make_unique<evento::Guion>(e_);
     guionCorriendo_->arrancar(ahoraMs());
-    reloj_.start();
     anotar(ensayo_ ? tr("Arranca el ensayo") : tr("Arranca el evento"), "ok");
+    entrarAlCue();
+}
+
+void EventoViewModel::entrarAlCue() {
     ejecutarActual();
+    armarSiguiente();
+    programarAvanceSolo();
+    emit correChanged();
+    emit relojChanged();
+}
+
+void EventoViewModel::programarAvanceSolo() {
+    const int64_t ms = guionCorriendo_ ? guionCorriendo_->msParaAvanzarSolo(ahoraMs()) : -1;
+    if (ms < 0)
+        avanceSolo_.stop();
+    else
+        avanceSolo_.start(static_cast<int>(std::min<int64_t>(ms, std::numeric_limits<int>::max())));
+    // El reloj de la vista se realinea con el cue: así la cuenta y el aviso «entra
+    // solo en 0:05» cambian de segundo juntos, en vez de ir hasta uno corridos.
+    if (guionCorriendo_ && guionCorriendo_->estado() != evento::Guion::Estado::Terminado) reloj_.start();
+}
+
+void EventoViewModel::setHold(bool on) {
+    if (!guionCorriendo_ || hold() == on || !guionCorriendo_->setHold(on)) return;
+    anotar(on ? tr("HOLD: este cue no se va solo") : tr("HOLD suelto: el cue vuelve a irse solo"), "info");
+    programarAvanceSolo();
     emit correChanged();
     emit relojChanged();
 }
@@ -1750,56 +1796,55 @@ void EventoViewModel::avanzar() {
     sacarAlAvanzar();
     if (!guionCorriendo_->avanzar(ahoraMs())) {
         reloj_.stop();
+        avanceSolo_.stop();
         anotar(ensayo_ ? tr("Terminó el ensayo") : tr("Terminó el evento"), "ok");
         emit correChanged();
         return;
     }
-    ejecutarActual();
-    emit correChanged();
-    emit relojChanged();
+    entrarAlCue();
 }
 
 void EventoViewModel::retroceder() {
     if (!guionCorriendo_ || !guionCorriendo_->retroceder(ahoraMs())) return;
     sacarAlAvanzar();
     anotar(tr("Vuelve atrás"), "info");
-    ejecutarActual();
-    emit correChanged();
-    emit relojChanged();
+    entrarAlCue();
 }
 
 void EventoViewModel::irA(int bloque, int cue) {
     if (!guionCorriendo_) {
         ultimoGuion_.reset();
         guionCorriendo_ = std::make_unique<evento::Guion>(e_);
-        reloj_.start();
     }
     if (!guionCorriendo_->irA({bloque, cue}, ahoraMs())) return;
     sacarAlAvanzar();
     anotar(tr("Salta al cue elegido"), "info");
-    ejecutarActual();
-    emit correChanged();
-    emit relojChanged();
+    entrarAlCue();
 }
 
 void EventoViewModel::pausar() {
     if (!guionCorriendo_) return;
     guionCorriendo_->pausar(ahoraMs());
     anotar(tr("Guion en pausa"), "info");
+    programarAvanceSolo();
     emit correChanged();
+    emit relojChanged();
 }
 
 void EventoViewModel::reanudar() {
     if (!guionCorriendo_) return;
     guionCorriendo_->reanudar(ahoraMs());
     anotar(tr("Sigue el guion"), "info");
+    programarAvanceSolo();
     emit correChanged();
+    emit relojChanged();
 }
 
 void EventoViewModel::parar() {
     if (!guionCorriendo_) return;
     sacarAlAvanzar();
     reloj_.stop();
+    avanceSolo_.stop();
     guionCorriendo_->terminar(ahoraMs());
     ultimoGuion_ = std::move(guionCorriendo_);
     emit correChanged();
@@ -1884,6 +1929,32 @@ void EventoViewModel::sacarAlAvanzar() {
     alAvanzar_.clear();
 }
 
+std::string EventoViewModel::tomarEscena(const std::string& escena, const nlohmann::json& datos) {
+    if (escena.empty()) return tr("el cue no dice qué escena poner").toStdString();
+    if (conmutador_ == nullptr) return tr("no hay conmutador de escenas").toStdString();
+    // Ya al aire (la puso el operador a mano, o la repite el cue): no hay nada que tomar.
+    if (conmutador_->alAire() == escena) return {};
+    if (conmutador_->armada() != escena)
+        if (std::string e = conmutador_->armar(escena); !e.empty()) return e;
+    // La transición del cue si dice; si no, la de entrada de la escena (o la global).
+    return conmutador_->take(datos.value("transicion", std::string()), datos.value("ms", -1));
+}
+
+void EventoViewModel::armarSiguiente() {
+    if (ensayo_ || conmutador_ == nullptr || !guionCorriendo_) return;
+    const evento::Cue* s = guionCorriendo_->cueSiguiente();
+    if (s == nullptr || s->tipo != evento::Tipo::Escena) return;
+    const std::string escena = s->datos.value("escena", std::string());
+    // La que ya está al aire no se arma (el TAKE no tendría sentido) y la ya armada, tampoco.
+    if (escena.empty() || escena == conmutador_->alAire() || escena == conmutador_->armada()) return;
+    if (const std::string e = conmutador_->armar(escena); !e.empty()) {
+        anotar(tr("No se pudo armar «%1» en el PVW: %2").arg(QString::fromStdString(escena), QString::fromStdString(e)),
+               "error");
+        return;
+    }
+    anotar(tr("Armada en el PVW: %1").arg(QString::fromStdString(escena)), "info");
+}
+
 void EventoViewModel::ejecutarActual() {
     const evento::Cue* c = guionCorriendo_ ? guionCorriendo_->cueActual() : nullptr;
     if (c == nullptr) return;
@@ -1902,10 +1973,10 @@ void EventoViewModel::ejecutarActual() {
     switch (c->tipo) {
         case evento::Tipo::Escena: {
             const std::string escena = c->datos.value("escena", std::string());
-            if (escena.empty() || !rt_.setScene(escena)) {
-                anotar(tr("No se pudo poner la escena \"%1\"").arg(QString::fromStdString(escena)), "error");
-                emit notify(tr("El cue no se pudo ejecutar: no existe la escena \"%1\"").arg(QString::fromStdString(escena)),
-                            "error");
+            if (const std::string err = tomarEscena(escena, c->datos); !err.empty()) {
+                anotar(tr("No se pudo poner la escena «%1»: %2").arg(QString::fromStdString(escena), QString::fromStdString(err)),
+                       "error");
+                emit notify(tr("El cue no se pudo ejecutar: %1").arg(QString::fromStdString(err)), "error");
                 return;
             }
             anotar(tr("Al aire: %1").arg(QString::fromStdString(escena)), "ok");
@@ -2160,8 +2231,12 @@ void EventoViewModel::ejecutarActual() {
             // se ve un cuadro en negro mientras abre.
             if (c->datos.value("alAire", true)) {
                 escenaPrevia_ = QString::fromStdString(rt_.engine().currentScene());
-                if (!rt_.setScene(kEscenaVideo)) {
-                    anotar(tr("No se pudo poner al aire la escena del video"), "error");
+                // Por el conmutador (corte directo, como antes): el tally, el AFV y la
+                // escena guardada se enteran igual que con cualquier otro cambio del aire.
+                const std::string err = conmutador_ ? conmutador_->poner(kEscenaVideo)
+                                                    : tr("no hay conmutador de escenas").toStdString();
+                if (!err.empty()) {
+                    anotar(tr("No se pudo poner al aire la escena del video: %1").arg(QString::fromStdString(err)), "error");
                     return;
                 }
             }

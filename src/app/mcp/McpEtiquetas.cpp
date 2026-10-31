@@ -1750,7 +1750,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"padron_quitar", QT_TRANSLATE_NOOP("mcp-etiquetas", "sacar a alguien de la lista del evento borrar asistente del padron")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
-    {"evento_correr", QT_TRANSLATE_NOOP("mcp-etiquetas", "correr el guion arrancar avanzar pausar el evento" " ejecutar siguiente cue")},
+    {"evento_correr", QT_TRANSLATE_NOOP("mcp-etiquetas", "correr el guion arrancar avanzar pausar el evento" " ejecutar siguiente cue"
+                      " hold frenar retener que no pase solo automatico")},
 
     // --- Ventanas -------------------------------------------------------------------
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra

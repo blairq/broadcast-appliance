@@ -478,6 +478,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     rotulador_->setVinculos(vinculos_.get());
     evento_->setVinculos(vinculos_.get());
     evento_->setCarruseles(carruseles_.get());
+    evento_->setConmutador(conmutador_.get());
 
     {
         // Mirar la carpeta es leer disco y parsear JSON ajeno: si eso se
@@ -903,7 +904,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                              {"texto", a.isEmpty() ? std::string() : titulo(a)},
                                              {"siguiente", s.isEmpty() ? std::string() : titulo(s)},
                                              {"numero", r.value("cueNro").toInt()},
-                                             {"total", r.value("cuesTotal").toInt()}},
+                                             {"total", r.value("cuesTotal").toInt()},
+                                             {"hold", evento_->hold()}},
                                true);
             };
             connect(evento_.get(), &EventoViewModel::correChanged, this, publicarCue);

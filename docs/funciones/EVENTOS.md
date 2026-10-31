@@ -37,26 +37,57 @@ son las cosas concretas que pasan:
 
 | Cue | Qué hace |
 |---|---|
-| `escena` | pone una escena al aire (con su transición) |
+| `escena` | pone una escena al aire por el PVW: la arma y hace TAKE (con su transición) |
 | `musica` | arranca o para un tema, con fundido y volumen objetivo |
 | `video` | reproduce un video (y qué hacer al terminar) |
 | `teleprompter` | carga un texto y lo deja listo o lo arranca |
 | `orador` | pone a alguien al aire, con su tiempo asignado |
 | `pantalla` | manda contenido a una pantalla/Chromecast |
 | `audio` | cambia el rack, silencia, hace ducking |
-| `pausa` | espera N segundos |
+| `pausa` | espera N segundos y sigue sola |
 | `espera` | **espera a que el operador confirme** (lo más importante: nada crítico se dispara solo) |
 | `nota` | no hace nada: es una indicación para el operador o el orador |
 
 Cada cue tiene: **duración prevista**, si es **automático o manual**, y de qué
 cue depende. Los automáticos encadenan; los manuales esperan el clic.
 
+**Pasar solo — hecho (L0 de la línea de tiempo).** Quién decide cuándo toca es
+el modelo (`Guion::msParaAvanzarSolo`, puro y probado en `test_evento`); el view
+model solo programa un disparo a esa hora y avanza.
+
+- Un cue **automático** pasa solo al siguiente cuando se cumple su duración. Sin
+  duración, en el acto: así «cámara 2 + zócalo + bajar la música» entran juntos.
+- Una **pausa** con duración espera y sigue sola (no hace falta marcarla
+  automática).
+- Una **espera** nunca pasa sola, aunque diga automática: existe para que
+  confirme alguien. El **último** cue tampoco: terminar el evento lo decide una
+  persona.
+- Los últimos 5 s se avisan en la conducción: **«entra solo en 0:05»**
+  (`entraSoloEnSeg` del view model; `reloj.entraSoloEnSeg` por MCP).
+- **HOLD** (botón, tecla **H**, `evento_correr {"accion": "hold"}`): congela el
+  avance automático del cue actual. No es una pausa: la cuenta sigue en «+» y el
+  atraso corre. Otro HOLD lo suelta (si ya se pasó, entra en el acto), y al
+  cambiar de cue se suelta solo. Va al bus en `evento/cue` (`hold`).
+- La **pausa general** sigue igual: lo pausado no cuenta como desvío ni para el
+  avance automático (la cuenta del cue se congela).
+
+**El cue de escena pasa por el PVW.** No va directo al programa: se arma en el
+PVW y entra con TAKE por el conmutador (`escenas::Conmutador`), con la
+transición del cue (`datos.transicion` y `datos.ms`, opcionales) o la de entrada
+de la escena. Así el tally, el AFV y la escena guardada se enteran como con
+cualquier otro cambio del aire. **Lookahead:** cuando un cue de escena pasa a
+ser el siguiente, su escena queda armada en el PVW de antemano (en ensayo no).
+Si la escena ya está al aire, el cue no hace nada. El cue de video también
+pone su escena por el conmutador (corte directo, como antes). Con varias
+salidas, por ahora usa el conmutador de la salida por omisión.
+
 ### 1.3 Tiempos
 
 - Hora prevista de inicio del evento y de cada bloque.
 - Duración prevista por cue y por bloque; el total se calcula solo.
 - Durante el evento: **desvío acumulado** («vamos 3:20 tarde»), bien grande y a
-  la vista, y cuánto falta para el próximo cue automático.
+  la vista, y el aviso de los últimos 5 s antes de que un cue automático pase
+  solo.
 - Al terminar: comparación previsto contra real, para el evento siguiente.
 
 ### 1.4 Ensayo (dry-run) — **hecho** el ensayo sin aire y el acelerado; la

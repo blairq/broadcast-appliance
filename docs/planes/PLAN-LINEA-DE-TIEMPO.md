@@ -137,7 +137,9 @@ En `src/app/evento/Evento.hpp`, en C++ puro: **Evento → Bloque → Cue**.
 ### Huecos
 
 1. **`Cue::automatico` no se ejecuta.** Se guarda, se muestra ("encadena solo") y lo revisa `revisar()`. Pero no encontré nada que avance solo: el timer `reloj_` solo emite `relojChanged`. Tampoco `Pausa` espera para seguir: solo anota. El documento `EVENTOS.md` promete "cuánto falta para el próximo cue automático".
+   **Resuelto en L0:** los automáticos y las pausas pasan solos (`Guion::msParaAvanzarSolo`), con el aviso de 5 s y HOLD.
 2. **Un solo cursor y un solo programa.** No hay pistas ni salidas, y todo sale por `rt_.setScene`. Hasta donde leí, el cue de escena va directo al programa, sin armarlo en PVW ni hacer lookahead. Con varias salidas, esto no alcanza.
+   **L0 resolvió la mitad de una salida:** el cue de escena se arma en el PVW y entra con TAKE por el Conmutador, y el siguiente de escena queda armado de antemano. Falta el cursor por salida (L6).
 3. **Un cue hace una sola cosa.** "Cámara 2 + zócalo + bajar la música" son tres cues seguidos, lo que da el aviso de cadena larga y hace que el desvío se mida mal.
 4. **No hay hard start** (hora fija por bloque ni por cue), ni gaps, overlaps o *Arreglar*. El desvío se mide contra el cue actual y no contra los anclajes.
 5. **No hay estado al saltar.** `irA` ejecuta solo el cue de destino: la música o el gráfico que "deberían" estar puestos ahí no se reponen.

@@ -4,14 +4,14 @@ Un **evento** es el guion de lo que va a pasar: **bloques** (Apertura, Palabras 
 ## Los tipos de cue y que necesita cada uno en `datos`
 | Tipo | `datos` | ¿Se ejecuta hoy? |
 |---|---|---|
-| `escena` | `{escena}` | si |
+| `escena` | `{escena, transicion, ms}` — entra por el PVW con TAKE; `transicion`/`ms` opcionales (si no, la de entrada de la escena) | si |
 | `orador` | `{participante}` + `duracionSeg > 0` | si |
 | `musica` | `{archivo, accion, repetir}` — un archivo de los medios del evento (`media_list`) | si |
 | `teleprompter` | `{discurso, arrancar}` — texto en `Discursos/` | si |
 | `audio` | `{accion: silenciar\|activar\|volumen, fuente, db}` | si |
 | `video` | `{archivo, alTerminar}` | todavia no |
 | `pantalla` | `{pantalla, contenido}` | todavia no |
-| `pausa` | espera lo que diga `duracionSeg` | si |
+| `pausa` | espera lo que diga `duracionSeg` y sigue sola | si |
 | `espera` | frena hasta que el operador confirme | si |
 | `nota` | no hace nada: es una indicacion | si |
 
@@ -26,7 +26,11 @@ De la `duracionSeg` de cada cue sale la del bloque y la del evento; con `inicio`
 - El interruptor de **ensayo** (`evento_correr {"ensayo": true}`) recorre el guion en tiempo real sin salir al aire.
 
 ## Mientras corre
-`evento_correr` con `arrancar`, `siguiente`, `atras`, `ir`, `pausar`, `reanudar`, `parar`. **Sale al aire** salvo en ensayo, asi que lo decide el operador.
+`evento_correr` con `arrancar`, `siguiente`, `atras`, `ir`, `pausar`, `reanudar`, `hold`, `parar`. **Sale al aire** salvo en ensayo, asi que lo decide el operador.
+
+Un cue con `automatico: true` pasa **solo** al siguiente cuando se cumple su `duracionSeg` (sin duracion, en el acto: sirve para encadenar escena + zocalo); una `pausa` con duracion, tambien. Las `espera` nunca, y el ultimo cue tampoco. Los ultimos 5 s se avisan (`reloj.entraSoloEnSeg`). `hold` frena ese avance del cue actual (la cuenta sigue y el atraso corre: no es una pausa); otro `hold` lo suelta, o `{"accion": "hold", "hold": false}`.
+
+El cue de escena que sigue queda **armado en el PVW** de antemano, asi el operador ve lo que va a entrar y el TAKE es inmediato.
 
 Correr el guion NO es estar en vivo: en vivo es que salga algo de verdad (transmisión o grabación), y lo dice `en_vivo` en `status`. En vivo, la app le avisa al operador antes de cualquier accion de riesgo y `settings_set` no aplica lo que reinicia la conferencia o el motor (sacaria a todos los invitados o cortaria la salida en el peor momento). Con el guion corriendo para probar, sin transmitir, no se bloquea nada.
 
