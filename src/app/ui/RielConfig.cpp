@@ -55,7 +55,10 @@ const std::vector<Grupo>& catalogo() {
           {27, "historico", "⌛",
            QT_TRANSLATE_NOOP("riel", "Histórico: todos los eventos, qué pasó en cada uno, con qué configuración, qué se grabó y transmitió")}}},
         {QT_TRANSLATE_NOOP("riel", "Salidas"),
-         {{16, "pantallas", "⧉", QT_TRANSLATE_NOOP("riel", "Pantallas: los monitores de esta máquina y las TV de la red, y qué va en cada uno")},
+         {{33, "salidas", "⇶",
+           QT_TRANSLATE_NOOP("riel", "Salidas: cada una un operador completo (su programa, su preview, su mezcla, sus destinos y su "
+           "grabación); crearlas, nombre y color, y cuál manejás")},
+          {16, "pantallas", "⧉", QT_TRANSLATE_NOOP("riel", "Pantallas: los monitores de esta máquina y las TV de la red, y qué va en cada uno")},
           {28, "multiview", "▥",
            QT_TRANSLATE_NOOP("riel", "Multiview: varias fuentes en un muro, con separación y bordes de color, tally y vúmetros; a otro monitor")},
           {3, "youtube", "▶", QT_TRANSLATE_NOOP("riel", "YouTube (cuenta, videos, en vivo)")},

@@ -172,10 +172,10 @@ void Mezclador::tic() {
 QVariantMap Mezclador::tira(const QString& nombre) const {
     const std::string n = nombre.toStdString();
     auto& eng = rt_.engine();
-    const float v = eng.sourceVolume(n);
+    const float v = eng.sourceVolume(n, salida_);
     return {{"nombre", nombre},
             {"volumenDb", v > 1e-5f ? 20.0 * std::log10(v) : -100.0},
-            {"mute", eng.sourceMuted(n)},
+            {"mute", eng.sourceMuted(n, salida_)},
             {"pfl", eng.pfl() == n},
             // El retardo respecto de su video (sincro labios, audio_sincro): positivo atrasa.
             {"retardoMs", eng.sourceSyncOffset(n)},

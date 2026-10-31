@@ -302,6 +302,7 @@ ApplicationWindow {
     Component { id: cmpTiempos;    TiemposPage {} }
     Component { id: cmpEntradasAudio; EntradasAudioPage {} }
     Component { id: cmpManuales;   ManualesPage {} }
+    Component { id: cmpSalidas;    SalidasPage {} }
 
     /// Las páginas, por índice (el `page` del catálogo de RielConfig). Cuántas son
     /// sale de acá: una página nueva se agrega solo en esta lista y en el catálogo.
@@ -310,7 +311,7 @@ ApplicationWindow {
         cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
         cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
         cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpAsamblea,
-        cmpHistorico, cmpMultiview, cmpEnlaces, cmpTiempos, cmpEntradasAudio, cmpManuales]
+        cmpHistorico, cmpMultiview, cmpEnlaces, cmpTiempos, cmpEntradasAudio, cmpManuales, cmpSalidas]
     function componenteDePagina(i) { return win.componentesDePagina[i] || null }
 
     // --- Cosas sacadas a su propia ventana ---------------------------------------

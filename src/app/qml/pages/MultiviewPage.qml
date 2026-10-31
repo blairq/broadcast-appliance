@@ -214,6 +214,14 @@ Rectangle {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
                         text: qsTr("Tildá las que van; el orden es el de los cuadros (con «Control», las dos primeras van grandes arriba).")
                     }
+                    // Con varias salidas: el programa de cada una, con su color y su nombre.
+                    GlassButton {
+                        visible: Studio.variasSalidas
+                        compact: true; text: qsTr("Los programas de todas las salidas")
+                        onClicked: page.poner("fuentes", Studio.frames.programas)
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: qsTr("Un cuadro por salida, con el marco y el nombre en su color")
+                    }
                     Repeater {
                         model: page.disponibles
                         delegate: RowLayout {

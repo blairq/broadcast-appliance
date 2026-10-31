@@ -750,6 +750,10 @@ class BroadcastEngine {
     /// ("editor", "armada"…): varios canales a la vez.
     bool enableScenePreview(const std::string& canal, const std::string& name, int maxWidth);
     bool enableScenePreview(const std::string& name, int maxWidth) { return enableScenePreview("editor", name, maxWidth); }
+    /// Lo mismo para un bus de una salida (PLAN-SALIDAS, etapa 5): su programa (`bus`
+    /// "programa") o su preview ("preview"), tal como salen, en el canal `canal` (se
+    /// lee con renderScenePreview y se suelta con disableScenePreview, como las demás).
+    bool enableSalidaPreview(const std::string& canal, const std::string& bus, const std::string& salida, int maxWidth);
     void disableScenePreview(const std::string& canal);
     /// Diagnóstico de parpadeos (BA_MEDIR_PREVIEW=1): ver medirVista en el .cpp.
     void medirVista(const std::string& clave);

@@ -137,6 +137,41 @@ Salida {
 5. **Interfaz** — selector de salida en Dirección, Escenas y Mezclador (cada operador ve la
    suya); multiview con todas; página «Salidas» (crear, nombre y color, destinos,
    grabación, codificador); `FrameService` con `program:<id>` / `armada:<id>`.
+   *Hecho (2026-10-31)*:
+   - **La salida activa** es del modelo: `StudioViewModel::salidaActiva` (con
+     `salidaActivaDatos`, `variasSalidas`, `claveProgramaActiva`/`claveArmadaActiva`). Lo que
+     la interfaz muestra y hace pasa por el conmutador de la activa (`conmutadorActivo()`):
+     `currentScene`, `escenaArmada`, `take`/`takeCon`/`takeScene`/`armarEscena`/`tbar`, el AFV,
+     el rol `live` de las escenas (`ScenesModel::setSalida`), el volumen y el mute de las tiras
+     (`MixerModel::setSalida` y `audio::Mezclador::setSalida`; `AppRuntime::setVolume/setMuted`
+     con `salida`) y el vúmetro del programa. Si se la borra, vuelve sola a la por omisión.
+     Lo que no es de la interfaz sigue con la por omisión: el MCP (`conmutador()`), el
+     BusEventos (`aire/*`), las pantallas de tally de la sala, el monitor «armada» y las
+     alarmas de silencio del programa.
+   - El motor avisa (`alCambiarAudioFuente`) también cuando cambia el fader o el mute de una
+     fuente en otra salida: el Mezclador se entera aunque lo mueva el AFV de esa salida.
+   - `controls/SelectorSalida.qml` (pastillas con el color, AIRE/REC) en Dirección, Aire,
+     Escenas (tarjeta y página), la tarjeta Mezclador y el Mezclador: solo con más de una.
+   - `FrameService`: `program:<id>` / `armada:<id>` (los de la por omisión = `program` /
+     `armada`), pedidos al motor solos mientras alguien los lee y soltados a los 3 s
+     (`BroadcastEngine::enableSalidaPreview`); `keys` con el programa de cada salida,
+     `colores` y `programas`. Multiview: «Los programas de todas las salidas», con el marco
+     y el nombre de cada una en su color.
+   - Tally: `Studio.tally` trae `borde` (rojo al aire en la activa, verde armada, el color de
+     otra salida si está al aire ahí) y `salidas` (en cuáles está cada fuente, con su color);
+     el `VideoWall` los dibuja.
+   - Página «Salidas» (riel, grupo Salidas, id `salidas`): crear con nombre y color (el id sale
+     del nombre) hasta el tope, con el aviso del margen de la máquina (`nuevaSalida`, de
+     `recursos`), el tope, nombre y color en el lugar, «Manejar esta», su programa en vivo,
+     al aire y armada, grabar/detener, sus destinos (iniciar, cortar, borrar, «+ Destino…»
+     con `salida`) y borrar. El diálogo de destino es uno (`controls/DialogoDestino.qml`),
+     también el de la tarjeta Salidas.
+   *Falta*: DSK, FTB y placa siguen manejando la por omisión aunque la activa sea otra
+   (`SeguridadAire` y `FilaDsk` sin salida); la transmisión principal y el estado de
+   aire/grabación de Dirección y Aire son los de la por omisión; el codificador es uno solo
+   (se muestra; por salida no se elige todavía); la salida activa no se guarda (vuelve a la
+   por omisión al arrancar); el volumen y el mute de las demás salidas no se guardan (viven
+   en el motor). El MCP no tiene cómo elegir la salida activa de la interfaz (etapa 3).
 6. **Gateway** — un canal por salida (`BA.Salida.<id>` video+audio); retorno de cada
    invitado, cast y sesión remota eligen salida.
    *Hecho del lado del gateway (2026-10-31)*: nombres en `ipc/CanalesSalida.hpp`

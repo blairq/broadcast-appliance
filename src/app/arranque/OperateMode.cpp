@@ -1682,9 +1682,13 @@ bool AppRuntime::updateSourceSettings(const std::string& name, const std::string
     return true;
 }
 
-bool AppRuntime::setVolume(const std::string& name, float mul) {
-    if (!engine_.setSourceVolume(name, mul)) {
+bool AppRuntime::setVolume(const std::string& name, float mul, const std::string& salida) {
+    if (!engine_.setSourceVolume(name, mul, salida)) {
         return false;
+    }
+    if (engine_.idDeSalida(salida) != BroadcastEngine::kSalidaPorOmision) {
+        avisar(Cambio::Audio); // la mezcla de otra salida: es de su salida, no de la escena
+        return true;
     }
     for (auto& sc : cfg_.scenes) {
         for (auto& s : sc.sources) {
@@ -1709,9 +1713,13 @@ bool AppRuntime::setGananciaGrupo(const std::string& grupo, float mul) {
     return true;
 }
 
-bool AppRuntime::setMuted(const std::string& name, bool muted) {
-    if (!engine_.setSourceMuted(name, muted)) {
+bool AppRuntime::setMuted(const std::string& name, bool muted, const std::string& salida) {
+    if (!engine_.setSourceMuted(name, muted, salida)) {
         return false;
+    }
+    if (engine_.idDeSalida(salida) != BroadcastEngine::kSalidaPorOmision) {
+        avisar(Cambio::Audio);
+        return true;
     }
     for (auto& sc : cfg_.scenes) {
         for (auto& s : sc.sources) {

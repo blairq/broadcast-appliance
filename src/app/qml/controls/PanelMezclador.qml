@@ -640,6 +640,11 @@ Item {
             }
         }
 
+        // --- De qué salida es la mezcla (con varias: cada una tiene la suya) --------------
+        // Los faders, el mute y el AFV de las tiras mueven la mezcla de la elegida; el
+        // rack, la matriz y las salidas de la placa son de las entradas: los mismos.
+        SelectorSalida { Layout.fillWidth: true; visible: Studio.variasSalidas && m.pestana === "consola" }
+
         // --- Calibración de sala (se crea la primera vez que se abre) ------------------
         Loader {
             Layout.fillWidth: true

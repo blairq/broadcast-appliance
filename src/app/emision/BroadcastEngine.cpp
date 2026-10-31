@@ -985,6 +985,34 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
     return true;
 }
 
+bool BroadcastEngine::enableSalidaPreview(const std::string& canal, const std::string& bus, const std::string& salida,
+                                          int maxWidth) {
+    const Salida* s = laSalida(salida);
+    if (s == nullptr || (bus != "programa" && bus != "preview")) {
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "vista previa: no hay una salida '%1'"), {salida}));
+        return false;
+    }
+    // El nombre anotado es la salida: si se la borra y vuelve, la vista se vuelve a pedir
+    // (FrameService mira scenePreviewName) igual que una entrada.
+    const std::string nombre = bus + ":" + s->id;
+    auto it = scenePreviews_.find(canal);
+    if (it != scenePreviews_.end() && it->second.name == nombre) return true;
+    disableScenePreview(canal);
+    if (!started_ || !motor_) return false;
+    const int w = maxWidth > 0 ? std::min(maxWidth, video_.baseWidth) : video_.baseWidth;
+    const int h = std::max(2, w * video_.baseHeight / std::max(1, video_.baseWidth));
+    VistaPrevia v;
+    // «programa:<id>» y «preview:<id>» son las composiciones de esa salida (motor/Vistas.hpp).
+    v.clave = nombre + "@" + canal;
+    v.name = nombre;
+    if (const std::string e = motor_->verPedir(v.clave, w, h); !e.empty()) {
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "vista previa: %1"), {e}));
+        return false;
+    }
+    scenePreviews_[canal] = v;
+    return true;
+}
+
 void BroadcastEngine::medirVista(const std::string& clave) {
     // BA_MEDIR_PREVIEW=1: cada cuadro de la vista, con su brillo medio y cuánto
     // tardó desde el anterior, al registro (para encontrar parpadeos: un cuadro

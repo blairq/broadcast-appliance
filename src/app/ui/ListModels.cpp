@@ -47,7 +47,7 @@ QVariant ScenesModel::data(const QModelIndex& index, int role) const {
     const std::string& n = names_[static_cast<std::size_t>(index.row())];
     switch (role) {
         case NameRole: return qs(n);
-        case LiveRole: return n == rt_.engine().currentScene();
+        case LiveRole: return n == rt_.engine().currentScene(salida_);
         case FolderRole: return qs(rt_.sceneFolder(n));
         case ProtegidaRole: return rt_.sceneProtected(n);
         case ArmadaRole: return qs(n) == armada_;
@@ -67,6 +67,12 @@ void ScenesModel::setArmada(const QString& n) {
     if (n == armada_) return;
     armada_ = n;
     if (rowCount() > 0) emit dataChanged(index(0), index(rowCount() - 1), {ArmadaRole});
+}
+
+void ScenesModel::setSalida(const std::string& salida) {
+    if (salida == salida_) return;
+    salida_ = salida;
+    liveChanged();
 }
 
 void ScenesModel::reload() {
@@ -347,8 +353,8 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
     switch (role) {
         case NameRole: return qs(names_[i]);
         case PeakDbRole: return peaks_[i];
-        case VolumeDbRole: return mulToDb(rt_.engine().sourceVolume(names_[i]));
-        case MutedRole: return rt_.engine().sourceMuted(names_[i]);
+        case VolumeDbRole: return mulToDb(rt_.engine().sourceVolume(names_[i], salida_));
+        case MutedRole: return rt_.engine().sourceMuted(names_[i], salida_);
         case RetardoMsRole: return rt_.engine().sourceSyncOffset(names_[i]);
         case GrupoRole: return qs(grupos_[i]);
         case PrimeroDeGrupoRole: return !grupos_[i].empty() && (i == 0 || grupos_[i - 1] != grupos_[i]);
@@ -444,7 +450,7 @@ bool MixerModel::setGananciaGrupoDb(const QString& grupo, double db) {
 void MixerModel::setMutedGrupo(const QString& grupo, bool muted) {
     const std::string g = grupo.toStdString();
     for (std::size_t i = 0; i < grupos_.size(); ++i)
-        if (!g.empty() && grupos_[i] == g) rt_.setMuted(names_[i], muted);
+        if (!g.empty() && grupos_[i] == g) rt_.setMuted(names_[i], muted, salida_);
 }
 
 void MixerModel::setCompacto(const QString& grupo, bool compacto) {
@@ -501,10 +507,16 @@ QVariantMap MixerModel::canal(int fila) const {
 // asistente, el AFV o la otra vista.
 bool MixerModel::setVolumeDb(const QString& name, double db) {
     const float mul = db <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, db / 20.0));
-    return rt_.setVolume(name.toStdString(), mul);
+    return rt_.setVolume(name.toStdString(), mul, salida_);
 }
 
-bool MixerModel::setMuted(const QString& name, bool muted) { return rt_.setMuted(name.toStdString(), muted); }
+bool MixerModel::setMuted(const QString& name, bool muted) { return rt_.setMuted(name.toStdString(), muted, salida_); }
+
+void MixerModel::setSalida(const std::string& salida) {
+    if (salida == salida_) return;
+    salida_ = salida;
+    if (!names_.empty()) emit dataChanged(index(0), index(rowCount() - 1), {VolumeDbRole, MutedRole});
+}
 
 void MixerModel::avisarCambio(const std::string& fuente) {
     bool primero = false;

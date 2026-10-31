@@ -59,6 +59,9 @@ Item {
         anchors.fill: parent
         spacing: 6
 
+        // Con varias salidas: de cuál son el aire, la armada y el TAKE.
+        SelectorSalida { Layout.fillWidth: true }
+
         // --- Al aire / armada / TAKE ------------------------------------------------
         RowLayout {
             Layout.fillWidth: true

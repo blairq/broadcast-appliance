@@ -85,6 +85,8 @@ Rectangle {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 8
+                // Con varias salidas: armar y cortar van a la elegida (cada operador la suya).
+                SelectorSalida { Layout.fillWidth: true }
                 // FTB y placa a un toque (encima de todo lo que sale).
                 ColumnLayout {
                     Layout.fillWidth: true

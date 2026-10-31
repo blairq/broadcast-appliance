@@ -199,8 +199,10 @@ class AppRuntime {
     /// El volumen general de un grupo de audio (VCA; BroadcastEngine::setGananciaGrupo), y queda
     /// guardado con la configuración.
     bool setGananciaGrupo(const std::string& grupo, float mul);
-    bool setVolume(const std::string& name, float mul);
-    bool setMuted(const std::string& name, bool muted);
+    /// El fader y el mute de la fuente en la mezcla de `salida` ("" = la por omisión, la
+    /// que se guarda en la escena; las demás viven en su salida del motor).
+    bool setVolume(const std::string& name, float mul, const std::string& salida = "");
+    bool setMuted(const std::string& name, bool muted, const std::string& salida = "");
 
     // --- Configuracion ----------------------------------------------------------
     /// Aplica video/codificacion en caliente (sin salidas activas).

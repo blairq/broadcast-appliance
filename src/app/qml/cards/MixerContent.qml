@@ -62,7 +62,13 @@ Item {
     // ⧉ El Mezclador entero en su propia ventana (entradas, salidas, matriz): para
     // otro monitor. Ahí se ve lo que sale de cada entrada y adónde va.
     // Audio ›: la pestaña donde se configura cada entrada (su rack, filtros, la matriz).
+    // Con varias salidas: la mezcla de cuál (cada una tiene la suya: volumen, mute y AFV).
+    SelectorSalida {
+        anchors { top: parent.top; left: parent.left; right: audioBtn.left; rightMargin: 6 }
+        z: 10
+    }
     GlassButton {
+        id: audioBtn
         anchors { top: parent.top; right: mezBtn.left; rightMargin: 6 }
         z: 10
         compact: true

@@ -94,48 +94,9 @@ Item {
                               onClicked: { const e = Studio.iniciarDestinoUi("todos"); if (e !== "") Studio.notify(e, "error") } }
             }
         }
-        Popup {
-            id: nuevoDestino
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            modal: true
-            padding: 16
-            width: 460
-            background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-            onOpened: { dNombre.text = ""; dUrl.text = ""; dClave.text = ""; dResp.checked = false; dModo.currentIndex = 0; dLat.value = 120 }
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 8
-                Text { text: qsTr("Destino adicional"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
-                TextField { id: dNombre; Layout.fillWidth: true; placeholderText: qsTr("Nombre (p. ej. YouTube respaldo)") }
-                TextField { id: dUrl; Layout.fillWidth: true; placeholderText: qsTr("rtmp://servidor/app · srt://servidor:9000 · rist://servidor:8000") }
-                readonly property bool esSrt: dUrl.text.startsWith("srt://")
-                TextField { id: dClave; Layout.fillWidth: true; echoMode: TextInput.Password
-                            placeholderText: parent.esSrt ? qsTr("Passphrase SRT (10 a 79 caracteres; se guarda cifrada)") : qsTr("Clave (se guarda cifrada; el asistente no la ve)") }
-                RowLayout {
-                    visible: parent.esSrt
-                    spacing: 8
-                    Text { text: qsTr("Modo"); color: Theme.textDim; font.pixelSize: 12 }
-                    ComboBox { id: dModo; model: ["caller", "listener", "rendezvous"]; Layout.preferredWidth: 130 }
-                    Text { text: qsTr("Latencia (ms)"); color: Theme.textDim; font.pixelSize: 12 }
-                    SpinBox { id: dLat; from: 20; to: 8000; stepSize: 20; value: 120; editable: true }
-                }
-                CheckBox { id: dResp; text: qsTr("Es de respaldo") }
-                RowLayout {
-                    Item { Layout.fillWidth: true }
-                    GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: nuevoDestino.close() }
-                    GlassButton {
-                        compact: true; active: true; text: qsTr("Guardar")
-                        onClicked: {
-                            const d = { nombre: dNombre.text, url: dUrl.text, clave: dClave.text, respaldo: dResp.checked }
-                            if (dUrl.text.startsWith("srt://")) { d.modo = dModo.currentText; d.latencia_ms = dLat.value }
-                            const e = Studio.guardarDestinoUi(d)
-                            if (e !== "") Studio.notify(e, "error"); else nuevoDestino.close()
-                        }
-                    }
-                }
-            }
-        }
+        // El destino nuevo sale con el programa de la por omisión (los de las demás
+        // salidas se agregan en la página Salidas).
+        DialogoDestino { id: nuevoDestino }
         // Salud de cada destino que transmite: kbps (con su gráfica del último minuto),
         // cuadros perdidos, congestión y reconexiones.
         Repeater {

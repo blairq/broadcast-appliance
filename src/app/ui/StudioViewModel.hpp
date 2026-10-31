@@ -284,8 +284,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(int streamKbps READ streamKbps NOTIFY statusChanged)
     Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY statusChanged)
     Q_PROPERTY(bool gatewayAlive READ gatewayAlive NOTIFY statusChanged)
-    Q_PROPERTY(double programPeakL READ programPeakL NOTIFY nivelesChanged)
-    Q_PROPERTY(double programPeakR READ programPeakR NOTIFY nivelesChanged)
+    /// El vúmetro del programa de la salida activa (ver salidaActiva).
+    Q_PROPERTY(double programPeakL READ picoActivaL NOTIFY nivelesChanged)
+    Q_PROPERTY(double programPeakR READ picoActivaR NOTIFY nivelesChanged)
     Q_PROPERTY(QString currentScene READ currentScene NOTIFY sceneChanged)
     Q_PROPERTY(QString transitionType READ transitionType NOTIFY sceneChanged)
     /// La escena ARMADA (la que sale con el proximo TAKE). Vacia = ninguna.
@@ -309,9 +310,34 @@ class StudioViewModel : public QObject {
     // --- Submodelos -------------------------------------------------------------
     Q_PROPERTY(QObject* scenes READ scenes CONSTANT)
     /// Las salidas (PLAN-SALIDAS), la por omisión primera: filas con id, nombre, color,
-    /// porOmision, alAire, armada, transmitiendo, grabando. Se rehace sola cuando cambia
-    /// algo de eso (el modelo avisa); la elige la etapa 5 (selector de salida).
+    /// porOmision, alAire, armada, transmitiendo, grabando, archivo (lo que graba),
+    /// destinos ([{id, nombre, activo, reconectando, respaldo}], los suyos) y programa
+    /// (la clave de FrameService de su programa). Se rehace
+    /// sola cuando cambia algo de eso (el modelo avisa).
     Q_PROPERTY(QObject* salidas READ salidas CONSTANT)
+    // --- La salida activa de la interfaz (PLAN-SALIDAS, etapa 5) ----------------
+    // Cada salida es un operador completo y esta interfaz maneja UNA: la activa. Lo
+    // que muestran y hacen Dirección, Escenas y el Mezclador es de ella: la escena
+    // al aire y la armada (currentScene, escenaArmada, los roles live del modelo de
+    // escenas), take/takeCon/takeScene/armarEscena/tbar, el AFV, el volumen y el mute
+    // de cada tira (mixer), el vúmetro del programa y el tally del multiview. Con una
+    // sola salida es la por omisión y nada cambia. Lo que no es de esta interfaz (el
+    // MCP, el BusEventos, las pantallas de tally de la sala, los monitores "program"
+    // y "armada") sigue con la por omisión (conmutador()).
+    /// El id de la activa. Si se la borra, vuelve sola a la por omisión.
+    Q_PROPERTY(QString salidaActiva READ salidaActiva WRITE setSalidaActiva NOTIFY salidaActivaChanged)
+    /// Su fila de `salidas` ({id, nombre, color, porOmision, …}).
+    Q_PROPERTY(QVariantMap salidaActivaDatos READ salidaActivaDatos NOTIFY salidaActivaChanged)
+    /// Hay más de una salida: el selector se muestra solo entonces.
+    Q_PROPERTY(bool variasSalidas READ variasSalidas NOTIFY salidaActivaChanged)
+    /// Las claves de FrameService del programa y del preview de la activa.
+    Q_PROPERTY(QString claveProgramaActiva READ claveProgramaActiva NOTIFY salidaActivaChanged)
+    Q_PROPERTY(QString claveArmadaActiva READ claveArmadaActiva NOTIFY salidaActivaChanged)
+    /// Cuántas salidas se pueden tener (Config/salidas.json).
+    Q_PROPERTY(int topeSalidas READ topeSalidas NOTIFY salidaActivaChanged)
+    /// Si se puede crear otra: {puede, aviso}. `aviso` dice por qué no (el tope) o que
+    /// la máquina está justa (el estado de `recursos`, lo mismo que sistema_recursos).
+    Q_PROPERTY(QVariantMap nuevaSalida READ nuevaSalida NOTIFY nuevaSalidaChanged)
     Q_PROPERTY(QObject* sources READ sources CONSTANT)
     Q_PROPERTY(QObject* mixer READ mixer CONSTANT)
     Q_PROPERTY(QObject* sourceTypes READ sourceTypes CONSTANT)
@@ -711,8 +737,11 @@ class StudioViewModel : public QObject {
     int streamKbps() const { return kbps_; }
     double cpuPercent() const { return cpu_; }
     bool gatewayAlive() const { return gatewayAlive_; }
+    /// Los de la por omisión (el MCP, las alarmas).
     double programPeakL() const { return peakL_; }
     double programPeakR() const { return peakR_; }
+    double picoActivaL() const { return salidaActiva_.empty() ? peakL_ : peakActivaL_; }
+    double picoActivaR() const { return salidaActiva_.empty() ? peakR_ : peakActivaR_; }
     QString currentScene() const;
     QString transitionType() const;
     double canvasAspect() const;
@@ -925,6 +954,20 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QString crearSalida(const QString& id, const QString& nombre, const QString& color = {});
     Q_INVOKABLE QString editarSalida(const QString& id, const QString& nombre, const QString& color);
     Q_INVOKABLE QString borrarSalida(const QString& id);
+    /// Una salida nueva con su nombre (el id sale del nombre, único) y su color ("" = el
+    /// que le toque). Queda como la activa. "" o por qué no.
+    Q_INVOKABLE QString crearSalidaUi(const QString& nombre, const QString& color);
+    Q_INVOKABLE QString setTopeSalidasUi(int tope);
+    /// Graba (o deja de grabar) el programa de una salida. "" o por qué no.
+    Q_INVOKABLE QString grabarSalida(const QString& id, bool grabar);
+    QString salidaActiva() const;
+    void setSalidaActiva(const QString& id);
+    QVariantMap salidaActivaDatos() const;
+    bool variasSalidas() const;
+    QString claveProgramaActiva() const;
+    QString claveArmadaActiva() const;
+    int topeSalidas() const { return topeSalidas_; }
+    QVariantMap nuevaSalida() const;
     /// La grilla de personas (fuentes ba_grilla): quién va en cada una. nullptr antes de armarse.
     escenas::ControlGrillas* grillasPersonas() { return grillasPersonas_.get(); }
     /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
@@ -1047,6 +1090,8 @@ class StudioViewModel : public QObject {
     void balisticaChanged();
     void pflChanged();
     void afvChanged();
+    void salidaActivaChanged();
+    void nuevaSalidaChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
     void notify(const QString& message, const QString& level);
@@ -1216,6 +1261,16 @@ class StudioViewModel : public QObject {
     std::unique_ptr<JsonListModel> salidasModelo_;        ///< ver la propiedad salidas
     /// Rehace salidasModelo_ y le pasa la lista al gateway (ConferenceClient::ponerSalidas).
     void publicarSalidas();
+    /// La salida activa de la interfaz (ver salidaActiva): "" = la por omisión.
+    std::string salidaActiva_;
+    int topeSalidas_ = 0;
+    /// El conmutador de la activa (el de la por omisión si todavía no hay o se fue).
+    escenas::Conmutador& conmutadorActivo() const;
+    /// La interfaz pasa a mostrar lo de la activa: escenas, fuentes, mezcla, tally.
+    void reflejarSalidaActiva();
+    QVariantMap nuevaSalidaAntes_; ///< lo último avisado de nuevaSalida
+    double peakActivaL_ = -100; ///< el vúmetro del programa de la activa (si no es la por omisión)
+    double peakActivaR_ = -100;
     /// Desde cuándo nadie mira el retorno de cada salida que no es la por omisión (ver onTick).
     QHash<QString, qint64> salidaVistaMs_;
     std::unique_ptr<emision::SeguridadAire> seguridadAire_;     ///< FTB y placa (modelo)

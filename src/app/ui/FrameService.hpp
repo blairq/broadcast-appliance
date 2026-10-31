@@ -18,6 +18,11 @@
 //               con `entera`
 //   "escena:X"  una escena cualquiera, esté o no al aire, mientras alguien la
 //               pida con mirarEscena (un monitor o una ventana que la muestra)
+//   "program:<salida>" / "armada:<salida>"  el programa y el preview de una
+//               salida (docs/planes/PLAN-SALIDAS.md): los de la por omisión son
+//               "program" y "armada" de siempre (las dos claves valen lo mismo);
+//               los de las demás se le piden al motor solos mientras alguien los
+//               lea (latest) y se sueltan cuando nadie los mira.
 //
 // Modelo de threading: todo en el thread de la UI; `poll()` lo llama un timer.
 // ============================================================================
@@ -25,8 +30,10 @@
 #pragma once
 
 #include <QImage>
+#include <QJsonArray>
 #include <QObject>
 #include <QStringList>
+#include <QVariantMap>
 
 #include <cstdint>
 #include <map>
@@ -47,6 +54,12 @@ class BroadcastEngine;
 class FrameService : public QObject {
     Q_OBJECT
     Q_PROPERTY(QStringList keys READ keys NOTIFY keysChanged)
+    /// El color de cada salida por la clave de su programa ({"program": …, "program:<id>": …}),
+    /// para el marco de su cuadro en el multiview. Vacío con una sola salida (nada que distinguir).
+    Q_PROPERTY(QVariantMap colores READ colores NOTIFY keysChanged)
+    /// Las claves del programa de cada salida, en su orden ("program" primero): el
+    /// multiview con todas de un toque.
+    Q_PROPERTY(QStringList programas READ programas NOTIFY keysChanged)
    public:
     FrameService(BroadcastEngine& engine, int guests, QObject* parent = nullptr);
     ~FrameService() override;
@@ -77,6 +90,11 @@ class FrameService : public QObject {
     /// Nombres de los invitados por slot (indice slot-1) para las etiquetas.
     void setGuestNames(const QStringList& names);
     void setLobbySlots(int n) { lobbySlots_ = n; }
+    /// Las salidas, la por omisión primera: [{id, nombre, color, porOmision}] (la lista
+    /// de StudioViewModel::salidas). Para las claves, las etiquetas y los colores.
+    void setSalidas(const QJsonArray& salidas);
+    QVariantMap colores() const { return colores_; }
+    QStringList programas() const;
 
    public slots:
     /// Trae frames nuevos (lo llama el timer de la UI, ~30 Hz).
@@ -106,6 +124,12 @@ class FrameService : public QObject {
     QString armada_;
     /// Las vistas de entradas pedidas ("entrada:X" o "entrada-entera:X") y cuántos las miran.
     std::map<QString, int> entradas_;
+    /// "program:<id>" → "program" si `id` es la por omisión (y lo mismo con "armada").
+    static QString clavePropia(const QString& key);
+    /// Las vistas de salidas que alguien leyó (latest) y cuándo: poll las pide y las suelta.
+    mutable std::map<QString, std::int64_t> salidasPedidas_;
+    QJsonArray salidas_;
+    QVariantMap colores_;
     std::uint64_t vueltas_ = 0;
 };
 

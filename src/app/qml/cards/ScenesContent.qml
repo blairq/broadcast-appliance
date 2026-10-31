@@ -137,6 +137,9 @@ Item {
         anchors.fill: parent
         spacing: 8
 
+        // --- De qué salida (con varias: cada operador maneja la suya) ----------
+        SelectorSalida { Layout.fillWidth: true }
+
         // --- Al aire / armada, de un vistazo ---------------------------------
         RowLayout {
             Layout.fillWidth: true

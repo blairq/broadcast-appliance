@@ -130,16 +130,46 @@ Item {
                     Text { id: sinTxt; anchors.centerIn: parent; text: qsTr("SIN SEÑAL"); color: Theme.live; font { pixelSize: 16; weight: Font.Black } }
                 }
             }
-            // Tally: rojo si está al aire (o es el programa), verde si está armada.
+            // Tally: rojo si está al aire en la salida que se maneja, verde si está armada ahí,
+            // y con varias salidas el color de otra salida donde esté al aire (el modelo dice
+            // cuál: Studio.tally.borde), con una marca por cada salida que la tiene.
             Rectangle {
+                id: marcoTally
                 readonly property string f: wall.fuenteDe(modelData)
                 // El programa y la armada no llevan borde: ya se sabe qué son (y un borde rojo
                 // permanente en el fondo del tablero se confunde con una alarma).
-                readonly property bool alAire: f !== "" && (Studio.tally.aire || []).indexOf(f) >= 0
-                readonly property bool armada: f !== "" && !alAire && (Studio.tally.armada || []).indexOf(f) >= 0
-                visible: wall.tally && (alAire || armada)
+                readonly property string tono: f !== "" ? ((Studio.tally.borde || {})[f] || "") : ""
+                visible: wall.tally && tono !== ""
                 anchors.fill: parent; color: "transparent"; z: 2
-                border { color: alAire ? "#e53935" : "#2ecc71"; width: wall.grosor(parent) }
+                border { color: tono !== "" ? tono : "transparent"; width: wall.grosor(parent) }
+                Row {
+                    anchors { left: parent.left; bottom: parent.bottom; margins: 6 }
+                    spacing: 4
+                    Repeater {
+                        model: marcoTally.f !== "" ? ((Studio.tally.salidas || {})[marcoTally.f] || []) : []
+                        delegate: Rectangle {
+                            required property var modelData
+                            radius: 4; height: 16; width: marcaTxt.implicitWidth + 10
+                            color: modelData.color
+                            Text { id: marcaTxt; anchors.centerIn: parent; text: modelData.nombre; color: "white"
+                                   font { pixelSize: 10; weight: Font.DemiBold } }
+                        }
+                    }
+                }
+            }
+            // El programa de una salida (con varias): el marco y el nombre con su color.
+            Rectangle {
+                readonly property string tono: (Studio.frames.colores || {})[modelData] || ""
+                visible: wall.operador && tono !== ""
+                anchors.fill: parent; color: "transparent"; z: 2
+                border { color: tono !== "" ? tono : "transparent"; width: Math.max(2, wall.grosor(parent)) }
+                Rectangle {
+                    anchors { left: parent.left; top: parent.top; margins: 6 }
+                    radius: 4; height: 18; width: progTxt.implicitWidth + 12
+                    color: parent.tono !== "" ? parent.tono : "transparent"
+                    Text { id: progTxt; anchors.centerIn: parent; text: Studio.frames.label(modelData); color: "white"
+                           font { pixelSize: 11; weight: Font.DemiBold } }
+                }
             }
             // Vúmetro de la fuente (si tiene audio).
             Rectangle {

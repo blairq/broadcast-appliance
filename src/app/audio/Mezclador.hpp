@@ -81,6 +81,10 @@ class Mezclador : public QObject {
     Q_INVOKABLE void usar(QObject* vista, bool si);
     /// El estado de una tira: {nombre, volumenDb, mute, pfl, envios: [ids de columnas]}.
     Q_INVOKABLE QVariantMap tira(const QString& nombre) const;
+    /// De qué salida son el volumen y el mute de las tiras (PLAN-SALIDAS: la salida activa
+    /// de la interfaz, que tiene su propia mezcla; "" = la por omisión). Lo mueve la vista
+    /// por el MixerModel, que sigue a la misma.
+    void setSalida(const std::string& salida) { salida_ = salida; }
     /// A qué destinos va cada entrada: {nombre: [ids]} (para los chips de envío).
     Q_INVOKABLE QVariantMap envios() const;
     QVariantList analisisLsp() const;
@@ -115,6 +119,7 @@ class Mezclador : public QObject {
     void tic();
 
     AppRuntime& rt_;
+    std::string salida_; ///< ver setSalida
     Matriz* matriz_ = nullptr;
     RackManager* racks_ = nullptr;
     std::unique_ptr<Calibracion> calibracion_;

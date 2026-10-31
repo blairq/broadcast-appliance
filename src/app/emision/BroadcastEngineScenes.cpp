@@ -1153,8 +1153,12 @@ bool BroadcastEngine::setSourceVolume(const std::string& name, float mul, const 
     if (s == nullptr) return false;
     if (!s->porOmision()) {
         // La mezcla de otra salida: solo su fader en su bus (la fuente y su matriz son de la por omisión).
+        // Avisa igual: el Mezclador puede estar mirando esta salida (la salida activa de la interfaz).
+        const bool cambia = sourceVolume(name, s->id) != v;
         s->volumen[name] = v;
-        return motor_->ponerNivel(name, nivelAplicado(name, v), s->id).empty();
+        const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v), s->id).empty();
+        if (cambia && cambioAudio_) cambioAudio_(name, "volumen");
+        return ok;
     }
     const bool cambia = it->second.spec.volume != v;
     it->second.spec.volume = v;
@@ -1217,8 +1221,11 @@ bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted, const 
     Salida* s = laSalida(salida);
     if (s == nullptr) return false;
     if (!s->porOmision()) {
+        const bool cambia = sourceMuted(name, s->id) != muted;
         s->mute[name] = muted;
-        return motor_->ponerMute(name, muted, s->id).empty();
+        const bool ok = motor_->ponerMute(name, muted, s->id).empty();
+        if (cambia && cambioAudio_) cambioAudio_(name, "mute");
+        return ok;
     }
     const bool cambia = it->second.spec.muted != muted;
     it->second.spec.muted = muted;

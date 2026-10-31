@@ -16,6 +16,7 @@
 #include "arranque/ModoVivoConfig.hpp"
 #include "ui/EnlacesViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
+#include "emision/SalidasConfig.hpp"
 #include "arranque/InterfazConfig.hpp"
 #include "agent/RotuloTraduccionConfig.hpp"
 #include "emision/RetornosInvitados.hpp"
@@ -303,33 +304,52 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     retornos_ = std::make_unique<emision::RetornosInvitados>(rt);
     objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(rt.dataRoot(), rt.engine().loudness());
     // El conmutador de escenas es del modelo (uno por salida); acá solo se refleja lo
-    // que cambia. Lo de siempre (la escena al aire, la armada, el tally) es el de la
-    // por omisión; el de cada salida llega a la lista de salidas.
+    // que cambia. La interfaz muestra el de la salida activa (salidaActiva); las
+    // pantallas de tally de la sala y el monitor «armada» siguen a la por omisión; el
+    // de cada salida llega además a la lista de salidas.
     conmutadores_ = std::make_unique<escenas::Conmutadores>(rt, this);
     conmutador_ = &conmutadores_->porOmision();
     salidasModelo_ = std::make_unique<JsonListModel>(
-        QStringList{"id", "nombre", "color", "porOmision", "alAire", "armada", "transmitiendo", "grabando"}, this);
+        QStringList{"id", "nombre", "color", "porOmision", "alAire", "armada", "transmitiendo", "grabando", "archivo", "destinos", "programa"},
+        this);
     const auto seguirSalida = [this](escenas::Conmutador* c) {
         connect(c, &escenas::Conmutador::alAireCambio, this, &StudioViewModel::publicarSalidas);
         connect(c, &escenas::Conmutador::armadaCambio, this, &StudioViewModel::publicarSalidas);
+        connect(c, &escenas::Conmutador::alAireCambio, this, [this, c](const QString& escena) {
+            if (c != &conmutadorActivo()) return;
+            scenes_->liveChanged();
+            sources_->setScene(escena); // el editor de fuentes sigue a la escena al aire
+            emit sceneChanged();
+        });
+        connect(c, &escenas::Conmutador::armadaCambio, this, [this, c](const QString& escena) {
+            if (c != &conmutadorActivo()) return;
+            scenes_->setArmada(escena);
+            emit sceneChanged();
+        });
+        connect(c, &escenas::Conmutador::afvCambio, this, [this, c]() {
+            if (c != &conmutadorActivo()) return;
+            emit statusChanged();
+            emit afvChanged();
+        });
     };
     for (escenas::Conmutador* c : conmutadores_->todos()) seguirSalida(c);
     connect(conmutadores_.get(), &escenas::Conmutadores::creado, this, seguirSalida);
     connect(conmutadores_.get(), &escenas::Conmutadores::cambio, this, &StudioViewModel::publicarSalidas);
-    connect(conmutador_, &escenas::Conmutador::alAireCambio, this, [this](const QString& escena) {
-        scenes_->liveChanged();
-        sources_->setScene(escena); // el editor de fuentes sigue a la escena al aire
-        emit sceneChanged();
-        publicarTally();
-    });
+    connect(conmutador_, &escenas::Conmutador::alAireCambio, this, &StudioViewModel::publicarTally);
     connect(conmutador_, &escenas::Conmutador::armadaCambio, this, [this](const QString& escena) {
-        scenes_->setArmada(escena);
-        frames_->setArmada(escena); // el monitor de armada mira esta
-        emit sceneChanged();
+        frames_->setArmada(escena); // el monitor «armada» mira la de la por omisión
         publicarTally();
     });
-    connect(conmutador_, &escenas::Conmutador::afvCambio, this, &StudioViewModel::statusChanged);
-    connect(conmutador_, &escenas::Conmutador::afvCambio, this, &StudioViewModel::afvChanged);
+    // Los destinos de cada salida van en su fila.
+    connect(this, &StudioViewModel::destinosChanged, this, &StudioViewModel::publicarSalidas);
+    // La máquina se pone justa (o se alivia): cambia el aviso de crear otra salida.
+    connect(recursos_.get(), &RecursosViewModel::cambio, this, [this]() {
+        const QVariantMap n = nuevaSalida();
+        if (n != nuevaSalidaAntes_) {
+            nuevaSalidaAntes_ = n;
+            emit nuevaSalidaChanged();
+        }
+    });
     publicarSalidas();
     props_ = std::make_unique<PropertiesModel>(rt);
     marca("props");
@@ -2826,6 +2846,11 @@ void StudioViewModel::onTick() {
     rt_.engine().programPeaksDb(l, r);
     peakL_ = std::max<double>(l, peakL_ - 1.5);
     peakR_ = std::max<double>(r, peakR_ - 1.5);
+    if (!salidaActiva_.empty()) { // el vúmetro de la activa (las alarmas siguen mirando la por omisión)
+        rt_.engine().programPeaksDb(l, r, salidaActiva_);
+        peakActivaL_ = std::max<double>(l, peakActivaL_ - 1.5);
+        peakActivaR_ = std::max<double>(r, peakActivaR_ - 1.5);
+    }
     mixer_->refreshLevels();
     emit nivelesChanged();
     // El resto, solo si cambió algo de lo que se ve (con tiempos de grabación o
@@ -2847,7 +2872,7 @@ void StudioViewModel::onTick() {
 
 QString StudioViewModel::recordTime() const { return recording_ ? hms(recSince_) : QString("00:00:00"); }
 QString StudioViewModel::streamTime() const { return streaming_ ? hms(streamSince_) : QString("00:00:00"); }
-QString StudioViewModel::currentScene() const { return qs(rt_.engine().currentScene()); }
+QString StudioViewModel::currentScene() const { return qs(rt_.engine().currentScene(salidaActiva_)); }
 QString StudioViewModel::transitionType() const { return qs(rt_.config().transition.type); }
 double StudioViewModel::canvasAspect() const {
     const VideoConfig& v = rt_.config().video;
@@ -3357,16 +3382,17 @@ void StudioViewModel::stopStreaming() {
 }
 
 void StudioViewModel::takeScene(const QString& name) {
-    if (const std::string e = conmutador_->poner(name.toStdString()); !e.empty()) emit notify(qs(e), "error");
+    if (const std::string e = conmutadorActivo().poner(name.toStdString()); !e.empty()) emit notify(qs(e), "error");
 }
 
-QString StudioViewModel::escenaArmada() const { return qs(conmutador_->armada()); }
+QString StudioViewModel::escenaArmada() const { return qs(conmutadorActivo().armada()); }
 
 void StudioViewModel::publicarTally() {
     auto* p = qobject_cast<PantallasViewModel*>(pantallas());
     if (p == nullptr) return;
+    // Las pantallas de tally de la sala: las de la por omisión (no la activa de esta interfaz).
     const QString aire = qs(rt_.engine().currentScene());
-    const QString armada = escenaArmada();
+    const QString armada = qs(conmutador_->armada());
     const auto fuentesDe = [this](const QString& escena) {
         QStringList out;
         if (escena.isEmpty()) return out;
@@ -3381,14 +3407,15 @@ void StudioViewModel::publicarTally() {
 }
 
 void StudioViewModel::armarEscena(const QString& name) {
-    if (const std::string e = conmutador_->armar(name.toStdString()); !e.empty()) emit notify(qs(e), "aviso");
+    if (const std::string e = conmutadorActivo().armar(name.toStdString()); !e.empty()) emit notify(qs(e), "aviso");
 }
 
 void StudioViewModel::take() { takeCon(QString(), -1); }
 
 void StudioViewModel::takeCon(const QString& tipo, int ms) {
-    const bool habiaArmada = !conmutador_->armada().empty();
-    if (const std::string e = conmutador_->take(tipo.toStdString(), ms); !e.empty())
+    escenas::Conmutador& c = conmutadorActivo();
+    const bool habiaArmada = !c.armada().empty();
+    if (const std::string e = c.take(tipo.toStdString(), ms); !e.empty())
         emit notify(qs(e), habiaArmada ? "error" : "aviso");
 }
 
@@ -3654,19 +3681,33 @@ void StudioViewModel::refrescarAvisos() {
 QObject* StudioViewModel::salidas() const { return salidasModelo_.get(); }
 
 void StudioViewModel::publicarSalidas() {
-    const nlohmann::json lista = rt_.salidas().value("salidas", nlohmann::json::array());
+    const nlohmann::json todo = rt_.salidas();
+    const nlohmann::json lista = todo.value("salidas", nlohmann::json::array());
+    const nlohmann::json destinos = rt_.destinos();
     const EngineStatus st = rt_.engine().status();
     QJsonArray filas, alGateway;
     for (const auto& s : lista) {
         const std::string id = s.value("id", std::string());
         if (!rt_.engine().existeSalida(id)) continue;
         const escenas::Conmutador* c = conmutadores_->de(id);
+        QJsonArray suyos; // los destinos que salen con el programa de esta
+        for (const auto& d : destinos)
+            if (salidas::salidaDeDestino(d) == id)
+                suyos.append(QJsonObject{{"id", qs(d.value("id", std::string()))},
+                                         {"nombre", qs(d.value("nombre", std::string()))},
+                                         {"activo", d.value("activo", false)},
+                                         {"reconectando", d.value("reconectando", false)},
+                                         {"respaldo", d.value("respaldo", false)}});
         QJsonObject f{{"id", qs(id)},
                       {"nombre", qs(s.value("nombre", id))},
                       {"color", qs(s.value("color", std::string()))},
                       {"porOmision", s.value("por_omision", false)},
                       {"alAire", qs(rt_.engine().currentScene(id))},
-                      {"armada", c != nullptr ? qs(c->armada()) : QString()}};
+                      {"armada", c != nullptr ? qs(c->armada()) : QString()},
+                      {"archivo", qs(rt_.engine().archivoGrabacion(id))},
+                      {"destinos", suyos},
+                      // La clave de FrameService de su programa (la por omisión, la de siempre).
+                      {"programa", s.value("por_omision", false) ? QStringLiteral("program") : "program:" + qs(id)}};
         for (const auto& e : st.salidas)
             if (e.id == id) {
                 f["transmitiendo"] = e.streaming || e.destinos > 0;
@@ -3675,10 +3716,125 @@ void StudioViewModel::publicarSalidas() {
         alGateway.append(QJsonObject{{"id", f["id"]}, {"nombre", f["nombre"]}, {"color", f["color"]}, {"porOmision", f["porOmision"]}});
         filas.append(f);
     }
+    const int tope = todo.value("tope", 0);
+    const bool cambio = filas != salidasModelo_->items() || tope != topeSalidas_;
+    topeSalidas_ = tope;
     if (filas != salidasModelo_->items()) salidasModelo_->setItems(filas);
+    frames_->setSalidas(alGateway); // las claves «program:<id>», sus nombres y sus colores
+    // La activa se borró: la interfaz vuelve a la por omisión.
+    if (!salidaActiva_.empty() && !rt_.engine().existeSalida(salidaActiva_)) {
+        salidaActiva_.clear();
+        reflejarSalidaActiva();
+    } else if (cambio) {
+        emit salidaActivaChanged();
+    }
+    if (const QVariantMap n = nuevaSalida(); n != nuevaSalidaAntes_) {
+        nuevaSalidaAntes_ = n;
+        emit nuevaSalidaChanged();
+    }
     // El gateway sabe qué salidas hay para que la sesión remota y el cast elijan (se la
     // vuelve a mandar sola si el gateway se reinicia).
     if (conference_) conference_->client().ponerSalidas(alGateway);
+}
+
+escenas::Conmutador& StudioViewModel::conmutadorActivo() const {
+    escenas::Conmutador* c = salidaActiva_.empty() ? nullptr : conmutadores_->de(salidaActiva_);
+    return c != nullptr ? *c : *conmutador_;
+}
+
+QString StudioViewModel::salidaActiva() const {
+    return qs(salidaActiva_.empty() ? std::string(BroadcastEngine::kSalidaPorOmision) : salidaActiva_);
+}
+
+void StudioViewModel::setSalidaActiva(const QString& id) {
+    // La por omisión se anota "" (todo lo que pregunta «¿es otra?» es un empty()).
+    std::string nueva = rt_.engine().idDeSalida(id.toStdString());
+    if (nueva.empty()) return; // no existe
+    if (nueva == BroadcastEngine::kSalidaPorOmision) nueva.clear();
+    if (nueva == salidaActiva_) return;
+    salidaActiva_ = nueva;
+    peakActivaL_ = peakActivaR_ = -100;
+    reflejarSalidaActiva();
+}
+
+void StudioViewModel::reflejarSalidaActiva() {
+    scenes_->setSalida(salidaActiva_);
+    scenes_->setArmada(escenaArmada());
+    sources_->setScene(currentScene());
+    mixer_->setSalida(salidaActiva_);
+    if (mezclador_) mezclador_->setSalida(salidaActiva_);
+    emit salidaActivaChanged();
+    emit sceneChanged();
+    emit afvChanged();
+    emit statusChanged();
+    emit nivelesChanged();
+}
+
+QVariantMap StudioViewModel::salidaActivaDatos() const {
+    const QString id = salidaActiva();
+    for (const auto& v : salidasModelo_->items())
+        if (v.toObject().value("id").toString() == id) return v.toObject().toVariantMap();
+    return {};
+}
+
+bool StudioViewModel::variasSalidas() const { return salidasModelo_->count() > 1; }
+
+QString StudioViewModel::claveProgramaActiva() const {
+    return salidaActiva_.empty() ? QStringLiteral("program") : "program:" + qs(salidaActiva_);
+}
+
+QString StudioViewModel::claveArmadaActiva() const {
+    return salidaActiva_.empty() ? QStringLiteral("armada") : "armada:" + qs(salidaActiva_);
+}
+
+QVariantMap StudioViewModel::nuevaSalida() const {
+    // El tope lo pone el operador; que la máquina dé abasto lo dicen los recursos (la
+    // tarjeta Sistema, sistema_recursos): justa, se puede igual pero se avisa.
+    if (salidasModelo_->count() >= topeSalidas_)
+        return {{"puede", false}, {"aviso", tr("Ya hay %n salida, que es el tope.", "", topeSalidas_)}};
+    const QString estado = recursos_ ? recursos_->estado() : QString();
+    if (estado == "critico")
+        return {{"puede", true},
+                {"aviso", tr("La máquina está al límite (%1): otra salida es otro programa, otro preview y otra mezcla.")
+                              .arg(recursos_->limita())}};
+    if (estado == "aviso")
+        return {{"puede", true}, {"aviso", tr("La máquina está justa (%1): mirá la tarjeta Sistema antes de sumar otra.").arg(recursos_->limita())}};
+    return {{"puede", true}, {"aviso", QString()}};
+}
+
+QString StudioViewModel::crearSalidaUi(const QString& nombre, const QString& color) {
+    // El id sale del nombre (letras y números, sin acentos: va en los nombres de los
+    // canales y los archivos) y no se repite; sin nada útil, «salida-<n>».
+    QString base;
+    for (const QChar ch : nombre.normalized(QString::NormalizationForm_D).toLower()) {
+        if (ch.isLetterOrNumber() && ch.unicode() < 128) base += ch;
+        else if ((ch.isSpace() || ch == '-' || ch == '_') && !base.isEmpty() && !base.endsWith('-')) base += '-';
+    }
+    while (base.endsWith('-')) base.chop(1);
+    if (base.isEmpty()) base = QStringLiteral("salida");
+    QString id = base;
+    for (int n = 2; rt_.engine().existeSalida(id.toStdString()); ++n) id = QString("%1-%2").arg(base).arg(n);
+    const std::string e = rt_.crearSalida(id.toStdString(), nombre.trimmed().toStdString(), color.toStdString());
+    if (!e.empty()) return qs(e);
+    publicarSalidas();
+    setSalidaActiva(id);
+    return {};
+}
+
+QString StudioViewModel::setTopeSalidasUi(int tope) {
+    const std::string e = rt_.setTopeSalidas(tope);
+    publicarSalidas();
+    return qs(e);
+}
+
+QString StudioViewModel::grabarSalida(const QString& id, bool grabar) {
+    const std::string s = rt_.engine().idDeSalida(id.toStdString());
+    if (s.empty()) return tr("No hay una salida «%1».").arg(id);
+    if (!grabar) {
+        rt_.stopRecording(s);
+        return {};
+    }
+    return rt_.startRecording(s) ? QString() : qs(rt_.lastError());
 }
 
 QString StudioViewModel::crearSalida(const QString& id, const QString& nombre, const QString& color) {
@@ -3922,8 +4078,9 @@ void StudioViewModel::publicarEventos() {
         bus_->publicar("aire/modo_vivo", {{"activo", vivo}});
     }
     ++busTicks_;
+    // Lo del BusEventos es de la por omisión (los temas por salida son de la etapa 4).
     const QString aire = qs(rt_.engine().currentScene());
-    const QString armada = escenaArmada();
+    const QString armada = qs(conmutador_->armada());
     const auto fuentesDe = [this](const QString& escena) {
         nlohmann::json out = nlohmann::json::array();
         if (!escena.isEmpty())
@@ -3936,11 +4093,33 @@ void StudioViewModel::publicarEventos() {
     for (const std::string& f : rt_.engine().fuentesDsk())
         if (std::find(fuentesAire.begin(), fuentesAire.end(), f) == fuentesAire.end()) fuentesAire.push_back(f);
     {
-        // Para el multiview (tally rojo y verde por celda).
-        QStringList aireQ, armadaQ;
-        for (const auto& f : fuentesAire) aireQ << QString::fromStdString(f.get<std::string>());
-        for (const auto& f : fuentesDe(armada)) armadaQ << QString::fromStdString(f.get<std::string>());
-        const QVariantMap t{{"aire", aireQ}, {"armada", armadaQ}};
+        // Para el multiview: el tally de la salida activa (rojo al aire, verde armada) y, con
+        // varias salidas, en cuáles está al aire cada fuente (las demás con su color).
+        const auto alAireEn = [this](const std::string& salida) {
+            QStringList out;
+            const std::string escena = rt_.engine().currentScene(salida);
+            if (!escena.empty())
+                for (const std::string& f : rt_.engine().sceneSources(escena)) out << qs(f);
+            for (const std::string& f : rt_.engine().fuentesDsk(salida))
+                if (!out.contains(qs(f))) out << qs(f);
+            return out;
+        };
+        const QStringList aireQ = alAireEn(salidaActiva_);
+        QStringList armadaQ;
+        for (const auto& f : fuentesDe(escenaArmada())) armadaQ << QString::fromStdString(f.get<std::string>());
+        QVariantMap borde, enSalidas;
+        for (const QString& f : armadaQ) borde[f] = QStringLiteral("#2ecc71");
+        for (const QString& f : aireQ) borde[f] = QStringLiteral("#e53935");
+        if (salidasModelo_->count() > 1)
+            for (const auto& v : salidasModelo_->items()) {
+                const QJsonObject o = v.toObject();
+                const QVariantMap marca{{"nombre", o.value("nombre").toString()}, {"color", o.value("color").toString()}};
+                for (const QString& f : alAireEn(o.value("id").toString().toStdString())) {
+                    enSalidas[f] = enSalidas.value(f).toList() << marca;
+                    if (!borde.contains(f)) borde[f] = marca.value("color");
+                }
+            }
+        const QVariantMap t{{"aire", aireQ}, {"armada", armadaQ}, {"borde", borde}, {"salidas", enSalidas}};
         if (t != tally_) {
             tally_ = t;
             emit tallyChanged();
@@ -4608,19 +4787,19 @@ QString StudioViewModel::setTransicionEntrada(const QString& escena, const QStri
     return qs(conmutador_->setTransicionEntrada(escena.toStdString(), tipo.toStdString(), ms));
 }
 
-bool StudioViewModel::afv(const QString& fuente) const { return conmutador_->afv(fuente.toStdString()); }
+bool StudioViewModel::afv(const QString& fuente) const { return conmutadorActivo().afv(fuente.toStdString()); }
 
-void StudioViewModel::setAfv(const QString& fuente, bool sigue) { conmutador_->setAfv(fuente.toStdString(), sigue); }
+void StudioViewModel::setAfv(const QString& fuente, bool sigue) { conmutadorActivo().setAfv(fuente.toStdString(), sigue); }
 
 QStringList StudioViewModel::afvFuentes() const {
     QStringList out;
-    for (const std::string& f : conmutador_->afvFuentes()) out << qs(f);
+    for (const std::string& f : conmutadorActivo().afvFuentes()) out << qs(f);
     return out;
 }
 
 void StudioViewModel::tbar(double t, bool soltar) {
-    if (const std::string e = conmutador_->tbar(t, soltar); !e.empty())
-        emit notify(qs(e), conmutador_->armada().empty() ? "aviso" : "error");
+    escenas::Conmutador& c = conmutadorActivo();
+    if (const std::string e = c.tbar(t, soltar); !e.empty()) emit notify(qs(e), c.armada().empty() ? "aviso" : "error");
 }
 
 } // namespace ba::app

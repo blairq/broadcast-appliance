@@ -48,6 +48,9 @@ Item {
         anchors.fill: parent
         spacing: 8
 
+        // --- De qué salida (con varias: el aire, la armada, el TAKE y la T-bar son de esa) ---
+        SelectorSalida { Layout.fillWidth: true }
+
         // --- FTB y placa: tapar todo lo que sale a un toque ---------------------
         BotonesSeguridad { Layout.fillWidth: true }
         // --- Capas DSK encima del programa (logo, intérprete LSA) --------------

@@ -46,11 +46,14 @@ class ScenesModel : public QAbstractListModel {
     /// Vacia = no hay ninguna armada.
     QString armada() const { return armada_; }
     void setArmada(const QString& n);
+    /// De qué salida es `live` (PLAN-SALIDAS: la salida activa de la interfaz; "" = la por omisión).
+    void setSalida(const std::string& salida);
 
    private:
     AppRuntime& rt_;
     std::vector<std::string> names_;
     QString armada_;
+    std::string salida_;
 };
 
 class SourcesModel : public QAbstractListModel {
@@ -180,9 +183,14 @@ class MixerModel : public QAbstractListModel {
     Q_INVOKABLE QVariantList grupos() const;
     /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.
     double picoDe(const std::string& nombre) const;
+    /// La mezcla de qué salida muestra y mueve (volumen y mute de cada tira; PLAN-SALIDAS:
+    /// cada salida tiene la suya). "" = la por omisión. Lo demás (picos, retardo, grupos)
+    /// es de la fuente: igual en todas.
+    void setSalida(const std::string& salida);
 
    private:
     AppRuntime& rt_;
+    std::string salida_;
     std::vector<std::string> names_;
     std::vector<float> peaks_;
     std::vector<std::string> grupos_; ///< por fila: "" suelta, o la clave de su grupo

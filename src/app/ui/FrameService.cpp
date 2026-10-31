@@ -7,6 +7,8 @@
 #include "emision/BroadcastEngine.hpp"
 #include "ipc/SpoutTransport.hpp"
 
+#include <QJsonObject>
+
 #include <chrono>
 
 namespace ba::app {
@@ -46,6 +48,9 @@ QStringList FrameService::keys() const {
     // Segunda, pegada al programa, porque son los dos buses de la mesa: lo que
     // sale y lo que va a salir. Se miran juntos o no se miran.
     out << "armada";
+    // El programa de cada una de las demás salidas (PLAN-SALIDAS): el multiview las
+    // muestra todas, cada una con su color.
+    out << programas().mid(1);
     for (int i = 1; i <= guests_; ++i) {
         out << QString("guest:%1").arg(i);
     }
@@ -62,6 +67,13 @@ QString FrameService::label(const QString& key) const {
     };
     if (key == "program") return "Programa";
     if (key == "armada") return tr("Armada (preview)");
+    if (key.startsWith("program:") || key.startsWith("armada:")) {
+        const QString id = key.section(':', 1);
+        QString nombre = id;
+        for (const auto& v : salidas_)
+            if (v.toObject().value("id").toString() == id) nombre = v.toObject().value("nombre").toString();
+        return (key.startsWith("program:") ? tr("Programa · %1") : tr("Armada · %1")).arg(nombre);
+    }
     if (key == "operator") return tr("Tu cámara");
     if (key.startsWith("guest:")) return nameOr(key.mid(6).toInt(), tr("Invitado %1").arg(key.mid(6)));
     if (key.startsWith("share:"))
@@ -71,6 +83,36 @@ QString FrameService::label(const QString& key) const {
     if (key.startsWith("registro:")) return tr("Tótem de registro %1").arg(key.mid(9));
     if (key.startsWith("entrada:")) return key.mid(8);
     if (key.startsWith("escena:")) return key.mid(7);
+    return key;
+}
+
+void FrameService::setSalidas(const QJsonArray& salidas) {
+    if (salidas == salidas_) return;
+    salidas_ = salidas;
+    // Con una sola salida no hay nada que distinguir: sin colores, los cuadros como siempre.
+    colores_.clear();
+    if (salidas_.size() > 1)
+        for (const auto& v : salidas_) {
+            const QJsonObject o = v.toObject();
+            colores_[o.value("porOmision").toBool() ? QStringLiteral("program") : "program:" + o.value("id").toString()] =
+                o.value("color").toString();
+        }
+    emit keysChanged();
+}
+
+QStringList FrameService::programas() const {
+    QStringList out{QStringLiteral("program")};
+    for (const auto& v : salidas_) {
+        const QJsonObject o = v.toObject();
+        if (!o.value("porOmision").toBool()) out << "program:" + o.value("id").toString();
+    }
+    return out;
+}
+
+QString FrameService::clavePropia(const QString& key) {
+    static const QString po = QString::fromLatin1(BroadcastEngine::kSalidaPorOmision);
+    if (key == "program:" + po) return QStringLiteral("program");
+    if (key == "armada:" + po) return QStringLiteral("armada");
     return key;
 }
 
@@ -148,7 +190,10 @@ std::int64_t ahoraUs() {
 }
 } // namespace
 
-bool FrameService::latest(const QString& key, QImage& out, std::uint64_t& serial) const {
+bool FrameService::latest(const QString& clave, QImage& out, std::uint64_t& serial) const {
+    const QString key = clavePropia(clave);
+    // La vista de otra salida se pide sola mientras alguien la lea (ver poll).
+    if (key.startsWith("program:") || key.startsWith("armada:")) salidasPedidas_[key] = ahoraUs();
     auto it = slots_.find(key);
     if (it != slots_.end()) it->second.pedidoUs = ahoraUs(); // alguien lo mira: a todos sus cuadros
     if (it == slots_.end() || it->second.serial == serial || it->second.image.isNull()) {
@@ -194,6 +239,25 @@ void FrameService::poll() {
             engine_.enableScenePreview(canal, vistaDeEntrada(key), 960);
         }
         if (engine_.renderScenePreview(canal, buf, w, h, stride, slots_[key].serieMotor)) tomar(key);
+    }
+    // El programa y el preview de las demás salidas: mientras alguien los lea; a los
+    // 3 s sin que nadie los mire se sueltan (cada uno es una vista más en la GPU).
+    for (auto it = salidasPedidas_.begin(); it != salidasPedidas_.end();) {
+        const QString& key = it->first;
+        const std::string canal = key.toStdString();
+        if (ahoraUs() - it->second > 3'000'000) {
+            engine_.disableScenePreview(canal);
+            slots_.erase(key);
+            it = salidasPedidas_.erase(it);
+            continue;
+        }
+        // Recién pedida, o se cayó (salida borrada, motor rearmado): de nuevo, una vez por segundo.
+        if (engine_.scenePreviewName(canal).empty() && (slots_.count(key) == 0 || vueltas_ % 30 == 0)) {
+            slots_[key];
+            engine_.enableSalidaPreview(canal, key.startsWith("program:") ? "programa" : "preview", key.section(':', 1).toStdString(), 960);
+        }
+        if (engine_.renderScenePreview(canal, buf, w, h, stride, slots_[key].serieMotor)) tomar(key);
+        ++it;
     }
     // Canales de memoria compartida (con resuscripcion si el escritor cambia):
     // invitados y sus pantallas (B), previews del lobby (B), feed propio (A).
