@@ -955,6 +955,18 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"linea_soltar", QT_TRANSLATE_NOOP("mcp-etiquetas", "soltar el hold seguir como estaba despues del corte confirmar decision")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_pulso", QT_TRANSLATE_NOOP("mcp-etiquetas", "pulso tecla boton botonera web disparador condicion apretar avisar a la linea")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_reenganchar", QT_TRANSLATE_NOOP("mcp-etiquetas", "reenganchar a mano volver a la escena del paso retomar la linea seguir el guion")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_ptz", QT_TRANSLATE_NOOP("mcp-etiquetas", "ptz camara esperando mover igual al aire dejar saltar posicion pendiente")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_exportar", QT_TRANSLATE_NOOP("mcp-etiquetas", "exportar escaleta csv planilla mos running order rundown bajar descargar")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_importar", QT_TRANSLATE_NOOP("mcp-etiquetas", "importar escaleta csv planilla mos running order rundown traer cargar redaccion")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_grabar", QT_TRANSLATE_NOOP("mcp-etiquetas", "grabar tiempos ensayo duraciones previstas cronometrar cuanto duro cada paso")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"facebook_live_list", QT_TRANSLATE_NOOP("mcp-etiquetas", "vivos de facebook transmisiones lista estado")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"facebook_login", QT_TRANSLATE_NOOP("mcp-etiquetas", "conectar la cuenta de facebook iniciar sesion login")},

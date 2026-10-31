@@ -22,6 +22,9 @@
 #include "ui/EventoViewModel.hpp"
 #include "ui/LineaProductor.hpp"
 
+#include <QJsonDocument>
+#include <QJsonObject>
+
 namespace ba::app::mcp {
 namespace {
 
@@ -172,8 +175,10 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             "  {op:\"paso_agregar\", bloque, paso:{id, nombre, inicio, fin, continuar, piezas…}, despuesDe?}\n"
             "  {op:\"pieza_agregar\", paso, pieza:{id, pista, tipo, texto, datos, desde, dura, vida}, despuesDe?}\n"
             "  {op:\"pista_agregar\", pista:{id, tipo, salida}}   {op:\"estante_agregar\", item:{id, tecla, boton, pieza|paso}}\n"
+            "  {op:\"disparador_agregar\", disparador:{id, cuando, hacer, activo?, en?}}\n"
+            "  {op:\"plantilla_agregar\", plantilla:{id, nombre, pasos}}   pasos-modelo con {campo} (linea_desde_plantilla)\n"
             "  {op:\"mover\", id, bloque?|paso?, despuesDe?}   un bloque, un paso (a otro `bloque`) o una pieza (a otro `paso`)\n"
-            "  {op:\"quitar\", id}\n"
+            "  {op:\"quitar\", id}   también un disparador, un ítem del estante o una plantilla (si no la usa un bloque)\n"
             "  {op:\"cambiar\", id, campos:{…}}   las claves de `campos` reemplazan las del objeto (el id no se cambia)\n"
             "Sin `despuesDe` va al final; con \"\" al principio; con un id, después de ese.\n\n"
             "El modelo (claves en castellano): un paso entra según `inicio` ({modo: go | tras | con | hora | cuando | "
@@ -183,7 +188,25 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             "\"opcional\": las usa linea_ajustar). Una pieza va en una `pista`, con `desde` ({ms:N} | {antesDelFin:N} | "
             "{manual:true} | {cuando:C}), `dura` ({ms:N} | {}) y `vida` (paso | bloque | hastaQueSeSaque | evento | "
             "alAvanzar). Los `tipo` de pieza que se ejecutan son los de los cues (escena, musica, video, teleprompter, "
-            "orador, grafico, carrusel, pantalla, audio) y `asistente` ({herramienta, args}: se aprueba al escribirla).\n\n"
+            "orador, grafico, carrusel, pantalla, audio), `asistente` ({herramienta, args}: se aprueba al escribirla) y:\n"
+            "  ptz       {camara, posicion, segundos?, siOcupada: esperar|mover|saltar}  si la cámara está al aire en "
+            "alguna salida, de fábrica espera a que se libere (linea_ptz decide)\n"
+            "  dsk       {capa: 1..4, accion: subir|bajar, confirmada?}  en las capas de la salida del paso; baja al "
+            "terminar su vida\n"
+            "  asamblea  {accion: tratar, punto} | {accion: siguiente} | {accion: punto, punto, estado, resultado?} | "
+            "{accion: votacion, que: abrir|pausar|reanudar|cerrar|a_quorum, tema?, menu?, segundos?, resultado?}\n"
+            "  playlist  {accion: play|next|prev|stop, indice?, autoNext?, loop?}  la playlist sigue siendo dueña del "
+            "in/out y del auto-next; un paso con fin {alTerminar:\"medio\"} dura lo que ella\n\n"
+            "Condiciones (`cuando`, `mientras`, `desde:{cuando}`): bus:<tema>[.campo] [== 'x'], medio:<pieza>.termino, "
+            "hora>=19:30, pieza:<id>.fin + 2s y los pulsos tecla:F5, botonera:<id>, web:<botón> (ver linea_pulso), con "
+            "y/o/no y paréntesis.\n\n"
+            "Disparadores: {id, cuando, hacer:{accion, salida?, id?, alAire?}, activo?, en?}. `hacer.accion`: go | hold | "
+            "soltar | saltar (de la salida; sin salida, la por omisión) | adlib (id: una pieza del paso al aire o del "
+            "estante) | insertar (id: un paso del estante; alAire: true para que entre ya) | ir (id: un paso). Se hace "
+            "cuando la condición PASA a cumplirse, con la línea corriendo. `activo` + `en` dicen cuándo vale: sin `en`, "
+            "todo el evento; activo:\"paso\" + en:<paso>, mientras ese paso esté al aire; activo:\"bloque\" + "
+            "en:<bloque>, mientras esté al aire un paso de ese bloque; activo:\"evento\" + en:<paso o bloque>, desde que "
+            "entró hasta el final.\n\n"
             "En vivo solo se toca lo que viene: lo que ya salió o está al aire no se cambia, no se mueve ni se quita.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"ops"}},
@@ -451,6 +474,139 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                          "hora), o una pieza del estante (por el id del ítem o de su pieza). SALE AL AIRE."),
          json{{"pieza", {{"type", "string"}}}}, [&ev, sal](const json& a) { return ev.lineaAdlib(sal(a), a.value("pieza", std::string())); },
          {"pieza"});
+
+    vivo("linea_pulso", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "un pulso puede hacer entrar un paso (un disparador o un paso «cuando»)"),
+         traducir("mcp", "Mandar un pulso a la línea"),
+         traducir("mcp", "Un pulso para las condiciones de la línea: «tecla:F5», «botonera:<id>» o «web:<botón>». Vale solo en "
+                         "ese instante: dispara los disparadores y los pasos o piezas «cuando» que lo esperan. Los que "
+                         "espera la línea están en linea_ver (`pulsos`). Las teclas, la botonera y la web lo mandan solas."),
+         json{{"clave", {{"type", "string"}}}}, [&ev](const json& a) { return ev.lineaPulso(a.value("clave", std::string())); },
+         {"clave"});
+    vivo("linea_reenganchar", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "vuelve a poner al aire la escena del paso"),
+         traducir("mcp", "Reenganchar la salida a la línea"),
+         traducir("mcp", "Alguien cambió la escena a mano fuera de la línea (la salida aparece `aMano` en linea_estado): "
+                         "vuelve a la escena del paso al aire y la salida sigue con la línea. SALE AL AIRE."),
+         json::object(), [&ev, sal](const json& a) { return ev.lineaReenganchar(sal(a)); });
+    vivo("linea_ptz", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "puede mover una cámara que está al aire"),
+         traducir("mcp", "Decidir una PTZ que espera"),
+         traducir("mcp", "Una pieza PTZ espera porque su cámara está al aire en alguna salida (`ptzPendientes` en "
+                         "linea_estado): «mover» la mueve igual, ya (SE VE AL AIRE); «esperar» la deja para cuando se "
+                         "libere (lo de siempre); «saltar» no la mueve."),
+         json{{"pieza", {{"type", "string"}}}, {"decision", {{"type", "string"}, {"enum", {"mover", "esperar", "saltar"}}}}},
+         [&ev](const json& a) { return ev.lineaPtz(a.value("pieza", std::string()), a.value("decision", std::string())); },
+         {"pieza", "decision"});
+
+    // --- L10: la escaleta para afuera y desde afuera, y grabar la línea -------------------
+    {
+        Tool t;
+        t.name = "linea_exportar";
+        t.title = traducir("mcp", "Exportar la escaleta");
+        t.category = "linea";
+        t.clase = Clase::Lectura;
+        t.description = traducir("mcp", "La escaleta en CSV (un renglón por paso, para una planilla o Rundown Studio) o en MOS "
+                                        "(roCreate, para un sistema de redacción). Con `archivo`, además la escribe ahí.");
+        t.details = traducir(
+            "mcp",
+            "CSV: bloque, id, nombre, entra (go | tras | con | hora 19:30 [esperar|cortar] | cuando <condición> | ancla "
+            "<salida>/<paso>), hora (la prevista), duracion (m:ss), fin (vacío | abierto | medio | mientras <condición>), "
+            "continuar, escena, guion, nota.\n\n"
+            "MOS: un story por paso y un item por pieza; lo propio de la línea va en mosExternalMetadata, así vuelve igual "
+            "con linea_importar.");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"formato", {{"type", "string"}, {"enum", {"csv", "mos"}}}},
+                           {"archivo", {{"type", "string"}, {"description", traducir("mcp", "ruta donde escribirla (opcional)")}}}}}};
+        t.examples = {R"({"formato": "csv"})", R"({"formato": "mos", "archivo": "/tmp/escaleta.xml"})"};
+        t.run = [&ev](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            const std::string formato = a.value("formato", std::string("csv"));
+            const std::string archivo = a.value("archivo", std::string());
+            if (!archivo.empty()) {
+                const QString e = ev.exportarEscaleta(QString::fromStdString(formato), QString::fromStdString(archivo));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            }
+            done(ToolResult().data({{"formato", formato}, {"texto", ev.lineaExportar(formato)}, {"archivo", archivo}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "linea_importar";
+        t.title = traducir("mcp", "Importar una escaleta");
+        t.category = "linea";
+        t.clase = Clase::Escritura;
+        t.description = traducir("mcp", "Trae una escaleta de afuera (CSV de una planilla o de Rundown Studio, o MOS de un "
+                                        "sistema de redacción) como bloques nuevos al final de la línea. Por defecto SOLO prueba.");
+        t.details = traducir(
+            "mcp",
+            "`texto` (el CSV o el XML) o `archivo` (.csv; .xml o .mos es MOS). `formato` se adivina si no se dice. Del CSV "
+            "se leen las columnas de linea_exportar (también en inglés: segment, title, duration, script, notes); de MOS, "
+            "roCreate o roStoryAppend/Insert/Replace (lo de otro sistema entra como pasos con notas).\n\n"
+            "Devuelve el lote (`ops`), el diff, el pronóstico y los `avisos` (renglones que no se entendieron, ids "
+            "renombrados). Mostráselo a la persona y, cuando confirme, llamá con probar:false (o pasá `ops` a "
+            "linea_editar).");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"texto", {{"type", "string"}}},
+                           {"archivo", {{"type", "string"}}},
+                           {"formato", {{"type", "string"}, {"enum", {"csv", "mos"}}}},
+                           {"nombreBloque", {{"type", "string"}}},
+                           {"probar", {{"type", "boolean"}, {"description", traducir("mcp", "mostrar el resultado sin aplicar (por defecto)")}}}}}};
+        t.examples = {R"({"texto": "bloque,nombre,duracion,escena\nApertura,Bienvenida,1:30,Cam 1\n"})",
+                      R"({"archivo": "/Users/ana/Escaleta.csv", "probar": false})"};
+        t.run = [&ev](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            const bool probar = a.value("probar", true);
+            const std::string archivo = a.value("archivo", std::string());
+            if (!archivo.empty()) {
+                const QVariantMap r = ev.importarEscaleta(QString::fromStdString(archivo), probar);
+                if (!r.value("ok").toBool()) return done(ToolResult::error(r.value("error").toString().toStdString()));
+                return done(ToolResult().data(json::parse(QJsonDocument(QJsonObject::fromVariantMap(r)).toJson().toStdString())));
+            }
+            const json r = ev.lineaImportar(a.value("formato", std::string()), a.value("texto", std::string()), probar,
+                                            a.value("nombreBloque", std::string()));
+            if (!r.value("ok", false)) return done(ToolResult::error(r.value("error", std::string())));
+            done(ToolResult().data(r));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "linea_grabar";
+        t.title = traducir("mcp", "Grabar los tiempos en un ensayo");
+        t.category = "linea";
+        t.clase = Clase::Escritura;
+        t.description = traducir("mcp", "Grabar la línea (como ProPresenter): se corre un ensayo dando GO a mano y lo que dura "
+                                        "cada paso queda como su duración prevista, cuando una persona lo confirma.");
+        t.details = traducir(
+            "mcp",
+            "`accion`: grabar (prepara el próximo ensayo para grabar: todo entra con GO y nada se va solo; arrancalo con "
+            "evento_correr) | no_grabar | ver (lo grabado: {pasos: [{paso, nombre, antesSeg, grabadoSeg}], totalAntesSeg, "
+            "totalGrabadoSeg, ops}) | aplicar (lo grabado pasa a la línea, con su revisión para deshacer) | descartar.\n\n"
+            "PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si confirma.");
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"accion"}},
+                         {"properties", {{"accion", {{"type", "string"}, {"enum", {"grabar", "no_grabar", "ver", "aplicar", "descartar"}}}}}}};
+        t.run = [&ev](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            const std::string accion = a.value("accion", std::string("ver"));
+            if (accion == "grabar" || accion == "no_grabar") {
+                const std::string e = ev.lineaEstado().value("estado", std::string());
+                if (e == "corriendo" || e == "pausada")
+                    return done(ToolResult::error(traducir("mcp", "Grabar se elige antes de arrancar el ensayo.")));
+                ev.setGrabarTiempos(accion == "grabar");
+            } else if (accion == "aplicar") {
+                if (const QString e = ev.aplicarTiemposGrabados(); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            } else if (accion == "descartar") {
+                ev.descartarTiemposGrabados();
+            }
+            json r = ev.lineaTiemposGrabados();
+            r["grabando"] = ev.grabarTiempos();
+            r["ensayo"] = ev.ensayo();
+            done(ToolResult().data(r));
+        };
+        core.addTool(std::move(t));
+    }
 
     // --- Tras un corte de luz (3.8) ------------------------------------------------------
     {

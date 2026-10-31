@@ -8,11 +8,11 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 808,
+  "cuantas": 814,
   "por_clase": {
-    "lectura": 268,
-    "escritura": 478,
-    "aire": 47,
+    "lectura": 269,
+    "escritura": 480,
+    "aire": 50,
     "ui": 15
   },
   "categorias": [
@@ -659,11 +659,17 @@
         "linea_deshacer",
         "linea_editar",
         "linea_estado",
+        "linea_exportar",
         "linea_go",
+        "linea_grabar",
         "linea_hold",
+        "linea_importar",
         "linea_insertar",
         "linea_ir",
+        "linea_ptz",
+        "linea_pulso",
         "linea_recorrido",
+        "linea_reenganchar",
         "linea_repetir",
         "linea_retomar",
         "linea_revisar",
@@ -20645,7 +20651,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 448
+        "linea": 471
       },
       "roles": [],
       "aire": {
@@ -20682,7 +20688,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 221
+        "linea": 244
       },
       "roles": [],
       "porSalida": true
@@ -20716,7 +20722,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 422
+        "linea": 445
       },
       "roles": [],
       "porSalida": true
@@ -20745,7 +20751,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 354
+        "linea": 377
       },
       "roles": []
     },
@@ -20808,7 +20814,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 258
+        "linea": 281
       },
       "roles": [],
       "porSalida": true
@@ -20833,7 +20839,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 206
+        "linea": 229
       },
       "roles": []
     },
@@ -20871,7 +20877,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 158
+        "linea": 161
       },
       "roles": []
     },
@@ -20895,7 +20901,43 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 94
+        "linea": 97
+      },
+      "roles": []
+    },
+    {
+      "nombre": "linea_exportar",
+      "titulo": "Exportar la escaleta",
+      "categoria": "linea",
+      "descripcion": "La escaleta en CSV (un renglón por paso, para una planilla o Rundown Studio) o en MOS (roCreate, para un sistema de redacción). Con `archivo`, además la escribe ahí.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "formato": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "mos"
+            ]
+          },
+          "archivo": {
+            "type": "string",
+            "description": "ruta donde escribirla (opcional)"
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "exportar escaleta csv planilla mos running order rundown bajar descargar",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 502
       },
       "roles": []
     },
@@ -20924,7 +20966,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 402
+        "linea": 425
       },
       "roles": [],
       "aire": {
@@ -20932,6 +20974,44 @@
         "por_que": "entra el próximo paso de la línea de tiempo"
       },
       "porSalida": true
+    },
+    {
+      "nombre": "linea_grabar",
+      "titulo": "Grabar los tiempos en un ensayo",
+      "categoria": "linea",
+      "descripcion": "Grabar la línea (como ProPresenter): se corre un ensayo dando GO a mano y lo que dura cada paso queda como su duración prevista, cuando una persona lo confirma.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "accion"
+        ],
+        "properties": {
+          "accion": {
+            "type": "string",
+            "enum": [
+              "grabar",
+              "no_grabar",
+              "ver",
+              "aplicar",
+              "descartar"
+            ]
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "grabar tiempos ensayo duraciones previstas cronometrar cuanto duro cada paso",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 575
+      },
+      "roles": []
     },
     {
       "nombre": "linea_hold",
@@ -20961,10 +21041,55 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 408
+        "linea": 431
       },
       "roles": [],
       "porSalida": true
+    },
+    {
+      "nombre": "linea_importar",
+      "titulo": "Importar una escaleta",
+      "categoria": "linea",
+      "descripcion": "Trae una escaleta de afuera (CSV de una planilla o de Rundown Studio, o MOS de un sistema de redacción) como bloques nuevos al final de la línea. Por defecto SOLO prueba.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "texto": {
+            "type": "string"
+          },
+          "archivo": {
+            "type": "string"
+          },
+          "formato": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "mos"
+            ]
+          },
+          "nombreBloque": {
+            "type": "string"
+          },
+          "probar": {
+            "type": "boolean",
+            "description": "mostrar el resultado sin aplicar (por defecto)"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "importar escaleta csv planilla mos running order rundown traer cargar redaccion",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 534
+      },
+      "roles": []
     },
     {
       "nombre": "linea_insertar",
@@ -21000,7 +21125,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 441
+        "linea": 464
       },
       "roles": [],
       "aire": {
@@ -21040,12 +21165,101 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 430
+        "linea": 453
       },
       "roles": [],
       "aire": {
         "cuando": "siempre",
         "por_que": "entra otro paso de la línea de tiempo"
+      },
+      "porSalida": true
+    },
+    {
+      "nombre": "linea_ptz",
+      "titulo": "Decidir una PTZ que espera",
+      "categoria": "linea",
+      "descripcion": "Una pieza PTZ espera porque su cámara está al aire en alguna salida (`ptzPendientes` en linea_estado): «mover» la mueve igual, ya (SE VE AL AIRE); «esperar» la deja para cuando se libere (lo de siempre); «saltar» no la mueve.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "pieza": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "mover",
+              "esperar",
+              "saltar"
+            ]
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
+          }
+        },
+        "required": [
+          "pieza",
+          "decision"
+        ]
+      },
+      "clase": "aire",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "ptz camara esperando mover igual al aire dejar saltar posicion pendiente",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 490
+      },
+      "roles": [],
+      "aire": {
+        "cuando": "siempre",
+        "por_que": "puede mover una cámara que está al aire"
+      },
+      "porSalida": true
+    },
+    {
+      "nombre": "linea_pulso",
+      "titulo": "Mandar un pulso a la línea",
+      "categoria": "linea",
+      "descripcion": "Un pulso para las condiciones de la línea: «tecla:F5», «botonera:<id>» o «web:<botón>». Vale solo en ese instante: dispara los disparadores y los pasos o piezas «cuando» que lo esperan. Los que espera la línea están en linea_ver (`pulsos`). Las teclas, la botonera y la web lo mandan solas.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "clave": {
+            "type": "string"
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
+          }
+        },
+        "required": [
+          "clave"
+        ]
+      },
+      "clase": "aire",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "pulso tecla boton botonera web disparador condicion apretar avisar a la linea",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 478
+      },
+      "roles": [],
+      "aire": {
+        "cuando": "siempre",
+        "por_que": "un pulso puede hacer entrar un paso (un disparador o un paso «cuando»)"
       },
       "porSalida": true
     },
@@ -21074,9 +21288,43 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 118
+        "linea": 121
       },
       "roles": []
+    },
+    {
+      "nombre": "linea_reenganchar",
+      "titulo": "Reenganchar la salida a la línea",
+      "categoria": "linea",
+      "descripcion": "Alguien cambió la escena a mano fuera de la línea (la salida aparece `aMano` en linea_estado): vuelve a la escena del paso al aire y la salida sigue con la línea. SALE AL AIRE.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
+          }
+        }
+      },
+      "clase": "aire",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "reenganchar a mano volver a la escena del paso retomar la linea seguir el guion",
+        "porPrefijo": "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento conduccion guion del evento"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpLineaTools.cpp",
+        "linea": 485
+      },
+      "roles": [],
+      "aire": {
+        "cuando": "siempre",
+        "por_que": "vuelve a poner al aire la escena del paso"
+      },
+      "porSalida": true
     },
     {
       "nombre": "linea_repetir",
@@ -21103,7 +21351,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 437
+        "linea": 460
       },
       "roles": [],
       "aire": {
@@ -21140,7 +21388,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 458
+        "linea": 614
       },
       "roles": []
     },
@@ -21164,7 +21412,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 139
+        "linea": 142
       },
       "roles": []
     },
@@ -21193,7 +21441,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 427
+        "linea": 450
       },
       "roles": [],
       "porSalida": true
@@ -21227,7 +21475,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 417
+        "linea": 440
       },
       "roles": [],
       "porSalida": true
@@ -21260,7 +21508,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 484
+        "linea": 640
       },
       "roles": [],
       "aire": {
@@ -21308,7 +21556,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpLineaTools.cpp",
-        "linea": 56
+        "linea": 59
       },
       "roles": [],
       "porSalida": true
