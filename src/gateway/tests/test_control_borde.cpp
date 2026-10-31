@@ -18,6 +18,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Botonera.hpp"
+#include "Borde.hpp"
 #include "ControlWeb.hpp"
 #include "Log.hpp"
 
@@ -80,8 +81,8 @@ int main() {
     // --- Autenticación ------------------------------------------------------------------
     const std::string token(64, 'a'), sal = "0011", salPin = "99";
     const auto credenciales = [&](bool tunel) {
-        b.ponerCredenciales({{"aparatos", {{{"id", "cw-1"}, {"hash", BotoneraBorde::sha256Hex(sal + token)}, {"sal", sal}}}},
-                             {"tunel", {{"habilitado", tunel}, {"sal", salPin}, {"hash_pin", BotoneraBorde::sha256Hex(salPin + "4321")}}}});
+        b.ponerCredenciales({{"aparatos", {{{"id", "cw-1"}, {"hash", ba::gateway::borde::hashConSal(sal + token)}, {"sal", sal}}}},
+                             {"tunel", {{"habilitado", tunel}, {"sal", salPin}, {"hash_pin", ba::gateway::borde::hashConSal(salPin + "4321")}}}});
     };
     credenciales(false);
     CHECK(b.autenticar(token, "", false) == "cw-1", "token bueno en la red local");

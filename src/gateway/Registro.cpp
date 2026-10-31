@@ -3,13 +3,13 @@
 // ============================================================================
 
 #include "Registro.hpp"
+#include "Borde.hpp"
 #include "security/Comparar.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <set>
 
-#include "Botonera.hpp" // sha256Hex, ipLocal
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
@@ -36,11 +36,6 @@ namespace {
 std::int64_t ahoraMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
         .count();
-}
-
-std::string ipTexto(std::uint32_t ip) {
-    const auto* b = reinterpret_cast<const unsigned char*>(&ip);
-    return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
 }
 
 bool esHex64(const std::string& s) {
@@ -113,7 +108,7 @@ bool RegistroBorde::autenticar(const std::string& id, const std::string& token, 
     std::lock_guard<std::mutex> l(mu_);
     const auto it = totems_.find(id);
     if (it == totems_.end()) return false;
-    if (!ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(it->second.sal + token), it->second.hashToken)) return false;
+    if (!ba::security::igualesEnTiempoConstante(borde::hashConSal(it->second.sal + token), it->second.hashToken)) return false;
     nombre = it->second.nombre;
     return true;
 }
@@ -328,8 +323,8 @@ bool RegistroBorde::atender(long long fd, const std::string& method, const std::
     // vale (la pone cualquiera): la de la conexión, que ya trae la real (PROXY v1).
     std::string ip = externo ? std::string() : http::getHeader(headers, "CF-Connecting-IP");
     const bool tunel = externo || !ip.empty();
-    if (ip.empty() || ip.size() > 45) ip = ipTexto(clientIp);
-    const std::string lugar = !tunel && BotoneraBorde::ipLocal(clientIp) ? "sala" : "afuera";
+    if (ip.empty() || ip.size() > 45) ip = borde::ipTexto(clientIp);
+    const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!SesionBorde::origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "registro: origen ajeno desde %1"), {ip}), -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen invalido") + "\n");

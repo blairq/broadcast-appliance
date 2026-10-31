@@ -72,9 +72,7 @@ class BotoneraBorde {
     void cerrar();
 
     /// Para las pruebas.
-    static bool ipLocal(std::uint32_t ip);
     static bool origenValido(const std::string& headers);
-    static std::string sha256Hex(const std::string& s);
 
    private:
     struct Conn {

@@ -16,8 +16,8 @@
 #include <chrono>
 #include <filesystem>
 
-#include "Botonera.hpp" // sha256Hex, ipLocal
 #include "HttpIo.hpp"
+#include "Borde.hpp"
 #include "security/Comparar.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
@@ -45,11 +45,6 @@ namespace {
 std::int64_t ahoraMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
         .count();
-}
-
-std::string ipTexto(std::uint32_t ip) {
-    const auto* b = reinterpret_cast<const unsigned char*>(&ip);
-    return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
 }
 
 bool esHex64(const std::string& s) {
@@ -107,7 +102,7 @@ bool RegistroBorde::autenticarAtiende(const std::string& token) const {
     if (token.size() < 32 || token.size() > 128) return false;
     std::lock_guard<std::mutex> l(mu_);
     if (hashAtiende_.empty()) return false;
-    return ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(salAtiende_ + token), hashAtiende_);
+    return ba::security::igualesEnTiempoConstante(borde::hashConSal(salAtiende_ + token), hashAtiende_);
 }
 
 std::string RegistroBorde::nombreAtiende(const std::string& s) {
@@ -322,8 +317,8 @@ bool RegistroBorde::atenderAtiende(long long fd, const std::string& method, cons
     if (!ws && !pagina) return false;
     std::string ip = externo ? std::string() : http::getHeader(headers, "CF-Connecting-IP");
     const bool tunel = externo || !ip.empty();
-    if (ip.empty() || ip.size() > 45) ip = ipTexto(clientIp);
-    const std::string lugar = !tunel && BotoneraBorde::ipLocal(clientIp) ? "sala" : "afuera";
+    if (ip.empty() || ip.size() > 45) ip = borde::ipTexto(clientIp);
+    const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!SesionBorde::origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "registro: origen ajeno en la atención remota desde %1"), {ip}), -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen invalido") + "\n");

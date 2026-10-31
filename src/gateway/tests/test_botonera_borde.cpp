@@ -14,6 +14,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Botonera.hpp"
+#include "Borde.hpp"
 #include "Log.hpp"
 
 using ba::gateway::BotoneraBorde;
@@ -41,20 +42,20 @@ std::uint32_t ip(unsigned a, unsigned b, unsigned c, unsigned d) {
 } // namespace
 
 int main() {
-    CHECK(BotoneraBorde::ipLocal(ip(192, 168, 1, 20)), "192.168.x.x es local");
-    CHECK(BotoneraBorde::ipLocal(ip(10, 0, 0, 5)), "10.x es local");
-    CHECK(BotoneraBorde::ipLocal(ip(172, 20, 0, 1)), "172.16/12 es local");
-    CHECK(!BotoneraBorde::ipLocal(ip(172, 32, 0, 1)), "172.32 no");
-    CHECK(BotoneraBorde::ipLocal(ip(127, 0, 0, 1)), "loopback");
-    CHECK(BotoneraBorde::ipLocal(ip(169, 254, 3, 3)), "link-local");
-    CHECK(!BotoneraBorde::ipLocal(ip(8, 8, 8, 8)), "Internet no");
+    CHECK(ba::gateway::borde::ipLocal(ip(192, 168, 1, 20)), "192.168.x.x es local");
+    CHECK(ba::gateway::borde::ipLocal(ip(10, 0, 0, 5)), "10.x es local");
+    CHECK(ba::gateway::borde::ipLocal(ip(172, 20, 0, 1)), "172.16/12 es local");
+    CHECK(!ba::gateway::borde::ipLocal(ip(172, 32, 0, 1)), "172.32 no");
+    CHECK(ba::gateway::borde::ipLocal(ip(127, 0, 0, 1)), "loopback");
+    CHECK(ba::gateway::borde::ipLocal(ip(169, 254, 3, 3)), "link-local");
+    CHECK(!ba::gateway::borde::ipLocal(ip(8, 8, 8, 8)), "Internet no");
 
     CHECK(BotoneraBorde::origenValido("Host: 192.168.1.5:8789\r\nOrigin: https://192.168.1.5:8789"), "mismo origen");
     CHECK(!BotoneraBorde::origenValido("Host: 192.168.1.5:8789\r\nOrigin: https://malo.example"), "origen ajeno");
     CHECK(BotoneraBorde::origenValido("Host: 192.168.1.5:8789"), "sin Origin (no es un navegador de otra página)");
     CHECK(!BotoneraBorde::origenValido("Host: x\r\nCF-Connecting-IP: 1.2.3.4"), "lo que viene por Cloudflare no");
 
-    CHECK(BotoneraBorde::sha256Hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    CHECK(ba::gateway::borde::hashConSal("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
           "sha256 de referencia");
 
 #ifndef _WIN32
@@ -80,7 +81,7 @@ int main() {
         };
         const auto credenciales = [&](bool http) {
             const nlohmann::json c{{"dispositivos",
-                                    {{{"id", "http-1"}, {"hash", BotoneraBorde::sha256Hex(sal + token)}, {"sal", sal}, {"http", http}}}}};
+                                    {{{"id", "http-1"}, {"hash", ba::gateway::borde::hashConSal(sal + token)}, {"sal", sal}, {"http", http}}}}};
             pedir("POST", "/api/v1/botonera/credenciales", "", c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), true);
         };
         const std::string ruta = "/api/botonera/director/pagina/p1/celda/2/1/tocar";

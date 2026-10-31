@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "Sesion.hpp"
+#include "Borde.hpp"
 #include "security/Comparar.hpp"
 
 #include <algorithm>
@@ -12,7 +13,6 @@
 #include <set>
 #include <sstream>
 
-#include "Botonera.hpp" // sha256Hex
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -39,27 +39,9 @@ std::int64_t ahoraMs() {
         .count();
 }
 
-std::string ipTexto(std::uint32_t ip) {
-    const auto* b = reinterpret_cast<const unsigned char*>(&ip);
-    return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
-}
-
 std::string minus(std::string s) {
     for (auto& c : s) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
     return s;
-}
-
-const char* tipoDe(const std::string& rel) {
-    const auto termina = [&](const char* e) {
-        const std::string x(e);
-        return rel.size() >= x.size() && rel.compare(rel.size() - x.size(), x.size(), x) == 0;
-    };
-    if (termina(".html")) return "text/html; charset=utf-8";
-    if (termina(".js")) return "text/javascript; charset=utf-8";
-    if (termina(".css")) return "text/css; charset=utf-8";
-    if (termina(".svg")) return "image/svg+xml";
-    if (termina(".png")) return "image/png";
-    return "application/octet-stream";
 }
 
 inline int kMaxConexiones() { return ba::ajustes::entero("sesion.maxConexiones", 4096); }    // el límite técnico (docs/funciones/SESION-REMOTA.md §7)
@@ -87,38 +69,18 @@ SesionBorde::SesionBorde(std::string webroot, Log& log, Evento alApp)
 bool SesionBorde::origenValido(const std::string& headers) {
     // Puede venir por el túnel (Cloudflare): ahí también Origin tiene que ser el
     // Host que pidió. Sin Origin no es un navegador de otra página.
-    const std::string origin = http::getHeader(headers, "Origin");
-    if (origin.empty()) return true;
-    const std::string host = minus(http::getHeader(headers, "Host"));
-    std::string o = minus(origin);
-    const auto p = o.find("://");
-    if (p == std::string::npos) return false;
-    o = o.substr(p + 3);
-    return !host.empty() && o == host;
+    return borde::mismoOrigen(headers);
 }
 
 bool SesionBorde::servir(long long fd, const std::string& rel, const std::string& webroot) {
-    std::error_code ec;
-    const auto raiz = std::filesystem::weakly_canonical(webroot, ec);
-    if (ec || webroot.empty()) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
-    const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot) / http::urlDecode(rel), ec);
-    const std::string r = raiz.generic_string(), d = destino.generic_string();
-    if (ec || d.size() < r.size() || d.compare(0, r.size(), r) != 0 || (d.size() > r.size() && d[r.size()] != '/'))
-        return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n"), true;
-    std::ifstream f(destino, std::ios::binary);
-    if (!f || std::filesystem::is_directory(destino, ec))
-        return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
-    std::ostringstream ss;
-    ss << f.rdbuf();
     // CSP estricta; la cámara y el micrófono solo para esta página.
-    http::sendResponse(fd, 200, tipoDe(rel), ss.str(),
-                       "Cache-Control: no-cache\r\n"
-                       "Content-Security-Policy: default-src 'self'; connect-src 'self' ws: wss:; "
-                       "img-src 'self' data: blob:; media-src 'self' blob: mediastream:; "
-                       "frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n"
-                       "Permissions-Policy: camera=(self), microphone=(self)\r\n"
-                       "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n");
-    return true;
+    return borde::servir(fd, webroot, rel,
+                         "Cache-Control: no-cache\r\n"
+                         "Content-Security-Policy: default-src 'self'; connect-src 'self' ws: wss:; "
+                         "img-src 'self' data: blob:; media-src 'self' blob: mediastream:; "
+                         "frame-ancestors 'none'; base-uri 'none'; form-action 'none'\r\n"
+                         "Permissions-Policy: camera=(self), microphone=(self)\r\n"
+                         "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n");
 }
 
 bool SesionBorde::intentoPermitido(const std::string& ip) {
@@ -201,8 +163,8 @@ std::string SesionBorde::autenticar(const std::string& id, const std::string& to
     const Credencial& c = it->second;
     // El token primero: sin él no se cuenta como PIN errado (no se puede
     // bloquear a alguien solo sabiendo su id).
-    if (!ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(c.sal + token), c.hashToken)) return {};
-    if (!ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(c.sal + ":" + pin + ":" + token), c.hashPin)) {
+    if (!ba::security::igualesEnTiempoConstante(borde::hashConSal(c.sal + token), c.hashToken)) return {};
+    if (!ba::security::igualesEnTiempoConstante(borde::hashConSal(c.sal + ":" + pin + ":" + token), c.hashPin)) {
         pinMal = true;
         return {};
     }
@@ -219,7 +181,7 @@ std::string SesionBorde::autenticarUsuario(const std::string& usuario, const std
     for (const auto& [cid, c] : credenciales_)
         if (!c.usuario.empty() && c.usuario == u && c.hashClave.size() == 64) {
             id = cid;
-            if (ba::security::igualesEnTiempoConstante(BotoneraBorde::sha256Hex(c.sal + ":clave:" + clave), c.hashClave)) return cid;
+            if (ba::security::igualesEnTiempoConstante(borde::hashConSal(c.sal + ":clave:" + clave), c.hashClave)) return cid;
             claveMal = true;
             return {};
         }
@@ -241,8 +203,8 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
     // En la sala (red local) o afuera (por un túnel o una IP pública): la página lo
     // usa para no reproducir la sala en un celular que está adentro (acoplaría).
     const bool tunel = externo || !ip.empty();
-    if (ip.empty() || ip.size() > 45) ip = ipTexto(clientIp);
-    const std::string lugar = !tunel && BotoneraBorde::ipLocal(clientIp) ? "sala" : "afuera";
+    if (ip.empty() || ip.size() > 45) ip = borde::ipTexto(clientIp);
+    const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "sesion: origen ajeno desde %1"), {ip}), -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen invalido") + "\n");
