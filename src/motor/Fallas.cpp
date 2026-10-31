@@ -25,13 +25,14 @@ void avisarError(GstElement* e, GQuark dominio, gint codigo, const char* texto) 
 
 } // namespace
 
-void aplicarFallasProgramadas(GstElement* pipeline, const std::string& salida) {
+void aplicarFallasProgramadas(GstElement* pipeline, const std::string& salida, GstElement* codificacion) {
     auto& f = ba::fault::FallasProgramadas::instancia();
     if (pipeline == nullptr || !f.hay()) return;
     const std::string pieza = f.tomar(salida);
     if (pieza.empty()) return;
     const bool codificador = pieza == "codificador";
-    GstElement* e = gst_bin_get_by_name(GST_BIN(pipeline), codificador ? "codificador" : salida == "grabacion" ? "mux" : "red");
+    GstElement* donde = codificador && codificacion != nullptr ? codificacion : pipeline;
+    GstElement* e = gst_bin_get_by_name(GST_BIN(donde), codificador ? "codificador" : salida == "grabacion" ? "mux" : "red");
     if (e == nullptr) {
         registrar(Nivel::Aviso, ba::i18n::llenar(ba::i18n::traducir("motor", "falla inyectada: %1 de %2 no está en el pipeline"), {pieza, salida}));
         return;

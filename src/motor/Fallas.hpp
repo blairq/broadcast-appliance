@@ -25,6 +25,8 @@
 namespace ba::motor {
 
 /// `salida`: grabacion | transmision (ver FallasProgramadas).
-void aplicarFallasProgramadas(GstElement* pipeline, const std::string& salida);
+/// `codificacion`: el pipeline del codificador que lee esa salida (la Codificacion
+/// compartida): una falla de «codificador» va ahí, no al pipeline de la salida.
+void aplicarFallasProgramadas(GstElement* pipeline, const std::string& salida, GstElement* codificacion = nullptr);
 
 } // namespace ba::motor
