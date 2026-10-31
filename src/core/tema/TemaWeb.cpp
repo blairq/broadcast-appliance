@@ -3,6 +3,7 @@
 // ============================================================================
 #include "tema/TemaWeb.hpp"
 
+#include <charconv>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -24,10 +25,11 @@ int hexDig(char c) {
 
 double lineal(double c) { return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4); }
 
+// Con punto siempre: printf usa la coma del idioma del sistema («0,50») y el CSS la rechaza.
 std::string conDosDecimales(double v) {
     char b[32];
-    std::snprintf(b, sizeof b, "%.2f", v);
-    return b;
+    const auto r = std::to_chars(b, b + sizeof b, v, std::chars_format::fixed, 2);
+    return std::string(b, r.ptr);
 }
 
 /// Lo que haya en `o[clave]` si es texto; si no, "".
@@ -101,8 +103,8 @@ std::string hex(const Rgb& c) {
 std::string rgba(const Rgb& c, double alfa) {
     const auto canal = [](double x) { return static_cast<int>(std::lround(std::clamp(x, 0.0, 1.0) * 255)); };
     char b[48];
-    std::snprintf(b, sizeof b, "rgba(%d, %d, %d, %.2f)", canal(c.r), canal(c.g), canal(c.b), std::clamp(alfa, 0.0, 1.0));
-    return b;
+    std::snprintf(b, sizeof b, "rgba(%d, %d, %d, ", canal(c.r), canal(c.g), canal(c.b));
+    return b + conDosDecimales(std::clamp(alfa, 0.0, 1.0)) + ")";
 }
 
 double luminancia(const Rgb& c) { return 0.2126 * lineal(c.r) + 0.7152 * lineal(c.g) + 0.0722 * lineal(c.b); }

@@ -5,6 +5,7 @@
 // barras) y que cada familia de páginas reciba lo que dice el alcance.
 #include "tema/TemaWeb.hpp"
 
+#include <clocale>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -100,6 +101,12 @@ int main() {
         check(tiene(css, "html[data-ev~=\"control\"] {\n  --acento") && tiene(css, "--superficie-plana"), "consolas con todo");
     }
     check(!tiene(hojaCss(json::object(), "/comun/tema/", ""), "html["), "sin tema: hoja sin reglas");
+    // Con un idioma de coma decimal (la app corre así en castellano): la hoja sigue con punto.
+    if (std::setlocale(LC_ALL, "es_AR.UTF-8") || std::setlocale(LC_ALL, "de_DE.UTF-8")) {
+        const std::string css = hojaCss(resolver({{"colores", {{"acento", "#00a86b"}}}}), "/comun/tema/", "");
+        check(tiene(css, "rgba(0, 168, 107, 0.") && !tiene(css, "rgba(0, 168, 107, 0,"), "decimales con punto aunque el idioma use coma");
+        std::setlocale(LC_ALL, "C");
+    }
     check(huella("a") != huella("b") && huella("a").size() == 12, "la huella cambia y mide 12");
 
     std::printf("%s\n", fallos == 0 ? "TODO OK" : "HAY FALLAS");
