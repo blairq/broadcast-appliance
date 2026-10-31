@@ -3,12 +3,13 @@
 // ============================================================================
 #include "evento/TemaLogoPng.hpp"
 
+#include "persist/Escritor.hpp"
 #include "tema/TemaWeb.hpp"
 
+#include <QBuffer>
 #include <QFile>
 #include <QImage>
 #include <QPainter>
-#include <QSaveFile>
 #include <QSvgRenderer>
 
 namespace ba::evento {
@@ -31,10 +32,11 @@ bool dibujarPngDeLogo(const fs::path& svg, const fs::path& png, int lado) {
     p.setRenderHint(QPainter::Antialiasing);
     r.render(&p);
     p.end();
-    // Atómico: el gateway puede estar leyéndolo para un QR.
-    QSaveFile out(QString::fromStdWString(png.wstring()));
-    if (!out.open(QIODevice::WriteOnly) || !img.save(&out, "PNG")) return false;
-    return out.commit();
+    // Con el escritor único (atómico): el gateway puede estar leyéndolo para un QR.
+    QByteArray bytes;
+    QBuffer buf(&bytes);
+    if (!buf.open(QIODevice::WriteOnly) || !img.save(&buf, "PNG")) return false;
+    return ba::persist::escribir(png, std::string_view(bytes.constData(), static_cast<std::size_t>(bytes.size())));
 }
 
 int asegurarPngDeLogos(const fs::path& carpetaEvento, const TemaEvento& t) {
