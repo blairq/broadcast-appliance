@@ -30,6 +30,8 @@
 //   program_black forSec (3), umbral (16 de 255), onlyWhenLive (true)
 //   program_frozen forSec (30), onlyWhenLive (true)
 //   record_down   forSec (5): la grabación se cortó sin que nadie la parara
+//   recursos      recurso ("*"|cpu|gpu|ram|vram|red|motor), nivel (aviso|critico):
+//                 la máquina está al límite (sostenido; lo mide diag::Recursos)
 //   timer         in (seg) | at ("HH:MM") | every (seg)
 //
 // Las reglas se guardan en Config/alertas.json (sobreviven reinicios).
@@ -92,6 +94,8 @@ struct AlertInputs {
     std::function<json()> superres;
     /// El programa en imagen: {valido, luma (0–255), quieto_s} (alarmas de negro y congelado).
     std::function<json()> programaVideo;
+    /// Los recursos de la máquina: {cpu: {estado, valor, sostenido_s}, …} (diag::Recursos::niveles).
+    std::function<json()> recursos;
     std::function<std::int64_t()> nowMs; ///< reloj (inyectable en tests)
 };
 

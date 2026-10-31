@@ -15,6 +15,7 @@
 #include "escenas/ControlGrillas.hpp"
 #include "arranque/ModoVivoConfig.hpp"
 #include "ui/EnlacesViewModel.hpp"
+#include "ui/RecursosViewModel.hpp"
 #include "arranque/InterfazConfig.hpp"
 #include "agent/RotuloTraduccionConfig.hpp"
 #include "emision/RetornosInvitados.hpp"
@@ -212,6 +213,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         ba::diag::registro().linea(nivel == "error" ? ba::diag::Nivel::Aviso : ba::diag::Nivel::Info, "aviso-ui", 0,
                                    (nivel + ": " + texto).toStdString());
     });
+    // Lo que usa la máquina: mide en su hilo desde el arranque (las alarmas y el MCP lo leen).
+    recursos_ = std::make_unique<RecursosViewModel>(rt);
     // La cola única de descargas (modelos, agentes, …): antes que quien baja algo.
     // Su historial es de la máquina (como Modelos/ y Agentes/), no de la configuración.
     net::Descargas::iniciar(ba::platform::dataRoot());
@@ -813,6 +816,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                               s.reconnecting, rt_.config().encoder.videoBitrateKbps,
                                               !rt_.recordStopWanted()};
         };
+        in.recursos = [this]() { return recursos_ ? recursos_->muestreador().niveles() : nlohmann::json::object(); };
         in.programaVideo = [this]() {
             const auto v = rt_.engine().programaVideo();
             return nlohmann::json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
@@ -3955,6 +3959,10 @@ void StudioViewModel::publicarEventos() {
 namespace ba::app {
 
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
+QObject* StudioViewModel::recursosQml() const {
+    if (recursos_) QQmlEngine::setObjectOwnership(recursos_.get(), QQmlEngine::CppOwnership);
+    return recursos_.get();
+}
 QObject* StudioViewModel::controlWebQml() const { return controlWeb_.get(); }
 
 QString StudioViewModel::temaWeb() const { return qs(rt_.config().temaWeb); }

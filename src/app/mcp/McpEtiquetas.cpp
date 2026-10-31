@@ -585,6 +585,10 @@ const Fila kPropias[] = {
                         "disco lleno espacio libre en disco cuanto "
                         "queda de disco memoria temperatura hardware placa gpu cpu capacidad")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"sistema_recursos", QT_TRANSLATE_NOOP("mcp-etiquetas", "uso de cpu procesador gpu placa de video memoria ram red ancho de banda "
+                         "carga cargada al limite por explotar exigida aguanta otra salida margen picos consumo rendimiento "
+                         "monitor de recursos lenta se traba")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"system_update", QT_TRANSLATE_NOOP("mcp-etiquetas", "actualizar version nueva upgrade instalar")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"app_quit", QT_TRANSLATE_NOOP("mcp-etiquetas", "cerrar salir apagar terminar el programa")},

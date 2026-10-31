@@ -8,7 +8,9 @@
 // memoria y disco. Los dispositivos salen del registro de la maquina
 // (dispositivos::Dispositivos): la misma lista, con los mismos nombres, de la
 // que eligen las paginas de entradas (nada que pueda diferir entre lo listado y
-// lo que se puede agregar).
+// lo que se puede agregar). Y cuánto se está usando de la máquina ahora
+// (sistema_recursos, de ui/RecursosViewModel): CPU, GPU, RAM, red, con picos,
+// estados por umbral y el margen, para saber cuántas salidas más aguanta.
 // ============================================================================
 
 #include <QDir>
@@ -35,6 +37,7 @@
 #include "dispositivos/Dispositivos.hpp"
 #include "pantallas/Monitores.hpp"
 #include "ui/InputsViewModel.hpp"
+#include "ui/RecursosViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #if defined(__linux__)
@@ -277,6 +280,51 @@ void McpService::registerSystemTools() {
                      {"videoDevices", reg ? delRegistro(*reg, "camara_local") : listToJson(ba::app::video::camarasDelEquipo(e))},
                      {"gpu", {{"renderer", e.graphicsDeviceName()}, {"cards", gpusJson()}}},
                      {"videoEncoders", encoders}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "sistema_recursos";
+        t.title = ba::i18n::traducir("mcp", "Cuánto se usa de la máquina (CPU, GPU, RAM, red)");
+        t.category = "equipo";
+        t.readOnly = true;
+        t.description = ba::i18n::traducir(
+            "mcp",
+            "Lo que se está usando AHORA de la máquina, medido cada segundo: CPU de toda la máquina y de nuestros "
+            "procesos (app, gateway, launcher: % y núcleos, memoria residente), RAM usada y total, GPU (% de uso) y "
+            "memoria de video, red (Mbps que entran y salen por cada interfaz física; % del enlace si se sabe su "
+            "velocidad), escritura de disco y el motor (cuadros por segundo, % de cuadros perdidos, kbps que salen). "
+            "Cada recurso trae `pico` (de los últimos 10 minutos), `promedio_10s`, `estado` (normal, aviso desde el "
+            "80 %, critico desde el 92 %, sostenido `umbrales.sostenido_s` segundos; desconocido si el sistema no lo "
+            "dice: nunca se inventa) y `margen` (lo que le queda). `margen` general: el del recurso más cargado y cuál "
+            "`limita`. Sirve para decidir si la máquina aguanta otra salida (otra composición con sus codificadores): "
+            "medí antes y después de sumarla y compará el margen. Con `historial_s` (hasta 600), la historia "
+            "(columnas + filas, agrupada de a `paso_s` segundos con el máximo de cada grupo). La alarma `recursos` "
+            "(alert_create) avisa sola cuando la máquina se acerca al límite.");
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"historial_s",
+               {{"type", "integer"},
+                {"minimum", 0},
+                {"maximum", 600},
+                {"description", ba::i18n::traducir("mcp", "segundos de historia a devolver (0 = sin historia; hasta 600)")}}},
+              {"paso_s",
+               {{"type", "integer"},
+                {"minimum", 1},
+                {"maximum", 60},
+                {"description", ba::i18n::traducir("mcp", "agrupar la historia de a N segundos (el máximo de cada grupo; por "
+                                                          "defecto 1, o 10 si se piden más de 120 s)")}}}}}};
+        RecursosViewModel* rec = vm_.recursos();
+        t.run = [rec](const json& a, Done done) {
+            if (rec == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz no esta lista.")));
+            const int hist = std::clamp(a.value("historial_s", 0), 0, 600);
+            const int paso = std::clamp(a.value("paso_s", hist > 120 ? 10 : 1), 1, 60);
+            json out = rec->muestreador().informe(hist, paso);
+            if (out.value("muestras", 0) == 0)
+                out["nota"] = ba::i18n::traducir("mcp", "Todavía no hay mediciones (se mide una vez por segundo desde el arranque).");
+            done(ToolResult().data(out));
         };
         core_.addTool(std::move(t));
     }

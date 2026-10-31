@@ -225,6 +225,8 @@ class AppRuntime {
 
     /// Salud del gateway (B): true si su latido esta fresco.
     bool gatewayAlive() const;
+    /// El pid del gateway (de su bloque de salud; 0 si todavía no se presentó).
+    std::uint32_t gatewayPid() const;
 
     // --- Sala: lo que el LOBBY ve/oye del operador --------------------------------
     /// Fuentes (por nombre) con las que el operador aparece ante el lobby;

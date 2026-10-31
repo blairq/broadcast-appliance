@@ -785,6 +785,8 @@ bool AppRuntime::gatewayAlive() const {
     return health_.valid() && health_.read(0).pid != 0 && !health_.isStale(0);
 }
 
+std::uint32_t AppRuntime::gatewayPid() const { return health_.valid() ? health_.read(0).pid : 0; }
+
 void AppRuntime::stop() {
     if (!started_) {
         return;

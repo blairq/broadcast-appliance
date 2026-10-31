@@ -5,7 +5,8 @@
 //   speaker_time (una vez por turno), lobby/hand (sin avisar lo que ya estaba),
 //   chat (filtro y regex), stream_health (cuadros perdidos y corte),
 //   stream_down (se cayo sola y no vuelve; NO cuando la paraste vos), disk,
-//   program_black / program_frozen (solo al aire), record_down,
+//   program_black / program_frozen (solo al aire), record_down, recursos (la
+//   máquina al límite: aviso, sube a crítico, se rearma al bajar),
 //   timer (in / every), once, persistencia, alert_wait (evento y vencimiento),
 //   validaciones.
 
@@ -42,6 +43,7 @@ struct World {
     AlertInputs::Status status;
     double disk = 100;
     json prog{{"valido", true}, {"luma", 120.0}, {"quieto_s", 0.0}};
+    json recursos = json::object();
 
     AlertInputs inputs() {
         AlertInputs in;
@@ -53,6 +55,7 @@ struct World {
         in.status = [this]() { return status; };
         in.diskFreeGb = [this]() { return disk; };
         in.programaVideo = [this]() { return prog; };
+        in.recursos = [this]() { return recursos; };
         in.nowMs = [this]() { return now; };
         return in;
     }
@@ -296,6 +299,41 @@ int main(int argc, char** argv) {
     CHECK(fired.empty(), "unos segundos todavía no");
     step(2500);
     CHECK(fired.size() == 1 && fired[0]["type"] == "record_down", "la grabación se cortó: avisa");
+    eng.clear();
+    fired.clear();
+
+    // --- recursos (la máquina al límite) --------------------------------------------------------
+    eng.create(json{{"type", "recursos"}, {"params", {{"recurso", "*"}, {"nivel", "aviso"}}}});
+    const auto rec = [&](const char* cpu, double v) {
+        w.recursos = {{"cpu", {{"estado", cpu}, {"valor", v}, {"sostenido_s", 5}}},
+                      {"gpu", {{"estado", "desconocido"}, {"valor", nullptr}, {"sostenido_s", 0}}}};
+    };
+    rec("normal", 40);
+    step(1000);
+    CHECK(fired.empty(), "recursos: normal no avisa (y la GPU desconocida tampoco)");
+    rec("aviso", 85);
+    step(1000);
+    CHECK(fired.size() == 1 && fired[0]["type"] == "recursos" && fired[0]["data"]["recurso"] == "cpu" &&
+              fired[0]["text"].get<std::string>().find("CPU") != std::string::npos,
+          "recursos: la CPU en aviso avisa");
+    step(1000);
+    CHECK(fired.size() == 1, "recursos: una sola vez mientras sigue");
+    rec("critico", 95);
+    step(1000);
+    CHECK(fired.size() == 2 && fired[1]["data"]["estado"] == "critico", "recursos: si sube a crítico, avisa otra vez");
+    rec("normal", 30);
+    step(1000);
+    rec("aviso", 85);
+    step(1000);
+    CHECK(fired.size() == 2, "recursos: vuelve enseguida, pero respeta el enfriamiento");
+    step(125000);
+    CHECK(fired.size() == 3, "recursos: pasado el enfriamiento, avisa de nuevo");
+    eng.clear();
+    fired.clear();
+    eng.create(json{{"type", "recursos"}, {"params", {{"recurso", "gpu"}, {"nivel", "critico"}}}});
+    rec("critico", 99);
+    step(1000);
+    CHECK(fired.empty(), "recursos: filtra por recurso");
     eng.clear();
     fired.clear();
     w.status = {};

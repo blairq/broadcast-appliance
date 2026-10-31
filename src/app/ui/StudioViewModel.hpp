@@ -174,6 +174,7 @@ class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
 class SystemViewModel;
+class RecursosViewModel;
 class Configuraciones;
 class DocumentosViewModel;
 class PdfEscena;
@@ -226,6 +227,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* bus READ busQml CONSTANT)
     /// La botonera (superficie de control de tablets y hardware): control/Botonera.
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
+    /// Lo que usa la máquina (CPU, GPU, RAM, red) con su historia y su estado: ui/RecursosViewModel.
+    Q_PROPERTY(QObject* recursos READ recursosQml CONSTANT)
     /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
     Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
     /// El tema de las interfaces web de control (Servicios → Templates, Configuración).
@@ -539,6 +542,9 @@ class StudioViewModel : public QObject {
     agent::Vocabulario& vocabulario() { return *vocabulario_; }
     control::BusEventos& bus() { return *bus_; }
     control::Botonera& botonera() { return *botonera_; }
+    /// El muestreador de recursos de la máquina (tarjeta «Sistema», sistema_recursos, alarmas).
+    RecursosViewModel* recursos() const { return recursos_.get(); }
+    QObject* recursosQml() const;
     /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
     control::BotoneraGateway& botoneraGateway() { return *botoneraGw_; }
     control::CarasBotonera& carasBotonera() { return *carasBotonera_; }
@@ -1158,6 +1164,7 @@ class StudioViewModel : public QObject {
     std::atomic<bool> cancelarSellos_{false};
     std::unique_ptr<control::CarasBotonera> carasBotonera_;
     std::unique_ptr<control::Botonera> botonera_;
+    std::unique_ptr<RecursosViewModel> recursos_;
     std::unique_ptr<control::BotoneraGateway> botoneraGw_;
     std::unique_ptr<control::ControlWeb> controlWeb_;
     std::unique_ptr<control::ControlWebGateway> controlWebGw_;

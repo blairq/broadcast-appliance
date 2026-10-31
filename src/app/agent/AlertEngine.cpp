@@ -177,6 +177,13 @@ json AlertEngine::types() {
                      "bypass automático, pasó sola al modo barato.")},
          {"params", {{"entrada", QT_TRANSLATE_NOOP("alertas", "\"*\" (todas, por defecto) o el nombre de la entrada")}}},
          {"cooldownSec", 60}},
+        {{"type", "recursos"},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "La máquina está al límite: CPU, GPU, memoria, red o cuadros perdidos "
+                     "por encima del umbral unos segundos seguidos (sistema_recursos).")},
+         {"params",
+          {{"recurso", QT_TRANSLATE_NOOP("alertas", "\"*\" (todos, por defecto) o uno: cpu, gpu, ram, vram, red, motor")},
+           {"nivel", QT_TRANSLATE_NOOP("alertas", "aviso (por defecto: desde el 80 %) o critico (desde el 92 %)")}}},
+         {"cooldownSec", 120}},
         {{"type", "timer"},
          {"summary", QT_TRANSLATE_NOOP("alertas", "Temporizador del servidor: en N segundos, a una hora, o cada N segundos.")},
          {"params",
@@ -847,6 +854,44 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                 st.seen.erase(k);
             }
         }
+    } else if (type == "recursos" && in_.recursos) {
+        // El estado ya viene sostenido (diag::Recursos): se avisa al llegar al nivel
+        // pedido y otra vez si sube (de aviso a crítico); al bajar, se rearma.
+        const json n = in_.recursos();
+        const std::string filtro = p.value("recurso", std::string("*"));
+        const int pedido = p.value("nivel", std::string("aviso")) == "critico" ? 2 : 1;
+        const auto rango = [](const std::string& e) { return e == "critico" ? 2 : e == "aviso" ? 1 : 0; };
+        for (auto it = n.begin(); n.is_object() && it != n.end(); ++it) {
+            const std::string k = it.key();
+            if (filtro != "*" && !filtro.empty() && filtro != k) continue;
+            const std::string estado = it.value().value("estado", std::string());
+            const int r = rango(estado);
+            const std::string clave = "rec:" + k;
+            if (r < pedido) {
+                st.seen.erase(clave);
+                continue;
+            }
+            const int antes = st.seen.count(clave) ? std::stoi(st.seen[clave]) : 0;
+            if (r <= antes || !cooled(clave + std::to_string(r))) continue;
+            st.seen[clave] = std::to_string(r);
+            mark(clave + std::to_string(r));
+            const json v = it.value().value("valor", json());
+            const std::string valor = v.is_number() ? fmt1(v.get<double>()) : std::string("?");
+            const std::string seg = std::to_string(it.value().value("sostenido_s", 0));
+            std::string texto;
+            if (k == "motor") {
+                texto = ba::i18n::llenar(r == 2 ? ba::i18n::traducir("alertas", "Se pierden muchos cuadros: %1 % hace %2 s (la máquina no da abasto).")
+                                                : ba::i18n::traducir("alertas", "Se están perdiendo cuadros: %1 % hace %2 s."),
+                                         {valor, seg});
+            } else {
+                const std::string quien = k == "red" ? ba::i18n::traducir("alertas", "la red") : QString::fromStdString(k).toUpper().toStdString();
+                texto = ba::i18n::llenar(r == 2 ? ba::i18n::traducir("alertas", "La máquina está al límite: %1 al %2 % hace %3 s. Sacá una salida o bajá la calidad.")
+                                                : ba::i18n::traducir("alertas", "La máquina se está cargando: %1 al %2 % hace %3 s."),
+                                         {quien, valor, seg});
+            }
+            fire(rule, st, texto,
+                 {{"recurso", k}, {"estado", estado}, {"valor", v}}, now);
+        }
     } else if (type == "timer") {
         const std::int64_t due = p.value("dueMs", std::int64_t{0});
         if (due > 0 && now >= due) {
@@ -1021,6 +1066,8 @@ void AlertEngine::sembrar(bool faltantes) {
          {"params", {{"forSec", 30}, {"onlyWhenLive", true}}}, {"sonido", "aviso"}},
         {{"type", "record_down"}, {"name", ba::i18n::traducir("alertas", "La grabación se cortó")}, {"params", {{"forSec", 5}}},
          {"sonido", "critico"}, {"reconocer", true}},
+        {{"type", "recursos"}, {"name", ba::i18n::traducir("alertas", "La máquina al límite")},
+         {"params", {{"recurso", "*"}, {"nivel", "aviso"}}}, {"sonido", "aviso"}},
     });
     for (json r : reglas) {
         const std::string tipo = r.value("type", std::string());
