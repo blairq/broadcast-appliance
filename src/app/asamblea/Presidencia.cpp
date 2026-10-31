@@ -368,47 +368,64 @@ void Presidencia::aplicarVistas(bool forzar) {
     const std::string firma = (alguien ? "1" : "0") + vistas.dump(-1, ' ', false, json::error_handler_t::replace);
     if (!forzar && firma == firmaVistas_) return;
     firmaVistas_ = firma;
+    std::vector<std::string> fuentes;
+    for (const auto& v : vistas) fuentes.push_back(v.value("fuente", std::string()));
+    if (!p_.enMotor) return;
+    // Los canales los reparte el motor (en su hilo); lo que dio vuelve acá y va a la sala.
+    QPointer<Presidencia> yo(this);
+    p_.enMotor([fuentes, alguien](BroadcastEngine& m) { return repartirCanales(m, fuentes, alguien); },
+               [yo, vistas](Canales c) {
+                   if (!yo) return;
+                   for (const std::string& f : c.sinCanal)
+                       emit yo->aviso(tr("No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)")
+                                          .arg(QString::fromStdString(f)),
+                                      "warning");
+                   json out = json::array();
+                   for (size_t i = 0; i < vistas.size() && i < c.canal.size(); ++i) {
+                       json v{{"id", vistas[i].value("id", std::string())},
+                              {"nombre", vistas[i].value("nombre", std::string())},
+                              {"canal", c.canal[i]}};
+                       const std::string fuente = vistas[i].value("fuente", std::string());
+                       if (fuente.rfind("salida:", 0) == 0) v["salida"] = fuente.substr(7);
+                       out.push_back(v);
+                   }
+                   sala::pedir(yo->p_.sala, "POST", "/api/v1/sesion/vistas", {{"vistas", out}}, sinRespuesta);
+               });
+}
+
+Presidencia::Canales Presidencia::repartirCanales(BroadcastEngine& motor, const std::vector<std::string>& fuentes, bool alguien) {
     // Primero las escenas que ya están en un canal (siguen igual, sin apagarse), después se
     // sueltan los canales que ya no van y recién ahí se toman las nuevas. Soltar todo y
     // volver a tomar apagaba y rehacía lo que seguía igual; tomar todo antes de soltar
     // podía quedarse sin canal libre.
-    const auto yaEnCanal = [this](const std::string& escena) {
+    const auto yaEnCanal = [&motor](const std::string& escena) {
         for (int k = 0; k < ba::ipc::kCanalesEscena; ++k)
-            if (p_.motor.escenaDeCanal(k) == escena) return true;
+            if (motor.escenaDeCanal(k) == escena) return true;
         return false;
     };
-    std::vector<int> canales(vistas.size(), -2);
+    Canales c;
+    c.canal.assign(fuentes.size(), -2);
     std::set<int> tomados;
     for (int pasada = 0; pasada < 2; ++pasada) {
-        if (pasada == 1) p_.motor.soltarCanalesEscena("sesion-remota", tomados);
-        for (size_t i = 0; i < vistas.size(); ++i) {
-            const std::string fuente = vistas[i].value("fuente", std::string());
+        if (pasada == 1) motor.soltarCanalesEscena("sesion-remota", tomados);
+        for (size_t i = 0; i < fuentes.size(); ++i) {
+            const std::string& fuente = fuentes[i];
             // El programa, o el de otra salida («salida:<id>», el gateway la elige por `salida`).
             if (fuente == "programa" || fuente.rfind("salida:", 0) == 0) {
-                canales[i] = -1;
+                c.canal[i] = -1;
                 continue;
             }
-            if (!alguien || canales[i] >= 0 || (pasada == 0 && !yaEnCanal(fuente))) continue;
+            if (!alguien || c.canal[i] >= 0 || (pasada == 0 && !yaEnCanal(fuente))) continue;
             // Sin canal, -2 (sin imagen): -1 es el programa, y se veía eso en vez de la escena.
-            const int k = p_.motor.tomarCanalEscena(fuente, "sesion-remota");
-            canales[i] = k >= 0 ? k : -2;
+            const int k = motor.tomarCanalEscena(fuente, "sesion-remota");
+            c.canal[i] = k >= 0 ? k : -2;
             if (k >= 0)
                 tomados.insert(k);
             else if (pasada == 1)
-                emit aviso(tr("No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)")
-                               .arg(QString::fromStdString(fuente)),
-                           "warning");
+                c.sinCanal.push_back(fuente);
         }
     }
-    json out = json::array();
-    for (size_t i = 0; i < vistas.size(); ++i) {
-        json v{{"id", vistas[i].value("id", std::string())}, {"nombre", vistas[i].value("nombre", std::string())},
-               {"canal", canales[i]}};
-        const std::string fuente = vistas[i].value("fuente", std::string());
-        if (fuente.rfind("salida:", 0) == 0) v["salida"] = fuente.substr(7);
-        out.push_back(v);
-    }
-    sala::pedir(p_.sala, "POST", "/api/v1/sesion/vistas", {{"vistas", out}}, sinRespuesta);
+    return c;
 }
 
 void Presidencia::avisarPunto(const json& p) {

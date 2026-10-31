@@ -64,11 +64,17 @@ class CopiaDeLaInterfaz {
     /// Desde cualquier hilo: la pide y espera hasta `esperaMs` (`esperaPrimeraMs` si
     /// nunca se copió: no hay una vieja que dar, así que vale la pena esperar más).
     Lectura leer(McpCore& core, int esperaMs, const json& args = json::object(), int esperaPrimeraMs = -1) const;
+    /// EN LA INTERFAZ: la copia de `args`, ya. Para lo que no puede faltar recién arrancada
+    /// la app (sin copia, la primera pregunta con la interfaz ocupada esperaba y fallaba)
+    /// y para que su dueño la deje al día cuando cambia (la línea, al correr).
+    void copiarYa(const json& args = json::object()) const;
     static constexpr std::size_t kCopiasPorArgumentos = 32;
 
    private:
     struct Estado;
     struct Copias;
+    /// La copia de esos argumentos (la crea; olvida las de los que hace más que no se piden).
+    static std::shared_ptr<Estado> estadoDe(Copias& c, const json& args);
     std::function<json(const json&)> leer_;
     std::shared_ptr<Copias> c_;
 };
@@ -91,8 +97,9 @@ struct LeidoEnLaInterfaz {
 /// argumentos (CopiaDeLaInterfaz), y va con `interfaz` {al_dia, edad_ms}: trabada, la
 /// última con su edad. Para lo que es SOLO de la interfaz y no tiene foto propia (el
 /// pronóstico de la línea, la salud de los destinos, los monitores del sistema).
-void copiarDeLaInterfaz(McpCore& core, Tool& t, std::function<LeidoEnLaInterfaz(const json& args)> leer,
-                        EsperaDeLaCopia espera = EsperaDeLaCopia::deLosAjustes());
+/// Devuelve la copia (para sembrarla con copiarYa).
+std::shared_ptr<CopiaDeLaInterfaz> copiarDeLaInterfaz(McpCore& core, Tool& t, std::function<LeidoEnLaInterfaz(const json& args)> leer,
+                                                      EsperaDeLaCopia espera = EsperaDeLaCopia::deLosAjustes());
 /// {al_dia, edad_ms} de una copia (lo que va en `interfaz`).
 json estadoDeLaCopia(const CopiaDeLaInterfaz::Lectura& c);
 

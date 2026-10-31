@@ -46,6 +46,7 @@ class ChatOverlayRenderer;
 class ConferenceViewModel;
 class EventoViewModel;
 class RecursosViewModel;
+class VentanillaMotor;
 } // namespace ba::app
 namespace ba::app::control {
 class BusEventos;
@@ -67,6 +68,7 @@ class SalaViewModel : public QObject {
    public:
     struct Partes {
         AppRuntime& rt;
+        VentanillaMotor& ventanilla;      ///< el motor: se le pide y se lee su foto (F3-03)
         ConferenceViewModel& conferencia; ///< la sala del gateway (su cliente, su foto)
         RecursosViewModel& recursos;      ///< el transporte A→B viaja en la foto de la sala
         std::function<bool()> enVivo;     ///< el PIN y el túnel no se tocan en vivo

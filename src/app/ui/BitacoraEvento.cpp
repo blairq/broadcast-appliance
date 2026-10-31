@@ -6,6 +6,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "control/BusEventos.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "diag/Registro.hpp"
 #include "evento/Bitacora.hpp"
 #include "evento/CierreEvento.hpp"
@@ -29,10 +30,18 @@
 
 namespace ba::app {
 
-BitacoraEvento::BitacoraEvento(AppRuntime& rt, EventoViewModel& evento, control::BusEventos& bus, QObject* parent)
-    : QObject(parent), rt_(rt), evento_(&evento), bus_(&bus) {
+BitacoraEvento::BitacoraEvento(AppRuntime& rt, VentanillaMotor& ventanilla, EventoViewModel& evento, control::BusEventos& bus,
+                               QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), evento_(&evento), bus_(&bus) {
     armar();
 }
+
+std::string BitacoraEvento::archivoGrabacion() const {
+    const FotoMotor::Salida* s = ventanilla_.foto().salida({});
+    return s != nullptr ? s->archivo : std::string();
+}
+
+std::string BitacoraEvento::copiaGrabacion() const { return ventanilla_.foto().grabacion.value("copia", std::string()); }
 
 BitacoraEvento::~BitacoraEvento() {
     // Un sello a medias no se escribe: se corta y se vuelve a sellar otro día.
@@ -119,8 +128,8 @@ void BitacoraEvento::indexarSalida(const std::string& tema, const nlohmann::json
         const auto p = dir / "grabaciones.json";
         nlohmann::json l = leerLista(p);
         if (valor.value("activo", false)) {
-            nlohmann::json g{{"archivo", rt_.engine().archivoGrabacion()}, {"desde_ms", ahora}};
-            if (!rt_.engine().archivoCopiaGrabacion().empty()) g["copia"] = rt_.engine().archivoCopiaGrabacion();
+            nlohmann::json g{{"archivo", archivoGrabacion()}, {"desde_ms", ahora}};
+            if (const std::string c = copiaGrabacion(); !c.empty()) g["copia"] = c;
             l.push_back(g);
         } else {
             for (auto it = l.rbegin(); it != l.rend(); ++it) {
@@ -128,7 +137,7 @@ void BitacoraEvento::indexarSalida(const std::string& tema, const nlohmann::json
                 (*it)["hasta_ms"] = ahora;
                 // Si se pasó a MP4 al terminar, el archivo es otro.
                 std::filesystem::path a = it->value("archivo", std::string());
-                const std::string final = rt_.engine().archivoGrabacion();
+                const std::string final = archivoGrabacion();
                 if (!final.empty()) a = final;
                 (*it)["archivo"] = a.string();
                 std::error_code ec;
@@ -227,7 +236,7 @@ void BitacoraEvento::armar() {
     auto excluir = busExcluir_;
     // La página Histórico y el MCP cambian qué se registra, en vivo.
     historico_ = std::make_unique<HistoricoViewModel>(*evento_);
-    historico_->setCarpetasGrabacion([this]() { return std::vector<std::filesystem::path>{rt_.config().rec.directory}; });
+    historico_->setCarpetasGrabacion([this]() { return std::vector<std::filesystem::path>{ventanilla_.foto().sala.carpetaGrabacion}; });
     historico_->setAplicarAjustes([this](const nlohmann::json& a) {
         const nlohmann::json reg = a.value("registrar", nlohmann::json::object());
         for (const auto& [k, v] : reg.items())
@@ -350,7 +359,7 @@ void BitacoraEvento::armar() {
             if (antes == clave) return;
             antes = clave;
             nlohmann::json v = valor;
-            if (tema == "salida/grabacion" && v.value("activo", false)) v["archivo"] = rt_.engine().archivoGrabacion();
+            if (tema == "salida/grabacion" && v.value("activo", false)) v["archivo"] = archivoGrabacion();
             b->anotar("bus", tema, {}, v);
             indexarSalida(tema, valor);
             return;

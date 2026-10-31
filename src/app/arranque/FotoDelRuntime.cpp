@@ -75,6 +75,7 @@ void AppRuntime::publicarFoto() {
         if (n.video != a.video || n.fuentesVideo != a.fuentesVideo || n.alAire != a.alAire ||
             n.configImagen != a.configImagen)
             cambiaron |= FotoMotor::Video;
+        if (n.sala != a.sala) cambiaron |= FotoMotor::Sala;
     }
     if (cambiaron == 0) return;
     foto_ = f;
@@ -238,6 +239,34 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         f.loudness = nlohmann::json::object();
         for (const std::string& id : engine_.salidaIds())
             if (const audio::LoudnessPrograma* l = engine_.loudnessDe(id)) f.loudness[id] = l->json();
+    }
+
+    // --- Lo que leen la asamblea, la sala y la línea de tiempo ------------------------------
+    if ((p & FotoMotor::Sala) != 0) {
+        FotoMotor::SalaYEvento& s = f.sala;
+        const GatewaySettings& g = gateway_;
+        s.sala = g.room;
+        s.puerto = g.port;
+        s.atencionAutomatica = g.autoIntake;
+        s.proxy = g.proxy;
+        s.tunel = g.tunnel;
+        s.tunelHost = g.tunnelHostname;
+        s.pinggyActivo = g.pinggyActivo;
+        s.pinggyTurn = g.pinggyTurn;
+        s.pinggyTurnUdp = g.pinggyTurnUdp;
+        s.pinggyRegion = g.pinggyRegion;
+        s.pinggyDominioTipo = g.pinggyDominioTipo;
+        s.pinggyHost = g.pinggyHost;
+        s.pinggyCnameDestino = g.pinggyCnameDestino;
+        s.pinggyListaBlanca = g.pinggyListaBlanca;
+        s.pinggyPuertoTunel = g.pinggyPuertoTunel;
+        s.operadorVideo = cfg_.operatorVideo;
+        s.operadorAudio = cfg_.operatorAudio;
+        s.carpetaGrabacion = cfg_.rec.directory;
+        s.audio = engine_.audioSources();
+        s.hayFuenteBanca = engine_.hayFuenteBanca();
+        s.escenaDeRanura.clear();
+        for (int r = 1; r <= BroadcastEngine::kRanurasBanca; ++r) s.escenaDeRanura.push_back(engine_.escenaDeRanura(r));
     }
 }
 

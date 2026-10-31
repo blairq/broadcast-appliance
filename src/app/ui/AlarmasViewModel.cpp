@@ -229,7 +229,9 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
     // el espacio libre de cada carpeta: una vez cada 5 s alcanza. Lee lo que graba el
     // motor con su turno, y sin esperar: si la interfaz lo tiene (trabada ADENTRO del
     // motor), queda el de la vez anterior y se prueba en la próxima vuelta.
-    directas.disco = [&rt, cache = std::make_shared<std::pair<qint64, json>>()]() {
+    // La caché arranca como objeto vacío: si la primera vuelta no consigue el turno, el
+    // vigía lee {} («no se sabe»), nunca null (value() sobre null tira y tumbaba el control).
+    directas.disco = [&rt, cache = std::make_shared<std::pair<qint64, json>>(0, json::object())]() {
         const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
         if ((cache->first == 0 || ahora - cache->first >= 5000) && rt.engine().turno().tomarHasta(50)) {
             *cache = {ahora, rt.discoGrabacion()};

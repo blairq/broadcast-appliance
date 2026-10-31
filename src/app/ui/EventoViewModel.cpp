@@ -40,6 +40,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "escenas/Conmutador.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/Votaciones.hpp"
@@ -158,9 +159,9 @@ using evento::linea::Accion;
 
 } // namespace
 
-EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graficos::Emisor* graficos,
-                                 bool sinAbrirUltimo, QObject* parent)
-    : QObject(parent), rt_(rt), sala_(sala), graficos_(graficos), store_(rt.dataRoot() / "Eventos") {
+EventoViewModel::EventoViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, ConferenceViewModel* sala,
+                                 graficos::Emisor* graficos, bool sinAbrirUltimo, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), sala_(sala), graficos_(graficos), store_(rt.dataRoot() / "Eventos") {
     // El reloj del evento va aparte del guion: cambia cada segundo y no tiene
     // sentido redibujar la lista de cues por eso.
     // Y de paso deja puesto el estado vivo (la sección `linea` del documento de aire): «cada segundo y en
@@ -444,11 +445,7 @@ std::filesystem::path EventoViewModel::archivoBitacoraDe(const std::string& carp
 }
 
 std::filesystem::path EventoViewModel::carpetaEvento(const std::string& carpeta) const {
-    const std::string c = carpeta.empty() ? store_.enCurso() : carpeta;
-    if (c.empty() || !evento::EventoStore::rutaValida(c)) return {};
-    std::error_code ec;
-    if (!std::filesystem::is_directory(store_.carpetaDe(c), ec)) return {};
-    return store_.carpetaDe(c);
+    return store_.carpetaExistente(carpeta);
 }
 
 std::filesystem::path EventoViewModel::carpetaConfig() const { return rt_.dataRoot() / "Config"; }
@@ -856,7 +853,7 @@ QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString
             op("volumen", tr("Cambiar el volumen"));
         }
     } else if (campo == "escena") {
-        for (const std::string& e : rt_.engine().sceneNames()) op(QString::fromStdString(e));
+        for (const std::string& e : ventanilla_.foto().nombresDeEscenas()) op(QString::fromStdString(e));
     } else if (campo == "carrusel" && carruseles_ != nullptr) {
         for (const QString& n : carruseles_->nombres()) op(n);
     } else if (campo == "lamina" && carruseles_ != nullptr) {
@@ -905,7 +902,7 @@ QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString
     } else if (campo == "fuente" && tipo == "grafico") {
         for (const QString& f : fuentesDeGrafico()) op(f);
     } else if (campo == "fuente" && tipo == "audio") {
-        for (const std::string& f : rt_.engine().audioSources()) op(QString::fromStdString(f));
+        for (const std::string& f : ventanilla_.foto().sala.audio) op(QString::fromStdString(f));
     } else if (campo == "prompter") {
         // Los teleprompters del evento (cada uno con su página): el principal primero.
         for (const auto& p : listaPrompters().lista())
@@ -928,7 +925,7 @@ QString EventoViewModel::enlaceDeCue(const QString& tipo, const QVariantMap& dat
         const QString carpeta = id.isEmpty() || id == sala::ListaPrompters::kPrincipal || !listaPrompters().existe(id.toStdString())
                                     ? QString()
                                     : id + "/";
-        return "http://127.0.0.1:" + QString::number(rt_.gateway().port) + "/prompter/" + carpeta;
+        return "http://127.0.0.1:" + QString::number(ventanilla_.foto().sala.puerto) + "/prompter/" + carpeta;
     }
     return {};
 }
@@ -1203,7 +1200,7 @@ void EventoViewModel::ensayoAcelerado() {
     }
     // Se camina el recorrido de verdad, no la lista: asi se ve el orden real
     // y quedan a la vista los bloques que nunca se visitan.
-    const std::vector<std::string> escenas = rt_.engine().sceneNames();
+    const std::vector<std::string> escenas = ventanilla_.foto().nombresDeEscenas();
     int visitados = 0;
     int problemas = 0;
     int sinEjecutar = 0;
@@ -1605,7 +1602,7 @@ void EventoViewModel::revisar() {
 
     // Lo que el modelo no puede saber solo: si las escenas existen de verdad.
     std::vector<std::string> escenas;
-    escenas = rt_.engine().sceneNames();
+    escenas = ventanilla_.foto().nombresDeEscenas();
     for (std::size_t bi = 0; bi < e_.bloques.size(); ++bi) {
         const evento::Bloque& b = e_.bloques[bi];
         for (std::size_t ci = 0; ci < b.cues.size(); ++ci) {
@@ -2049,7 +2046,7 @@ evento::linea::Entrada EventoViewModel::entradaBase(bool hoy) const {
         e.inicioPlaneadoMs = QDateTime(dia, QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm"), z).toMSecsSinceEpoch();
     // Las cámaras de cada escena, para los conflictos de PTZ entre salidas: las fuentes
     // de la escena (una cámara es una entrada, y una PTZ nombra la suya).
-    e.camarasDeEscena = [this](const std::string& escena) { return rt_.engine().sceneSources(escena); };
+    e.camarasDeEscena = [this](const std::string& escena) { return ventanilla_.foto().fuentesDe(escena); };
     return e;
 }
 
@@ -2326,7 +2323,7 @@ json EventoViewModel::lineaDeshacer() {
 json EventoViewModel::lineaRevisar() const {
     evento::linea::OpcionesRevision o;
     o.contexto = entradaBase(false);
-    const std::vector<std::string> escenas = rt_.engine().sceneNames();
+    const std::vector<std::string> escenas = ventanilla_.foto().nombresDeEscenas();
     o.existeEscena = [&escenas](const std::string& e) { return std::find(escenas.begin(), escenas.end(), e) != escenas.end(); };
     const auto rs = evento::linea::revisar(linea_, o);
     const int graves = static_cast<int>(std::count_if(rs.begin(), rs.end(), [](const auto& r) { return r.grave; }));
@@ -2510,38 +2507,33 @@ QString EventoViewModel::carpetaDeDiscursos() const {
     return QString::fromStdString((store_.carpetaDe(abierto_.toStdString()) / "Discursos").string());
 }
 
-bool EventoViewModel::prepararEscenaDeVideo(const std::string& salida) {
-    // Una por salida (la por omisión, la de siempre): cada salida pasa su video.
-    const std::string escenaV = escenaVideoDe(salida), fuenteV = videoDe(salida);
-    const auto escenas = rt_.engine().sceneNames();
+std::string EventoViewModel::prepararEscenaDeVideo(AppRuntime& rt, const std::string& escenaV, const std::string& fuenteV,
+                                                  bool* creada) {
+    // En el dueño del motor (lo pide el cue de video). Una por salida (la por omisión, la
+    // de siempre): cada salida pasa su video.
+    const auto escenas = rt.engine().sceneNames();
     const bool existe = std::find(escenas.begin(), escenas.end(), escenaV) != escenas.end();
     if (!existe) {
-        if (!rt_.addScene(escenaV)) {
-            anotar(tr("No se pudo crear la escena del video: %1").arg(QString::fromStdString(rt_.lastError())),
-                   "error");
-            return false;
-        }
+        if (!rt.addScene(escenaV))
+            return tr("No se pudo crear la escena del video: %1").arg(QString::fromStdString(rt.lastError())).toStdString();
         // Protegida: si alguien la borra, todos los cues de video del guion
         // dejan de funcionar y no es obvio por qué.
-        rt_.setSceneProtected(escenaV, true);
-        anotar(tr("Creé la escena «%1» para los videos").arg(QString::fromStdString(escenaV)), "info");
+        rt.setSceneProtected(escenaV, true);
+        if (creada != nullptr) *creada = true;
     }
     // La fuente de video: se crea una vez y después solo se le cambia el
     // archivo. Ocupa el cuadro entero, que es lo que uno espera de un video.
-    const auto fuentes = rt_.engine().sceneSources(escenaV);
+    const auto fuentes = rt.engine().sceneSources(escenaV);
     if (std::find(fuentes.begin(), fuentes.end(), fuenteV) == fuentes.end()) {
         SourceSpec spec;
         spec.id = inputs::kMedioType;
         spec.name = fuenteV;
         spec.rect = CanvasRect{0.0, 0.0, 1.0, 1.0};
         spec.settingsJson = R"({"clear_on_media_end":true})";
-        if (!rt_.addSource(escenaV, spec)) {
-            anotar(tr("No se pudo crear la fuente de video: %1").arg(QString::fromStdString(rt_.lastError())),
-                   "error");
-            return false;
-        }
+        if (!rt.addSource(escenaV, spec))
+            return tr("No se pudo crear la fuente de video: %1").arg(QString::fromStdString(rt.lastError())).toStdString();
     }
-    return true;
+    return {};
 }
 
 QString EventoViewModel::medioPath(const QString& rel) const {
@@ -2572,33 +2564,92 @@ void EventoViewModel::sacarAlAvanzar(const std::string& salida) {
     }
 }
 
-std::string EventoViewModel::tomarEscena(const std::string& escena, const nlohmann::json& datos, const std::string& salida) {
-    if (escena.empty()) return tr("el cue no dice qué escena poner").toStdString();
-    escenas::Conmutador* c = conmutador(salida);
-    if (c == nullptr) return tr("la salida «%1» no tiene conmutador de escenas").arg(QString::fromStdString(salida)).toStdString();
+std::optional<std::string> EventoViewModel::salidaDelMotor(const std::string& salida) const {
+    // Los ids de la línea son los de las salidas del motor; la por omisión de la línea,
+    // si el motor no tiene una con ese id, es la por omisión del motor ("").
+    if (ventanilla_.foto().salida(salida) != nullptr) return salida;
+    if (salida == salidaPorOmision()) return std::string();
+    return std::nullopt;
+}
+
+const FotoMotor::Salida* EventoViewModel::aireDe(const std::string& salida) const {
+    const std::optional<std::string> id = salidaDelMotor(salida);
+    return id ? ventanilla_.foto().salida(*id) : nullptr;
+}
+
+void EventoViewModel::pedirAlConmutador(const char* que, const std::string& salida,
+                                        std::function<std::string(escenas::Conmutador&)> orden,
+                                        std::function<void(const std::string& error)> listo) {
+    const std::optional<std::string> id = salidaDelMotor(salida);
+    escenas::Conmutadores* cs = sistema().conmutadores;
+    if (!id || cs == nullptr) {
+        if (listo) listo(tr("la salida «%1» no tiene conmutador de escenas").arg(QString::fromStdString(salida)).toStdString());
+        return;
+    }
+    // El conmutador es del dueño del motor: la orden corre allá (en orden, sin esperar).
+    ventanilla_.pedir(
+        this, que,
+        [cs, id = *id, salida, orden = std::move(orden)]() -> std::string {
+            escenas::Conmutador* c = id.empty() ? &cs->porOmision() : cs->de(id);
+            if (c == nullptr)
+                return tr("la salida «%1» no tiene conmutador de escenas").arg(QString::fromStdString(salida)).toStdString();
+            return orden(*c);
+        },
+        [listo = std::move(listo)](const std::string& e) {
+            if (listo) listo(e);
+        });
+}
+
+void EventoViewModel::tomarEscena(const std::string& escena, const nlohmann::json& datos, const std::string& salida,
+                                  std::function<void(const std::string& error)> listo) {
+    if (escena.empty()) return listo(tr("el cue no dice qué escena poner").toStdString());
     // Ya al aire (la puso el operador a mano, o la repite el cue): no hay nada que tomar.
-    if (c->alAire() == escena) return {};
-    // Lo cambia la línea: no es «a mano».
-    ++cambiandoEscena_;
-    std::string e;
-    if (c->armada() != escena) e = c->armar(escena);
-    // La transición del cue si dice; si no, la de entrada de la escena (o la global).
-    if (e.empty()) e = c->take(datos.value("transicion", std::string()), datos.value("ms", -1));
-    --cambiandoEscena_;
-    return e;
+    const FotoMotor::Salida* s = aireDe(salida);
+    if (s != nullptr && s->alAire == escena) return listo({});
+    // Lo cambia la línea: no es «a mano» (el aviso del conmutador llega después).
+    escenasDeLaLinea_[salida].insert(escena);
+    const std::string tipo = datos.value("transicion", std::string());
+    const int ms = datos.value("ms", -1);
+    pedirAlConmutador(
+        "linea_tomar", salida,
+        [escena, tipo, ms](escenas::Conmutador& c) {
+            if (c.alAire() == escena) return std::string();
+            std::string e;
+            if (c.armada() != escena) e = c.armar(escena);
+            // La transición del cue si dice; si no, la de entrada de la escena (o la global).
+            if (e.empty()) e = c.take(tipo, ms);
+            return e;
+        },
+        [this, salida, escena, listo = std::move(listo)](const std::string& e) {
+            if (!e.empty()) olvidarEscenaDeLaLinea(salida, escena);
+            listo(e);
+        });
+}
+
+void EventoViewModel::olvidarEscenaDeLaLinea(const std::string& salida, const std::string& escena) {
+    auto it = escenasDeLaLinea_.find(salida);
+    if (it == escenasDeLaLinea_.end()) return;
+    if (auto x = it->second.find(escena); x != it->second.end()) it->second.erase(x);
 }
 
 void EventoViewModel::armarEscena(const std::string& escena, const std::string& salida) {
-    escenas::Conmutador* c = conmutador(salida);
-    if (ensayo_ || c == nullptr) return;
+    if (ensayo_ || escena.empty()) return;
     // La que ya está al aire no se arma (el TAKE no tendría sentido) y la ya armada, tampoco.
-    if (escena.empty() || escena == c->alAire() || escena == c->armada()) return;
-    if (const std::string e = c->armar(escena); !e.empty()) {
-        anotar(enSalida(salida, tr("No se pudo armar «%1» en el PVW: %2").arg(QString::fromStdString(escena), QString::fromStdString(e))),
-               "error");
-        return;
-    }
-    anotar(enSalida(salida, tr("Armada en el PVW: %1").arg(QString::fromStdString(escena))), "info");
+    if (const FotoMotor::Salida* s = aireDe(salida); s != nullptr && (escena == s->alAire || escena == s->armada)) return;
+    pedirAlConmutador(
+        "linea_armar", salida,
+        [escena](escenas::Conmutador& c) {
+            if (escena == c.alAire() || escena == c.armada()) return std::string();
+            return c.armar(escena);
+        },
+        [this, escena, salida](const std::string& e) {
+            if (!e.empty()) {
+                anotar(enSalida(salida, tr("No se pudo armar «%1» en el PVW: %2").arg(QString::fromStdString(escena), QString::fromStdString(e))),
+                       "error");
+                return;
+            }
+            anotar(enSalida(salida, tr("Armada en el PVW: %1").arg(QString::fromStdString(escena))), "info");
+        });
 }
 
 evento::Cue EventoViewModel::cueDePieza(const evento::linea::Pieza& z, const std::string& paso) const {
@@ -2706,7 +2757,7 @@ void EventoViewModel::sacarPieza(const Accion& a) {
         graficosDePieza_.erase(it);
     }
     if (const auto it = musicaDePieza_.find(salida); it != musicaDePieza_.end() && it->second == clave) {
-        rt_.engine().stopMedia(musicaDe(salida));
+        ventanilla_.pedir("linea_musica", [&rt = rt_, m = musicaDe(salida)]() { rt.engine().stopMedia(m); });
         musicaDePieza_.erase(it);
         anotar(enSalida(salida, tr("Música: para")), "ok");
     }
@@ -2730,7 +2781,7 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
     const QString titulo = c->texto.empty() ? QString::fromStdString(evento::nombreDeTipo(c->tipo))
                                             : QString::fromStdString(c->texto);
 
-    // Todo por el runtime (rt_.setScene, setMuted…), no directo al motor: el runtime avisa
+    // Todo por el runtime y los conmutadores, pedido al dueño del motor: el runtime avisa
     // (la tarjeta Dirección, el mezclador, el tally) y lo deja guardado en la configuración.
     switch (c->tipo) {
         case evento::Tipo::Escena: {
@@ -2742,13 +2793,15 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 datos["transicion"] = p->transicion.value("tipo", std::string());
                 datos["ms"] = p->transicion.value("ms", -1);
             }
-            if (const std::string err = tomarEscena(escena, datos, salida); !err.empty()) {
-                anotar(enSalida(salida, tr("No se pudo poner la escena «%1»: %2").arg(QString::fromStdString(escena), QString::fromStdString(err))),
-                       "error");
-                emit notify(tr("El cue no se pudo ejecutar: %1").arg(QString::fromStdString(err)), "error");
-                return;
-            }
-            anotar(enSalida(salida, tr("Al aire: %1").arg(QString::fromStdString(escena))), "ok");
+            tomarEscena(escena, datos, salida, [this, escena, salida](const std::string& err) {
+                if (!err.empty()) {
+                    anotar(enSalida(salida, tr("No se pudo poner la escena «%1»: %2").arg(QString::fromStdString(escena), QString::fromStdString(err))),
+                           "error");
+                    emit notify(tr("El cue no se pudo ejecutar: %1").arg(QString::fromStdString(err)), "error");
+                    return;
+                }
+                anotar(enSalida(salida, tr("Al aire: %1").arg(QString::fromStdString(escena))), "ok");
+            });
             return;
         }
         case evento::Tipo::Orador: {
@@ -2769,7 +2822,7 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
             // en vez de encimarse, que es lo peor que puede pasar en vivo.
             const std::string medio = musicaDe(salida);
             if (accion == "parar") {
-                rt_.engine().stopMedia(medio);
+                ventanilla_.pedir("linea_musica", [&rt = rt_, medio]() { rt.engine().stopMedia(medio); });
                 musicaDePieza_.erase(salida);
                 anotar(enSalida(salida, tr("Música: para")), "ok");
                 return;
@@ -2782,16 +2835,22 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 return;
             }
             const bool repetir = c->datos.value("repetir", false);
-            if (!rt_.engine().playMedia(medio, ruta.toStdString(), repetir)) {
-                anotar(tr("No se pudo reproducir %1: %2").arg(rel, QString::fromStdString(rt_.engine().lastError())),
-                       "error");
-                return;
-            }
-            // Con varias salidas, la música de cada una suena solo en su mezcla.
+            // Con varias salidas, la música de cada una suena solo en su mezcla (las salidas
+            // del motor, de su foto). Todo en el dueño, en una orden.
+            std::vector<std::string> mezclas;
             if (corrida_ && corrida_->linea().salidasEfectivas().size() > 1)
-                if (escenas::Conmutadores* cs = sistema().conmutadores)
-                    for (escenas::Conmutador* c : cs->todos())
-                        rt_.setMuted(medio, c->salida() != salida, c->salida());
+                for (const FotoMotor::Salida& x : ventanilla_.foto().salidas) mezclas.push_back(x.id);
+            const FotoMotor::Salida* propia = aireDe(salida);
+            ventanilla_.pedir(
+                this, "linea_musica",
+                [&rt = rt_, medio, r = ruta.toStdString(), repetir, mezclas, propia = propia ? propia->id : salida]() -> std::string {
+                    if (!rt.engine().playMedia(medio, r, repetir)) return rt.engine().lastError();
+                    for (const std::string& m : mezclas) rt.setMuted(medio, m != propia, m);
+                    return {};
+                },
+                [this, rel](const std::string& e) {
+                    if (!e.empty()) anotar(tr("No se pudo reproducir %1: %2").arg(rel, QString::fromStdString(e)), "error");
+                });
             musicaDePieza_[salida] = clave; // la saca su pieza cuando se termina su vida (si la tiene)
             const std::string pieza = clave.substr(clave.rfind('/') + 1);
             if (!repetir) mediosVigilados_[pieza] = medio; // para «medio:<pieza>.termino»
@@ -2939,39 +2998,48 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
             const std::string f = fuente.toStdString();
             // En qué mezcla: la de su salida; desde una pista global, en todas (así una
             // salida no le apaga el micrófono a otra: eso solo lo hace una pista global).
-            std::vector<std::string> mezclas{salida};
-            if (global)
-                if (escenas::Conmutadores* cs = sistema().conmutadores) {
-                    mezclas.clear();
-                    for (escenas::Conmutador* c : cs->todos())
-                        mezclas.push_back(c->salida());
-                }
-            const auto enTodas = [&](const auto& hacer) {
-                bool ok = !mezclas.empty();
-                for (const std::string& m : mezclas)
-                    ok = hacer(m) && ok;
-                return ok;
+            std::vector<std::string> mezclas;
+            if (const FotoMotor::Salida* propia = aireDe(salida)) mezclas.push_back(propia->id);
+            else mezclas.push_back(salida);
+            if (global) {
+                mezclas.clear();
+                for (const FotoMotor::Salida& x : ventanilla_.foto().salidas) mezclas.push_back(x.id);
+            }
+            // En el dueño (la mezcla es del motor): true si se pudo en todas.
+            const auto enTodas = [this, mezclas](const char* que, std::function<bool(AppRuntime&, const std::string&)> hacer,
+                                                 std::function<void(bool)> listo) {
+                ventanilla_.pedir(
+                    this, que,
+                    [&rt = rt_, mezclas, hacer = std::move(hacer)]() {
+                        bool ok = !mezclas.empty();
+                        for (const std::string& m : mezclas)
+                            ok = hacer(rt, m) && ok;
+                        return ok;
+                    },
+                    std::move(listo));
             };
             if (accion == "silenciar" || accion == "activar") {
                 const bool mudo = accion == "silenciar";
-                if (!enTodas([&](const std::string& m) { return rt_.setMuted(f, mudo, m); })) {
-                    anotar(tr("No existe la fuente de audio \"%1\"").arg(fuente), "error");
-                    emit notify(tr("El cue no se pudo ejecutar: no existe la fuente \"%1\"").arg(fuente),
-                                "error");
-                    return;
-                }
-                anotar((mudo ? tr("Silencia %1") : tr("Activa %1")).arg(fuente), "ok");
+                enTodas("linea_audio", [f, mudo](AppRuntime& rt, const std::string& m) { return rt.setMuted(f, mudo, m); },
+                        [this, fuente, mudo](bool ok) {
+                            if (!ok) {
+                                anotar(tr("No existe la fuente de audio \"%1\"").arg(fuente), "error");
+                                emit notify(tr("El cue no se pudo ejecutar: no existe la fuente \"%1\"").arg(fuente), "error");
+                                return;
+                            }
+                            anotar((mudo ? tr("Silencia %1") : tr("Activa %1")).arg(fuente), "ok");
+                        });
                 return;
             }
             if (accion == "volumen") {
                 // En dB, que es como piensa el operador. 0 = sin cambio.
                 const double db = c->datos.value("db", 0.0);
                 const float mul = static_cast<float>(std::pow(10.0, db / 20.0));
-                if (!enTodas([&](const std::string& m) { return rt_.setVolume(f, mul, m); })) {
-                    anotar(tr("No existe la fuente de audio \"%1\"").arg(fuente), "error");
-                    return;
-                }
-                anotar(fuente + " a " + QString::number(db, 'f', 1) + " dB", "ok");
+                enTodas("linea_audio", [f, mul](AppRuntime& rt, const std::string& m) { return rt.setVolume(f, mul, m); },
+                        [this, fuente, db](bool ok) {
+                            if (!ok) return anotar(tr("No existe la fuente de audio \"%1\"").arg(fuente), "error");
+                            anotar(fuente + " a " + QString::number(db, 'f', 1) + " dB", "ok");
+                        });
                 return;
             }
             anotar(tr("No sé qué es la acción de audio \"%1\" (silenciar, activar o volumen)").arg(QString::fromStdString(accion)),
@@ -2992,7 +3060,8 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
             if (accion == "parar") {
                 // Sin archivo, la fuente queda en negro. No se la saca de la
                 // escena: recrearla en cada video costaria mas y se veria.
-                rt_.updateSourceSettings(videoDe(salida), R"({"local_file":""})");
+                ventanilla_.pedir("linea_video",
+                                  [&rt = rt_, v = videoDe(salida)]() { rt.updateSourceSettings(v, R"({"local_file":""})"); });
                 anotar(tr("Video: para"), "ok");
                 return;
             }
@@ -3003,38 +3072,60 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
                 emit notify(tr("El cue no se pudo ejecutar: falta «%1» en los medios del evento").arg(rel), "error");
                 return;
             }
-            if (!prepararEscenaDeVideo(salida)) return;
             const bool repetir = c->datos.value("repetir", false);
             // Se le cambia el ARCHIVO a la fuente que ya esta en la escena, no
             // se crea una nueva: `playMedia` sirve para la musica, que va por
             // un canal global de audio y no se ve.
             const QJsonObject ajustes{{"local_file", ruta}, {"looping", repetir}, {"clear_on_media_end", true}};
-            if (!rt_.updateSourceSettings(
-                    videoDe(salida), QJsonDocument(ajustes).toJson(QJsonDocument::Compact).toStdString())) {
-                anotar(tr("No se pudo cargar %1: %2").arg(rel, QString::fromStdString(rt_.lastError())), "error");
-                return;
-            }
-            // Y se rebobina: si el archivo es el mismo que ya estaba, el motor no
-            // tiene motivo para volver a empezar y el cue no mostraria nada.
-            rt_.engine().restartMedia(videoDe(salida));
-            if (!repetir) mediosVigilados_[clave.substr(clave.rfind('/') + 1)] = videoDe(salida); // «medio:<pieza>.termino»
-            vigilarMedios();
-            // Al aire recién DESPUÉS de que el archivo esté cargado: al revés
-            // se ve un cuadro en negro mientras abre.
-            if (c->datos.value("alAire", true)) {
-                escenas::Conmutador* cm = conmutador(salida);
-                escenaPrevia_ = cm ? QString::fromStdString(cm->alAire()) : QString();
-                // Por el conmutador de su salida (corte directo, como antes): el tally, el
-                // AFV y la escena guardada se enteran igual que con cualquier otro cambio.
-                ++cambiandoEscena_;
-                const std::string err = cm ? cm->poner(escenaVideoDe(salida)) : tr("no hay conmutador de escenas").toStdString();
-                --cambiandoEscena_;
-                if (!err.empty()) {
-                    anotar(enSalida(salida, tr("No se pudo poner al aire la escena del video: %1").arg(QString::fromStdString(err))), "error");
-                    return;
-                }
-            }
-            anotar(enSalida(salida, repetir ? tr("Video: %1 (en bucle)").arg(rel) : tr("Video: %1").arg(rel)), "ok");
+            const bool alAire = c->datos.value("alAire", true);
+            if (const FotoMotor::Salida* s = aireDe(salida)) escenaPrevia_ = QString::fromStdString(s->alAire);
+            const std::string escenaV = escenaVideoDe(salida), fuenteV = videoDe(salida);
+            // Lo que no es «a mano»: la escena del video, si va al aire.
+            if (alAire) escenasDeLaLinea_[salida].insert(escenaV);
+            const std::optional<std::string> id = salidaDelMotor(salida);
+            escenas::Conmutadores* cs = sistema().conmutadores;
+            struct Hecho {
+                std::string error, aviso;
+                bool creada = false;
+            };
+            // Todo en el dueño, en una orden: la escena y la fuente (si faltan), el archivo,
+            // rebobinar y, recién DESPUÉS de que el archivo esté cargado, al aire (al revés se
+            // ve un cuadro en negro mientras abre).
+            ventanilla_.pedir(
+                this, "linea_video",
+                [&rt = rt_, escenaV, fuenteV, cfg = QJsonDocument(ajustes).toJson(QJsonDocument::Compact).toStdString(), alAire,
+                 id, cs]() {
+                    Hecho h;
+                    h.error = prepararEscenaDeVideo(rt, escenaV, fuenteV, &h.creada);
+                    if (!h.error.empty()) return h;
+                    if (!rt.updateSourceSettings(fuenteV, cfg)) {
+                        h.aviso = rt.lastError();
+                        return h;
+                    }
+                    // Y se rebobina: si el archivo es el mismo que ya estaba, el motor no
+                    // tiene motivo para volver a empezar y el cue no mostraria nada.
+                    rt.engine().restartMedia(fuenteV);
+                    if (alAire) {
+                        // Por el conmutador de su salida (corte directo, como antes): el tally, el
+                        // AFV y la escena guardada se enteran igual que con cualquier otro cambio.
+                        escenas::Conmutador* cm = cs == nullptr || !id ? nullptr : id->empty() ? &cs->porOmision() : cs->de(*id);
+                        h.error = cm ? cm->poner(escenaV) : tr("no hay conmutador de escenas").toStdString();
+                        if (!h.error.empty())
+                            h.error = tr("No se pudo poner al aire la escena del video: %1").arg(QString::fromStdString(h.error)).toStdString();
+                    }
+                    return h;
+                },
+                [this, salida, rel, repetir, escenaV, alAire, clave, fuenteV](const Hecho& h) {
+                    if (h.creada) anotar(tr("Creé la escena «%1» para los videos").arg(QString::fromStdString(escenaV)), "info");
+                    if (!h.aviso.empty() || !h.error.empty()) {
+                        if (alAire) olvidarEscenaDeLaLinea(salida, escenaV);
+                        if (!h.aviso.empty()) return anotar(tr("No se pudo cargar %1: %2").arg(rel, QString::fromStdString(h.aviso)), "error");
+                        return anotar(enSalida(salida, QString::fromStdString(h.error)), "error");
+                    }
+                    if (!repetir) mediosVigilados_[clave.substr(clave.rfind('/') + 1)] = fuenteV; // «medio:<pieza>.termino»
+                    vigilarMedios();
+                    anotar(enSalida(salida, repetir ? tr("Video: %1 (en bucle)").arg(rel) : tr("Video: %1").arg(rel)), "ok");
+                });
             return;
         }
         case evento::Tipo::Pantalla: {
@@ -3443,15 +3534,6 @@ bool EventoViewModel::marcarChequeo(const QString& item, bool hecho, const QStri
 // condiciones), las capas DSK, las cámaras PTZ, el orden del día, las votaciones y la
 // playlist. Nada de esto publica temas linea/* (eso es de ui/LineaBus).
 
-escenas::Conmutador* EventoViewModel::conmutador(const std::string& salida) const {
-    escenas::Conmutadores* cs = sistema().conmutadores;
-    if (cs == nullptr) return nullptr;
-    // Los ids de la línea son los de las salidas del motor; la por omisión de la línea,
-    // si el motor no tiene una con ese id, es la por omisión del motor.
-    escenas::Conmutador* c = cs->de(salida);
-    return c == nullptr && salida == salidaPorOmision() ? &cs->porOmision() : c;
-}
-
 QString EventoViewModel::enSalida(const std::string& salida, const QString& texto) const {
     if (linea_.salidasEfectivas().size() < 2) return texto;
     return tr("«%1» · %2").arg(QString::fromStdString(salida), texto);
@@ -3550,8 +3632,15 @@ void EventoViewModel::vigilarTemas() {
 }
 
 void EventoViewModel::alAireCambio(const std::string& salida, const std::string& escena) {
-    // ¿Fue a mano? Lo que cambia la línea misma (tomarEscena, el video) no cuenta.
-    if (cambiandoEscena_ == 0 && corriendo() && !ensayo_) {
+    // ¿Fue a mano? Lo que cambia la línea misma (tomarEscena, el video) no cuenta: su aviso
+    // llega encolado desde el dueño del motor, después de la orden.
+    bool deLaLinea = false;
+    if (auto it = escenasDeLaLinea_.find(salida); it != escenasDeLaLinea_.end())
+        if (auto x = it->second.find(escena); x != it->second.end()) {
+            it->second.erase(x);
+            deLaLinea = true;
+        }
+    if (!deLaLinea && corriendo() && !ensayo_) {
         const std::string antes = corrida_->aMano(salida);
         corrida_->marcarAMano(salida, escena, ahoraMs());
         const std::string ahora = corrida_->aMano(salida);
@@ -3732,8 +3821,8 @@ void EventoViewModel::vigilarMedios() {
         vigiaMedios_.setInterval(250);
         connect(&vigiaMedios_, &QTimer::timeout, this, [this]() {
             std::map<std::string, std::string> estado;
-            for (const auto& m : rt_.engine().mediaSources())
-                estado[m.name] = m.state;
+            for (const auto& m : ventanilla_.foto().medios)
+                estado[m.value("fuente", std::string())] = m.value("estado", std::string());
             std::vector<std::string> terminaron;
             for (const auto& [pieza, medio] : mediosVigilados_) {
                 const auto e = estado.find(medio);

@@ -19,6 +19,6 @@ class StudioViewModel;
 namespace ba::app::mcp {
 
 /// {listo, faltas: [{que, detalle, como}], avisos: [...], resumen: {...}}. `listo` = sin faltas.
-nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt);
+nlohmann::json revisarAsamblea(StudioViewModel& vm);
 
 } // namespace ba::app::mcp

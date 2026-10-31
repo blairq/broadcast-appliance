@@ -255,13 +255,15 @@ unsigned AppRuntime::partesDe(Cambio c) {
     // además, lo que la foto lee de archivos (salidas.json, destinos.json).
     switch (c) {
         case Cambio::Salidas: return FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Emision | kFotoRelerArchivos;
-        case Cambio::Escenas: return FotoMotor::Escenas | FotoMotor::Salidas;
+        // (La sala: las fuentes con audio y las de la banca siguen a las escenas y sus fuentes.)
+        case Cambio::Escenas: return FotoMotor::Escenas | FotoMotor::Salidas | FotoMotor::Sala;
         case Cambio::Aire: return FotoMotor::Salidas | FotoMotor::Estado;
         case Cambio::Fuentes:
-        case Cambio::Capa: return FotoMotor::Escenas;
+        case Cambio::Capa: return FotoMotor::Escenas | FotoMotor::Sala;
         case Cambio::Audio: return FotoMotor::Medidas;
         case Cambio::Ajustes:
-            return FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Emision | FotoMotor::Salidas | kFotoRelerArchivos;
+            return FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Emision | FotoMotor::Salidas | FotoMotor::Sala |
+                   kFotoRelerArchivos;
     }
     return FotoMotor::Todas | kFotoRelerArchivos;
 }
