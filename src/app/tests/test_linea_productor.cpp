@@ -262,8 +262,8 @@ void testPlantillas() {
     const Edicion e = editar(l, r["ops"]);
     CHECK(e.ok, "el lote se aplica");
     if (e.ok) {
-        const Paso* ana = e.linea.paso("orador-1");
-        const Paso* beto = e.linea.paso("orador-2");
+        const Paso* ana = e.linea.paso("orador-1-orador");
+        const Paso* beto = e.linea.paso("orador-2-orador");
         CHECK(ana && ana->nombre == "Ana Pérez" && ana->duracionPrevistaSeg == 180 && ana->fin.modo == ModoFin::Abierto,
               "el nombre y el tiempo de la fila");
         CHECK(ana && ana->piezas.size() == 3 && ana->piezas[2].datos["valores"]["cargo"] == "Presidenta", "el zócalo lleno");
@@ -279,10 +279,7 @@ void testPlantillas() {
     d2.bloque = "b1";
     d2.despuesDe = "p1";
     d2.prefijo = "p1"; // a propósito: «p1-1» no existe, pero el prefijo es el de un paso
-    d2.datos = filasDeOrdenDelDia(json::parse(R"([{"n": 1, "titulo": "Presupuesto", "estado": "votado"},
-                                                  {"n": 2, "titulo": "Obras", "expediente": "12/24", "estado": "pendiente"},
-                                                  {"n": 3, "titulo": "Varios"}])"));
-    CHECK(d2.datos.size() == 2, "del orden del día, solo lo que falta tratar");
+    d2.datos = json::parse(R"([{"n": 2, "titulo": "Obras", "expediente": "12/24"}, {"n": 3, "titulo": "Varios"}])");
     const json r2 = desdePlantilla(l, d2);
     CHECK(r2["ok"] == true && r2["ops"].size() >= 2, "paso_agregar encadenados");
     const Edicion e2 = editar(l, r2["ops"]);
@@ -295,6 +292,15 @@ void testPlantillas() {
         CHECK(numero, "un texto que es solo {n} queda número");
         CHECK(pp.notaOperador == "12/24", "el expediente en la nota");
     }
+    // Un bloque que sale del orden del día (lo expande LineaPlantillas, L7).
+    const json od = bloqueDeOrdenDelDia(l, "punto", json::parse(R"([{"n": 1, "titulo": "Presupuesto", "estado": "pendiente"},
+                                                                    {"n": 2, "titulo": "Obras", "estado": "pendiente"}])"),
+                                        "Sesión");
+    CHECK(od["ok"] == true && od["pasos"].size() == 2 && !od["avisos"].empty(), "un paso por punto, y avisa que la plantilla es de fábrica");
+    const Edicion e3 = editar(l, od["ops"]);
+    CHECK(e3.ok && e3.linea.bloques.back().origen == "asamblea/orden-del-dia" && e3.linea.bloques.back().plantilla == "punto",
+          "el bloque queda con su origen (para re-expandirlo)");
+    CHECK(bloqueDeOrdenDelDia(l, "punto", json::array(), "")["ok"] == false, "sin puntos, no");
     DesdePlantilla d3;
     d3.plantilla = "no-existe";
     CHECK(desdePlantilla(l, d3)["ok"] == false, "una plantilla que no existe");

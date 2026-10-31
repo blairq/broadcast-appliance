@@ -17,19 +17,16 @@
 #include "i18n/I18n.hpp"
 #include "mcp/McpEventoTools.hpp"
 
+#include "evento/LineaEdicion.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/LineaProductor.hpp"
 
 namespace ba::app::mcp {
 namespace {
 
 using ba::i18n::llenar;
 using ba::i18n::traducir;
-
-json salidaEsquema() {
-    return {{"type", "string"},
-            {"description", traducir("mcp", "la salida (principal, sala, web-en…); sin esto, la por omisión")}};
-}
 
 /// Una hora para `desde`/`hasta`: "HH:MM" (hoy, en el huso del evento) o ms de época. 0 = sin límite; -1 = mal escrita.
 int64_t horaDe(EventoViewModel& ev, const json& a, const char* clave) {
@@ -47,7 +44,7 @@ void responderVivo(EventoViewModel& ev, const std::string& error, Done& done) {
 
 } // namespace
 
-void registerLineaTools(McpCore& core, EventoViewModel& ev) {
+void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes) {
     core.addCategory("linea", traducir("mcp", "Línea de tiempo del evento"),
                      traducir("mcp", "El plan del evento como línea de tiempo: pasos que entran con GO o solos (a una hora, "
                                      "tras otro), piezas adentro, pronóstico con back time y over/under, edición en lote, "
@@ -60,6 +57,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.title = traducir("mcp", "Ver el pronóstico de la línea");
         t.category = "linea";
         t.clase = Clase::Lectura;
+        t.porSalida = true;
         t.description = traducir("mcp", "El pronóstico compacto de una salida: bloques, pasos (y sus piezas con `nivel` piezas) "
                                         "con su hora de entrada y salida, back time, estado y cómo entran.");
         t.details = traducir(
@@ -70,21 +68,22 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
             "`back` (lo último que puede arrancar para llegar al próximo hard start o al fin), `tarde`, `estimado` (depende "
             "de algo sin hora conocida), `previstoSeg` y `durSeg`. Cada bloque, su presupuesto y su over/under; y arriba, "
             "el over/under del evento contra el fin planeado.\n\n"
+            "Para las superficies, cada paso trae además `escena` (la que pone) y `enSeg` (cuánto falta para que "
+            "entre), y arriba va el `estante` (los adlibs: {id, boton, tecla, color, tipo, nombre}).\n\n"
             "`nivel`: bloques | pasos (por defecto) | piezas (con el detalle de cada pieza: tipo, pista, datos, vida y "
             "cuándo entra y sale). `desde`/`hasta` (\"HH:MM\" de hoy o ms) dejan solo lo que se cruza con esa ventana.\n\n"
             "Las horas van en el huso del evento. Sin correr, es el plan desde la hora prevista (o desde ahora).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"salida", salidaEsquema()},
-                           {"desde", {{"description", traducir("mcp", "\"HH:MM\" o ms de época")}}},
+                          {{"desde", {{"description", traducir("mcp", "\"HH:MM\" o ms de época")}}},
                            {"hasta", {{"description", traducir("mcp", "\"HH:MM\" o ms de época")}}},
                            {"nivel", {{"type", "string"}, {"enum", {"bloques", "pasos", "piezas"}}}}}}};
         t.examples = {R"({})", R"({"nivel": "piezas", "desde": "19:30", "hasta": "20:15"})", R"({"nivel": "bloques"})"};
-        t.run = [&ev](const json& a, Done done) {
+        t.run = [&ev, &core](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
             const int64_t desde = horaDe(ev, a, "desde"), hasta = horaDe(ev, a, "hasta");
             if (desde < 0 || hasta < 0) return done(ToolResult::error(traducir("mcp", "`desde` y `hasta` van como \"HH:MM\" o en ms.")));
-            const json v = ev.lineaVer(a.value("salida", std::string()), desde, hasta, a.value("nivel", std::string("pasos")));
+            const json v = ev.lineaVer(core.salidaDe(a), desde, hasta, a.value("nivel", std::string("pasos")));
             if (v.is_null()) return done(ToolResult::error(traducir("mcp", "No hay esa salida en la línea.")));
             done(ToolResult().data(v));
         };
@@ -223,26 +222,157 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.title = traducir("mcp", "Llegar a horario");
         t.category = "linea";
         t.clase = Clase::Lectura;
-        t.description = traducir("mcp", "Para terminar a una hora: propone recortar los pasos que vienen con la etiqueta "
-                                        "«recortable» y, si no alcanza, saltear los «opcional». Nunca aplica.");
+        t.porSalida = true;
+        t.description = traducir("mcp", "El solucionador del back-timing: para terminar a una hora (o al fin planeado) y "
+                                        "llegar a cada hard start, propone opciones (recortar por prioridad, que un paso "
+                                        "absorba, saltear lo opcional, mover una hora, relleno) ya probadas. Nunca aplica.");
         t.details = traducir(
             "mcp",
-            "Devuelve {overSeg, recortaSeg, faltaSeg, ops, saltear, texto, pronostico}: `ops` es el lote para "
-            "linea_editar (probalo y, si la persona confirma, aplicalo) y `saltear` los pasos opcionales que se podrían "
-            "saltar (linea_saltar en vivo, o quitarlos). Cada paso recortable se acorta hasta la mitad, en proporción a lo "
-            "que dura. Si no hay nada recortable, lo dice: ahí hay que decidir con la persona.");
+            "Devuelve {overSeg, recortaSeg, faltaSeg, ops, saltear, texto, opciones, hardStarts}. `opciones`: "
+            "[{id, tipo, texto, ganaSeg, ops, resultado}] contra el fin; `hardStarts`: [{paso, gapSeg (negativo: no se "
+            "llega; positivo: sobra), texto, opciones}] para cada hard start que viene desfasado. `tipo`: recortar | "
+            "absorber | saltear | mover_hora | relleno | estirar. Cada opción viene PROBADA: `resultado` {fin, "
+            "overUnderSeg, reparos} es cómo quedaría (linea_editar con probar). `ops` (arriba) es la opción "
+            "«recortar», la primera que conviene mirar.\n\n"
+            "Qué se recorta lo dicen las etiquetas de cada paso: «recortable» (hasta la mitad) o «recortable:N» (hasta "
+            "el N %), «prioridad:N» (1 se recorta primero, 9 último; sin etiqueta, 5), «opcional» (se puede saltear), "
+            "«fijo» (no se toca). Un paso abierto (un orador) se recorta en lo previsto: hay que avisarle.\n\n"
+            "PROPONÉ, NO APLIQUES: mostrale a la persona las opciones con su texto y aplicá (linea_editar con las `ops`, "
+            "sin probar) solo la que ella elija. En vivo, saltear es linea_saltar cuando el paso sea el próximo.\n\n"
+            "`hasta`: la hora a la que hay que terminar (\"HH:MM\" o ms); sin eso, el fin planeado del evento.");
         t.inputSchema = {{"type", "object"},
-                         {"required", {"hasta"}},
                          {"properties",
-                          {{"hasta", {{"description", traducir("mcp", "la hora a la que hay que terminar: \"HH:MM\" o ms")}}},
-                           {"salida", salidaEsquema()}}}};
-        t.examples = {R"({"hasta": "21:00"})"};
-        t.run = [&ev](const json& a, Done done) {
+                          {{"hasta", {{"description", traducir("mcp", "la hora a la que hay que terminar: \"HH:MM\" o ms "
+                                                                      "(sin esto, el fin planeado)")}}}}}};
+        t.examples = {R"({"hasta": "21:00"})", R"({})"};
+        t.run = [&ev, &core](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
             const int64_t hasta = horaDe(ev, a, "hasta");
-            if (hasta <= 0) return done(ToolResult::error(traducir("mcp", "`hasta` va como \"HH:MM\" o en ms.")));
-            json r = ev.lineaAjustar(a.value("salida", std::string()), hasta);
-            if (r.contains("ops") && !r["ops"].empty()) r["pronostico"] = ev.lineaEditar(r["ops"], true).value("pronostico", json());
+            if (hasta < 0) return done(ToolResult::error(traducir("mcp", "`hasta` va como \"HH:MM\" o en ms.")));
+            done(ToolResult().data(LineaProductor::ajusteProbado(ev, core.salidaDe(a), hasta)));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "linea_desde_plantilla";
+        t.title = traducir("mcp", "Armar pasos desde una plantilla o una guía");
+        t.category = "linea";
+        t.clase = Clase::Escritura;
+        t.porSalida = true;
+        t.description = traducir("mcp", "Arma pasos de la línea desde una plantilla (orador, punto, votación o las del "
+                                        "evento) repetida con datos (una lista de oradores, el orden del día), o la línea "
+                                        "entera desde la guía de un escenario. Por defecto SOLO prueba.");
+        t.details = traducir(
+            "mcp",
+            "Sin `plantilla` ni `escenario`: la lista de plantillas (las del evento y las de fábrica) con sus pasos y "
+            "los campos que usan.\n\n"
+            "`plantilla` + `datos`: una copia de los pasos de la plantilla por fila de `datos`, con cada {campo} "
+            "reemplazado ({campo|defecto} si puede faltar). La de fábrica «orador» usa nombre, cargo, escena, "
+            "participante, tiempoSeg; «punto» usa n, titulo, expediente, escena; «votacion», titulo. `tiempoSeg` de "
+            "cada fila es lo que dura ese paso. Una pieza a la que le falta un dato no va (y se avisa en `avisos`). "
+            "`origen`: \"orden-del-dia\" arma un bloque NUEVO con un paso por punto (orden_del_dia_ver) con la "
+            "plantilla (por defecto «punto»); el bloque queda atado al orden del día y, si este cambia, se re-expande "
+            "sin tocar lo que ya salió.\n\n"
+            "`escenario` (el id de evento_escenarios): suma la línea de la plantilla de esa guía al final (bloques, "
+            "pasos y piezas; los ids que choquen se renombran). Es para armar el evento desde la guía: leela antes con "
+            "evento_escenario y preguntá lo que la guía dice que hay que preguntar.\n\n"
+            "Dónde: `bloque` (uno que existe; sin esto, un bloque nuevo al final, con `nombreBloque`) y `despuesDe` "
+            "(un paso del bloque; \"\" = al principio). `prefijo`: el de los ids nuevos.\n\n"
+            "Con `probar` (por defecto true) devuelve el lote, el diff y el pronóstico SIN aplicar: mostráselo a la "
+            "persona y, cuando confirme, llamá de nuevo con probar:false (o pasá `ops` a linea_editar).");
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"plantilla", {{"type", "string"}}},
+              {"datos", {{"type", "array"}, {"items", {{"type", "object"}}}}},
+              {"origen", {{"type", "string"}, {"enum", {"orden-del-dia"}}}},
+              {"escenario", {{"type", "string"}}},
+              {"bloque", {{"type", "string"}}},
+              {"nombreBloque", {{"type", "string"}}},
+              {"despuesDe", {{"type", "string"}}},
+              {"prefijo", {{"type", "string"}}},
+              {"probar", {{"type", "boolean"}, {"description", traducir("mcp", "mostrar el resultado sin aplicar (por defecto)")}}}}}};
+        t.examples = {
+            R"({})",
+            R"({"plantilla": "orador", "nombreBloque": "Oradores", "datos": [{"nombre": "Ana Pérez", "cargo": "Presidenta", "escena": "Atril", "participante": "ana", "tiempoSeg": 300}, {"nombre": "Luis Gómez", "escena": "Atril", "tiempoSeg": 180}]})",
+            R"({"origen": "orden-del-dia", "nombreBloque": "Orden del día"})",
+            R"({"escenario": "panel"})"};
+        t.run = [&ev, &core, fuentes](const json& a, Done done) {
+            namespace L = ba::evento::linea;
+            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            const std::string plantilla = a.value("plantilla", std::string()), escenario = a.value("escenario", std::string());
+            if (plantilla.empty() && escenario.empty() && a.value("origen", std::string()).empty()) {
+                json lista = json::array();
+                const auto sumar = [&lista](const L::Plantilla& p, const char* de) {
+                    json pasos = json::array();
+                    for (const L::Paso& x : p.pasos) pasos.push_back({{"id", x.id}, {"nombre", x.nombre}, {"piezas", x.piezas.size()}});
+                    lista.push_back({{"id", p.id}, {"nombre", p.nombre}, {"de", de}, {"pasos", pasos}});
+                };
+                for (const L::Plantilla& p : ev.linea().plantillas) sumar(p, "evento");
+                for (const L::Plantilla& p : L::plantillasDeFabrica()) sumar(p, "fabrica");
+                return done(ToolResult().data({{"plantillas", lista}}));
+            }
+            json armado;
+            if (!escenario.empty()) {
+                const json g = fuentes.eventoDeEscenario ? fuentes.eventoDeEscenario(escenario) : json();
+                if (!g.is_object())
+                    return done(ToolResult::error(llenar(traducir("mcp", "no hay una plantilla del escenario «%1» (evento_escenarios)"), {escenario})));
+                armado = g.contains("linea") && g["linea"].is_object()
+                             ? L::lineaDeGuia(ev.linea(), L::Linea::deJson(g["linea"]))
+                             : L::lineaDeGuia(ev.linea(), ba::evento::Evento::deJson(g));
+            } else if (a.value("origen", std::string()) == "orden-del-dia") {
+                if (!fuentes.ordenDelDia) return done(ToolResult::error(traducir("mcp", "el orden del día no está disponible")));
+                armado = L::bloqueDeOrdenDelDia(ev.linea(), plantilla.empty() ? "punto" : plantilla, fuentes.ordenDelDia(),
+                                                a.value("nombreBloque", std::string()), core.salidaDe(a));
+                if (!armado.value("ok", false)) return done(ToolResult::error(armado.value("error", std::string())));
+            } else {
+                L::DesdePlantilla d;
+                d.plantilla = plantilla;
+                d.datos = a.value("datos", json::array());
+                d.bloque = a.value("bloque", std::string());
+                d.nombreBloque = a.value("nombreBloque", std::string());
+                d.alPrincipio = a.contains("despuesDe") && a["despuesDe"] == "";
+                d.despuesDe = a.value("despuesDe", std::string());
+                d.prefijo = a.value("prefijo", std::string());
+                d.salida = core.salidaDe(a);
+                armado = L::desdePlantilla(ev.linea(), d);
+                if (!armado.value("ok", false)) return done(ToolResult::error(armado.value("error", std::string())));
+            }
+            json r = ev.lineaEditar(armado["ops"], a.value("probar", true));
+            if (!r.value("ok", false)) return done(ToolResult::error(r.value("error", std::string())));
+            r["ops"] = armado["ops"];
+            r["avisos"] = armado["avisos"];
+            if (armado.contains("pasos")) r["pasos"] = armado["pasos"];
+            if (armado.contains("bloques")) r["bloques"] = armado["bloques"];
             done(ToolResult().data(r));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "linea_camaras";
+        t.title = traducir("mcp", "Los próximos planos de cada cámara");
+        t.category = "linea";
+        t.clase = Clase::Lectura;
+        t.description = traducir("mcp", "Para cada cámara (cada fuente que se ve en las escenas de la línea), los planos "
+                                        "que la usan: el que está al aire y los que vienen, con cuánto falta, en todas las "
+                                        "salidas. Es la pantalla del camarógrafo y del que maneja el PTZ.");
+        t.details = traducir("mcp", "{camaras: {<fuente>: [{salida, paso, nombre, estado, frente, enSeg, escena, ptz?}]}}: "
+                                    "lo que está al aire primero y después por lo que falta. `ptz` es la pieza del paso que "
+                                    "mueve esa cámara. Con `camara`, solo esa.");
+        t.inputSchema = {{"type", "object"}, {"properties", {{"camara", {{"type", "string"}}}}}};
+        t.run = [&ev, fuentes](const json& a, Done done) {
+            if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
+            json vistas = json::array();
+            for (const std::string& s : ev.linea().salidasEfectivas()) {
+                json v = ev.lineaVer(s, 0, 0, "pasos");
+                if (!v.is_null()) vistas.push_back(std::move(v));
+            }
+            json c = ba::evento::linea::proximosPorCamara(ev.linea(), vistas, fuentes.camarasDeEscena);
+            const std::string una = a.value("camara", std::string());
+            if (!una.empty()) c = json{{una, c.value(una, json::array())}};
+            done(ToolResult().data({{"camaras", c}}));
         };
         core.addTool(std::move(t));
     }
@@ -259,14 +389,15 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev) {
         t.category = "linea";
         t.clase = clase;
         t.porQueAire = porQueAire;
+        t.porSalida = true;
         t.description = descripcion;
-        props["salida"] = salidaEsquema();
         t.inputSchema = {{"type", "object"}, {"properties", props}};
         if (!requeridos.empty()) t.inputSchema["required"] = requeridos;
         t.run = [&ev, hacer](const json& a, Done done) { responderVivo(ev, hacer(a), done); };
         core.addTool(std::move(t));
     };
-    const auto sal = [](const json& a) { return a.value("salida", std::string()); };
+    // La salida pedida o la de quien llama (el aparato, la botonera), ya validada por callTool.
+    const auto sal = [&core](const json& a) { return core.salidaDe(a); };
 
     vivo("linea_go", Clase::Aire, QT_TRANSLATE_NOOP("mcp", "entra el próximo paso de la línea de tiempo"),
          traducir("mcp", "GO: entra el próximo paso"),

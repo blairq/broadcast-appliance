@@ -66,7 +66,7 @@ std::string sumarMinutos(const std::string& hhmm, int minutos);
 
 /// Las plantillas de fábrica (las del evento, `Linea::plantillas`, van primero):
 /// «orador» (un paso abierto con su zócalo y la palabra), «punto» (un punto del
-/// orden del día) y «votacion». Sus textos llevan {campo} o {campo|defecto}.
+/// orden del día) y «votacion». Sus textos llevan {campo}.
 std::vector<Plantilla> plantillasDeFabrica();
 
 struct DesdePlantilla {
@@ -81,21 +81,29 @@ struct DesdePlantilla {
 };
 
 /// Arma los pasos: una copia de los pasos de la plantilla por cada fila de
-/// `datos`, con cada {campo} reemplazado (un texto que es SOLO «{campo}» y el dato
-/// es un número queda número). Una pieza con un {campo} sin dato ni defecto no
-/// va (y se avisa). Las pistas se buscan por id o por tipo en la salida; las que
+/// `datos`, instanciada con evento/LineaPlantillas (instanciarPlantilla: cada
+/// {campo} con el dato de la fila; el que la fila no trae, vacío). Una pieza a la
+/// que le falta lo esencial (un dato que es SOLO «{campo}», como la escena o quién
+/// habla) no va, y se avisa. `tiempoSeg` (o `duracionSeg`) de la fila es lo que
+/// dura el paso. Las pistas se buscan por id o por tipo en la salida; las que
 /// faltan se agregan. Ids nuevos sin chocar con los de la línea.
 /// {ok, error?, ops, avisos, pasos:[ids]}.
 nlohmann::json desdePlantilla(const Linea& l, const DesdePlantilla& pedido);
 
-/// Los puntos del orden del día (asamblea/OrdenDelDia::puntos) como filas para
-/// la plantilla «punto»: solo los que faltan tratar (pendiente, en_tratamiento).
-nlohmann::json filasDeOrdenDelDia(const nlohmann::json& puntos);
+/// Un bloque nuevo que sale del orden del día (`plantilla` + origen
+/// "asamblea/orden-del-dia"), expandido con evento/LineaPlantillas
+/// (expandirOrdenDelDia: un paso por punto; si después cambia el orden del día, se
+/// re-expande sin tocar lo emitido). La plantilla, de la línea o de fábrica.
+/// {ok, error?, ops (pistas que falten + bloque_agregar), avisos, pasos:[ids], bloque}.
+nlohmann::json bloqueDeOrdenDelDia(const Linea& l, const std::string& plantilla, const nlohmann::json& puntos,
+                                   const std::string& nombreBloque, const std::string& salida = {});
 
 /// La línea de una guía de escenario (el guion de su plantilla, assets/demo) como
 /// lote para sumar a la línea `l`: bloques al final, pistas que falten, ids que
 /// choquen renombrados. {ok, ops, avisos, bloques:[ids]}.
 nlohmann::json lineaDeGuia(const Linea& l, const ba::evento::Evento& guia);
+/// Lo mismo, con una guía que ya es una línea (una plantilla guardada con la v2).
+nlohmann::json lineaDeGuia(const Linea& l, Linea guia);
 
 // --- El rol que vigila el over/under ----------------------------------------------------
 

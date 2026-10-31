@@ -12,6 +12,14 @@
 #include <set>
 
 namespace ba::evento::linea {
+
+// Las define evento/LineaPlantillas (L7, la otra mitad de las plantillas).
+// Declaradas acá con su firma mientras las dos ramas se juntan; integradas, va el
+// #include "evento/LineaPlantillas.hpp" en su lugar.
+std::vector<Paso> instanciarPlantilla(const Plantilla& t, const std::string& prefijo,
+                                      const std::map<std::string, std::string>& valores);
+bool expandirOrdenDelDia(Linea& l, const nlohmann::json& puntos, const std::set<std::string>& emitidos);
+
 namespace {
 
 using nlohmann::json;
@@ -388,18 +396,18 @@ std::vector<Plantilla> plantillasDeFabrica() {
     static const json fabrica = json::parse(R"([
       {"id": "orador", "nombre": "Orador", "pasos": [
         {"id": "orador", "nombre": "{nombre}", "fin": {"abierto": true}, "duracionPrevistaSeg": 300,
-         "guion": "{guion|}", "notaOperador": "{nota|}", "etiquetas": ["recortable"],
+         "guion": "{guion}", "notaOperador": "{nota}", "etiquetas": ["recortable"],
          "piezas": [
            {"id": "escena", "pista": "escena", "tipo": "escena", "texto": "{escena}", "datos": {"escena": "{escena}"}},
            {"id": "palabra", "pista": "sala", "tipo": "orador", "texto": "Habla {nombre}", "datos": {"participante": "{participante}"}},
            {"id": "zocalo", "pista": "graficos", "tipo": "grafico", "texto": "Zócalo: {nombre}",
             "desde": {"ms": 3000}, "dura": {"ms": 8000},
-            "datos": {"fuente": "Zócalo", "grafico": "zocalo", "valores": {"nombre": "{nombre}", "cargo": "{cargo|}"}}}
+            "datos": {"fuente": "Zócalo", "grafico": "zocalo", "valores": {"nombre": "{nombre}", "cargo": "{cargo}"}}}
          ]}
       ]},
       {"id": "punto", "nombre": "Punto del orden del día", "pasos": [
         {"id": "punto", "nombre": "Punto {n}: {titulo}", "fin": {"abierto": true}, "duracionPrevistaSeg": 600,
-         "notaOperador": "{expediente|}",
+         "notaOperador": "{expediente}",
          "piezas": [
            {"id": "escena", "pista": "escena", "tipo": "escena", "texto": "{escena}", "datos": {"escena": "{escena}"}},
            {"id": "zocalo", "pista": "graficos", "tipo": "grafico", "texto": "Punto {n}: {titulo}",
@@ -426,61 +434,47 @@ std::vector<Plantilla> plantillasDeFabrica() {
 
 namespace {
 
-/// Reemplaza {campo} y {campo|defecto} con los datos de la fila. Un «{{» se deja
-/// tal cual (las ligaduras de la botonera usan {{v}}). `falta`: hubo un campo sin
-/// dato ni defecto. Si el texto es SOLO un campo y el dato es un número, queda número.
-json llenarTexto(const std::string& s, const json& fila, bool& falta) {
-    std::string out;
-    for (std::size_t i = 0; i < s.size(); ++i) {
-        if (s[i] != '{') {
-            out += s[i];
-            continue;
-        }
+/// Las marcas {clave} de un texto (no las {{…}} de la botonera).
+void marcasDe(const std::string& s, std::set<std::string>& out) {
+    for (std::size_t i = 0; (i = s.find('{', i)) != std::string::npos; ++i) {
         if (i + 1 < s.size() && s[i + 1] == '{') {
             const std::size_t f = s.find("}}", i);
-            const std::size_t hasta = f == std::string::npos ? s.size() : f + 2;
-            out += s.substr(i, hasta - i);
-            i = hasta - 1;
+            if (f == std::string::npos) return;
+            i = f + 1;
             continue;
         }
         const std::size_t f = s.find('}', i);
-        if (f == std::string::npos) {
-            out += s.substr(i);
-            break;
-        }
-        const std::string adentro = s.substr(i + 1, f - i - 1);
-        const std::size_t barra = adentro.find('|');
-        const std::string campo = adentro.substr(0, barra);
-        const bool valido = !campo.empty() && std::all_of(campo.begin(), campo.end(), [](unsigned char c) { return std::isalnum(c) || c == '_'; });
-        if (!valido) {
-            out += s.substr(i, f - i + 1);
-            i = f;
-            continue;
-        }
-        const auto it = fila.is_object() ? fila.find(campo) : fila.end();
-        const bool hay = fila.is_object() && it != fila.end() && !it->is_null() && !(it->is_string() && it->get<std::string>().empty());
-        if (hay && i == 0 && f + 1 == s.size() && it->is_number()) return *it;
-        if (hay) out += it->is_string() ? it->get<std::string>() : it->dump();
-        else if (barra != std::string::npos) out += adentro.substr(barra + 1);
-        else falta = true;
+        if (f == std::string::npos) return;
+        const std::string k = s.substr(i + 1, f - i - 1);
+        if (!k.empty() && std::all_of(k.begin(), k.end(), [](unsigned char c) { return std::isalnum(c) || c == '_'; })) out.insert(k);
         i = f;
     }
-    return out;
 }
 
-json llenarCampos(const json& j, const json& fila, bool& falta) {
-    if (j.is_string()) return llenarTexto(j.get<std::string>(), fila, falta);
-    if (j.is_array()) {
-        json a = json::array();
-        for (const json& x : j) a.push_back(llenarCampos(x, fila, falta));
-        return a;
+void marcasDe(const json& j, std::set<std::string>& out) {
+    if (j.is_string()) marcasDe(j.get<std::string>(), out);
+    else if (j.is_array() || j.is_object())
+        for (const json& x : j) marcasDe(x, out);
+}
+
+/// ¿El dato de la fila falta (no está, es null o es un texto vacío)?
+bool sinDato(const json& fila, const std::string& clave) {
+    const auto it = fila.find(clave);
+    return it == fila.end() || it->is_null() || (it->is_string() && it->get<std::string>().empty());
+}
+
+/// ¿A esta pieza le falta lo que la hace ser? Un dato de primer nivel que es SOLO una
+/// marca sin valor («escena»: "{escena}", «participante»: "{participante}"): sin eso
+/// la pieza no tiene sentido. Una marca dentro de un texto queda vacía y la pieza va.
+bool faltaLoEsencial(const Pieza& z, const json& fila) {
+    if (!z.datos.is_object()) return false;
+    for (const auto& [k, v] : z.datos.items()) {
+        if (!v.is_string()) continue;
+        const std::string t = v.get<std::string>();
+        if (t.size() < 3 || t.front() != '{' || t.back() != '}' || t[1] == '{') continue;
+        if (sinDato(fila, t.substr(1, t.size() - 2))) return true;
     }
-    if (j.is_object()) {
-        json o = json::object();
-        for (auto it = j.begin(); it != j.end(); ++it) o[it.key()] = it.key() == "id" ? it.value() : llenarCampos(it.value(), fila, falta);
-        return o;
-    }
-    return j;
+    return false;
 }
 
 /// La pista para una pieza de plantilla: la que se llama así; si no, la de ese
@@ -506,26 +500,35 @@ std::string pistaPara(const Linea& l, const std::string& pedida, const std::stri
     return p.id;
 }
 
-} // namespace
-
-json desdePlantilla(const Linea& l, const DesdePlantilla& pedido) {
-    json out{{"ok", false}, {"ops", json::array()}, {"avisos", json::array()}, {"pasos", json::array()}};
+/// La plantilla `id`: la del evento o, si no, la de fábrica. nullptr y `error` si
+/// no está o no tiene pasos.
+const Plantilla* plantillaDe(const Linea& l, const std::vector<Plantilla>& fabrica, const std::string& id, std::string& error) {
     const Plantilla* pl = nullptr;
     for (const Plantilla& p : l.plantillas)
-        if (p.id == pedido.plantilla) pl = &p;
-    const std::vector<Plantilla> fabrica = plantillasDeFabrica();
-    if (!pl)
-        for (const Plantilla& p : fabrica)
-            if (p.id == pedido.plantilla) pl = &p;
+        if (!pl && p.id == id) pl = &p;
+    for (const Plantilla& p : fabrica)
+        if (!pl && p.id == id) pl = &p;
     if (!pl) {
         std::string hay;
         for (const Plantilla& p : l.plantillas) hay += (hay.empty() ? "" : ", ") + p.id;
         for (const Plantilla& p : fabrica) hay += (hay.empty() ? "" : ", ") + p.id;
-        out["error"] = llenar(traducir("linea", "no hay una plantilla «%1» (hay: %2)"), {pedido.plantilla, hay});
-        return out;
+        error = llenar(traducir("linea", "no hay una plantilla «%1» (hay: %2)"), {id, hay});
+    } else if (pl->pasos.empty()) {
+        error = llenar(traducir("linea", "la plantilla «%1» no tiene pasos"), {pl->id});
+        pl = nullptr;
     }
-    if (pl->pasos.empty()) {
-        out["error"] = llenar(traducir("linea", "la plantilla «%1» no tiene pasos"), {pl->id});
+    return pl;
+}
+
+} // namespace
+
+json desdePlantilla(const Linea& l, const DesdePlantilla& pedido) {
+    json out{{"ok", false}, {"ops", json::array()}, {"avisos", json::array()}, {"pasos", json::array()}};
+    const std::vector<Plantilla> fabrica = plantillasDeFabrica();
+    std::string error;
+    const Plantilla* pl = plantillaDe(l, fabrica, pedido.plantilla, error);
+    if (!pl) {
+        out["error"] = error;
         return out;
     }
     const Bloque* destino = nullptr;
@@ -539,54 +542,58 @@ json desdePlantilla(const Linea& l, const DesdePlantilla& pedido) {
     }
     const std::string salida = pedido.salida.empty() ? l.salidasEfectivas().front() : pedido.salida;
     const std::string prefijo = pedido.prefijo.empty() ? pl->id : pedido.prefijo;
-    json filas = pedido.datos.is_array() && !pedido.datos.empty() ? pedido.datos : json::array({json::object()});
+    const json filas = pedido.datos.is_array() && !pedido.datos.empty() ? pedido.datos : json::array({json::object()});
+    // Todas las marcas de la plantilla: las que una fila no trae van vacías.
+    std::set<std::string> marcas;
+    marcasDe(pl->aJson(), marcas);
 
     std::set<std::string> usados;
     std::vector<Pista> nuevas;
     json pistasOps = json::array();
     json pasos = json::array();
     for (std::size_t i = 0; i < filas.size(); ++i) {
-        const json& fila = filas[i];
-        std::map<std::string, std::string> ids; // id en la plantilla → id nuevo (para los «tras»/«con» de adentro)
-        for (const Paso& p : pl->pasos) {
-            const std::string base = prefijo + "-" + std::to_string(i + 1) + (pl->pasos.size() > 1 ? "-" + p.id : std::string());
-            ids[p.id] = idLibre(l, usados, base);
+        const json fila = filas[i].is_object() ? filas[i] : json::object();
+        // Las piezas a las que les falta lo esencial no van (y se avisa).
+        Plantilla t = *pl;
+        for (Paso& p : t.pasos) {
+            std::vector<Pieza> quedan;
+            for (Pieza& z : p.piezas) {
+                if (!faltaLoEsencial(z, fila)) quedan.push_back(std::move(z));
+                else
+                    out["avisos"].push_back(llenar(traducir("linea", "fila %1: la pieza «%2» de «%3» no va (le falta un dato)"),
+                                                   {std::to_string(i + 1), z.id, p.id}));
+            }
+            p.piezas = std::move(quedan);
         }
-        for (const Paso& p : pl->pasos) {
-            json pj = p.aJson();
-            json piezas = pj.contains("piezas") ? pj["piezas"] : json::array();
-            pj.erase("piezas");
-            bool falta = false;
-            pj = llenarCampos(pj, fila, falta);
-            pj["id"] = ids[p.id];
-            if (!pedido.salida.empty() && p.salida.empty() && salida != l.salidasEfectivas().front()) pj["salida"] = salida;
-            if (pj.contains("inicio") && pj["inicio"].is_object())
-                for (const char* k : {"de", "paso"})
-                    if (pj["inicio"].contains(k) && pj["inicio"][k].is_string() && ids.count(pj["inicio"][k].get<std::string>()))
-                        pj["inicio"][k] = ids[pj["inicio"][k].get<std::string>()];
+        std::map<std::string, std::string> valores;
+        for (const std::string& k : marcas)
+            valores[k] = sinDato(fila, k) ? std::string() : fila[k].is_string() ? fila[k].get<std::string>() : fila[k].dump();
+        // Un prefijo por fila que no choque con nada de la línea ni de este lote.
+        const auto choca = [&](const std::string& pre) {
+            for (const Paso& p : t.pasos) {
+                if (existeId(l, pre + "-" + p.id) || usados.count(pre + "-" + p.id)) return true;
+                for (const Pieza& z : p.piezas)
+                    if (existeId(l, pre + "-" + z.id) || usados.count(pre + "-" + z.id)) return true;
+            }
+            return false;
+        };
+        std::string pre = prefijo + "-" + std::to_string(i + 1);
+        for (int n = 2; choca(pre); ++n) pre = prefijo + "-" + std::to_string(i + 1) + "-" + std::to_string(n);
+        const int64_t tiempo = std::max(leerNumero(fila, "tiempoSeg"), leerNumero(fila, "duracionSeg"));
+        for (Paso& p : instanciarPlantilla(t, pre, valores)) {
+            usados.insert(p.id);
+            for (Pieza& z : p.piezas) {
+                usados.insert(z.id);
+                z.pista = pistaPara(l, z.pista, salida, nuevas, pistasOps);
+            }
+            if (salida != l.salidasEfectivas().front() && p.salida.empty()) p.salida = salida;
             // El tiempo de la fila (el de cada orador, el de cada punto).
-            const int64_t t = std::max(leerNumero(fila, "tiempoSeg"), leerNumero(fila, "duracionSeg"));
-            if (t > 0) {
-                pj["duracionPrevistaSeg"] = t;
-                if (p.fin.modo == ModoFin::Duracion) pj["fin"] = {{"duracion", t}};
+            if (tiempo > 0) {
+                p.duracionPrevistaSeg = static_cast<int>(tiempo);
+                if (p.fin.modo == ModoFin::Duracion) p.fin.duracionSeg = static_cast<int>(tiempo);
             }
-            json zs = json::array();
-            for (std::size_t k = 0; k < piezas.size(); ++k) {
-                bool faltaZ = false;
-                json z = llenarCampos(piezas[k], fila, faltaZ);
-                const std::string zid = leerTexto(piezas[k], "id", "z" + std::to_string(k + 1));
-                if (faltaZ) {
-                    out["avisos"].push_back(llenar(traducir("linea", "«%1»: la pieza «%2» no va (le falta un dato)"),
-                                                   {pj.value("nombre", std::string()), zid}));
-                    continue;
-                }
-                z["id"] = idLibre(l, usados, ids[p.id] + "-" + zid);
-                z["pista"] = pistaPara(l, leerTexto(z, "pista"), salida, nuevas, pistasOps);
-                zs.push_back(std::move(z));
-            }
-            pj["piezas"] = std::move(zs);
-            out["pasos"].push_back(pj["id"]);
-            pasos.push_back(std::move(pj));
+            out["pasos"].push_back(p.id);
+            pasos.push_back(p.aJson());
         }
     }
     json ops = pistasOps;
@@ -608,19 +615,54 @@ json desdePlantilla(const Linea& l, const DesdePlantilla& pedido) {
     return out;
 }
 
-json filasDeOrdenDelDia(const json& puntos) {
-    json filas = json::array();
-    for (const json& p : puntos.is_array() ? puntos : json::array()) {
-        const std::string estado = leerTexto(p, "estado", "pendiente");
-        if (estado != "pendiente" && estado != "en_tratamiento") continue;
-        filas.push_back({{"n", leerNumero(p, "n")}, {"titulo", leerTexto(p, "titulo")}, {"expediente", leerTexto(p, "expediente")}});
+json bloqueDeOrdenDelDia(const Linea& l, const std::string& plantilla, const json& puntos, const std::string& nombreBloque,
+                         const std::string& salida) {
+    json out{{"ok", false}, {"ops", json::array()}, {"avisos", json::array()}, {"pasos", json::array()}};
+    const std::vector<Plantilla> fabrica = plantillasDeFabrica();
+    std::string error;
+    const Plantilla* pl = plantillaDe(l, fabrica, plantilla, error);
+    if (!pl) {
+        out["error"] = error;
+        return out;
     }
-    return filas;
+    // Se expande sobre una copia (con la plantilla, si es de fábrica) y se lleva el
+    // bloque armado como un lote: así se prueba y lo confirma una persona.
+    Linea c = l;
+    const bool delEvento = std::any_of(l.plantillas.begin(), l.plantillas.end(), [&](const Plantilla& p) { return p.id == pl->id; });
+    if (!delEvento) c.plantillas.push_back(*pl);
+    std::set<std::string> usados;
+    Bloque b;
+    b.id = idLibre(l, usados, "orden-del-dia");
+    b.nombre = nombreBloque.empty() ? traducir("linea", "Orden del día") : nombreBloque;
+    b.plantilla = pl->id;
+    b.origen = "asamblea/orden-del-dia";
+    c.bloques.push_back(b);
+    expandirOrdenDelDia(c, puntos, {});
+    Bloque armado = c.bloques.back();
+    if (armado.pasos.empty()) {
+        out["error"] = traducir("linea", "el orden del día no tiene puntos por tratar");
+        return out;
+    }
+    const std::string s = salida.empty() ? l.salidasEfectivas().front() : salida;
+    std::vector<Pista> nuevas;
+    for (Paso& p : armado.pasos) {
+        for (Pieza& z : p.piezas) z.pista = pistaPara(l, z.pista, s, nuevas, out["ops"]);
+        out["pasos"].push_back(p.id);
+    }
+    if (!delEvento)
+        out["avisos"].push_back(llenar(traducir("linea", "la plantilla «%1» es de fábrica: si el orden del día cambia, para "
+                                                         "re-expandir el bloque hay que sumarla a las del evento"),
+                                       {pl->id}));
+    out["ops"].push_back({{"op", "bloque_agregar"}, {"bloque", armado.aJson()}});
+    out["bloque"] = armado.id;
+    out["ok"] = true;
+    return out;
 }
 
-json lineaDeGuia(const Linea& l, const ba::evento::Evento& guia) {
+json lineaDeGuia(const Linea& l, const ba::evento::Evento& guia) { return lineaDeGuia(l, migrar(guia)); }
+
+json lineaDeGuia(const Linea& l, Linea g) {
     json out{{"ok", true}, {"ops", json::array()}, {"avisos", json::array()}, {"bloques", json::array()}};
-    Linea g = migrar(guia);
     const std::string salida = l.salidasEfectivas().front();
     std::set<std::string> usados;
     std::map<std::string, std::string> renombrar;
@@ -629,21 +671,18 @@ json lineaDeGuia(const Linea& l, const ba::evento::Evento& guia) {
         if (nuevo != id) renombrar[id] = nuevo;
         return nuevo;
     };
-    // Las pistas: las de la guía son de «principal»; van a la salida de esta línea.
+    // Las pistas: las de la guía son de su primera salida; van a la de esta línea.
+    // Cada una se busca por tipo en esta línea (como las de las plantillas).
     std::map<std::string, std::string> pistas;
-    for (Pista& p : g.pistas) {
-        const std::string antes = p.id;
-        if (pistaPorSalida(p.tipo)) {
-            p.salida = salida;
-            p.id = p.tipo + "-" + salida;
-        }
-        pistas[antes] = p.id;
-        if (!l.pista(p.id)) out["ops"].push_back({{"op", "pista_agregar"}, {"pista", p.aJson()}});
-    }
+    std::vector<Pista> nuevas;
+    const std::string deGuia = g.salidasEfectivas().front();
+    for (const Pista& p : g.pistas) pistas[p.id] = pistaPara(l, p.tipo, salida, nuevas, out["ops"]);
     for (Bloque& b : g.bloques) {
         b.id = libre(b.id);
         for (Paso& p : b.pasos) {
             p.id = libre(p.id);
+            if (p.salida == deGuia) p.salida.clear(); // la primera de la guía es la primera de acá
+
             for (Pieza& z : p.piezas) {
                 z.id = libre(z.id);
                 if (pistas.count(z.pista)) z.pista = pistas[z.pista];

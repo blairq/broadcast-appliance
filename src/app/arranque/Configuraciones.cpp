@@ -178,6 +178,21 @@ std::string copiarTodo(const fs::path& de, const fs::path& a, std::atomic<std::u
 }
 } // namespace
 
+json eventoDeEscenario(const std::string& escenario) {
+    if (escenario.empty()) return nullptr;
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(carpetaDemos(), ec)) {
+        if (!e.is_directory()) continue;
+        const json meta = leerJson(e.path() / "configuracion.json");
+        if (meta.value("plantillaDatos", json::object()).value("escenario", std::string()) != escenario) continue;
+        for (const auto& ev : fs::directory_iterator(e.path() / "Eventos", ec)) {
+            const json j = leerJson(ev.path() / "evento.json");
+            if (j.contains("bloques") || j.contains("linea")) return j;
+        }
+    }
+    return nullptr;
+}
+
 Configuraciones::Configuraciones(std::function<QString()> reiniciar, QObject* parent)
     : QObject(parent), reiniciar_(std::move(reiniciar)) {
     progresoCopia_.setInterval(300);
