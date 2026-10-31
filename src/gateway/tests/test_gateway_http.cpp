@@ -780,9 +780,13 @@ int main() {
               "un archivo de más de 4 MB no sale");
         CHECK(statusLine(httpReq(port, "GET", "/comun/tema/logo-abc.gif", "")).find("404") != std::string::npos, "un GIF no sale");
         // Un QR que pide el logo del evento (logoEvento=1): el gateway pone el del tema.
-        CHECK(bodyOf(httpReq(port, "GET", "/pantalla/qr.svg?texto=hola&logoEvento=1", "")).find("data:image/svg+xml;base64,") !=
-                  std::string::npos,
-              "el QR con el logo del evento lo lleva al centro");
+        // El logo va como PNG (Tema/, logoParaQr: lo que pinta cualquier visor) o, si todavía
+        // no está el PNG del SVG, como el SVG mismo.
+        {
+            const std::string qr = bodyOf(httpReq(port, "GET", "/pantalla/qr.svg?texto=hola&logoEvento=1", ""));
+            CHECK(qr.find("data:image/png;base64,") != std::string::npos || qr.find("data:image/svg+xml;base64,") != std::string::npos,
+                  "el QR con el logo del evento lo lleva al centro");
+        }
         CHECK(bodyOf(httpReq(port, "GET", "/pantalla/qr.svg?texto=hola", "")).find("data:image") == std::string::npos,
               "sin pedirlo, no");
         CHECK(statusLine(httpReq(port, "GET", "/comun/tema/Logo-Abc.svg", "")).find("404") != std::string::npos,
