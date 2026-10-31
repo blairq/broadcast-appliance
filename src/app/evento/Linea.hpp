@@ -415,9 +415,19 @@ struct PiezaResuelta {
     bool compartida = false; ///< pista global en un paso "*": es de todas las salidas
     int64_t desdeMs = 0;
     int64_t hastaMs = kNunca;
+    /// Su paso sigue al aire pasado de tiempo o en HOLD: el fin se corrió a «ahora» y
+    /// todavía no pasó, así que en `hastaMs` mismo sigue activa (no es un fin real).
+    bool hastaAbierto = false;
+    /// Su paso ya entró (al aire o pasado): no es pronóstico.
+    bool emitida = false;
     int prioridad = 0;
     bool estimado = false;
     int orden = 0; ///< posición en el modelo, para desempatar
+
+    /// ¿Ya se terminó su vida en `t`? La regla única del fin (resolvedor, corrida, retoma).
+    bool terminadaEn(int64_t t) const { return t > hastaMs || (t == hastaMs && !hastaAbierto); }
+    /// ¿Está activa en `t`?
+    bool sigueEn(int64_t t) const { return desdeMs <= t && !terminadaEn(t); }
 };
 
 struct ProximoEvento {
@@ -454,7 +464,9 @@ struct Resolucion {
     const SalidaResuelta* salida(const std::string& id) const;
     /// El getResolvedState(t) de SuperFly: una sola pieza activa por pista; gana
     /// la de mayor prioridad y, si empatan, la que arrancó más tarde.
-    std::vector<Activa> estadoEn(int64_t t) const;
+    /// Con `soloEmitidas`, solo lo que ya entró: lo que hay de verdad ahora (la
+    /// retoma), sin el próximo que el pronóstico hace arrancar justo en este instante.
+    std::vector<Activa> estadoEn(int64_t t, bool soloEmitidas = false) const;
 };
 
 Resolucion resolver(const Linea& l, const Entrada& e);

@@ -656,10 +656,10 @@ const SalidaResuelta* Resolucion::salida(const std::string& id) const {
     return nullptr;
 }
 
-std::vector<Activa> Resolucion::estadoEn(int64_t t) const {
+std::vector<Activa> Resolucion::estadoEn(int64_t t, bool soloEmitidas) const {
     std::map<std::string, const PiezaResuelta*> gana;
     for (const PiezaResuelta& p : piezas) {
-        if (p.desdeMs > t || t >= p.hastaMs) continue;
+        if (!p.sigueEn(t) || (soloEmitidas && !p.emitida)) continue;
         const PiezaResuelta*& g = gana[p.pista];
         // Como en SuperFly: prioridad; si empatan, la que arrancó más tarde; si
         // arrancaron juntas, la que está más abajo en el modelo.
@@ -1156,6 +1156,8 @@ class Resolvedor {
                     if (c && c->cumple && c->desdeMs >= pr.desdeMs) pr.hastaMs = std::min(vida, c->desdeMs);
                     else pr.estimado = true;
                 }
+                pr.hastaAbierto = r.estado == EstadoPaso::AlAire && pr.hastaMs == vida && vida == e_.ahoraMs;
+                pr.emitida = r.estado == EstadoPaso::AlAire || r.estado == EstadoPaso::Pasado;
                 // Lo que arrancaría cuando su paso ya se fue no pasa nunca.
                 if (pr.desdeMs >= vida) continue;
                 out.push_back(std::move(pr));
@@ -1580,7 +1582,7 @@ Retoma retomarTrasCorte(const Linea& l, const EstadoAire& guardado, const Entrad
     }
     const Resolucion r = resolver(l, e);
     std::map<std::string, PiezaResuelta> activas;
-    for (const Activa& a : r.estadoEn(ahora))
+    for (const Activa& a : r.estadoEn(ahora, true))
         activas[a.pieza.pieza] = a.pieza;
     std::set<std::string> estaban;
     for (const PiezaAire& p : guardado.piezas) {

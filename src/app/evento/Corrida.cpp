@@ -186,7 +186,7 @@ void Corrida::procesar(int64_t ahora, bool avanzar, std::vector<Accion>& acc) {
         const int i = indiceAlAire(z.salida);
         if (i < 0 || instancias_[static_cast<std::size_t>(i)].paso != z.paso || z.desdeMs > ahora) continue;
         if (!disparadas_.insert({static_cast<std::size_t>(i), z.pieza}).second) continue;
-        if (z.hastaMs <= ahora) {
+        if (z.terminadaEn(ahora)) {
             // Su momento ya pasó entero (un cue de un segundo con el programa trabado).
             anotar(ahora, "perdida", {{"salida", z.salida}, {"paso", z.paso}, {"pieza", z.pieza}});
             continue;
@@ -198,10 +198,10 @@ void Corrida::procesar(int64_t ahora, bool avanzar, std::vector<Accion>& acc) {
     // bloque, su duración); las que no conoce (del estante, repuestas al saltar)
     // viven lo suyo.
     for (auto it = vivas_.begin(); it != vivas_.end();) {
-        int64_t hasta = it->hastaMs;
+        bool sigue = it->hastaMs > ahora;
         for (const PiezaResuelta& z : r.piezas)
-            if (z.salida == it->salida && z.paso == it->paso && z.pieza == it->pieza) hasta = z.hastaMs;
-        if (hasta > ahora) {
+            if (z.salida == it->salida && z.paso == it->paso && z.pieza == it->pieza) sigue = !z.terminadaEn(ahora);
+        if (sigue) {
             ++it;
             continue;
         }

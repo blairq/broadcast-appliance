@@ -854,8 +854,9 @@ void testRetoma() {
           "vuelve en HOLD y pide qué está pasando");
     CHECK(rt.reponer.size() == 1 && rt.reponer[0].pieza.pieza == "zMus", "la música vuelve como estaba");
     CHECK(rt.sacar == std::vector<std::string>({"zZoc"}), "el zócalo que ya se fue no vuelve");
+    // p1 sigue al aire (pasado de tiempo, en HOLD): lo de su vida sigue activo.
     CHECK(rt.perdidas.size() == 1 && rt.perdidas[0].pieza.pieza == "zAsis" && rt.perdidas[0].accion == SiSePerdio::Preguntar &&
-              !rt.perdidas[0].sigueActiva,
+              rt.perdidas[0].sigueActiva,
           "la del asistente que tocaba durante el corte pregunta");
     const json& rs = rt.resumen;
     CHECK(rs["corte"]["seg"] == 80 && rs["pideDescripcion"] == true && rs["hold"] == true, "el resumen dice el corte");
@@ -876,6 +877,21 @@ void testRetoma() {
     CHECK(!pr(r, "p2").automatico, "con el HOLD puesto nada entra solo");
 }
 
+
+Linea lineaCorrida(); // la de la corrida (14.)
+
+// Un corte con el paso al aire pasado de tiempo: lo suyo vuelve, no se saca.
+void testRetomaPasadoDeTiempo() {
+    EstadoAire g;
+    g.escritoMs = T0 + 40 * S;
+    g.salidas = {{"principal", "p2", T0 + 30 * S, "p3", false}};
+    g.piezas = {{"zM", "principal", T0}, {"zE2", "principal", T0 + 30 * S}};
+    g.instancias = {{"principal", "p1", T0, T0 + 30 * S, ComoEntro::Go}, {"principal", "p2", T0 + 30 * S, 0, ComoEntro::Auto}};
+    const Retoma rt = retomarTrasCorte(lineaCorrida(), g, entrada(T0 + 90 * S));
+    CHECK(std::find(rt.sacar.begin(), rt.sacar.end(), "zE2") == rt.sacar.end(), "la escena del paso al aire no se saca");
+    CHECK(std::any_of(rt.reponer.begin(), rt.reponer.end(), [](const Reposicion& x) { return x.pieza.pieza == "zE2"; }),
+          "la escena del paso al aire vuelve");
+}
 
 // --- 11. La fachada del guion de cues (proyectar y reconciliar) ---------------------------
 
@@ -1151,6 +1167,8 @@ void testCorrida() {
     CHECK(c.instancias().size() == 2 && c.instancias()[0].hastaMs == T0 + 30 * S && c.instancias()[1].comoEntro == ComoEntro::Auto,
           "lo emitido, con cómo entró");
     CHECK(c.proximoMs(T0 + 30 * S) == -1, "p3 espera el GO: no hay timer");
+    acc = c.tick(T0 + 60 * S);
+    CHECK(!hay(acc, Accion::Que::Saca, "zE2"), "p2 pasado de tiempo esperando el GO: su escena sigue");
     acc = c.go("principal", T0 + 70 * S);
     CHECK(hay(acc, Accion::Que::EntraPaso, "p3") && c.alAire("principal")->paso == "p3", "GO");
     acc = c.go("principal", T0 + 80 * S);
@@ -1310,6 +1328,7 @@ int main() {
     testRevisar();
     testCargarEn();
     testRetoma();
+    testRetomaPasadoDeTiempo();
     testProyeccion();
     testEditar();
     testVistaYAjuste();
