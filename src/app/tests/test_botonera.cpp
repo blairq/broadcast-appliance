@@ -475,6 +475,24 @@ int main(int argc, char** argv) {
         std::string ps;
         CHECK(bs.crearPerfil({{"nombre", "Salidas"}, {"salida", "cam2"}}, "salidas", &ps).empty() && bs.perfil(ps)["salida"] == "cam2",
               "plantilla Salidas, con la salida del perfil");
+        // Plantilla «Línea de tiempo» (L8): GO, HOLD… y el feedback de linea/<su salida>/estado.
+        std::string pl;
+        CHECK(bs.crearPerfil({{"nombre", "Línea"}, {"salida", "cam2"}}, "linea", &pl).empty(), "plantilla Línea de tiempo");
+        {
+            bus.publicar("linea/cam2/estado", {{"estado", "corriendo"}, {"hold", true}, {"alAire", {{"paso", "p1"}, {"nombre", "Apertura"}}},
+                                               {"proximo", nullptr}, {"overUnderSeg", 42}});
+            const json pg = bs.perfil(pl)["paginas"][0];
+            const json cs = bs.celdas(pl, pg.value("id", std::string()));
+            bool go = false, aire = false, hold = false;
+            for (const json& c : cs) {
+                const json acc = c.value("accion", json::object());
+                go = go || acc.value("herramienta", std::string()) == "linea_go";
+                const json r = c.value("render", json::object());
+                aire = aire || r.value("texto", std::string()).find("Apertura") != std::string::npos;
+                hold = hold || (acc.value("herramienta", std::string()) == "linea_hold" && r.value("activo", false));
+            }
+            CHECK(go && aire && hold, "Línea: el GO, lo que está al aire y el HOLD prendido, de la salida del perfil");
+        }
         // Un aparato local guarda su salida aunque se vaya y vuelva (y tras reiniciar la app).
         bs.elegirSalida("d1", "cam2");
         bs.quitarLocal("d1");
