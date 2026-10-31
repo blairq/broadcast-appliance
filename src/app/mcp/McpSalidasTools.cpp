@@ -62,13 +62,9 @@ void McpService::registerSalidasTools() {
     StudioViewModel& vm = vm_;
     // Lo que el núcleo necesita para las herramientas de salida: qué salidas hay
     // (para validar `salida`, por id o nombre) y si una sale (la guarda de aire).
-    core_.setSalidas(
-        [&rt]() {
-            json l = json::array();
-            for (const auto& s : rt.engine().status().salidas)
-                l.push_back({{"id", s.id}, {"nombre", s.nombre}, {"por_omision", s.porOmision}});
-            return l;
-        },
+    // La lista, la que publica el reloj del motor (se lee desde cualquier hilo: el núcleo
+    // valida `salida` en el hilo de la herramienta, F3-03).
+    core_.setSalidas([&rt]() { return rt.salidasPublicadas(); },
         [&rt](const std::string& id) { return rt.engine().haySalidaEn(id); });
 
     const json idProp = {{"type", "string"},

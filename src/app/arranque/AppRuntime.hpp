@@ -336,6 +336,8 @@ class AppRuntime {
 
    private:
     void avisar(Cambio c) const;
+    /// La lista de salidas para otros hilos (salidasPublicadas).
+    void publicarSalidas(const EngineStatus& st);
     std::vector<std::pair<int, std::function<void(Cambio)>>> observadores_;
     int proximoObservador_ = 0;
     std::function<std::filesystem::path()> carpetaDelEvento_;

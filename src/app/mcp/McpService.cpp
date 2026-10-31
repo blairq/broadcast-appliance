@@ -62,6 +62,10 @@
 #include <fstream>
 
 #include "arranque/AppRuntime.hpp"
+#include "arranque/PlanoControl.hpp"
+#include "ajustes/Ajustes.hpp"
+#include <QThread>
+#include <QThreadPool>
 #include "arranque/AppSettings.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/RetornosInvitados.hpp"
@@ -804,7 +808,40 @@ void McpService::applySecurity() {
         });
 }
 
-McpService::~McpService() = default;
+McpService::~McpService() {
+    // El transporte vive en el hilo de control mientras el plano anda: si todavía está
+    // allá (el plano sigue), se borra allá (sus sockets son de ese hilo).
+    if (http_ && http_->thread() != QThread::currentThread() && plano_ != nullptr && plano_->andando()) {
+        McpHttp* h = http_.release();
+        QMetaObject::invokeMethod(h, [h]() { delete h; }, Qt::BlockingQueuedConnection);
+    }
+    if (pool_) pool_->waitForDone(5000);
+}
+
+void McpService::setPlano(PlanoControl& plano) {
+    plano_ = &plano;
+    pool_ = std::make_unique<QThreadPool>();
+    pool_->setMaxThreadCount(4);
+    pool_->setObjectName("mcp-foto");
+    McpCore::Ejecutores e;
+    e.interfaz = [&plano](McpCore::Tarea t) { plano.encolarEnDueno(std::move(t)); };
+    e.control = [&plano](McpCore::Tarea t) { plano.encolar(std::move(t)); };
+    e.foto = [p = pool_.get()](McpCore::Tarea t) { p->start(std::move(t)); };
+    e.despues = [&plano](int ms, McpCore::Tarea t) { plano.despues(ms, std::move(t)); };
+    e.enInterfaz = [&plano]() { return plano.enDueno(); };
+    e.enControl = [&plano]() { return plano.enControl(); };
+    e.topeInterfazMs = ba::ajustes::entero("mcp.topeInterfazMs", 5000);
+    core_.setEjecutores(std::move(e));
+    // Lo que se sabe sin la interfaz, para contestar cuando está ocupada: el documento de
+    // aire (qué sale de cada salida, el negro, la placa, la línea), el latido y el plano.
+    core_.setFotoDeEmergencia([this]() {
+        const salidas::AlAire a = rt_.documentoAire().foto();
+        return json{{"aire", salidas::aJson(a)},
+                    {"hay_aire", rt_.documentoAire().hayAire()},
+                    {"latido", rt_.latido().estado()},
+                    {"plano", plano_ != nullptr ? plano_->estado() : json()}};
+    });
+}
 
 bool McpService::start(quint16 port) {
     // La traza completa arranca con el servidor: lo que pase antes no existe
@@ -816,7 +853,21 @@ bool McpService::start(quint16 port) {
     const QString token = vm_.seguridad().rotarTokenMcp() ? rotarToken(cred) : loadOrCreateToken(cred);
     if (token.isEmpty()) return false;
     http_ = std::make_unique<McpHttp>(core_, token);
-    if (!http_->listen(port)) {
+    bool escucha = false;
+    if (plano_ != nullptr && plano_->andando()) {
+        // Al hilo de control: con la interfaz trabada, el servidor sigue contestando. El
+        // puerto se abre allá (los sockets son del hilo del servidor).
+        // Adoptado: al detener el plano vuelve a este hilo y se borra acá, sin carreras.
+        plano_->adoptar(http_.get());
+        QMetaObject::invokeMethod(http_.get(), [&]() { escucha = http_->listen(port); }, Qt::BlockingQueuedConnection);
+    } else {
+        escucha = http_->listen(port);
+    }
+    if (!escucha) {
+        if (http_->thread() != QThread::currentThread()) {
+            McpHttp* h = http_.release();
+            QMetaObject::invokeMethod(h, [h]() { delete h; }, Qt::BlockingQueuedConnection);
+        }
         http_.reset();
         return false;
     }

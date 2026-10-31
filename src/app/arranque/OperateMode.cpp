@@ -795,14 +795,18 @@ void AppRuntime::ticMotor() {
         writeOnAirState();
         // La GPU del video se perdió (F3-09): el motor no se rearma solo, lo rearma la app.
         if (ba::motor::gpuPerdida()) rearmarPorGpu();
-        // Qué salidas hay, para quien las pida desde otro hilo (el MCP en el plano de
-        // control valida `salida` con esto, sin tocar el motor).
-        nlohmann::json l = nlohmann::json::array();
-        for (const auto& s : st.salidas) l.push_back({{"id", s.id}, {"nombre", s.nombre}, {"por_omision", s.porOmision}});
-        std::lock_guard<std::mutex> g(salidasMu_);
-        salidasPublicadas_ = std::move(l);
+        publicarSalidas(st);
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
+}
+
+void AppRuntime::publicarSalidas(const EngineStatus& st) {
+    // Qué salidas hay, para quien las pida desde otro hilo (el MCP valida `salida` con
+    // esto en el hilo de la herramienta, sin tocar el motor).
+    nlohmann::json l = nlohmann::json::array();
+    for (const auto& s : st.salidas) l.push_back({{"id", s.id}, {"nombre", s.nombre}, {"por_omision", s.porOmision}});
+    std::lock_guard<std::mutex> g(salidasMu_);
+    salidasPublicadas_ = std::move(l);
 }
 
 nlohmann::json AppRuntime::salidasPublicadas() const {
@@ -1778,6 +1782,7 @@ std::string AppRuntime::crearSalida(const std::string& id, const std::string& no
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
                                ba::i18n::llenar(ba::i18n::traducir("salidas", "salida nueva: «%1»"), {id}));
     writeOnAirState();
+    publicarSalidas(engine_.status());
     avisar(Cambio::Salidas);
     return {};
 }
@@ -1786,6 +1791,7 @@ std::string AppRuntime::editarSalida(const std::string& id, const nlohmann::json
     salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
     if (std::string e = salidas::editar(l, id, cambios); !e.empty()) return e;
     config::guardar(archivoSalidas(), salidas::aJson(l));
+    publicarSalidas(engine_.status());
     avisar(Cambio::Salidas);
     return {};
 }
@@ -1800,6 +1806,7 @@ std::string AppRuntime::borrarSalida(const std::string& id) {
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
                                ba::i18n::llenar(ba::i18n::traducir("salidas", "salida borrada: «%1»"), {id}));
     writeOnAirState();
+    publicarSalidas(engine_.status());
     avisar(Cambio::Salidas);
     return {};
 }

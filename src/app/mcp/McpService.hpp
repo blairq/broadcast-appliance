@@ -29,9 +29,11 @@
 #include "mcp/McpCore.hpp"
 
 class QQuickWindow;
+class QThreadPool;
 
 namespace ba::app {
 class AppRuntime;
+class PlanoControl;
 class StudioViewModel;
 class PropertiesModel;
 class SettingsModel;
@@ -49,6 +51,10 @@ class McpService : public QObject {
 
     /// Ventana principal (capturas y navegacion). Antes de start().
     void setMainWindow(std::function<QQuickWindow*()> fn) { mainWindow_ = std::move(fn); }
+    /// El plano de control (F3-03): el transporte vive en su hilo y cada herramienta
+    /// corre donde declara (McpCore::Ejecutores). Antes de start(). Sin él, todo en el
+    /// hilo de la interfaz, como antes.
+    void setPlano(PlanoControl& plano);
     /// :param port: 0 = efimero. :returns: false si no pudo escuchar.
     bool start(quint16 port);
     quint16 port() const;
@@ -121,6 +127,8 @@ class McpService : public QObject {
     StudioViewModel& vm_;
     McpCore core_;
     std::unique_ptr<McpHttp> http_;
+    PlanoControl* plano_ = nullptr;
+    std::unique_ptr<QThreadPool> pool_; ///< las herramientas de la foto (Hilo::Foto)
     std::unique_ptr<PropertiesModel> props_;  ///< propio: no toca el panel de la vista
     std::unique_ptr<SettingsModel> settings_; ///< propio: borrador independiente
     std::function<QQuickWindow*()> mainWindow_;

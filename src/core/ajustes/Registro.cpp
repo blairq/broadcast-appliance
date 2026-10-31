@@ -177,6 +177,7 @@ const std::vector<Definicion>& registro() {
         {"agentes.historial", "Asistente (MCP)", QT_TRANSLATE_NOOP("ajustes", "Encargos de agentes: historial"), "int", {}, 10, 10000, "", "", "live", json(200), Destino::App},
         {"mcp.imagenTimeoutS", "Asistente (MCP)", QT_TRANSLATE_NOOP("ajustes", "Generar una imagen: espera"), "int", {}, 5, 600, "s", "", "live", json(45), Destino::App},
         {"mcp.trazaMB", "Asistente (MCP)", QT_TRANSLATE_NOOP("ajustes", "Traza del MCP: tope"), "int", {}, 1, 1024, "MB", "", "live", json(8), Destino::App},
+        {"mcp.topeInterfazMs", "Asistente (MCP)", QT_TRANSLATE_NOOP("ajustes", "Con la interfaz ocupada, contestar «ocupada» a los"), "int", {}, 500, 60000, "ms", "", "restart", json(5000), Destino::App},
         {"modelo.maxTokens", "Modelos locales", QT_TRANSLATE_NOOP("ajustes", "Respuesta más larga"), "int", {}, 256, 32768, QT_TRANSLATE_NOOP("ajustes", "tokens"), "", "live", json(4096), Destino::App},
         {"modelo.temperatura", "Modelos locales", QT_TRANSLATE_NOOP("ajustes", "Temperatura"), "float", {}, 0, 2, "", QT_TRANSLATE_NOOP("ajustes", "Más alta, respuestas más variadas; más baja, más previsibles."), "live", json(0.7), Destino::App},
         {"modelo.penalidadRepeticion", "Modelos locales", QT_TRANSLATE_NOOP("ajustes", "Penalidad por repetir"), "float", {}, 0, 3, "", QT_TRANSLATE_NOOP("ajustes", "Ayuda a que no repita la misma llamada en un bucle."), "live", json(1.5), Destino::App},

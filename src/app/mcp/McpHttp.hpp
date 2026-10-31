@@ -27,6 +27,9 @@
 #include <QSet>
 #include <QString>
 
+#include <atomic>
+#include <mutex>
+
 class QTcpServer;
 class QTcpSocket;
 
@@ -42,10 +45,11 @@ class McpHttp : public QObject {
 
     /// :param port: 0 = efimero (tests).
     bool listen(quint16 port);
-    quint16 port() const;
-    const QString& token() const { return token_; }
+    quint16 port() const { return puerto_.load(); }
+    /// Desde cualquier hilo (el servidor vive en el del plano de control).
+    QString token() const;
     /// Cambia el token en caliente (mcp_token_rotar). El puente ba-mcp lo relee en cada pedido.
-    void setToken(const QString& t) { token_ = t; }
+    void setToken(const QString& t);
 
    private:
     void onConnection();
@@ -54,7 +58,9 @@ class McpHttp : public QObject {
                  const QByteArray& extraHeaders = {});
 
     McpCore& core_;
+    mutable std::mutex tokenMu_;
     QString token_;
+    std::atomic<quint16> puerto_{0};
     QTcpServer* server_ = nullptr;
     QHash<QTcpSocket*, QByteArray> buf_;
     QSet<QString> sessions_;

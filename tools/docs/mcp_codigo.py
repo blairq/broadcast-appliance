@@ -876,8 +876,10 @@ def _como_addtool(d):
         d["errores"].setdefault("clase", "sin declarar (t.clase = Clase::…)")
         d["clase"] = "lectura" if d["soloLectura"] else "escritura"
     d["soloLectura"] = d["clase"] == "lectura"
-    if d["hilo"] is None:
-        d["hilo"] = {"lectura": "foto", "ui": "interfaz"}.get(d["clase"], "control")
+    # Lo de fábrica es la interfaz (F3-03, ver Hilo en McpCore.hpp): foto o control solo
+    # lo que lo declara.
+    if d["hilo"] is None or d["hilo"] == "segun_clase":
+        d["hilo"] = "interfaz"
     if d["porSalida"] and isinstance(d["esquema"], dict):
         props = d["esquema"].setdefault("properties", {})
         if isinstance(props, dict) and "salida" not in props:

@@ -27,16 +27,27 @@
 // con isError=true y un texto que explica que paso y como seguir (el modelo
 // puede corregirse solo). Los errores de protocolo, como error JSON-RPC.
 //
-// Threading: no es thread-safe; todo se llama desde el thread de la app (el
-// transporte y las herramientas viven en el mismo event loop). Las
-// herramientas pueden terminar DESPUES (asincronas): llaman `done` cuando
-// tienen el resultado.
+// Threading (F3-03): seguro entre hilos. El transporte HTTP vive en el hilo del
+// plano de control (arranque/PlanoControl): con la interfaz trabada, el servidor
+// sigue contestando. Cada herramienta corre en el hilo que DECLARA (Tool::hilo,
+// ver Ejecutores): la de la interfaz, en la interfaz y con tope (si no la toma a
+// tiempo, se contesta «ocupada» y NO se hace después); la de control, en la cola
+// del control; la de la foto, en el pool. La validación, las guardas y la
+// aprobación corren en el hilo de la herramienta (así leen lo que ella lee); la
+// tarjeta de aprobación y el guardado posterior, en la interfaz. `done` vuelve en el
+// hilo del que llamó. Sin ejecutores (los tests, la consola), todo en el acto, como
+// antes. Las herramientas pueden terminar DESPUES (asincronas): llaman `done`
+// cuando tienen el resultado.
 // ============================================================================
 #pragma once
 
 #include <memory>
 
 #include "mcp/McpIndice.hpp"
+
+#include <atomic>
+#include <deque>
+#include <mutex>
 
 #include <cstdint>
 #include <functional>
@@ -91,14 +102,19 @@ enum class Clase {
     Aire,        ///< puede cambiar lo que sale: ver porQueAire, aireSi y McpAire
     Ui,          ///< mueve la interfaz del operador (páginas, ventanas, avisos)
 };
-/// En qué hilo corre. Hoy el despacho corre todas en el hilo de la app; F3-03
-/// despacha por esto (la lectura sobre la foto en el pool, la escritura y el aire
-/// en la cola del control, la ui en el hilo de la interfaz).
+/// En qué hilo corre (F3-03: el despacho lo respeta, ver McpCore::Ejecutores).
+///
+/// POR QUE LA INTERFAZ ES LO DE FÁBRICA. La clase dice qué hace una herramienta, no
+/// qué toca para hacerlo: casi todas leen o mueven objetos de la interfaz o el motor
+/// (que todavía es del hilo de la interfaz), y correrlas en otro hilo sería una
+/// carrera. Así que corren en la interfaz (con tope) hasta que cada una declare otro
+/// hilo, y lo declara la que lee SOLO cosas seguras entre hilos (el registro, las
+/// alarmas, el documento de aire, las métricas, los archivos).
 enum class Hilo {
-    SegunClase, ///< addTool lo deduce: lectura→foto, escritura/aire→control, ui→interfaz
-    Interfaz,   ///< toca objetos de la interfaz (QML, ventanas, capturas de la vista)
-    Control,
-    Foto,
+    SegunClase, ///< addTool lo resuelve: la interfaz (ver arriba)
+    Interfaz,   ///< toca objetos de la interfaz o del motor; con tope si llama otro hilo
+    Control,    ///< la cola del plano de control (en orden; no espera a la interfaz)
+    Foto,       ///< solo lee cosas seguras entre hilos: un hilo del pool
 };
 /// "lectura" | "escritura" | "aire" | "ui" (los nombres de mcp.json; no se traducen).
 const char* nombreClase(Clase c);
@@ -300,13 +316,13 @@ class McpCore {
     /// de nadie: TODA herramienta que no sea de solo lectura refresca las
     /// vistas, y una superficie nueva la hereda sin hacer nada.
     void setSincronizador(std::function<void()> fn) { sincronizar_ = std::move(fn); }
-    void setApprovalPolicy(ApprovalPolicy p) { policy_ = p; }
+    void setApprovalPolicy(ApprovalPolicy p) { policy_.store(p); }
     /// Modo prueba (`ba-app --test` / `--debug`): NADA espera aprobación de una persona
     /// (ni la de contenido no confiable ni la guarda de aire). Cada acción que la
     /// habría pedido queda en el registro. Solo por línea de comandos; no se guarda.
     void setSinAprobaciones(bool on) { sinAprobaciones_ = on; }
     bool sinAprobaciones() const { return sinAprobaciones_; }
-    ApprovalPolicy approvalPolicy() const { return policy_; }
+    ApprovalPolicy approvalPolicy() const { return policy_.load(); }
     /// Marca la sesion como contaminada (p. ej. al leer un recurso de la sala).
     void taint(const std::string& session, const std::string& source);
 
@@ -347,9 +363,13 @@ class McpCore {
     /// Lo usa el selector de la Botonera (que busca igual que el asistente).
     json buscarHerramientas(const std::string& query, std::size_t tope = 80) const;
 
-    const std::vector<Tool>& tools() const { return tools_; }
+    /// El registro. Una deque: lo que se registra después del arranque (las extensiones)
+    /// no mueve a las demás, y un puntero de findTool sigue valiendo. Recorrerla desde
+    /// afuera, solo en el hilo que registra (la interfaz).
+    const std::deque<Tool>& tools() const { return tools_; }
     /// (id, titulo) de cada categoria, en orden.
     std::vector<std::pair<std::string, std::string>> categoryTitles() const {
+        const std::lock_guard<std::recursive_mutex> registro(registroMu_);
         std::vector<std::pair<std::string, std::string>> out;
         for (const auto& c : categories_)
             out.emplace_back(c.id, c.title);
@@ -368,6 +388,7 @@ class McpCore {
     json catalogo() const;
     /// Para ajustar herramientas ya registradas (marcas de seguridad).
     void forEachTool(const std::function<void(Tool&)>& fn) {
+        const std::lock_guard<std::recursive_mutex> registro(registroMu_);
         for (Tool& t : tools_)
             fn(t);
     }
@@ -397,9 +418,29 @@ class McpCore {
 
     /// El contexto de la llamada en curso: para herramientas que necesitan
     /// saber QUIEN las llama (agente_encargar cuenta la profundidad por rol).
-    /// Vale solo mientras `run` no devolvio; una herramienta asincrona lo lee
-    /// a la entrada y se lo guarda.
-    const CallContext& contextoEnCurso() const { return enCurso_; }
+    /// Vale solo mientras `run` no devolvio, en el hilo en que corre; una herramienta
+    /// asincrona lo lee a la entrada y se lo guarda.
+    const CallContext& contextoEnCurso() const;
+
+    /// --- Dónde corre cada cosa (F3-03) -----------------------------------------
+    using Tarea = std::function<void()>;
+    struct Ejecutores {
+        std::function<void(Tarea)> interfaz;          ///< encola en el hilo de la interfaz
+        std::function<void(Tarea)> control;           ///< encola en el hilo de control
+        std::function<void(Tarea)> foto;              ///< a un hilo del pool
+        std::function<void(int ms, Tarea)> despues;   ///< en el hilo de control, dentro de `ms`
+        std::function<bool()> enInterfaz;             ///< ¿el que llama es el hilo de la interfaz?
+        std::function<bool()> enControl;              ///< ¿y el de control?
+        /// Cuánto se espera a que la interfaz tome algo pedido desde otro hilo. Pasado,
+        /// se contesta que está ocupada y lo pedido no se hace (nunca tarde).
+        int topeInterfazMs = 5000;
+    };
+    void setEjecutores(Ejecutores e);
+    /// Lo que se manda junto con «la interfaz está ocupada» (structuredContent.foto): lo
+    /// que se sabe sin ella (el documento de aire, el latido). Desde cualquier hilo.
+    void setFotoDeEmergencia(std::function<json()> f) { fotoEmergencia_ = std::move(f); }
+    /// Cuántas veces la interfaz no tomó algo a tiempo (también ba_mcp_interfaz_ocupada_total).
+    std::uint64_t vencidas() const { return vencidas_.load(); }
 
     /// Valida `args` contra el esquema (requeridos, tipos, enums, rangos).
     /// :returns: vacio si esta bien, o el problema explicado.
@@ -416,6 +457,20 @@ class McpCore {
 
    private:
     void handleOne(const json& msg, std::function<void(json)> reply, const CallContext& ctx);
+    /// callTool desde que se sabe qué herramienta es: en el hilo de ella.
+    void procesar(const Tool* tool, const std::string& name, const json& args, std::function<void(json)> done,
+                  const CallContext& ctx);
+    /// Dónde está el que llama (para devolverle `done` ahí).
+    enum class Lugar { Otro, Interfaz, Control };
+    Lugar lugarActual() const;
+    /// `done` en el hilo `donde` (en el acto si ya está ahí o no hay ejecutores).
+    void volverA(Lugar donde, Tarea t) const;
+    /// Corre `fn` en el hilo `h`; `vencio` si la interfaz no la tomó a tiempo.
+    void correrEn(Hilo h, Tarea fn, Tarea vencio);
+    /// En la interfaz con tope: `fn` solo si la toma antes del tope; si no, `vencio`.
+    void enInterfazConTope(Tarea fn, Tarea vencio);
+    /// El resultado de «la interfaz está ocupada» para `que`.
+    json ocupada(const std::string& que) const;
     json initializeResult(const json& params, const CallContext& ctx) const;
     json toolListEntry(const Tool& t) const;
     json resourceList() const;
@@ -428,7 +483,17 @@ class McpCore {
     std::string version_ = "1.0";
     std::string instructions_;
     std::vector<Category> categories_;
-    std::vector<Tool> tools_;
+    std::deque<Tool> tools_;
+    /// El registro (herramientas, categorías, temas, recursos, prompts, roles): lo
+    /// escribe la interfaz al registrar y lo leen todos los hilos. Recursivo: las
+    /// lecturas se llaman entre sí (search → permitida).
+    mutable std::recursive_mutex registroMu_;
+    /// La salvaguarda y los clientes (taint_, clientes_, intake_).
+    mutable std::mutex estadoMu_;
+    Ejecutores ej_;
+    bool conEjecutores_ = false;
+    std::function<json()> fotoEmergencia_;
+    std::atomic<std::uint64_t> vencidas_{0};
     std::vector<HelpTopic> topics_;
     /// El indice de busqueda: se arma solo la primera vez que se busca, y de
     /// nuevo si aparecieron herramientas (las extensiones se registran
@@ -445,8 +510,8 @@ class McpCore {
     std::function<bool(const std::string&)> salidaSale_;
     McpAire aire_{*this};
     std::function<void()> sincronizar_;
-    ApprovalPolicy policy_ = ApprovalPolicy::Untrusted;
-    bool sinAprobaciones_ = false;
+    std::atomic<ApprovalPolicy> policy_{ApprovalPolicy::Untrusted};
+    std::atomic<bool> sinAprobaciones_{false};
     struct Taint {
         std::string source;
         std::int64_t atMs = 0;
@@ -462,7 +527,6 @@ class McpCore {
     std::function<bool(const std::string&, const nlohmann::json&)> intakeMatch_;
     std::map<std::string, std::set<std::string>> roles_;
     std::set<std::string> comunes_;
-    CallContext enCurso_;
 };
 
 } // namespace ba::app::mcp

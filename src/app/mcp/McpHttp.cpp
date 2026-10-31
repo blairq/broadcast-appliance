@@ -90,9 +90,21 @@ McpHttp::McpHttp(McpCore& core, QString token, QObject* parent)
 
 McpHttp::~McpHttp() = default;
 
-bool McpHttp::listen(quint16 port) { return server_->listen(QHostAddress::LocalHost, port); }
+bool McpHttp::listen(quint16 port) {
+    const bool ok = server_->listen(QHostAddress::LocalHost, port);
+    puerto_.store(ok ? server_->serverPort() : 0);
+    return ok;
+}
 
-quint16 McpHttp::port() const { return server_->serverPort(); }
+QString McpHttp::token() const {
+    const std::lock_guard<std::mutex> l(tokenMu_);
+    return token_;
+}
+
+void McpHttp::setToken(const QString& t) {
+    const std::lock_guard<std::mutex> l(tokenMu_);
+    token_ = t;
+}
 
 void McpHttp::onConnection() {
     while (QTcpSocket* s = server_->nextPendingConnection()) {
@@ -160,7 +172,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
         return;
     }
     const QByteArray auth = headerValue(headers, "Authorization");
-    if (!auth.startsWith("Bearer ") || !constantTimeEquals(auth.mid(7).trimmed(), token_.toUtf8())) {
+    if (!auth.startsWith("Bearer ") || !constantTimeEquals(auth.mid(7).trimmed(), token().toUtf8())) {
         respond(
             s, 401, "application/json",
             R"x({"error":"token invalido: usa Authorization: Bearer <token> (bin/64bit/ba-mcp --token lo muestra)"})x",

@@ -101,6 +101,8 @@ McpCore::McpCore() {
     help.title = ba::i18n::traducir("mcp", "Ayuda del appliance");
     help.category = "ayuda";
     help.clase = Clase::Lectura;
+    // Solo lee el registro (seguro entre hilos): en el pool, aunque la interfaz no ande.
+    help.hilo = Hilo::Foto;
     help.idempotent = true;
     help.description =
         ba::i18n::traducir("mcp", "Sistema de ayuda. Sin argumentos: guia general, flujos de trabajo y catalogo completo de "
@@ -142,6 +144,7 @@ McpCore::McpCore() {
     sec.title = ba::i18n::traducir("mcp", "Salvaguarda de esta sesion");
     sec.category = "ayuda";
     sec.clase = Clase::Lectura;
+    sec.hilo = Hilo::Foto;
     sec.description =
         ba::i18n::traducir("mcp", "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
         "video). Si lo leyo, toda accion que modifica algo espera que el operador la apruebe con un "
@@ -156,6 +159,7 @@ McpCore::McpCore() {
     search.title = ba::i18n::traducir("mcp", "Buscar en la ayuda");
     search.category = "ayuda";
     search.clase = Clase::Lectura;
+    search.hilo = Hilo::Foto;
     search.idempotent = true;
     search.description =
         ba::i18n::traducir("mcp", "Busca por palabras en todas las herramientas y temas de ayuda (tolera tildes). Devuelve "
@@ -167,7 +171,7 @@ McpCore::McpCore() {
     search.examples = {R"({"query": "poner un texto en pantalla"})",
                        R"({"query": "ver la camara de un invitado"})"};
     search.run = [this](const json& a, Done done) {
-        const json hits = this->search(a.value("query", ""), enCurso_.rol);
+        const json hits = this->search(a.value("query", ""), contextoEnCurso().rol);
         if (hits.empty()) {
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Sin coincidencias. Proba con otras palabras o llama `help` para ver todo.")));
             return;
@@ -196,12 +200,14 @@ McpCore::McpCore() {
 }
 
 void McpCore::addInstructions(const std::string& mas) {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     if (mas.empty()) return;
     if (!instructions_.empty()) instructions_ += "\n";
     instructions_ += mas;
 }
 
 std::string McpCore::mapaDeCategorias(const std::string& rol) const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     std::map<std::string, int> cuantas;
     for (const Tool& t : tools_)
         if (permitida(t, rol)) ++cuantas[t.category];
@@ -227,12 +233,14 @@ std::string McpCore::mapaDeCategorias(const std::string& rol) const {
 }
 
 void McpCore::setServerInfo(std::string name, std::string version, std::string instructions) {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     name_ = std::move(name);
     version_ = std::move(version);
     instructions_ = std::move(instructions);
 }
 
 json McpCore::catalogo() const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     json out = json::array();
     std::map<std::string, std::size_t> donde;
     for (const auto& c : categories_) {
@@ -276,10 +284,12 @@ json McpCore::catalogo() const {
 }
 
 void McpCore::addCategory(const std::string& id, const std::string& title, const std::string& summary) {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     categories_.push_back(Category{id, title, summary});
 }
 
 void McpCore::verificarJuegos() const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     // AVISA SI UN JUEGO NOMBRA UNA CATEGORIA QUE NO EXISTE. Este error es mudo:
     // la categoria inventada no rompe nada, simplemente esas herramientas
     // dejan de existir para ese rol. Paso de verdad —«media» por «medios»,
@@ -328,11 +338,13 @@ void McpCore::verificarJuegos() const {
 
 void McpCore::setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol,
                        std::set<std::string> comunes) {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     roles_ = std::move(categoriasPorRol);
     comunes_ = std::move(comunes);
 }
 
 bool McpCore::permitida(const Tool& t, const std::string& rol) const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     if (rol.empty()) return true;
     if (comunes_.count(t.category) != 0) return true;
     const auto it = roles_.find(rol);
@@ -366,8 +378,8 @@ void McpCore::addTool(Tool tool) {
     // prueba): se deduce de readOnly, como era antes del registro declarativo.
     if (tool.clase == Clase::SinDeclarar) tool.clase = tool.readOnly ? Clase::Lectura : Clase::Escritura;
     tool.readOnly = tool.clase == Clase::Lectura;
-    if (tool.hilo == Hilo::SegunClase)
-        tool.hilo = tool.clase == Clase::Lectura ? Hilo::Foto : tool.clase == Clase::Ui ? Hilo::Interfaz : Hilo::Control;
+    // Lo de fábrica es la interfaz: ver Hilo en McpCore.hpp (por qué no se deduce de la clase).
+    if (tool.hilo == Hilo::SegunClase) tool.hilo = Hilo::Interfaz;
     // Una de aire sin motivo deja a mcp_aire_lista diciendo nada; la prueba del
     // inventario no la deja pasar, pero se avisa igual (una armada en ejecución).
     if (tool.clase == Clase::Aire && tool.porQueAire == nullptr)
@@ -386,6 +398,7 @@ void McpCore::addTool(Tool tool) {
                 {"description", ba::i18n::traducir("mcp", "Salida (id o nombre; `salidas_listar`). Sin ella, la por "
                                                           "omisión (o la de quien llama).")}};
     }
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     tools_.push_back(std::move(tool));
 }
 
@@ -416,15 +429,33 @@ std::string McpCore::resolverSalida(const std::string& pedida, std::string& err)
     return {};
 }
 
+namespace {
+/// Quién llama, POR HILO: con el despacho por hilo (F3-03) pueden estar corriendo a
+/// la vez una herramienta en la interfaz, otra en el control y otra en el pool.
+thread_local CallContext t_enCurso;
+} // namespace
+
+const CallContext& McpCore::contextoEnCurso() const { return t_enCurso; }
+
 std::string McpCore::salidaDe(const json& args) const {
     std::string err;
-    return resolverSalida(salidaPedida(args, enCurso_), err);
+    return resolverSalida(salidaPedida(args, t_enCurso), err);
 }
-void McpCore::addTopic(HelpTopic topic) { topics_.push_back(std::move(topic)); }
-void McpCore::addResource(Resource resource) { resources_.push_back(std::move(resource)); }
-void McpCore::addPrompt(Prompt prompt) { prompts_.push_back(std::move(prompt)); }
+void McpCore::addTopic(HelpTopic topic) {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
+    topics_.push_back(std::move(topic));
+}
+void McpCore::addResource(Resource resource) {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
+    resources_.push_back(std::move(resource));
+}
+void McpCore::addPrompt(Prompt prompt) {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
+    prompts_.push_back(std::move(prompt));
+}
 
 const Tool* McpCore::findTool(const std::string& name) const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     for (const Tool& t : tools_)
         if (t.name == name) return &t;
     for (const Tool& t : tools_)
@@ -438,6 +469,7 @@ std::string McpCore::nombreActual(const std::string& name) const {
 }
 
 bool McpCore::agregarNombreAnterior(const std::string& actual, const std::string& viejo) {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     for (Tool& t : tools_) {
         if (t.name != actual) continue;
         if (std::find(t.antes.begin(), t.antes.end(), viejo) == t.antes.end()) t.antes.push_back(viejo);
@@ -521,6 +553,7 @@ void McpCore::handle(const json& message, std::function<void(json)> reply, const
         }
         // Lote: se junta cada respuesta (pueden llegar en otro orden/momento).
         struct Batch {
+            std::mutex mu; // las respuestas pueden llegar de hilos distintos
             json out = json::array();
             size_t pending = 0;
             std::function<void(json)> reply;
@@ -532,8 +565,14 @@ void McpCore::handle(const json& message, std::function<void(json)> reply, const
             handleOne(
                 m,
                 [batch](json r) {
-                    if (!r.is_null()) batch->out.push_back(std::move(r));
-                    if (--batch->pending == 0) batch->reply(batch->out.empty() ? json() : batch->out);
+                    json todas;
+                    {
+                        const std::lock_guard<std::mutex> l(batch->mu);
+                        if (!r.is_null()) batch->out.push_back(std::move(r));
+                        if (--batch->pending != 0) return;
+                        todas = batch->out.empty() ? json() : batch->out;
+                    }
+                    batch->reply(std::move(todas));
                 },
                 ctx);
         }
@@ -542,11 +581,18 @@ void McpCore::handle(const json& message, std::function<void(json)> reply, const
     handleOne(message, std::move(reply), ctx);
 }
 
-void McpCore::startIntake(const std::string& id, const std::string& name) { intake_[id] = name; }
+void McpCore::startIntake(const std::string& id, const std::string& name) {
+    const std::lock_guard<std::mutex> l(estadoMu_);
+    intake_[id] = name;
+}
 
-void McpCore::endIntake(const std::string& id) { intake_.erase(id); }
+void McpCore::endIntake(const std::string& id) {
+    const std::lock_guard<std::mutex> l(estadoMu_);
+    intake_.erase(id);
+}
 
 std::vector<std::string> McpCore::intakes() const {
+    const std::lock_guard<std::mutex> l(estadoMu_);
     std::vector<std::string> out;
     for (const auto& [id, name] : intake_)
         out.push_back(id);
@@ -554,7 +600,12 @@ std::vector<std::string> McpCore::intakes() const {
 }
 
 bool McpCore::intakeAllows(const Tool& t, const nlohmann::json& args) const {
-    if (intake_.empty()) return false;
+    std::map<std::string, std::string> intake;
+    {
+        const std::lock_guard<std::mutex> l(estadoMu_);
+        intake = intake_;
+    }
+    if (intake.empty()) return false;
     // Solo lo que hace falta para atender a alguien del lobby.
     static const std::set<std::string> kIntakeTools{"chat_send", "participant_profile", "participant_admit",
                                                     "participant_talk"};
@@ -566,13 +617,14 @@ bool McpCore::intakeAllows(const Tool& t, const nlohmann::json& args) const {
     for (const auto& [key, v] : args.items()) {
         if (!v.is_string()) continue;
         const std::string val = v.get<std::string>();
-        for (const auto& [id, name] : intake_)
+        for (const auto& [id, name] : intake)
             if (val == id || val == name) return true;
     }
     return false;
 }
 
 void McpCore::taint(const std::string& session, const std::string& source) {
+    const std::lock_guard<std::mutex> l(estadoMu_);
     if (taint_.count(session)) return; // se recuerda lo primero que la contamino
     taint_[session] =
         Taint{source, static_cast<std::int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -580,9 +632,13 @@ void McpCore::taint(const std::string& session, const std::string& source) {
                                                     .count())};
 }
 
-bool McpCore::tainted(const std::string& session) const { return taint_.count(session) != 0; }
+bool McpCore::tainted(const std::string& session) const {
+    const std::lock_guard<std::mutex> l(estadoMu_);
+    return taint_.count(session) != 0;
+}
 
 json McpCore::taintInfo(const std::string& session) const {
+    const std::lock_guard<std::mutex> l(estadoMu_);
     const auto it = taint_.find(session);
     if (it == taint_.end()) return {{"session", session}, {"tainted", false}};
     return {
@@ -640,7 +696,10 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
             if (ci.is_object() && ci.contains("name")) {
                 std::string quien = ci.value("name", std::string("?"));
                 if (ci.contains("version") && ci["version"].is_string()) quien += " " + ci["version"].get<std::string>();
-                clientes_[ctx.session] = quien;
+                {
+                    const std::lock_guard<std::mutex> l(estadoMu_);
+                    clientes_[ctx.session] = quien;
+                }
                 // Con rol y sesión, con uno solo o con ninguno: cada frase entera.
                 const std::string ses = ctx.session.empty() ? std::string() : ctx.session.substr(0, 8);
                 const std::string texto =
@@ -659,8 +718,11 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
             reply(rpcResult(id, json::object()));
         } else if (method == "tools/list") {
             json list = json::array();
-            for (const Tool& t : tools_)
-                if (permitida(t, ctx.rol)) list.push_back(toolListEntry(t));
+            {
+                const std::lock_guard<std::recursive_mutex> registro(registroMu_);
+                for (const Tool& t : tools_)
+                    if (permitida(t, ctx.rol)) list.push_back(toolListEntry(t));
+            }
             reply(rpcResult(id, json{{"tools", list}}));
         } else if (method == "tools/call") {
             if (!params.contains("name") || !params["name"].is_string()) {
@@ -679,17 +741,27 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
                                                         {"name", "Ficha de una herramienta"},
                                                         {"mimeType", "text/markdown"}}})}}));
         } else if (method == "resources/read") {
-            std::string err;
-            const json r = readResource(params.value("uri", ""), err);
-            // El estado de la sala trae nombres/datos escritos por invitados.
-            if (params.value("uri", "") == "ba://sala") taint(ctx.session, "ba://sala");
-            if (!err.empty()) {
-                reply(rpcError(id, -32002, err));
-                return;
-            }
-            reply(rpcResult(id, r));
+            const std::string uri = params.value("uri", "");
+            const Lugar origen = lugarActual();
+            auto leer = [this, uri, id, reply, ctx, origen]() {
+                std::string err;
+                const json r = readResource(uri, err);
+                // El estado de la sala trae nombres/datos escritos por invitados.
+                if (uri == "ba://sala") taint(ctx.session, "ba://sala");
+                json out = err.empty() ? rpcResult(id, r) : rpcError(id, -32002, err);
+                volverA(origen, [reply, out = std::move(out)]() { reply(out); });
+            };
+            // La ayuda sale del registro (se lee desde cualquier hilo); los demás recursos
+            // leen la sala y la app: en la interfaz, con tope.
+            if (uri.rfind("ba://ayuda/", 0) == 0)
+                leer();
+            else
+                correrEn(Hilo::Interfaz, std::move(leer), [this, id, reply, uri]() {
+                    reply(rpcError(id, -32002, ba::i18n::llenar(ba::i18n::traducir("mcp", "la interfaz está ocupada: no se pudo leer %1 (reintentá en un rato)"), {uri})));
+                });
         } else if (method == "prompts/list") {
             json list = json::array();
+            const std::lock_guard<std::recursive_mutex> registro(registroMu_);
             for (const Prompt& p : prompts_) {
                 list.push_back(json{{"name", p.name},
                                     {"title", p.title},
@@ -699,18 +771,31 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
             reply(rpcResult(id, json{{"prompts", list}}));
         } else if (method == "prompts/get") {
             const std::string name = params.value("name", "");
-            const auto it = std::find_if(prompts_.begin(), prompts_.end(),
-                                         [&](const Prompt& p) { return p.name == name; });
-            if (it == prompts_.end()) {
-                reply(rpcError(id, -32602, ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el prompt '%1'"), {name})));
-                return;
+            Prompt prompt;
+            {
+                const std::lock_guard<std::recursive_mutex> registro(registroMu_);
+                const auto it = std::find_if(prompts_.begin(), prompts_.end(),
+                                             [&](const Prompt& p) { return p.name == name; });
+                if (it == prompts_.end()) {
+                    reply(rpcError(id, -32602, ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el prompt '%1'"), {name})));
+                    return;
+                }
+                prompt = *it;
             }
-            const std::string text = it->render(params.value("arguments", json::object()));
-            reply(rpcResult(
-                id,
-                json{{"description", it->description},
-                     {"messages", json::array({json{{"role", "user"},
-                                                    {"content", {{"type", "text"}, {"text", text}}}}})}}));
+            // Un prompt se arma con lo que hay en la app: en la interfaz, con tope.
+            const Lugar origen = lugarActual();
+            correrEn(
+                Hilo::Interfaz,
+                [this, prompt, params, id, reply, origen]() {
+                    const std::string text = prompt.render(params.value("arguments", json::object()));
+                    json out = rpcResult(
+                        id, json{{"description", prompt.description},
+                                 {"messages", json::array({json{{"role", "user"}, {"content", {{"type", "text"}, {"text", text}}}}})}});
+                    volverA(origen, [reply, out = std::move(out)]() { reply(out); });
+                },
+                [id, reply, name]() {
+                    reply(rpcError(id, -32603, ba::i18n::llenar(ba::i18n::traducir("mcp", "la interfaz está ocupada: no se pudo armar el prompt '%1'"), {name})));
+                });
         } else if (method == "logging/setLevel") {
             reply(rpcResult(id, json::object()));
         } else if (method == "completion/complete") {
@@ -724,6 +809,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
 }
 
 json McpCore::initializeResult(const json& params, const CallContext& ctx) const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     // Negociacion: la version del cliente si la soportamos; si no, la ultima.
     std::string version = kLatestProtocol;
     const std::string asked = params.value("protocolVersion", "");
@@ -778,11 +864,101 @@ std::string primerTexto(const ToolResult& r) {
 }
 } // namespace
 
+void McpCore::setEjecutores(Ejecutores e) {
+    ej_ = std::move(e);
+    conEjecutores_ = ej_.interfaz && ej_.control && ej_.foto && ej_.despues && ej_.enInterfaz && ej_.enControl;
+}
+
+McpCore::Lugar McpCore::lugarActual() const {
+    if (!conEjecutores_) return Lugar::Otro;
+    if (ej_.enInterfaz()) return Lugar::Interfaz;
+    if (ej_.enControl()) return Lugar::Control;
+    return Lugar::Otro;
+}
+
+void McpCore::volverA(Lugar donde, Tarea t) const {
+    // Un hilo del pool no tiene bucle al que volver: ahí se contesta donde se esté.
+    if (donde == Lugar::Otro || lugarActual() == donde) return t();
+    (donde == Lugar::Interfaz ? ej_.interfaz : ej_.control)(std::move(t));
+}
+
+void McpCore::enInterfazConTope(Tarea fn, Tarea vencio) {
+    // 0 = esperando, 1 = la tomó la interfaz, 2 = venció. Lo que gana se queda: lo que
+    // venció NO se hace después (una orden de hace diez segundos ya no es la de ahora).
+    auto estado = std::make_shared<std::atomic<int>>(0);
+    ej_.interfaz([estado, fn = std::move(fn)]() {
+        int e = 0;
+        if (estado->compare_exchange_strong(e, 1)) fn();
+    });
+    ej_.despues(std::max(1, ej_.topeInterfazMs), [this, estado, vencio = std::move(vencio)]() {
+        int e = 0;
+        if (!estado->compare_exchange_strong(e, 2)) return;
+        ++vencidas_;
+        ba::diag::Metricas::proceso()
+            .contador("ba_mcp_interfaz_ocupada_total",
+                      QT_TRANSLATE_NOOP("metricas", "Pedidos MCP que la interfaz no tomó a tiempo (no se hicieron)"))
+            .sumar();
+        vencio();
+    });
+}
+
+void McpCore::correrEn(Hilo h, Tarea fn, Tarea vencio) {
+    if (!conEjecutores_) return fn();
+    switch (h) {
+        case Hilo::Foto:
+            ej_.foto(std::move(fn));
+            return;
+        case Hilo::Control:
+            if (ej_.enControl()) return fn();
+            ej_.control(std::move(fn));
+            return;
+        case Hilo::Interfaz:
+        case Hilo::SegunClase:
+            if (ej_.enInterfaz()) return fn();
+            enInterfazConTope(std::move(fn), std::move(vencio));
+            return;
+    }
+}
+
+json McpCore::ocupada(const std::string& que) const {
+    json j{{"interfaz_ocupada", true}, {"tope_ms", ej_.topeInterfazMs}, {"pedido", que}};
+    if (fotoEmergencia_) j["foto"] = fotoEmergencia_();
+    return j;
+}
+
 void McpCore::callTool(const json& params, std::function<void(json)> done, const CallContext& ctx) {
+    // `done` vuelve en el hilo del que llamó: la botonera, una receta o el guion esperan
+    // su respuesta en la interfaz; el transporte HTTP, en el control.
+    const Lugar origen = lugarActual();
+    done = [this, origen, done = std::move(done)](json r) { volverA(origen, [done, r = std::move(r)]() { done(r); }); };
     // Con un nombre viejo, todo lo que sigue (aire, aprobaciones, registro) con el actual.
     const std::string name = nombreActual(params["name"].get<std::string>());
     const json args = params.contains("arguments") && params["arguments"].is_object() ? params["arguments"]
                                                                                       : json::object();
+    const Tool* tool = findTool(name);
+    if (tool == nullptr) {
+        // Lo que no existe se contesta acá (solo mira el registro).
+        procesar(nullptr, name, args, std::move(done), ctx);
+        return;
+    }
+    // DESPACHO POR HILO (F3-03): todo lo que sigue (validar, guardas, aprobar, correr)
+    // en el hilo que declara la herramienta, que es donde están las cosas que ella lee.
+    correrEn(
+        tool->hilo, [this, tool, name, args, done, ctx]() { procesar(tool, name, args, done, ctx); },
+        [this, name, done]() {
+            ToolResult r = ToolResult::error(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "La interfaz está ocupada (no contestó en %1 ms): «%2» NO se hizo. Reintentá en "
+                                          "un rato; lo que se sabe sin ella va en `foto` (el aire, el latido)."),
+                {std::to_string(ej_.topeInterfazMs), name}));
+            r.structured = ocupada(name);
+            json out{{"content", r.content}, {"isError", true}, {"structuredContent", r.structured}};
+            Traza::la().anotar("<-- OCUPADA " + name);
+            done(out);
+        });
+}
+
+void McpCore::procesar(const Tool* tool, const std::string& name, const json& args, std::function<void(json)> done,
+                       const CallContext& ctx) {
     // Un aviso que va al final de la respuesta (p. ej. argumentos que no existen).
     auto nota = std::make_shared<std::string>();
     const auto finish = [done, nota](const ToolResult& r) {
@@ -792,7 +968,6 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
             out["content"].push_back({{"type", "text"}, {"text", *nota}});
         done(out);
     };
-    const Tool* tool = findTool(name);
     if (tool == nullptr) {
         const json hits = search(name, ctx.rol);
         std::string hint;
@@ -904,7 +1079,8 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         // vacio: el buscador no filtraba por rol y el cerrojo de imagenes no
         // dejaba pasar ninguna, ni siquiera al rol que mira. Un campo que solo
         // se limpia es un campo que no existe.
-        enCurso_ = ctx;
+        const CallContext antes = t_enCurso;
+        t_enCurso = ctx;
         // La orden (F4-02): lo que se registre al atenderla —acá, en la sala vía
         // ConferenceClient y en el launcher— lleva este id.
         const std::string orden = ba::diag::correlacion::valido(ctx.correlacion) ? ctx.correlacion
@@ -913,7 +1089,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                                                                                            : 'm');
         const ba::diag::correlacion::Ambito enOrden(orden);
         // Para el vigía del bucle de la interfaz: si esta herramienta lo demora, se sabe cuál.
-        ba::diag::VigiaBucle::interfaz().anotar("mcp " + name);
+        if (!conEjecutores_ || ej_.enInterfaz()) ba::diag::VigiaBucle::interfaz().anotar("mcp " + name);
         auto called = std::make_shared<bool>(false);
         // TODO lo que entra por MCP queda escrito. Es el plano de control del
         // aparato —por acá cambian escenas, salidas y pantallas, y a veces lo
@@ -929,7 +1105,12 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         std::string quien;
         if (!ctx.rol.empty()) quien += " [" + ctx.rol + (ctx.asistente.empty() ? "" : ":" + ctx.asistente) + "]";
         if (!ctx.origen.empty()) quien += " <" + ctx.origen + ">";
-        if (const auto c = clientes_.find(ctx.session); c != clientes_.end()) quien += " «" + c->second + "»";
+        std::string cliente;
+        {
+            const std::lock_guard<std::mutex> l(estadoMu_);
+            if (const auto c = clientes_.find(ctx.session); c != clientes_.end()) cliente = c->second;
+        }
+        if (!cliente.empty()) quien += " «" + cliente + "»";
         else if (ctx.origen.empty() && !ctx.session.empty())
             quien += ba::i18n::llenar(ba::i18n::traducir("mcp", " (sesión %1)"), {ctx.session.substr(0, 8)});
         // Los argumentos van en la linea: «audio_set FALLO» sin decir de que
@@ -962,7 +1143,12 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                 // que se conteste: asi no hay un instante en el que el
                 // asistente ya sabe algo que la pantalla todavia no muestra.
                 // Ver setSincronizador.
-                if (modifica && !r.isError && sincronizar_) sincronizar_();
+                if (modifica && !r.isError && sincronizar_) {
+                    if (!conEjecutores_ || ej_.enInterfaz())
+                        sincronizar_();
+                    else
+                        ej_.interfaz(sincronizar_);
+                }
                 finish(r);
             });
         } catch (const std::exception& e) {
@@ -975,7 +1161,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                     ba::i18n::llenar(ba::i18n::traducir("mcp", "La herramienta fallo: %1"), {e.what()})));
             }
         }
-        enCurso_ = CallContext{};
+        t_enCurso = antes;
     };
     // Salvaguarda: en una sesion contaminada (o con politica "siempre"), una
     // accion que modifica algo espera la aprobacion de una persona.
@@ -985,7 +1171,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     // vivo, solo leen o hacen lo reversible sin preguntar.
     // Una herramienta de salida es de aire si sale SU salida (otra transmitiendo no
     // la vuelve de aire); las demás, si sale cualquiera.
-    const bool enAire = !ctx.humano && (tool->porSalida && salidaSale_ ? salidaSale_(salida) : hayAire());
+    const bool enAire = !ctx.humano && mutating(*tool) && (tool->porSalida && salidaSale_ ? salidaSale_(salida) : hayAire());
     const bool deAire = enAire && aire_.esDeAire(name, args);
     const bool automaticoEnVivo = enAire && !deAire && mutating(*tool) &&
                                   (ctx.origen == "voz" || ctx.origen == "disparador") && !tool->reversible;
@@ -1040,17 +1226,33 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
             : ba::i18n::llenar(ba::i18n::traducir("mcp", "El asistente leyo contenido de invitados de la conferencia "
                                                          "(%1): por seguridad, lo que modifica algo necesita tu "
                                                          "aprobacion."),
-                               {taint_[session].source});
-    approver_(*tool, args, reason, [execute, finish, name](bool ok) {
+                               {taintInfo(session).value("source", std::string())});
+    // La respuesta de la persona llega en la interfaz; lo aprobado corre donde corre la
+    // herramienta (su hilo).
+    const Lugar aqui = lugarActual();
+    auto decidir = [this, aqui, execute, finish, name](bool ok) {
         if (ok) {
-            execute();
+            volverA(aqui, execute);
         } else {
             finish(ToolResult::error(ba::i18n::llenar(
                 ba::i18n::traducir("mcp", "El operador NO aprobo %1. No reintentes la misma accion: preguntale que "
                                           "queres hacer (operator_ask) o segui con otra cosa."),
                 {name})));
         }
-    });
+    };
+    if (!conEjecutores_ || ej_.enInterfaz()) {
+        approver_(*tool, args, reason, std::move(decidir));
+        return;
+    }
+    enInterfazConTope([this, tool, args, reason, decidir]() mutable { approver_(*tool, args, reason, std::move(decidir)); },
+                      [this, finish, name]() {
+                          ToolResult r = ToolResult::error(ba::i18n::llenar(
+                              ba::i18n::traducir("mcp", "La interfaz no responde: no hay a quién pedirle que confirme «%1». "
+                                                        "No se hizo. Reintentá cuando vuelva (o que lo haga el operador)."),
+                              {name}));
+                          r.structured = ocupada(name);
+                          finish(r);
+                      });
 }
 
 void McpCore::pedirAprobacion(const std::string& herramienta, const json& args, const std::string& motivo,
@@ -1072,6 +1274,7 @@ void McpCore::pedirAprobacion(const std::string& herramienta, const json& args, 
 }
 
 json McpCore::resourceList() const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     json list = json::array();
     for (const HelpTopic& t : topics_) {
         list.push_back(json{{"uri", "ba://ayuda/" + t.id},
@@ -1104,9 +1307,20 @@ json McpCore::readResource(const std::string& uri, std::string& error) const {
         if (t.empty()) error = ba::i18n::traducir("mcp", "no existe ese tema");
         return contents(t, "text/markdown");
     }
-    for (const Resource& r : resources_) {
-        if (r.uri == uri) return contents(r.read ? r.read() : std::string(), r.mimeType);
+    std::function<std::string()> leer;
+    std::string mime;
+    bool hay = false;
+    {
+        const std::lock_guard<std::recursive_mutex> registro(registroMu_);
+        for (const Resource& r : resources_)
+            if (r.uri == uri) {
+                leer = r.read;
+                mime = r.mimeType;
+                hay = true;
+                break;
+            }
     }
+    if (hay) return contents(leer ? leer() : std::string(), mime);
     error = ba::i18n::llenar(ba::i18n::traducir("mcp", "recurso desconocido: %1"), {uri});
     return json();
 }
@@ -1114,6 +1328,7 @@ json McpCore::readResource(const std::string& uri, std::string& error) const {
 // --- Ayuda ----------------------------------------------------------------------
 
 std::string McpCore::helpOverview() const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     std::ostringstream o;
     o << ba::i18n::traducir("mcp", "# Broadcast Appliance — guia para operar con herramientas") << "\n\n";
     if (!instructions_.empty()) o << instructions_ << "\n\n";
@@ -1144,6 +1359,7 @@ std::string McpCore::helpOverview() const {
 }
 
 std::string McpCore::helpTopic(const std::string& id) const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     for (const HelpTopic& t : topics_) {
         if (t.id == id) return "# " + t.title + "\n\n" + t.body;
     }
@@ -1151,6 +1367,7 @@ std::string McpCore::helpTopic(const std::string& id) const {
 }
 
 std::string McpCore::helpTool(const std::string& name) const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     const Tool* t = findTool(name);
     if (t == nullptr) return {};
     std::ostringstream o;
@@ -1207,6 +1424,7 @@ std::string McpCore::helpTool(const std::string& name) const {
 }
 
 void McpCore::armarIndice() const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     indice_ = std::make_unique<Indice>();
     // Una herramienta sin etiquetas solo se encuentra si alguien adivina las
     // palabras de su documentacion, que son las de quien ya sabia como se
@@ -1249,6 +1467,7 @@ void McpCore::armarIndice() const {
 }
 
 json McpCore::search(const std::string& query, const std::string& rol) const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     // Se arma una sola vez, y se rearma si aparecieron herramientas nuevas
     // (las extensiones se registran despues del arranque).
     if (!indice_ || indiceDe_ != tools_.size() + topics_.size()) armarIndice();
@@ -1276,6 +1495,7 @@ json McpCore::search(const std::string& query, const std::string& rol) const {
 }
 
 json McpCore::buscarHerramientas(const std::string& query, std::size_t tope) const {
+    const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     if (!indice_ || indiceDe_ != tools_.size() + topics_.size()) armarIndice();
     json out = json::array();
     for (const Resultado& r : indice_->buscar(query, tope + topics_.size())) {
