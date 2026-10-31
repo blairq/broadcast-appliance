@@ -929,17 +929,34 @@ void McpService::registerModeloTools() {
             } else {
                 atender();
             }
-            // El modelo contesta en milisegundos: se mira la propuesta un rato despues.
-            QTimer::singleShot(a.value("preparar", false) ? 2500 : 1500, voz, [voz, done]() {
+            // La propuesta avisa al llegar (propuestaCambio): se contesta ahí. Si no llega en lo
+            // que tardaba la espera fija de antes, se hizo sola o fue al asistente.
+            const auto propuesta = [voz]() -> std::optional<ToolResult> {
                 const QVariantMap p = voz->propuesta();
-                if (p.isEmpty())
-                    return done(ToolResult::ok(ba::i18n::traducir("mcp", "Sin propuesta pendiente: se hizo sola (automatica) o fue al "
-                                               "asistente (derivar, o sin modelo listo).")));
-                done(ToolResult().data(json{{"herramienta", p.value("herramienta").toString().toStdString()},
-                                            {"titulo", p.value("titulo").toString().toStdString()},
-                                            {"prob", p.value("prob").toDouble()},
-                                            {"conDatos", p.value("conDatos").toBool()}}));
-            });
+                if (p.isEmpty()) return std::nullopt;
+                return ToolResult().data(json{{"herramienta", p.value("herramienta").toString().toStdString()},
+                                              {"titulo", p.value("titulo").toString().toStdString()},
+                                              {"prob", p.value("prob").toDouble()},
+                                              {"conDatos", p.value("conDatos").toBool()}});
+            };
+            auto primera = std::make_shared<bool>(true);
+            esperarHasta(
+                voz, &agent::Voz::propuestaCambio,
+                [primera, propuesta]() -> std::optional<ToolResult> {
+                    if (*primera) { // la de antes no cuenta: se espera la de esta frase
+                        *primera = false;
+                        return std::nullopt;
+                    }
+                    return propuesta();
+                },
+                a.value("preparar", false) ? 2500 : 1500,
+                [propuesta]() {
+                    // (una que llegó antes de empezar a esperar —el modelo contestó en el acto— está igual)
+                    if (auto p = propuesta()) return *p;
+                    return ToolResult::ok(ba::i18n::traducir("mcp", "Sin propuesta pendiente: se hizo sola (automatica) o fue al "
+                                                                    "asistente (derivar, o sin modelo listo)."));
+                },
+                done);
         };
         core_.addTool(std::move(t));
     }
