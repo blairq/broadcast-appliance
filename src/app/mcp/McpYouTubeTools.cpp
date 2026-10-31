@@ -132,6 +132,7 @@ void McpService::registerYouTubeTools() {
     {
         Tool t;
         t.name = "youtube_setup";
+        t.destructivaSi = "clear"; // clear=true borra
         t.title = ba::i18n::traducir("mcp", "Configurar la credencial de Google");
         t.category = "youtube";
         t.clase = Clase::Escritura;
@@ -278,7 +279,7 @@ void McpService::registerYouTubeTools() {
                 (void)d;
             };
             if (changes.empty()) return thumb(true, {}, {});
-            yt->client().updateVideo(id, toQt(changes), thumb);
+            yt->updateVideo(id, toQt(changes), thumb); // como la página: la lista se pone al día
         };
         core_.addTool(std::move(t));
     }
@@ -294,7 +295,7 @@ void McpService::registerYouTubeTools() {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [yt, needLogin](const json& a, Done done) {
             if (needLogin(done)) return;
-            yt->client().deleteVideo(QString::fromStdString(a["id"]), reply(done, ba::i18n::traducir("mcp", "Video borrado.")));
+            yt->deleteVideo(QString::fromStdString(a["id"]), reply(done, ba::i18n::traducir("mcp", "Video borrado.")));
         };
         core_.addTool(std::move(t));
     }
@@ -381,7 +382,7 @@ void McpService::registerYouTubeTools() {
             json p = a;
             p.erase("start");
             const bool start = a.value("start", false);
-            yt->client().createBroadcast(toQt(p), [yt, start, done](bool ok, const QJsonObject& d,
+            yt->createBroadcast(toQt(p), [yt, start, done](bool ok, const QJsonObject& d,
                                                                     const QString& e) {
                 if (!ok) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "YouTube: %1"), {e.toStdString()})));
                 QJsonObject shown = d;
@@ -448,6 +449,7 @@ void McpService::registerYouTubeTools() {
     {
         Tool t;
         t.name = "youtube_live_update";
+        t.destructivaSi = "delete"; // delete=true borra (no se deshace)
         t.title = ba::i18n::traducir("mcp", "Editar o cambiar el estado de un evento");
         t.category = "youtube";
         t.clase = Clase::Escritura;
@@ -468,13 +470,13 @@ void McpService::registerYouTubeTools() {
             if (needLogin(done)) return;
             const QString id = QString::fromStdString(a["id"]);
             if (a.value("delete", false))
-                return yt->client().deleteBroadcast(id, reply(done, ba::i18n::traducir("mcp", "Evento borrado.")));
+                return yt->deleteBroadcast(id, reply(done, ba::i18n::traducir("mcp", "Evento borrado.")));
             if (a.contains("transition"))
-                return yt->client().transition(id, QString::fromStdString(a["transition"]),
+                return yt->transition(id, QString::fromStdString(a["transition"]),
                                                reply(done, ba::i18n::traducir("mcp", "Estado cambiado.")));
             json changes = a;
             changes.erase("id");
-            yt->client().updateBroadcast(id, toQt(changes), reply(done, ba::i18n::traducir("mcp", "Evento actualizado.")));
+            yt->updateBroadcast(id, toQt(changes), reply(done, ba::i18n::traducir("mcp", "Evento actualizado.")));
         };
         core_.addTool(std::move(t));
     }
@@ -503,6 +505,7 @@ void McpService::registerYouTubeTools() {
     {
         Tool t;
         t.name = "youtube_chat";
+        t.untrustedOutput = true; // trae el chat del público: texto de afuera, no instrucciones
         t.title = ba::i18n::traducir("mcp", "Chat del vivo");
         t.category = "youtube";
         t.clase = Clase::Escritura;
@@ -585,7 +588,6 @@ void McpService::registerYouTubeTools() {
                 &vm, "chat_overlay_add",
                 [&rt, scene, spec]() {
                     if (!rt.addSource(scene, spec)) return rt.lastError().empty() ? std::string("?") : rt.lastError();
-                    rt.save();
                     return std::string();
                 },
                 [yt, scene, done](const std::string& e) {

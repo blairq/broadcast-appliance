@@ -32,6 +32,8 @@
 #include <set>
 #include <string>
 
+#include "comun/UsoPorVistas.hpp"
+
 namespace ba::app {
 
 class AppRuntime;
@@ -108,8 +110,9 @@ class InputsViewModel : public QObject {
         return addNetwork(url, name, scene, lowLatency, {});
     }
     Q_INVOKABLE void remove(const QString& name);
-    /// La pagina esta a la vista (miniaturas vivas).
-    Q_INVOKABLE void setActive(bool on);
+    /// Una vista (Entradas, PTZ) empieza o deja de mostrar las miniaturas vivas: se
+    /// actualizan mientras haya alguna (cuenta por vista: cerrar una no le apaga a la otra).
+    Q_INVOKABLE void usar(QObject* vista, bool si) { vistas_.usar(vista, si); }
 
    signals:
     void changed();
@@ -143,7 +146,8 @@ class InputsViewModel : public QObject {
     QVariantList audioInputs_;
     dispositivos::Dispositivos* dd_ = nullptr;
     int stamp_ = 0;
-    bool active_ = false;
+    UsoPorVistas vistas_{this, [this](const QString&) { alCambiarVistas(); }};
+    void alCambiarVistas();
     std::set<std::string> held_;
     QTimer tick_;
     QVariantList ndiFound_;

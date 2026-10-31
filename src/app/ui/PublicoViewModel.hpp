@@ -12,9 +12,11 @@
 // depender de eso. Con el modelo acá, las manos y el asistente hacen lo mismo
 // sobre el mismo estado.
 //
-// SE CONSULTA SOLO MIENTRAS ALGUIEN MIRA. La página prende `activo` al
-// mostrarse y lo apaga al irse: si no, el aparato le estaría preguntando al
-// gateway cada dos segundos para siempre, incluso con la pestaña cerrada.
+// SE CONSULTA SOLO MIENTRAS ALGUIEN MIRA. Cada vista lo usa (`usar(vista, si)`, en
+// QML `Suscripcion`) al mostrarse y lo suelta al irse: si no, el aparato le estaría
+// preguntando al gateway cada dos segundos para siempre, incluso con la pestaña
+// cerrada. La cuenta es por vista: las Preguntas y la Votación (y la web del evento)
+// lo miran a la vez y cerrar una no le apaga la consulta a la otra.
 // ============================================================================
 #pragma once
 
@@ -23,6 +25,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <nlohmann/json.hpp>
+
+#include "comun/UsoPorVistas.hpp"
 
 namespace ba::app::sala {
 class VotacionSala;
@@ -45,8 +49,8 @@ class PublicoViewModel : public QObject {
     Q_PROPERTY(QVariantMap votacion READ votacion NOTIFY cambio)
     /// El enlace de la página del público y su QR.
     Q_PROPERTY(QVariantMap enlace READ enlace NOTIFY enlaceCambio)
-    /// Si se está consultando al gateway. Lo prende la vista al mostrarse.
-    Q_PROPERTY(bool activo READ activo WRITE setActivo NOTIFY cambio)
+    /// Si se está consultando al gateway: alguna vista lo usa (usar).
+    Q_PROPERTY(bool activo READ activo NOTIFY cambio)
     /// false cuando el gateway no contesta: la vista tiene que poder decir
     /// «no sé» en vez de mostrar una cola vacía, que significa otra cosa.
     Q_PROPERTY(bool enLinea READ enLinea NOTIFY cambio)
@@ -59,8 +63,9 @@ class PublicoViewModel : public QObject {
     QVariantMap recuento() const;
     QVariantMap votacion() const;
     QVariantMap enlace() const;
-    bool activo() const;
-    void setActivo(bool a);
+    bool activo() const { return mirando_.alguien(); }
+    /// Una vista (o la web del evento) empieza o deja de mirar: se consulta mientras haya alguna.
+    Q_INVOKABLE void usar(QObject* vista, bool si) { mirando_.usar(vista, si); }
     bool enLinea() const;
     /// Para la página web del evento, SOLO las moderadas (la que se responde, las
     /// elegidas, las respondidas, hasta 40); nunca las nuevas sin revisar ni las
@@ -112,10 +117,11 @@ class PublicoViewModel : public QObject {
     QVariantMap votacion_;
     QVariantMap enlace_;
     bool enLinea_ = false;
-    /// Cuántas vistas lo están mirando (la página del Público y la pestaña del
-    /// Evento). Lo que cambia llega solo (eventos «preguntas» y «votacion» de la
-    /// sala); al empezar a mirar, y al volver la sala, se pregunta una vez.
-    int mirando_ = 0;
+    /// Quiénes lo están mirando (por vista, no un booleano: ver arriba). Lo que cambia
+    /// llega solo (eventos «preguntas» y «votacion» de la sala); al empezar a mirar, y al
+    /// volver la sala, se pregunta una vez.
+    UsoPorVistas mirando_{this, [this](const QString&) { alCambiarMirada(); }};
+    void alCambiarMirada();
 };
 
 } // namespace ba::app

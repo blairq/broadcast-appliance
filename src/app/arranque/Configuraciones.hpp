@@ -112,6 +112,13 @@ class Configuraciones : public QObject {
     std::string plantillaRestablecer(const std::string& id);
     /// Una plantilla nueva copiando el evento abierto (con todo lo suyo, sin historial).
     std::string plantillaDesdeActual(const std::string& nombre, const std::string& escenario);
+    /// crear() y plantillaDesdeActual() en otro hilo: copiar un evento con sus grabaciones son
+    /// GB y en el hilo que llama lo trababa. `listo(error)` vuelve en el hilo de este objeto,
+    /// después de avisar cambio() si salió bien.
+    void crearAparte(const std::string& nombre, const std::string& desde, const std::string& descripcion,
+                     bool conGrabaciones, std::function<void(std::string)> listo);
+    void plantillaDesdeActualAparte(const std::string& nombre, const std::string& escenario,
+                                    std::function<void(std::string)> listo);
     /// Una vez (marca en <datos>/migraciones.json): las carpetas que tenían VARIOS eventos
     /// adentro se separan, cada evento a su carpeta con una copia de los ajustes, escenas
     /// y medios de donde estaba (sin historial). Se queda el en curso (o el último tocado)
@@ -120,6 +127,13 @@ class Configuraciones : public QObject {
     static json separarEventos(const std::filesystem::path& datos);
     /// Deja anotada `nombre` como activa (sin reiniciar). "" o el error.
     std::string activar(const std::string& nombre);
+    /// LA REGLA de abrir otro evento: reinicia la app, así que no con algo al aire (una
+    /// transmisión o una grabación). La página y el MCP la piden acá; el predicado lo pone
+    /// quien sabe qué está al aire.
+    void setAlAire(std::function<bool()> f) { alAire_ = std::move(f); }
+    bool alAire() const { return alAire_ && alAire_(); }
+    /// "" si se puede pasar a otro evento ahora; si no, por qué.
+    std::string puedeCambiar() const;
     std::string renombrar(const std::string& de, const std::string& a);
     std::string describir(const std::string& nombre, const std::string& descripcion);
     /// A la papelera (Configuraciones/.papelera/): nunca la activa.
@@ -173,6 +187,9 @@ class Configuraciones : public QObject {
     void nuevoEventoListo(const QString& nombre, const QString& error, bool abriendo);
 
    private:
+    /// `trabajo` (de los de sin avisar) en el pool; al volver, cambio() si salió y `listo`.
+    void aparte(std::function<std::string()> trabajo, std::function<void(std::string)> listo);
+    std::string plantillaDesdeActualSinAvisar(const std::string& nombre, const std::string& escenario);
     // Cuánto ocupa cada carpeta: se mide en otro hilo (con grabaciones grandes,
     // recorrerla en cada lectura de la lista trababa la interfaz).
     struct Tamano {
@@ -203,6 +220,7 @@ class Configuraciones : public QObject {
     QTimer progresoCopia_; ///< mientras copia, avisa el progreso
     static std::string nombreValido(const std::string& nombre);
     std::function<QString()> reiniciar_;
+    std::function<bool()> alAire_;
 };
 
 /// El evento de la plantilla del programa de un escenario (el `escenario` de su

@@ -399,8 +399,7 @@ Rectangle {
                 readonly property string estado: pg.pk.estado || (pg.st.disponible ? "apagado" : "")
                 readonly property var borrador: Studio.settings.draft
                 readonly property bool propio: pg.borrador["pinggy.dominioTipo"] === "propio"
-                Component.onCompleted: pg.ar.siguiendo = true
-                Component.onDestruction: pg.ar.siguiendo = false
+                Suscripcion { objetivo: pg.ar; activa: pg.visible }
 
                 function colorEstado(e) {
                     return e === "listo" ? Theme.ok : e === "conectando" || e === "reconectando" ? Theme.amber

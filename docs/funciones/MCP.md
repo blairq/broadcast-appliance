@@ -39,7 +39,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 
 <!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
 
-**815 herramientas** en 55 categorías: 269 de lectura, 480 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+**815 herramientas** en 55 categorías: 268 de lectura, 481 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
 
 | Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
 |---|---:|---:|---:|---:|---:|
@@ -93,7 +93,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Sistema (`sistema`) | 8 | 3 | 4 | 1 | 0 |
 | Tiempos del pipeline (`tiempos`) | 10 | 6 | 4 | 0 | 0 |
 | Registro de personas (tótems) (`totems`) | 12 | 3 | 9 | 0 | 0 |
-| Traducción en vivo (`traduccion`) | 21 | 7 | 14 | 0 | 0 |
+| Traducción en vivo (`traduccion`) | 21 | 6 | 15 | 0 | 0 |
 | Twitch (`twitch`) | 11 | 3 | 8 | 0 | 0 |
 | Ventanas y monitores (`ventanas`) | 5 | 1 | 0 | 0 | 4 |
 | Grafo de video (`video`) | 49 | 10 | 38 | 1 | 0 |

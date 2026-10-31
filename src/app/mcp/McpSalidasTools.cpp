@@ -87,13 +87,11 @@ void McpService::registerSalidasTools() {
         t.examples = {R"({"id": "youtube2", "nombre": "YouTube 2", "color": "#2E86DE"})"};
         RecursosViewModel* rec = vm_.recursos();
         // Crearla se le pide al dueño del motor; lo demás, cuando contesta (con la foto al día).
-        t.run = [&rt, &vm, rec](const json& a, Done done) {
+        t.run = [&vm, rec](const json& a, Done done) {
             const std::string id = a.value("id", std::string());
-            vm.ventanilla().pedir(
-                &vm, "salida_crear",
-                [&rt, id, nombre = a.value("nombre", id), color = a.value("color", std::string())]() {
-                    return rt.crearSalida(id, nombre, color);
-                },
+            // La misma operación que la página (SalidasViewModel), con el resultado.
+            vm.salidas().crearSalida(
+                id, a.value("nombre", id), a.value("color", std::string()),
                 [&vm, rec, done](const std::string& e) {
                     if (!e.empty()) return done(ToolResult::error(e));
                     json out{{"salidas", resumenSalidas(vm.ventanilla().foto())}};
@@ -134,7 +132,7 @@ void McpService::registerSalidasTools() {
                            {"tope", {{"type", "integer"}, {"minimum", 1}, {"maximum", 16}}}}}};
         t.examples = {R"({"id": "youtube2", "nombre": "YouTube en inglés"})", R"({"id": "youtube2", "codificador": "x264"})",
                       R"({"tope": 6})"};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&vm](const json& a, Done done) {
             const bool cambia = a.contains("nombre") || a.contains("color") || a.contains("codificador");
             if (!cambia && !a.contains("tope"))
                 return done(ToolResult::error(
@@ -142,14 +140,9 @@ void McpService::registerSalidasTools() {
             json cambios = json::object();
             for (const char* k : {"nombre", "color", "codificador"})
                 if (a.contains(k)) cambios[k] = a[k];
-            // En el dueño del motor; la respuesta, con la foto al día.
-            vm.ventanilla().pedir(
-                &vm, "salida_editar",
-                [&rt, cambia, cambios, id = a.value("id", std::string()), tope = a.contains("tope") ? a.value("tope", 0) : -1]() {
-                    if (tope >= 0)
-                        if (std::string e = rt.setTopeSalidas(tope); !e.empty()) return e;
-                    return cambia ? rt.editarSalida(id, cambios) : std::string();
-                },
+            // La misma operación que la página (en el dueño del motor); la respuesta, con la foto al día.
+            vm.salidas().editar(
+                a.value("id", std::string()), cambios, a.contains("tope") ? a.value("tope", 0) : -1,
                 [&vm, done](const std::string& e) {
                     if (!e.empty()) return done(ToolResult::error(e));
                     const FotoMotor& f = vm.ventanilla().foto();
@@ -177,12 +170,9 @@ void McpService::registerSalidasTools() {
                            {"destinos",
                             {{"type", "string"},
                              {"description", QT_TRANSLATE_NOOP("mcp", "Sus destinos guardados: el id de otra salida o «borrar».")}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
-            vm.ventanilla().pedir(
-                &vm, "salida_borrar",
-                [&rt, id = a.value("id", std::string()), destinos = a.value("destinos", std::string())]() {
-                    return rt.borrarSalida(id, destinos);
-                },
+        t.run = [&vm](const json& a, Done done) {
+            vm.salidas().borrar(
+                a.value("id", std::string()), a.value("destinos", std::string()),
                 [&vm, done](const std::string& e) {
                     if (!e.empty()) return done(ToolResult::error(e));
                     done(ToolResult().data(json{{"salidas", resumenSalidas(vm.ventanilla().foto())}}));

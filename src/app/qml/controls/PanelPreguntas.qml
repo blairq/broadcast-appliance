@@ -30,10 +30,10 @@ Item {
                                       { t: "YouTube", v: "youtube" }, { t: "Twitch", v: "twitch" }, { t: "Facebook", v: "facebook" } ]
     function origen(v) { const o = origenes.find(x => x.v === v); return o ? o.t : v }
 
-    // Prende la consulta al gateway mientras se ve, y la apaga al irse: si no,
-    // el aparato le preguntaría cada dos segundos para siempre.
-    Component.onCompleted: pub.activo = true
-    Component.onDestruction: pub.activo = false
+    // Prende la consulta al gateway mientras se ve, y la suelta al irse (por vista: la
+    // Votación abierta al lado sigue consultando); si no, el aparato le preguntaría cada
+    // dos segundos para siempre.
+    Suscripcion { objetivo: raiz.pub; activa: raiz.visible }
 
     ColumnLayout {
     anchors.fill: parent

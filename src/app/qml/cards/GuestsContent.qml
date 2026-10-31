@@ -16,7 +16,7 @@ Item {
                                         ? Studio.direcciones.porId.invitados : ({})
     readonly property string link: Studio.conference.guestUrl
     // Mientras se ve, el estado del túnel se consulta cada 5 s.
-    Binding { target: tarjeta.acceso; property: "siguiendo"; value: tarjeta.visible; when: !!tarjeta.acceso }
+    Suscripcion { objetivo: tarjeta.acceso; activa: tarjeta.visible }
     function conectar(id) {
         const e = acceso.conectar(id)
         Studio.notify(e !== "" ? e : qsTr("Conectando la conferencia a internet… (la conferencia se reinicia: los invitados se reconectan solos)"),

@@ -46,7 +46,7 @@ PublicoViewModel::PublicoViewModel(ConferenceViewModel* sala, QObject* parent)
     // preguntó», que es otra cosa): se marca `enLinea` y la vista lo dice.
     connect(&c, &ConferenceClient::onlineChanged, this, [this](bool on) {
         if (on) {
-            if (mirando_ > 0) consultar();
+            if (activo()) consultar();
         } else if (enLinea_) {
             enLinea_ = false;
             emit cambio();
@@ -99,13 +99,9 @@ nlohmann::json PublicoViewModel::votacionParaLaWeb() const {
     }
     return vo;
 }
-bool PublicoViewModel::activo() const { return mirando_ > 0; }
-
-void PublicoViewModel::setActivo(bool a) {
-    const int antes = mirando_;
-    mirando_ = std::max(0, mirando_ + (a ? 1 : -1));
-    // Al empezar a mirar, lo de ahora (lo que cambie después llega solo).
-    if (mirando_ > 0 && antes == 0) consultar();
+void PublicoViewModel::alCambiarMirada() {
+    // Al empezar a mirar, lo de ahora (lo que cambie después llega solo: eventos de la sala).
+    if (activo()) consultar();
     emit cambio();
 }
 

@@ -355,7 +355,7 @@ void InputsViewModel::rebuildInputs() {
 
 void InputsViewModel::syncHolds() {
     std::set<std::string> want;
-    if (active_)
+    if (vistas_.alguien())
         for (const QVariant& v : inputs_)
             want.insert(v.toMap().value("name").toString().toStdString());
     // Mantenerlas «mostrándose» (las miniaturas vivas) se le pide al dueño del motor.
@@ -371,9 +371,8 @@ void InputsViewModel::syncHolds() {
         });
 }
 
-void InputsViewModel::setActive(bool on) {
-    active_ = on;
-    if (on) {
+void InputsViewModel::alCambiarVistas() {
+    if (vistas_.alguien()) {
         refresh();
         tick_.start();
     } else {

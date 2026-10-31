@@ -66,10 +66,10 @@ void McpService::registerConfiguracionesTools() {
                            {"descripcion", {{"type", "string"}}},
                            {"abrir", {{"type", "boolean"}}},
                            {"cps", {{"type", "string"}}}}}};
-        StudioViewModel* vm = &vm_;
-        t.run = [cf, vm](const json& a, Done done) {
+        t.run = [cf](const json& a, Done done) {
             const std::string n = a.value("nombre", std::string());
-            const bool alAire = vm->alAire();
+            // La regla (no abrir con algo al aire) es de Configuraciones: acá solo se cuenta.
+            const bool alAire = cf->alAire();
             const bool abrir = a.value("abrir", false) && !alAire;
             // En otro hilo (una copia total puede ser de varios GB): contesta al terminar.
             const QString e = cf->nuevoEventoAparte(
@@ -101,13 +101,11 @@ void McpService::registerConfiguracionesTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"nombre"}},
                          {"properties", {{"nombre", {{"type", "string"}}}, {"aunque_este_al_aire", {{"type", "boolean"}}}}}};
-        StudioViewModel* vm = &vm_;
-        t.run = [cf, vm](const json& a, Done done) {
+        t.run = [cf](const json& a, Done done) {
             const std::string n = a.value("nombre", std::string());
             if (n == cf->activa()) return done(ToolResult::error(ba::i18n::traducir("mcp", "ya es el evento abierto")));
-            if (vm->alAire() && !a.value("aunque_este_al_aire", false))
-                return done(ToolResult::error(ba::i18n::traducir("mcp", "hay una transmisión o una grabación en curso: abrir otro evento reinicia "
-                                              "la app y la corta. Esperá a que termine (o que el operador lo pida).")));
+            if (const std::string e = cf->puedeCambiar(); !e.empty() && !a.value("aunque_este_al_aire", false))
+                return done(ToolResult::error(e));
             if (const std::string e = cf->activar(n); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Abriendo «%1»: la app se reinicia en unos segundos. Seguís en esta conversación: al volver te aviso que ya está abierto. No hagas nada más hasta entonces."), {n})));
             cf->reiniciar();
@@ -212,11 +210,15 @@ void McpService::registerConfiguracionesTools() {
                            {"descripcion", {{"type", "string"}}},
                            {"con_grabaciones", {{"type", "boolean"}}}}}};
         t.run = [cf](const json& a, Done done) {
-            const std::string e = cf->crear(a.value("nombre", std::string()), a.value("desde", std::string("vacia")),
-                                            a.value("descripcion", std::string()), a.value("con_grabaciones", false));
-            if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Creada «%1». Para usarla: configuracion_cambiar (reinicia la app)."),
-                                  {a.value("nombre", std::string())})));
+            // La copia puede ser de GB (con grabaciones): en otro hilo; se contesta al terminar.
+            const std::string nombre = a.value("nombre", std::string());
+            cf->crearAparte(nombre, a.value("desde", std::string("vacia")), a.value("descripcion", std::string()),
+                            a.value("con_grabaciones", false), [nombre, done](const std::string& e) {
+                                if (!e.empty()) return done(ToolResult::error(e));
+                                done(ToolResult::ok(ba::i18n::llenar(
+                                    ba::i18n::traducir("mcp", "Creada «%1». Para usarla: configuracion_cambiar (reinicia la app)."),
+                                    {nombre})));
+                            });
         };
         core_.addTool(std::move(t));
     }
@@ -243,6 +245,7 @@ void McpService::registerConfiguracionesTools() {
     {
         Tool t;
         t.name = "configuracion_editar";
+        t.destructivaSi = "borrar"; // borrar=true borra
         t.title = ba::i18n::traducir("mcp", "Renombrar, describir o borrar una configuración");
         t.category = "configuraciones";
         t.clase = Clase::Escritura;
@@ -302,9 +305,13 @@ void McpService::registerConfiguracionesTools() {
                            {"escenario", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con desde_actual: su tipo (evento_escenarios)")}}}}}};
         t.run = [cf](const json& a, Done done) {
             if (a.contains("desde_actual")) {
-                const std::string e = cf->plantillaDesdeActual(a.value("desde_actual", std::string()), a.value("escenario", std::string()));
-                if (!e.empty()) return done(ToolResult::error(e));
-                return done(ToolResult().data({{"plantillas", cf->plantillasAdmin()}}));
+                // Copia el evento abierto entero: en otro hilo.
+                cf->plantillaDesdeActualAparte(a.value("desde_actual", std::string()), a.value("escenario", std::string()),
+                                               [cf, done](const std::string& e) {
+                                                   if (!e.empty()) return done(ToolResult::error(e));
+                                                   done(ToolResult().data({{"plantillas", cf->plantillasAdmin()}}));
+                                               });
+                return;
             }
             const std::string id = a.value("id", std::string());
             if (id.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `id` (plantillas_listar)")));

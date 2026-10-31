@@ -457,7 +457,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         const bool hay = evento_->web().value("hay").toBool();
         if (hay == publicoPorWeb_) return;
         publicoPorWeb_ = hay;
-        publico_->setActivo(hay);
+        publico_->usar(evento_.get(), hay);
     });
     connect(cuentas_.get(), &CuentasViewModel::webCambio, evento_.get(), &EventoViewModel::publicarWeb);
     // La app misma: el modo en vivo, la versión y el reinicio, los eventos, la caída de la
@@ -632,6 +632,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             [this](const QString& texto) { emit notify(texto, "error"); });
     // Lo que la revisión previa del evento mira del aparato.
     evento_->setChequeosAparato([this]() { return imagen_->chequeosDelAparato(streamKeyAvailable()); });
+    // Abrir otro evento reinicia la app: no con algo al aire (la regla es de Configuraciones,
+    // para la página y el MCP; lo que está al aire lo sabe la foto del motor).
+    configuraciones()->setAlAire([this]() { return alAire(); });
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
     plugins_ = std::make_unique<plugins::Plugins>(rt, &imagen_->videoVm(), &imagen_->camaras(), &asistente_->mensajes());
     // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)

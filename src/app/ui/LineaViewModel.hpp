@@ -47,6 +47,8 @@
 
 #include "evento/LineaVista.hpp"
 
+#include "comun/UsoPorVistas.hpp"
+
 namespace ba::app {
 
 class AppRuntime;
@@ -62,7 +64,7 @@ class BusEventos;
 class LineaViewModel : public QObject {
     Q_OBJECT
     /// Alguien la mira (la página del guion, la tarjeta, su ventana): recalcula cada segundo y
-    /// pide miniaturas. Lo dice cada vista con `mirar`.
+    /// pide miniaturas. Lo dice cada vista con `usar` (en QML, `Suscripcion`).
     Q_PROPERTY(bool mirando READ mirando NOTIFY mirandoChanged)
     /// Alguna de esas ve la Línea multipista (si no, no se arma `multipista`).
     Q_PROPERTY(bool mirandoLinea READ mirandoLinea NOTIFY mirandoChanged)
@@ -109,9 +111,9 @@ class LineaViewModel : public QObject {
 
     bool mirando() const { return mirando_; }
     bool mirandoLinea() const { return mirandoLinea_; }
-    /// Cada vista dice si se la ve (`guion`) y si muestra la multipista (`linea`); `quien` la
-    /// distingue de las otras. Al cerrarse, `mirar(quien, false, false)`.
-    Q_INVOKABLE void mirar(const QString& quien, bool guion, bool linea);
+    /// Cada vista dice si se la ve (`que` "") y si muestra la multipista (`que`
+    /// "multipista"): la cuenta es por vista y la que se destruye se suelta sola.
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { miran_.usar(vista, si, que); }
     QStringList salidas() const;
     QString salida() const { return QString::fromStdString(salidaEfectiva()); }
     void setSalida(const QString& s);
@@ -212,7 +214,11 @@ class LineaViewModel : public QObject {
 
     void setMirando(bool on);
     void setMirandoLinea(bool on);
-    std::map<QString, bool> miran_; ///< quien → ve la multipista
+    /// Quiénes miran: "" la ven, "multipista" ven la Línea multipista.
+    UsoPorVistas miran_{this, [this](const QString&) {
+        setMirando(miran_.alguien());
+        setMirandoLinea(miran_.activo("multipista"));
+    }};
     bool mirando_ = false;
     bool mirandoLinea_ = false;
     std::string salida_; ///< "" = la por omisión de la línea

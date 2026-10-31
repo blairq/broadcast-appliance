@@ -26,8 +26,7 @@ Item {
     readonly property bool hay: v && v.hubo === true
     readonly property bool abierta: hay && v.abierta === true
 
-    Component.onCompleted: pub.activo = true
-    Component.onDestruction: pub.activo = false
+    Suscripcion { objetivo: raiz.pub; activa: raiz.visible }
 
     // Quién vota en una formal lo decide el modelo (los del padrón con voto que
     // llegaron): acá solo se mira cuántos hay para habilitar el botón.

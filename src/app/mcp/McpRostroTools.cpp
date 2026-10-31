@@ -686,7 +686,7 @@ void McpService::registerRostroTools() {
             "esto salga al aire.\n\n"
             "El lazo del alta asistida de alguien que espera:\n\n"
             "  1. `rostro_lobby` -> mira `sugerencia` y `sirve` de su posicion\n"
-            "  2. si `sirve` es false, deciselo por `chat_send {a: <su id>}` con esas palabras\n"
+            "  2. si `sirve` es false, deciselo por `chat_send {to: <su id>}` con esas palabras\n"
             "  3. cuando `sirve` es true y no tiene `id`, `rostro_guardar {nombre, feed: \"lobby:N\"}`\n"
             "     —el nombre lo escribio el al entrar: `room_status` lo trae—\n"
             "  4. si ya tiene `id`, `rostro_sumar {id, feed: \"lobby:N\"}` para que lo reconozca mejor\n"

@@ -66,34 +66,14 @@ Item {
 
     function avisar(e) { t.error = e || "" }
     function leerPosiciones() { t.posiciones = cc && entrada !== "" ? cc.posiciones(entrada) : [] }
-    onEntradaChanged: { leerPosiciones(); mirar() }
+    onEntradaChanged: leerPosiciones()
     Connections { target: t.cc; function onCambio() { t.leerPosiciones() } }
 
     // La imagen en vivo se pide solo afuera del tablero (renderizarla cuesta). Con el
     // PTZ digital, también la toma entera (antes del recorte), para manejarlo encima.
-    property string mirando: ""
-    property string mirandoEntera: ""
-    function mirar() {
-        const quiero = t.enVentana ? t.entrada : ""
-        if (quiero !== t.mirando) {
-            if (t.mirando !== "") Studio.frames.mirarEntrada(t.mirando, false)
-            if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
-            t.mirando = quiero
-        }
-        const entera = t.enVentana && t.mueveDigital ? t.entrada : ""
-        if (entera !== t.mirandoEntera) {
-            if (t.mirandoEntera !== "") Studio.frames.mirarEntrada(t.mirandoEntera, false, true)
-            if (entera !== "") Studio.frames.mirarEntrada(entera, true, true)
-            t.mirandoEntera = entera
-        }
-    }
-    onEnVentanaChanged: mirar()
-    onMueveDigitalChanged: mirar()
-    Component.onCompleted: { leerPosiciones(); mirar() }
-    Component.onDestruction: {
-        if (t.mirando !== "") Studio.frames.mirarEntrada(t.mirando, false)
-        if (t.mirandoEntera !== "") Studio.frames.mirarEntrada(t.mirandoEntera, false, true)
-    }
+    Suscripcion { objetivo: Studio.frames; que: "entrada:" + t.entrada; activa: t.enVentana && t.entrada !== "" }
+    Suscripcion { objetivo: Studio.frames; que: "entrada-entera:" + t.entrada; activa: t.enVentana && t.mueveDigital && t.entrada !== "" }
+    Component.onCompleted: leerPosiciones()
 
     // En su ventana: el panel completo (imágenes, puntos a la vista, configuración).
     Loader {

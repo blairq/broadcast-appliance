@@ -137,6 +137,11 @@ class EscenasViewModel : public QObject {
     /// en la escena «Repetición» (lista para el take). "" (lo que pase después lo dice
     /// `notify`).
     Q_INVOKABLE QString repetirUi();
+    /// Lo mismo, para quien necesita el resultado (el MCP: replay_guardar): de la `salida`,
+    /// armándolo solo con `armar`. `listo(archivo, error, armada)` en este hilo: error del
+    /// motor o «no llegó a escribirse» con archivo vacío; con archivo, el error es el de armar.
+    void repetir(const std::string& salida, bool armar,
+                 std::function<void(const QString& archivo, const QString& error, bool armada)> listo);
     /// Pone `archivo` en la escena «Repetición» (la crea si falta) y la deja armada en la
     /// `salida` ("" = la por omisión); `listo` con "" o el error, en este hilo.
     void armarRepeticion(const QString& archivo, const std::string& salida, std::function<void(const QString&)> listo);

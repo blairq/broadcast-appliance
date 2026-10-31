@@ -33,7 +33,16 @@ QVariantMap aMapa(const nlohmann::json& j) {
 } // namespace
 
 Mezclador::Mezclador(AppRuntime& rt, VentanillaMotor& ventanilla, Matriz* matriz, QObject* parent)
-    : QObject(parent), rt_(rt), v_(ventanilla), matriz_(matriz) {
+    : QObject(parent), rt_(rt), v_(ventanilla), matriz_(matriz), usos_(this, [this](const QString&) {
+          // Una vista que se destruye sin avisar no deja el temporizador andando.
+          if (activo()) {
+              rehacerListas();
+              timer_.start();
+          } else {
+              timer_.stop();
+          }
+          emit activoCambio();
+      }) {
     timer_.setInterval(kCuadroMs);
     timer_.setTimerType(Qt::PreciseTimer);
     connect(&timer_, &QTimer::timeout, this, &Mezclador::tic);
@@ -63,29 +72,7 @@ void Mezclador::setRacks(RackManager* r) {
     calibracion_->setRacks(r);
 }
 
-void Mezclador::usar(QObject* vista, bool si) {
-    if (vista == nullptr) return;
-    const bool antes = activo();
-    if (si && !usuarios_.contains(vista)) {
-        usuarios_.insert(vista);
-        // Una vista que se destruye sin avisar no deja el temporizador andando.
-        connect(vista, &QObject::destroyed, this, [this](QObject* o) {
-            const bool a = activo();
-            usuarios_.remove(o);
-            if (!activo()) timer_.stop();
-            if (a != activo()) emit activoCambio();
-        });
-    } else if (!si) {
-        usuarios_.remove(vista);
-    }
-    if (activo() && !timer_.isActive()) {
-        rehacerListas();
-        timer_.start();
-    } else if (!activo()) {
-        timer_.stop();
-    }
-    if (antes != activo()) emit activoCambio();
-}
+void Mezclador::usar(QObject* vista, bool si) { usos_.usar(vista, si); }
 
 void Mezclador::rehacerListas() {
     QStringList entradas;

@@ -253,6 +253,7 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_modules";
+        t.hilo = Hilo::Foto; // el catálogo de módulos es estático
         t.title = ba::i18n::traducir("mcp", "Modulos con interfaz propia");
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
@@ -627,6 +628,7 @@ void McpService::registerAudioTools() {
     {
         Tool t;
         t.name = "audio_rack_vigia";
+        t.hilo = Hilo::Foto; // el vigía del rack son dos atómicos
         t.title = ba::i18n::traducir("mcp", "Vigia de los modulos de audio");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;

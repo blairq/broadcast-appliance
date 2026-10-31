@@ -71,7 +71,6 @@ struct PrompterViewModel::Impl {
     /// cargó): de esto se republica.
     std::map<std::string, nlohmann::json> dueno;
     qint64 desfaseMs = 0; ///< reloj del gateway menos el de acá
-    int mirando = 0;
     QTimer reloj; ///< la barra de avance (solo corriendo y a la vista)
 };
 
@@ -373,14 +372,13 @@ int PrompterViewModel::faltaSeg() const {
     return static_cast<int>(total * (1.0 - avance()) * 60.0 / ppm);
 }
 
-void PrompterViewModel::mirar(bool si) {
-    d_->mirando = si ? 1 : 0; // la página lo dice al mostrarse y al esconderse (no se cuenta)
-    if (si) consultar(); // lo de ahora; lo que cambie después llega solo
+void PrompterViewModel::alCambiarVistas() {
+    if (vistas_.alguien()) consultar(); // lo de ahora; lo que cambie después llega solo
     mirarReloj();
 }
 
 void PrompterViewModel::mirarReloj() {
-    const bool mover = d_->mirando > 0 && d_->estado.value("corriendo", false).toBool();
+    const bool mover = vistas_.alguien() && d_->estado.value("corriendo", false).toBool();
     if (mover && !d_->reloj.isActive()) d_->reloj.start();
     else if (!mover) d_->reloj.stop();
 }

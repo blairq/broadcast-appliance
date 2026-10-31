@@ -493,8 +493,10 @@ QString Configuraciones::nuevoEventoAparte(const QString& nombre, const QString&
         const std::string e = yo ? yo->crearEvento(n, d, {}, hechos.get(), cps) : ba::i18n::traducir("configuraciones", "se cerró la app");
         QMetaObject::invokeMethod(
             QCoreApplication::instance(),
-            [yo, n, e, abrir, listo = std::move(listo)]() {
+            [yo, n, e, abrir0 = abrir, listo = std::move(listo)]() {
                 if (!yo) return;
+                // Con algo al aire no se abre (reinicia): queda creado (se mira al terminar la copia).
+                const bool abrir = abrir0 && yo->puedeCambiar().empty();
                 yo->progresoCopia_.stop();
                 yo->copia_.clear();
                 yo->copiaContador_.reset();
@@ -727,13 +729,44 @@ std::string Configuraciones::plantillaRestablecer(const std::string& id) {
 }
 
 std::string Configuraciones::plantillaDesdeActual(const std::string& nombre, const std::string& escenario) {
+    const std::string e = plantillaDesdeActualSinAvisar(nombre, escenario);
+    if (e.empty()) emit cambio();
+    return e;
+}
+
+std::string Configuraciones::plantillaDesdeActualSinAvisar(const std::string& nombre, const std::string& escenario) {
     if (const std::string e = crearSinAvisar(nombre, "actual", "", false); !e.empty()) return e;
     json meta = leerJson(carpeta(nombre) / "configuracion.json");
     meta["plantilla"] = true;
     if (!escenario.empty()) meta["plantillaDatos"] = {{"escenario", escenario}};
     escribirJson(carpeta(nombre) / "configuracion.json", meta);
-    emit cambio();
     return {};
+}
+
+void Configuraciones::aparte(std::function<std::string()> trabajo, std::function<void(std::string)> listo) {
+    QPointer<Configuraciones> yo(this);
+    QThreadPool::globalInstance()->start([yo, trabajo = std::move(trabajo), listo = std::move(listo)]() mutable {
+        const std::string e = yo ? trabajo() : ba::i18n::traducir("configuraciones", "se cerró la app");
+        QMetaObject::invokeMethod(
+            yo ? static_cast<QObject*>(yo.data()) : QCoreApplication::instance(),
+            [yo, e, listo = std::move(listo)]() {
+                if (yo && e.empty()) emit yo->cambio();
+                if (listo) listo(e);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void Configuraciones::crearAparte(const std::string& nombre, const std::string& desde, const std::string& descripcion,
+                                  bool conGrabaciones, std::function<void(std::string)> listo) {
+    aparte([this, nombre, desde, descripcion, conGrabaciones]() {
+        return crearSinAvisar(nombre, desde, descripcion, conGrabaciones);
+    }, std::move(listo));
+}
+
+void Configuraciones::plantillaDesdeActualAparte(const std::string& nombre, const std::string& escenario,
+                                                 std::function<void(std::string)> listo) {
+    aparte([this, nombre, escenario]() { return plantillaDesdeActualSinAvisar(nombre, escenario); }, std::move(listo));
 }
 
 std::string Configuraciones::activar(const std::string& nombre) {
@@ -929,8 +962,15 @@ QString Configuraciones::plantillaBorrarUi(const QString& id) {
 QString Configuraciones::plantillaDesdeActualUi(const QString& n, const QString& esc) {
     return QString::fromStdString(plantillaDesdeActual(n.trimmed().toStdString(), esc.toStdString()));
 }
+std::string Configuraciones::puedeCambiar() const {
+    if (!alAire()) return {};
+    return ba::i18n::traducir("mcp", "hay una transmisión o una grabación en curso: abrir otro evento reinicia "
+                                     "la app y la corta. Esperá a que termine (o que el operador lo pida).");
+}
+
 QString Configuraciones::cambiarUi(const QString& n) {
     if (n.toStdString() == activa()) return tr("ya es la activa");
+    if (const std::string e = puedeCambiar(); !e.empty()) return QString::fromStdString(e);
     if (const std::string e = activar(n.toStdString()); !e.empty()) return QString::fromStdString(e);
     return reiniciar();
 }

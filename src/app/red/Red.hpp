@@ -134,6 +134,8 @@ class Red : public QObject {
     struct Escaneo;
     void sondearRtsp(const std::string& ip, nlohmann::json candidatas, Listo listo);
     void terminarBarrido();
+    /// Lo que sigue al barrido, con la tabla ARP ya leída (en otro hilo: espera al sistema).
+    void reconocerEquipos(const std::map<std::string, std::string>& arp);
     void reconocer(const std::string& ip);
     void trabajoListo();
     void cerrarEscaneo();
