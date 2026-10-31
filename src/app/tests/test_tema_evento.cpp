@@ -66,8 +66,11 @@ int main() {
         check(t.tipografia.archivos.size() == 1 && t.tipografia.archivos[0].peso == "400", "fuente con peso por omisión");
         t.colores.acento = "#654321";
         check(t.guardar(ev), "guarda");
-        std::ifstream f(ev / "tema.json");
-        const json j = json::parse(f);
+        // Leído y cerrado ya: en Windows un archivo abierto no se puede reemplazar (y abajo se guarda de nuevo).
+        const json j = [&] {
+            std::ifstream f(ev / "tema.json");
+            return json::parse(f);
+        }();
         check(j["futuro"]["x"] == 1 && j["colores"]["degradado"] == "#abcdef", "lo desconocido se conserva (también adentro)");
         check(j["colores"]["acento"] == "#654321", "lo cambiado se guarda");
         t.colores.acento.clear();
