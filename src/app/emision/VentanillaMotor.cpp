@@ -4,18 +4,26 @@
 
 #include "diag/Metricas.hpp"
 
+#include <QCoreApplication>
+
 namespace ba::app {
 
 VentanillaMotor::VentanillaMotor(Dueno d, QObject* parent)
-    : QObject(parent), d_(std::move(d)), vista_(std::make_shared<const FotoMotor>()) {}
+    : QObject(parent), d_(std::move(d)), nucleo_(std::make_shared<Nucleo>()), vista_(std::make_shared<const FotoMotor>()) {
+    nucleo_->alTerminarOrden = d_.alTerminarOrden;
+}
 
 VentanillaMotor::~VentanillaMotor() = default;
 
-void VentanillaMotor::terminar(const char* que, std::chrono::steady_clock::time_point desde) {
+void VentanillaMotor::responder(std::function<void()> fn) {
+    QMetaObject::invokeMethod(QCoreApplication::instance(), std::move(fn), Qt::QueuedConnection);
+}
+
+void VentanillaMotor::Nucleo::terminar(const char* que, std::chrono::steady_clock::time_point desde) {
     // Lo que la orden cambió, a la foto ANTES de la respuesta: la interfaz recibe primero la
     // foto (el aviso ya está en su cola o se encola ahora) y después la respuesta.
-    if (d_.alTerminarOrden) d_.alTerminarOrden();
-    ++hechas_;
+    if (alTerminarOrden) alTerminarOrden();
+    ++hechas;
     const double ms =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - desde).count();
     ba::diag::Metricas::proceso()
@@ -64,7 +72,7 @@ std::int64_t VentanillaMotor::edadMs() const {
 
 nlohmann::json VentanillaMotor::estado() const {
     return {{"pedidas", pedidas_.load()},
-            {"hechas", hechas_.load()},
+            {"hechas", nucleo_->hechas.load()},
             {"publicadas", publicadas_.load()},
             {"recibidas", recibidas_.load()},
             {"edad_ms", edadMs()}};

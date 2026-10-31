@@ -466,8 +466,6 @@ class BroadcastEngine {
 
     /// El archivo que se está grabando (o el último) de la salida.
     std::string archivoGrabacion(const std::string& salida = "") const;
-    /// La copia en el otro disco (vacío si no hay).
-    std::string archivoCopiaGrabacion(const std::string& salida = "") const;
     /// Pasa `archivo` (mkv) a `formato` (mp4/mov) sin recodificar, en otro hilo.
     /// Varios archivos seguidos (los tramos de una grabación partida), en un solo hilo.
     bool remuxVarios(const std::vector<std::string>& archivos, const std::string& formato, bool borrarOrigen);
@@ -537,21 +535,17 @@ class BroadcastEngine {
     /// Reemplaza los settings de la fuente.
     bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
     /// La captura sin que espere quien llama (la interfaz nunca espera): prepara
-    /// acá —lee escenas y fuentes, que son del hilo de la interfaz—, espera el
+    /// acá —lee escenas y fuentes, que son del dueño del motor (con el turno)—, espera el
     /// cuadro en otro hilo y llama a `listo` DESDE ESE HILO (quien la usa en la
     /// interfaz la vuelve a su hilo). `error` vacío = hay imagen (RGBA).
     using Captura = std::function<void(const std::string& error, std::vector<std::uint8_t> rgba, int ancho, int alto)>;
     void capturarAparte(const std::string& name, int maxWidth, Captura listo);
-    /// Imagen actual de una fuente o escena ("" = el programa, con sus capas),
-    /// con ancho de a lo sumo `maxWidth` (0 = el del lienzo). RGBA 8 bits.
-    /// ESPERA el cuadro (hasta 3 s): no desde el hilo de la interfaz (ver capturarAparte).
-    bool captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba, int& width,
-                       int& height);
-    /// captureSource en dos partes, para capturar desde otro hilo (las
+    /// La imagen actual de una fuente o escena ("" = el programa, con sus capas), con ancho
+    /// de a lo sumo `maxWidth` (0 = el del lienzo), RGBA 8 bits, en dos partes (las
     /// miniaturas de Entradas, que se cargan aparte para no trabar la interfaz):
     /// `prepararCaptura` lee las escenas, las fuentes y el estado del motor, que
-    /// son del hilo de la interfaz (desde otro hilo era una carrera que tumbaba
-    /// la app); `capturarVista` arma o reusa la vista y espera el cuadro, y se
+    /// son del dueño (con el turno; sin él era una carrera que tumbaba la app);
+    /// `capturarVista` arma o reusa la vista y espera el cuadro, y se
     /// puede llamar desde cualquier hilo. "" o el error.
     std::string prepararCaptura(const std::string& name, int maxWidth, std::string& clave, int& w, int& h,
                                 bool& esEscena) const;
@@ -601,9 +595,6 @@ class BroadcastEngine {
     /// Pico mas reciente de la fuente en dBFS (-100 = silencio): lo que entrega la
     /// entrada, vaya o no al Programa (el mismo de los vúmetros del Mezclador).
     float sourcePeakDb(const std::string& name) const;
-    /// El pico de lo que ENTREGA la entrada (después de sus filtros y su rack, antes de su
-    /// volumen), vaya o no a alguna salida: el vúmetro de su fila en la matriz.
-    float sourceOutputPeakDb(const std::string& name) const;
     /// Los auriculares del operador tienen dos cosas distintas:
     /// - la ESCUCHA FIJA: lo que la matriz manda ahí a propósito (la voz del
     ///   asistente, la del teleprompter). Varias juntas; se guarda (audio-matriz.json).
@@ -662,8 +653,6 @@ class BroadcastEngine {
     bool seekMedia(const std::string& name, std::int64_t ms);
     /// Para un medio sin sacarlo.
     bool pararMedia(const std::string& name);
-    /// Pausa o sigue un medio.
-    bool pausarMedia(const std::string& name, bool pausa);
 
     // --- Descubrir capacidades -------------------------------------------------
     struct ListItem {
@@ -700,7 +689,9 @@ class BroadcastEngine {
         return video_;
     }
     /// Codificadores de video en el orden en que se probarían para `enc` (el último, x264enc).
-    std::vector<std::string> videoEncoderCandidates(const EncoderConfig& enc) const;
+    /// No lee el estado del motor (solo `enc` y las fábricas de GStreamer): desde cualquier
+    /// hilo, sin el turno (lo usa también el hilo de salidas al arrancar una grabación).
+    static std::vector<std::string> videoEncoderCandidates(const EncoderConfig& enc);
 
     /// Publica el programa de cada salida hacia el Proceso B (la por omisión en
     /// BA.Program, las demás en BA.Salida.<id>; el audio lo escribe el motor: ver
@@ -728,10 +719,15 @@ class BroadcastEngine {
     /// Lo que se le encargó al motor y falló después: las órdenes que pueden
     /// tardar van en cola y vuelven enseguida (la interfaz no espera), así que
     /// su error llega por acá, desde el hilo del motor.
-    void alFallarMotor(std::function<void(const std::string&)> fn);
-    /// El texto que llega por alFallarMotor es el de «el disco anda bien de nuevo» (un
-    /// aviso bueno, no un fallo). Comparar con esto y no con el texto: sale traducido.
-    static bool esAvisoDeDiscoBien(const std::string& texto);
+    /// Un aviso del motor de algo que pasó después de pedirlo: TIPADO (quien lo muestra
+    /// decide por el código y el nivel, nunca comparando el texto, que sale traducido).
+    struct AvisoMotor {
+        enum class Nivel { Error, Bien };
+        std::string codigo; ///< estable: "orden_fallida", "disco_apuros", "disco_bien"
+        Nivel nivel = Nivel::Error;
+        std::string texto; ///< para el operador, traducido
+    };
+    void alFallarMotor(std::function<void(const AvisoMotor&)> fn);
     /// Avisa cuando cambia el audio de una fuente: `que` es "escucha" (fija o PFL),
     /// "pistas", "retardo", "volumen", "mute" o "alta" (se creó, se rehízo o se renombró). Lo pida quien lo pida (la matriz, el
     /// Mezclador, el asistente, el AFV, una escena que se carga, volver como estaba):
@@ -748,11 +744,23 @@ class BroadcastEngine {
     void soltarCanalesEscena(const std::string& dueno, const std::set<int>& salvo = {});
     bool canalEscenaConDuenos(int k) const;
 
+    /// Lo que de verdad pasó con una orden de salida que corre en el hilo de salidas
+    /// (startRecording, startStreaming): que devuelvan true es «encolada», no «hecha». El
+    /// resultado llega después a quien pidió, por `AlResultado`, DESDE EL HILO DE SALIDAS
+    /// (quien lo recibe se lo encarga a su hilo). `que`: "grabar" o "transmitir".
+    struct ResultadoOrden {
+        std::string salida, que;
+        bool ok = true;
+        std::string error;
+    };
+    using AlResultado = std::function<void(const ResultadoOrden&)>;
+
     /// Transmite. Si YA está transmitiendo: al mismo destino no hace nada
     /// (ultimoInicio = YaIgual); a OTRO destino falla (YaOtroDestino), salvo
-    /// `cambiarEnCaliente`, que corta y arranca al nuevo.
+    /// `cambiarEnCaliente`, que corta y arranca al nuevo. Con true, lo que pasó llega por
+    /// `alTerminar` (ver ResultadoOrden).
     bool startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente = false,
-                        const std::string& salida = "");
+                        const std::string& salida = "", AlResultado alTerminar = {});
     enum class Inicio { Iniciado, YaIgual, YaOtroDestino, Error };
     /// Lo que hizo el último startStreaming DE ESTE HILO (como lastError).
     Inicio ultimoInicio() const;
@@ -773,8 +781,10 @@ class BroadcastEngine {
     /// Detiene la transmision (no toca la grabacion).
     void stopStreaming(const std::string& salida = "");
 
-    /// Arranca la grabacion del programa (MKV en tramos; MP4/MOV se pasan al terminar).
-    bool startRecording(const RecordConfig& rec, const EncoderConfig& enc, const std::string& salida = "");
+    /// Arranca la grabacion del programa (MKV en tramos; MP4/MOV se pasan al terminar). Con
+    /// true (encolada), lo que pasó llega por `alTerminar` (ver ResultadoOrden).
+    bool startRecording(const RecordConfig& rec, const EncoderConfig& enc, const std::string& salida = "",
+                        AlResultado alTerminar = {});
     void stopRecording(const std::string& salida = "");
     /// {activa, archivo, copia, copia_activa, calidad, encoder, pistas, tramos}.
     nlohmann::json grabacionEstado(const std::string& salida = "") const;
@@ -797,7 +807,7 @@ class BroadcastEngine {
     std::string modoDisco() const;
     /// Configuración → Grabación: cuánto espera lo grabado para entrar al disco
     /// hasta «apuros», y cuánto todo al día hasta salir.
-    static void ponerUmbralesDisco(double apurosS, int recuperadoS);
+    void ponerUmbralesDisco(double apurosS, int recuperadoS);
     std::string setModoDisco(const std::string& modo); ///< "" o el error (se guarda en Config/disco.json)
     /// Darle (o devolverle) el disco al programa ahora.
     void priorizarPrograma(bool si);
@@ -1018,9 +1028,10 @@ class BroadcastEngine {
     std::atomic<bool> alAire_{false}; ///< transmitiendo o grabando (lo anota el hilo de salidas)
     mutable std::mutex fotoSalidasM_;
     nlohmann::json fotoSalidas_ = nlohmann::json::object();
-    void avisarFallo(const std::string& texto);
-    // Lo pedido (lo escribe la interfaz al pedir; el hilo de salidas lo baja si
-    // no arrancó): para contestar «ya está» o «ya hay tantas» sin esperar. Lo de
+    void avisarFallo(const std::string& texto) { avisar({"orden_fallida", AvisoMotor::Nivel::Error, texto}); }
+    void avisar(const AvisoMotor& a);
+    // Lo pedido (lo escribe el que tiene el turno al pedir; el hilo de salidas lo baja si
+    // no arrancó y lo avisa con el ResultadoOrden): para contestar «ya está» o «ya hay tantas» sin esperar. Lo de
     // cada salida está en su Salida (los campos «pedido»), también bajo pedidosM_.
     mutable std::mutex pedidosM_;
     std::set<std::string> individualesPedidas_;
@@ -1062,7 +1073,7 @@ class BroadcastEngine {
     std::shared_ptr<Medidas> medidasPrograma_;
     struct CanalEmisor; ///< el canal de video de una salida a su emisor (BroadcastEngineEmisor.cpp)
     /// Una salida (ver LAS SALIDAS arriba). Cada campo es de uno: del que tiene el turno
-    /// (lo del aire: la interfaz o el plano de control), del hilo de salidas (lo que sale)
+    /// (lo del aire: el dueño del motor, el plano de control), del hilo de salidas (lo que sale)
     /// o, bajo pedidosM_, de los dos.
     struct Salida {
         std::string id, nombre;
@@ -1100,14 +1111,14 @@ class BroadcastEngine {
         bool remuxAlTerminarSal = true;
         std::unique_ptr<SourceRec> clean;
         std::unique_ptr<Repeticion> replay;
-        // --- Al gateway (lo publica la interfaz; manda el hilo del motor, bajo retornoM) ---
+        // --- Al gateway (lo publica el dueño; manda el hilo del motor, bajo retornoM) ---
         std::mutex retornoM;
         ba::ipc::SpoutSender retorno;
         int retornoAncho = 0, retornoAlto = 0; ///< el tamaño con que se publicó
         std::uint64_t retornoCuadros = 0;
         std::vector<std::uint8_t> retornoFilas;
-        bool retornoPedido = false; ///< del hilo de la interfaz: su vista «…@gateway» está pedida
-        bool retornoEnUso = false;  ///< del hilo de la interfaz: alguien lo mira (ver retornoEnUso)
+        bool retornoPedido = false; ///< del que tiene el turno: su vista «…@gateway» está pedida
+        bool retornoEnUso = false;  ///< del que tiene el turno: alguien lo mira (ver retornoEnUso)
         // --- El emisor aparte (F3-01; BroadcastEngineEmisor.cpp) ---
         bool emisor = false; ///< la codifica un ba-emisor (BA_EMISOR): fijo desde que se crea
         // Del hilo de salidas: lo pedido (copia de Runtime/emisor/<id>.json) y lo último
@@ -1207,6 +1218,15 @@ class BroadcastEngine {
     // El disco en apuros (todo del hilo de salidas, menos el modo).
     void vigilarDisco();
     void aplicarPrioridad(bool si, bool automatica);
+    /// Los umbrales del disco en apuros (Configuración → Grabación, ponerUmbralesDisco): de
+    /// este motor, no del proceso. Los pone quien aplica los ajustes y los lee el hilo de
+    /// salidas (vigilarDisco): atómicos.
+    struct VigiaDisco {
+        std::atomic<double> apurosS{3.0};               ///< lo grabado esperando al disco: apuros
+        std::atomic<std::int64_t> registroTrabadoMs{3000}; ///< el registro trabado escribiendo: apuros
+        std::atomic<std::int64_t> bienDuranteMs{30000};    ///< todo al día este tiempo: sale de apuros
+    };
+    VigiaDisco vigiaDisco_;
     std::atomic<int> modoDisco_{0}; ///< 0 preguntar, 1 auto, 2 nunca
     bool discoApuros_ = false, prioridad_ = false, prioridadAuto_ = false;
     std::int64_t apurosDesdeMs_ = 0, discoBienDesdeMs_ = 0;
@@ -1258,7 +1278,7 @@ class BroadcastEngine {
     std::set<std::string> internasPedidas_;
     std::atomic<int> capturasEnCurso_{0};
     std::mutex falloMotorM_;
-    std::function<void(const std::string&)> falloMotor_;
+    std::function<void(const AvisoMotor&)> falloMotor_;
     NivelesMotor nivelesCanal_; ///< nivelesCanal
     std::function<void(const std::string&, const char*)> cambioAudio_; ///< alCambiarAudioFuente (se fija una vez, al armar)
     /// Lo que va al control de nivel del motor en la salida `s`: el fader de la fuente por la

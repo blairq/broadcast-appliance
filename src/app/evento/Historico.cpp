@@ -2,6 +2,7 @@
 // src/app/evento/Historico.cpp — ver Historico.hpp
 // ============================================================================
 #include "evento/Historico.hpp"
+#include "persist/Escritor.hpp"
 
 #include "i18n/I18n.hpp"
 
@@ -277,12 +278,7 @@ nlohmann::json Historico::traerDelDia(const fs::path& evento, const std::vector<
     if (!traidas.empty()) {
         std::sort(indice.begin(), indice.end(),
                   [](const json& a, const json& b) { return a.value("desde_ms", 0LL) < b.value("desde_ms", 0LL); });
-        const fs::path tmp = evento / "grabaciones.json.tmp";
-        {
-            std::ofstream o(tmp, std::ios::binary);
-            o << indice.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
-        }
-        fs::rename(tmp, evento / "grabaciones.json", ec);
+        ba::persist::escribir(evento / "grabaciones.json", indice.dump(1, '\t', false, nlohmann::json::error_handler_t::replace));
     }
     if (!transcripciones.empty() && !fs::equivalent(transcripciones, evento / "Transcripciones", ec))
         for (const auto& e : fs::directory_iterator(transcripciones, ec)) {
@@ -315,12 +311,7 @@ nlohmann::json Historico::limpiarGrabaciones(const fs::path& evento, std::int64_
         json indice = lista(evento / "grabaciones.json");
         for (auto& g : indice)
             if (borrados.count(g.value("archivo", std::string()))) g["borrada_ms"] = ahoraMs;
-        const fs::path tmp = evento / "grabaciones.json.tmp";
-        {
-            std::ofstream o(tmp, std::ios::binary);
-            o << indice.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
-        }
-        fs::rename(tmp, evento / "grabaciones.json", ec);
+        ba::persist::escribir(evento / "grabaciones.json", indice.dump(1, '\t', false, nlohmann::json::error_handler_t::replace));
     }
     return json{{"archivos", out}, {"bytes", total}};
 }

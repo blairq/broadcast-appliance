@@ -42,6 +42,9 @@
 
 #include <QObject>
 #include <QString>
+#include <QTimer>
+
+#include <chrono>
 
 #include <nlohmann/json.hpp>
 
@@ -108,6 +111,8 @@ class Conmutador : public QObject {
     /// La parte común de poner/take: transición de entrada, AFV, guardar y avisar.
     std::string cortar(const std::string& escena, const std::string& tipo, int ms, const char* via);
     void aplicarAfv(const std::string& destino, int ms);
+    /// Un paso de los fundidos del AFV en curso (ver rampas_).
+    void pasoRampas();
     void setArmadaYAvisar(const std::string& escena);
     /// `emitir` (una señal de este conmutador) en su hilo, si sigue vivo; y la foto del
     /// motor se rearma (lo que muestra la interfaz).
@@ -119,6 +124,15 @@ class Conmutador : public QObject {
     std::string armada_;
     double tbarPos_ = 0; ///< ver tbarPosicion
     Afv afv_;
+    /// Los fundidos del AFV en curso, UNO por fuente: un corte nuevo reemplaza el de la fuente
+    /// (no se pisan dos rampas). Los mueve un solo reloj (hijo: se muda con el conmutador).
+    struct Rampa {
+        float desde = 0, hasta = 0;
+        std::chrono::steady_clock::time_point inicio;
+        int ms = 0;
+    };
+    std::map<std::string, Rampa> rampas_;
+    QTimer relojRampas_{this};
 };
 
 /// Los conmutadores, uno por salida del motor (ver arriba), hijos suyos (se mudan con él al
@@ -140,6 +154,10 @@ class Conmutadores : public QObject {
 
     /// Uno por cada salida del motor: crea los que faltan y saca los que sobran.
     void sincronizar();
+    /// Lo que se guarda por el nombre de la escena (la armada de cada uno, las transiciones
+    /// de entrada) sigue a las escenas: lo renombrado toma el nombre nuevo (y se guarda) y lo
+    /// de una escena que ya no está se saca. Al llegar Cambio::Escenas.
+    void reconciliarEscenas();
 
     // Lo que comparten todos (lo usa cada Conmutador).
     nlohmann::json transicionEntrada(const std::string& escena) const;
@@ -166,6 +184,7 @@ class Conmutadores : public QObject {
     std::map<std::string, Afv> afvGuardado_;
     std::map<std::string, std::unique_ptr<Conmutador>> conmutadores_;
     Conmutador* porOmision_ = nullptr;
+    std::size_t renombresVistos_ = 0; ///< AppRuntime::renombresDeEscena
 };
 
 } // namespace ba::app::escenas

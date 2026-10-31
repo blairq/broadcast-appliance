@@ -3,6 +3,7 @@
 // ============================================================================
 #include "evento/CierreEvento.hpp"
 #include "arranque/ArchivoConfig.hpp"
+#include "persist/Escritor.hpp"
 
 #include "i18n/I18n.hpp"
 
@@ -94,15 +95,13 @@ const std::vector<std::string>& CierreEvento::archivosAsamblea() {
 
 int CierreEvento::copiarAsamblea(const fs::path& config, const fs::path& evento) {
     int n = 0;
-    std::error_code ec;
     for (const std::string& a : archivosAsamblea()) {
         // Lo último (aunque esté encolado y no haya llegado al disco), en su esquema.
         const json j = ba::app::config::leerObjeto(config / a);
         if (j.empty()) continue;
-        fs::create_directories(evento / "asamblea", ec);
-        std::ofstream o(evento / "asamblea" / a, std::ios::binary);
-        o << FotosConfig::sinSecretos(j).dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
-        ++n;
+        if (ba::persist::escribir(evento / "asamblea" / a,
+                                  FotosConfig::sinSecretos(j).dump(1, '\t', false, nlohmann::json::error_handler_t::replace)))
+            ++n;
     }
     return n;
 }
@@ -146,7 +145,6 @@ std::int64_t CierreEvento::horaDeLinea(const std::string& l) {
 nlohmann::json CierreEvento::recortarRegistros(const fs::path& logs, std::int64_t desdeMs, std::int64_t hastaMs,
                                                const fs::path& destino) {
     json out = json::object();
-    std::error_code ec;
     for (const auto& [nombre, archivos] : logsPorNombre(logs)) {
         std::vector<std::string> lineas;
         for (const fs::path& a : archivos) {
@@ -160,10 +158,9 @@ nlohmann::json CierreEvento::recortarRegistros(const fs::path& logs, std::int64_
             }
         }
         if (lineas.empty()) continue;
-        fs::create_directories(destino, ec);
-        std::ofstream o(destino / nombre, std::ios::binary);
-        for (const std::string& l : lineas) o << l << '\n';
-        out[nombre] = lineas.size();
+        std::string texto;
+        for (const std::string& l : lineas) texto.append(l).push_back('\n');
+        if (ba::persist::escribir(destino / nombre, texto)) out[nombre] = lineas.size();
     }
     return out;
 }
@@ -192,12 +189,7 @@ nlohmann::json CierreEvento::sellar(const fs::path& evento, std::int64_t ahoraMs
         archivos[fs::relative(p, evento, ec).generic_string()] = json{{"sha256", sha}, {"bytes", fs::file_size(p, ec)}};
     }
     json s{{"t", ahoraMs}, {"archivos", archivos}};
-    const fs::path tmp = evento / "sellos.json.tmp";
-    {
-        std::ofstream o(tmp, std::ios::binary);
-        o << s.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::rename(tmp, evento / "sellos.json", ec);
+    ba::persist::escribir(evento / "sellos.json", s.dump(1, '\t', false, nlohmann::json::error_handler_t::replace));
     return s;
 }
 

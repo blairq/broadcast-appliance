@@ -4,13 +4,13 @@
 #include "evento/EventoStore.hpp"
 
 #include "i18n/I18n.hpp"
+#include "persist/ArchivoConfig.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
 #include <cstdlib>
-#include <fstream>
 #include <functional>
 #include <sstream>
 
@@ -25,42 +25,16 @@ constexpr const char* kGuion = "evento.json";
 constexpr const char* kFicha = "ficha.json";
 constexpr const char* kEnCurso = "en-curso.json";
 
-/// Escribe un JSON entero o nada (temporal + rename: un corte de luz no lo deja a medias).
+/// Escribe un JSON entero o nada, bajado al disco (el escritor único: un corte de luz no
+/// lo deja a medias ni vacío).
 bool escribirJson(const fs::path& archivo, const json& j, std::string* err) {
-    const fs::path tmp = archivo.string() + ".nuevo";
-    {
-        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
-        if (!out) {
-            if (err != nullptr)
-                *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1"), {archivo.filename().string()});
-            return false;
-        }
-        out << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
-        if (!out.good()) {
-            if (err != nullptr)
-                *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1 entero"), {archivo.filename().string()});
-            return false;
-        }
-    }
-    std::error_code ec;
-    fs::rename(tmp, archivo, ec);
-    if (ec) {
-        if (err != nullptr)
-            *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo reemplazar %1: %2"),
-                                    {archivo.filename().string(), ec.message()});
-        fs::remove(tmp, ec);
-        return false;
-    }
-    return true;
+    if (ba::persist::guardarJson(archivo, j, 2)) return true;
+    if (err != nullptr)
+        *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1"), {archivo.filename().string()});
+    return false;
 }
 
-json leerJson(const fs::path& archivo) {
-    std::ifstream in(archivo);
-    if (!in) return json();
-    std::stringstream ss;
-    ss << in.rdbuf();
-    return json::parse(ss.str(), nullptr, false);
-}
+json leerJson(const fs::path& archivo) { return ba::persist::leerJson(archivo); }
 
 /// "a/b" + "c" (sin «/» de más si `a` está vacía).
 std::string unir(const std::string& a, const std::string& b) { return a.empty() ? b : a + "/" + b; }
@@ -397,14 +371,12 @@ std::string EventoStore::crear(const std::string& nombre, std::string* err, cons
 Evento EventoStore::cargar(const std::string& carpeta, bool* ok, std::string* err) const {
     if (ok != nullptr) *ok = false;
     const fs::path archivo = raiz_ / carpeta / kGuion;
-    std::ifstream in(archivo);
-    if (!in) {
+    std::string txt;
+    if (!ba::persist::leerArchivo(archivo, txt)) {
         ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no hay guion en %1"), {archivo.string()}));
         return {};
     }
-    std::stringstream ss;
-    ss << in.rdbuf();
-    const json j = json::parse(ss.str(), nullptr, false);
+    const json j = json::parse(txt, nullptr, false);
     if (j.is_discarded()) {
         // El archivo esta ahi pero roto. No se devuelve un evento vacio como
         // si nada: el operador tiene que enterarse ANTES de empezar a editar
@@ -433,25 +405,10 @@ bool EventoStore::guardar(const std::string& carpeta, const Evento& e, std::stri
                       fs::copy_options::overwrite_existing, ec);
     }
 
-    // Se escribe a un temporal y se renombra: si se corta la luz en el medio,
-    // el guion que estaba sigue entero.
-    const fs::path tmp = dir / "evento.json.nuevo";
-    {
-        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
-        if (!out) {
-            ponerErr(err, ba::i18n::traducir("evento", "no se pudo escribir en la carpeta del evento"));
-            return false;
-        }
-        out << e.aJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
-        if (!out.good()) {
-            ponerErr(err, ba::i18n::traducir("evento", "no se pudo escribir el guion entero"));
-            return false;
-        }
-    }
-    fs::rename(tmp, archivo, ec);
-    if (ec) {
-        ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo reemplazar el guion: %1"), {ec.message()}));
-        fs::remove(tmp, ec);
+    // Entero o nada (el escritor único): si se corta la luz en el medio, el guion que
+    // estaba sigue entero.
+    if (!ba::persist::guardarJson(archivo, e.aJson(), 2)) {
+        ponerErr(err, ba::i18n::traducir("evento", "no se pudo escribir en la carpeta del evento"));
         return false;
     }
     return true;

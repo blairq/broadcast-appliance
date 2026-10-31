@@ -5,6 +5,7 @@
 #include "evento/EventoStore.hpp"
 #include "evento/FotosConfig.hpp"
 #include "i18n/I18n.hpp"
+#include "persist/ArchivoConfig.hpp"
 #include "platform/Paths.hpp"
 
 #include <QCoreApplication>
@@ -15,7 +16,6 @@
 #include <QThreadPool>
 
 #include <algorithm>
-#include <fstream>
 #include <map>
 #include <vector>
 
@@ -89,11 +89,8 @@ fs::path demoPorNombre(const std::string& nombre) {
     return carpetaDemos() / deU8(nombre);
 }
 
-json leerJson(const fs::path& p) {
-    std::ifstream f(p);
-    json j = json::parse(f, nullptr, false);
-    return j.is_object() ? j : json::object(); // sin archivo (o roto): vacío, nunca null
-}
+/// Sin archivo (o roto): vacío, nunca null.
+json leerJson(const fs::path& p) { return ba::persist::leerObjetoJson(p); }
 
 /// Los cuadros por segundo de un lienzo como los guarda video.fps: "25" o "30000/1001" ("" =
 /// sin cambiar).
@@ -107,11 +104,8 @@ bool cpsValido(const std::string& cps) {
     return barra == std::string::npos ? cifras(cps) : cifras(cps.substr(0, barra)) && cifras(cps.substr(barra + 1));
 }
 
-void escribirJson(const fs::path& p, const json& j) {
-    std::error_code ec;
-    fs::create_directories(p.parent_path(), ec);
-    std::ofstream(p) << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-}
+/// Por el escritor único: entero o nada, bajado al disco.
+void escribirJson(const fs::path& p, const json& j) { ba::persist::guardarJson(p, j); }
 
 std::uintmax_t bytesDe(const fs::path& dir) {
     std::uintmax_t n = 0;
@@ -445,10 +439,11 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
     }
     // El lienzo de la región que se eligió (F2-17): se ofrece al crear, nunca se cambia solo.
     if (!cps.empty()) {
+        // Es un archivo de Config/ (con su esquema) que todavía no guarda nadie por la cola.
         const fs::path app = dst / "Config" / "app.json";
-        json j = leerJson(app);
+        json j = ba::persist::leerConfig(app);
         j["video"]["fps"] = cps.find('/') == std::string::npos ? json(std::stoi(cps)) : json(cps);
-        escribirJson(app, j);
+        ba::persist::guardarConfigYa(app, j);
     }
     escribirJson(dst / "configuracion.json", {{"descripcion", descripcion},
                                               {"creada_ms", QDateTime::currentMSecsSinceEpoch()},
@@ -772,7 +767,8 @@ void Configuraciones::plantillaDesdeActualAparte(const std::string& nombre, cons
 std::string Configuraciones::activar(const std::string& nombre) {
     std::error_code ec;
     if (!fs::is_directory(carpeta(nombre), ec)) return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no hay ningún evento «%1»"), {nombre});
-    escribirJson(datos() / "configuraciones.json", {{"activa", nombre}});
+    if (!ba::platform::ponerConfigActiva(datos(), nombre))
+        return ba::i18n::llenar(ba::i18n::traducir("configuraciones", "no se pudo escribir %1"), {"configuraciones.json"});
     emit cambio();
     return {};
 }

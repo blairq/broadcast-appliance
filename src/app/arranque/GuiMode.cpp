@@ -384,16 +384,18 @@ int runGui(int argc, char** argv) {
          .encargar = [&ventanilla](const char* que, std::function<void()> orden) { ventanilla.pedir(que, std::move(orden)); }});
     QObject::connect(QAbstractEventDispatcher::instance(), &QAbstractEventDispatcher::aboutToBlock, []() { TurnoMotor::soltarVuelta(); });
     // Al cerrar (o si la interfaz no carga), el motor vuelve a este hilo: el plano se para
-    // (lo adoptado vuelve), este hilo es el dueño de nuevo y el cierre ordenado es suyo.
+    // (lo adoptado vuelve), este hilo es el dueño de nuevo y el cierre ordenado es suyo. Lo
+    // que quedó en la agenda corre acá, ya como dueño (PlanoControl::detener).
     const auto devolverElMotor = [&rt, &plano]() {
         TurnoMotor::soltarVuelta();
         fuentes::ponerDesdeLaInterfaz({});
-        plano.detener();
-        TurnoMotor::participar("dueño");
-        rt.cederDueno();
-        rt.setDuenoDelAire({});
-        rt.setEncolarEnDueno({});
-        rt.setFoto({});
+        plano.detener([&rt]() {
+            TurnoMotor::participar("dueño");
+            rt.cederDueno();
+            rt.setDuenoDelAire({});
+            rt.setEncolarEnDueno({});
+            rt.setFoto({});
+        });
     };
 
     int result = 0;

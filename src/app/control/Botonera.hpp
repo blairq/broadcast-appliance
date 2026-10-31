@@ -328,6 +328,7 @@ class Botonera : public QObject {
     void vencerDispositivos();
 
     std::filesystem::path archivo_, archivoDisp_, log_;
+    int oyente_ = 0; ///< el del registro que escribe log_
     BusEventos& bus_;
     Ganchos g_;
     json datos_;

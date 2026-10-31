@@ -2,6 +2,7 @@
 // src/app/evento/Padron.cpp — ver Padron.hpp
 // ============================================================================
 #include "evento/Padron.hpp"
+#include "persist/ArchivoConfig.hpp"
 
 #include "i18n/I18n.hpp"
 
@@ -431,33 +432,14 @@ Padron cargarPadron(const fs::path& carpeta, bool* ok, std::string* err) {
 }
 
 bool guardarPadron(const fs::path& carpeta, const Padron& p, std::string* err) {
-    std::error_code ec;
-    fs::create_directories(carpeta, ec);
     const fs::path archivo = carpeta / kArchivo;
-    // Se escribe al lado y se renombra: si se corta la luz en medio de una
-    // acreditación, el padrón que estaba sigue entero. Un renombre es atómico;
-    // escribir encima, no.
-    const fs::path temporal = carpeta / "padron.json.tmp";
-    {
-        std::ofstream out(temporal, std::ios::trunc);
-        if (!out) {
-            if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1"), {temporal.string()});
-            return false;
-        }
-        out << p.aJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << '\n';
-        if (!out) {
-            if (err != nullptr)
-                *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo terminar de escribir %1"), {temporal.string()});
-            return false;
-        }
-    }
-    fs::rename(temporal, archivo, ec);
-    if (ec) {
-        if (err != nullptr)
-            *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo reemplazar el padron: %1"), {ec.message()});
-        return false;
-    }
-    return true;
+    // Entero o nada (el escritor único): si se corta la luz en medio de una
+    // acreditación, el padrón que estaba sigue entero.
+    std::string e;
+    if (ba::persist::guardarJson(archivo, p.aJson(), 2, ba::persist::Durabilidad::Normal, &e)) return true;
+    if (err != nullptr)
+        *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo reemplazar el padron: %1"), {e});
+    return false;
 }
 
 } // namespace ba::evento

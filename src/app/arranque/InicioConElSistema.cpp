@@ -5,6 +5,7 @@
 #include "arranque/InicioConElSistema.hpp"
 
 #include "i18n/I18n.hpp"
+#include "persist/Escritor.hpp"
 #include "platform/Energia.hpp"
 #include "platform/Paths.hpp"
 
@@ -125,10 +126,9 @@ std::string poner(bool on) {
         fs::remove(archivo(), ec);
         return ec ? ba::i18n::llenar(ba::i18n::traducir("inicio", "no se pudo borrar %1"), {archivo().string()}) : std::string();
     }
-    fs::create_directories(archivo().parent_path(), ec);
-    std::ofstream out(archivo(), std::ios::trunc);
-    out << contenido(queAbrir());
-    return out ? std::string() : ba::i18n::llenar(ba::i18n::traducir("inicio", "no se pudo escribir %1"), {archivo().string()});
+    return ba::persist::escribir(archivo(), contenido(queAbrir()))
+               ? std::string()
+               : ba::i18n::llenar(ba::i18n::traducir("inicio", "no se pudo escribir %1"), {archivo().string()});
 #endif
 }
 

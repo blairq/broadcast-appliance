@@ -59,8 +59,20 @@ std::string TurnoMotor::lugar(const std::source_location& l) {
     return f.empty() ? std::string(l.file_name()) : f;
 }
 
+namespace {
+std::atomic<bool> g_estricto{false};
+/// Lo que espera el turno un hilo que no participa (ver la cabecera): poco, nunca trabado.
+constexpr int kSinParticiparMs = 5;
+} // namespace
+
+void TurnoMotor::estricto(bool si) { g_estricto = si; }
+
 TurnoMotor::Guarda::Guarda(const TurnoMotor& t, std::source_location donde) {
-    if (t_participa == nullptr) return;
+    if (t_participa == nullptr) {
+        if (t.tomarHasta(kSinParticiparMs)) t_ = &t;
+        t.anotarSinParticipar(donde);
+        return;
+    }
     if (t_porVuelta) {
         t.entrarPorVuelta(donde);
         return;
@@ -147,6 +159,26 @@ void TurnoMotor::anotarDirecta(const std::source_location& donde) const {
                 " [" + quienLlamo() + "]");
 }
 
+void TurnoMotor::anotarSinParticipar(const std::source_location& donde) const {
+    const std::string l = lugar(donde);
+    bool nuevo = false;
+    {
+        const std::lock_guard<std::mutex> g(directasMu_);
+        nuevo = ++sinParticipar_[l] == 1;
+    }
+    ba::diag::Metricas::proceso()
+        .contador("ba_motor_sin_participar_total",
+                  QT_TRANSLATE_NOOP("metricas", "Veces que un hilo que no participa del turno entró al motor, por lugar"),
+                  {{"lugar", l}})
+        .sumar();
+    if (nuevo)
+        ba::diag::registro().linea(
+            g_estricto ? ba::diag::Nivel::Error : ba::diag::Nivel::Aviso, "motor", 0,
+            ba::i18n::llenar(ba::i18n::traducir("motor", "un hilo que no participa del turno entró al motor: %1 (%2:%3)"),
+                             {l, std::string(donde.file_name()), std::to_string(donde.line())}) +
+                " [" + quienLlamo() + "]");
+}
+
 void TurnoMotor::anotarEntrada() const {
     if (profundidad_++ == 0) {
         dueno_.store(std::this_thread::get_id());
@@ -200,7 +232,13 @@ nlohmann::json TurnoMotor::directas() const {
 
 nlohmann::json TurnoMotor::estado() const {
     const char* q = quien_.load();
+    nlohmann::json sin = nlohmann::json::object();
+    {
+        const std::lock_guard<std::mutex> g(directasMu_);
+        for (const auto& [k, n] : sinParticipar_) sin[k] = n;
+    }
     return {{"quien", q != nullptr ? q : ""},
+            {"sin_participar", std::move(sin)},
             {"esperas", esperas_.load()},
             {"espera_max_ms", static_cast<double>(esperaMaxUs_.load()) / 1000.0},
             {"directas", directas()}};

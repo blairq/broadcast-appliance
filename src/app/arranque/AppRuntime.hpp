@@ -44,6 +44,7 @@
 #include <functional>
 #include <mutex>
 #include <memory>
+#include <optional>
 #include <set>
 #include <source_location>
 #include <string>
@@ -58,10 +59,12 @@
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "emision/OperatorFeed.hpp"
+#include "emision/PedidosSalida.hpp"
 #include "emision/SalidasConfig.hpp"
 #include "emision/DocumentoAire.hpp"
 #include "emision/FotoMotor.hpp"
 #include "audio/ObjetivoLoudness.hpp"
+#include "persist/ArchivoConfig.hpp"
 
 namespace ba::app {
 
@@ -102,7 +105,7 @@ class AppRuntime {
     /// El que llama pasa a ser el dueño: el plano de control al arrancar (después de start,
     /// en su hilo) y el hilo principal al cerrar (después de parar el plano).
     void cederDueno();
-    /// ¿El que llama es el dueño? (Antes de start, todos lo son.)
+    /// ¿El que llama es el dueño? (Antes de start, nadie: lo que es del dueño corre en el acto.)
     bool esDueno() const;
     /// `fn` en el hilo dueño: en el acto si el que llama es él (o no hay a quién
     /// encolar); si no, encolada (con el turno) y sin esperar. Lo que es solo suyo (cfg_,
@@ -197,12 +200,13 @@ class AppRuntime {
 
     // --- Lo que sale ------------------------------------------------------------
     /// La carpeta del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H4): con
-    /// uno, lo que se graba va a <evento>/Grabaciones/. Vacía = Recordings/.
-    /// La carpeta del evento abierto (lo grabado va ahí). Al ponerla se retoman las
-    /// grabaciones que esperaban saber dónde (tras un corte: restoreOutputs). Las dos son
-    /// del dueño: desde otro hilo se le encargan (la copia de los ajustes de aire que lee el
-    /// plano se rehace con la carpeta antes de retomar).
-    void setCarpetaDelEvento(std::function<std::filesystem::path()> fn);
+    /// uno, lo que se graba va a <evento>/Grabaciones/; vacía = Recordings/. Es un VALOR que
+    /// la interfaz empuja cuando cambia el evento en curso (nunca se le pregunta a ella ni se
+    /// lee del disco en cada vuelta). Al ponerla se retoman las grabaciones que esperaban
+    /// saber dónde (tras un corte: restoreOutputs). Las dos son del dueño: desde otro hilo se
+    /// le encargan (la copia de los ajustes de aire que lee el plano se rehace con la carpeta
+    /// antes de retomar).
+    void setCarpetaDelEvento(std::filesystem::path carpeta);
     /// Retoma las grabaciones pendientes de un corte, si las hay. La interfaz la pide
     /// sola sin evento abierto (con evento, la llama setCarpetaDelEvento).
     void retomarGrabaciones();
@@ -211,7 +215,13 @@ class AppRuntime {
     std::string carpetaGrabacion() const;
     /// Dónde buscar grabaciones (para subir, listar): la del evento y Recordings/.
     std::vector<std::string> carpetasDeGrabaciones() const;
-    bool startRecording(const std::string& salida = "");
+    /// Lo que de verdad pasó con una orden de grabar/transmitir (BroadcastEngine::ResultadoOrden).
+    using ResultadoOrden = BroadcastEngine::ResultadoOrden;
+    using AlResultado = BroadcastEngine::AlResultado;
+    /// Graba `salida`. true = ENCOLADA (queda pedida, «pendiente»); lo que pasó llega por
+    /// `listo` (desde el hilo de salidas del motor: quien lo recibe se lo encarga a su hilo)
+    /// y, si falló, deja de estar pedida (el documento de aire ya no dice que graba).
+    bool startRecording(const std::string& salida = "", AlResultado listo = {});
     void stopRecording(const std::string& salida = "");
     /// Graba una entrada a su propio archivo, ademas del programa. Ver
     /// BroadcastEngine::startSourceRecording: cada una es un encode mas.
@@ -239,8 +249,9 @@ class AppRuntime {
     std::string ponerReplay(int segundos, const std::string& salida = "");
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno. Otra
     /// `salida` que la por omisión necesita los dos (su clave no se guarda).
+    /// Como startRecording: true = encolada; lo que pasó llega por `listo`.
     bool startStreaming(const std::string& server = {}, const std::string& key = {}, bool cambiarEnCaliente = false,
-                        const std::string& salida = "");
+                        const std::string& salida = "", AlResultado listo = {});
     void stopStreaming(const std::string& salida = "");
     /// Salir al aire a mano (servidor y clave escritos o los de la configuración):
     /// startStreaming y, si arrancó o cambió de destino, avisa a alVivoManual con el
@@ -277,6 +288,11 @@ class AppRuntime {
     bool setSceneProtected(const std::string& name, bool protegida);
     bool sceneProtected(const std::string& name) const;
     bool renameScene(const std::string& from, const std::string& to);
+    /// Los renombres de escena (de, a) desde el número `desde`, en el orden en que pasaron;
+    /// deja en `desde` el que sigue. Quien guarda cosas por el nombre de la escena (los
+    /// conmutadores: la armada, las transiciones de entrada) los aplica a lo suyo al llegar
+    /// el aviso Cambio::Escenas. Desde cualquier hilo.
+    std::vector<std::pair<std::string, std::string>> renombresDeEscena(std::size_t& desde) const;
     /// Carpeta de una escena ("" si no tiene).
     std::string sceneFolder(const std::string& name) const;
     /// Mueve la escena a una carpeta ("" la saca). Devuelve false si no existe.
@@ -327,13 +343,10 @@ class AppRuntime {
     /// control), se lo encarga al dueño (la configuración es suya) y devuelve true: lo que
     /// no puede esperar, lo que sale, ya está en el documento de aire.
     bool save();
-    /// Reinicia B (el launcher lo relanza con gateway.json nuevo). BLOQUEA hasta
-    /// ~4 s (espera que B se cierre): desde la interfaz o el MCP, usar
-    /// reiniciarSalaEnElFondo.
-    bool restartGateway();
-    /// Lo mismo sin bloquear a quien lo pide: corre en un hilo aparte (uno a la
-    /// vez) y llama a `listo` DESDE ESE HILO con el resultado ("" = hecho). Si ya
-    /// hay un reinicio en curso, `listo` recibe que se espere.
+    /// Reinicia B (el launcher lo relanza con gateway.json nuevo) sin bloquear a quien lo
+    /// pide: el pedido (que espera hasta ~4 s a que B se cierre) corre en un hilo aparte
+    /// (uno a la vez) y `listo` recibe el resultado ("" = hecho) EN EL DUEÑO, encolado. Si
+    /// ya hay un reinicio en curso, `listo` recibe que se espere.
     void reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo);
     ~AppRuntime();
 
@@ -375,7 +388,7 @@ class AppRuntime {
     const TurnoMotor& turno() const { return engine_.turno(); }
     /// DESDE CUALQUIER HILO: quién se entera de lo que el motor no pudo hacer
     /// (BroadcastEngine::alFallarMotor, con su candado). No es una llamada directa.
-    void alFallarMotor(std::function<void(const std::string&)> fn) { engine_.alFallarMotor(std::move(fn)); }
+    void alFallarMotor(std::function<void(const BroadcastEngine::AvisoMotor&)> fn) { engine_.alFallarMotor(std::move(fn)); }
     /// El motor para lo que se lee DESDE CUALQUIER HILO (las vistas: FrameService). No cuenta
     /// como entrada; un método con el turno llamado por acá desde la interfaz igual se cuenta
     /// (su TurnoMotor::Guarda): la red de seguridad lo ve.
@@ -388,8 +401,9 @@ class AppRuntime {
     /// Hay una clave guardada (cifrada en Credenciales/) de la ultima salida al
     /// aire: sirve para no tipearla de nuevo y para retomar tras una caida.
     bool streamKeySaved() const;
-    bool streamStopWanted() const { return streamStopWanted_; }
-    bool recordStopWanted() const { return recordStopWanted_; }
+    /// Desde cualquier hilo (el vigía de las alarmas): lo pedido de la por omisión.
+    bool streamStopWanted() const { return !pedidos_.de(salidas::kPorOmision).transmitePedida(); }
+    bool recordStopWanted() const { return !pedidos_.de(salidas::kPorOmision).grabaPedida(); }
     /// La corrida anterior terminó sin cerrarse (corte de luz, cuelgue): hay que
     /// volver como estaba (la escena, la playlist, las salidas).
     bool corteAnterior() const { return corteAnterior_; }
@@ -445,14 +459,17 @@ class AppRuntime {
     /// Escuchar por monitoreo a quien ocupa el lugar `slot` del lobby.
     void setLobbyMonitor(int slot, bool on) { operator_.setLobbyMonitor(slot, on); }
 
-    /// La definicion guardada de una fuente en una escena (nullptr si no esta).
-    SourceSpec* findSpec(const std::string& scene, const std::string& name);
+    /// Una COPIA de la definición guardada de una fuente en una escena (nada si no está):
+    /// un puntero a cfg_ quedaría colgando con el próximo cambio de escenas.
+    std::optional<SourceSpec> specDe(const std::string& scene, const std::string& name) const;
 
     /// Entrada de audio del equipo (microfono, linea) como fuente global.
     bool addAudioInput(const SourceSpec& spec);
     bool removeAudioInput(const std::string& name);
 
    private:
+    /// La definición guardada (para cambiarla, en el dueño); nullptr si no está.
+    SourceSpec* findSpec(const std::string& scene, const std::string& name);
     void addGuests();
    public:
     /// El cupo de invitados cambió en caliente (T33): agrega el audio de los lugares
@@ -477,7 +494,7 @@ class AppRuntime {
     /// Qué partes de la foto toca cada aviso.
     static unsigned partesDe(Cambio c);
     /// Además de las partes: lo que la foto lee de archivos se vuelve a leer.
-    static constexpr unsigned kFotoRelerArchivos = 1u << 8;
+    static constexpr unsigned kFotoRelerArchivos = FotoMotor::RelerArchivos;
     /// Los avisos a los observadores (en el dueño; ver avisar).
     void avisarObservadores(Cambio c) const;
     /// Rearma en `f` las partes `partes` (en el dueño, con el turno): ver FotoMotor.
@@ -498,6 +515,8 @@ class AppRuntime {
     mutable std::atomic<unsigned> fotoSucia_{FotoMotor::Todas | kFotoRelerArchivos};
     mutable std::atomic<bool> fotoPedida_{false};
     std::shared_ptr<const FotoMotor> foto_; ///< la última publicada (solo el dueño)
+    /// Donde se rearma lo sucio (solo el dueño): se copia a una foto nueva solo si algo cambió.
+    FotoMotor trabajo_;
     mutable std::mutex ultimaFotoMu_;
     std::shared_ptr<const FotoMotor> ultimaFoto_; ///< la misma, para otros hilos (ultimaFoto)
     /// Lo que la foto lee de archivos (Config/salidas.json, destinos.json): solo cuando
@@ -505,7 +524,8 @@ class AppRuntime {
     nlohmann::json fotoListaSalidas_, fotoDestinos_;
     unsigned ticsMotor_ = 0;
     std::atomic<bool> hayAire_{false}; ///< para el latido de la interfaz (ticMotor lo pone)
-    std::function<std::filesystem::path()> carpetaDelEvento_;
+    std::filesystem::path carpetaDelEvento_; ///< del dueño (setCarpetaDelEvento)
+    bool carpetaSabida_ = false;             ///< la interfaz ya dijo cuál es (aunque sea ninguna)
     bool grabacionesPorRetomar_ = false; ///< restoreOutputs: esperan la carpeta del evento
     void addAudioInputs();
     /// La sección de las salidas del documento de aire: qué salidas estaban activas, la
@@ -538,7 +558,7 @@ class AppRuntime {
     void crearSalidasGuardadas();
     /// Lo común de setScene y setSceneCon después de pedirlo al motor.
     bool anotarAire(bool ok, const std::string& name, const std::string& salida);
-    std::filesystem::path archivoSalidas() const { return root_ / "Config" / "salidas.json"; }
+    std::filesystem::path archivoSalidas() const { return ba::persist::archivoConfig("salidas.json"); }
 
     AppConfig cfg_;
     GatewaySettings gateway_;
@@ -554,17 +574,19 @@ class AppRuntime {
     std::thread reinicioSala_;              ///< reiniciarSalaEnElFondo
     std::function<void(const std::string&)> alVivoManual_;
     std::atomic<bool> reiniciandoSala_{false};
-    // Atómicos: los lee el vigía de las alarmas en el plano de control.
-    std::atomic<bool> streamStopWanted_{true};
-    std::atomic<bool> recordStopWanted_{true};
+    mutable std::mutex renombresMu_;
+    std::vector<std::pair<std::string, std::string>> renombres_; ///< ver renombresDeEscena
     mutable std::mutex salidasMu_;
     nlohmann::json salidasPublicadas_ = nlohmann::json::array();
-    /// Las salidas que no son la por omisión y que se graban a pedido (vuelven tras un corte).
-    std::set<std::string> grabandoOtras_;
-    /// Lo mismo con su transmisión principal (servidor y clave, cifrados en Credenciales/).
-    std::set<std::string> transmitiendoOtras_;
-    /// Los destinos (destinos.json) que transmiten, con su salida: vuelven tras un corte.
-    std::map<std::string, std::string> destinosAlAire_;
+    /// LO PEDIDO de cada salida (emision/PedidosSalida.hpp): el ÚNICO dueño. Lo cambian las
+    /// órdenes (grabar, transmitir, un destino, pararlos, el corte de luz) y el resultado
+    /// que manda el motor de las que corren en su hilo de salidas (alResultado: una que
+    /// falló deja de estar pedida). El documento de aire guarda esto; la foto, lo real.
+    salidas::Pedidos pedidos_;
+    using PedidoSalida = salidas::Pedidos::DeSalida;
+    /// El callback que va al motor con la orden `orden`: anota el resultado y avisa (desde
+    /// el hilo de salidas), y después se lo pasa a `listo`.
+    AlResultado alResultado(std::uint64_t orden, AlResultado listo);
     salidas::AlAire aireAnterior_;
     salidas::DocumentoAire documento_;
     bool aireListo_ = false;        ///< ya volvió como estaba: el documento se puede escribir
@@ -575,7 +597,6 @@ class AppRuntime {
     bool corteAnterior_ = false;
     bool cerrando_ = false;           ///< stop(): al-aire.json dice «cerrado»
     bool emergenciaEnergia_ = false;  ///< cerrarGrabacionesPorEnergia: un cierre es un corte
-    std::set<std::string> porEnergia_; ///< las salidas cuya grabación cerró el corte (vuelven)
     mutable std::atomic<int> keySaved_{-1}; // cache de streamKeySaved (-1 = sin consultar)
     std::atomic<std::thread::id> dueno_{};  ///< el hilo que hizo start (ver esDueno)
     std::function<void(std::function<void()>)> encolarEnDueno_;

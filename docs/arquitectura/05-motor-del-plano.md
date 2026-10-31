@@ -23,7 +23,9 @@ tiempos, la resolución, la red); falta para Asamblea, Sala, Asistente y Escrito
 - Al arrancar, `start()` corre en el hilo principal (GStreamer y el contexto GL se crean
   ahí, como pide macOS); la primera foto se publica ahí y después
   `PlanoControl::enControlYEsperar` muda al dueño. Al cerrar, `devolverElMotor` (GuiMode)
-  para el plano y el hilo principal vuelve a ser dueño para el cierre ordenado.
+  para el plano y el hilo principal vuelve a ser dueño para el cierre ordenado: lo que quedó
+  en la agenda corre ahí, ya como dueño (`PlanoControl::detener(alRecibir)`), y lo que se
+  encola con el plano parado también (encolado): ninguna respuesta se pierde.
 
 ## La API para los view models: `emision/VentanillaMotor`
 
@@ -147,7 +149,18 @@ DESDE CUALQUIER HILO: las vistas, `fotoSalidas`, los picos; un método con turno
 ahí desde la interfaz igual se cuenta). Lo que es del dueño y se llama desde otro hilo se
 le encarga solo (`setCarpetaDelEvento`, `retomarGrabaciones`): desde la interfaz,
 `ajustesAire()` devuelve la copia del plano, y lo que se decidiera con ella podía ser viejo
-(la grabación retomada tras un corte iba a `Recordings/`).
+(la grabación retomada tras un corte iba a `Recordings/`). Lo que el dueño necesita saber de
+la interfaz le llega como VALOR empujado cuando cambia (la carpeta del evento, con
+`EventoViewModel::enCursoChanged`), nunca como una función que le pregunta a la interfaz
+(se llamaba 10 veces por segundo desde el control y leía el disco).
+
+Las órdenes de grabar y transmitir corren en el hilo de salidas del motor: que devuelvan true
+es «encolada». Lo pedido de cada salida tiene UN dueño (`emision/PedidosSalida`, en el
+runtime): queda «pendiente» hasta que el motor manda el resultado de esa orden
+(`BroadcastEngine::ResultadoOrden`); si falló, deja de estar pedido. El documento de aire
+guarda lo pedido; la foto muestra lo real y lo pendiente (`FotoMotor::Salida::grabacionPendiente`).
+Los avisos del motor que llegan después (`alFallarMotor`) son tipados (`AvisoMotor`:
+código y nivel): nadie compara el texto traducido.
 
 ## La línea de tiempo (asamblea, sala y línea)
 

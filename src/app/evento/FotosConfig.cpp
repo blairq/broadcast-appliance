@@ -4,11 +4,10 @@
 #include "evento/FotosConfig.hpp"
 
 #include "i18n/I18n.hpp"
+#include "persist/ArchivoConfig.hpp"
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
-#include <sstream>
 
 #include "crypto/Sha256.hpp"
 
@@ -66,6 +65,10 @@ nlohmann::json FotosConfig::sinSecretos(const json& j) {
 }
 
 nlohmann::json FotosConfig::foto(std::int64_t ahoraMs) {
+    // Lo encolado para Config/ primero al disco: la foto es de lo último que se guardó, y
+    // lo que no cambió en el disco se reconoce por su fecha y tamaño. Si el disco no
+    // responde a tiempo, se lee todo por la cola (que ve lo encolado) sin fiarse de eso.
+    const bool alDia = ba::persist::cola().vaciar(std::chrono::milliseconds(500));
     json archivos = json::object();
     std::error_code ec;
     std::map<std::string, Visto> vistos;
@@ -84,29 +87,20 @@ nlohmann::json FotosConfig::foto(std::int64_t ahoraMs) {
         const std::int64_t mt = mtimeDe(it->path());
         auto previo = vistos_.find(rel);
         Visto v;
-        if (previo != vistos_.end() && previo->second.mtime == mt && previo->second.bytes == bytes) {
+        if (alDia && previo != vistos_.end() && previo->second.mtime == mt && previo->second.bytes == bytes) {
             v = previo->second;
         } else {
-            std::ifstream f(it->path(), std::ios::binary);
-            std::stringstream ss;
-            ss << f.rdbuf();
-            json j = json::parse(ss.str(), nullptr, false);
-            // Un JSON roto (se estaba escribiendo) se guarda tal cual, como texto.
+            std::string texto;
+            if (!ba::persist::cola().leer(it->path(), texto)) continue;
+            json j = json::parse(texto, nullptr, false);
+            // Un JSON roto se guarda tal cual, como texto.
             const std::string contenido =
-                j.is_discarded() ? json{{"_texto", ss.str()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : sinSecretos(j).dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
+                j.is_discarded() ? json{{"_texto", texto}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : sinSecretos(j).dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
             v.mtime = mt;
             v.bytes = bytes;
             v.sha = ba::crypto::sha256Hex(contenido.data(), contenido.size());
             const fs::path obj = objetos_ / (v.sha + ".json");
-            if (!fs::exists(obj, ec)) {
-                fs::create_directories(objetos_, ec);
-                const fs::path tmp = obj.string() + ".tmp";
-                {
-                    std::ofstream o(tmp, std::ios::binary);
-                    o << contenido;
-                }
-                fs::rename(tmp, obj, ec);
-            }
+            if (!fs::exists(obj, ec)) ba::persist::escribir(obj, contenido);
         }
         vistos[rel] = v;
         archivos[rel] = json{{"sha", v.sha}, {"bytes", bytes}};
@@ -117,10 +111,7 @@ nlohmann::json FotosConfig::foto(std::int64_t ahoraMs) {
 
 nlohmann::json FotosConfig::leer(const std::string& sha) const {
     if (sha.empty() || sha.find_first_not_of("0123456789abcdef") != std::string::npos) return nullptr;
-    std::ifstream f(objetos_ / (sha + ".json"), std::ios::binary);
-    if (!f) return nullptr;
-    json j = json::parse(f, nullptr, false);
-    return j.is_discarded() ? json(nullptr) : j;
+    return ba::persist::leerJson(objetos_ / (sha + ".json"));
 }
 
 nlohmann::json FotosConfig::comparar(const json& antes, const json& despues, std::size_t tope) const {
@@ -199,13 +190,11 @@ nlohmann::json FotosConfig::prepararRestauracion(const json& foto, const std::ve
             omitidos.push_back(rel); // no está el contenido, o era un JSON roto
             continue;
         }
-        std::ifstream f(config_ / fs::u8path(rel), std::ios::binary);
-        const json actual = f ? json::parse(f, nullptr, false) : json();
-        contenido = conTapadosDe(contenido, actual.is_discarded() ? json() : actual);
-        const fs::path destino = dir / "archivos" / fs::u8path(rel);
-        fs::create_directories(destino.parent_path(), ec);
-        std::ofstream o(destino, std::ios::binary);
-        o << contenido.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
+        contenido = conTapadosDe(contenido, ba::persist::leerJson(config_ / fs::u8path(rel)));
+        if (!ba::persist::guardarJson(dir / "archivos" / fs::u8path(rel), contenido, 2)) {
+            omitidos.push_back(rel);
+            continue;
+        }
         hechos.push_back(rel);
     }
     for (const std::string& pedido : archivos)
@@ -242,11 +231,8 @@ nlohmann::json FotosConfig::aplicarPendiente(const fs::path& config, std::int64_
             fs::create_directories((respaldo / fs::u8path(rel)).parent_path(), ec);
             fs::copy_file(destino, respaldo / fs::u8path(rel), fs::copy_options::overwrite_existing, ec);
         }
-        fs::create_directories(destino.parent_path(), ec);
-        const fs::path tmp = destino.string() + ".tmp";
-        fs::copy_file(nuevo, tmp, fs::copy_options::overwrite_existing, ec);
-        fs::rename(tmp, destino, ec);
-        if (!ec) aplicados.push_back(rel);
+        std::string bytes;
+        if (ba::persist::leerArchivo(nuevo, bytes) && ba::persist::escribir(destino, bytes)) aplicados.push_back(rel);
     }
     json hecho = plan;
     hecho["aplicado"] = ahoraMs;
@@ -258,23 +244,9 @@ nlohmann::json FotosConfig::aplicarPendiente(const fs::path& config, std::int64_
 }
 
 bool FotosConfig::guardar(const fs::path& archivo, const json& foto) {
-    std::error_code ec;
-    fs::create_directories(archivo.parent_path(), ec);
-    const fs::path tmp = archivo.string() + ".tmp";
-    {
-        std::ofstream o(tmp, std::ios::binary);
-        if (!o) return false;
-        o << foto.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::rename(tmp, archivo, ec);
-    return !ec;
+    return ba::persist::escribir(archivo, foto.dump(1, '\t', false, nlohmann::json::error_handler_t::replace));
 }
 
-nlohmann::json FotosConfig::cargar(const fs::path& archivo) {
-    std::ifstream f(archivo, std::ios::binary);
-    if (!f) return nullptr;
-    json j = json::parse(f, nullptr, false);
-    return j.is_discarded() ? json(nullptr) : j;
-}
+nlohmann::json FotosConfig::cargar(const fs::path& archivo) { return ba::persist::leerJson(archivo); }
 
 } // namespace ba::evento

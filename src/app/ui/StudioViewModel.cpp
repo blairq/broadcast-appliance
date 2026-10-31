@@ -150,10 +150,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     };
     // Lo que el motor no pudo hacer: sus órdenes van en cola y la interfaz no
     // espera el resultado, así que el error llega después, desde su hilo.
-    rt_.alFallarMotor([vm = QPointer<StudioViewModel>(this)](const std::string& texto) {
+    rt_.alFallarMotor([vm = QPointer<StudioViewModel>(this)](const BroadcastEngine::AvisoMotor& a) {
         QMetaObject::invokeMethod(
             qApp,
-            [vm, t = QString::fromStdString(texto), ok = BroadcastEngine::esAvisoDeDiscoBien(texto)]() {
+            [vm, t = QString::fromStdString(a.texto), ok = a.nivel == BroadcastEngine::AvisoMotor::Nivel::Bien]() {
                 if (vm) emit vm->notify(t, ok ? "ok" : "error");
             },
             Qt::QueuedConnection);
@@ -473,8 +473,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     energia_ = std::make_unique<EnergiaAire>(EnergiaAire::Acciones{[&rt]() { return rt.cerrarGrabacionesPorEnergia(); },
                                                                    [&rt]() { rt.retomarGrabacionesPorEnergia(); },
                                                                    [&rt]() { return rt.emergenciaEnergia(); }});
-    energia_->vigilar();
     connect(energia_.get(), &EnergiaAire::aviso, this, &StudioViewModel::notify);
+    // Es del dueño del motor: vigila en su hilo (con la interfaz trabada, igual cierra).
+    ventanilla_.adoptar(energia_.get());
+    QMetaObject::invokeMethod(energia_.get(), [e = energia_.get()]() { e->vigilar(); }, Qt::QueuedConnection);
     // Disparadores (alertas) contra el estado real de la app, y la pestaña Asistente. El
     // vigía corre en el plano de control (F3-03) y lee lo que dicen sus fuentes
     // (ui/AlarmasViewModel): lo de la interfaz como foto, lo del aire directo.
@@ -502,13 +504,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         }
         // Con un evento en curso, lo que se graba va a su carpeta (H4).
         // (Y las grabaciones que esperaban, tras un corte, vuelven ahí: no a la de fábrica.)
-        // Es del dueño (las grabaciones arrancan ahí): se le encarga.
-        if (evento_)
-            ventanilla_.pedir("carpeta_evento", [&rt = rt_, ev = evento_.get()]() {
-                rt.setCarpetaDelEvento([ev]() { return ev->carpetaEvento(); });
-            });
-        else
+        // Es del dueño (las grabaciones arrancan ahí): se le encarga el VALOR, ahora y cada vez
+        // que cambia el evento en curso.
+        if (evento_) {
+            const auto ponerCarpeta = [this]() {
+                ventanilla_.pedir("carpeta_evento", [&rt = rt_, c = evento_->carpetaEvento()]() { rt.setCarpetaDelEvento(c); });
+            };
+            ponerCarpeta();
+            connect(evento_.get(), &EventoViewModel::enCursoChanged, this, ponerCarpeta);
+        } else {
             ventanilla_.pedir("retomar_grabaciones", [&rt = rt_]() { rt.retomarGrabaciones(); });
+        }
         // El cue en que va el guion, al bus («evento/cue»): lo muestra la botonera entre
         // sus botones «◀ Cue» y «Cue ▶», y cualquier superficie que lo quiera.
         if (evento_) {
@@ -843,9 +849,8 @@ StudioViewModel::~StudioViewModel() {
     videoParaVigia_.store(nullptr); // el vigía sigue un rato; el grafo se va con la imagen
     rt_.alFallarMotor(nullptr);
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
-    // El runtime y los flujos de texto viven más que el evento: que no le
-    // pregunten la carpeta a un EventoViewModel que ya no está.
-    rt_.setCarpetaDelEvento(nullptr);
+    // Los flujos de texto viven más que el evento: que no le pregunten la carpeta a un
+    // EventoViewModel que ya no está (el runtime tiene un valor, no le pregunta a nadie).
     asistente_->flujos().setCarpetaDelEvento(nullptr);
     // La bitácora antes que el bus y el evento de los que cuelga (anota «la app se cierra»).
     bitacoraEvento_.reset();

@@ -1,6 +1,7 @@
 // src/app/escenas/Conmutador.cpp — el conmutador de escenas de cada salida (ver el .hpp)
 
 #include "escenas/Conmutador.hpp"
+#include "escenas/SeguirEscenas.hpp"
 #include "arranque/ArchivoConfig.hpp"
 
 #include "i18n/I18n.hpp"
@@ -9,11 +10,9 @@
 #include "diag/Registro.hpp"
 
 #include <QPointer>
-#include <QSaveFile>
 #include <QTimer>
 
 #include <algorithm>
-#include <fstream>
 
 namespace ba::app::escenas {
 
@@ -26,7 +25,10 @@ constexpr const char* kPorOmision = BroadcastEngine::kSalidaPorOmision;
 // ============================================================================
 
 Conmutador::Conmutador(AppRuntime& rt, Conmutadores& registro, std::string salida, Afv afv, QObject* parent)
-    : QObject(parent), rt_(rt), registro_(registro), salida_(std::move(salida)), afv_(std::move(afv)) {}
+    : QObject(parent), rt_(rt), registro_(registro), salida_(std::move(salida)), afv_(std::move(afv)) {
+    relojRampas_.setInterval(30);
+    connect(&relojRampas_, &QTimer::timeout, this, &Conmutador::pasoRampas);
+}
 
 std::string Conmutador::alAire() const { return rt_.engine().currentScene(salida_); }
 
@@ -146,19 +148,42 @@ void Conmutador::aplicarAfv(const std::string& destino, int ms) {
     // El fader de cada fuente EN ESTA salida (la mezcla de su bus).
     const auto fundidos = afv_.alCortar(rt_.engine().sceneSources(destino),
                                         [this](const std::string& f) { return rt_.engine().sourceVolume(f, salida_); }, &recordo);
-    // Fundido en pasos de 30 ms, con la duración de la transición: el reloj es el del
-    // conmutador (el dueño) y cada paso va a la agenda del dueño, con el turno (no espera a
-    // que la interfaz se destrabe). Si la salida se borra en el medio, el motor dice que no
-    // existe y listo.
-    const int pasos = std::max(1, ms / 30);
-    for (const auto& f : fundidos)
-        for (int i = 1; i <= pasos; ++i) {
-            const float v = f.desde + (f.hasta - f.desde) * static_cast<float>(i) / static_cast<float>(pasos);
-            QTimer::singleShot(i * 30, this, [&rt = rt_, salida = salida_, n = f.fuente, v]() {
-                rt.despuesEnDueno([&rt, salida, n, v]() { rt.engine().setSourceVolume(n, v, salida); });
-            });
-        }
+    // Fundido con la duración de la transición, uno por fuente: el de un corte anterior que
+    // todavía corre se reemplaza (sigue desde donde iba). El reloj es el del conmutador (el
+    // dueño) y cada paso va a la agenda del dueño, con el turno (no espera a que la interfaz
+    // se destrabe). Si la salida se borra en el medio, el motor dice que no existe y listo.
+    const auto ahora = std::chrono::steady_clock::now();
+    for (const auto& f : fundidos) rampas_[f.fuente] = Rampa{f.desde, f.hasta, ahora, std::max(0, ms)};
+    pasoRampas(); // un corte (0 ms) queda en el acto
+    // El reloj, en el hilo del conmutador (el corte puede venir de la interfaz que corta directo).
+    if (!rampas_.empty())
+        QMetaObject::invokeMethod(
+            this, [this]() {
+                if (!rampas_.empty() && !relojRampas_.isActive()) relojRampas_.start();
+            },
+            Qt::AutoConnection);
     if (recordo) registro_.guardar();
+}
+
+void Conmutador::pasoRampas() {
+    // Con el turno (rampas_ la cambia también un corte); si la interfaz lo tiene, este paso
+    // se saltea: el dueño no la espera, y el próximo sigue por la hora.
+    const TurnoMotor& turno = rt_.turno();
+    if (!turno.tomarHasta(0)) return;
+    struct Soltar {
+        const TurnoMotor& t;
+        ~Soltar() { t.soltar(); }
+    } soltar{turno};
+    const auto ahora = std::chrono::steady_clock::now();
+    for (auto it = rampas_.begin(); it != rampas_.end();) {
+        const Rampa& r = it->second;
+        const double ms = std::chrono::duration<double, std::milli>(ahora - r.inicio).count();
+        const double t = r.ms <= 0 ? 1.0 : std::clamp(ms / r.ms, 0.0, 1.0);
+        const float v = r.desde + (r.hasta - r.desde) * static_cast<float>(t);
+        rt_.despuesEnDueno([&rt = rt_, salida = salida_, n = it->first, v]() { rt.engine().setSourceVolume(n, v, salida); });
+        it = t >= 1.0 ? rampas_.erase(it) : std::next(it);
+    }
+    if (rampas_.empty()) relojRampas_.stop();
 }
 
 std::string Conmutador::setTransicionEntrada(const std::string& escena, const std::string& tipo, int ms) {
@@ -198,7 +223,7 @@ Afv Conmutador::afvEstado() const {
 
 Conmutadores::Conmutadores(AppRuntime& rt, const std::vector<std::string>& salidas, QObject* parent)
     : QObject(parent), rt_(rt) {
-    const nlohmann::json j = config::leerObjeto(rt_.dataRoot() / "Config" / "transiciones.json");
+    const nlohmann::json j = config::leerObjeto(ba::persist::archivoConfig("transiciones.json"));
     if (!j.empty()) {
         transicionesEntrada_ = j.value("entrada", nlohmann::json::object());
         afvGuardado_[kPorOmision] = Afv::deJson(j); // lo de siempre: el de la por omisión
@@ -206,6 +231,7 @@ Conmutadores::Conmutadores(AppRuntime& rt, const std::vector<std::string>& salid
         for (const auto& [id, x] : otras.items())
             if (id != kPorOmision) afvGuardado_[id] = Afv::deJson(x);
     }
+    rt_.renombresDeEscena(renombresVistos_); // los de antes ya están en lo leído
     porOmision_ = crear(kPorOmision);
     // Los de las salidas que ya hay (las que dice la foto): se arma en la interfaz y todavía
     // no se mudó al dueño, así que no le pregunta al motor (sincronizar sí, ya en el dueño).
@@ -215,6 +241,7 @@ Conmutadores::Conmutadores(AppRuntime& rt, const std::vector<std::string>& salid
     // llega en el dueño, que es donde vive este registro).
     observador_ = rt_.observar([this](AppRuntime::Cambio c) {
         if (c == AppRuntime::Cambio::Salidas) sincronizar();
+        if (c == AppRuntime::Cambio::Escenas) reconciliarEscenas();
     });
     // Lo suyo en la foto del motor: la armada, el AFV y la T-bar de cada salida y las
     // transiciones de entrada (en el dueño, con el turno: el mapa lo cambia sincronizar,
@@ -287,6 +314,28 @@ void Conmutadores::sincronizar() {
     if (cambio) emit this->cambio();
 }
 
+void Conmutadores::reconciliarEscenas() {
+    const TurnoMotor::Guarda turno(rt_.turno());
+    // La armada de cada uno, en el orden del mapa (para saber a cuál avisar).
+    std::vector<Conmutador*> cs;
+    std::vector<std::string> armadas;
+    for (auto& [id, c] : conmutadores_) {
+        cs.push_back(c.get());
+        armadas.push_back(c->armada_);
+    }
+    // El motor ya la volvió a armar con el nombre nuevo (BroadcastEngine::renameScene).
+    const Seguidas s = seguirEscenas(transicionesEntrada_, armadas, rt_.renombresDeEscena(renombresVistos_),
+                                     rt_.engine().sceneNames());
+    for (const std::size_t i : s.armadas) {
+        cs[i]->armada_ = armadas[i];
+        cs[i]->avisar([e = QString::fromStdString(armadas[i])](Conmutador& x) { emit x.armadaCambio(e); }, FotoMotor::Salidas);
+    }
+    if (s.transiciones) {
+        guardar();
+        rt_.fotoSucia(FotoMotor::Escenas);
+    }
+}
+
 nlohmann::json Conmutadores::transicionEntrada(const std::string& escena) const {
     const TurnoMotor::Guarda turno(rt_.turno());
     if (!transicionesEntrada_.contains(escena)) return nlohmann::json::object();
@@ -318,7 +367,7 @@ void Conmutadores::guardar() const {
     for (const auto& [id, a] : afv)
         if (id != kPorOmision) otras[id] = a.aJson();
     if (!otras.empty()) j["salidas"] = otras;
-    config::guardar(rt_.dataRoot() / "Config" / "transiciones.json", j);
+    config::guardar(ba::persist::archivoConfig("transiciones.json"), j);
 }
 
 } // namespace ba::app::escenas

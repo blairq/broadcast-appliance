@@ -653,7 +653,8 @@ endif()
                    mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp mcp/McpFoto.cpp mcp/McpMando.cpp
                    emision/DocumentoAire.cpp emision/SalidasConfig.cpp emision/TurnoMotor.cpp
                    emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp emision/NivelesMotor.cpp
-                   evento/EventoStore.cpp evento/Evento.cpp control/Dsk.cpp control/Dsk.hpp)
+                   evento/EventoStore.cpp evento/Evento.cpp control/Dsk.cpp control/Dsk.hpp
+                   arranque/EnergiaAire.cpp arranque/EnergiaAire.hpp)
     # NivelesMotor lee motor/NivelAudio.hpp (sin el motor).
     target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
     target_link_libraries(test_plano_control PRIVATE ba_core Qt6::Core Qt6::Network)
@@ -1434,6 +1435,15 @@ endif()
     target_link_libraries(test_energia_aire PRIVATE ba_core Qt6::Core)
     set_target_properties(test_energia_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_energia_aire COMMAND test_energia_aire)
+    # Lo pedido de cada salida (un solo dueño; el resultado de la orden manda).
+    add_executable(test_pedidos_salida tests/test_pedidos_salida.cpp)
+    target_include_directories(test_pedidos_salida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_pedidos_salida COMMAND test_pedidos_salida)
+    # Renombrar una escena: la armada y las transiciones de entrada la siguen.
+    add_executable(test_seguir_escenas tests/test_seguir_escenas.cpp)
+    target_include_directories(test_seguir_escenas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_seguir_escenas PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_seguir_escenas COMMAND test_seguir_escenas)
     # Roles y despachador de agentes de un tiro, con un motor falso (script).
     add_executable(test_despachador tests/test_despachador.cpp agent/Despachador.cpp agent/Despachador.hpp
                    agent/Roles.cpp)

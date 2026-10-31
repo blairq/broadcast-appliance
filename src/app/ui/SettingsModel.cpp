@@ -788,7 +788,7 @@ SettingsModel::Aplicado SettingsModel::aplicarEn(AppRuntime& rt, const Pedido& p
     c.mcpAprobacionMin = i("mcp.aprobacionMin");
     c.modeloContexto = i("modelo.contexto");
     c.modeloCapasGpu = i("modelo.capasGpu");
-    aplicarAjustesMotor(c);
+    aplicarAjustesMotor(c, rt.engine());
     if (p.draft.value("disco.prioridad") != p.saved.value("disco.prioridad")) rt.engine().setModoDisco(s("disco.prioridad"));
     c.rec.calidad = s("record.calidad");
     c.rec.calidadCrf = i("record.crf");

@@ -3,6 +3,9 @@
 // ============================================================================
 
 #include "platform/Paths.hpp"
+#include "persist/ArchivoConfig.hpp"
+
+#include <nlohmann/json.hpp>
 
 #include <fstream>
 #include <iterator>
@@ -126,20 +129,14 @@ void redirectUserDirs() {
 }
 
 std::string configActiva(const std::filesystem::path& datos) {
-    std::ifstream f(datos / "configuraciones.json");
-    if (!f) return {};
-    std::string txt((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    // {"activa": "nombre"} sin depender de una biblioteca de JSON en el núcleo.
-    const auto k = txt.find("\"activa\"");
-    if (k == std::string::npos) return {};
-    const auto a = txt.find('"', txt.find(':', k) + 1);
-    if (a == std::string::npos) return {};
-    std::string nombre;
-    for (std::size_t i = a + 1; i < txt.size() && txt[i] != '"'; ++i) {
-        if (txt[i] == '\\' && i + 1 < txt.size()) ++i;
-        nombre += txt[i];
-    }
-    return nombre;
+    std::string txt;
+    if (!ba::persist::leerArchivo(datos / "configuraciones.json", txt)) return {};
+    const nlohmann::json j = nlohmann::json::parse(txt, nullptr, false);
+    return j.is_object() && j.contains("activa") && j["activa"].is_string() ? j["activa"].get<std::string>() : std::string();
+}
+
+bool ponerConfigActiva(const std::filesystem::path& datos, const std::string& nombre) {
+    return ba::persist::guardarJson(datos / "configuraciones.json", nlohmann::json{{"activa", nombre}});
 }
 
 std::filesystem::path configRootFor(const std::filesystem::path& datos) {
