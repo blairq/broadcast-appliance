@@ -28511,8 +28511,8 @@ PRESSIONADO</translation>
     </message>
     <message>
         <location line="+2" />
-        <source>traspaso a la cadena de la placa «sin señal» (espera si el fallbackswitch frena)</source>
-        <translation>passagem para a cadeia da cartela “sem sinal” (espera se o fallbackswitch segurar)</translation>
+        <source>traspaso a la cadena de la placa «sin señal» (el selector deja pasar cada cuadro apenas llega)</source>
+        <translation>passagem para a cadeia da cartela “sem sinal” (o seletor deixa passar cada quadro assim que chega)</translation>
     </message>
     <message>
         <location line="+9" />
@@ -47695,8 +47695,8 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+3" />
-        <source>manda %1 cuadros por segundo y el estudio va a %2: libobs repite o salta cuadros (con movimiento se nota un tironeo)</source>
-        <translation>envia %1 quadros por segundo e o estúdio está em %2: a libobs repete ou pula quadros (com movimento nota-se um tranco)</translation>
+        <source>manda %1 cuadros por segundo y el estudio va a %2: la composición repite o salta cuadros (con movimiento se nota un tironeo)</source>
+        <translation>envia %1 quadros por segundo e o estúdio está em %2: a composição repete ou pula quadros (com movimento nota-se um tranco)</translation>
     </message>
     <message>
         <location line="+4" />
@@ -54582,8 +54582,8 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
     <message>
         <location line="+1" />
         <location line="+1" />
-        <source>motor sin libobs: unir pipelines</source>
-        <translation>motor sem libobs: unir pipelines</translation>
+        <source>motor: unir sus pipelines</source>
+        <translation>motor: unir seus pipelines</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54597,18 +54597,18 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: mezcla de audio</source>
-        <translation>motor sem libobs: mixagem de áudio</translation>
+        <source>motor: mezcla de audio</source>
+        <translation>motor: mixagem de áudio</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (CPU)</source>
-        <translation>motor sem libobs: composição (CPU)</translation>
+        <source>motor: composición (CPU)</source>
+        <translation>motor: composição (CPU)</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (placa)</source>
-        <translation>motor sem libobs: composição (GPU)</translation>
+        <source>motor: composición (placa)</source>
+        <translation>motor: composição (GPU)</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54627,18 +54627,18 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
     </message>
     <message>
         <location line="+1" />
-        <source>transmitir (motor sin libobs)</source>
-        <translation>transmitir (motor sem libobs)</translation>
+        <source>transmitir (RTMP)</source>
+        <translation>transmitir (RTMP)</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>SRT (motor sin libobs)</source>
-        <translation>SRT (motor sem libobs)</translation>
+        <source>transmitir por SRT</source>
+        <translation>transmitir por SRT</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>grabación en tramos (motor sin libobs)</source>
-        <translation>gravação em trechos (motor sem libobs)</translation>
+        <source>grabación en tramos</source>
+        <translation>gravação em trechos</translation>
     </message>
     <message>
         <location line="+26" />
@@ -88155,8 +88155,8 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     </message>
     <message>
         <location line="+2" />
-        <source>El color (%1, rango %2) lo convierte libobs en la GPU: no hace falta tarjeta</source>
-        <translation>A cor (%1, faixa %2) é convertida pela libobs na GPU: não é preciso cartão</translation>
+        <source>El color (%1, rango %2) lo convierte el motor (en la GPU si puede): no hace falta tarjeta</source>
+        <translation>A cor (%1, faixa %2) é convertida pelo motor (na GPU quando pode): não é preciso cartão</translation>
     </message>
     <message>
         <location line="+2" />

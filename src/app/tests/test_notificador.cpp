@@ -10,6 +10,7 @@
 #include <fstream>
 
 #include "agent/Notificador.hpp"
+#include "persist/ColaEscritura.hpp"
 
 using ba::app::agent::Notificador;
 using json = nlohmann::json;
@@ -59,6 +60,7 @@ int main(int argc, char** argv) {
     n.agregar({{"id", id}, {"tipo", "webhook"}, {"nombre", "Guardia"}}, url);
     CHECK(n.lista()[0]["tiene_secreto"] == true, "secreto cargado");
     {
+        ba::persist::cola().vaciar(); // lo guardado, al disco
         std::ifstream f(dir.path().toStdString() + "/Config/notificadores.json");
         const std::string cfg((std::istreambuf_iterator<char>(f)), {});
         CHECK(cfg.find("127.0.0.1") == std::string::npos, "la URL (secreto) no queda en el JSON de configuración");

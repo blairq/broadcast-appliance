@@ -21,8 +21,8 @@
 // docena de cosas alrededor. Se revisa una vez por segundo y se dispara solo
 // cuando el resultado cambió.
 //
-// LA FUENTE SE NOMBRA, NO SE NUMERA. El identificador de una fuente de escena
-// lo asigna libobs y cambia cada vez que se abre el programa; el nombre no.
+// LA FUENTE SE NOMBRA, NO SE NUMERA. Un identificador interno de una fuente de
+// escena cambia cada vez que se abre el programa; el nombre no.
 // Un vínculo guardado tiene que seguir valiendo mañana.
 //
 // Los ORÍGENES (lo que se puede poner entre llaves) salen de un contexto que

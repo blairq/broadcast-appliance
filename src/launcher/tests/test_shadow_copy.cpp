@@ -5,9 +5,9 @@
 // registra CTest). Compila y corre en Linux y Windows.
 //
 // Casos (spec de la tarea):
-//   1. Se arma una raiz falsa en un directorio temporal con bin/x.dll,
-//      obs-plugins/y.dll y data/libobs/z.effect (archivos pequenos).
-//   2. prepare(root, "abc123") -> los tres archivos existen bajo la raiz sombra
+//   1. Se arma una raiz falsa en un directorio temporal con bin/x.dll y
+//      data/gst/z.bin (archivos pequenos).
+//   2. prepare(root, "abc123") -> los archivos existen bajo la raiz sombra
 //      devuelta y el marker ".shadow_ok" existe.
 //   3. prepare de nuevo con el mismo hash -> devuelve la MISMA ruta (reuso) y
 //      sigue siendo valida.
@@ -77,8 +77,7 @@ fs::path makeFakeRoot() {
     const fs::path base = fs::temp_directory_path() / "ba_shadow_test";
     fs::remove_all(base);
     writeFile(base / "bin" / "x.dll", "fake-x-dll");
-    writeFile(base / "obs-plugins" / "y.dll", "fake-y-dll");
-    writeFile(base / "data" / "libobs" / "z.effect", "fake-z-effect");
+    writeFile(base / "data" / "gst" / "z.bin", "fake-z-bin");
 #if !defined(_WIN32)
     // Cadena de biblioteca versionada (Linux/macOS): libq.so.6 -> libq.so.6.6.3.
     // La copia tiene que llevarse el symlink: sin el, el enlazador del hijo
@@ -97,12 +96,11 @@ int main() {
     const fs::path rootPath = makeFakeRoot();
     const std::wstring root = toString(rootPath);
 
-    // 2) prepare() -> los tres archivos viajan y el marker existe.
+    // 2) prepare() -> los archivos viajan y el marker existe.
     const std::wstring shadow = ShadowCopy::prepare(root, L"abc123");
     const fs::path shadowPath = toPath(shadow);
     CHECK(fs::exists(shadowPath / "bin" / "x.dll"));
-    CHECK(fs::exists(shadowPath / "obs-plugins" / "y.dll"));
-    CHECK(fs::exists(shadowPath / "data" / "libobs" / "z.effect"));
+    CHECK(fs::exists(shadowPath / "data" / "gst" / "z.bin"));
     CHECK(fs::exists(shadowPath / ".shadow_ok"));
 #if !defined(_WIN32)
     const fs::path link = shadowPath / "bin" / "qt" / "lib" / "libq.so.6";

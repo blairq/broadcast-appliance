@@ -9,6 +9,7 @@
 // ============================================================================
 
 #include "emision/BroadcastEngine.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/SalidasConfig.hpp"
@@ -514,9 +515,8 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         salidasSeguir_ = true;
     }
     {
-        std::ifstream fd(ba::platform::configRoot() / "Config" / "disco.json");
-        const json j = json::parse(fd, nullptr, false);
-        const std::string m = j.is_object() ? j.value("priorizar_programa", std::string("preguntar")) : "preguntar";
+        const std::string m = config::leerObjeto(ba::platform::configRoot() / "Config" / "disco.json")
+                                  .value("priorizar_programa", std::string("preguntar"));
         modoDisco_ = m == "auto" ? 1 : m == "nunca" ? 2 : 0;
     }
     hiloSalidas_ = std::thread([this]() { bucleSalidas(); });
@@ -2219,10 +2219,7 @@ std::string BroadcastEngine::modoDisco() const {
 std::string BroadcastEngine::setModoDisco(const std::string& modo) {
     if (modo != "preguntar" && modo != "auto" && modo != "nunca") return ba::i18n::traducir("emision", "modo: preguntar, auto o nunca");
     modoDisco_ = modo == "auto" ? 1 : modo == "nunca" ? 2 : 0;
-    std::error_code ec;
-    std::filesystem::create_directories(ba::platform::configRoot() / "Config", ec);
-    std::ofstream o(ba::platform::configRoot() / "Config" / "disco.json");
-    o << json{{"priorizar_programa", modo}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(ba::platform::configRoot() / "Config" / "disco.json", {{"priorizar_programa", modo}});
     // En apuros y ahora «auto»: ya.
     if (modo == "auto") enSalidas("modoDisco", [this]() {
             if (discoApuros_ && !prioridad_) aplicarPrioridad(true, true);

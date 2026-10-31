@@ -303,7 +303,7 @@ Dos suites:
   La cantidad exacta la informa `make test`. Incluye: núcleo (`test_platform`,
   `test_shared_audio_ring`, `test_health_block`, `test_ipc_cross_process`,
   `test_control_protocol`, `test_spout_transport`, `test_video_cross_process`,
-  `test_channel_strip`, `test_automixer`, `test_resampler`, `test_token_service`,
+  `test_automixer`, `test_resampler`, `test_token_service`,
   `test_snapshot_store`, `test_restore`, `test_diag`, `test_fault`,
   `test_secrets`, `test_device_match`, `test_ring_drift`), launcher
   (`test_shadow_copy`), audio (`test_clap_host`, `test_audio_dsp`,

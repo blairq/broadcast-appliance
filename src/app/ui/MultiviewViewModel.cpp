@@ -1,6 +1,7 @@
 // src/app/ui/MultiviewViewModel.cpp — ver el .hpp
 
 #include "ui/MultiviewViewModel.hpp"
+#include "arranque/ArchivoConfigQt.hpp"
 
 #include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"
@@ -63,14 +64,13 @@ void MultiviewViewModel::setVentanas(VentanasModel* ventanas, MonitoresModel* mo
 }
 
 void MultiviewViewModel::leer() {
-    QFile f(QString::fromStdWString((config_ / "multiview.json").wstring()));
-    QVariantMap raiz;
-    if (f.open(QIODevice::ReadOnly)) raiz = QJsonDocument::fromJson(f.readAll()).object().toVariantMap();
+    const QVariantMap raiz = config::leerQObjeto(config_ / "multiview.json").toVariantMap();
     QVariantList vistas = raiz.value("vistas").toList();
     if (vistas.isEmpty()) {
         QVariantMap v = deFabrica();
         for (auto it = raiz.begin(); it != raiz.end(); ++it)
-            if (it.key() != "vistas" && it.key() != "actual") v[it.key()] = it.value(); // formato viejo
+            if (it.key() != "vistas" && it.key() != "actual" && it.key() != ba::persist::kClaveEsquema)
+                v[it.key()] = it.value(); // formato viejo
         v["id"] = "1";
         v["nombre"] = tr("Multiview %1").arg(1);
         vistas << v;
@@ -95,12 +95,7 @@ int MultiviewViewModel::indice(const QString& id) const {
 }
 
 void MultiviewViewModel::guardar() {
-    std::error_code ec;
-    std::filesystem::create_directories(config_, ec);
-    QFile f(QString::fromStdWString((config_ / "multiview.json").wstring()));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(QJsonObject::fromVariantMap({{"vistas", vistas_}, {"actual", actual_}}))
-                    .toJson(QJsonDocument::Indented));
+    config::guardarQ(config_ / "multiview.json", QJsonObject::fromVariantMap({{"vistas", vistas_}, {"actual", actual_}}));
     emit cambio();
 }
 

@@ -1,6 +1,7 @@
 // src/app/plugins/Plugins.cpp — ver Plugins.hpp
 
 #include "plugins/Plugins.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -221,15 +222,14 @@ fs::path Plugins::ejemplos() const { return ba::platform::bundleRoot() / "plugin
 // --- Guardado ------------------------------------------------------------------------------
 
 json Plugins::leerActivos() const {
-    const json j = leerJson(config_);
-    return j.value("activos", json::array());
+    return config::leerObjeto(config_).value("activos", json::array());
 }
 
 void Plugins::guardarActivos() const {
     json activos = json::array();
     for (const auto& [id, pr] : procesos_)
         if (pr->estado != "apagado") activos.push_back(id);
-    escribirTexto(config_, json{{"activos", activos}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
+    config::guardar(config_, {{"activos", activos}});
 }
 
 // --- Aprobados para el aire ----------------------------------------------------------------
@@ -292,7 +292,8 @@ std::string Plugins::hashCodigo(const std::string& id, std::vector<std::string>*
 }
 
 json Plugins::leerAprobados() const {
-    const json j = leerJson(rt_.dataRoot() / "Config" / "plugins-aprobados.json");
+    // Por id del plugin, bajo «aprobados» (un id no choca con `esquema`).
+    const json j = config::leerObjeto(rt_.dataRoot() / "Config" / "plugins-aprobados.json").value("aprobados", json::object());
     return j.is_object() ? j : json::object();
 }
 
@@ -302,10 +303,7 @@ json Plugins::aprobar(const std::string& id, const std::string& quien) {
     const std::string h = hashCodigo(id, &archivos);
     json a = leerAprobados();
     a[id] = {{"hash", h}, {"v", 2}, {"ms", QDateTime::currentMSecsSinceEpoch()}, {"quien", quien}, {"archivos", archivos}};
-    const fs::path f = rt_.dataRoot() / "Config" / "plugins-aprobados.json";
-    std::error_code ec;
-    fs::create_directories(f.parent_path(), ec);
-    std::ofstream(f) << a.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(rt_.dataRoot() / "Config" / "plugins-aprobados.json", {{"aprobados", a}});
     emit cambio();
     return {{"id", id}, {"hash", h}, {"archivos", archivos.size()}};
 }
@@ -314,7 +312,7 @@ std::string Plugins::desaprobar(const std::string& id) {
     json a = leerAprobados();
     if (!a.contains(id)) return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no estaba aprobado"), {id});
     a.erase(id);
-    std::ofstream(rt_.dataRoot() / "Config" / "plugins-aprobados.json") << a.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(rt_.dataRoot() / "Config" / "plugins-aprobados.json", {{"aprobados", a}});
     emit cambio();
     return {};
 }

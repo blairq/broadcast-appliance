@@ -5,7 +5,7 @@
 //   - momentáneo (400 ms), corto (3 s), integrado (compuertas -70 LUFS y -10 LU);
 //   - true peak (sobremuestreo x4, FIR polifásico);
 //   - LRA (EBU Tech 3342: percentiles 10 y 95 del corto, compuerta relativa -20 LU).
-// Corre en el hilo de audio de libobs (barato: dos biquads y 4x12 productos
+// Corre en el hilo de audio que le pasa el programa (barato: dos biquads y 4x12 productos
 // por muestra y canal) y publica una foto que cualquier hilo lee.
 #pragma once
 

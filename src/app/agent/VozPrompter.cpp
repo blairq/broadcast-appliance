@@ -1,6 +1,7 @@
 // src/app/agent/VozPrompter.cpp — ver VozPrompter.hpp
 
 #include "agent/VozPrompter.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
@@ -42,9 +43,7 @@ constexpr double kSaltoPalabras = 1.5; ///< más de esto entre lo previsto y lo 
 /// corrige solo al hablar: ver agendar).
 constexpr double kRitmoSinDatos = 3.0;
 
-QString archivo(const std::filesystem::path& raiz) {
-    return QString::fromStdString((raiz / "Config" / "voz-teleprompter.json").string());
-}
+std::filesystem::path archivo(const std::filesystem::path& raiz) { return raiz / "Config" / "voz-teleprompter.json"; }
 
 double ahoraMs() { return static_cast<double>(QDateTime::currentMSecsSinceEpoch()); }
 
@@ -73,11 +72,7 @@ VozPrompter::VozPrompter(AppRuntime& rt, Voz& voz, ConferenceViewModel* sala, QO
     habla_ = std::make_unique<audio::Habla>();
 #endif
     monitor_->preparar(); // ya en Audio y en la Matriz
-    QFile f(archivo(rt_.dataRoot()));
-    if (f.open(QIODevice::ReadOnly)) {
-        const auto j = nlohmann::json::parse(f.readAll().toStdString(), nullptr, false);
-        if (j.is_object()) activa_ = j.value("activa", false);
-    }
+    activa_ = config::leerObjeto(archivo(rt_.dataRoot())).value("activa", false);
     // Voz::cambio sale seguido: solo se mira el catálogo si cambió la voz del sistema;
     // el idioma del evento y los modelos bajados, siempre.
     connect(&voz_, &Voz::cambio, this, [this]() { revisarVoz(false); });
@@ -113,11 +108,7 @@ void VozPrompter::setActiva(bool on) {
 }
 
 void VozPrompter::guardar() const {
-    const QString ruta = archivo(rt_.dataRoot());
-    QDir().mkpath(QFileInfo(ruta).absolutePath());
-    QFile f(ruta);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QByteArray::fromStdString(nlohmann::json{{"activa", activa_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
+    config::guardar(archivo(rt_.dataRoot()), {{"activa", activa_}});
 }
 
 void VozPrompter::setEstado(const QString& e, bool noPuedeLeer) {
@@ -270,7 +261,7 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
     if (texto.empty()) return;
     const int n = hasta - desde;
     const double v = pv::velocidadPara(n, est_.ppm, naturalPps_->load());
-    // Del reloj del gateway al de libobs.
+    // Del reloj del gateway al monotónico de la app (ahoraNs).
     const double faltaMs = inicioMs - (ahoraMs() - offsetMs_);
     const std::uint64_t inicioNs =
         ba::app::ahoraNs() + static_cast<std::uint64_t>(std::max(0.0, faltaMs) * 1'000'000.0);

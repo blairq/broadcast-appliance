@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "agent/AgentViewModel.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "agent/ServidorModeloLocal.hpp"
 #include "agent/ServidorOpencode.hpp"
@@ -308,16 +309,14 @@ void AgentViewModel::loadConfig() {
     // más se pegan en la charla del evento.
     alertsToChat_ = instancia_ == "automatizacion";
     if (instancia_ == "automatizacion") autoStart_ = true;
-    std::ifstream in(archivoConfig());
-    json j = json::parse(in, nullptr, false);
+    json j = config::leerObjeto(archivoConfig());
     // El de automatización sin configuración propia: arranca con el motor que ya usa el
     // del evento (no con uno de fábrica que capaz no está instalado ni con sesión).
-    if (!j.is_object() && instancia_ != "evento") {
-        std::ifstream ev(rt_.dataRoot() / "Config" / "asistente.json");
-        const json e = json::parse(ev, nullptr, false);
-        if (e.is_object()) j = json{{"provider", e.value("provider", std::string())}, {"models", e.value("models", json::object())}};
+    if (j.empty() && instancia_ != "evento") {
+        const json e = config::leerObjeto(rt_.dataRoot() / "Config" / "asistente.json");
+        if (!e.empty()) j = json{{"provider", e.value("provider", std::string())}, {"models", e.value("models", json::object())}};
     }
-    if (!j.is_object()) return;
+    if (j.empty()) return;
     const QString p = QString::fromStdString(j.value("provider", std::string("claude-cuenta")));
     if (findProvider(p) != nullptr) provider_ = p;
     const json models = j.value("models", json::object());
@@ -329,17 +328,13 @@ void AgentViewModel::loadConfig() {
 
 void AgentViewModel::saveConfig() const {
     const auto path = archivoConfig();
-    std::ifstream in(path);
-    json j = json::parse(in, nullptr, false);
-    if (!j.is_object()) j = json::object();
-    in.close();
+    json j = config::leerObjeto(path); // lo demás que haya, se conserva
     j["provider"] = provider_.toStdString();
     j["models"][provider_.toStdString()] = model_.toStdString();
     j["alertsToChat"] = alertsToChat_;
     j["autoStart"] = autoStart_;
     j["fontSize"] = fontSize_;
-    std::ofstream out(path, std::ios::trunc);
-    out << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(path, j);
 }
 
 QVariantList AgentViewModel::providers() const {
@@ -389,12 +384,8 @@ void AgentViewModel::setProvider(const QString& id) {
     // hacía parecer que el cambio no había pasado.
     session_->limpiar();
     provider_ = id;
-    std::ifstream in(rt_.dataRoot() / "Config" / "asistente.json");
-    const json j = json::parse(in, nullptr, false);
-    model_ =
-        j.is_object()
-            ? QString::fromStdString(j.value("models", json::object()).value(id.toStdString(), std::string()))
-            : QString();
+    const json j = config::leerObjeto(rt_.dataRoot() / "Config" / "asistente.json");
+    model_ = QString::fromStdString(j.value("models", json::object()).value(id.toStdString(), std::string()));
     saveConfig();
     emit configChanged();
     emit installChanged();

@@ -110,7 +110,6 @@ ejecutable que enlaza `ba_core` y se registra con CTest:
   incluidos un frame partido entre dos lecturas y un peer que escribe y
   cierra enseguida (el mensaje se entrega antes de informar la desconexión).
 - `test_spout_transport` — contrato del transporte Spout (backend NULL).
-- `test_channel_strip` — cadena DSP nativa.
 - `test_automixer` — automixer Dugan de mesa redonda.
 - `test_resampler` — re-muestreo adaptativo (`ba::dsp::Resampler`).
 - `test_token_service` — tokens HMAC + rate-limit de señalización.

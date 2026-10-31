@@ -1,4 +1,5 @@
 // asamblea/Cuerpo: integrantes, banca única, validación e importación de CSV.
+#include "persist/ColaEscritura.hpp"
 #include "asamblea/Cuerpo.hpp"
 
 #include <cstdio>
@@ -160,6 +161,7 @@ int main() {
               "una toma sin banca tampoco");
     }
     CHECK(Cuerpo::escribirPlantilla(dir / "x" / "plantilla.csv"), "plantilla de ejemplo");
+    ba::persist::cola().vaciar(); // lo encolado, al disco antes de borrar (si no, el escritor la recrea)
     fs::remove_all(dir);
     std::printf(fallas ? "\n%d FALLAS\n" : "\nTODO OK\n", fallas);
     return fallas ? 1 : 0;

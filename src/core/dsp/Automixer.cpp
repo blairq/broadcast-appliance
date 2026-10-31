@@ -171,7 +171,6 @@ void Automixer::setLevel(int ch, float level) {
     }
 
     // Envolvente one-pole: ataque rapido (sube), liberacion lenta (baja).
-    // Mismo estilo que ChannelStrip.
     // Snapshot de los parametros atomicos al entrar: se usan varias veces mas
     // abajo y asi el valor es coherente dentro de esta llamada aunque el thread
     // de control cambie de preset a mitad.

@@ -2,6 +2,7 @@
 // src/app/agent/Reconocedores.cpp — ver Reconocedores.hpp
 // ============================================================================
 #include "agent/Reconocedores.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -353,10 +354,7 @@ json Reconocedores::estado() const {
 
 void Reconocedores::leer() {
     if (archivo_.empty()) return;
-    std::ifstream in(archivo_, std::ios::binary);
-    if (!in) return;
-    const json o = json::parse(in, nullptr, false);
-    if (!o.is_object()) return;
+    const json o = config::leerObjeto(archivo_);
     // En variables: un json temporal en el `for` (`o.value(...).items()`) muere antes de recorrerlo.
     const json motores = o.value("motores", json::object());
     const json interrumpir = o.value("interrumpir", json::object());
@@ -369,13 +367,10 @@ void Reconocedores::leer() {
 
 void Reconocedores::guardar() const {
     if (archivo_.empty()) return;
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
     json motores = json::object(), interr = json::object();
     for (const auto& [k, m] : elegidos_) motores[k] = nombre(m);
     for (const auto& [k, on] : interrumpir_) interr[k] = on;
-    std::ofstream out(archivo_, std::ios::binary | std::ios::trunc);
-    out << json{{"motores", motores}, {"interrumpir", interr}}.dump(2) << "\n";
+    config::guardar(archivo_, {{"motores", motores}, {"interrumpir", interr}});
 }
 
 } // namespace ba::app::agent

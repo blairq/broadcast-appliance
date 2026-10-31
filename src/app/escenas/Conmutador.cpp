@@ -1,6 +1,7 @@
 // src/app/escenas/Conmutador.cpp — el conmutador de escenas de cada salida (ver el .hpp)
 
 #include "escenas/Conmutador.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "i18n/I18n.hpp"
 
@@ -149,9 +150,8 @@ std::vector<std::string> Conmutador::afvFuentes() const { return {afv_.fuentes.b
 // ============================================================================
 
 Conmutadores::Conmutadores(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
-    std::ifstream f(rt_.dataRoot() / "Config" / "transiciones.json");
-    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-    if (j.is_object()) {
+    const nlohmann::json j = config::leerObjeto(rt_.dataRoot() / "Config" / "transiciones.json");
+    if (!j.empty()) {
         transicionesEntrada_ = j.value("entrada", nlohmann::json::object());
         afvGuardado_[kPorOmision] = Afv::deJson(j); // lo de siempre: el de la por omisión
         const nlohmann::json otras = j.value("salidas", nlohmann::json::object()); // .items() de un temporal: UB
@@ -240,11 +240,7 @@ void Conmutadores::guardar() const {
     for (const auto& [id, a] : afv)
         if (id != kPorOmision) otras[id] = a.aJson();
     if (!otras.empty()) j["salidas"] = otras;
-    // Aparte y reemplazar: un corte a mitad no deja el archivo trunco.
-    QSaveFile o(QString::fromStdString((rt_.dataRoot() / "Config" / "transiciones.json").string()));
-    if (!o.open(QIODevice::WriteOnly)) return;
-    o.write(QByteArray::fromStdString(j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
-    o.commit();
+    config::guardar(rt_.dataRoot() / "Config" / "transiciones.json", j);
 }
 
 } // namespace ba::app::escenas

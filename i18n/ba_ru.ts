@@ -28622,8 +28622,8 @@ APRETADO</source>
     </message>
     <message>
         <location line="+2" />
-        <source>traspaso a la cadena de la placa «sin señal» (espera si el fallbackswitch frena)</source>
-        <translation>передача в цепочку заставки «нет сигнала» (ждёт, если fallbackswitch задерживает)</translation>
+        <source>traspaso a la cadena de la placa «sin señal» (el selector deja pasar cada cuadro apenas llega)</source>
+        <translation>передача в цепочку заставки «нет сигнала» (селектор пропускает каждый кадр сразу, как он приходит)</translation>
     </message>
     <message>
         <location line="+9" />
@@ -47844,8 +47844,8 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+3" />
-        <source>manda %1 cuadros por segundo y el estudio va a %2: libobs repite o salta cuadros (con movimiento se nota un tironeo)</source>
-        <translation>передаёт %1 кадров в секунду, а студия работает на %2: libobs повторяет или пропускает кадры (при движении заметны рывки)</translation>
+        <source>manda %1 cuadros por segundo y el estudio va a %2: la composición repite o salta cuadros (con movimiento se nota un tironeo)</source>
+        <translation>передаёт %1 кадров в секунду, а студия работает на %2: композитинг повторяет или пропускает кадры (при движении заметны рывки)</translation>
     </message>
     <message>
         <location line="+4" />
@@ -54732,8 +54732,8 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     <message>
         <location line="+1" />
         <location line="+1" />
-        <source>motor sin libobs: unir pipelines</source>
-        <translation>движок без libobs: объединение конвейеров</translation>
+        <source>motor: unir sus pipelines</source>
+        <translation>движок: объединение его конвейеров</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54747,18 +54747,18 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: mezcla de audio</source>
-        <translation>движок без libobs: микширование звука</translation>
+        <source>motor: mezcla de audio</source>
+        <translation>движок: микширование звука</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (CPU)</source>
-        <translation>движок без libobs: композитинг (CPU)</translation>
+        <source>motor: composición (CPU)</source>
+        <translation>движок: композитинг (CPU)</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (placa)</source>
-        <translation>движок без libobs: композитинг (GPU)</translation>
+        <source>motor: composición (placa)</source>
+        <translation>движок: композитинг (GPU)</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54777,18 +54777,18 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
     <message>
         <location line="+1" />
-        <source>transmitir (motor sin libobs)</source>
-        <translation>трансляция (движок без libobs)</translation>
+        <source>transmitir (RTMP)</source>
+        <translation>трансляция (RTMP)</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>SRT (motor sin libobs)</source>
-        <translation>SRT (движок без libobs)</translation>
+        <source>transmitir por SRT</source>
+        <translation>трансляция по SRT</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>grabación en tramos (motor sin libobs)</source>
-        <translation>запись фрагментами (движок без libobs)</translation>
+        <source>grabación en tramos</source>
+        <translation>запись фрагментами</translation>
     </message>
     <message>
         <location line="+26" />
@@ -88290,8 +88290,8 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
-        <source>El color (%1, rango %2) lo convierte libobs en la GPU: no hace falta tarjeta</source>
-        <translation>Цвет (%1, диапазон %2) преобразует libobs на GPU: карточка не нужна</translation>
+        <source>El color (%1, rango %2) lo convierte el motor (en la GPU si puede): no hace falta tarjeta</source>
+        <translation>Цвет (%1, диапазон %2) преобразует движок (на GPU, если может): карточка не нужна</translation>
     </message>
     <message>
         <location line="+2" />

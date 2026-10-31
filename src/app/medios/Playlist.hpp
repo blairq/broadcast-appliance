@@ -11,9 +11,9 @@
 // (si auto-next). No crea una fuente por ítem: el cambio es el archivo de la
 // misma fuente, así la escena no cambia de forma entre un clip y otro.
 //
-// libobs solo hace correr un medio que se está mostrando: si la escena no está
-// al aire, «play» la arma en PVW (el programa no cambia) y el operador la pasa
-// con el take.
+// Un medio que no está en ninguna escena a la vista no se ve (y el motor lo
+// procesa al mínimo: motor/Entrada, «SIN USAR»): si la escena no está al aire,
+// «play» la arma en PVW (el programa no cambia) y el operador la pasa con el take.
 //
 // Tras un corte de luz (P0.10): lo que estaba sonando (ítem y segundo) se anota
 // en Runtime/playlist-aire.json cada 2 s y `retomar()` sigue desde ahí.

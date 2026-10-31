@@ -1,6 +1,7 @@
 // src/app/agent/FlujosTexto.cpp — ver FlujosTexto.hpp
 
 #include "agent/FlujosTexto.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include "emision/FuentesApp.hpp"
@@ -47,9 +48,8 @@ struct FlujosTexto::Archivo {
 
 FlujosTexto::FlujosTexto(std::filesystem::path dataRoot, QObject* parent)
     : QObject(parent), root_(std::move(dataRoot)) {
-    std::ifstream f(root_ / "Config" / "correccion-subtitulos.json");
-    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-    if (j.is_object()) {
+    const nlohmann::json j = config::leerObjeto(root_ / "Config" / "correccion-subtitulos.json");
+    if (!j.empty()) {
         correccionActiva_ = j.value("activa", false);
         demoraMs_ = j.value("demora_ms", 4000);
     }
@@ -131,10 +131,7 @@ void FlujosTexto::setCorreccion(bool activa, int demoraMs) {
             pendientes_.pop_front();
             entregar(p.flujo, p.texto, p.origen, p.segundos);
         }
-    std::error_code ec;
-    std::filesystem::create_directories(root_ / "Config", ec);
-    std::ofstream o(root_ / "Config" / "correccion-subtitulos.json");
-    o << nlohmann::json{{"activa", correccionActiva_}, {"demora_ms", demoraMs_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(root_ / "Config" / "correccion-subtitulos.json", {{"activa", correccionActiva_}, {"demora_ms", demoraMs_}});
     emit pendientesCambio();
     emit cambio();
 }

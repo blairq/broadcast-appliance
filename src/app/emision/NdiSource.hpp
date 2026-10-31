@@ -22,8 +22,8 @@
 
 namespace ba::app::ndi {
 
-/// El tipo «lógico» de una entrada NDI (para la interfaz y las plantillas; la
-/// fuente de libobs real es ba_gst_fuente).
+/// El tipo «lógico» de una entrada NDI (para la interfaz y las plantillas; en el
+/// motor es una entrada con `bandisrc`).
 constexpr const char* kSourceId = "ba_ndi_input";
 
 struct Found {
@@ -34,7 +34,7 @@ struct Found {
 
 /// Registra `bandisrc` en GStreamer (con GStreamer andando; una vez).
 bool registrarElemento();
-/// Ya no hay una fuente de libobs propia (se usa bandisrc): no hace nada.
+/// No registra ningún tipo propio (el motor usa bandisrc): no hace nada.
 void registerSourceType();
 
 /// Busca fuentes NDI en la red durante `ms` y devuelve lo encontrado

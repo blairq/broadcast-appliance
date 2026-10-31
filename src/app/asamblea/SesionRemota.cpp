@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/SesionRemota.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include "asamblea/Cuerpo.hpp"
@@ -64,9 +65,8 @@ SesionRemota::SesionRemota(const Cuerpo& cuerpo, std::filesystem::path datos, QO
 }
 
 void SesionRemota::cargar() {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    if (!j.is_object()) return;
+    const json j = config::leerObjeto(archivo_);
+    if (j.empty()) return;
     if (j.value("credenciales", json()).is_object()) credenciales_ = j["credenciales"];
     if (j.value("consolas", json()).is_object()) consolas_ = j["consolas"];
     graciaS_ = std::clamp(j.value("gracia_s", 120), 0, 3600);
@@ -77,16 +77,9 @@ void SesionRemota::cargar() {
 }
 
 void SesionRemota::guardar() const {
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    const auto tmp = archivo_.string() + ".tmp";
-    {
-        std::ofstream f(tmp);
-        f << json{{"credenciales", credenciales_}, {"consolas", consolas_}, {"gracia_s", graciaS_},
-                  {"voto_s", votoSegundos_}, {"vistas", vistas_},
-                  {"pin_en_qr", pinEnQr_}, {"acceso_fijo", accesoFijo_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    std::filesystem::rename(tmp, archivo_, ec);
+    config::guardar(archivo_, {{"credenciales", credenciales_}, {"consolas", consolas_}, {"gracia_s", graciaS_},
+                               {"voto_s", votoSegundos_}, {"vistas", vistas_}, {"pin_en_qr", pinEnQr_},
+                               {"acceso_fijo", accesoFijo_}});
 }
 
 json SesionRemota::integrante(const std::string& id) const {

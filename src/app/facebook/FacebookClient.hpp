@@ -95,7 +95,7 @@ class FacebookClient : public QObject {
     void comments(const QString& liveId, Done done);
     void comment(const QString& liveId, const QString& text, Done done);
 
-    /// Separa la URL RTMPS de Facebook en servidor + clave (libobs las pide aparte).
+    /// Separa la URL RTMPS de Facebook en servidor + clave (la transmisión las lleva aparte).
     static bool splitIngest(const QString& secureUrl, QString& server, QString& key);
     static QString explain(int status, const QByteArray& body);
 

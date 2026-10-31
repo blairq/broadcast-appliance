@@ -32,6 +32,7 @@
 #include <QJsonObject>
 
 #include "i18n/I18n.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -44,21 +45,11 @@ QString archivo(AppRuntime& rt) {
 }
 
 json leer(AppRuntime& rt) {
-    QFile f(archivo(rt));
-    if (!f.open(QIODevice::ReadOnly)) return json::array();
-    const json j = json::parse(f.readAll().toStdString(), nullptr, false);
+    const json j = config::leerObjeto(archivo(rt).toStdString()).value("recetas", json::array());
     return j.is_array() ? j : json::array();
 }
 
-bool escribir(AppRuntime& rt, const json& recetas) {
-    QDir().mkpath(QFileInfo(archivo(rt)).absolutePath());
-    QFile f(archivo(rt) + ".nuevo");
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
-    f.write(QByteArray::fromStdString(recetas.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
-    f.close();
-    QFile::remove(archivo(rt));
-    return QFile::rename(archivo(rt) + ".nuevo", archivo(rt));
-}
+bool escribir(AppRuntime& rt, const json& recetas) { return config::guardar(archivo(rt).toStdString(), {{"recetas", recetas}}); }
 
 /// Reemplaza `{clave}` por su valor en todos los textos del objeto, a
 /// cualquier profundidad. Es lo mismo que hacen los graficos y los vinculos:

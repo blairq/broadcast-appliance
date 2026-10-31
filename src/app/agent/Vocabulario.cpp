@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "agent/Vocabulario.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "asamblea/Cuerpo.hpp"
 
@@ -104,9 +105,8 @@ std::string Vocabulario::fonetica(const std::string& s) {
 }
 
 Vocabulario::Vocabulario(fs::path config) : archivo_(std::move(config)) {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    if (j.is_object() && j.contains("grupos")) datos_ = j;
+    const json j = config::leerObjeto(archivo_);
+    if (j.contains("grupos")) datos_ = j;
     else sembrar();
     reindexar();
     g_vocab = this;
@@ -136,10 +136,7 @@ void Vocabulario::sembrar() {
 }
 
 void Vocabulario::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    std::ofstream o(archivo_);
-    o << datos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, datos_);
 }
 
 void Vocabulario::reindexar() {

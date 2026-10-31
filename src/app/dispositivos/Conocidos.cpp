@@ -1,6 +1,7 @@
 // src/app/dispositivos/Conocidos.cpp — ver Conocidos.hpp
 
 #include "dispositivos/Conocidos.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "i18n/I18n.hpp"
 
@@ -50,10 +51,7 @@ void Conocidos::leer() {
     std::lock_guard<std::mutex> l(mu_);
     todos_.clear();
     if (archivo_.empty()) return;
-    std::ifstream f(archivo_);
-    if (!f) return;
-    const json j = json::parse(f, nullptr, false);
-    if (!j.is_object()) return;
+    const json j = config::leerObjeto(archivo_);
     const json eq = j.value("equipos", json::object());
     if (!eq.is_object()) return;
     for (auto it = eq.begin(); it != eq.end(); ++it) {
@@ -76,20 +74,9 @@ bool Conocidos::guardar() const {
     json eq = json::object();
     for (const auto& [id, c] : todos_)
         eq[id] = c.comoJson();
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    // A un temporal y después se reemplaza: un corte de luz a mitad de la
-    // escritura no deja el archivo cortado (y la máquina sin nombres).
-    std::filesystem::path tmp = archivo_;
-    tmp += ".tmp";
-    {
-        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-        if (!f) return false;
-        f << json{{"version", 1}, {"equipos", eq}}.dump(2, ' ', false, json::error_handler_t::replace);
-        if (!f) return false;
-    }
-    std::filesystem::rename(tmp, archivo_, ec);
-    return !ec;
+    // El escritor único: un corte de luz a mitad de la escritura no deja el archivo
+    // cortado (y la máquina sin nombres).
+    return config::guardar(archivo_, {{"version", 1}, {"equipos", eq}});
 }
 
 bool Conocidos::visto(const std::string& id, const std::string& tipo, const std::string& tecnico,

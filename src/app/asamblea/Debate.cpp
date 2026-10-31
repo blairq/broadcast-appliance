@@ -2,6 +2,7 @@
 // src/app/asamblea/Debate.cpp — ver Debate.hpp
 
 #include "asamblea/Debate.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include "asamblea/Cuerpo.hpp"
@@ -40,16 +41,13 @@ Debate::Debate(Cuerpo& cuerpo, std::filesystem::path datos, Ganchos g, QObject* 
 }
 
 void Debate::cargar() {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    if (!j.is_object()) return;
+    const json j = config::leerObjeto(archivo_);
+    if (j.empty()) return;
     configurar(j);
 }
 
 void Debate::guardar() const {
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    std::ofstream(archivo_) << config_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, config_);
 }
 
 std::string Debate::configurar(const json& c) {

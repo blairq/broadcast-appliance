@@ -2,7 +2,7 @@
 // src/app/audio/Habla.hpp — de texto a voz, frase por frase
 //
 // La boca del control por voz (docs/funciones/AUDIO-TTS.md): sherpa-onnx con voces de
-// piper, en CPU (la GPU la usa libobs). Sintetiza FRASE POR FRASE y entrega
+// piper, en CPU (la GPU la usa el motor: composición, codificación, superresolución). Sintetiza FRASE POR FRASE y entrega
 // cada una apenas está: la primera suena mientras se arma la segunda, que es
 // lo que hace que una respuesta se sienta inmediata. Medido en una M1 Pro con
 // es_AR-daniela-high: 3,8 s de habla en 1,4 s (2 hilos).

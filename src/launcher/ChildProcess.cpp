@@ -32,7 +32,7 @@ namespace ba::launcher {
 namespace {
 
 /// Variables que un hijo nunca debe heredar: apuntan a bibliotecas o plugins
-/// de fuera del bundle y rompen la carga de Qt/libobs de formas dificiles de
+/// de fuera del bundle y rompen la carga de Qt (y de Python) de formas dificiles de
 /// diagnosticar (spec 3.1.3).
 const char* const kDropAlways[] = {
     "QT_PLUGIN_PATH", "QT_QPA_PLATFORM_PLUGIN_PATH", "QML2_IMPORT_PATH", "PYTHONHOME", "PYTHONPATH",
@@ -196,8 +196,8 @@ void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path
     // se arrastraba.
     //
     // LO QUE SE PAGA: la interfaz puede mostrar algun corte horizontal al
-    // moverse. No toca la salida: el programa se arma adentro de libobs y va
-    // al codificador, no por esta pantalla.
+    // moverse. No toca la salida: el programa se arma adentro del motor
+    // (GStreamer) y va al codificador, no por esta pantalla.
     //
     // Son dos variables porque son dos controladores: `vblank_mode` es de Mesa
     // (Intel y AMD) y `__GL_SYNC_TO_VBLANK` es del de NVIDIA. Poner la que no

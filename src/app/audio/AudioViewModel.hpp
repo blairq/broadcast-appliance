@@ -102,7 +102,7 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QString aplicarPlantilla(const QString& nombre);
     Q_INVOKABLE QString borrarPlantilla(const QString& nombre);
     Q_INVOKABLE QString plantillaPorDefecto(const QString& nombre, const QString& tipo);
-    /// El tipo de libobs de la fuente elegida (para marcar la predeterminada).
+    /// El tipo de la fuente elegida (para marcar la predeterminada).
     Q_INVOKABLE QString tipoDeFuente() const;
     /// Reordena los nodos en la grilla del patchbay.
     Q_INVOKABLE void tidy();

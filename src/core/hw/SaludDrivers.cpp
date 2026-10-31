@@ -2,6 +2,7 @@
 
 #include "hw/SaludDrivers.hpp"
 #include "i18n/I18n.hpp"
+#include "persist/ArchivoConfig.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -60,13 +61,7 @@ SaludDrivers::SaludDrivers(fs::path archivo, std::string huella, std::string eti
 }
 
 namespace {
-json leerArchivo(const fs::path& p) {
-    if (p.empty()) return json::object();
-    std::ifstream in(p, std::ios::binary);
-    if (!in) return json::object();
-    json j = json::parse(in, nullptr, false);
-    return j.is_object() ? j : json::object();
-}
+json leerArchivo(const fs::path& p) { return p.empty() ? json::object() : ba::persist::leerConfig(p); }
 } // namespace
 
 void SaludDrivers::leer() {
@@ -103,22 +98,10 @@ void SaludDrivers::guardar() const {
     if (!sondeoCompleto_.empty()) esta["sondeo_completo"] = sondeoCompleto_;
     maquinas[huella_] = esta;
     const json todo{{"version", 1}, {"maquinas", maquinas}};
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    // Escribir aparte y renombrar: un corte de luz a la mitad no deja un archivo roto
-    // (y con él, los drivers en cuarentena volviendo a cargarse).
-    const fs::path tmp = archivo_.string() + ".tmp";
-    {
-        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
-        if (!out) return;
-        out << todo.dump(2, ' ', false, json::error_handler_t::replace);
-        if (!out) return;
-    }
-    fs::rename(tmp, archivo_, ec);
-    if (ec) {
-        fs::remove(archivo_, ec);
-        fs::rename(tmp, archivo_, ec);
-    }
+    // Ya, sin la cola: la marca de un driver que se va a probar tiene que estar en el
+    // disco ANTES de cargarlo (si el proceso se cae, al volver es lo que lo pone en
+    // cuarentena). El escritor único no deja un archivo roto si se corta la luz.
+    ba::persist::guardarConfigYa(archivo_, todo);
 }
 
 void SaludDrivers::sondeoCompleto(const std::string& cuando) {

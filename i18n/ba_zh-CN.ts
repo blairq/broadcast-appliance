@@ -28400,8 +28400,8 @@ APRETADO</source>
     </message>
     <message>
         <location line="+2" />
-        <source>traspaso a la cadena de la placa «sin señal» (espera si el fallbackswitch frena)</source>
-        <translation>交给「无信号」垫片画面链路（如果 fallbackswitch 阻塞则会等待）</translation>
+        <source>traspaso a la cadena de la placa «sin señal» (el selector deja pasar cada cuadro apenas llega)</source>
+        <translation>交给「无信号」垫片画面链路（选择器每帧一到就放行）</translation>
     </message>
     <message>
         <location line="+9" />
@@ -47546,8 +47546,8 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+3" />
-        <source>manda %1 cuadros por segundo y el estudio va a %2: libobs repite o salta cuadros (con movimiento se nota un tironeo)</source>
-        <translation>以每秒 %1 帧发送，而工作室为 %2：libobs 会重复或跳帧（有运动时能看到卡顿）</translation>
+        <source>manda %1 cuadros por segundo y el estudio va a %2: la composición repite o salta cuadros (con movimiento se nota un tironeo)</source>
+        <translation>以每秒 %1 帧发送，而工作室为 %2：合成会重复或跳帧（有运动时能看到卡顿）</translation>
     </message>
     <message>
         <location line="+4" />
@@ -54432,8 +54432,8 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     <message>
         <location line="+1" />
         <location line="+1" />
-        <source>motor sin libobs: unir pipelines</source>
-        <translation>无 libobs 引擎：连接 pipeline</translation>
+        <source>motor: unir sus pipelines</source>
+        <translation>引擎：连接其 pipeline</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54447,18 +54447,18 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: mezcla de audio</source>
-        <translation>无 libobs 引擎：音频混合</translation>
+        <source>motor: mezcla de audio</source>
+        <translation>引擎：音频混合</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (CPU)</source>
-        <translation>无 libobs 引擎：合成（CPU）</translation>
+        <source>motor: composición (CPU)</source>
+        <translation>引擎：合成（CPU）</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (placa)</source>
-        <translation>无 libobs 引擎：合成（GPU）</translation>
+        <source>motor: composición (placa)</source>
+        <translation>引擎：合成（GPU）</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54477,18 +54477,18 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
     <message>
         <location line="+1" />
-        <source>transmitir (motor sin libobs)</source>
-        <translation>推流（无 libobs 引擎）</translation>
+        <source>transmitir (RTMP)</source>
+        <translation>推流（RTMP）</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>SRT (motor sin libobs)</source>
-        <translation>SRT（无 libobs 引擎）</translation>
+        <source>transmitir por SRT</source>
+        <translation>通过 SRT 推流</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>grabación en tramos (motor sin libobs)</source>
-        <translation>分段录制（无 libobs 引擎）</translation>
+        <source>grabación en tramos</source>
+        <translation>分段录制</translation>
     </message>
     <message>
         <location line="+26" />
@@ -87952,8 +87952,8 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
-        <source>El color (%1, rango %2) lo convierte libobs en la GPU: no hace falta tarjeta</source>
-        <translation>颜色（%1，范围 %2）由 libobs 在 GPU 上转换：不需要卡片</translation>
+        <source>El color (%1, rango %2) lo convierte el motor (en la GPU si puede): no hace falta tarjeta</source>
+        <translation>颜色（%1，范围 %2）由引擎转换（能用 GPU 时在 GPU 上）：不需要卡片</translation>
     </message>
     <message>
         <location line="+2" />

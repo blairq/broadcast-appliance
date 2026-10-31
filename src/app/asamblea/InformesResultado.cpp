@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/InformesResultado.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include <QDateTime>
@@ -226,12 +227,11 @@ json InformesResultado::campos() {
 }
 
 json InformesResultado::indice() const {
-    std::ifstream f(carpeta_ / "plantillas.json");
-    const json j = json::parse(f, nullptr, false);
+    const json j = config::leerObjeto(carpeta_ / "plantillas.json").value("plantillas", json::array());
     return j.is_array() ? j : json::array();
 }
 
-void InformesResultado::guardarIndice(const json& i) const { escribirArchivo(carpeta_ / "plantillas.json", i.dump(1)); }
+void InformesResultado::guardarIndice(const json& i) const { config::guardar(carpeta_ / "plantillas.json", {{"plantillas", i}}); }
 
 void InformesResultado::asegurarUna() {
     if (!indice().empty()) return;

@@ -597,9 +597,8 @@ int AppRuntime::start() {
     arranque::avisar(ba::i18n::traducir("arranque", "Arrancando el motor de video y audio…"));
     // El reloj del estudio (Video → Sincronía): con él arranca el motor.
     {
-        std::ifstream f(root_ / "Config" / "video-reloj.json");
-        const nlohmann::json r = nlohmann::json::parse(f, nullptr, false);
-        if (r.is_object()) {
+        const nlohmann::json r = config::leerObjeto(root_ / "Config" / "video-reloj.json");
+        if (!r.empty()) {
             engine_.ponerReloj(r.value("tipo", std::string("sistema")), r.value("servidor", std::string()),
                                r.value("puerto", 0), r.value("dominio", 0));
             if (r.value("publicar_puerto", 0) > 0) engine_.publicarReloj(r.value("publicar_puerto", 0));
@@ -1321,13 +1320,11 @@ void AppRuntime::stopStreaming(const std::string& salida) {
 
 namespace {
 nlohmann::json leerDestinos(const std::filesystem::path& root) {
-    std::string bytes;
-    ba::persist::cola().leer(root / "Config" / "destinos.json", bytes);
-    const nlohmann::json j = nlohmann::json::parse(bytes, nullptr, false);
+    const nlohmann::json j = config::leerObjeto(root / "Config" / "destinos.json").value("destinos", nlohmann::json::array());
     return j.is_array() ? j : nlohmann::json::array();
 }
 void escribirDestinos(const std::filesystem::path& root, const nlohmann::json& d) {
-    config::guardar(root / "Config" / "destinos.json", d);
+    config::guardar(root / "Config" / "destinos.json", {{"destinos", d}});
 }
 } // namespace
 

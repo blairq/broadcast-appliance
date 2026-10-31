@@ -2,6 +2,7 @@
 // src/app/evento/CierreEvento.cpp — ver CierreEvento.hpp
 // ============================================================================
 #include "evento/CierreEvento.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "i18n/I18n.hpp"
 
@@ -95,10 +96,9 @@ int CierreEvento::copiarAsamblea(const fs::path& config, const fs::path& evento)
     int n = 0;
     std::error_code ec;
     for (const std::string& a : archivosAsamblea()) {
-        std::ifstream f(config / a, std::ios::binary);
-        if (!f) continue;
-        const json j = json::parse(f, nullptr, false);
-        if (j.is_discarded()) continue;
+        // Lo último (aunque esté encolado y no haya llegado al disco), en su esquema.
+        const json j = ba::app::config::leerObjeto(config / a);
+        if (j.empty()) continue;
         fs::create_directories(evento / "asamblea", ec);
         std::ofstream o(evento / "asamblea" / a, std::ios::binary);
         o << FotosConfig::sinSecretos(j).dump(1, '\t', false, nlohmann::json::error_handler_t::replace);

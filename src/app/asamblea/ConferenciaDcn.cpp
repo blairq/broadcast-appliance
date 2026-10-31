@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/ConferenciaDcn.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include "control/BusEventos.hpp"
@@ -35,11 +36,7 @@ std::string limpio(std::string e) {
 ConferenciaDcn::ConferenciaDcn(std::function<plugins::Plugins*()> plugins, control::BusEventos& bus,
                                std::filesystem::path datos, QObject* parent)
     : QObject(parent), plugins_(std::move(plugins)), bus_(bus), archivo_(datos / "Config" / "conferencia.json") {
-    {
-        std::ifstream f(archivo_);
-        const json j = json::parse(f, nullptr, false);
-        if (j.is_object()) presentesCentral_ = j.value("presentes_de_la_central", false);
-    }
+    presentesCentral_ = config::leerObjeto(archivo_).value("presentes_de_la_central", false);
     bus_.suscribir(std::string("plugin/") + kPlugin + "/dcn/estado", [this](const std::string&, const json& v) {
         estado_ = v.is_object() ? v : json::object();
         emit cambio();
@@ -76,9 +73,7 @@ QVariantMap ConferenciaDcn::estadoUi() const { return aQv(estado_).toMap(); }
 void ConferenciaDcn::setPresentesDeLaCentral(bool si) {
     if (si == presentesCentral_) return;
     presentesCentral_ = si;
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    std::ofstream(archivo_) << json{{"presentes_de_la_central", si}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, {{"presentes_de_la_central", si}});
     emit cambio();
 }
 

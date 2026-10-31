@@ -3,7 +3,7 @@
 // Proposito:
 //   Archivo de Logs/ donde queda la salida (stdout + stderr) de un hijo del
 //   launcher. A informa todo por printf/stderr (motor que no arranca, fuente
-//   omitida, app.json invalido, avisos de Qt/QML, libobs) y en Windows es
+//   omitida, app.json invalido, avisos de Qt/QML y de GStreamer) y en Windows es
 //   subsistema GUI: sin este archivo esa salida se pierde y no hay con que dar
 //   soporte.
 //

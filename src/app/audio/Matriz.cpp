@@ -2,6 +2,7 @@
 // src/app/audio/Matriz.cpp — ver Matriz.hpp
 // ============================================================================
 #include "audio/Matriz.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
 #include <QCoreApplication>
@@ -1049,22 +1050,12 @@ void Matriz::guardar() const {
     j["canales"] = canales;
     j["equipo"] = equipo_->guardado();
     j["pistasPlegadas"] = pistasPlegadas_;
-    const fs::path p = root_ / "Config" / "audio-matriz.json";
-    std::error_code ec;
-    fs::create_directories(p.parent_path(), ec);
-    // Escribir aparte y reemplazar: un corte a mitad no deja el archivo trunco (y la
-    // próxima carga no lo ignora y lo pisa con la matriz vacía).
-    QSaveFile out(QString::fromStdString(p.string()));
-    if (!out.open(QIODevice::WriteOnly)) return;
-    out.write(QByteArray::fromStdString(j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
-    out.commit();
+    config::guardar(root_ / "Config" / "audio-matriz.json", j); // el escritor único: un corte no lo deja trunco
 }
 
 void Matriz::cargar() {
-    std::ifstream in(root_ / "Config" / "audio-matriz.json");
-    if (!in) return;
-    const json j = json::parse(in, nullptr, false);
-    if (!j.is_object()) return;
+    const json j = config::leerObjeto(root_ / "Config" / "audio-matriz.json");
+    if (j.empty()) return;
     for (const auto& p : j.value("pistas", json::array())) {
         const std::string id = p.value("id", std::string());
         const int i = id.rfind("pista", 0) == 0 ? std::atoi(id.c_str() + 5) - 1 : -1;

@@ -8,6 +8,7 @@
 //    márgenes), el fin de turno del modelo y el cierre por silencio, el parcial
 //    y la toma suelta (el dictado).
 
+#include "persist/ColaEscritura.hpp"
 #include "agent/Reconocedores.hpp"
 #include "audio/EscuchaStreaming.hpp"
 
@@ -146,6 +147,7 @@ void probarReconocedores() {
     CHECK(r2.motorDe("transcripcion") == MotorOido::Nemotron, "se lee lo elegido");
     CHECK(r2.motorDe("registro") == MotorOido::Parakeet, "lo de fábrica queda de fábrica");
     CHECK(!r2.interrumpirElegido("registro"), "se lee la opción de interrumpir");
+    ba::persist::cola().vaciar(); // lo encolado, al disco antes de borrar (si no, el escritor la recrea)
     std::filesystem::remove_all(dir);
 }
 

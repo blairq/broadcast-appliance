@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Dsk.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include "emision/BroadcastEngine.hpp"
@@ -31,24 +32,19 @@ Dsk::Dsk(const fs::path& datos, BroadcastEngine& engine, QObject* parent)
 }
 
 void Dsk::cargar() {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
+    const json j = config::leerObjeto(archivo_);
     capas_ = json::array();
     for (int c = 1; c <= 4; ++c) {
         json capa{{"capa", c}, {"nombre", "DSK " + std::to_string(c)}, {"contenido", json::array()},
                   {"recuadro", json::object()}, {"fijo", false}, {"transicion_ms", 300}, {"visible", false}};
-        if (j.is_object())
-            for (const auto& g : j.value("capas", json::array()))
-                if (g.value("capa", 0) == c) capa.update(g);
+        for (const auto& g : j.value("capas", json::array()))
+            if (g.value("capa", 0) == c) capa.update(g);
         capas_.push_back(capa);
     }
 }
 
 void Dsk::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    std::ofstream o(archivo_);
-    o << json{{"capas", capas_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(archivo_, {{"capas", capas_}});
 }
 
 json* Dsk::buscar(int capa) {

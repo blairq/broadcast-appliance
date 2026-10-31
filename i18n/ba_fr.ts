@@ -28511,8 +28511,8 @@ APPUYÉ</translation>
     </message>
     <message>
         <location line="+2" />
-        <source>traspaso a la cadena de la placa «sin señal» (espera si el fallbackswitch frena)</source>
-        <translation>transfert vers la chaîne du carton « pas de signal » (attend si le fallbackswitch bloque)</translation>
+        <source>traspaso a la cadena de la placa «sin señal» (el selector deja pasar cada cuadro apenas llega)</source>
+        <translation>transfert vers la chaîne du carton « pas de signal » (le sélecteur laisse passer chaque image dès qu’elle arrive)</translation>
     </message>
     <message>
         <location line="+9" />
@@ -47695,8 +47695,8 @@ Données (de %2) : %3</translation>
     </message>
     <message>
         <location line="+3" />
-        <source>manda %1 cuadros por segundo y el estudio va a %2: libobs repite o salta cuadros (con movimiento se nota un tironeo)</source>
-        <translation>envoie %1 images par seconde et le studio tourne à %2 : libobs répète ou saute des images (saccades visibles en mouvement)</translation>
+        <source>manda %1 cuadros por segundo y el estudio va a %2: la composición repite o salta cuadros (con movimiento se nota un tironeo)</source>
+        <translation>envoie %1 images par seconde et le studio tourne à %2 : la composition répète ou saute des images (saccades visibles en mouvement)</translation>
     </message>
     <message>
         <location line="+4" />
@@ -54582,8 +54582,8 @@ Les valeurs vides ne laissent pas de séparateurs orphelins : « {nombre} — 
     <message>
         <location line="+1" />
         <location line="+1" />
-        <source>motor sin libobs: unir pipelines</source>
-        <translation>moteur sans libobs : joindre les pipelines</translation>
+        <source>motor: unir sus pipelines</source>
+        <translation>moteur : joindre ses pipelines</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54597,18 +54597,18 @@ Les valeurs vides ne laissent pas de séparateurs orphelins : « {nombre} — 
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: mezcla de audio</source>
-        <translation>moteur sans libobs : mixage audio</translation>
+        <source>motor: mezcla de audio</source>
+        <translation>moteur : mixage audio</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (CPU)</source>
-        <translation>moteur sans libobs : composition (CPU)</translation>
+        <source>motor: composición (CPU)</source>
+        <translation>moteur : composition (CPU)</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>motor sin libobs: composición (placa)</source>
-        <translation>moteur sans libobs : composition (GPU)</translation>
+        <source>motor: composición (placa)</source>
+        <translation>moteur : composition (GPU)</translation>
     </message>
     <message>
         <location line="+1" />
@@ -54627,18 +54627,18 @@ Les valeurs vides ne laissent pas de séparateurs orphelins : « {nombre} — 
     </message>
     <message>
         <location line="+1" />
-        <source>transmitir (motor sin libobs)</source>
-        <translation>diffusion (moteur sans libobs)</translation>
+        <source>transmitir (RTMP)</source>
+        <translation>diffusion (RTMP)</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>SRT (motor sin libobs)</source>
-        <translation>SRT (moteur sans libobs)</translation>
+        <source>transmitir por SRT</source>
+        <translation>diffusion en SRT</translation>
     </message>
     <message>
         <location line="+1" />
-        <source>grabación en tramos (motor sin libobs)</source>
-        <translation>enregistrement segmenté (moteur sans libobs)</translation>
+        <source>grabación en tramos</source>
+        <translation>enregistrement segmenté</translation>
     </message>
     <message>
         <location line="+26" />
@@ -88121,8 +88121,8 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     </message>
     <message>
         <location line="+2" />
-        <source>El color (%1, rango %2) lo convierte libobs en la GPU: no hace falta tarjeta</source>
-        <translation>La couleur (%1, plage %2) est convertie par libobs sur le GPU : pas besoin de carte</translation>
+        <source>El color (%1, rango %2) lo convierte el motor (en la GPU si puede): no hace falta tarjeta</source>
+        <translation>La couleur (%1, plage %2) est convertie par le moteur (sur le GPU si possible) : pas besoin de carte</translation>
     </message>
     <message>
         <location line="+2" />

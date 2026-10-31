@@ -91,7 +91,7 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
             "asistente", "no hay ninguna URL de video: hacen falta usuario y clave (camara_credenciales) o la URL a mano");
         return plan;
     }
-    // Normalizar: solo si hace falta (lo que libobs no sabe hacer).
+    // Normalizar: solo si hace falta (lo que la entrada del motor no hace siempre).
     const json o = analisis.value("video", json::object());
     std::string por;
     if (o.value("entrelazado", false)) por += ba::i18n::traducir("red", "viene entrelazada") + "; ";
@@ -115,8 +115,8 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
     else
         pasos.push_back(ba::i18n::traducir("red", "Sin normalizar: ya viene progresiva, con píxel cuadrado y a los cuadros "
                                                   "del estudio (cero CPU extra)"));
-    pasos.push_back(ba::i18n::llenar(ba::i18n::traducir("red", "El color (%1, rango %2) lo convierte libobs en la GPU: no "
-                                                               "hace falta tarjeta"),
+    pasos.push_back(ba::i18n::llenar(ba::i18n::traducir("red", "El color (%1, rango %2) lo convierte el motor (en la GPU "
+                                                               "si puede): no hace falta tarjeta"),
                                      {o.value("matriz", ba::i18n::traducir("red", "lo que declare")),
                                       o.value("rango", ba::i18n::traducir("red", "el que declare"))}));
     if (o.value("hdr", false))

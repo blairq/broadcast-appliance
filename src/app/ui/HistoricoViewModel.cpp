@@ -2,6 +2,7 @@
 // src/app/ui/HistoricoViewModel.cpp — ver HistoricoViewModel.hpp
 // ============================================================================
 #include "ui/HistoricoViewModel.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -542,13 +543,7 @@ std::string HistoricoViewModel::guardarAjustesJson(const nlohmann::json& c) {
         if (!c["bus_excluir"].is_array()) return tr("`bus_excluir`: una lista de patrones del bus").toStdString();
         j["bus_excluir"] = c["bus_excluir"];
     }
-    std::error_code ec;
-    fs::create_directories(ruta.parent_path(), ec);
-    {
-        std::ofstream o(ruta.string() + ".tmp");
-        o << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::rename(ruta.string() + ".tmp", ruta, ec);
+    config::guardar(ruta, j);
     if (aplicarAjustes_) aplicarAjustes_(ajustesJson());
     emit ajustesCambio();
     return {};

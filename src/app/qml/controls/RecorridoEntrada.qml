@@ -151,7 +151,7 @@ Rectangle {
                             text: fila.modelData.fuente
                                   ? (fila.modelData.fabrica || "") + "  ·  " + qsTr("captura (la cámara, el driver, el sistema o la etapa anterior)")
                                   : fila.modelData.traspaso
-                                  ? (fila.modelData.fabrica || "") + "  ·  " + qsTr("traspaso a la cadena de la placa «sin señal» (espera si el fallbackswitch frena)")
+                                  ? (fila.modelData.fabrica || "") + "  ·  " + qsTr("traspaso a la cadena de la placa «sin señal» (el selector deja pasar cada cuadro apenas llega)")
                                   : (fila.modelData.fabrica || "") + (fila.modelData.cruce
                                   ? "  ·  " + r.nombreMemoria(fila.modelData.memoria_entrada) + " → " + r.nombreMemoria(fila.modelData.memoria_salida) : "")
                             color: Theme.textFaint; font.pixelSize: 8

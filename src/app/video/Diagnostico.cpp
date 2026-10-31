@@ -77,7 +77,7 @@ json diagnosticar(const json& e) {
                                                                          "%2 (GStreamer los convierte)"),
                                        {n0(fps), n0(fpsLienzo)})
                     : ba::i18n::llenar(ba::i18n::traducir("diagnostico", "manda %1 cuadros por segundo y el estudio va a "
-                                                                         "%2: libobs repite o salta cuadros (con "
+                                                                         "%2: la composición repite o salta cuadros (con "
                                                                          "movimiento se nota un tironeo)"),
                                        {n0(fps), n0(fpsLienzo)}),
                 normalizado ? ba::i18n::traducir("diagnostico", "nada: ya se convierte")

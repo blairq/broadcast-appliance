@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Botonera.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 #include <QJsonArray>
 #include <QFile>
@@ -267,18 +268,15 @@ Botonera::~Botonera() { bus_.desuscribir(sub_); }
 
 void Botonera::cargar() {
     {
-        std::ifstream f(archivo_);
-        const json j = json::parse(f, nullptr, false);
-        datos_ = j.is_object() ? j : json::object();
+        datos_ = config::leerObjeto(archivo_);
         if (!datos_.contains("perfiles") || !datos_["perfiles"].is_array()) datos_["perfiles"] = json::array();
     }
     {
-        std::ifstream f(archivoDisp_);
-        const json j = json::parse(f, nullptr, false);
-        disp_ = j.is_object() && j.contains("dispositivos") && j["dispositivos"].is_array() ? j["dispositivos"]
+        const json j = config::leerObjeto(archivoDisp_);
+        disp_ = j.contains("dispositivos") && j["dispositivos"].is_array() ? j["dispositivos"]
                                                                                            : json::array();
         // Los locales (plugins, satélites) se vuelven a registrar al arrancar (con su salida).
-        if (j.is_object() && j.contains("salidas_locales") && j["salidas_locales"].is_object())
+        if (j.contains("salidas_locales") && j["salidas_locales"].is_object())
             for (const auto& [id, sal] : j["salidas_locales"].items())
                 if (sal.is_string()) salidaLocal_[id] = sal.get<std::string>();
         disp_.erase(std::remove_if(disp_.begin(), disp_.end(),
@@ -293,29 +291,16 @@ void Botonera::cargar() {
 }
 
 void Botonera::guardar() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    const fs::path tmp = archivo_.string() + ".tmp";
-    {
-        std::ofstream o(tmp);
-        o << datos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::rename(tmp, archivo_, ec);
+    config::guardar(archivo_, datos_);
 }
 
 void Botonera::guardarDispositivos() const {
-    std::error_code ec;
-    fs::create_directories(archivoDisp_.parent_path(), ec);
     json solo = json::array();
     for (const auto& d : disp_)
         if (d.value("origen", std::string("tablet")) == "tablet") solo.push_back(d);
-    const fs::path tmp = archivoDisp_.string() + ".tmp";
-    {
-        std::ofstream o(tmp);
-        o << json{{"dispositivos", solo}, {"salidas_locales", salidaLocal_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::permissions(tmp, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace, ec);
-    fs::rename(tmp, archivoDisp_, ec);
+    // Lleva los tokens de las tablets: solo lo lee el dueño.
+    config::guardar(archivoDisp_, {{"dispositivos", solo}, {"salidas_locales", salidaLocal_}},
+                    {ba::persist::Durabilidad::Normal, ba::persist::Prioridad::Normal, ba::persist::Permisos::Privados, {}});
 }
 
 void Botonera::auditar(const std::string& dispositivo, const std::string& que, const std::string& detalle) {

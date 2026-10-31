@@ -2,6 +2,7 @@
 // src/app/graficos/Vinculos.cpp — ver Vinculos.hpp
 // ============================================================================
 #include "graficos/Vinculos.hpp"
+#include "arranque/ArchivoConfigQt.hpp"
 
 #include <QDateTime>
 #include <QDir>
@@ -78,21 +79,12 @@ struct Vinculos::Impl {
         // Ruta vacia = los vinculos no se leen ni se escriben (los apago el
         // diario de arranque). No se pisa el archivo: hay que poder mirarlo.
         if (archivo.empty()) return;
-        QDir().mkpath(QString::fromStdString(archivo.parent_path().string()));
-        QFile f(QString::fromStdString(archivo.string()) + ".nuevo");
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
-        f.write(QJsonDocument(QJsonObject{{"vinculos", vs}}).toJson());
-        f.close();
-        QFile::remove(QString::fromStdString(archivo.string()));
-        QFile::rename(QString::fromStdString(archivo.string()) + ".nuevo",
-                      QString::fromStdString(archivo.string()));
+        config::guardarQ(archivo, QJsonObject{{"vinculos", vs}});
     }
 
     void leer() {
         if (archivo.empty()) return;
-        QFile f(QString::fromStdString(archivo.string()));
-        if (!f.open(QIODevice::ReadOnly)) return;
-        vs = QJsonDocument::fromJson(f.readAll()).object().value("vinculos").toArray();
+        vs = config::leerQObjeto(archivo).value("vinculos").toArray();
     }
 
     int indiceDe(const QString& id) const {

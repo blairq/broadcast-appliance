@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/ListModels.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include <QRegularExpression>
 #include <QSortFilterProxyModel>
@@ -331,13 +332,10 @@ std::filesystem::path archivoVistaMezclador(AppRuntime& rt) { return rt.dataRoot
 } // namespace
 
 MixerModel::MixerModel(AppRuntime& rt, QObject* parent) : QAbstractListModel(parent), rt_(rt) {
-    QFile f(QString::fromStdString(archivoVistaMezclador(rt_).string()));
-    if (f.open(QIODevice::ReadOnly)) {
-        const nlohmann::json j = nlohmann::json::parse(f.readAll().toStdString(), nullptr, false);
-        if (j.is_object() && j.contains("compactos") && j["compactos"].is_array())
-            for (const auto& g : j["compactos"])
-                if (g.is_string()) compactos_.insert(g.get<std::string>());
-    }
+    const nlohmann::json j = config::leerObjeto(archivoVistaMezclador(rt_));
+    if (j.contains("compactos") && j["compactos"].is_array())
+        for (const auto& g : j["compactos"])
+            if (g.is_string()) compactos_.insert(g.get<std::string>());
     reload();
 }
 
@@ -470,13 +468,7 @@ void MixerModel::setCompacto(const QString& grupo, bool compacto) {
     if (g.empty() || (compactos_.count(g) > 0) == compacto) return;
     if (compacto) compactos_.insert(g);
     else compactos_.erase(g);
-    std::error_code ec;
-    std::filesystem::create_directories(archivoVistaMezclador(rt_).parent_path(), ec);
-    QSaveFile f(QString::fromStdString(archivoVistaMezclador(rt_).string()));
-    if (f.open(QIODevice::WriteOnly)) {
-        f.write(QByteArray::fromStdString(nlohmann::json{{"compactos", compactos_}}.dump(1)));
-        f.commit();
-    }
+    config::guardar(archivoVistaMezclador(rt_), {{"compactos", compactos_}});
     for (std::size_t i = 0; i < grupos_.size(); ++i)
         if (grupos_[i] == g) emit dataChanged(index(static_cast<int>(i)), index(static_cast<int>(i)), {CompactoRole});
 }

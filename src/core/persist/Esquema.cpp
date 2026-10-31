@@ -15,8 +15,9 @@ int esquemaDe(const nlohmann::json& j) {
 }
 
 int migrar(nlohmann::json& j, int actual, const std::vector<PasoMigracion>& pasos, const std::string& nombre) {
+    // Lo que no es un objeto (un archivo viejo que era una lista) es el 1: algún paso
+    // lo vuelve objeto; si no, queda como está y sin marca.
     const int tenia = esquemaDe(j);
-    if (!j.is_object()) return tenia;
     if (tenia > actual) {
         ba::diag::registro().linea(
             ba::diag::Nivel::Aviso, "config", 0,
@@ -32,7 +33,7 @@ int migrar(nlohmann::json& j, int actual, const std::vector<PasoMigracion>& paso
         ba::diag::registro().linea(ba::diag::Nivel::Info, "config", 0,
                                    ba::i18n::llenar(ba::i18n::traducir("config", "%1: esquema %2 → %3"),
                                                     {nombre, std::to_string(tenia), std::to_string(actual)}));
-    j[kClaveEsquema] = actual;
+    if (j.is_object()) j[kClaveEsquema] = actual;
     return tenia;
 }
 

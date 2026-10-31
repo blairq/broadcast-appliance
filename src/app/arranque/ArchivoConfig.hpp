@@ -1,26 +1,21 @@
 // ============================================================================
-// src/app/arranque/ArchivoConfig.hpp — leer y guardar un JSON de configuración (modelo)
+// src/app/arranque/ArchivoConfig.hpp — leer y guardar un JSON de Config/ (modelo)
 //
-// Lo común de los ajustes chicos que se guardan en Config/ (o Runtime/): un
-// objeto JSON por archivo. Leer uno que no está o está roto da {} (rige lo de
-// fábrica); guardar crea la carpeta si hace falta.
-//
-// Guardar ENCOLA en el escritor de la persistencia (core/persist/ColaEscritura.hpp):
-// el disco (temporal + fsync + rename) lo toca su hilo, nunca el de la UI. Leer ve
-// lo encolado aunque todavía no haya llegado al disco.
+// Los nombres de siempre de la app para el lector/escritor único con esquema del
+// núcleo (core/persist/ArchivoConfig.hpp): ahí está qué hace y la tabla de esquemas.
 // ============================================================================
 #pragma once
 
-#include <filesystem>
-
-#include <nlohmann/json.hpp>
+#include "persist/ArchivoConfig.hpp"
 
 namespace ba::app::config {
 
-/// El objeto del archivo, o {} si no está o no es un objeto.
-nlohmann::json leerObjeto(const std::filesystem::path& archivo);
-/// Lo encola para guardar (con la carpeta). Siempre true: si el disco falla, el
-/// escritor lo reintenta y lo anota en el registro.
-bool guardar(const std::filesystem::path& archivo, const nlohmann::json& j);
+/// El objeto del archivo migrado a su esquema, o {} si no está o no es un objeto.
+inline nlohmann::json leerObjeto(const std::filesystem::path& archivo) { return ba::persist::leerConfig(archivo); }
+/// Lo marca con su esquema y lo encola para guardar (con la carpeta). false solo si
+/// lo escribió una versión más nueva (no se pisa).
+inline bool guardar(const std::filesystem::path& archivo, const nlohmann::json& j, ba::persist::Pedido p = {}) {
+    return ba::persist::guardarConfig(archivo, j, std::move(p));
+}
 
 } // namespace ba::app::config

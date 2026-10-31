@@ -2,6 +2,7 @@
 // src/app/ui/AtencionViewModel.cpp — ver AtencionViewModel.hpp
 // ============================================================================
 #include "ui/AtencionViewModel.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include <QCoreApplication>
@@ -47,9 +48,7 @@ namespace ba::app {
 
 namespace {
 
-QString archivoAjustes(const std::filesystem::path& datos) {
-    return QString::fromStdString((datos / "Config" / "atencion.json").string());
-}
+std::filesystem::path archivoAjustes(const std::filesystem::path& datos) { return datos / "Config" / "atencion.json"; }
 
 /// La clave del oído de alguien que se atiende hablando (agent::Voz).
 QString claveOido(const QString& id) { return "atencion:" + id; }
@@ -93,9 +92,8 @@ PersonasViewModel* personas(StudioViewModel& vm) { return static_cast<PersonasVi
 AtencionViewModel::AtencionViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz& voz,
                                      agent::ModelosLocales& modelos, QObject* parent)
     : QObject(parent), rt_(rt), vm_(vm), voz_(voz), modelos_(modelos), alLobby_(std::make_unique<VozAlLobby>()) {
-    QFile f(archivoAjustes(rt_.dataRoot()));
-    if (f.open(QIODevice::ReadOnly))
-        aj_ = sala::AjustesAtencion::deJson(nlohmann::json::parse(f.readAll().toStdString(), nullptr, false));
+    if (const nlohmann::json j = config::leerObjeto(archivoAjustes(rt_.dataRoot())); !j.empty())
+        aj_ = sala::AjustesAtencion::deJson(j);
 #if defined(BA_HAVE_VOZ)
     habla_ = std::make_unique<audio::Habla>();
 #endif
@@ -147,11 +145,7 @@ AtencionViewModel::~AtencionViewModel() {
 }
 
 void AtencionViewModel::guardar() const {
-    const QString ruta = archivoAjustes(rt_.dataRoot());
-    QDir().mkpath(QFileInfo(ruta).absolutePath());
-    QFile f(ruta);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QByteArray::fromStdString(aj_.aJson().dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
+    config::guardar(archivoAjustes(rt_.dataRoot()), aj_.aJson());
 }
 
 // --- Los interruptores -------------------------------------------------------------

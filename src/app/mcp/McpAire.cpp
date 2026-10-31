@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "mcp/McpAire.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "mcp/McpCore.hpp"
 
@@ -72,13 +73,11 @@ const Tool* McpAire::declarada(const std::string& h) const {
 
 void McpAire::cargar(const std::filesystem::path& config) {
     archivo_ = config;
-    std::ifstream f(config);
-    const json j = json::parse(f, nullptr, false);
+    const json j = config::leerObjeto(config);
     std::lock_guard<std::mutex> l(mu_);
     agregadas_.clear();
-    if (j.is_object())
-        for (const auto& x : j.value("aire", json::array()))
-            if (x.is_string()) agregadas_.insert(x.get<std::string>());
+    for (const auto& x : j.value("aire", json::array()))
+        if (x.is_string()) agregadas_.insert(x.get<std::string>());
 }
 
 ClaseAire McpAire::clase(const std::string& h) const {
@@ -136,9 +135,7 @@ std::string McpAire::ajustar(const std::string& h, const std::string& c) {
         for (const auto& x : agregadas_) j["aire"].push_back(x);
     }
     if (archivo_.empty()) return ""; // sin archivo (pruebas): queda en memoria
-    std::ofstream o(archivo_);
-    o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    return o ? "" : ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo guardar %1"), {archivo_.string()});
+    return config::guardar(archivo_, j) ? "" : ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo guardar %1"), {archivo_.string()});
 }
 
 } // namespace ba::app::mcp

@@ -1,6 +1,7 @@
 // src/app/escenas/RespaldoEntradas.cpp — ver el .hpp
 
 #include "escenas/RespaldoEntradas.hpp"
+#include "arranque/ArchivoConfig.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "escenas/Conmutador.hpp"
@@ -17,8 +18,9 @@ RespaldoEntradas::RespaldoEntradas(AppRuntime& rt, video::VideoGrafos& video, Co
     : QObject(parent), rt_(rt), video_(video), conmutador_(conmutador) {}
 
 nlohmann::json RespaldoEntradas::leer() const {
-    std::ifstream f(rt_.dataRoot() / "Config" / "respaldo-entradas.json");
-    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+    // Por entrada, bajo «entradas» (el nombre de una entrada no choca con `esquema`).
+    const nlohmann::json j = config::leerObjeto(rt_.dataRoot() / "Config" / "respaldo-entradas.json")
+                                 .value("entradas", nlohmann::json::object());
     return j.is_object() ? j : nlohmann::json::object();
 }
 
@@ -32,8 +34,7 @@ std::string RespaldoEntradas::setRespaldo(const std::string& entrada, const std:
         return tr("al_perder_aire: avisar, armar o cortar").toStdString();
     nlohmann::json todos = leer();
     todos[entrada] = {{"escena", escena}, {"al_perder_aire", alPerderAire}, {"ms", std::clamp(ms, 200, 60000)}};
-    std::ofstream o(rt_.dataRoot() / "Config" / "respaldo-entradas.json");
-    o << todos.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    config::guardar(rt_.dataRoot() / "Config" / "respaldo-entradas.json", {{"entradas", todos}});
     return {};
 }
 

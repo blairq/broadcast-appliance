@@ -4,7 +4,8 @@
 // (la transcripción o una traducción): el espectador los prende o apaga en su
 // reproductor. Dos métodos:
 //   - "608": CEA-608 canal 1 dentro del video de la transmisión (y de cada
-//     destino adicional), con obs_output_output_caption_text2;
+//     destino adicional), por BroadcastEngine::enviarCaption; el motor todavía
+//     no los mete (M7): hoy no sale ninguno;
 //   - "youtube_http": la API de subtítulos de YouTube (la URL de ingesta de
 //     subtítulos del evento, de YouTube Studio), por HTTP.
 // Los subtítulos quemados (cuadro «Subtítulos») son otra cosa y siguen aparte.

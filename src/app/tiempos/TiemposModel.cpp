@@ -2,6 +2,7 @@
 // src/app/tiempos/TiemposModel.cpp — ver TiemposModel.hpp
 // ============================================================================
 #include "tiempos/TiemposModel.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 #include "platform/Hilo.hpp"
 
@@ -39,8 +40,7 @@ TiemposModel::TiemposModel(std::function<Fotos()> fotos, std::filesystem::path a
     connect(&reloj1s_, &QTimer::timeout, this, &TiemposModel::cadaSegundo);
     reloj1s_.start();
     // Los análisis de antes de este evento.
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
+    const json j = config::leerObjeto(archivo_).value("analisis", json::array());
     if (j.is_array()) analisis_ = j;
     for (auto& a : analisis_)
         if (a.value("estado", std::string()) == "midiendo") a["estado"] = "fallo", a["error"] = ba::i18n::traducir("tiempos", "se cerró la app midiendo");
@@ -505,10 +505,7 @@ void TiemposModel::borrarAnalisis() {
 
 void TiemposModel::guardar() const {
     if (archivo_.empty()) return;
-    std::error_code ec;
-    std::filesystem::create_directories(archivo_.parent_path(), ec);
-    std::ofstream o(archivo_);
-    o << analisis_.dump(1, ' ', false, json::error_handler_t::replace);
+    config::guardar(archivo_, {{"analisis", analisis_}});
 }
 
 } // namespace ba::app::tiempos

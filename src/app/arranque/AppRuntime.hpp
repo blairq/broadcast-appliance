@@ -399,7 +399,7 @@ class AppRuntime {
     std::mutex healthMu_; ///< latidos desde la UI y desde LatidoAire
     LatidoAire latido_;
     ba::ipc::ControlService control_;
-    OperatorFeed operator_; // vive mientras libobs este arriba (ver stop)
+    OperatorFeed operator_; // vive mientras el motor este arriba (stop lo apaga antes que al motor)
     std::string lastError_;
     std::thread reinicioSala_;              ///< reiniciarSalaEnElFondo
     std::function<void(const std::string&)> alVivoManual_;

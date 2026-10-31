@@ -2,6 +2,7 @@
 // src/app/ui/RielConfig.cpp — ver RielConfig.hpp
 // ============================================================================
 #include "ui/RielConfig.hpp"
+#include "arranque/ArchivoConfigQt.hpp"
 
 #include <algorithm>
 #include <set>
@@ -135,23 +136,18 @@ struct RielConfig::Impl {
 
     void guardar() const {
         if (archivo.empty()) return;
-        QDir().mkpath(QString::fromStdString(archivo.parent_path().string()));
         QJsonArray esc;
         for (const int p : escondidas)
             esc.append(p);
         const QJsonObject o{{"posicion", posicion},         {"tamano", tamano},
                             {"separadores", separadores},   {"expandir", expandir},
                             {"anchoAbierto", anchoAbierto}, {"escondidas", esc}};
-        QFile f(QString::fromStdString(archivo.string()));
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
-        f.write(QJsonDocument(o).toJson());
+        config::guardarQ(archivo, o);
     }
 
     void leer() {
         if (archivo.empty()) return;
-        QFile f(QString::fromStdString(archivo.string()));
-        if (!f.open(QIODevice::ReadOnly)) return;
-        const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+        const QJsonObject o = config::leerQObjeto(archivo);
         const QString p = o.value("posicion").toString(posicion);
         if (p == "izquierda" || p == "derecha" || p == "arriba" || p == "abajo") posicion = p;
         tamano = std::clamp(o.value("tamano").toInt(tamano), kMin, kMax);

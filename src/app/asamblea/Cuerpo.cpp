@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/Cuerpo.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
 #include <algorithm>
@@ -72,9 +73,8 @@ const char* kCampos[] = {"persona_id", "nombre", "cargo_oficial", "bloque",    "
 std::string Cuerpo::normalizar(const std::string& s) { return plano(s); }
 
 Cuerpo::Cuerpo(fs::path config) : archivo_(std::move(config)) {
-    std::ifstream f(archivo_);
-    const json j = json::parse(f, nullptr, false);
-    datos_ = j.is_object() ? j : json{{"nombre", ""}, {"integrantes", json::array()}};
+    const json j = config::leerObjeto(archivo_);
+    datos_ = !j.empty() ? j : json{{"nombre", ""}, {"integrantes", json::array()}};
     if (!datos_.contains("integrantes") || !datos_["integrantes"].is_array()) datos_["integrantes"] = json::array();
     if (!datos_.contains("tomas") || !datos_["tomas"].is_object()) datos_["tomas"] = json::object();
     // Antes la toma era de la persona: pasa a su banca (una vez; la de la banca gana).
@@ -136,14 +136,7 @@ json Cuerpo::integrantes() const {
 }
 
 void Cuerpo::guardarArchivo() const {
-    std::error_code ec;
-    fs::create_directories(archivo_.parent_path(), ec);
-    const fs::path tmp = archivo_.string() + ".tmp";
-    {
-        std::ofstream o(tmp);
-        o << datos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    fs::rename(tmp, archivo_, ec);
+    config::guardar(archivo_, datos_);
     // Todo cambio termina guardándose acá: es el lugar para avisar.
     if (alCambiar_ && !importando_) alCambiar_();
 }

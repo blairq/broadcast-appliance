@@ -2,6 +2,7 @@
 // src/app/ui/PersonasViewModel.cpp — ver PersonasViewModel.hpp
 // ============================================================================
 #include "ui/PersonasViewModel.hpp"
+#include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
@@ -298,11 +299,8 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
     if (d_->rec.abrir(modelos)) {
         d_->listo = true;
         d_->libreta.leer(d_->archivo.toStdString());
-        QFile op(QString::fromStdString((rt.dataRoot() / "Config" / "personas-opciones.json").string()));
-        if (op.open(QIODevice::ReadOnly)) {
-            const auto j = nlohmann::json::parse(op.readAll().toStdString(), nullptr, false);
-            if (j.is_object()) d_->altaAutomatica = j.value("altaAutomatica", false);
-        }
+        d_->altaAutomatica =
+            config::leerObjeto(rt.dataRoot() / "Config" / "personas-opciones.json").value("altaAutomatica", false);
     } else {
         d_->aviso = d_->rec.error();
     }
@@ -614,9 +612,7 @@ void PersonasViewModel::setAltaAutomatica(bool activo) {
     d_->altaAutomatica = activo;
     // Se guarda al lado de la libreta: es una decisión sobre la libreta, no
     // del evento (la misma persona se reconoce en el que viene).
-    QFile f(QString::fromStdString((d_->rt.dataRoot() / "Config" / "personas-opciones.json").string()));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QByteArray::fromStdString(nlohmann::json{{"altaAutomatica", activo}}.dump(1)));
+    config::guardar(d_->rt.dataRoot() / "Config" / "personas-opciones.json", {{"altaAutomatica", activo}});
     emit autoaltaCambio();
 }
 
