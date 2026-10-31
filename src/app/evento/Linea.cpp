@@ -531,7 +531,11 @@ Linea migrar(const Evento& v1) {
                     p.nombre = b1.nombre;
                 }
                 p.salida = salida;
-                if (c.tipo == Tipo::Espera) p.notaOperador = c.texto;
+                if (c.tipo == Tipo::Espera) {
+                    // Espera a la persona: no sabe cuánto dura (abierto) y nunca se va sola.
+                    p.notaOperador = c.texto;
+                    p.fin.modo = ModoFin::Abierto;
+                }
                 if (c.tipo == Tipo::Pausa) p.continuar = Continuar::Sigue;
                 b.pasos.push_back(std::move(p));
                 actual = &b.pasos.back();
@@ -559,7 +563,8 @@ Linea migrar(const Evento& v1) {
             actual->duracionPrevistaSeg += std::max(0, c.duracionSeg);
             actual->fin.duracionSeg = actual->duracionPrevistaSeg;
             // El último cue del paso decide si el siguiente paso entra solo.
-            if (c.tipo != Tipo::Pausa) actual->continuar = c.automatico ? Continuar::Sigue : Continuar::No;
+            // (Una espera nunca pasa sola, ni marcada automática: como en el v1.)
+            if (c.tipo != Tipo::Pausa) actual->continuar = c.automatico && c.tipo != Tipo::Espera ? Continuar::Sigue : Continuar::No;
             // La pausa siempre sigue sola: lo que viene después en su paso va a tiempo.
             anteriorEncadena = c.automatico || c.tipo == Tipo::Pausa;
         }

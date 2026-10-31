@@ -832,6 +832,81 @@ Rectangle {
                 Layout.fillHeight: true
                 spacing: 14
 
+                // Tras un corte de luz (PLAN-LINEA-DE-TIEMPO 3.8): el aire volvió como
+                // estaba pero la línea quedó en HOLD. Se pregunta qué está pasando y lo
+                // que se cuenta va al asistente, que PROPONE cómo seguir; la persona
+                // confirma y recién ahí se suelta. Todo sale de `retoma` (view model).
+                Panel {
+                    id: retomaPanel
+                    readonly property var r: page.ev.retoma || ({})
+                    visible: !!r.activa
+                    Layout.fillWidth: true
+                    implicitHeight: retomaCuerpo.implicitHeight + 46 + padding // el título y el margen de Panel
+                    title: qsTr("Volvió la luz: la línea está en HOLD")
+
+                    ColumnLayout {
+                        id: retomaCuerpo
+                        anchors.fill: parent
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: qsTr("El aire volvió como estaba, pero nada avanza solo. ¿Qué está pasando?")
+                            color: Theme.text
+                            font { family: Theme.font; pixelSize: 14; weight: Font.DemiBold }
+                        }
+                        TextArea {
+                            id: retomaTexto
+                            visible: !!retomaPanel.r.pideDescripcion
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 70
+                            wrapMode: TextEdit.Wrap
+                            placeholderText: qsTr("«El orador sigue hablando», «ya votaron, vamos al cierre», «vamos 10 minutos atrasados»…")
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: !!retomaPanel.r.pideDescripcion && Studio.voz.disponible
+                            wrapMode: Text.WordWrap
+                            text: qsTr("También lo podés dictar con el micrófono de la barra del asistente.")
+                            color: Theme.textDim
+                            font.pixelSize: 11
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: !retomaPanel.r.pideDescripcion
+                            wrapMode: Text.WordWrap
+                            text: qsTr("Contaste: «%1». El asistente propone cómo seguir; cuando confirmes, suelta el HOLD.")
+                                  .arg(retomaPanel.r.descripcion || "")
+                            color: Theme.textDim
+                            font.pixelSize: 12
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            GlassButton {
+                                text: qsTr("Contarle al asistente")
+                                visible: !!retomaPanel.r.pideDescripcion
+                                enabled: retomaTexto.text.trim() !== ""
+                                active: true
+                                Layout.fillWidth: true
+                                onClicked: {
+                                    const pedido = page.ev.describirRetoma(retomaTexto.text)
+                                    if (pedido === "") return
+                                    retomaTexto.text = ""
+                                    Studio.agent.encargar(pedido)
+                                }
+                            }
+                            GlassButton {
+                                text: qsTr("Seguir como estaba")
+                                Layout.fillWidth: true
+                                onClicked: page.ev.seguirComoEstaba()
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: qsTr("Suelta el HOLD sin cambiar nada: lo que ya se pasó de su hora entra en el acto.")
+                            }
+                        }
+                    }
+                }
+
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 296
@@ -941,7 +1016,7 @@ Rectangle {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
                             visible: page.ev.hold || page.ev.entraSoloEnSeg > 0
-                            text: page.ev.hold ? qsTr("HOLD: este cue no se va solo")
+                            text: page.ev.hold ? qsTr("HOLD: este paso no se va solo")
                                                : qsTr("entra solo en %1").arg(page.mmss(page.ev.entraSoloEnSeg))
                             color: page.ev.hold ? Theme.live : Theme.amber
                             font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
@@ -983,7 +1058,7 @@ Rectangle {
                                 active: page.ev.hold
                                 onClicked: page.ev.alternarHold()
                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: qsTr("Que este cue no pase solo al siguiente (H). Otra vez lo suelta.")
+                                ToolTip.text: qsTr("Que este paso no pase solo al siguiente (H). Otra vez lo suelta.")
                             }
                             GlassButton {
                                 icon: "■"; compact: true

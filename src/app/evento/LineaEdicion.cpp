@@ -61,11 +61,12 @@ std::vector<CueVisto> cuesDePaso(const Paso& p, bool primeroDelBloque) {
         c.ref = {p.id, z.id};
         v.push_back(std::move(c));
     } else if (!(primeroDelBloque && terminaEn(p.id, "-inicio") && !p.piezas.empty())) {
-        // El paso mismo es el cue: una espera si le dice algo al operador, una
-        // pausa si no (el «<bloque>-inicio» de la migración no tiene cue propio).
+        // El paso mismo es el cue: una espera si espera a la persona (abierto, o
+        // con algo que decirle), una pausa si no (el «<bloque>-inicio» de la
+        // migración no tiene cue propio).
         CueVisto c;
         c.cue.id = p.id;
-        c.cue.tipo = p.notaOperador.empty() ? v1::Tipo::Pausa : v1::Tipo::Espera;
+        c.cue.tipo = p.fin.modo == ModoFin::Abierto || !p.notaOperador.empty() ? v1::Tipo::Espera : v1::Tipo::Pausa;
         c.cue.texto = p.nombre;
         c.ref = {p.id, {}};
         v.push_back(std::move(c));
@@ -76,7 +77,9 @@ std::vector<CueVisto> cuesDePaso(const Paso& p, bool primeroDelBloque) {
         CueVisto c;
         c.cue.id = z.id;
         c.cue.tipo = tipoVisto(z);
-        c.cue.texto = z.texto;
+        // Una que se ve como nota sin decir nada (una PTZ, una del asistente) dice qué
+        // es: una nota muda es un reparo grave del guion de cues.
+        c.cue.texto = z.texto.empty() && c.cue.tipo == v1::Tipo::Nota && z.tipo != "nota" ? z.tipo : z.texto;
         c.cue.datos = z.datos;
         c.ref = {p.id, z.id};
         // Las que no tienen lugar fijo (antes del fin, cuando pase algo) van donde la anterior.
@@ -235,8 +238,9 @@ Linea reconciliar(const Linea& vieja, const std::vector<v1::Bloque>& v1b) {
                 }
                 Pieza w = *oz;
                 if (!igual(*nc, *oc)) {
-                    w.texto = z.texto;
-                    w.datos = z.datos;
+                    // Solo lo que cambió: lo demás queda como estaba en la línea.
+                    if (nc->texto != oc->texto) w.texto = z.texto;
+                    if (nc->datos != oc->datos) w.datos = z.datos;
                     // La vida y la duración solo siguen al v1 si eran las que da el v1.
                     Pieza derivada;
                     vidaDeCue(*oc, derivada);

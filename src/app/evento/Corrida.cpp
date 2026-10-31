@@ -494,14 +494,20 @@ std::vector<Accion> Corrida::tick(int64_t ahora) {
     return acc;
 }
 
-int64_t Corrida::proximoMs(int64_t ahora) const {
+std::vector<Accion> Corrida::alDia(int64_t ahora) {
+    std::vector<Accion> acc;
+    if (estado_ == EstadoCorrida::Corriendo || estado_ == EstadoCorrida::Pausada) procesar(ahora, false, acc);
+    return acc;
+}
+
+int64_t Corrida::proximoMs(int64_t ahora, const std::string& salida) const {
     if (estado_ != EstadoCorrida::Corriendo) return -1;
     const Resolucion r = resolver(ahora);
     int64_t mejor = kNunca;
     for (const ProximoEvento& ev : r.proximosEventos)
-        if (ev.ms > ahora) mejor = std::min(mejor, ev.ms);
+        if (ev.ms > ahora && (salida.empty() || ev.salida == salida)) mejor = std::min(mejor, ev.ms);
     for (const Viva& v : vivas_)
-        if (v.hastaMs != kNunca && v.hastaMs > ahora) mejor = std::min(mejor, v.hastaMs);
+        if (v.hastaMs != kNunca && v.hastaMs > ahora && (salida.empty() || v.salida == salida)) mejor = std::min(mejor, v.hastaMs);
     return mejor == kNunca ? -1 : mejor - ahora;
 }
 

@@ -27,6 +27,9 @@ const Fila kFamilias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"evento_", QT_TRANSLATE_NOOP("mcp-etiquetas", "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_", QT_TRANSLATE_NOOP("mcp-etiquetas", "linea de tiempo timeline escaleta rundown pasos piezas pronostico hora del evento "
+               "conduccion guion del evento")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"scene_", QT_TRANSLATE_NOOP("mcp-etiquetas", "escena escenas placa composicion layout toma camara aire vivo obs")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"source_", QT_TRANSLATE_NOOP("mcp-etiquetas", "fuente fuentes capa elemento objeto imagen video texto navegador captura obs")},
@@ -903,6 +906,42 @@ const Fila kPropias[] = {
     {"evento_sellos", QT_TRANSLATE_NOOP("mcp-etiquetas", "sellos integridad no se toco intacto sha256")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"evento_verificar", QT_TRANSLATE_NOOP("mcp-etiquetas", "verificar lista de control checklist esta todo listo para salir chequeo")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_ver", QT_TRANSLATE_NOOP("mcp-etiquetas", "ver la linea pronostico a que hora entra cada cosa back time cuanto falta over under escaleta")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "que esta al aire que sigue entra solo hold vamos atrasados adelantados hard start corte de luz retoma")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_editar", QT_TRANSLATE_NOOP("mcp-etiquetas", "editar la linea agregar paso mover quitar cambiar hora fija hard start pieza zocalo en lote probar diff")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_deshacer", QT_TRANSLATE_NOOP("mcp-etiquetas", "deshacer volver atras el cambio de la linea revision anterior")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_revisar", QT_TRANSLATE_NOOP("mcp-etiquetas", "revisar la linea reparos conflictos camaras compartidas hora fija imposible anclas")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_ajustar", QT_TRANSLATE_NOOP("mcp-etiquetas", "llegar a horario terminar a las recortar acortar back timing nos pasamos de tiempo")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_go", QT_TRANSLATE_NOOP("mcp-etiquetas", "go take entra el siguiente paso adelante dale")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_hold", QT_TRANSLATE_NOOP("mcp-etiquetas", "hold frenar retener que no pase solo esperar automatico")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_siguiente", QT_TRANSLATE_NOOP("mcp-etiquetas", "mover el proximo para adelante saltear hasta f10 next")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_anterior", QT_TRANSLATE_NOOP("mcp-etiquetas", "mover el proximo para atras volver a pasar f9")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_saltar", QT_TRANSLATE_NOOP("mcp-etiquetas", "saltear saltar el proximo paso no va")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_ir", QT_TRANSLATE_NOOP("mcp-etiquetas", "ir a un paso volver a saltar a cargar el estado reponer musica graficos")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_repetir", QT_TRANSLATE_NOOP("mcp-etiquetas", "repetir el paso otra vez de nuevo")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_insertar", QT_TRANSLATE_NOOP("mcp-etiquetas", "insertar un paso del estante plantilla meter algo ahora imprevisto")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_adlib", QT_TRANSLATE_NOOP("mcp-etiquetas", "adlib disparar a mano boton del estante aplausos placa zocalo ahora")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_recorrido", QT_TRANSLATE_NOOP("mcp-etiquetas", "lo que paso lo emitido recorrido informe capitulos acta cuando entro")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_retomar", QT_TRANSLATE_NOOP("mcp-etiquetas", "volvio la luz corte de luz que esta pasando descripcion retomar reenganchar")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"linea_soltar", QT_TRANSLATE_NOOP("mcp-etiquetas", "soltar el hold seguir como estaba despues del corte confirmar decision")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"facebook_live_list", QT_TRANSLATE_NOOP("mcp-etiquetas", "vivos de facebook transmisiones lista estado")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra

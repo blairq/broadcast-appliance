@@ -58,6 +58,12 @@ const std::map<std::string, std::string>& fijas() {
         {"stream_destino_borrar", QT_TRANSLATE_NOOP("mcp", "borra un destino (si transmite, lo corta)")},
         {"aire_placa", QT_TRANSLATE_NOOP("mcp", "tapa la salida con una placa")},
         {"dsk_mostrar", QT_TRANSLATE_NOOP("mcp", "sube o baja una capa (DSK) encima del programa")},
+        {"linea_go", QT_TRANSLATE_NOOP("mcp", "entra el próximo paso de la línea de tiempo")},
+        {"linea_ir", QT_TRANSLATE_NOOP("mcp", "entra otro paso de la línea de tiempo")},
+        {"linea_repetir", QT_TRANSLATE_NOOP("mcp", "vuelve a entrar el paso al aire")},
+        {"linea_insertar", QT_TRANSLATE_NOOP("mcp", "mete un paso del estante en la línea (al aire, si se pide)")},
+        {"linea_adlib", QT_TRANSLATE_NOOP("mcp", "dispara una pieza de la línea (escena, gráfico, música)")},
+        {"linea_soltar", QT_TRANSLATE_NOOP("mcp", "suelta el HOLD tras un corte: lo que se pasó de hora entra solo")},
     };
     return m;
 }

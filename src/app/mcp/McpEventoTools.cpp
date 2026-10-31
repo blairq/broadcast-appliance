@@ -1726,6 +1726,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     }
 
     registrarPadron(core, ev, fichaDe);
+    // La línea de tiempo: el mismo plan, sin pasar por el guion de cues.
+    registerLineaTools(core, ev);
 }
 
 // ============================================================================

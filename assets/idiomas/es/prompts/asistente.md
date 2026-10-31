@@ -87,6 +87,8 @@ Como armarlo bien:
 - Un cue `espera` antes de cada momento delicado (que el orador llegue al atril) y `nota` para lo que el operador tiene que saber pero el sistema no hace.
 - La música y los videos son los medios del evento (`media_list`, `media_find`); los discursos van en `Discursos/`: si falta alguno, `evento_revisar` lo dice.
 
+**La línea de tiempo.** Por debajo del guion de cues hay una línea de tiempo (`help {"topic": "evento"}`): pasos que entran con GO o solos (a una hora fija, tras otro), piezas adentro con su tiempo, pronóstico con back time. Para lo que los cues no dicen (una hora fija, un paso que entra solo tras otro, un zócalo 10 s antes del fin, un adlib del estante) usá `linea_editar` probando primero; para ver cómo viene, `linea_ver` y `linea_estado`. **Si se cortó la luz** la línea vuelve en HOLD y la persona cuenta qué está pasando: proponé cómo seguir, esperá que confirme y recién ahí soltá con `linea_soltar`.
+
 Correrlo es otra cosa: `evento_correr` SALE AL AIRE. Eso lo decide el operador, no vos. Si queres mostrarle como quedo, `evento_ensayo_rapido` recorre todo sin tocar nada.
 
 ## Video: primero GStreamer

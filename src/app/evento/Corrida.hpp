@@ -112,8 +112,12 @@ class Corrida {
     /// Lo que tocaba hasta `ahora`: pasos que entran solos, piezas que llegan a su
     /// hora y piezas que se terminan. Se llama cuando dice `proximoMs`.
     std::vector<Accion> tick(int64_t ahora);
+    /// Lo que corresponde ahora SIN hacer entrar pasos: piezas que tocan, piezas que se
+    /// terminan y el lookahead. Para después de mover el próximo, saltar o un HOLD.
+    std::vector<Accion> alDia(int64_t ahora);
     /// Cuánto falta (ms) para que haya algo que hacer; -1 si nada va a pasar solo.
-    int64_t proximoMs(int64_t ahora) const;
+    /// Con `salida`, solo lo de esa salida (el timer de su ejecutor).
+    int64_t proximoMs(int64_t ahora, const std::string& salida = {}) const;
     /// El aviso «entra solo en 0:05»: los segundos (para arriba) en los últimos
     /// `kAvisoSeg` antes de que el próximo de la salida entre solo; 0 si no.
     int entraSoloEnSeg(const std::string& salida, int64_t ahora) const;

@@ -25,6 +25,8 @@ class McpCore;
 using FichaDe = std::function<std::pair<bool, std::string>(const std::string& personaId)>;
 
 void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm, FichaDe fichaDe);
+/// La línea de tiempo del evento (linea_*, ver McpLineaTools.cpp). La llama registerEventoTools.
+void registerLineaTools(McpCore& core, EventoViewModel& ev);
 
 } // namespace mcp
 } // namespace ba::app

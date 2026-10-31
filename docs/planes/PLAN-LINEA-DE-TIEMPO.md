@@ -137,16 +137,19 @@ En `src/app/evento/Evento.hpp`, en C++ puro: **Evento → Bloque → Cue**.
 ### Huecos
 
 1. **`Cue::automatico` no se ejecuta.** Se guarda, se muestra ("encadena solo") y lo revisa `revisar()`. Pero no encontré nada que avance solo: el timer `reloj_` solo emite `relojChanged`. Tampoco `Pausa` espera para seguir: solo anota. El documento `EVENTOS.md` promete "cuánto falta para el próximo cue automático".
-   **Resuelto en L0:** los automáticos y las pausas pasan solos (`Guion::msParaAvanzarSolo`), con el aviso de 5 s y HOLD.
+   **Resuelto en L0:** los automáticos y las pausas pasan solos (`Guion::msParaAvanzarSolo`), con el aviso de 5 s y HOLD. **Desde L2** lo hace la `Corrida` de la línea (el `Guion` v1 ya no existe).
 2. **Un solo cursor y un solo programa.** No hay pistas ni salidas, y todo sale por `rt_.setScene`. Hasta donde leí, el cue de escena va directo al programa, sin armarlo en PVW ni hacer lookahead. Con varias salidas, esto no alcanza.
    **L0 resolvió la mitad de una salida:** el cue de escena se arma en el PVW y entra con TAKE por el Conmutador, y el siguiente de escena queda armado de antemano. Falta el cursor por salida (L6).
 3. **Un cue hace una sola cosa.** "Cámara 2 + zócalo + bajar la música" son tres cues seguidos, lo que da el aviso de cadena larga y hace que el desvío se mida mal.
 4. **No hay hard start** (hora fija por bloque ni por cue), ni gaps, overlaps o *Arreglar*. El desvío se mide contra el cue actual y no contra los anclajes.
 5. **No hay estado al saltar.** `irA` ejecuta solo el cue de destino: la música o el gráfico que "deberían" estar puestos ahí no se reponen.
+   **Resuelto en L2:** ir a un paso repone lo de vida larga y saca lo que sobra (`cargarEn`).
 6. **No hay adlibs ni estante** dentro del guion. La Botonera y los atajos existen, pero el guion no los conoce y el recorrido no los registra.
+   **L2/L3:** adlibs del paso y del estante, e insertar un paso del estante, por la corrida y por MCP (`linea_adlib`, `linea_insertar`), anotados en el recorrido. Falta la Botonera y la grilla en la conducción (L4).
 7. **El orden del día, la playlist y el carrusel** son motores aparte. El guion no puede decir "un paso por punto" ni "mientras dure la votación".
 8. **No hay disparadores externos como condición de avance**: medio terminado, orador que cambió, votación cerrada, hora del día.
 9. **No hay instancias planeado/emitido persistentes** ni retoma del guion tras un corte (la Playlist sí la tiene).
+   **Resuelto en L2:** `recorrido.jsonl`, `Runtime/linea-aire.json` y la retoma en HOLD con «¿Qué está pasando?».
 10. **La interfaz es una lista.** No hay línea de tiempo, miniaturas, vista de tablet de la escaleta ni pantalla del presentador ni de cámara.
 
 ---
@@ -391,7 +394,11 @@ Va una fila por salida o con filtro de salida. Las filas al aire y próxima se m
 1. **L0, arreglar lo que hay (chico).** Que `automatico` y `pausa` avancen de verdad, con el aviso "entra solo en 0:05" y HOLD. Que el cue `escena` pase por PVW con lookahead del siguiente. Tests en `test_evento`.
 2. **L1, el modelo v2 y el resolvedor puro.** `Linea.{hpp,cpp}` con pasos, piezas, pistas, inicio, fin, vida y anclas. Pronóstico con front, back y end, hard starts, gaps y overlaps, over/under y estado en t. Migración v1 → v2. Tests a fondo, todo sin motor.
 3. **L2, el ejecutor (una salida).** El `EjecutorLinea` sobre lo que hoy hace `ejecutarActual()` (cada tipo de cue pasa a ser un tipo de pieza). GO, HOLD, siguiente, saltar con reposición de estado, pre y post espera, `sigue` y `con`, preroll a PVW. Instancias en `recorrido.jsonl` y `linea-aire.json`, con retoma tras un corte.
+   **Hecho (2026-10-31).** Lo puro en `evento/Corrida.{hpp,cpp}` (la corrida: acciones en vez de efectos, con el reloj inyectado y probada en `test_linea`) y `evento/LineaEdicion.{hpp,cpp}` (`proyectar`/`reconciliar`: el guion de cues es una lectura de la línea y editarlo la edita sin perder lo que el v1 no dice). En la app, `ui/EjecutorLinea` (un timer exacto por salida) y `EventoViewModel` (la fachada del v1 y lo que hace cada pieza). La línea manda: al abrir un evento v1 se migra con copia en `Respaldos/evento-v1.json`. La espera migrada es un paso abierto que nunca se va solo. Tras un corte vuelve en HOLD y la conducción pregunta «¿Qué está pasando?»; lo contado va al asistente (`Studio.agent.encargar`) con el resumen; «Seguir como estaba» o un GO lo sueltan. El dictado va por la barra del asistente (su contexto avisa del corte).
+   **Falta:** que «al-avanzar» se vaya pieza por pieza como en el v1 (ahora se va al entrar el paso siguiente); las otras salidas (se anotan, no salen: L6); los `cuando`/`mientras` (L7); las piezas `ptz`, `dsk`, `asamblea` todavía no se ejecutan (se anotan); `camarasDeEscena` para los conflictos de PTZ no está enchufado; las piezas del estante disparadas no vuelven tras un corte.
 4. **L3, el MCP.** `linea_ver`, `linea_estado`, `linea_editar` (lote con probar), `linea_revisar`, las acciones de vivo y `linea_recorrido`. Las `guion_*` y `evento_cue` siguen funcionando sobre el modelo nuevo, como fachada, para no romper al asistente ni el entrenamiento.
+   **Hecho (2026-10-31)** en `mcp/McpLineaTools.cpp` (categoría «linea»): `linea_ver`, `linea_estado`, `linea_recorrido`, `linea_revisar`, `linea_editar` (todo o nada, `probar`, diff y pronóstico, revisión en `Respaldos/linea-<n>.json`), `linea_deshacer`, `linea_ajustar` (versión simple: recorta lo «recortable» hasta la mitad y propone saltear lo «opcional»; siempre propone, nunca aplica), `linea_go`, `linea_hold`, `linea_siguiente`, `linea_anterior`, `linea_saltar`, `linea_ir`, `linea_repetir`, `linea_insertar`, `linea_adlib`, `linea_retomar {descripcion, simular}` y `linea_soltar {decision}`. Las que cambian el aire están en la lista fija de `McpAire`.
+   **Falta:** `linea_desde_plantilla` (L9), regenerar `docs/mcp.json` y traducir la ayuda nueva a los otros idiomas.
 5. **L4, la escaleta compacta y la conducción en QML**, sobre propiedades y roles con aviso del modelo (la memoria del MVC). Atajos y acciones de Botonera.
 6. **L5, la Línea multipista** con miniaturas con presupuesto (al aire, PVW, dos vivas, el resto en foto), zoom, ahora fijo y edición del futuro.
 7. **L6, varias salidas**, cuando estén. Un cursor por salida, pasos `*`, anclas, conflictos de cámaras compartidas y PTZ, bus por salida.

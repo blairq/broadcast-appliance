@@ -307,7 +307,8 @@ void testMigracion() {
     CHECK(p0[1].piezas[0].dura.modo == Dura::Modo::Ms && p0[1].piezas[0].dura.ms == 4000, "seVa sola: dura salidaEn");
     CHECK(p0[2].id == "c6" && p0[2].inicio.modo == ModoInicio::Go && p0[2].notaOperador == "texto de c6",
           "la espera es un paso con GO y su texto");
-    CHECK(p0[2].continuar == Continuar::Sigue, "la espera automática encadena con el bloque siguiente");
+    CHECK(p0[2].continuar == Continuar::No && p0[2].fin.modo == ModoFin::Abierto,
+          "la espera nunca se va sola, aunque diga automática (como en el v1): es abierta");
     const auto& p1 = l.bloques[1].pasos;
     CHECK(p1.size() == 2 && p1[0].id == "b2-inicio", "un bloque que arranca con música abre un paso sin escena");
     CHECK(p1[0].piezas[0].id == "c7" && p1[0].piezas[0].desde.ms == 0, "la música del arranque entra con el paso");
@@ -962,6 +963,7 @@ void testProyeccion() {
         for (std::size_t c = 0; c < e.bloques[b].cues.size() && c < pr.bloques[b].cues.size(); ++c) {
             v1::Cue esperado = e.bloques[b].cues[c];
             if (esperado.tipo == v1::Tipo::Pausa) esperado.automatico = true;
+            if (esperado.tipo == v1::Tipo::Espera) esperado.automatico = false; // una espera nunca se va sola
             CHECK(mismoCue(pr.bloques[b].cues[c], esperado), ("el cue " + esperado.id + " se lee igual").c_str());
         }
     CHECK(pr.refs[0][0].paso == "c1" && pr.refs[0][0].pieza == "c1-escena", "el cue que abre el paso es su escena");
@@ -974,8 +976,9 @@ void testProyeccion() {
     const Linea nat = lineaNativa();
     const Proyeccion pn = proyectar(nat);
     CHECK(pn.bloques[0].cues[0].id == "a" && pn.bloques[0].cues[0].tipo == v1::Tipo::Escena, "la escena del principio abre el paso");
-    CHECK(pn.bloques[0].cues[2].tipo == v1::Tipo::Nota, "lo que el v1 no conoce (PTZ) se ve como nota");
-    CHECK(pn.bloques[0].cues[4].id == "b" && pn.bloques[0].cues[4].tipo == v1::Tipo::Pausa, "un paso sin escena es una pausa");
+    CHECK(pn.bloques[0].cues[2].tipo == v1::Tipo::Nota && pn.bloques[0].cues[2].texto == "ptz",
+          "lo que el v1 no conoce (PTZ) se ve como nota que dice qué es");
+    CHECK(pn.bloques[0].cues[4].id == "b" && pn.bloques[0].cues[4].tipo == v1::Tipo::Espera, "un paso abierto sin escena es una espera");
     CHECK(reconciliar(nat, pn.bloques).aJson() == nat.aJson(), "ida y vuelta exacta: hard start, salida, PTZ, ancla, estante");
 
     // Tocar un cue cambia esa pieza y nada más.
@@ -993,6 +996,11 @@ void testProyeccion() {
     CHECK(r.paso("a")->piezas[2].tipo == "ptz" && r.paso("a")->piezas[2].pista == "ptz" &&
               r.paso("a")->piezas[2].texto == "a la banca 3",
           "la PTZ sigue siendo PTZ");
+    // Cambiarle solo la duración a la PTZ no le pone «ptz» de texto.
+    bs = pn.bloques;
+    bs[0].cues[2].duracionSeg += 1;
+    r = reconciliar(nat, bs);
+    CHECK(r.paso("a")->piezas[2].texto.empty(), "lo que no cambió en el cue no se copia");
     // Alargar un cue corre lo que viene en su paso y el paso dura más.
     bs = pn.bloques;
     bs[0].cues[2].duracionSeg += 10;
@@ -1206,6 +1214,7 @@ void testCorridaSaltosEIr() {
     CHECK(c.moverProximo("principal", -1, T0 + 82 * S) && c.resolver(T0 + 82 * S).salida("principal")->proximo == "p1",
           "el próximo para atrás (sin p2, que está al aire)");
     CHECK(!c.moverProximo("principal", -1, T0 + 83 * S), "antes del primero no hay");
+    CHECK(c.alDia(T0 + 84 * S).empty(), "el próximo movido no tiene escena: nada que armar");
     acc = c.go("principal", T0 + 90 * S);
     CHECK(c.alAire("principal")->paso == "p1", "y el GO toma el movido");
     acc = c.repetir("principal", T0 + 95 * S);

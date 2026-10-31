@@ -297,7 +297,8 @@ struct Linea {
 ///    solo; si no, `{"manual":true}`, porque en el v1 ese cue esperaba el clic;
 ///  - `automatico` del último cue del paso pasa a `continuar: "sigue"`;
 ///  - `pausa` es un paso sin escena con su duración y `continuar: "sigue"`;
-///  - `espera` es un paso con `inicio: go` (y su texto en la nota del operador).
+///  - `espera` es un paso con `inicio: go`, abierto (espera a la persona y nunca
+///    se va sola, aunque estuviera marcada automática) y su texto en la nota del operador.
 /// La duración del paso es la suma de las de sus cues: el total no cambia.
 /// Pura: guardar la copia v1 en Respaldos/ es de quien la llama (L2).
 Linea migrar(const Evento& v1);
