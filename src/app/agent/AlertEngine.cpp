@@ -846,6 +846,7 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         const auto s = in_.status();
         if (!s.recording && !p.value("siempre", false)) return;
         const json d = in_.disco();
+        if (!d.is_object()) return; // una fuente que todavía no sabe nada no es una alarma
         const double free = d.value("libre_gb", -1.0), horas = d.value("horas", -1.0);
         const double minutos = horas >= 0 ? horas * 60.0 : -1.0;
         const bool pocoGb = p.contains("minGb") || !p.contains("minMinutos") ? free < p.value("minGb", 5.0) : false;
