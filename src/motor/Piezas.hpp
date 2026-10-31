@@ -44,6 +44,33 @@ std::string colorimetriaDelLienzo(const Lienzo& l);
 /// matriz BT.601 con transferencia sRGB en una salida HD («2:4:7:1»).
 void fijarColorSalida(const Lienzo& l);
 
+// --- Los cuadros por segundo y la red eléctrica (F2-17) ----------------------------------
+// Las luces LED y fluorescentes titilan al doble de la frecuencia de la red (100 Hz en una
+// red de 50, 120 en una de 60). Un cuadro que no dura un número entero de esos ciclos los
+// agarra a distinta altura: parpadeo o franjas que suben en cámara. En Argentina (50 Hz)
+// el lienzo de fábrica de 30 cps lo hace; 25 o 50 no. Y una cámara a 29,97 en un lienzo
+// de 30/1 hace que videorate repita un cuadro cada ~33 s: un salto en los paneos. Nada de
+// esto cambia el lienzo solo (cambiar el de fábrica cambiaría plantillas y eventos que ya
+// existen sin que nadie lo decida): se avisa y se dicen las cadencias de la red.
+
+/// La frecuencia de la red de un país (ISO 3166 alfa-2, «AR», «US»): 50 o 60; 0 si no se sabe
+/// o si el país tiene las dos (Japón).
+int redElectricaHz(const std::string& pais);
+/// La del país del sistema (la región del idioma preferido: «es-AR» → AR); 0 si no se sabe.
+int redElectricaDelSistema();
+/// ¿Un cuadro de `cps` dura un número entero de ciclos de luz de una red de `redHz`? (con
+/// la tolerancia de las cadencias NTSC: 29,97 con 60 Hz, sí)
+bool cadenciaSinParpadeo(double cps, int redHz);
+/// Las cadencias del lienzo para una red (las «plantillas por región»): 50 Hz → 25, 50;
+/// 60 Hz → 30, 60, 29,97, 59,94, 24. Como num/den. Vacía si no se sabe la red.
+std::vector<std::pair<int, int>> cadenciasDeLaRed(int redHz);
+/// Los avisos del lienzo con esa red (vacío si va bien o si no se sabe la red).
+std::vector<std::string> avisosDeLaRed(const Lienzo& l, int redHz);
+/// El aviso de una cámara que da `cpsCamara` en un lienzo que va a otra cadencia casi igual
+/// (29,97 contra 30): cada cuánto repite o tira un cuadro videorate. "" si van iguales o si
+/// la diferencia es grande (eso es otra cosa: tira o repite seguido, a propósito).
+std::string avisoDeCadenciaDeCamara(double cpsCamara, const Lienzo& l);
+
 /// Un filtro de la cadena: un elemento de GStreamer con sus propiedades (como texto).
 struct Filtro {
     std::string id, elemento;

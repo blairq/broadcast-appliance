@@ -5,9 +5,12 @@
 //   - un solo archivo de ~3 s: tiene video H.264 y dos pistas de audio AAC, y dura lo que se grabó;
 //   - en tramos de 1 s: varios archivos, cada uno se abre;
 //   - parar cierra el archivo (EOS: el índice queda escrito).
+// Y las vistas (las imágenes para la interfaz y el gateway): del tamaño pedido, en BGRA
+// (los colores del multiview), sin copiar los bytes y con la hora de su contenido (F2-13).
 
 #include "Motor.hpp"
 #include "Salidas.hpp"
+#include "ipc/HealthBlock.hpp"
 
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
@@ -19,6 +22,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <mutex>
+#include <set>
 #include <thread>
 #if defined(_WIN32)
 #include <process.h>
@@ -147,6 +152,28 @@ int main() {
         CHECK(!motor.verUltimo("programa", c, serie) || serie > antes, "solo si hay uno más nuevo");
         esperar(200);
         CHECK(motor.verUltimo("programa", c, serie) && serie > antes, "y llegan nuevos");
+        // F2-13: el aviso y el último son el buffer mismo de la vista (nadie copia los bytes), y
+        // cada cuadro trae la hora de lo que muestra en el reloj de los sellos (F2-11).
+        {
+            std::mutex mu;
+            std::set<const std::uint8_t*> avisados;
+            std::uint64_t contenido = 0;
+            motor.verAvisar("programa", [&](const Cuadro& q) {
+                std::lock_guard<std::mutex> l(mu);
+                avisados.insert(q.bgra.data());
+                contenido = q.contenidoQpc;
+            });
+            esperar(300);
+            Cuadro u;
+            std::uint64_t su = 0;
+            CHECK(motor.verUltimo("programa", u, su), "el último, mientras se avisa");
+            motor.verAvisar("programa", nullptr);
+            std::lock_guard<std::mutex> l(mu);
+            CHECK(avisados.count(u.bgra.data()) == 1, "el último es el mismo buffer que se avisó (sin copiar)");
+            const std::uint64_t ahora = ba::ipc::HealthBlock::nowQpc();
+            CHECK(contenido != 0 && contenido <= ahora && ahora - contenido < 1'000'000'000ULL,
+                  "con la hora de su contenido (de hace menos de 1 s)");
+        }
         Cuadro e;
         std::uint64_t se = 0;
         CHECK(motor.verUltimo("entrada:cam", e, se) && e.ancho == 320, "la entrada a su tamaño");

@@ -184,6 +184,10 @@ class MediaPump {
     /// de la última ventana de 10 s de cada uno (ipc/MedidaTransporte). Va al uso de la sala
     /// (la foto de B que lee la app) y de ahí a `sistema_recursos`.
     nlohmann::json transporte() const;
+    /// Lo que mueve la bajada de video desde que arrancó (F2-13): {cuadros, leidos_bytes
+    /// (del canal), escalados_bytes, empujes (cuadro × sesión), demorados (los que esperaron
+    /// a su audio), conversiones y convertidos_bytes (a I420: una por cuadro, no por sesión)}.
+    nlohmann::json copiasVideo() const;
 
     /// Ruta de la sesion `session` (1..hub.sessions()).
     void setRoute(int session, const MediaRoute& route);
@@ -256,9 +260,12 @@ class MediaPump {
     /// Un canal de video A->B hacia las sesiones que cumplen `para` (escalado a
     /// lo sumo a programVideoW x programVideoH). El retorno del programa, cada
     /// canal de escena y cada salida son esto mismo con otro nombre y otro filtro.
-    /// `parar`: el de una bajada bajo demanda (nullptr = hasta stop()).
+    /// Cada cuadro se convierte una vez para todas (CuadroSaliente). `audio`: el anillo de
+    /// su sonido (BA.Audio.ContentForReturn, BA.Audio.Salida.<id>): a quien mira y no
+    /// conversa, el cuadro le sale a la hora de ese audio (Labios.hpp, F2-11); vacío = sin
+    /// alinear (una escena). `parar`: el de una bajada bajo demanda (nullptr = hasta stop()).
     void videoBajadaThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para,
-                           const std::atomic<bool>* parar = nullptr);
+                           std::wstring audio, const std::atomic<bool>* parar = nullptr);
     /// Levanta los hilos de las salidas que alguna ruta mira y suelta los de las que
     /// ya nadie mira. Después de cada cambio de rutas o de salidas.
     void ajustarBajadas();
@@ -357,6 +364,10 @@ class MediaPump {
     };
     mutable std::mutex transporteLock_;
     std::map<std::string, FotoCanal> transporte_;
+    struct Copias {
+        std::atomic<std::uint64_t> cuadros{0}, leidos{0}, escalados{0}, empujes{0}, demorados{0};
+    };
+    Copias copias_;
 
     mutable std::mutex routesLock_;
     std::vector<MediaRoute> routes_;  // por sesion, [0] reservado: la vigente (con la salida que baja)

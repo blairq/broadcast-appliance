@@ -2,7 +2,9 @@
 // src/core/platform/Ritmo_win.cpp — ver Ritmo.hpp (Windows)
 // ============================================================================
 #include "platform/Ritmo.hpp"
+#ifndef BA_RITMO_SIN_ENERGIA
 #include "platform/Energia.hpp"
+#endif
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -39,7 +41,9 @@ struct Temporizador {
     }
 };
 
+#ifndef BA_RITMO_SIN_ENERGIA
 std::once_flag g_proceso;
+#endif
 
 } // namespace
 
@@ -47,7 +51,11 @@ void dormirHasta(std::chrono::steady_clock::time_point plazo) {
     // Windows 11 ignora la resolución que pide un proceso sin ventana a la vista (el gateway
     // nunca tiene) salvo que se le diga lo contrario: una vez por proceso, el mismo pedido
     // que hacen el motor y el gateway al arrancar (fuera de EcoQoS y respetando el reloj).
+    // (BA_RITMO_SIN_ENERGIA: compilado dentro de un plugin de GStreamer, que vive en un
+    // proceso que ya lo pidió al arrancar y no arrastra Energia ni los idiomas.)
+#ifndef BA_RITMO_SIN_ENERGIA
     std::call_once(g_proceso, []() { sinAhorroDeEnergia(); });
+#endif
     thread_local Temporizador t;
     const auto falta = plazo - std::chrono::steady_clock::now();
     if (falta <= std::chrono::steady_clock::duration::zero()) return;

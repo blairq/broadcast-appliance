@@ -311,8 +311,11 @@ void FrameService::poll() {
             delete[] p;
             continue;
         }
+        // Un invitado chico viaja a su tamaño (F2-13): las filas, juntas, de ancho×4.
+        const int w = meta.ancho != 0 ? static_cast<int>(meta.ancho) : r.width();
+        const int h = meta.alto != 0 ? static_cast<int>(meta.alto) : r.height();
         s.image = QImage(
-            p, r.width(), r.height(), r.width() * 4, QImage::Format_RGB32,
+            p, w, h, w * 4, QImage::Format_RGB32,
             [](void* q) { delete[] static_cast<std::uint8_t*>(q); }, p);
         ++s.serial;
         any = true;

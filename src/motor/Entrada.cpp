@@ -835,6 +835,11 @@ void Entrada::armar() {
     const double cpsLienzo = lienzo_.fpsD > 0 ? static_cast<double>(lienzo_.fpsN) / lienzo_.fpsD : 30.0;
     const bool soloTira = !medio_ && !camara_.empty() && modoCamara_.is_object() && modoCamara_.value("cps", 0.0) >= cpsLienzo - 0.5;
     const std::string ritmoV = soloTira ? "videorate skip-to-first=true drop-only=true ! " : "videorate skip-to-first=true ! ";
+    // Una cámara a 29,97 en un lienzo de 30 (F2-17): el videorate repite un cuadro cada ~33 s.
+    // Se avisa (lo que repite y tira de verdad lo cuenta tiempos_pipeline); no se cambia nada.
+    if (!camara_.empty() && modoCamara_.is_object())
+        if (std::string a = avisoDeCadenciaDeCamara(modoCamara_.value("cps", 0.0), lienzo_); !a.empty())
+            avisos_.push_back(std::move(a));
     if (normalizar_) {
         antes = desentrelazar + ritmoV + "videoconvertscale ! ";
         capsVideo = capsColorDelLienzo(lienzo_) + ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
