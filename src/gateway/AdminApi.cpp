@@ -1050,6 +1050,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendErr(fd, 400, "tema");
             return;
         }
+        avisarTema();
         sendJson(fd, 200, json{{"ok", true}, {"tema", temaWeb()}});
         return;
     }
@@ -1057,6 +1058,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/tema-evento" && method == "POST") {
         json r = setTemaEvento(req);
         r["ok"] = true;
+        avisarTema();
         sendJson(fd, 200, r);
         return;
     }
@@ -1236,6 +1238,12 @@ std::pair<std::string, std::uint64_t> idDeEvento(const std::string& v) {
 }
 
 } // namespace
+
+void SignalingServer::avisarTema() {
+    // Las páginas con canal no preguntan por el tema cada 15 s: se les avisa que lo relean.
+    const json aviso{{"type", "tema"}};
+    for (const std::string& pid : superficies_.conexionesDe("")) sendToGuest(pid, aviso);
+}
 
 void SignalingServer::avisarVotacion() {
     empujarASuperficies("votacion"); // la pantalla de la votación

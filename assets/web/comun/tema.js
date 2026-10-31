@@ -156,7 +156,10 @@
     .then((d) => recibir(d, true))
     .catch(() => {});
   leer();
-  setInterval(leer, 15000);
+  // Con el canal de control abierto, la sala avisa cuando cambia («tema»); sin él (las
+  // páginas que no lo usan), se relee cada 15 s.
+  document.addEventListener("ba-canal", (e) => { if (e.detail && e.detail.type === "tema") leer(); });
+  setInterval(() => { if (!(window.BACanal && window.BACanal.abiertos > 0)) leer(); }, 15000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) leer(); });
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", () => aplicar(datos && datos.evento));

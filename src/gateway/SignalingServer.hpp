@@ -508,6 +508,8 @@ class SignalingServer {
     /// (con la foto entera y de qué evento son).
     void avisarVotacion();
     void avisarPreguntas();
+    /// Cambió el tema de las páginas (el de las interfaces o el del evento).
+    void avisarTema();
     /// Quiénes lo miran: los del canal y los que todavía preguntan por HTTP.
     nlohmann::json clientesPrompter(const std::string& id, const Prompter& p) const;
 

@@ -63,6 +63,8 @@
   }
 
   window.BACanal = {
+    /// Cuántos canales hay abiertos en la página (comun/tema.js no pregunta si hay uno).
+    abiertos: 0,
     abrir(opciones) {
       const tipo = opciones.tipo || "pantalla";
       // `idClave`: dos páginas del mismo tipo en el mismo aparato (el control y la
@@ -100,6 +102,7 @@
         ws.onopen = () => {
           st.intentos = 0;
           st.oido = Date.now();
+          window.BACanal.abiertos++;
           estado(true);
           if (opciones.clave) mandar({ type: "clave", k: opciones.clave });
           late();
@@ -116,6 +119,8 @@
           st.oido = Date.now();
           const m = window.BATrama.decode(ev.data);
           if (!m || m.type === "pong") return;
+          // Para los que no abren el canal pero escuchan (comun/tema.js: «tema»).
+          document.dispatchEvent(new CustomEvent("ba-canal", { detail: m }));
           if (m.type === "mostrar" && m.url && opciones.onMostrar) {
             opciones.onMostrar(m.url);
             late(); // que el operador vea el cambio enseguida
@@ -135,6 +140,7 @@
         ws.onclose = () => {
           clearInterval(st.latido);
           clearInterval(st.ping);
+          if (st.conectado) window.BACanal.abiertos--;
           estado(false);
           reintentar();
         };
