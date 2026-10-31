@@ -716,55 +716,6 @@ void McpService::registerUiTools() {
 
     {
         Tool t;
-        t.name = "logs_tail";
-        t.title = ba::i18n::traducir("mcp", "Registros");
-        t.category = "sistema";
-        t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.");
-        t.details = ba::i18n::traducir("mcp", "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
-                    "nivel, modulo y descripcion, entrelazando los tres procesos y con filtros. Esto sirve "
-                    "cuando hace falta ver el archivo TAL CUAL, sin interpretar: por ejemplo "
-                    "cloudflared.log, que lo escribe un programa de terceros con su propio formato.\n\n"
-                    "Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, "
-                    "launcher.log (supervisor) y cloudflared.log (tunel).");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"log", {{"type", "string"}, {"default", "app.log"}}},
-              {"lines", {{"type", "integer"}, {"minimum", 1}, {"maximum", 2000}, {"default", 80}}},
-              {"grep", {{"type", "string"}}}}}};
-        t.run = [](const json& a, Done done) {
-            const QString dir = QString::fromStdString((ba::platform::dataRoot() / "Logs").string());
-            const QString name = QString::fromStdString(a.value("log", std::string("app.log")));
-            if (name.contains('/') || name.contains('\\') || name.contains(".."))
-                return done(ToolResult::error(ba::i18n::traducir("mcp", "Solo nombres de archivo de Logs/.")));
-            QFile f(dir + "/" + name);
-            if (!f.open(QIODevice::ReadOnly)) {
-                QStringList logs = QDir(dir).entryList(QStringList{"*.log"}, QDir::Files);
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe %1. Hay: %2"),
-                                                               {name.toStdString(), logs.join(", ").toStdString()})));
-            }
-            // Solo el final: los registros pueden ser grandes.
-            if (f.size() > 4 * 1024 * 1024) f.seek(f.size() - 4 * 1024 * 1024);
-            const QString grep = QString::fromStdString(a.value("grep", std::string()));
-            std::deque<QString> keep;
-            const size_t n = a.value("lines", 80);
-            while (!f.atEnd()) {
-                const QString line = QString::fromUtf8(f.readLine()).trimmed();
-                if (line.startsWith("debug:")) continue;
-                if (!grep.isEmpty() && !line.contains(grep, Qt::CaseInsensitive)) continue;
-                keep.push_back(line);
-                if (keep.size() > n) keep.pop_front();
-            }
-            QString out;
-            for (const QString& l : keep)
-                out += l + "\n";
-            done(ToolResult::ok(out.isEmpty() ? ba::i18n::traducir("mcp", "(vacio)") : out.toStdString()));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "system_info";
         t.title = ba::i18n::traducir("mcp", "Carpeta del sistema, credenciales y respaldos");
         t.category = "sistema";

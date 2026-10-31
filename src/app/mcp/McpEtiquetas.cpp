@@ -1112,6 +1112,8 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"ui_page_window", QT_TRANSLATE_NOOP("mcp-etiquetas", "abrir en ventana aparte sacar a otra ventana")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"ui_salida_activa", QT_TRANSLATE_NOOP("mcp-etiquetas", "salida activa cambiar de salida manejar otra salida que programa muestra la direccion elegir salida en pantalla")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"media_list", QT_TRANSLATE_NOOP("mcp-etiquetas", "que archivos hay musica videos imagenes presentaciones que tengo en medios")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"media_find", QT_TRANSLATE_NOOP("mcp-etiquetas", "buscar un archivo de medios encontrar el logo donde esta ese video")},

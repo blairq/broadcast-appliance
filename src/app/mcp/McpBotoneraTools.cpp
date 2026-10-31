@@ -57,43 +57,6 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     // --- Bus de eventos ---------------------------------------------------------------
     {
         Tool t;
-        t.name = "eventos_temas";
-        t.title = ba::i18n::traducir("mcp", "Temas del bus de eventos");
-        t.category = "botonera";
-        t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los temas que publica la app con su ultimo valor: aire/escena, aire/armada, aire/tally "
-                        "{programa, preview, fuentes_programa, fuentes_preview, transmitiendo, grabando}, salida/stream, "
-                        "salida/grabacion, audio/nivel/<fuente> {pico_db, volumen_db, mudo}, audio/loudness {m, s, i, "
-                        "tp, lra, fuera_de_objetivo}, alarma/<regla>, entrada/senal, oradores/al_aire, "
-                        "sala/participantes y plugin/<id>/<canal>. Además aire/medios, aire/dsk y aire/tbar {hacia, "
-                        "posicion}. Esos son de la salida por omisión; los de cada salida llevan su id: "
-                        "aire/<salida>/escena|armada|tally|medios|dsk|tbar, salida/<salida>/stream|grabacion|estado, "
-                        "audio/<salida>/nivel/<fuente> (su fader y su mudo) y `salidas` {lista}. Una ligadura con el "
-                        "tema sin id sigue a la salida que maneja el aparato. `patron` filtra: «+» un nivel, «#» el "
-                        "resto (audio/nivel/+, aire/#). Sirven para ligaduras de la botonera y @plugin.escuchar.");
-        t.inputSchema = {{"type", "object"}, {"properties", {{"patron", {{"type", "string"}}}}}};
-        t.run = [&bus](const json& a, Done done) {
-            done(ToolResult().data({{"temas", bus.temas(a.value("patron", std::string()))}}));
-        };
-        core.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "eventos_ultimo";
-        t.title = ba::i18n::traducir("mcp", "Ultimo valor de un tema");
-        t.category = "botonera";
-        t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El ultimo valor publicado en `tema` (eventos_temas), con la hora.");
-        t.inputSchema = {{"type", "object"}, {"required", {"tema"}}, {"properties", {{"tema", {{"type", "string"}}}}}};
-        t.run = [&bus](const json& a, Done done) {
-            const json u = bus.ultimo(a.value("tema", std::string()));
-            if (u.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "ese tema no se publico todavia (eventos_temas)")));
-            done(ToolResult().data(u));
-        };
-        core.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "eventos_esperar";
         t.title = ba::i18n::traducir("mcp", "Esperar un evento");
         t.category = "botonera";

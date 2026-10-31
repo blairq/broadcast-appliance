@@ -397,6 +397,13 @@ class McpCore {
         for (Tool& t : tools_)
             fn(t);
     }
+    /// Recorrer el registro desde CUALQUIER hilo (con su candado): una extensión que se
+    /// registra mientras tanto espera a que termine (`tools()` es solo para la interfaz).
+    void recorrer(const std::function<void(const Tool&)>& fn) const {
+        const std::lock_guard<std::recursive_mutex> registro(registroMu_);
+        for (const Tool& t : tools_)
+            fn(t);
+    }
     // --- Roles: un juego de herramientas por identidad ---------------------------
     // Un cliente que se presenta con un rol recibe en tools/list SOLO las
     // herramientas de sus categorias y de las comunes, y llamar a otra se le
@@ -446,6 +453,38 @@ class McpCore {
     void setFotoDeEmergencia(std::function<json()> f) { fotoEmergencia_ = std::move(f); }
     /// Cuántas veces la interfaz no tomó algo a tiempo (también ba_mcp_interfaz_ocupada_total).
     std::uint64_t vencidas() const { return vencidas_.load(); }
+    /// Para una herramienta de la foto que también muestra algo que solo sabe la interfaz
+    /// (ver mcp/McpFoto.hpp, CopiaDeLaInterfaz): `t` a la cola de la interfaz, SIN tope
+    /// (es una copia para la próxima vez; si tarda, nadie la espera). Sin ejecutores, o
+    /// desde la interfaz misma, en el acto. true si se encoló.
+    bool encolarEnInterfaz(Tarea t) {
+        if (!conEjecutores_ || ej_.enInterfaz()) {
+            t();
+            return false;
+        }
+        ej_.interfaz(std::move(t));
+        return true;
+    }
+
+    /// --- Límite de frecuencia por sesión (N4) ----------------------------------------
+    /// Un asistente en un bucle (o un cliente roto) que manda cien cambios por segundo
+    /// no se frena solo, y cada uno refresca las vistas y persiste: la interfaz se ahoga
+    /// y, si son de aire, el programa salta. Un balde por sesión del MCP (los clientes que
+    /// entran por HTTP: los de afuera, el asistente, los agentes) y por clase: `rafaga`
+    /// seguidas sin esperar, después a `porSegundo`. Lo que lee no cuenta (eso lo frena el
+    /// pool), lo que apretó una persona tampoco, y lo de adentro sin sesión (una receta,
+    /// un procedimiento, el guion) tampoco: sus pasos van de a uno y uno tras otro, y
+    /// frenarlos a mitad dejaría la mitad hecha. 0 = sin límite (lo de fábrica del
+    /// núcleo; la app lo pone de los ajustes `mcp.limite*`).
+    struct LimiteFrecuencia {
+        double porSegundo = 0; ///< escritura y ui
+        int rafaga = 0;
+        double airePorSegundo = 0; ///< las de aire, en un balde aparte y más chico
+        int aireRafaga = 0;
+    };
+    void setLimiteFrecuencia(LimiteFrecuencia l);
+    /// Cuántas frenó (también ba_mcp_limitadas_total, por clase).
+    std::uint64_t limitadas() const { return limitadas_.load(); }
 
     /// Valida `args` contra el esquema (requeridos, tipos, enums, rangos).
     /// :returns: vacio si esta bien, o el problema explicado.
@@ -502,6 +541,18 @@ class McpCore {
     bool conEjecutores_ = false;
     std::function<json()> fotoEmergencia_;
     std::atomic<std::uint64_t> vencidas_{0};
+    /// El balde de una sesión para una clase (N4): fichas que quedan y cuándo se contó.
+    struct Balde {
+        double fichas = 0;
+        std::int64_t msUltima = 0;
+    };
+    /// Saca una ficha del balde de la sesión `quien` para su clase (aire o lo demás); si no hay,
+    /// false y en cuántos ms habrá una. Sin límite para esa clase, true siempre.
+    bool tomarFicha(const std::string& quien, bool deAire, std::int64_t& esperarMs);
+    mutable std::mutex limiteMu_;
+    LimiteFrecuencia limite_;
+    std::map<std::string, Balde> baldes_;
+    std::atomic<std::uint64_t> limitadas_{0};
     std::vector<HelpTopic> topics_;
     /// El indice de busqueda: se arma solo la primera vez que se busca, y de
     /// nuevo si aparecieron herramientas (las extensiones se registran

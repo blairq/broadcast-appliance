@@ -39,10 +39,12 @@
 #include <QProcess>
 #include <QTimer>
 
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <map>
 #include <set>
+#include <thread>
 
 #include "mcp/McpAire.hpp"
 #include "mcp/McpCore.hpp"
@@ -873,6 +875,61 @@ int main(int argc, char** argv) {
         std::string err;
         CHECK(solo.resolverSalida("x", err) == "x" && err.empty(), "sin lista de salidas, no valida");
         CHECK(McpCore::salidaPedida(json{{"salida", ""}}, CallContext{}) .empty(), "`salida` vacía = la por omisión");
+    }
+
+    // --- N4) límite de frecuencia por sesión --------------------------------------------
+    // Una ráfaga de cambios de una sesión se frena con un error que dice cuánto esperar;
+    // otra sesión, lo que lee y lo que apretó una persona no se cuentan; el aire, aparte.
+    {
+        McpCore lim;
+        int cambios = 0, aires = 0, lecturas = 0;
+        const auto agregar = [&lim](const char* nombre, Clase c, int& cuenta) {
+            Tool t;
+            t.name = nombre;
+            t.clase = c;
+            if (c == Clase::Aire) t.porQueAire = "prueba";
+            t.run = [&cuenta](const json&, Done done) {
+                ++cuenta;
+                done(ToolResult::ok("ok"));
+            };
+            lim.addTool(std::move(t));
+        };
+        agregar("cambia", Clase::Escritura, cambios);
+        agregar("corta", Clase::Aire, aires);
+        agregar("mira", Clase::Lectura, lecturas);
+        lim.setLimiteFrecuencia({1.0, 3, 0.5, 1});
+        const auto pedir = [&lim](const char* n, const CallContext& c) {
+            json r;
+            lim.callTool({{"name", n}, {"arguments", json::object()}}, [&r](json x) { r = std::move(x); }, c);
+            return r;
+        };
+        const CallContext a{"A", "", "asistente"}, b{"B", "", "asistente"};
+        json r;
+        for (int i = 0; i < 5; ++i) r = pedir("cambia", a);
+        CHECK(cambios == 3 && r.value("isError", false) &&
+                  r.value("structuredContent", json::object()).value("limite_frecuencia", false) &&
+                  r["structuredContent"].value("reintentar_ms", 0) > 0,
+              "N4: la ráfaga de una sesión se frena después de 3, con cuánto esperar");
+        CHECK(lim.limitadas() == 2, "N4: cuenta las frenadas");
+        r = pedir("cambia", b);
+        CHECK(cambios == 4 && !r.value("isError", true), "N4: otra sesión tiene su propio balde");
+        for (int i = 0; i < 5; ++i) pedir("mira", a);
+        CHECK(lecturas == 5, "N4: lo que lee no cuenta");
+        for (int i = 0; i < 5; ++i) pedir("cambia", CallContext{"", "", "receta"});
+        CHECK(cambios == 9, "N4: lo de adentro sin sesión (una receta) no se frena a mitad");
+        CallContext persona = a;
+        persona.humano = true;
+        r = pedir("cambia", persona);
+        CHECK(cambios == 10 && !r.value("isError", true), "N4: lo que apretó una persona no se frena");
+        pedir("corta", a);
+        r = pedir("corta", a);
+        CHECK(aires == 1 && r["structuredContent"].value("clase", std::string()) == "aire", "N4: el aire tiene su balde (1 seguida)");
+        std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+        r = pedir("cambia", a);
+        CHECK(cambios == 11 && !r.value("isError", true), "N4: al segundo vuelve una ficha");
+        lim.setLimiteFrecuencia({});
+        for (int i = 0; i < 20; ++i) pedir("cambia", a);
+        CHECK(cambios == 31, "N4: en 0, sin límite (lo de fábrica del núcleo)");
     }
 
     // --- 10) Cada herramienta del registro (F3-02), por el despachador de verdad --------

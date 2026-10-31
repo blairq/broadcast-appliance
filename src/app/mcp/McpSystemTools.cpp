@@ -8,9 +8,9 @@
 // memoria y disco. Los dispositivos salen del registro de la maquina
 // (dispositivos::Dispositivos): la misma lista, con los mismos nombres, de la
 // que eligen las paginas de entradas (nada que pueda diferir entre lo listado y
-// lo que se puede agregar). Y cuánto se está usando de la máquina ahora
-// (sistema_recursos, de ui/RecursosViewModel): CPU, GPU, RAM, red, con picos,
-// estados por umbral y el margen, para saber cuántas salidas más aguanta.
+// lo que se puede agregar). Cuánto se está usando de la máquina ahora
+// (sistema_recursos) y los elementos de GStreamer (gst_elementos) están en
+// McpFoto.cpp: contestan con la interfaz trabada.
 // ============================================================================
 
 #include <QDir>
@@ -288,83 +288,6 @@ void McpService::registerSystemTools() {
     }
     {
         Tool t;
-        t.name = "sistema_recursos";
-        t.title = ba::i18n::traducir("mcp", "Cuánto se usa de la máquina (CPU, GPU, RAM, red)");
-        t.category = "equipo";
-        t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir(
-            "mcp",
-            "Lo que se está usando AHORA de la máquina, medido cada segundo: CPU de toda la máquina y de nuestros "
-            "procesos (app, gateway, launcher: % y núcleos, memoria residente), RAM usada y total, GPU (% de uso) y "
-            "memoria de video, red (Mbps que entran y salen por cada interfaz física; % del enlace si se sabe su "
-            "velocidad), escritura de disco y el motor (cuadros por segundo, % de cuadros perdidos, kbps que salen). "
-            "Cada recurso trae `pico` (de los últimos 10 minutos), `promedio_10s`, `estado` (normal, aviso desde el "
-            "80 %, critico desde el 92 %, sostenido `umbrales.sostenido_s` segundos; desconocido si el sistema no lo "
-            "dice: nunca se inventa) y `margen` (lo que le queda). `margen` general: el del recurso más cargado y cuál "
-            "`limita`. Sirve para decidir si la máquina aguanta otra salida (otra composición con sus codificadores): "
-            "medí antes y después de sumarla y compará el margen. Con `historial_s` (hasta 600), la historia "
-            "(columnas + filas, agrupada de a `paso_s` segundos con el máximo de cada grupo). La alarma `recursos` "
-            "(alert_create) avisa sola cuando la máquina se acerca al límite. `bucle_ui`: cuánto se demora el bucle "
-            "de eventos de la interfaz (un turno cada 50 ms: histograma desde el arranque, p50/p99/máximo del último "
-            "minuto, y los peores `culpables`: el evento o la herramienta MCP que corría cuando el turno llegó tarde). "
-            "`transporte`: cómo anda cada anillo de "
-            "audio y canal de video que lee el gateway de la app, en la última ventana de 10 s: `ocupacion_max` "
-            "(bloques de 10 ms sin leer; lo normal es 1 a 3), `descartados` (lo que se perdió porque el gateway no "
-            "llegaba; en video, cuadros salteados), `faltantes` (bloques de audio que no llegaron), `edad_p50_ms` y "
-            "`edad_p99_ms` (cuánto hace que se selló lo leído), los totales y `anomalia`.") +
-            " " +
-            ba::i18n::traducir(
-                "mcp",
-                "`deriva_placas`: cada placa de audio abierta (micrófonos, interfaces) contra el reloj del estudio: `ppm` "
-                "(cuánto se aparta: positivo, va rápida; una placa sana, menos de 100), `reanclajes_sin_corregir` (los "
-                "saltos de 50 ms que habría sin corrección), `corregida` (la sigue un remuestreador variable), "
-                "`enganchada`, `desfase_ms` y `reanclajes` (los cortes que llegaron al programa: tiene que ser 0). Dos "
-                "placas con word clock o PTP del mismo dominio tienen que dar la misma ppm.") +
-            " " +
-            ba::i18n::traducir(
-                "mcp",
-                "`termica`: el nivel térmico (normal, templado, serio, critico; desconocido si el sistema no lo dice), la "
-                "temperatura o el tope de frecuencia según el sistema, y `priorizar_programa`: los pasos que se apagaron "
-                "por calor, en orden (superres, modelos, vistas, invitados; nunca el programa ni la grabación) y los que "
-                "no tienen quien los atienda (`sin_gancho`). `metricas`: las métricas con nombre y tipo de la app "
-                "(contadores, medidores y histogramas con p50/p90/p99: latencia por herramienta MCP, espera del candado "
-                "del motor, bucle de la interfaz, colchón de grabación, reconexiones); las mismas que da GET /metrics.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"historial_s",
-               {{"type", "integer"},
-                {"minimum", 0},
-                {"maximum", 600},
-                {"description", ba::i18n::traducir("mcp", "segundos de historia a devolver (0 = sin historia; hasta 600)")}}},
-              {"paso_s",
-               {{"type", "integer"},
-                {"minimum", 1},
-                {"maximum", 60},
-                {"description", ba::i18n::traducir("mcp", "agrupar la historia de a N segundos (el máximo de cada grupo; por "
-                                                          "defecto 1, o 10 si se piden más de 120 s)")}}}}}};
-        RecursosViewModel* rec = vm_.recursos();
-        t.run = [this, rec](const json& a, Done done) {
-            if (rec == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz no esta lista.")));
-            const int hist = std::clamp(a.value("historial_s", 0), 0, 600);
-            const int paso = std::clamp(a.value("paso_s", hist > 120 ? 10 : 1), 1, 60);
-            json out = rec->muestreador().informe(hist, paso);
-            // Los contadores del transporte A→B los mide el gateway y viajan en la foto de la sala.
-            const json uso = roomSnapshot(vm_).value("uso", json::object());
-            out["transporte"] = uso.is_object() ? uso.value("transporte", json::array()) : json::array();
-            if (out.value("muestras", 0) == 0)
-                out["nota"] = ba::i18n::traducir("mcp", "Todavía no hay mediciones (se mide una vez por segundo desde el arranque).");
-            out["bucle_ui"] = ba::diag::VigiaBucle::interfaz().informe();
-            out["deriva_placas"] = ba::motor::derivaDePlacas();
-            // La política «priorizar programa» por calor (F4-05) y las métricas del proceso (F4-01).
-            out["termica"]["priorizar_programa"] = rec->informeTermico();
-            out["metricas"] = ba::diag::Metricas::proceso().json();
-            done(ToolResult().data(out));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
         t.name = "monitors";
         t.title = ba::i18n::traducir("mcp", "Monitores");
         t.category = "equipo";
@@ -444,25 +367,6 @@ void McpService::registerSystemTools() {
             done(ToolResult().data(json{{"nombre", name.toStdString()},
                                         {"dispositivo", dev.toStdString()},
                                         {"nota", ba::i18n::traducir("mcp", "Suena en todas las escenas (canal global).")}}));
-        };
-        core_.addTool(std::move(t));
-    }
-    {
-        Tool t;
-        t.name = "gst_elementos";
-        t.title = ba::i18n::traducir("mcp", "Elementos de GStreamer que hacen falta");
-        t.category = "equipo";
-        t.clase = Clase::Lectura;
-        t.description =
-            ba::i18n::traducir("mcp", "Si están los elementos de GStreamer que usa el aparato: los imprescindibles (sin ellos algo de hoy no anda: "
-            "invitados, racks, voces, NDI…) y los del motor que viene (mezcla, composición, robustez, subtítulos). "
-            "Para diagnosticar silencio o negro en una plataforma: un plugin que falta aparece acá.");
-        t.run = [](const json&, Done done) {
-            const json l = video::revisarElementosGst();
-            json faltan = json::array();
-            for (const auto& e : l)
-                if (!e.value("esta", true)) faltan.push_back(e);
-            done(ToolResult().data({{"faltan", faltan}, {"todos", l}}));
         };
         core_.addTool(std::move(t));
     }

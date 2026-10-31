@@ -19,6 +19,7 @@
 #include <chrono>
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <cctype>
 #include <memory>
@@ -939,6 +940,40 @@ void McpCore::correrEn(Hilo h, Tarea fn, Tarea vencio) {
     }
 }
 
+void McpCore::setLimiteFrecuencia(LimiteFrecuencia l) {
+    const std::lock_guard<std::mutex> lk(limiteMu_);
+    limite_ = l;
+    baldes_.clear(); // con otro tope, todos arrancan llenos
+}
+
+bool McpCore::tomarFicha(const std::string& quien, bool deAire, std::int64_t& esperarMs) {
+    const std::lock_guard<std::mutex> lk(limiteMu_);
+    const double porS = deAire ? limite_.airePorSegundo : limite_.porSegundo;
+    const int rafaga = deAire ? limite_.aireRafaga : limite_.rafaga;
+    if (porS <= 0 || rafaga <= 0) return true;
+    const std::int64_t ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   std::chrono::steady_clock::now().time_since_epoch())
+                                   .count();
+    // Las sesiones se van y vienen (cada cliente nuevo, una): un balde lleno y quieto es
+    // igual a no tenerlo, así que de vez en cuando se barren.
+    if (baldes_.size() > 256)
+        for (auto it = baldes_.begin(); it != baldes_.end();)
+            it = ahora - it->second.msUltima > 60000 ? baldes_.erase(it) : std::next(it);
+    const std::string clave = quien + (deAire ? "|aire" : "|escritura");
+    auto [it, nuevo] = baldes_.try_emplace(clave, Balde{static_cast<double>(rafaga), ahora});
+    Balde& b = it->second;
+    if (!nuevo) {
+        b.fichas = std::min<double>(rafaga, b.fichas + (ahora - b.msUltima) * porS / 1000.0);
+        b.msUltima = ahora;
+    }
+    if (b.fichas >= 1.0) {
+        b.fichas -= 1.0;
+        return true;
+    }
+    esperarMs = static_cast<std::int64_t>(std::ceil((1.0 - b.fichas) * 1000.0 / porS));
+    return false;
+}
+
 json McpCore::ocupada(const std::string& que) const {
     json j{{"interfaz_ocupada", true}, {"tope_ms", ej_.topeInterfazMs}, {"pedido", que}};
     if (fotoEmergencia_) j["foto"] = fotoEmergencia_();
@@ -1086,6 +1121,46 @@ void McpCore::procesar(const Tool* tool, const std::string& name, const json& ar
                                            {pol}))
                 .data(json{{"policy", pol}, {"session", taintInfo(ctx.session)}}));
         return;
+    }
+    // Límite de frecuencia (N4; ver LimiteFrecuencia): antes de pedir aprobación, que una
+    // ráfaga de un bucle no llene la barra del operador de tarjetas.
+    if (mutating(*tool) && !ctx.humano && !ctx.session.empty()) {
+        const bool deAire = aire_.esDeAire(name, args);
+        std::int64_t esperar = 0;
+        if (!tomarFicha(ctx.session, deAire, esperar)) {
+            ++limitadas_;
+            const char* clase = deAire ? "aire" : "escritura";
+            ba::diag::Metricas::proceso()
+                .contador("ba_mcp_limitadas_total",
+                          QT_TRANSLATE_NOOP("metricas", "Pedidos MCP frenados por el límite de frecuencia de su sesión"),
+                          {{"clase", clase}})
+                .sumar();
+            LimiteFrecuencia l;
+            {
+                const std::lock_guard<std::mutex> lk(limiteMu_);
+                l = limite_;
+            }
+            const double porS = deAire ? l.airePorSegundo : l.porSegundo;
+            const int rafaga = deAire ? l.aireRafaga : l.rafaga;
+            std::ostringstream ritmo;
+            ritmo << porS;
+            Traza::la().anotar("<-- LIMITADA " + name);
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 frenada por el límite de frecuencia (%2, sesión %3)"),
+                                                        {name, clase, ctx.session.substr(0, 8)}));
+            ToolResult r = ToolResult::error(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "Demasiados cambios seguidos de esta sesión (%1 seguidos, después %2 por segundo): "
+                                          "«%3» NO se hizo. Reintentá en %4 ms; si estás en un bucle, frená y revisá "
+                                          "lo que hiciste (status)."),
+                {std::to_string(rafaga), ritmo.str(), name, std::to_string(esperar)}));
+            r.structured = json{{"limite_frecuencia", true},
+                                {"clase", clase},
+                                {"rafaga", rafaga},
+                                {"por_segundo", porS},
+                                {"reintentar_ms", esperar}};
+            finish(r);
+            return;
+        }
     }
     // Una herramienta que falla por un JSON inesperado no tumba nada: se
     // informa como error de la herramienta.

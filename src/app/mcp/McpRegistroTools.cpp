@@ -30,84 +30,8 @@ void McpService::registerRegistroTools() {
                       ba::i18n::traducir("mcp", "Lo que pasó en los tres procesos: leerlo, filtrarlo y decidir "
                                                 "cuánto se registra."));
 
-    AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
 
-    {
-        Tool t;
-        t.name = "log_leer";
-        t.title = ba::i18n::traducir("mcp", "Leer el registro");
-        t.category = "registro";
-        t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las últimas líneas del registro, de los tres procesos, con filtros.");
-        t.details = ba::i18n::traducir("mcp", "Cada línea trae hora (UTC, en milisegundos desde la época), nivel, módulo, código y "
-                    "descripción.\n\n"
-                    "Los NIVELES, de menos a más grave: traza, depuracion, info, aviso, error, fatal. "
-                    "`minimo` filtra de ese para arriba; el que trae por defecto es `aviso`, que es lo que "
-                    "conviene mirar primero cuando algo anda mal.\n\n"
-                    "Los MÓDULOS que suele haber: `app` (lo que no dice de dónde viene: printf y salida "
-                    "cruda), `qml` (lo que se rompe en la interfaz), `qt`, `obs` (el motor de emisión, muy "
-                    "hablador), `gateway` (el Proceso B: conferencia, WebRTC, túnel), `launcher`, `graficos`, "
-                    "`registro` y `marca`. `log_leer` sin filtros te devuelve cuáles hay ahora.\n\n"
-                    "Cómo usarlo bien cuando algo falla:\n"
-                    "  1. Primero sin filtros y con `minimo: \"aviso\"`: si hay un error, está ahí.\n"
-                    "  2. Si no aparece nada, `minimo: \"info\"` y el módulo que sospeches.\n"
-                    "  3. Si sigue sin aparecer, `log_nivel` a depuracion o traza, hacé que el problema "
-                    "pase otra vez, y volvé a leer. Acordate de dejar el nivel como estaba.\n\n"
-                    "Ojo: lo que está por DEBAJO del nivel al que el proceso está registrando no se escribe "
-                    "en ningún lado, así que no alcanza con pedirlo acá.");
-        t.inputSchema = {
-            {"type", "object"},
-            {"properties",
-             {{"minimo",
-               {{"type", "string"},
-                {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
-                {"description", ba::i18n::traducir("mcp", "Desde qué nivel. Por defecto, aviso.")}}},
-              {"modulo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Uno solo. Vacío = todos.")}}},
-              {"busca", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Texto a buscar (sin distinguir mayúsculas).")}}},
-              {"ultimosMin",
-               {{"type", "integer"}, {"minimum", 1}, {"description", ba::i18n::traducir("mcp", "Solo lo de los últimos N minutos.")}}},
-              {"cuantas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 500}}}}}};
-        t.run = [&rt](const json& a, Done done) {
-            ba::diag::Filtro f;
-            f.minimo = ba::diag::Nivel::Aviso;
-            if (a.contains("minimo")) {
-                ba::diag::Nivel n{};
-                if (ba::diag::nivelDeNombre(a["minimo"].get<std::string>(), n)) f.minimo = n;
-            }
-            if (a.contains("modulo") && a["modulo"].is_string() && !a["modulo"].get<std::string>().empty())
-                f.componentes.push_back(a["modulo"].get<std::string>());
-            f.busca = a.value("busca", std::string());
-            f.cuantas = static_cast<std::size_t>(std::clamp(a.value("cuantas", 120), 1, 500));
-            if (a.contains("ultimosMin")) {
-                const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                       std::chrono::system_clock::now().time_since_epoch())
-                                       .count();
-                f.desdeMs = ahora - static_cast<std::int64_t>(a["ultimosMin"].get<int>()) * 60000LL;
-            }
-
-            const auto dir = ba::platform::dataRoot() / "Logs";
-            json lineas = json::array();
-            for (const auto& r : ba::diag::leerLogs(dir, f))
-                lineas.push_back(json{{"ms", r.ms},
-                                      {"nivel", ba::diag::nombreDeNivel(r.nivel)},
-                                      {"modulo", r.componente},
-                                      {"codigo", r.codigo},
-                                      {"texto", r.texto}});
-            json modulos = json::array();
-            for (const std::string& m : ba::diag::componentesEnLogs(dir))
-                modulos.push_back(m);
-
-            done(ToolResult().data(
-                json{{"lineas", lineas},
-                     {"modulos", modulos},
-                     {"nivelDelProceso", ba::diag::nombreDeNivel(ba::diag::registro().nivel())},
-                     {"descartadasPorNivel", ba::diag::registro().descartadas()},
-                     {"perdidasPorCola", ba::diag::registro().perdidas()},
-                     {"carpeta", dir.string()}}));
-        };
-        core_.addTool(std::move(t));
-    }
 
     {
         Tool t;

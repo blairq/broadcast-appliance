@@ -39,7 +39,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 
 <!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
 
-**814 herramientas** en 55 categorías: 269 de lectura, 480 de escritura, 50 de aire y 15 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+**815 herramientas** en 55 categorías: 269 de lectura, 480 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
 
 | Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
 |---|---:|---:|---:|---:|---:|
@@ -72,7 +72,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Histórico (`historico`) | 6 | 1 | 5 | 0 | 0 |
 | Documentos de identidad (`identidad`) | 2 | 2 | 0 | 0 | 0 |
 | Imágenes y video (visión) (`imagenes`) | 11 | 10 | 1 | 0 | 0 |
-| Interfaz de la app (`interfaz`) | 13 | 3 | 2 | 0 | 8 |
+| Interfaz de la app (`interfaz`) | 14 | 3 | 2 | 0 | 9 |
 | Carruseles de láminas (`laminas`) | 10 | 4 | 6 | 0 | 0 |
 | Línea de tiempo del evento (`linea`) | 26 | 7 | 10 | 9 | 0 |
 | Medios (imágenes, videos, música) (`medios`) | 8 | 4 | 4 | 0 | 0 |
@@ -174,8 +174,19 @@ en el hilo que declara (`hilo` en `docs/mcp.json`):
 | Hilo | Dónde corre | Cuáles |
 |---|---|---|
 | `interfaz` | El hilo de la interfaz (dueño del motor). Pedida desde otro hilo, con **tope**: si la interfaz no la toma en `mcp.topeInterfazMs` (5 s de fábrica), se contesta `isError` con `structuredContent.interfaz_ocupada: true` y una `foto` (el documento de aire, el latido, el plano) y **no se hace después** | Lo de fábrica: casi todas leen o mueven objetos de la interfaz o del motor |
-| `foto` | Un hilo del pool; lee solo cosas seguras entre hilos | `help`, `help_search`, `security_status`, `alert_types`, `alert_events`, `alert_wait` |
+| `foto` | Un hilo del pool; lee solo cosas seguras entre hilos | `help`, `help_search`, `security_status`, `alert_types`, `alert_events`, `alert_wait`; y las de diagnóstico y estado (`mcp/McpFoto.cpp`): `status`, `salidas_listar`, `sistema_recursos`, `log_leer`, `logs_tail`, `eventos_temas`, `eventos_ultimo`, `mcp_aire_lista`, `gst_elementos` |
 | `control` | La cola del plano de control, en orden | (ninguna todavía) |
+
+Una de la `foto` lee el documento de aire, la foto de las salidas que publica el motor,
+la lista de salidas, el latido, el muestreador de recursos, las métricas, el bus de
+eventos, los archivos de `Logs/` y el registro de herramientas: todo con su candado o
+publicado como copia. Lo que **solo sabe la interfaz** (la sala, los relojes de las
+pastillas, la armada y el color de cada salida) se le pide a ella como copia y se espera
+`mcp.esperaCopiaMs` (250 ms): con la interfaz libre llega la de ahora; trabada, va la
+última y `status`/`salidas_listar` dicen `interfaz: {al_dia: false, edad_ms}`, con lo que
+sale al aire (escena, transmisión, grabación, cuadros perdidos, negro y placa de cada
+salida) sacado igual de lo seguro: eso nunca es viejo. La copia pedida se hace una sola
+vez cuando la interfaz vuelve (aunque pregunten diez).
 
 La validación, las guardas de aire y la aprobación corren en el hilo de la
 herramienta; la tarjeta de aprobación y el guardado posterior, en la interfaz. La
@@ -198,7 +209,7 @@ Lo de abajo es un resumen por categoría, con las herramientas principales.
 | Sala | `room_status`, `room_set`, `room_pin`, `participant_admit` / `_admit_all` / `_reject` / `_kick` / `_talk` / `_request` / `_profile`, `chat_send`, `invitados_chat_leer`, `share_list`, `compartida_revisar`, `share_take`, `share_delete`, `room_link` (enlace + QR como imagen, también del tablero), `network_status`, `operator_feed`, `gateway_restart` |
 | Oradores | `remotos_fila_ver`, `speakers_config`, `speaker_on_air`, `speaker_next`, `speaker_move`, `speaker_time`, `participant_requeue` |
 | Configuración | `settings_list`, `settings_set` (cualquier ajuste), `app_save` |
-| Interfaz | `ui_show_page`, `ui_notify`, `dashboard_list`, `dashboard_card`, `dashboard_background`, `output_window` (multiview en otro monitor) |
+| Interfaz | `ui_show_page`, `ui_notify`, `ui_salida_activa` (qué salida manejan Dirección, Escenas y el Mezclador de la interfaz), `dashboard_list`, `dashboard_card`, `dashboard_background`, `output_window` (multiview en otro monitor) |
 | Sistema | `feeds_list`, `logs_tail`, `app_quit` |
 | Cuentas | `accounts_status` (qué falta en YouTube/Twitch/Facebook y el paso siguiente), `account_setup_guide` (pasos con enlaces y los valores exactos a pegar), `account_open` (abre la página de un paso), `account_credentials_request` (formulario seguro en la barra: el secreto no pasa por el chat), `account_check` (prueba real con diagnóstico) |
 | YouTube | `youtube_status`, `youtube_setup` (`fromDownloads`: importa el JSON de Google desde Descargas), `youtube_login`, `youtube_logout`, `youtube_videos`, `youtube_video_update` / `_delete` / `_upload`, `youtube_live_list` / `_create` / `_start` / `_end` / `_update` / `_health`, `youtube_chat` |
@@ -430,6 +441,20 @@ solo leen o hacen lo reversible sin preguntar (`Tool::reversible`: el volumen,
 el prompter, parar una cámara). Una herramienta de salida (`porSalida`) es de
 aire si sale **su** salida.
 
+### Límite de frecuencia (N4)
+
+Cada sesión del MCP (un cliente que entra por HTTP: uno de afuera, el asistente, un
+agente) tiene un balde para lo que cambia algo: `mcp.limiteRafaga` (30) seguidas sin
+esperar y después `mcp.limitePorSegundo` (10); las de aire, aparte, `mcp.limiteAireRafaga`
+(8) y `mcp.limiteAirePorSegundo` (2). Lo que se pasa vuelve `isError` con
+`structuredContent: {limite_frecuencia: true, clase, rafaga, por_segundo, reintentar_ms}`
+y **no se hace**; lo cuenta `ba_mcp_limitadas_total{clase}`. No cuentan lo que lee, lo
+que apretó una persona ni lo de adentro sin sesión (los pasos de una receta, un
+procedimiento o el guion van de a uno: frenarlos a mitad dejaría la mitad hecha). En 0,
+sin límite.
+
+### Acceso
+
 - Solo `127.0.0.1`; token obligatorio (comparación en tiempo constante);
   se rechaza un `Origin` que no sea localhost (defensa contra DNS rebinding).
 - Quien tenga el token maneja casi todo (con las guardas de aire: lo que
@@ -454,6 +479,18 @@ formado, sin un obligatorio o con un tipo equivocado no corre, un argumento
 que no existe se avisa, y las de `lectura` no refrescan ni persisten nada ni
 piden aprobación (la clase declarada manda); las de `aire` piden confirmación
 al aire y las demás no.
+
+`test_mcp` también prueba el límite de frecuencia (N4): la ráfaga de una sesión se frena
+con cuánto esperar, otra sesión tiene su balde, lo que lee, lo que apretó una persona y
+una receta no cuentan, el aire va aparte y la ficha vuelve con el tiempo.
+
+`test_plano_control` (F3-03): con la interfaz trabada, el MCP y las alarmas siguen; y
+**las herramientas de la foto de verdad** (`registrarHerramientasDeFoto` con un estado
+sintético y un documento de aire real en una carpeta temporal): contestan en el acto
+desde el pool, ninguna fuente se lee en la interfaz ni en el control, `status` trae lo
+que sale al aire al día y dice que lo demás es viejo, la copia de la interfaz se hace una
+sola vez al volver, y no cambia nada (los archivos de `Config/`, `Runtime/` y `Logs/`,
+el documento de aire ni sus escrituras).
 
 `test_mcp_registro` (`tools/docs/mcp-inventario.py --verificar`): `docs/mcp.json`
 y la tabla de arriba son lo que sale del código, toda herramienta declara su
