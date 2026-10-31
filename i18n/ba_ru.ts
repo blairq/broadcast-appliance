@@ -30055,42 +30055,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>движок не работает</translation>
     </message>
     <message>
-        <location line="+35" />
-        <source>Central DCN, banca %1: %2</source>
-        <translation>Центральный блок DCN, место %1: %2</translation>
-    </message>
-    <message>
-        <location line="+64" />
-        <location line="+8" />
-        <source>Central (debate): %1</source>
-        <translation>Центральный блок (дебаты): %1</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Central (fin del debate): %1</source>
-        <translation>Центральный блок (конец дебатов): %1</translation>
-    </message>
-    <message>
-        <location line="+81" />
-        <source>## Banca virtual</source>
-        <translation>## Виртуальное место</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>## Transcripción</source>
-        <translation>## Транскрипция</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Archivo</source>
-        <translation>Файл</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
-        <translation>Транскрипция автоматическая: в ней могут быть ошибки; официальной является стенограмма.</translation>
-    </message>
-    <message>
         <location line="+25" />
         <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
         <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3): переведено в экономичный режим</translation>
@@ -30254,21 +30218,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Диск мероприятий заполнен на %1 % (осталось %2 ГБ)</translation>
     </message>
     <message>
-        <location line="+153" />
-        <source>%1 (banca %2)</source>
-        <translation>%1 (место %2)</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>%1: queda 1 minuto</source>
-        <translation>%1: осталась 1 минута</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>%1: se terminó su tiempo</source>
-        <translation>%1: время вышло</translation>
-    </message>
-    <message>
         <location line="+36" />
         <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
         <translation>Аудио: «%1» пропущен из-за медленной работы (проходит без обработки). Пересоберите его в «Аудио», когда всё будет в порядке.</translation>
@@ -30354,36 +30303,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+2" />
         <source>El monitor «%1» no está conectado.</source>
         <translation>Монитор «%1» не подключён.</translation>
-    </message>
-    <message>
-        <location line="+155" />
-        <source>Punto %1: %2</source>
-        <translation>Пункт %1: %2</translation>
-    </message>
-    <message>
-        <location line="+37" />
-        <source>CON QUÓRUM</source>
-        <translation>КВОРУМ ЕСТЬ</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>SIN QUÓRUM</source>
-        <translation>НЕТ КВОРУМА</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 presentes de %2</source>
-        <translation>присутствуют %1 из %2</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>APROBADO</source>
-        <translation>ПРИНЯТО</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>RECHAZADO</source>
-        <translation>ОТКЛОНЕНО</translation>
     </message>
     <message>
         <location line="+32" />
@@ -30547,11 +30466,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Откройте это в браузере устройства (в локальной сети; код действует несколько минут и одноразовый). Затем одобрите здесь, в Службы → Веб-управление.</translation>
     </message>
     <message>
-        <location line="+44" />
-        <source>La sesión remota no está andando.</source>
-        <translation>Удалённое заседание не запущено.</translation>
-    </message>
-    <message>
         <location line="+69" />
         <source>Ese invitado no tiene una fuente en el programa todavía.</source>
         <translation>У этого гостя ещё нет источника в программе.</translation>
@@ -30703,6 +30617,77 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AsambleaViewModel</name>
+    <message>
+        <source>Central DCN, banca %1: %2</source>
+        <translation>Центральный блок DCN, место %1: %2</translation>
+    </message>
+    <message>
+        <source>Central (debate): %1</source>
+        <translation>Центральный блок (дебаты): %1</translation>
+    </message>
+    <message>
+        <source>Central (fin del debate): %1</source>
+        <translation>Центральный блок (конец дебатов): %1</translation>
+    </message>
+    <message>
+        <source>## Banca virtual</source>
+        <translation>## Виртуальное место</translation>
+    </message>
+    <message>
+        <source>## Transcripción</source>
+        <translation>## Транскрипция</translation>
+    </message>
+    <message>
+        <source>Archivo</source>
+        <translation>Файл</translation>
+    </message>
+    <message>
+        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
+        <translation>Транскрипция автоматическая: в ней могут быть ошибки; официальной является стенограмма.</translation>
+    </message>
+    <message>
+        <source>%1 (banca %2)</source>
+        <translation>%1 (место %2)</translation>
+    </message>
+    <message>
+        <source>%1: queda 1 minuto</source>
+        <translation>%1: осталась 1 минута</translation>
+    </message>
+    <message>
+        <source>%1: se terminó su tiempo</source>
+        <translation>%1: время вышло</translation>
+    </message>
+    <message>
+        <source>Punto %1: %2</source>
+        <translation>Пункт %1: %2</translation>
+    </message>
+    <message>
+        <source>CON QUÓRUM</source>
+        <translation>КВОРУМ ЕСТЬ</translation>
+    </message>
+    <message>
+        <source>SIN QUÓRUM</source>
+        <translation>НЕТ КВОРУМА</translation>
+    </message>
+    <message>
+        <source>%1 presentes de %2</source>
+        <translation>присутствуют %1 из %2</translation>
+    </message>
+    <message>
+        <source>APROBADO</source>
+        <translation>ПРИНЯТО</translation>
+    </message>
+    <message>
+        <source>RECHAZADO</source>
+        <translation>ОТКЛОНЕНО</translation>
+    </message>
+    <message>
+        <source>La sesión remota no está andando.</source>
+        <translation>Удалённое заседание не запущено.</translation>
     </message>
 </context>
 <context>

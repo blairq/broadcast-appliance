@@ -79,14 +79,14 @@ ColumnLayout {
                       onClicked: ApplicationWindow.window.confirm({ title: qsTr("¿Cerrar todos los micrófonos?"),
                           text: qsTr("Menos el del presidente."), accept: qsTr("Cerrar"), reject: qsTr("Cancelar"),
                           action: function() { pc.pedir("cerrar", "cerrar_todos") } }) }
-        // La presidencia sobre todos (también los remotos): Studio.silenciarTodos / hablaPresidencia.
+        // La presidencia sobre todos (también los remotos): Studio.asamblea.silenciarTodos / hablaPresidencia.
         GlassButton { text: qsTr("🔇 Silenciar a todos"); activeColor: Theme.live
-                      onClicked: Studio.silenciarTodos()
+                      onClicked: Studio.asamblea.silenciarTodos()
                       ToolTip.visible: hovered; ToolTip.delay: 400
                       ToolTip.text: qsTr("Cierra los micrófonos de la central (menos el del presidente), termina al orador y les saca la palabra a los remotos") }
-        GlassButton { text: Studio.presidenciaHabla ? qsTr("🎙 Presidencia hablando") : qsTr("🎙 Habla la presidencia")
-                      active: Studio.presidenciaHabla; activeColor: Theme.live; enabled: pc.ok
-                      onClicked: Studio.hablaPresidencia(!Studio.presidenciaHabla)
+        GlassButton { text: Studio.asamblea.presidenciaHabla ? qsTr("🎙 Presidencia hablando") : qsTr("🎙 Habla la presidencia")
+                      active: Studio.asamblea.presidenciaHabla; activeColor: Theme.live; enabled: pc.ok
+                      onClicked: Studio.asamblea.hablaPresidencia(!Studio.asamblea.presidenciaHabla)
                       ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Calla a todos y abre el micrófono de la presidencia") }
     }
     Text {

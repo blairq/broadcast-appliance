@@ -29936,42 +29936,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>le moteur ne tourne pas</translation>
     </message>
     <message>
-        <location line="+35" />
-        <source>Central DCN, banca %1: %2</source>
-        <translation>Unité centrale DCN, siège %1 : %2</translation>
-    </message>
-    <message>
-        <location line="+64" />
-        <location line="+8" />
-        <source>Central (debate): %1</source>
-        <translation>Unité centrale (débat) : %1</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Central (fin del debate): %1</source>
-        <translation>Unité centrale (fin du débat) : %1</translation>
-    </message>
-    <message>
-        <location line="+81" />
-        <source>## Banca virtual</source>
-        <translation>## Siège virtuel</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>## Transcripción</source>
-        <translation>## Transcription</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Archivo</source>
-        <translation>Fichier</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
-        <translation>La transcription est automatique : elle peut contenir des erreurs ; la version sténographique fait foi.</translation>
-    </message>
-    <message>
         <location line="+25" />
         <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
         <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3) : passée en mode économique</translation>
@@ -30135,21 +30099,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Le disque des événements est plein à %1 % (il reste %2 Go)</translation>
     </message>
     <message>
-        <location line="+153" />
-        <source>%1 (banca %2)</source>
-        <translation>%1 (siège %2)</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>%1: queda 1 minuto</source>
-        <translation>%1 : il reste 1 minute</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>%1: se terminó su tiempo</source>
-        <translation>%1 : temps écoulé</translation>
-    </message>
-    <message>
         <location line="+36" />
         <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
         <translation>Audio : « %1 » a été contourné car trop lent (passe sans traitement). Reconstruisez-le dans Audio une fois réglé.</translation>
@@ -30235,36 +30184,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+2" />
         <source>El monitor «%1» no está conectado.</source>
         <translation>L'écran « %1 » n'est pas connecté.</translation>
-    </message>
-    <message>
-        <location line="+155" />
-        <source>Punto %1: %2</source>
-        <translation>Point %1 : %2</translation>
-    </message>
-    <message>
-        <location line="+37" />
-        <source>CON QUÓRUM</source>
-        <translation>QUORUM ATTEINT</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>SIN QUÓRUM</source>
-        <translation>QUORUM NON ATTEINT</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 presentes de %2</source>
-        <translation>%1 présents sur %2</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>APROBADO</source>
-        <translation>ADOPTÉ</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>RECHAZADO</source>
-        <translation>REJETÉ</translation>
     </message>
     <message>
         <location line="+32" />
@@ -30428,11 +30347,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Ouvrez-le dans le navigateur de l'appareil (sur le réseau local ; le code est valable quelques minutes et ne sert qu'une fois). Approuvez-le ensuite ici, dans Services → Contrôle web.</translation>
     </message>
     <message>
-        <location line="+44" />
-        <source>La sesión remota no está andando.</source>
-        <translation>La séance à distance ne tourne pas.</translation>
-    </message>
-    <message>
         <location line="+69" />
         <source>Ese invitado no tiene una fuente en el programa todavía.</source>
         <translation>Cet invité n'a pas encore de source dans le programme.</translation>
@@ -30581,6 +30495,77 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AsambleaViewModel</name>
+    <message>
+        <source>Central DCN, banca %1: %2</source>
+        <translation>Unité centrale DCN, siège %1 : %2</translation>
+    </message>
+    <message>
+        <source>Central (debate): %1</source>
+        <translation>Unité centrale (débat) : %1</translation>
+    </message>
+    <message>
+        <source>Central (fin del debate): %1</source>
+        <translation>Unité centrale (fin du débat) : %1</translation>
+    </message>
+    <message>
+        <source>## Banca virtual</source>
+        <translation>## Siège virtuel</translation>
+    </message>
+    <message>
+        <source>## Transcripción</source>
+        <translation>## Transcription</translation>
+    </message>
+    <message>
+        <source>Archivo</source>
+        <translation>Fichier</translation>
+    </message>
+    <message>
+        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
+        <translation>La transcription est automatique : elle peut contenir des erreurs ; la version sténographique fait foi.</translation>
+    </message>
+    <message>
+        <source>%1 (banca %2)</source>
+        <translation>%1 (siège %2)</translation>
+    </message>
+    <message>
+        <source>%1: queda 1 minuto</source>
+        <translation>%1 : il reste 1 minute</translation>
+    </message>
+    <message>
+        <source>%1: se terminó su tiempo</source>
+        <translation>%1 : temps écoulé</translation>
+    </message>
+    <message>
+        <source>Punto %1: %2</source>
+        <translation>Point %1 : %2</translation>
+    </message>
+    <message>
+        <source>CON QUÓRUM</source>
+        <translation>QUORUM ATTEINT</translation>
+    </message>
+    <message>
+        <source>SIN QUÓRUM</source>
+        <translation>QUORUM NON ATTEINT</translation>
+    </message>
+    <message>
+        <source>%1 presentes de %2</source>
+        <translation>%1 présents sur %2</translation>
+    </message>
+    <message>
+        <source>APROBADO</source>
+        <translation>ADOPTÉ</translation>
+    </message>
+    <message>
+        <source>RECHAZADO</source>
+        <translation>REJETÉ</translation>
+    </message>
+    <message>
+        <source>La sesión remota no está andando.</source>
+        <translation>La séance à distance ne tourne pas.</translation>
     </message>
 </context>
 <context>

@@ -2981,7 +2981,7 @@ void McpService::registerTools() {
             auto& o = vm.ordenDelDia();
             done(ToolResult().data({{"puntos", o.puntos()},
                                     {"actual", o.actual()},
-                                    {"tiempos_palabra", o.tiemposPalabra(vm.remotosPalabra())},
+                                    {"tiempos_palabra", o.tiemposPalabra(vm.asamblea().remotosPalabra())},
                                     {"capitulos", o.capitulosTexto(vm.recordStartMs())}}));
         };
         core_.addTool(std::move(t));

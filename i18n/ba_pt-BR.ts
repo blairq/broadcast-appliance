@@ -29936,42 +29936,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>o motor não está rodando</translation>
     </message>
     <message>
-        <location line="+35" />
-        <source>Central DCN, banca %1: %2</source>
-        <translation>Unidade central DCN, cadeira %1: %2</translation>
-    </message>
-    <message>
-        <location line="+64" />
-        <location line="+8" />
-        <source>Central (debate): %1</source>
-        <translation>Unidade central (debate): %1</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Central (fin del debate): %1</source>
-        <translation>Unidade central (fim do debate): %1</translation>
-    </message>
-    <message>
-        <location line="+81" />
-        <source>## Banca virtual</source>
-        <translation>## Cadeira virtual</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>## Transcripción</source>
-        <translation>## Transcrição</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Archivo</source>
-        <translation>Arquivo</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
-        <translation>A transcrição é automática: pode ter erros; a versão taquigráfica é a oficial.</translation>
-    </message>
-    <message>
         <location line="+25" />
         <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
         <translation>A super-resolução de “%1” não dá conta (%2 ms por quadro de %3): passou para o modo econômico</translation>
@@ -30135,21 +30099,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>O disco dos eventos está em %1 % (restam %2 GB)</translation>
     </message>
     <message>
-        <location line="+153" />
-        <source>%1 (banca %2)</source>
-        <translation>%1 (cadeira %2)</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>%1: queda 1 minuto</source>
-        <translation>%1: falta 1 minuto</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>%1: se terminó su tiempo</source>
-        <translation>%1: acabou o tempo</translation>
-    </message>
-    <message>
         <location line="+36" />
         <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
         <translation>Áudio: “%1” foi pulado por lentidão (passa sem processar). Remonte-o em Áudio quando estiver bem.</translation>
@@ -30235,36 +30184,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+2" />
         <source>El monitor «%1» no está conectado.</source>
         <translation>O monitor “%1” não está conectado.</translation>
-    </message>
-    <message>
-        <location line="+155" />
-        <source>Punto %1: %2</source>
-        <translation>Item %1: %2</translation>
-    </message>
-    <message>
-        <location line="+37" />
-        <source>CON QUÓRUM</source>
-        <translation>HÁ QUÓRUM</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>SIN QUÓRUM</source>
-        <translation>SEM QUÓRUM</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 presentes de %2</source>
-        <translation>%1 presentes de %2</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>APROBADO</source>
-        <translation>APROVADO</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>RECHAZADO</source>
-        <translation>REJEITADO</translation>
     </message>
     <message>
         <location line="+32" />
@@ -30428,11 +30347,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>Abra-o no navegador do dispositivo (na rede local; o código vale por alguns minutos e serve uma vez). Depois aprove-o aqui, em Serviços → Controle web.</translation>
     </message>
     <message>
-        <location line="+44" />
-        <source>La sesión remota no está andando.</source>
-        <translation>A sessão remota não está rodando.</translation>
-    </message>
-    <message>
         <location line="+69" />
         <source>Ese invitado no tiene una fuente en el programa todavía.</source>
         <translation>Esse convidado ainda não tem uma fonte no programa.</translation>
@@ -30581,6 +30495,77 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 fecha o aplicativo e %3.</translation>
+    </message>
+</context>
+<context>
+    <name>AsambleaViewModel</name>
+    <message>
+        <source>Central DCN, banca %1: %2</source>
+        <translation>Unidade central DCN, cadeira %1: %2</translation>
+    </message>
+    <message>
+        <source>Central (debate): %1</source>
+        <translation>Unidade central (debate): %1</translation>
+    </message>
+    <message>
+        <source>Central (fin del debate): %1</source>
+        <translation>Unidade central (fim do debate): %1</translation>
+    </message>
+    <message>
+        <source>## Banca virtual</source>
+        <translation>## Cadeira virtual</translation>
+    </message>
+    <message>
+        <source>## Transcripción</source>
+        <translation>## Transcrição</translation>
+    </message>
+    <message>
+        <source>Archivo</source>
+        <translation>Arquivo</translation>
+    </message>
+    <message>
+        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
+        <translation>A transcrição é automática: pode ter erros; a versão taquigráfica é a oficial.</translation>
+    </message>
+    <message>
+        <source>%1 (banca %2)</source>
+        <translation>%1 (cadeira %2)</translation>
+    </message>
+    <message>
+        <source>%1: queda 1 minuto</source>
+        <translation>%1: falta 1 minuto</translation>
+    </message>
+    <message>
+        <source>%1: se terminó su tiempo</source>
+        <translation>%1: acabou o tempo</translation>
+    </message>
+    <message>
+        <source>Punto %1: %2</source>
+        <translation>Item %1: %2</translation>
+    </message>
+    <message>
+        <source>CON QUÓRUM</source>
+        <translation>HÁ QUÓRUM</translation>
+    </message>
+    <message>
+        <source>SIN QUÓRUM</source>
+        <translation>SEM QUÓRUM</translation>
+    </message>
+    <message>
+        <source>%1 presentes de %2</source>
+        <translation>%1 presentes de %2</translation>
+    </message>
+    <message>
+        <source>APROBADO</source>
+        <translation>APROVADO</translation>
+    </message>
+    <message>
+        <source>RECHAZADO</source>
+        <translation>REJEITADO</translation>
+    </message>
+    <message>
+        <source>La sesión remota no está andando.</source>
+        <translation>A sessão remota não está rodando.</translation>
     </message>
 </context>
 <context>

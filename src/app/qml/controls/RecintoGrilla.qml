@@ -564,7 +564,7 @@ ColumnLayout {
     Item { Layout.fillHeight: true }
 
     // «Apretar para hablar» a un remoto conectado: mientras se mantiene apretado, oye
-    // tu micrófono de la sala en su celular (Studio.hablarARemoto; por MCP sesion_hablar).
+    // tu micrófono de la sala en su celular (Studio.asamblea.hablarARemoto; por MCP sesion_hablar).
     Popup {
         id: ptt
         property var i: null
@@ -572,7 +572,7 @@ ColumnLayout {
         function abrir(integrante) { ptt.i = integrante; ptt.hablando = false; open() }
         function poner(on) {
             if (!ptt.i || on === ptt.hablando) return
-            const e = Studio.hablarARemoto(ptt.i.id, on)
+            const e = Studio.asamblea.hablarARemoto(ptt.i.id, on)
             if (e !== "") { rec.aviso = e; ptt.hablando = false; return }
             ptt.hablando = on
         }

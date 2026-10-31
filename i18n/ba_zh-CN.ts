@@ -29817,42 +29817,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>引擎未运行</translation>
     </message>
     <message>
-        <location line="+35" />
-        <source>Central DCN, banca %1: %2</source>
-        <translation>DCN 中央单元，席位 %1：%2</translation>
-    </message>
-    <message>
-        <location line="+64" />
-        <location line="+8" />
-        <source>Central (debate): %1</source>
-        <translation>中央单元（辩论）：%1</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Central (fin del debate): %1</source>
-        <translation>中央单元（辩论结束）：%1</translation>
-    </message>
-    <message>
-        <location line="+81" />
-        <source>## Banca virtual</source>
-        <translation>## 虚拟席位</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>## Transcripción</source>
-        <translation>## 转写</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Archivo</source>
-        <translation>文件</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
-        <translation>转写为自动生成：可能有错误；以速记版本为准。</translation>
-    </message>
-    <message>
         <location line="+25" />
         <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
         <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）：已降为经济模式</translation>
@@ -30016,21 +29980,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>活动磁盘已用 %1 %（剩余 %2 GB）</translation>
     </message>
     <message>
-        <location line="+153" />
-        <source>%1 (banca %2)</source>
-        <translation>%1（席位 %2）</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>%1: queda 1 minuto</source>
-        <translation>%1：剩余 1 分钟</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>%1: se terminó su tiempo</source>
-        <translation>%1：时间到</translation>
-    </message>
-    <message>
         <location line="+36" />
         <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
         <translation>音频：「%1」因过慢被跳过（未经处理直通）。修复后请在「音频」中重建。</translation>
@@ -30116,36 +30065,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+2" />
         <source>El monitor «%1» no está conectado.</source>
         <translation>显示器「%1」未连接。</translation>
-    </message>
-    <message>
-        <location line="+155" />
-        <source>Punto %1: %2</source>
-        <translation>第 %1 项：%2</translation>
-    </message>
-    <message>
-        <location line="+37" />
-        <source>CON QUÓRUM</source>
-        <translation>达到法定人数</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>SIN QUÓRUM</source>
-        <translation>未达法定人数</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 presentes de %2</source>
-        <translation>%2 人中 %1 人出席</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>APROBADO</source>
-        <translation>通过</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>RECHAZADO</source>
-        <translation>未通过</translation>
     </message>
     <message>
         <location line="+32" />
@@ -30309,11 +30228,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>请在设备的浏览器中打开（需在本地网络；代码几分钟内有效且只能使用一次）。然后在此处 服务 → 网页控制 中批准。</translation>
     </message>
     <message>
-        <location line="+44" />
-        <source>La sesión remota no está andando.</source>
-        <translation>远程会议未运行。</translation>
-    </message>
-    <message>
         <location line="+69" />
         <source>Ese invitado no tiene una fuente en el programa todavía.</source>
         <translation>该嘉宾在节目中尚无来源。</translation>
@@ -30459,6 +30373,77 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>AsambleaViewModel</name>
+    <message>
+        <source>Central DCN, banca %1: %2</source>
+        <translation>DCN 中央单元，席位 %1：%2</translation>
+    </message>
+    <message>
+        <source>Central (debate): %1</source>
+        <translation>中央单元（辩论）：%1</translation>
+    </message>
+    <message>
+        <source>Central (fin del debate): %1</source>
+        <translation>中央单元（辩论结束）：%1</translation>
+    </message>
+    <message>
+        <source>## Banca virtual</source>
+        <translation>## 虚拟席位</translation>
+    </message>
+    <message>
+        <source>## Transcripción</source>
+        <translation>## 转写</translation>
+    </message>
+    <message>
+        <source>Archivo</source>
+        <translation>文件</translation>
+    </message>
+    <message>
+        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
+        <translation>转写为自动生成：可能有错误；以速记版本为准。</translation>
+    </message>
+    <message>
+        <source>%1 (banca %2)</source>
+        <translation>%1（席位 %2）</translation>
+    </message>
+    <message>
+        <source>%1: queda 1 minuto</source>
+        <translation>%1：剩余 1 分钟</translation>
+    </message>
+    <message>
+        <source>%1: se terminó su tiempo</source>
+        <translation>%1：时间到</translation>
+    </message>
+    <message>
+        <source>Punto %1: %2</source>
+        <translation>第 %1 项：%2</translation>
+    </message>
+    <message>
+        <source>CON QUÓRUM</source>
+        <translation>达到法定人数</translation>
+    </message>
+    <message>
+        <source>SIN QUÓRUM</source>
+        <translation>未达法定人数</translation>
+    </message>
+    <message>
+        <source>%1 presentes de %2</source>
+        <translation>%2 人中 %1 人出席</translation>
+    </message>
+    <message>
+        <source>APROBADO</source>
+        <translation>通过</translation>
+    </message>
+    <message>
+        <source>RECHAZADO</source>
+        <translation>未通过</translation>
+    </message>
+    <message>
+        <source>La sesión remota no está andando.</source>
+        <translation>远程会议未运行。</translation>
     </message>
 </context>
 <context>
