@@ -100,3 +100,21 @@ Nombres que el código crea y después busca por nombre (escenas «Asamblea · O
 «Banca con la palabra», «Chat en vivo», «Previa»; valores de enum): si en el texto aparecen
 como valor que se pasa a una herramienta, quedan en español; si son lo que ve el operador
 como etiqueta, se traducen.
+
+## Added 2026-10-31 (timeline, outputs, theme, emitter, metrics)
+
+| Castellano | English | Note |
+|---|---|---|
+| línea (de tiempo) | timeline | «Línea: GO» → "Timeline: GO" |
+| escaleta | running order | guion = rundown |
+| paso / pieza / estante | step / piece / shelf | |
+| HOLD, GO, TAKE, PVW, adlib, hard start, back time, over/under | unchanged | |
+| reenganchar / retoma / corte (de luz) | rejoin / resume / (power) outage | |
+| recorrido | run log | |
+| placa (slate / códec / audio / watchdog) | slate / GPU / audio interface / board | by context |
+| emisor aparte | separate emitter | |
+| oído / escucha | monitoring | |
+| conmutador de escenas | scene switcher | |
+| bajada (gateway) | downlink | |
+| banco de caos | chaos bench | |
+| recortable / recortar / relleno | trimmable / trim / filler | |

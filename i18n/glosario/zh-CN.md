@@ -116,3 +116,27 @@ Nombres que el código crea y después busca por nombre (escenas «Asamblea · O
 «Banca con la palabra», «Chat en vivo», «Previa»; valores de enum): si en el texto aparecen
 como valor que se pasa a una herramienta, quedan en español; si son lo que ve el operador
 como etiqueta, se traducen.
+
+## Agregados 2026-10-31 (línea de tiempo, salidas, tema, emisor, métricas)
+
+| Castellano | 中文 | Nota |
+|---|---|---|
+| línea (de tiempo) | 时间线 | |
+| escaleta | 节目单 | guion = 串联单 |
+| storyboard | 故事板 | |
+| cue (de la línea) | 提示点 | |
+| paso | 步骤 | |
+| pieza | 片段 | |
+| estante | 备选区 | |
+| bloque (de la línea) | 段落 | no 党团 (bloque político) |
+| HOLD, GO, TAKE, hard start, back time, adlib | sin traducir | |
+| over/under | 超时/提前 | en la interfaz |
+| reenganchar | 接续 | |
+| retoma / corte de luz | 恢复 / 断电 | soltar el HOLD = 解除 HOLD |
+| emisor aparte | 独立发送进程 | 发送端 es NDI |
+| salida (operador completo) | 输出 (完整的操作位) | manejar una salida = 控制 |
+| tema del evento / acento | 活动主题 / 强调色 | texto suave = 次要文字, alcance = 适用范围 |
+| sobran / faltan / recortar / relleno | 富余 / 欠缺 / 删减 / 填充 | |
+| edad (transporte) / anillo | 帧龄 / 环形缓冲 | |
+| térmica | 温度 | 正常/偏热/严重/危急 |
+| placa (slate) / placa de audio / placa de video | 垫片画面 / 音频接口 / GPU | |
