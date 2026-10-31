@@ -16,6 +16,8 @@
 //     energía» que en un Intel híbrido los manda a los núcleos E).
 //   - Linux: se intenta subir la prioridad de esos hilos (sin permisos no se puede:
 //     se avisa una vez).
+//   - Los POCOS hilos de audio con plazo (ClaseHilo::Audio), en tiempo real: MMCSS
+//     «Pro Audio», THREAD_TIME_CONSTRAINT_POLICY o SCHED_FIFO (platform/TiempoReal).
 //   - Los hilos de medios (entradas, el cruce a cada capa, los mezcladores, el bucle
 //     del motor) en UN grupo de núcleos que comparte la L3: un CCD en AMD (y lo demás
 //     del proceso al otro) o los de rendimiento en Intel híbrido; Windows con CPU Sets
@@ -32,7 +34,9 @@
 namespace ba::motor {
 
 enum class ClaseHilo {
-    Critico, ///< los que marcan el ritmo: el mezclador de un compositor o de un bus (aggregator), la matriz
+    Audio,   ///< audio con plazo de 10 ms: la salida de cada audiomixer de bus, baanillo/baanillosink, la
+             ///< matriz. Tiempo real (platform/TiempoReal); si el sistema no deja, como Critico
+    Critico, ///< los que marcan el ritmo del video: el compositor (aggregator)
     Medios,  ///< cualquier otro hilo de streaming de GStreamer
     Motor,   ///< el bucle del motor (órdenes, vigilancia: cada 20 ms)
 };
@@ -43,9 +47,10 @@ void prioridadDelProceso();
 void prioridadDelHilo(ClaseHilo c);
 /// Que los hilos de streaming de `pipeline` tomen su nombre («<pipeline>/<elemento>»,
 /// platform/Hilo.hpp) y su clase al arrancar: GStreamer avisa STREAM_STATUS ENTER desde el
-/// propio hilo nuevo (manejador síncrono del bus); el de un aggregator es Critico, el resto
-/// Medios. Lo llama Reloj::adoptar, por donde pasan todos los pipelines del motor. Subir
-/// TODOS empeoraba (compiten entre ellos: ver Prioridad.cpp); la guía de GStreamer y la de
+/// propio hilo nuevo (manejador síncrono del bus); el de un mezclador de audio o el que
+/// lleva/trae audio del gateway es Audio, el de otro aggregator Critico, el resto Medios. Al
+/// dejar la tarea (LEAVE) el hilo vuelve a lo normal: GStreamer lo reusa para otra cosa. Lo
+/// llama Reloj::adoptar, por donde pasan todos los pipelines del motor. Subir TODOS empeoraba (compiten entre ellos: ver Prioridad.cpp); la guía de GStreamer y la de
 /// Intel dicen lo mismo: solo los que hacen falta.
 void prioridadEnPipeline(GstElement* pipeline);
 /// El procesador: núcleos por clase, grupos de L3, lo aplicado. Para el diagnóstico.

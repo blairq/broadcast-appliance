@@ -28,6 +28,7 @@
 #include "Log.hpp"
 #include "RetornoLugar.hpp"
 #include "platform/Ritmo.hpp"
+#include "platform/TiempoReal.hpp"
 #include "i18n/I18n.hpp"
 
 #ifdef _WIN32
@@ -483,6 +484,7 @@ constexpr std::uint64_t kBloqueNs = std::uint64_t{audio_ring::kBlockFrames} * 1'
 
 void MediaPump::retornoAudioThread(std::wstring nombre, std::string salida, ColaIfb* ifb,
                                    const std::atomic<bool>* parar) {
+    ba::platform::tiempoRealAudio(kMiradaAudioMs); // el retorno a los invitados tiene plazo
     SharedAudioRing reader;
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
