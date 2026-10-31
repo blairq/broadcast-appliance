@@ -71,6 +71,7 @@ int main(int argc, char** argv) {
     u.usar(&pagina, true, "entrada-entera:Cam1");
     CHECK(u.cuantas("entrada:Cam1") == 2 && u.cuantas("entrada-entera:Cam1") == 1, "cada clave con su cuenta");
     CHECK(!u.activo() && u.alguien(), "`activo()` es la clave vacía; `alguien()`, cualquiera");
+    CHECK(u.usados() == QSet<QString>({"entrada:Cam1", "entrada-entera:Cam1"}), "`usados()`: cada clave usada, una vez");
     avisos = 0;
     u.usar(&pagina, false, "entrada:Cam1");
     CHECK(avisos == 0 && u.activo("entrada:Cam1"), "soltar una clave que otra vista usa no avisa");

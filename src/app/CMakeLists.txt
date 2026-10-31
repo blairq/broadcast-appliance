@@ -1277,7 +1277,7 @@ endif()
     add_test(NAME test_cuerpo COMMAND test_cuerpo)
     # Bus de eventos y botonera (superficie de control) con ganchos falsos.
     add_executable(test_botonera tests/test_botonera.cpp control/Botonera.cpp control/Botonera.hpp
-                   control/BusEventos.cpp control/BusEventos.hpp)
+                   control/BusEventos.cpp control/BusEventos.hpp control/MonitorBus.cpp control/MonitorBus.hpp)
     target_include_directories(test_botonera PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_botonera PRIVATE ba_core Qt6::Core)
     set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1288,6 +1288,20 @@ endif()
     target_link_libraries(test_uso_por_vistas PRIVATE Qt6::Core)
     set_target_properties(test_uso_por_vistas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_uso_por_vistas COMMAND test_uso_por_vistas)
+    # Los oradores: la regla del reloj, el texto, la lectura de tiempos y la fila (lo que
+    # comparten la interfaz y el MCP; sala::OradoresSala, sin sala).
+    add_executable(test_oradores_sala tests/test_oradores_sala.cpp sala/OradoresSala.cpp sala/OradoresSala.hpp)
+    target_include_directories(test_oradores_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_oradores_sala PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_oradores_sala PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_oradores_sala COMMAND test_oradores_sala)
+    # El Reloj de las vistas (corre solo con lectores) y las fotos de los conectados.
+    add_executable(test_reloj_vistas tests/test_reloj_vistas.cpp ui/Reloj.cpp ui/Reloj.hpp ui/FotosPersonas.cpp
+                   ui/FotosPersonas.hpp)
+    target_include_directories(test_reloj_vistas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_reloj_vistas PRIVATE Qt6::Core)
+    set_target_properties(test_reloj_vistas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_reloj_vistas COMMAND test_reloj_vistas)
     # El control web (dashboard /control/): emparejar, perfiles, llamar, confirmar y mirar
     # contra un McpCore de prueba (docs/planes/PLAN-WEB-CONTROL.md §2).
     add_executable(test_control_web tests/test_control_web.cpp control/ControlWeb.cpp control/ControlWeb.hpp

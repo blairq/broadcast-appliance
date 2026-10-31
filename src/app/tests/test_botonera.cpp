@@ -16,6 +16,7 @@
 
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
+#include "control/MonitorBus.hpp"
 
 using ba::app::control::Botonera;
 using ba::app::control::BusEventos;
@@ -549,6 +550,59 @@ int main(int argc, char** argv) {
         bus.publicarSalidas(json::array({json{{"id", "principal"}, {"nombre", "Principal"}, {"por_omision", true}}}));
         CHECK(bus.ultimo("aire/cam2/tally").is_null() && bus.ultimo("audio/cam2/nivel/Mic 1").is_null(),
               "los temas de una salida borrada se olvidan");
+    }
+
+    // --- Lo que mira el escritorio: la página por vista (UsoPorVistas) y la auditoría ----------
+    {
+        const QString que = QString::fromStdString(pid) + "/";
+        QObject v1, v2;
+        int avisosAud = 0;
+        QObject::connect(&bot, &Botonera::auditoriaCambio, [&] { ++avisosAud; });
+        bot.usar(&v1, true, que);
+        CHECK(bot.paginas().contains(que) && !bot.paginas().value(que).toMap().isEmpty(), "escritorio: la página que se mira está");
+        bot.usar(&v2, true, que);
+        bot.usar(&v1, false, que);
+        CHECK(bot.paginas().contains(que), "escritorio: cerrar una vista no se la saca a la otra");
+        bot.usar(&v2, false, que);
+        CHECK(!bot.paginas().contains(que), "escritorio: sin nadie mirando, se suelta");
+        {
+            QObject v3;
+            bot.usar(&v3, true, que);
+            CHECK(bot.paginas().contains(que), "escritorio: otra vista");
+        }
+        CHECK(!bot.paginas().contains(que), "escritorio: la vista destruida se suelta sola");
+        bot.auditar("prueba", "algo", "detalle");
+        const QVariantList a = bot.auditoriaUi();
+        CHECK(avisosAud >= 1 && !a.isEmpty() && a.first().toMap().value("que").toString() == "algo",
+              "auditoría: avisa y la nueva va primera");
+    }
+
+    // --- El monitor del bus (Botonera → Eventos): un modelo por vista, en su lugar --------
+    {
+        ba::app::control::MonitorBus m;
+        m.setBus(&bus);
+        m.setFiltro("monitor/");
+        CHECK(m.rowCount() == 0, "monitor: apagado no lee nada");
+        bus.publicar("monitor/b", {{"v", 1}});
+        m.setActivo(true);
+        CHECK(m.rowCount() == 1, "monitor: al prenderse, lo que hay");
+        bus.publicar("monitor/a", {{"v", 1}});
+        esperar(400);
+        CHECK(m.rowCount() == 2 && m.data(m.index(0), ba::app::control::MonitorBus::TemaRole).toString() == "monitor/a",
+              "monitor: el tema nuevo entra en su orden");
+        int cambiadas = 0;
+        QObject::connect(&m, &QAbstractItemModel::dataChanged, [&] { ++cambiadas; });
+        int reseteos = 0;
+        QObject::connect(&m, &QAbstractItemModel::modelReset, [&] { ++reseteos; });
+        bus.publicar("monitor/b", {{"v", 2}});
+        esperar(400);
+        CHECK(cambiadas == 1 && reseteos == 0 && m.data(m.index(1), ba::app::control::MonitorBus::ValorRole).toString().contains("2"),
+              "monitor: un valor nuevo cambia su fila en el lugar");
+        CHECK(!m.recientes().isEmpty(), "monitor: los recientes");
+        m.setActivo(false);
+        bus.publicar("monitor/c", {{"v", 1}});
+        esperar(400);
+        CHECK(m.rowCount() == 2, "monitor: apagado no escucha");
     }
 
     // Persistencia del modelo.
