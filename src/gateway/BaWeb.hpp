@@ -85,6 +85,8 @@ class WebSupervisor {
     void setEventoDir(const std::string& dir);
     /// La configuración que se le escribe (para la prueba y para mirarla).
     static std::string armarConf(const Cfg& c, const std::string& aliasFile, const std::string& logPath);
+    /// Lo que dice `exe -v` («ba-web/1.0»), o "" si no contesta. `dir`: donde dejar la salida.
+    static std::string versionDe(const std::string& exe, const std::string& dir);
     /// ¿Un ba-web en 127.0.0.1:`puerto` contesta su sondeo de vida (200) antes de `topeMs`?
     static bool contesta(uint16_t puerto, int topeMs);
 

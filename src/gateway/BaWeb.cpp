@@ -2,6 +2,7 @@
 #include "persist/Escritor.hpp"
 #include "BaWeb.hpp"
 #include "Sondeo.hpp"
+#include "../web/version.h"
 
 #include <algorithm>
 #include <chrono>
@@ -128,6 +129,25 @@ WebSupervisor::~WebSupervisor() {
     std::fill(cfg_.tlsPem.begin(), cfg_.tlsPem.end(), '\0'); // la clave privada, fuera de la memoria
 }
 
+std::string WebSupervisor::versionDe(const std::string& exe, const std::string& dir) {
+    ba::platform::ProcessOptions o;
+    o.exe = exe;
+    o.args = {"-v"};
+    o.hideWindow = true;
+    o.killWithParent = true;
+    o.outputFile = (std::filesystem::path(dir) / "ba-web-version.txt");
+    ba::persist::borrar(o.outputFile); // la salida se agrega al final: que sea solo la de ahora
+    ba::platform::Process p;
+    if (!ba::platform::Process::spawn(o, p, nullptr) || !p.wait(5000).has_value()) {
+        p.kill();
+        return {};
+    }
+    std::string texto;
+    if (!ba::persist::leerArchivo(o.outputFile, texto)) return {};
+    while (!texto.empty() && (texto.back() == '\n' || texto.back() == '\r' || texto.back() == ' ')) texto.pop_back();
+    return texto;
+}
+
 bool WebSupervisor::start() {
     if (started_.load()) return alive_.load();
     std::error_code ec;
@@ -136,6 +156,14 @@ bool WebSupervisor::start() {
         return false;
     }
     std::filesystem::create_directories(cfg_.dir, ec);
+    // La configuración usa directivas de esta versión de ba-web: si el binario es otro (un
+    // paquete mezclado), no se lo usa.
+    if (const std::string v = versionDe(cfg_.exe, cfg_.dir); v != std::string("ba-web/") + BW_VERSION) {
+        log_.warn(llenar(traducir("gateway", "ba-web: es otra versión (%1, se esperaba %2); el túnel va directo al gateway"),
+                         {v.empty() ? "?" : v, std::string("ba-web/") + BW_VERSION}),
+                  -1);
+        return false;
+    }
     setEventoDir("");
     // ba-web escribe (y rota: 5 MiB, tres archivos) su propio log; lo de stderr va aparte.
     if (!ba::persist::escribir(confPath_, armarConf(cfg_, aliasPath_, cfg_.logPath))) {

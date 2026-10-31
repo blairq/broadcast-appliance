@@ -48,7 +48,7 @@ typedef int bw_sock;
 #define BW_BAD (-1)
 #endif
 
-#define BW_VERSION "1.0"
+#include "version.h"
 
 /* ---- Memoria compartida por conteo de referencias (cuerpos del caché) ---- */
 typedef struct bw_blob {
