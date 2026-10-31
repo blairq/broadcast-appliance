@@ -146,7 +146,7 @@ class SignalingServer {
         /// remoto (la tablet igual muestra el texto).
         std::string prompterKey;
         std::string correccionWebroot; // Web/correccion (puesto del corrector de subtítulos, T44)
-        std::string correccionKey;     // clave del puesto: nueva en cada arranque
+        std::string correccionKey;     // clave del puesto (la de arranque; ver Claves)
         std::string rotulosWebroot;  // Web/rotulos (los rotulos desde el celular)
         std::string pantallaWebroot; // Web/pantalla (lo que se manda a un televisor)
         std::string castWebroot;     // Web/cast (el programa en vivo, para un televisor)
@@ -281,8 +281,19 @@ class SignalingServer {
     /// segundos, y una imagen repetida en cada respuesta es el mismo fondo
     /// mandado mil veces. Asi va una vez y el navegador la cachea.
     void setPublicoFondo(std::string bytes, std::string tipo);
-    const std::string& rotulosKey() const { return cfg_.rotulosKey; }
-    const std::string& prompterKey() const { return cfg_.prompterKey; }
+    /// Las claves de las superficies de la sala. Son del EVENTO: las genera y guarda la
+    /// app (cifradas) y se las pasa a la sala al conectar (POST /api/v1/claves), así un
+    /// QR impreso sigue andando tras una caída o un reinicio de la sala. Hasta que la
+    /// app las da, valen las de este arranque (Cfg y la del tablero, aleatorias).
+    struct Claves {
+        std::string prompter, correccion, rotulos, publico, tablero;
+    };
+    Claves claves() const;
+    /// Cambia las que vienen ({prompter?, correccion?, rotulos?, publico?, tablero?}, cada
+    /// una en hexadecimal de 16 a 128). "" si quedaron; si no, cuál está mal (y no cambia nada).
+    std::string ponerClaves(const nlohmann::json& c);
+    std::string rotulosKey() const { return claves().rotulos; }
+    std::string prompterKey() const { return claves().prompter; }
 
     /// true si el offer es de SOLO RECEPCION (ninguna pista sube). Lo que
     /// decide es el SDP, no la buena fe del cliente: el token de ingreso de
@@ -325,8 +336,8 @@ class SignalingServer {
     /// con otro día se genera uno nuevo. Vacío si no hay o es de otro día.
     static std::string pinDeHoy();
     static void guardarPinDeHoy(const std::string& pin);
-    /// Clave del tablero de oradores (aleatoria por arranque).
-    const std::string& boardToken() const { return boardToken_; }
+    /// Clave del tablero de oradores (ver Claves).
+    std::string boardToken() const { return claves().tablero; }
 
    private:
     // --- Conexiones ---------------------------------------------------------
@@ -636,7 +647,8 @@ class SignalingServer {
     std::function<std::string(bool externo)> ice_;
     std::map<std::string, std::string> avatars_; // pid -> JPEG (solo en memoria)
     std::mutex avatarsLock_;
-    std::string boardToken_;
+    mutable std::mutex clavesM_;
+    Claves claves_;
     /// Reescribe 127.0.0.1 -> IP publica en un candidato ("candidate:...").
     std::string publicCandidate(const std::string& line) const;
 

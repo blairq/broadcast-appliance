@@ -8,6 +8,8 @@
 //   4. Si la cola corta ya no tiene todo lo perdido: `reanudado` false (la app republica).
 //   5. Una app que no lee no traba a quien emite: los pedidos que generan eventos
 //      terminan enseguida aunque haya una conexión de eventos que no lee nada.
+//   6. Las claves de las superficies son del evento (G-1): la app las pone y valen
+//      enseguida (la vieja deja de valer); una mal formada no cambia nada.
 
 #include "Log.hpp"
 #include "Room.hpp"
@@ -270,6 +272,23 @@ int main() {
         const auto ev = f.eventos();
         CHECK(!ev.empty() && !ev[0].value("data", json()).value("reanudado", true),
               "si se perdió más de lo que se guarda: no reanudado (la app republica todo)");
+    }
+
+    // --- 6) Las claves del evento ---------------------------------------------------
+    {
+        const std::string auth = "Authorization: Bearer " + kToken + "\r\n";
+        const std::string vieja = srv.claves().publico;
+        const std::string nueva = "0123456789abcdef0123456789abcdef";
+        std::string r = pedir(admin, con("POST", "/api/v1/claves", json{{"publico", nueva}}.dump(), auth));
+        CHECK(r.find("200 OK") != std::string::npos, "la app pone la clave del público");
+        r = pedir(invitados, con("GET", "/api/publico-info?k=" + nueva, ""));
+        CHECK(r.find("200 OK") != std::string::npos, "y vale enseguida");
+        r = pedir(invitados, con("GET", "/api/publico-info?k=" + vieja, ""));
+        CHECK(r.find("403") != std::string::npos, "la de este arranque ya no");
+        r = pedir(admin, con("POST", "/api/v1/claves", json{{"rotulos", "corta"}, {"publico", "f00f00f00f00f00f00"}}.dump(), auth));
+        CHECK(r.find("400") != std::string::npos && srv.claves().publico == nueva, "una mal formada: 400 y no cambia nada");
+        r = pedir(admin, con("GET", "/api/v1/publico-link?target=local", "", auth));
+        CHECK(r.find(nueva) != std::string::npos || r.find("\"ok\":false") != std::string::npos, "el enlace del QR lleva la del evento");
     }
 
     srv.stop();

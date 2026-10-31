@@ -36,9 +36,9 @@
 // <evento>/prompters.json) y el estado de cada uno, del gateway. El MCP elige
 // el mismo: lo que toca el asistente es lo que el operador ve en la página.
 //
-// LA CLAVE ES DEL GATEWAY. La genera él al arrancar (aleatoria, 16 bytes) y
-// no se puede cambiar desde acá: cambiarla dejaría afuera al control que ya
-// está en la mano de alguien. Se muestra para poder dictarla.
+// LA CLAVE ES DEL EVENTO (sala/ClavesEvento): se genera al abrirlo por primera
+// vez, se guarda cifrada y sobrevive a un reinicio de la sala, así el control
+// que ya está en la mano de alguien sigue andando. Se muestra para poder dictarla.
 // ============================================================================
 #pragma once
 

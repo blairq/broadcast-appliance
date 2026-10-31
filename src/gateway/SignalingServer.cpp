@@ -13,6 +13,7 @@
 #include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
 #include "SignalingServer.hpp"
+#include "security/Comparar.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include <nlohmann/json.hpp>
@@ -254,7 +255,11 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     sinks.route = [this](const std::string& pid, const MediaRoute& r) { applyRoute(pid, r); };
     room_.setSinks(std::move(sinks));
     // Sin entropia queda vacia y el tablero no abre (401), nunca con clave predecible.
-    if (!ba::security::randomSecretHex(16, boardToken_)) boardToken_.clear();
+    if (!ba::security::randomSecretHex(16, claves_.tablero)) claves_.tablero.clear();
+    claves_.prompter = cfg_.prompterKey;
+    claves_.correccion = cfg_.correccionKey;
+    claves_.rotulos = cfg_.rotulosKey;
+    claves_.publico = cfg_.publicoKey;
     // El arranque (ver epoch_): sin entropía, la hora alcanza (solo tiene que no repetirse).
     if (!ba::security::randomSecretHex(8, epoch_))
         epoch_ = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -509,8 +514,8 @@ std::pair<std::string, std::string> SignalingServer::eventoPublicoCacheado() {
     out["enLaSala"] = enSala;
     // Participar (preguntar y votar en /publico/): solo si el evento lo prendió
     // (sitio.json → participacion). La clave del público va en el enlace, como en su QR.
-    if (out.value("participacion", false) && !cfg_.publicoKey.empty()) {
-        out["publicoUrl"] = "/publico/#k=" + cfg_.publicoKey;
+    if (const std::string kp = claves().publico; out.value("participacion", false) && !kp.empty()) {
+        out["publicoUrl"] = "/publico/#k=" + kp;
         out["votacionAbierta"] = votacion_.hayAbierta();
     } else {
         out.erase("publicoUrl");
@@ -1308,7 +1313,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             // Sin clave no se comanda: frenarle el texto a alguien en medio de
             // un discurso, desde cualquier telefono de la LAN, seria un chiste
             // caro. La clave viaja en el enlace que le pasa el operador.
-            if (cfg_.prompterKey.empty() || req.value("clave", std::string()) != cfg_.prompterKey) {
+            if (!ba::security::igualesEnTiempoConstante(req.value("clave", std::string()), claves().prompter)) {
                 http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
                 return;
             }
@@ -1326,7 +1331,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
 
     // --- Puesto de corrección de subtítulos (T44) ------------------------------
     // La página del corrector (/correccion/#k=<clave>) pide cada medio segundo
-    // las frases que esperan y manda las correcciones. Con clave (por arranque):
+    // las frases que esperan y manda las correcciones. Con clave (del evento):
     // corregir lo que sale al aire es poder escribir en pantalla.
     if (method == "GET" && (path == "/correccion" || path.rfind("/correccion/", 0) == 0)) {
         if (path == "/correccion") {
@@ -1344,7 +1349,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
         const std::string clave = method == "POST" ? (req.is_object() ? req.value("k", std::string()) : std::string())
                                                    : (q.count("k") ? http::urlDecode(q.at("k")) : std::string());
-        if (cfg_.correccionKey.empty() || clave != cfg_.correccionKey) {
+        if (!ba::security::igualesEnTiempoConstante(clave, claves().correccion)) {
             ipRecordFailure(clientIp);
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
@@ -1534,7 +1539,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         } else if (req.is_object()) {
             clave = req.value("clave", std::string());
         }
-        if (cfg_.rotulosKey.empty() || clave != cfg_.rotulosKey) {
+        if (!ba::security::igualesEnTiempoConstante(clave, claves().rotulos)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1594,7 +1599,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     if (method == "GET" && path == "/api/publico-info") {
         const auto q = http::parseQuery(query);
         const std::string clave = q.count("k") ? http::urlDecode(q.at("k")) : std::string();
-        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+        if (!ba::security::igualesEnTiempoConstante(clave, claves().publico)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1625,7 +1630,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             quien = req.value("yo", std::string());
             codigo = req.value("codigo", std::string());
         }
-        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+        if (!ba::security::igualesEnTiempoConstante(clave, claves().publico)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1660,7 +1665,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
     if (method == "POST" && path == "/api/acreditar") {
         const json req = json::parse(body, nullptr, false);
         const std::string clave = req.is_object() ? req.value("clave", std::string()) : "";
-        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+        if (!ba::security::igualesEnTiempoConstante(clave, claves().publico)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1700,7 +1705,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             clave = req.value("clave", std::string());
             quien = req.value("yo", std::string());
         }
-        if (cfg_.publicoKey.empty() || clave != cfg_.publicoKey) {
+        if (!ba::security::igualesEnTiempoConstante(clave, claves().publico)) {
             http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
             return;
         }
@@ -1951,16 +1956,12 @@ void SignalingServer::sendAvatar(long long fd, const std::string& id) {
 void SignalingServer::apiBoard(long long fd, const std::string& method, const std::string& path,
                                const std::string& query, const std::string& headers,
                                const std::string& body) {
-    // Clave por arranque: la muestra la consola del operador (enlace/QR del
-    // tablero). Comparacion en tiempo constante.
+    // Clave del evento (ver Claves): la muestra la consola del operador (enlace/QR
+    // del tablero). Comparacion en tiempo constante.
     const auto q = http::parseQuery(query);
     std::string key = http::getHeader(headers, "X-BA-Board");
     if (key.empty() && q.count("k")) key = http::urlDecode(q.at("k"));
-    bool ok = !boardToken_.empty() && key.size() == boardToken_.size();
-    unsigned diff = 0;
-    for (size_t i = 0; ok && i < key.size(); ++i)
-        diff |= static_cast<unsigned>(key[i] ^ boardToken_[i]);
-    if (!ok || diff != 0) {
+    if (!ba::security::igualesEnTiempoConstante(key, claves().tablero)) {
         http::sendResponse(fd, 401, "application/json", R"({"ok":false,"error":"auth"})");
         return;
     }
@@ -3034,6 +3035,35 @@ void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen)
         }
         if (msg.value("type", json()) == "bye") break;
     }
+}
+
+SignalingServer::Claves SignalingServer::claves() const {
+    std::lock_guard<std::mutex> l(clavesM_);
+    return claves_;
+}
+
+std::string SignalingServer::ponerClaves(const json& c) {
+    if (!c.is_object()) return "claves";
+    const auto valida = [](const json& v) {
+        if (!v.is_string()) return false;
+        const std::string& s = v.get_ref<const std::string&>();
+        return s.size() >= 16 && s.size() <= 128 &&
+               std::all_of(s.begin(), s.end(), [](char ch) { return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f'); });
+    };
+    Claves n = claves();
+    const std::pair<const char*, std::string*> campos[] = {{"prompter", &n.prompter},
+                                                           {"correccion", &n.correccion},
+                                                           {"rotulos", &n.rotulos},
+                                                           {"publico", &n.publico},
+                                                           {"tablero", &n.tablero}};
+    for (const auto& [k, destino] : campos) {
+        if (!c.contains(k)) continue;
+        if (!valida(c[k])) return k;
+        *destino = c[k].get<std::string>();
+    }
+    std::lock_guard<std::mutex> l(clavesM_);
+    claves_ = n;
+    return {};
 }
 
 json SignalingServer::clientesPrompter(const std::string& id, const Prompter& p) const {

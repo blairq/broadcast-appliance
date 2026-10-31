@@ -673,11 +673,13 @@ int main(int argc, char** argv) {
         sigCfg.registroWebroot = (guestRoot.parent_path() / "registro").string();
         sigCfg.controlWebroot = (guestRoot.parent_path() / "control").string();
     }
-    // Clave del control del teleprompter: nueva en cada arranque. No hace
-    // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
-    // usarlo, y una clave que no se guarda en ningun lado no se filtra.
+    // Las claves de las superficies son del EVENTO: la app las guarda (cifradas) y
+    // se las da a la sala al conectar (POST /api/v1/claves; SignalingServer::Claves),
+    // así un QR impreso sobrevive a un reinicio. Hasta entonces (o sin evento
+    // abierto) valen estas, aleatorias de este arranque.
+    // La del control del teleprompter.
     if (!ba::security::randomSecretHex(16, sigCfg.prompterKey)) sigCfg.prompterKey.clear();
-    // La del puesto de corrección de subtítulos (T44): también por arranque.
+    // La del puesto de corrección de subtítulos (T44).
     if (!ba::security::randomSecretHex(16, sigCfg.correccionKey)) sigCfg.correccionKey.clear();
     // Idem los rotulos, con su propia clave: que el que rotula desde el celular
     // no pueda ademas frenarle el texto al orador.
@@ -685,8 +687,8 @@ int main(int argc, char** argv) {
     // Y la del publico. Esta la tiene TODO el que esta en la sala —viaja en un
     // QR que se proyecta o se reparte—, asi que no es un secreto fuerte y no
     // pretende serlo: es lo que evita que la cola de preguntas la llene
-    // cualquiera que pase por el tunel. Nueva en cada arranque, como las otras:
-    // las preguntas del evento de ayer no son las de hoy.
+    // cualquiera que pase por el tunel. Otro evento, otra clave: las preguntas
+    // del evento de ayer no son las de hoy.
     if (!ba::security::randomSecretHex(16, sigCfg.publicoKey)) sigCfg.publicoKey.clear();
     // La de ba-web (el servidor público adelante del túnel): para que pueda mandar los ids
     // de mirada que juntó su caché. Nueva en cada arranque; le llega por el entorno.

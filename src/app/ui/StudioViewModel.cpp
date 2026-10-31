@@ -37,6 +37,7 @@
 #include "medios/Playlist.hpp"
 #include "platform/Paths.hpp"
 #include "plugins/Plugins.hpp"
+#include "sala/ClavesEvento.hpp"
 #include "sala/CupoSala.hpp"
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
@@ -318,6 +319,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     marca("qr");
     // El tema del evento abierto: lo publica al gateway para todas las páginas web.
     temaEvento_ = std::make_unique<TemaEventoViewModel>(*evento_, *conference_);
+    // Las claves de las superficies (los QR del público, el teleprompter…) son del evento.
+    clavesEvento_ = std::make_unique<sala::ClavesEvento>(conference_->client(),
+                                                         [this]() { return evento_->carpetaAbierta(); });
+    connect(evento_.get(), &EventoViewModel::guionChanged, clavesEvento_.get(), &sala::ClavesEvento::eventoCambio);
     // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
     personas_ = std::make_unique<PersonasViewModel>(rt, *this);
     marca("personas");
