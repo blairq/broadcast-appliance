@@ -16,6 +16,7 @@
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <sstream>
 #include <thread>
 #include <vector>
 
@@ -29,6 +30,10 @@
 #include <windows.h>
 #include <dbghelp.h>
 #include <psapi.h>
+#else
+#include <csignal>
+#include <cxxabi.h>
+#include <sys/types.h>
 #endif
 
 namespace ba::launcher {
@@ -76,11 +81,12 @@ namespace {
 }
 
 /// Se quedan los últimos `n` volcados de `nombre` (con su .json).
-[[maybe_unused]] void podar(const std::filesystem::path& dir, const std::string& nombre, std::size_t n) {
+[[maybe_unused]] void podar(const std::filesystem::path& dir, const std::string& nombre, std::size_t n,
+                            const char* extension = ".dmp") {
     std::error_code ec;
     std::vector<std::filesystem::path> dmps;
     for (const auto& e : std::filesystem::directory_iterator(dir, ec))
-        if (e.path().extension() == ".dmp" && e.path().filename().string().rfind(nombre + "-", 0) == 0) dmps.push_back(e.path());
+        if (e.path().extension() == extension && e.path().filename().string().rfind(nombre + "-", 0) == 0) dmps.push_back(e.path());
     std::sort(dmps.begin(), dmps.end()); // por nombre = por hora
     for (std::size_t i = 0; i + n < dmps.size(); ++i) {
         std::filesystem::remove(dmps[i], ec);
@@ -90,6 +96,66 @@ namespace {
 }
 
 } // namespace
+
+std::string causaDeCodigo(std::optional<int> code) {
+    using ba::i18n::llenar;
+    using ba::i18n::traducir;
+    if (!code) return traducir("caidas", "terminó sin código");
+    switch (*code) {
+        case 139: return traducir("caidas", "error de memoria (SIGSEGV)");
+        case 134: return traducir("caidas", "se abortó (SIGABRT)");
+        case 138: return traducir("caidas", "error de bus (SIGBUS)");
+        case 137: return traducir("caidas", "lo mató el sistema (SIGKILL: ¿falta de memoria?)");
+        case 136: return traducir("caidas", "error aritmético (SIGFPE)");
+        case 132: return traducir("caidas", "instrucción inválida (SIGILL)");
+        case 131: return traducir("caidas", "se colgó (dejó de latir)"); // SIGQUIT: lo pidió el launcher
+        default: break;
+    }
+    if (static_cast<unsigned>(*code) == 0xC0000005u) return traducir("caidas", "violación de acceso (0xC0000005)");
+    if (static_cast<unsigned>(*code) == 0xC00000FDu) return traducir("caidas", "desbordamiento de pila (0xC00000FD)");
+    return llenar(traducir("caidas", "terminó con el código %1"), {std::to_string(*code)});
+}
+
+Volcados::Pilas Volcados::leerPilas(const std::string& texto) {
+    // El formato lo escribe diag/Caidas.cpp: «senal N …», «== cayo <id> <nombre>»,
+    // los marcos «#NN 0x… modulo+0x… simbolo+0x…», «== hilo …», «== imagenes», «FIN».
+    Pilas p;
+    std::istringstream in(texto);
+    std::string l;
+    bool enCayo = false;
+    while (std::getline(in, l)) {
+        if (l.rfind("senal ", 0) == 0) {
+            p.senal = std::atoi(l.c_str() + 6);
+        } else if (l.rfind("== cayo ", 0) == 0) {
+            enCayo = true;
+            const std::size_t esp = l.find(' ', 8);
+            p.hilo = esp == std::string::npos ? std::string() : l.substr(esp + 1);
+        } else if (l.rfind("== ", 0) == 0) {
+            enCayo = false;
+        } else if (l == "FIN") {
+            p.completa = true;
+        } else if (enCayo && l.rfind("#", 0) == 0) {
+            // «#03 0x1 modulo+0x2 simbolo+0x3»: lo de antes del último «+».
+            std::istringstream m(l);
+            std::string num, dir, mod, sim;
+            m >> num >> dir >> mod >> sim;
+            ba::fault::Marco mc;
+            mc.modulo = mod.substr(0, mod.rfind('+'));
+            sim = sim.substr(0, sim.rfind('+'));
+#if !defined(_WIN32)
+            int st = 0;
+            if (char* d = abi::__cxa_demangle(sim.c_str(), nullptr, nullptr, &st); d != nullptr && st == 0) {
+                sim = d;
+                std::free(d);
+            }
+#endif
+            mc.simbolo = sim;
+            p.marcos.push_back(std::move(mc));
+        }
+    }
+    p.atribucion = ba::fault::atribuir(p.marcos, p.hilo);
+    return p;
+}
 
 #if defined(_WIN32)
 
@@ -170,6 +236,8 @@ Volcado escribir(const std::filesystem::path& dir, const std::string& nombre, st
             j["desplazamiento"] = hex(desp);
             j["hilo"] = pedido->hilo;
             v.causa = ba::i18n::llenar(ba::i18n::traducir("caidas", "%1 en %2"), {queFue, mod});
+            v.atribucion = ba::fault::atribuir({{mod, std::string()}});
+            if (v.atribucion.pieza) j["pieza"] = ba::fault::clave(*v.atribucion.pieza);
         } else {
             v.causa = ba::i18n::traducir("caidas", "se colgó (dejó de latir)");
         }
@@ -292,15 +360,118 @@ Volcado Volcados::porCuelgue(const std::string& nombre, std::uint32_t pid, const
 
 #else // !_WIN32
 
+// En POSIX el canal es un archivo (Logs/dumps/<nombre>.pila): lo abre el hijo
+// al instalar su manejador y lo llena solo si se cae (diag/Caidas.cpp).
 struct Volcados::Canal {};
+
+namespace {
+
+std::filesystem::path pilaDe(const std::filesystem::path& dir, const std::string& nombre) { return dir / (nombre + ".pila"); }
+
+std::string leerTodo(const std::filesystem::path& p) {
+    std::ifstream f(p, std::ios::binary);
+    std::stringstream s;
+    s << f.rdbuf();
+    return s.str();
+}
+
+bool hayPilas(const std::filesystem::path& p) {
+    std::error_code ec;
+    const auto tam = std::filesystem::file_size(p, ec);
+    return !ec && tam > 0;
+}
+
+/// Se lleva el archivo de pilas a su nombre con la hora y le escribe el .json al
+/// lado, como en Windows (lo que leen tools/caidas/analizar.py y el cartel).
+Volcado guardar(const std::filesystem::path& dir, const std::string& nombre, std::uint32_t pid,
+                const std::filesystem::path& log, bool colgado) {
+    Volcado v;
+    std::error_code ec;
+    const std::filesystem::path origen = pilaDe(dir, nombre);
+    const std::string texto = leerTodo(origen);
+    const Volcados::Pilas p = Volcados::leerPilas(texto);
+    const std::string base = nombre + "-" + horaLocal("%Y%m%d-%H%M%S") + (colgado ? "-colgado" : "-caida");
+    v.json = dir / (base + ".json");
+    nlohmann::json j{{"componente", nombre == "A" ? "app" : nombre == "B" ? "gateway" : nombre},
+                     {"pid", pid},
+                     {"tipo", colgado ? "colgado" : "caída"},
+                     {"hora", horaLocal("%Y-%m-%dT%H:%M:%S")}};
+    if (!texto.empty()) {
+        v.dmp = dir / (base + ".pila");
+        std::filesystem::rename(origen, v.dmp, ec);
+        if (ec) v.dmp.clear();
+        else j["volcado"] = v.dmp.filename().string();
+    }
+    if (!p.completa) j["error"] = texto.empty() ? "sin pilas" : "pilas a medias";
+    v.atribucion = p.atribucion;
+    const std::string queFue = causaDeCodigo(p.senal > 0 ? std::optional<int>(128 + p.senal) : std::nullopt);
+    if (colgado) {
+        v.causa = ba::i18n::traducir("caidas", "se colgó (dejó de latir)");
+    } else {
+        j["codigo"] = p.senal;
+        j["descripcion"] = queFue;
+        v.causa = p.atribucion.modulo.empty()
+                      ? queFue
+                      : ba::i18n::llenar(ba::i18n::traducir("caidas", "%1 en %2"), {queFue, p.atribucion.modulo});
+    }
+    j["hilo"] = p.hilo;
+    if (!p.atribucion.modulo.empty()) j["modulo"] = p.atribucion.modulo;
+    if (p.atribucion.pieza) j["pieza"] = ba::fault::clave(*p.atribucion.pieza);
+    j["causa"] = v.causa;
+    j["ultimas_lineas"] = ultimasLineas(log, 80);
+    {
+        std::ofstream o(v.json, std::ios::trunc);
+        o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
+    podar(dir, nombre, 10, ".pila");
+    BA_LOG_WARN("dump", 0, nombre + ": " + v.causa + (v.dmp.empty() ? std::string() : " → " + v.dmp.filename().string()));
+    return v;
+}
+
+} // namespace
 
 Volcados::Volcados(std::filesystem::path logsDir) : dir_(std::move(logsDir) / "dumps") {}
 Volcados::~Volcados() = default;
-std::map<std::string, std::string> Volcados::canalPara(const std::string&, const std::filesystem::path&) { return {}; }
-void Volcados::lanzado(const std::string&, std::uint32_t) {}
-std::optional<Volcado> Volcados::tomarCaida(const std::string&) { return std::nullopt; }
-bool Volcados::hayCaida(const std::string&) const { return false; }
-Volcado Volcados::porCuelgue(const std::string&, std::uint32_t, const std::filesystem::path&) { return {}; }
+
+std::map<std::string, std::string> Volcados::canalPara(const std::string& nombre, const std::filesystem::path& logDelHijo) {
+    std::lock_guard<std::mutex> l(mu_);
+    std::error_code ec;
+    std::filesystem::create_directories(dir_, ec);
+    // Lo que quedó de una corrida que no se tomó (el launcher se cerró antes): se guarda.
+    if (hayPilas(pilaDe(dir_, nombre))) guardar(dir_, nombre, 0, logDelHijo, false);
+    std::filesystem::remove(pilaDe(dir_, nombre), ec);
+    logs_[nombre] = logDelHijo;
+    return {{ba::diag::caida::kVariable, pilaDe(dir_, nombre).string()}};
+}
+
+void Volcados::lanzado(const std::string& nombre, std::uint32_t pid) {
+    std::lock_guard<std::mutex> l(mu_);
+    pids_[nombre] = pid;
+}
+
+std::optional<Volcado> Volcados::tomarCaida(const std::string& nombre) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (!hayPilas(pilaDe(dir_, nombre))) return std::nullopt;
+    return guardar(dir_, nombre, pids_[nombre], logs_[nombre], false);
+}
+
+bool Volcados::hayCaida(const std::string& nombre) const {
+    std::lock_guard<std::mutex> l(mu_);
+    return hayPilas(pilaDe(dir_, nombre));
+}
+
+Volcado Volcados::porCuelgue(const std::string& nombre, std::uint32_t pid, const std::filesystem::path& logDelHijo) {
+    // SIGQUIT: el manejador del hijo escribe las pilas de todos sus hilos y se
+    // termina. Se lo espera hasta «FIN» (3 s como mucho); después el supervisor lo mata igual.
+    if (pid != 0 && ::kill(static_cast<pid_t>(pid), SIGQUIT) == 0) {
+        for (int i = 0; i < 60; ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            if (leerTodo(pilaDe(dir_, nombre)).find("\nFIN\n") != std::string::npos) break;
+        }
+    }
+    std::lock_guard<std::mutex> l(mu_);
+    return guardar(dir_, nombre, pid, logDelHijo, true);
+}
 
 #endif
 

@@ -307,8 +307,9 @@ bool Supervisor::startChild(bool isA) {
     if (isA && appNeedsRestore_) {
         c.args.emplace_back("--restore"); // spec 3.1.8
     }
-    if (isA && safeMode_) {
-        c.args.emplace_back("--safe-mode"); // circuit breaker
+    if (isA) {
+        // El modo seguro escalonado (F1-10): el nivel y lo que se apaga por la causa.
+        for (const std::string& a : modoSeguro_.argumentos()) c.args.push_back(a);
     }
     // Lo que el hijo imprime queda en Logs/ de la raiz REAL. A informa todo por
     // stdout/stderr y no tiene otro log. B ya deja sus lineas en Logs/ba.log,
@@ -340,9 +341,20 @@ void Supervisor::restartChild(bool isA) {
         appCrashTimes_.erase(std::remove_if(appCrashTimes_.begin(), appCrashTimes_.end(),
                                             [cutoff](std::uint64_t t) { return t < cutoff; }),
                              appCrashTimes_.end());
-        if (static_cast<int>(appCrashTimes_.size()) > cfg_.maxCaidas && !safeMode_) {
-            safeMode_ = true; // circuit breaker (spec 3.1.8)
-            BA_LOG_WARN("sup", 0, traducir("sup", "circuit breaker: A entra en modo seguro"));
+        if (static_cast<int>(appCrashTimes_.size()) > cfg_.maxCaidas && modoSeguro_.nivel < ba::fault::kNivelMaximo) {
+            // Cortacircuito (spec 3.1.8), ESCALONADO (F1-10): un escalón por disparo.
+            // Los niveles 1 y 2 restauran las escenas; el 3 es el de siempre. Si la
+            // última caída se atribuyó a una pieza (Volcados), esa se apaga ya,
+            // aunque su nivel no haya llegado. La ventana vuelve a empezar: el
+            // escalón siguiente pide otra tanda de caídas.
+            ++modoSeguro_.nivel;
+            if (ultimaPiezaA_) modoSeguro_.extra.insert(*ultimaPiezaA_);
+            appCrashTimes_.clear();
+            std::string apagadas;
+            for (ba::fault::Pieza p : modoSeguro_.apagadas()) apagadas += std::string(apagadas.empty() ? "" : ",") + ba::fault::clave(p);
+            BA_LOG_WARN("sup", 0,
+                        llenar(traducir("sup", "cortacircuito: A pasa al modo seguro nivel %1 (sin: %2)"),
+                               {std::to_string(modoSeguro_.nivel), apagadas}));
         }
         appNeedsRestore_ = true;
     }
@@ -373,27 +385,8 @@ void Supervisor::relanzarAgendados() {
     }
 }
 
-namespace {
-/// Qué quiere decir el código con que terminó un proceso (para el cartel de la app).
-std::string causaDe(std::optional<int> code) {
-    // La causa la muestra la app en el cartel al volver: en el idioma del operador.
-    if (!code) return traducir("caidas", "terminó sin código");
-    switch (*code) {
-        case 139: return traducir("caidas", "error de memoria (SIGSEGV)");
-        case 134: return traducir("caidas", "se abortó (SIGABRT)");
-        case 138: return traducir("caidas", "error de bus (SIGBUS)");
-        case 137: return traducir("caidas", "lo mató el sistema (SIGKILL: ¿falta de memoria?)");
-        case 136: return traducir("caidas", "error aritmético (SIGFPE)");
-        case 132: return traducir("caidas", "instrucción inválida (SIGILL)");
-        default: break;
-    }
-    if (static_cast<unsigned>(*code) == 0xC0000005u) return traducir("caidas", "violación de acceso (0xC0000005)");
-    if (static_cast<unsigned>(*code) == 0xC00000FDu) return traducir("caidas", "desbordamiento de pila (0xC00000FD)");
-    return llenar(traducir("caidas", "terminó con el código %1"), {std::to_string(*code)});
-}
-} // namespace
 
-void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const std::filesystem::path& volcado) {
+void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const Volcado* v) {
     // Runtime/ultima-caida.json lo lee la app al volver (el cartel con la causa);
     // Runtime/caidas.jsonl queda como historial (supervisor_caidas).
     const std::filesystem::path dir = runtimeDir();
@@ -402,11 +395,17 @@ void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<i
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                         std::chrono::system_clock::now().time_since_epoch())
                         .count();
-    const nlohmann::json j{{"componente", isA ? "app" : "gateway"},
-                           {"causa", causa},
-                           {"codigo", code ? nlohmann::json(*code) : nlohmann::json()},
-                           {"volcado", volcado.empty() ? nlohmann::json() : nlohmann::json(volcado.filename().string())},
-                           {"hora_ms", ms}};
+    nlohmann::json j{{"componente", isA ? "app" : "gateway"},
+                     {"causa", causa},
+                     {"codigo", code ? nlohmann::json(*code) : nlohmann::json()},
+                     {"volcado", v == nullptr || v->dmp.empty() ? nlohmann::json() : nlohmann::json(v->dmp.filename().string())},
+                     {"hora_ms", ms}};
+    // De quién fue (F1-12): el módulo de la pila del que se cayó y la pieza que el
+    // modo seguro puede apagar (F1-10). Para saber qué aislar (F3-05).
+    const ba::fault::Atribucion at = v != nullptr ? v->atribucion : ba::fault::Atribucion{};
+    if (!at.modulo.empty()) j["modulo"] = at.modulo;
+    if (at.pieza) j["pieza"] = ba::fault::clave(*at.pieza);
+    if (isA) ultimaPiezaA_ = at.pieza;
     {
         std::ofstream o(dir / "ultima-caida.json", std::ios::trunc);
         o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -444,7 +443,7 @@ void Supervisor::handleCrash(bool isA) {
     BA_LOG_WARN("sup", code.value_or(-1), llenar(traducir("sup", "%1 termino inesperadamente; reiniciando con backoff"), {name}));
     // Si avisó la caída, la causa sale del volcado (qué excepción y en qué módulo).
     const std::optional<Volcado> v = volcados_->tomarCaida(name);
-    anotarCaida(isA, v ? v->causa : causaDe(code), code, v ? v->dmp : std::filesystem::path());
+    anotarCaida(isA, v ? v->causa : causaDeCodigo(code), code, v ? &*v : nullptr);
     restartChild(isA);
 }
 
@@ -462,12 +461,12 @@ void Supervisor::handleHang(bool isA) {
         const std::optional<Volcado> v = volcados_->tomarCaida(name);
         BA_LOG_WARN("sup", 0,
                     llenar(traducir("sup", "%1 se cayó (%2); terminar y relanzar"), {name, v ? v->causa : std::string("?")}));
-        anotarCaida(isA, v ? v->causa : traducir("caidas", "se cayó"), std::nullopt, v ? v->dmp : std::filesystem::path());
+        anotarCaida(isA, v ? v->causa : traducir("caidas", "se cayó"), std::nullopt, v ? &*v : nullptr);
     } else {
         BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 colgado (heartbeat estancado); volcado + terminar"), {name}));
         // Uno por cuelgue, con la hora y un .json que dice qué pasó (Volcados.hpp).
         const Volcado v = volcados_->porCuelgue(name, child(isA).pid(), cfg_.logsDir / (isA ? "app.log" : "gateway.log"));
-        anotarCaida(isA, traducir("caidas", "se colgó (dejó de latir)"), std::nullopt, v.dmp);
+        anotarCaida(isA, traducir("caidas", "se colgó (dejó de latir)"), std::nullopt, &v);
     }
     child(isA).kill();
     child(isA).waitExit(kTerminateMs());
@@ -519,7 +518,8 @@ void Supervisor::forceRestart() {
     relanzador(false).olvidar();
     recentFailures_ = 0;
     appCrashTimes_.clear();
-    safeMode_ = false;
+    modoSeguro_ = {};
+    ultimaPiezaA_.reset();
     appNeedsRestore_ = true;
     launchChildren();
 }

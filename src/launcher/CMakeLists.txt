@@ -82,6 +82,12 @@ target_include_directories(test_politica PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_politica PRIVATE ba_core)
 add_test(NAME test_politica COMMAND test_politica)
 
+# Los volcados de A y B (F1-12): en POSIX, de la caída al .pila y su .json con la atribución.
+add_executable(test_volcados tests/test_volcados.cpp Volcados.cpp Log.cpp)
+target_include_directories(test_volcados PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_volcados PRIVATE ba_core)
+add_test(NAME test_volcados COMMAND test_volcados)
+
 # La salida capturada de A y B (Logs/app.log): rotacion y encabezado por corrida.
 # La carpeta de datos al lado de la .app (macOS) y la mudanza.
 add_executable(test_datos tests/test_datos.cpp Datos.cpp)
