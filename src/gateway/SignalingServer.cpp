@@ -135,7 +135,11 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     pinBloqueoS_ = cfg_.pinBloqueoS;
     Room::Sinks sinks;
     sinks.toGuest = [this](const std::string& pid, const json& msg) { sendToGuest(pid, msg); };
-    sinks.toHosts = [this](const std::string& ev, const json& data) { broadcastToHosts(ev, data); };
+    sinks.toHosts = [this](const std::string& ev, const json& data) {
+        broadcastToHosts(ev, data);
+        // El tablero de oradores es la sala vista desde el atril: cambia con ella.
+        if (ev == "room") empujarASuperficies("tablero");
+    };
     botonera_ = std::make_unique<BotoneraBorde>(cfg_.botoneraWebroot, log_,
                                                 [this](const json& d) { broadcastToHosts("botonera", d); });
     botonera_->setCaras(cfg_.carasBotonera);
@@ -3096,6 +3100,7 @@ void SignalingServer::avisarPrompter(const std::string& pedido, bool conTexto, b
 std::string SignalingServer::claveDeSuperficie(const std::string& tipo) const {
     if (tipo == "rotulos") return claves().rotulos;
     if (tipo == "correccion") return claves().correccion;
+    if (tipo == "tablero") return claves().tablero;
     return {};
 }
 
@@ -3107,6 +3112,7 @@ json SignalingServer::mensajeDeSuperficie(const std::string& que) {
         return json{{"type", "correccion"}, {"pendientes", correccionPend_}, {"edad_ms", correccionMs_ ? ahora - correccionMs_ : 0}};
     }
     if (que == "votacion") return json{{"type", "votacion"}, {"votacion", votacion_.estadoPublico("", "")}};
+    if (que == "tablero") return json{{"type", "tablero"}, {"board", room_.boardSnapshot(nowMs())}};
     return {};
 }
 
@@ -3124,7 +3130,7 @@ void SignalingServer::empujarASuperficies(const std::string& que) {
 
 void SignalingServer::saludarSuperficie(const std::string& pid) {
     const std::string tipo = superficies_.tipoDe(pid);
-    if (tipo == "rotulos" || tipo == "correccion") {
+    if (tipo == "rotulos" || tipo == "correccion" || tipo == "tablero") {
         sendToGuest(pid, mensajeDeSuperficie(tipo));
         return;
     }
