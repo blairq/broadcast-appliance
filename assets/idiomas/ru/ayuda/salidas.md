@@ -1,0 +1,4 @@
+- `stream_start {"server"?, "key"?}`: ключ НИКОГДА не сохраняется (берётся из переменной BA_STREAM_KEY или передаётся в `key`, только в памяти).
+- `stream_stop`, `record_start`, `record_stop`. `status` показывает время, кбит/с, потерянные кадры и кодировщик.
+- Перед выходом в эфир: `status` (стабильный fps, мало droppedFrames), `foto_programa`, `mixer_list` (уровни).
+- Кодирование/разрешение: настройки `encoder.*`, `video.*` (`settings_list {"section": "Codificación"}`).

@@ -1,0 +1,7 @@
+- `speakers_config {"enabled": true, "defaultTime": "3:00", "multi": false, "defaultSlot": 1, "carousel": "manual"|"chain"|"time", "graceSec": 10}`。
+- 开启该模式后，**准入**会把人放进**队列**（他们观看节目，不会在播）。
+- `speaker_next` 让下一位上场；`speaker_on_air {"participant", "on"}` 让指定的人上场（on=false 让其下场：回到“已发言”）。
+- `speaker_move {"participant", "position"}`、`speaker_time {"participant", "time"}`、`participant_requeue`。
+- 计时器**从不让任何人下场**，除非使用 `time` 轮换模式（过零再加宽限时间后轮换）。时间用完后开始负数计时；嘉宾能看到。
+- `remotos_fila_ver`：队列，以及在播者的剩余时间（`remainingSec` 为负 = 已超时）。
+- 平板用的看板：`room_link {"board": true}`。

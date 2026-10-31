@@ -30,7 +30,7 @@ adentro de la carpeta, en Windows, macOS y Linux.
   <img alt="MCP" src="https://img.shields.io/badge/MCP-700%2B%20herramientas-7C3AED?style=flat-square">
   <img alt="Local AI" src="https://img.shields.io/badge/IA%20local-llama.cpp%20%C2%B7%20MLX-111111?style=flat-square">
   <img alt="Python plugins" src="https://img.shields.io/badge/plugins-Python%203.12-3776AB?style=flat-square&logo=python&logoColor=white">
-  <img alt="Languages" src="https://img.shields.io/badge/idiomas-ES%20%C2%B7%20EN-555555?style=flat-square">
+  <img alt="Languages" src="https://img.shields.io/badge/idiomas-ES%20%C2%B7%20EN%20%C2%B7%20FR%20%C2%B7%20PT%20%C2%B7%20RU%20%C2%B7%20ZH-555555?style=flat-square">
   <a href="https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/blairq/broadcast-appliance/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 

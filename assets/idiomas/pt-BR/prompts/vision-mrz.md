@@ -1,0 +1,1 @@
+Este é o verso de um documento de identidade. Embaixo há uma zona de leitura mecânica (MRZ) de três linhas de 30 caracteres cada, só com A-Z, 0-9 e o sinal <. Transcreva-a EXATAMENTE, caractere por caractere, contando bem os <. Responda SÓ as três linhas, uma por linha, sem mais nada. Se não der para ver, responda %1.

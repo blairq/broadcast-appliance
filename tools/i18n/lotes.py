@@ -13,6 +13,11 @@ mismo .ts: cada lote es un archivo JSON aparte.
       Quien traduce completa "traduccion" (o "traducciones", una por forma del plural del
       idioma) y deja todo lo demás igual.
 
+  tools/i18n/lotes.py exportar i18n/ba_fr.ts <carpeta> --referencia i18n/ba_en.ts
+      Lo mismo, y cada texto lleva además "referencia": cómo quedó en ese otro idioma
+      (sus formas, si es plural). Ayuda a quien traduce a un tercer idioma: el término
+      técnico ya elegido, y qué es cada cosa cuando el original es corto.
+
   tools/i18n/lotes.py importar i18n/ba_en.ts <carpeta>
       Mete en el .ts lo traducido (y lo marca terminado); lo que quedó vacío sigue sin
       terminar. Revisa que la traducción conserve los %1, %n y las marcas fijas
@@ -59,8 +64,22 @@ def mensajes(raiz):
             i += 1
 
 
-def exportar(ts: pathlib.Path, carpeta: pathlib.Path, por: int, todos: bool = False) -> int:
+def traducidos(ts: pathlib.Path) -> dict:
+    """{(contexto, fuente, desambiguación): traducción (o lista de formas)} de lo terminado en `ts`."""
+    out = {}
+    for _, ctx, m in mensajes(ET.parse(ts).getroot()):
+        t = m.find("translation")
+        if t is None or t.get("type") in ("unfinished", "obsolete", "vanished"):
+            continue
+        clave = (ctx, m.findtext("source") or "", m.findtext("comment") or "")
+        out[clave] = [f.text or "" for f in t.iter("numerusform")] if m.get("numerus") == "yes" else (t.text or "")
+    return out
+
+
+def exportar(ts: pathlib.Path, carpeta: pathlib.Path, por: int, todos: bool = False,
+             referencia: pathlib.Path | None = None) -> int:
     codigo = ts.stem[3:]
+    ref = traducidos(referencia) if referencia else {}
     regla = perfil(codigo).get("plural", "uno-otro")
     raiz = ET.parse(ts).getroot()
     pendientes = []
@@ -75,6 +94,10 @@ def exportar(ts: pathlib.Path, carpeta: pathlib.Path, por: int, todos: bool = Fa
             e["desambiguacion"] = m.findtext("comment")
         if m.findtext("extracomment"):
             e["comentario"] = m.findtext("extracomment")
+        if ref:
+            r = ref.get((ctx, e["fuente"], m.findtext("comment") or ""))
+            if r:
+                e["referencia"] = r
         terminada = t.get("type") != "unfinished"
         if m.get("numerus") == "yes":
             e["plural"] = True
@@ -166,10 +189,11 @@ def main() -> int:
     ap.add_argument("ts", type=pathlib.Path)
     ap.add_argument("carpeta", type=pathlib.Path)
     ap.add_argument("--por", type=int, default=400)
+    ap.add_argument("--referencia", type=pathlib.Path, help="otro .ts: cada texto lleva cómo quedó en ese idioma")
     ap.add_argument("--todos", action="store_true",
                     help="exportar también lo ya traducido (con su traducción): para revisar o unificar términos")
     a = ap.parse_args()
-    return exportar(a.ts, a.carpeta, a.por, a.todos) if a.accion == "exportar" else importar(a.ts, a.carpeta)
+    return exportar(a.ts, a.carpeta, a.por, a.todos, a.referencia) if a.accion == "exportar" else importar(a.ts, a.carpeta)
 
 
 if __name__ == "__main__":

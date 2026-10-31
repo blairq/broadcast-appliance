@@ -1,0 +1,5 @@
+- `mixer_list`: cada fonte de áudio com volume (dB), mudo e pico atual (dBFS), e o pico do programa.
+- `audio_set {"name", "volumeDb", "muted"}` (também `source_update`).
+- Referências: voz bem nivelada = picos de -18 a -6 dBFS no programa. Perto de 0 = satura (abaixe). -100 = silêncio (fonte muda, desligada ou sem sinal).
+- Os convidados têm processamento de voz (ajuste guests.audioPreset).
+- Para melhorar COMO uma fonte soa (ruído, sibilância, compressão, EQ) com módulos LSP: `help {"topic": "audio_rack"}`.

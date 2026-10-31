@@ -1,0 +1,5 @@
+- `mixer_list`：每个音频来源的音量（dB）、静音状态和当前峰值（dBFS），以及节目的峰值。
+- `audio_set {"name", "volumeDb", "muted"}`（也可用 `source_update`）。
+- 参考：电平合适的人声 = 节目峰值在 -18 到 -6 dBFS 之间。接近 0 = 削波（调低）。-100 = 无声（来源已静音、关闭或无信号）。
+- 嘉宾有语音处理（设置 guests.audioPreset）。
+- 要用 LSP 模块改善来源的**音色**（噪声、齿音、压缩、EQ）：`help {"topic": "audio_rack"}`。

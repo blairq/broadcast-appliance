@@ -1,0 +1,49 @@
+Un seul graphe pour toute la vidéo du studio, comme un pipeline GStreamer. Chaque entrée (caméra, réseau, virtuelle) est un sous-graphe : `<entrada>.entrada` -> cartes -> `<entrada>.escena` (ce que voient les scènes). Les cartes d'image tournent dans la chaîne GStreamer de chaque entrée ; celles que le moteur ne fait pas encore tourner (sortie, prise, compositeur) l'indiquent dans leur état. Toutes les entrées suivent l'horloge vidéo du studio (`status` : canevas et fps).
+
+## Comment travailler (toujours dans cet ordre)
+1. **Regarder** : `video_estado` (toutes, avec leur diagnostic) et `video_estado {"entrada": ...}` avant de toucher à quoi que ce soit : taille, fps, format, couleur (BT.601/709, plage), si elle arrive entrelacée, horloge, tampon réseau. `video_grafo` montre les cartes.
+2. **Construire** avec `video_pipeline` (UN appel par entrée, il valide tout et ne change rien si quelque chose échoue). Les outils séparés (`video_tarjeta_agregar`, `_ajustar`, `_quitar`, `video_cable`) servent aux retouches.
+3. **Vérifier** : `video_estado {"entrada": ...}` de nouveau (le `diagnostico` doit rester sans erreurs) et `foto_fuente {"name": ...}` pour voir l'image.
+
+## Recettes
+**La même correction de couleur sur plusieurs caméras** (qu'en changeant une fois, cela change partout), en UN appel :
+`video_pipeline {"entradas": ["Sony", "Pelco", "Panasonic"], "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.9}, "compartida": "Color camaras"}], "local_por_entrada": {"Pelco": {"propiedades": {"hue": 0.04}}}}`. Le contrôleur devient `estudio.color-camaras`. `modo: "agregar"` si l'entrée a déjà des cartes à conserver (par défaut il les remplace). Ensuite, ajuster la carte commune : `video_tarjeta_ajustar` sur n'importe laquelle des cartes pilotées (cela va au contrôleur) ou sur le contrôleur. `video_controlador` pour le faire à partir d'une carte qui existe déjà.
+
+**Corriger une caméra** (TOUJOURS GStreamer d'abord) : carte `gst` avec `videobalance` (luminosité, contraste, saturation, teinte) et `gamma` ; une dominante (vert, magenta) : un petit `hue` (±0.02 à ±0.08). Seulement si GStreamer ne suffit pas : la carte propre `color`.
+
+**Entrelacée / mal déclarée** (`video_estado` le dit) : `{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}` (désentrelace à la source, là où sont les trames) ; couleurs décalées en HD qui déclare 601 : `{"matriz_declarada": "601", "matriz_real": "709"}`. Les images par seconde différentes de celles du canevas sont converties par l'entrée elle-même (elle répète ou saute des images) : pas besoin de carte.
+
+**Mosaïque / image dans l'image / côte à côte** : `video_mosaico {"escena", "entradas": [...], "disposicion": "mosaico|pip|lado", "nombre"}` en UN appel (prend chaque entrée avec ses cartes et masque les entrées isolées dans cette scène : la mosaïque continue de les recevoir). Pour retoucher : `video_tarjeta_ajustar` sur le compositeur avec `capas.in_N` {x, y, ancho, alto 0..1, opacidad, orden}.
+
+**Assembler des caméras : panoramique ou 360** (tout sur le GPU) : `video_panoramica {"camaras": [...], "preset": "fila"|"360", "campo", "escena", "nombre"}` en UN appel. Assemble jusqu'à 8 caméras (un flux chacune ; la première est l'objectif 1) côte à côte dans son canevas et corrige la déformation de chacune et leur raccord. `preset: "fila"` : caméras ordinaires de `campo` degrés réparties avec 10 % de recouvrement ; on obtient la **bande** (panoramique cylindrique) de la taille de la somme des résolutions (4 en 1080p = 7680x1080 ; 16384 de large au maximum). `preset: "360"` : deux fisheyes de 190° dos à dos ; on obtient la **vue**, une caméra ordinaire qui est un PTZ virtuel (`yaw`, `pitch`, `fov` = pan, tilt, zoom). Une caméra 360 qui envoie tout dans UN seul flux (équirectangulaire ou les deux cercles ensemble) : carte `vista360` dans sa chaîne (`modo`).
+Calibrer à la main avec `video_tarjeta_ajustar` sur la carte (`estudio.panoramica`), en regardant avec `foto_fuente` :
+1. `ver: "entrada"` : le brut avec les cercles des fisheyes et les limites de chaque caméra ; déplacer `lenteN_x`, `lenteN_y`, `lenteN_radio` jusqu'à ce que les cercles coïncident.
+2. `ver: "tira"` (ou `"panorama"`) avec `guia: "esfera"` (parallèles et méridiens tous les 15°) : comment chacune s'emboîte (`lenteN_yaw`, `_pitch`, `_roll`) et son `_campo`, jusqu'à ce que l'horizon soit droit et que les coutures ne se voient pas (`mezcla` : la largeur du raccord, en degrés).
+3. Un guide `rectangulo` ou `circulo` (`guia_x`, `guia_y`, `guia_ancho`, `guia_alto` en fractions de la sortie) au-dessus de quelque chose qui a cette forme (une porte, une horloge) : la déformation (`lenteN_k1`, `_k2` ; barillet < 0 < coussinet) jusqu'à ce que cela coïncide. `lenteN_tipo` : `ojo` (fisheye) ou `normal`.
+Les paramètres, un par un : `video_tarjeta_ayuda {"tipo": "panoramica"}`. Dans l'interface : page Vidéo, la carte, avec des raccourcis pour chaque étape.
+
+**Flux réseau** (SRT, RTMP, RTSP) : `video_entrada_red {"nombre", "uri", "escena", "latencia_ms"}` (jamais `network_input_add` pour cela : celle-là ne se synchronise pas). Chaque image sort à son heure de capture + la latence (un tampon propre). Plus de latence = plus de tolérance au réseau et plus de retard.
+
+**Synchroniser des entrées** : `video_sincronia {"a": ..., "b": ..., "aplicar": true}` mesure le retard de l'une par rapport à l'autre en comparant ce qu'on voit (il faut quelque chose en commun qui change : la même image, un mouvement, un applaudissement) et le corrige ; une nouvelle mesure doit donner ~0. À la main : `video_desfase {"entrada", "ms"}`.
+- RTSP apporte l'heure de capture de l'émetteur (RTCP/NTP) : avec la même horloge, il s'aligne tout seul.
+- SRT et RTMP ne l'apportent pas : on mesure avec `video_sincronia`.
+- Caméras locales : on peut seulement les retarder ; pour les aligner avec une caméra réseau, on retarde la locale ou on avance celle du réseau (son décalage accepte des valeurs négatives).
+
+**Horloges** : `video_reloj` sans rien indique l'horloge du studio et son état sur chaque entrée réseau. `{"tipo": "ntp", "servidor": ...}` (toutes sur le même NTP), `{"tipo": "ptp", "dominio": 0}` (IEEE 1588), `{"tipo": "red", "servidor": ip, "puerto": 8554}` (l'horloge d'un AUTRE appareil), `{"publicar_puerto": 8554}` (publier celle de cet appareil pour que d'autres l'utilisent), `{"latencia_ms": ...}` (le tampon de toutes les entrées réseau).
+
+**Mixage GStreamer** (tout module à plusieurs entrées : `compositor`, `glvideomixer`, `d3d12compositor`, `glmosaic`, `smpte`, `shapewipe`, `glstereomix` ; `video_modulos {"soloMezclas": true}` liste ceux de ce système) : `video_tarjeta_agregar {"tipo": "mezcla", "elemento": "smpte", "params": {"propiedades": {"type": "bar-wipe-lr"}, "nombre": "Cortina"}}`. Ses ports sont ceux du module (`sink_0`, `sink_1`… à la demande, toujours un libre ; `sink1`/`sink2` pour smpte ; `video_sink`/`mask_sink` pour shapewipe) : `video_cable` depuis chaque entrée vers son port. Les propriétés de chaque entrée (xpos, ypos, width, height, alpha, zorder…) : `video_filtros {"id", "puerto"}` les liste et `video_tarjeta_ajustar {"id", "params": {"pads": {"sink_1": {"xpos": 960}}}}` les modifie. Cela sort comme une source avec `nombre` (`video_salida_a_escena`). Tourne sur le GPU si le module le permet (D3D12 sous Windows, GL sous Mac/Linux).
+
+**Modules GStreamer** : `video_modulos` (catalogue documenté en espagnol ; `buscar`, `categoria`, `elemento` avec ses propriétés). Seuls ceux `tarjeta: true` vont sur une entrée ; ceux `mezcla: true`, en Mixage GStreamer. Un module en 4:2:0 ou avec de la latence est signalé par le diagnostic. Les propriétés se passent avec leur nom GStreamer (les enum par leur nick).
+
+**« Est-ce que tout va bien ? » (tout vérifier)** : `video_estado` sans rien (toutes les entrées avec leur diagnostic) -> appliquer les corrections de gravité `aviso` ou `error` (chacune apporte l'appel exact ; les `info` sont seulement à rapporter) -> si l'on a touché aux décalages ou aux horloges, `video_sincronia` sans appliquer entre celles qui doivent coïncider (doit donner ~0) -> `status` (fps, images perdues, CPU) -> `mixer_list` (quel audio elles apportent : les entrées masquées dans une mosaïque continuent de sonner dans cette scène si elles ont de l'audio). Un « arrivées en retard » avec « tout juste connectée », c'est la rafale du démarrage : n'augmentez pas le tampon, regardez de nouveau dans 10 s.
+
+**Voir l'image** : `imagen_preguntar` sur une scène ou une source, avec une question précise (« y a-t-il quelque chose d'étiré ou de noir ? », « quelle heure indiquent les horloges de chaque cadre ? »). Sert pour le cadrage, les noirs, les étirements et lire du texte ; PAS pour comparer finement la luminosité ou la couleur entre cadres : pour cela il y a les chiffres (`video_grafo`, valeurs effectives).
+
+**Visages** : la carte `rostros` est ajoutée toute seule par Personnes quand on utilise `entrada:<camara>` ; `marcar` dessine les visages.
+
+**Ce qu'aucun module ne fait** (un effet propre, un filtre inhabituel, une analyse : compter, détecter du mouvement, lire quelque chose dans l'image) : NE dites PAS que c'est impossible. Cela se programme en Python comme une carte de plugin (`baplugin`), avec numpy ou avec GStreamer à l'intérieur (chaînes et éléments propres écrits en Python) : `help {"topic": "plugins"}`, section « Video », et le modèle `ejemplo-video-gst`.
+
+## À savoir
+- Les cartes `gst` ajoutent 1 image de latence (elles ne freinent pas la vidéo). Si l'on compare deux entrées et qu'une seule a une carte `gst`, cela fait une image d'écart : tenez-en compte ou mesurez-le avec `video_sincronia`.
+- `video_grafo_limpiar {"entrada"}` remet une entrée dans son état d'origine.
+- Entrées virtuelles de test (barres, mire de zones, balle) : `video_entrada_virtual {"nombre", "preset", "escena"}`.

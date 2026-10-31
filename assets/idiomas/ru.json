@@ -1,0 +1,39 @@
+{
+  "codigo": "ru",
+  "nombre": "Русский",
+  "locale": "ru_RU",
+  "direccion": "ltr",
+  "plural": "eslavo",
+  "respaldo": [
+    "en"
+  ],
+  "voz": {
+    "_comentario": "Ver docs/desarrollo/I18N.md, «Perfil del idioma: voz». palabrasPorSegundo: estimado (sin medir con estas voces; el ruso tiene palabras más largas que el inglés); el prompter lo corrige solo al hablar. Sin nemotron: no está confirmado que Nemotron 3.5 entienda ruso.",
+    "sintesis": [
+      {"repo": "csukuangfj/vits-piper-ru_RU-irina-medium"},
+      {"repo": "csukuangfj/vits-piper-ru_RU-dmitri-medium"},
+      {"repo": "csukuangfj/vits-piper-ru_RU-denis-medium"}
+    ],
+    "palabrasPorSegundo": 2.2,
+    "reconocimiento": {"parakeet": "auto"}
+  },
+  "buscador": {
+    "_comentario": "How the assistant's tool search splits and normalizes words (src/app/mcp/McpIndice.cpp). Russian: Cyrillic letters are part of a word, each with its lowercase; «ё» compares as «е» (most people type «е»). There is no «imperativo» or «infinitivo»: Russian imperatives («покажи», «включи», «выключи») and infinitives («показать», «включить») share their stem, and the tool search words already list both, so the prefix match does the rest; no «pegados» (pronouns do not attach to the verb). Not in «vacias» because they tell what is asked: не, нет, да, стоп, все, всё, следующий, предыдущий, включи, выключи, вкл, выкл, вверх, вниз, на, с, без. See docs/desarrollo/I18N.md, «Perfil del idioma: buscador».",
+    "letras": {"а": "а", "б": "б", "в": "в", "г": "г", "д": "д", "е": "е", "ё": "ё", "ж": "ж", "з": "з", "и": "и",
+               "й": "й", "к": "к", "л": "л", "м": "м", "н": "н", "о": "о", "п": "п", "р": "р", "с": "с", "т": "т",
+               "у": "у", "ф": "ф", "х": "х", "ц": "ц", "ч": "ч", "ш": "ш", "щ": "щ", "ъ": "ъ", "ы": "ы", "ь": "ь",
+               "э": "э", "ю": "ю", "я": "я",
+               "А": "а", "Б": "б", "В": "в", "Г": "г", "Д": "д", "Е": "е", "Ё": "ё", "Ж": "ж", "З": "з", "И": "и",
+               "Й": "й", "К": "к", "Л": "л", "М": "м", "Н": "н", "О": "о", "П": "п", "Р": "р", "С": "с", "Т": "т",
+               "У": "у", "Ф": "ф", "Х": "х", "Ц": "ц", "Ч": "ч", "Ш": "ш", "Щ": "щ", "Ъ": "ъ", "Ы": "ы", "Ь": "ь",
+               "Э": "э", "Ю": "ю", "Я": "я"},
+    "sinTildes": {"ё": "е"},
+    "vacias": ["и", "в", "во", "к", "ко", "от", "по", "о", "об", "у", "из", "за", "для", "до", "а", "или", "но",
+               "это", "этот", "эта", "эти", "то", "тот", "та", "те", "мне", "меня", "мой", "моя", "мои", "мою",
+               "ты", "вы", "вам", "вас", "ваш", "ваша", "ваши", "мы", "нам", "нас", "наш", "наша", "я", "он", "она",
+               "оно", "они", "его", "ее", "их", "пожалуйста", "плиз", "можно", "можешь", "можете", "мог", "могли",
+               "бы", "ли", "же", "ну", "вот", "так", "очень", "просто", "сейчас", "теперь", "давай", "давайте",
+               "эй", "ок", "окей", "хорошо", "ладно", "э", "эм", "м", "там", "тут", "здесь", "какой", "какая",
+               "какие", "как", "что", "чтобы", "надо", "нужно", "хочу", "хочется", "есть", "быть", "будет"]
+  }
+}

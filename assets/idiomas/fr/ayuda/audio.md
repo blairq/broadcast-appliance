@@ -1,0 +1,5 @@
+- `mixer_list` : chaque source audio avec son volume (dB), sa coupure et sa crête actuelle (dBFS), et la crête du programme.
+- `audio_set {"name", "volumeDb", "muted"}` (aussi `source_update`).
+- Repères : une voix bien réglée = crêtes de -18 à -6 dBFS dans le programme. Près de 0 = saturation (baisser). -100 = silence (source muette, éteinte ou sans signal).
+- Les invités ont un traitement de la voix (réglage guests.audioPreset).
+- Pour améliorer la FAÇON dont sonne une source (bruit, sifflantes, compression, EQ) avec les modules LSP : `help {"topic": "audio_rack"}`.

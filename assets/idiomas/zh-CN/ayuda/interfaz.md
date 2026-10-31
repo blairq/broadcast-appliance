@@ -1,0 +1,5 @@
+- `ui_show_page {"page": "dashboard"|"escenas"|"sala"|"youtube"|"twitch"|"facebook"|"configuracion"}`、`ui_notify {"message"}`。
+- `dashboard_list`：卡片、背景、输出窗口和显示器。
+- `dashboard_card {"add": "monitor", "source": "guest:1"}` / `{"remove": id}` / `{"reset": true}`。
+- `output_window {"cosas": ["programa"]}` 或 `{"open": ["program","guest:1"], "layout": "grid"|"focus"|"pip"|"row", "screen": "2", "fullscreen": true}`：一个会被记住的独立窗口（`screen`：显示器的 id、序号或名称）。
+- `feeds_list`：有效的视频键。

@@ -309,6 +309,222 @@
    "fecha": "2026-10-02"
   },
   {
+   "repo": "csukuangfj/vits-piper-fr_FR-tom-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "b06801cef7edce85e3a23acb9cc3526560e7075d",
+   "archivos": [
+    "fr_FR-tom-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "fr_FR-tom-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "fr_FR-tom-medium.onnx",
+   "nombre": "Tom (francés, hombre)",
+   "idioma": "fr",
+   "acento": "de Francia",
+   "genero": "hombre",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.082,
+   "fecha": "2026-10-30"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-fr_FR-upmc-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "282bacef30b429ca30676bdd0eec155ea8d1b402",
+   "archivos": [
+    "fr_FR-upmc-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "fr_FR-upmc-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "fr_FR-upmc-medium.onnx",
+   "nombre": "UPMC (francés, mujer y hombre)",
+   "idioma": "fr",
+   "acento": "de Francia",
+   "genero": "varias",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.095,
+   "fecha": "2026-10-30"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-ru_RU-irina-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "b095bed45c39813266edf14ffa2bade5ebfc929c",
+   "archivos": [
+    "ru_RU-irina-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "ru_RU-irina-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "ru_RU-irina-medium.onnx",
+   "nombre": "Irina (ruso, mujer)",
+   "idioma": "ru",
+   "acento": "de Rusia",
+   "genero": "mujer",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.081,
+   "fecha": "2026-10-30"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-ru_RU-dmitri-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "51cc3e9ea521e33ef3771f11e02b29ecb42a91f1",
+   "archivos": [
+    "ru_RU-dmitri-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "ru_RU-dmitri-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "ru_RU-dmitri-medium.onnx",
+   "nombre": "Dmitri (ruso, hombre)",
+   "idioma": "ru",
+   "acento": "de Rusia",
+   "genero": "hombre",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.081,
+   "fecha": "2026-10-30"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-ru_RU-denis-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "1e2f78fc13100abc60bf56264dc2ee254b4c5f8e",
+   "archivos": [
+    "ru_RU-denis-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "ru_RU-denis-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "ru_RU-denis-medium.onnx",
+   "nombre": "Denis (ruso, hombre)",
+   "idioma": "ru",
+   "acento": "de Rusia",
+   "genero": "hombre",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.081,
+   "fecha": "2026-10-30"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-pt_BR-cadu-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "eb2a3d3b4184b5aa21dd5bfd9216225e6946284f",
+   "archivos": [
+    "pt_BR-cadu-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "pt_BR-cadu-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "pt_BR-cadu-medium.onnx",
+   "nombre": "Cadu (portugués, hombre)",
+   "idioma": "pt",
+   "acento": "de Brasil",
+   "genero": "hombre",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.081,
+   "fecha": "2026-10-30"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-pt_BR-jeff-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "2c440443ed6fa45432e598f74ff64ea5d61b6e6b",
+   "archivos": [
+    "pt_BR-jeff-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "pt_BR-jeff-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "pt_BR-jeff-medium.onnx",
+   "nombre": "Jeff (portugués, hombre)",
+   "idioma": "pt",
+   "acento": "de Brasil",
+   "genero": "hombre",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.081,
+   "fecha": "2026-10-30"
+  },
+  {
+   "repo": "csukuangfj/vits-piper-zh_CN-huayan-medium",
+   "tipo": "tts",
+   "formato": "onnx",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "8baec97632a57257b09073b7986f4d319efdc29a",
+   "archivos": [
+    "zh_CN-huayan-medium.onnx",
+    "tokens.txt",
+    "espeak-ng-data/",
+    "zh_CN-huayan-medium.onnx.json",
+    "MODEL_CARD"
+   ],
+   "modelo": "zh_CN-huayan-medium.onnx",
+   "nombre": "Huayan (chino, mujer)",
+   "idioma": "zh",
+   "acento": "mandarín",
+   "genero": "mujer",
+   "calidad": "medium",
+   "licencia": "ver MODEL_CARD (voces de piper)",
+   "tamano_gb": 0.081,
+   "fecha": "2026-10-30"
+  },
+  {
    "repo": "csukuangfj/vits-piper-it_IT-paola-medium",
    "tipo": "tts",
    "formato": "onnx",

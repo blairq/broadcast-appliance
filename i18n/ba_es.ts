@@ -1344,7 +1344,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>asamblea</name>
     <message numerus="yes">
-        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+896"/>
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+906"/>
         <source>Votación %1: se cerró (%n voto remoto)</source>
         <translation>
             <numerusform>Votación %1: se cerró (%n voto remoto)</numerusform>

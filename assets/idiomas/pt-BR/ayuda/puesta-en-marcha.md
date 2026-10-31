@@ -1,0 +1,11 @@
+Para alguém que não conhece o sistema, ou quando algo de IA ou de voz não responde. **Comece sempre por `ia_estado`**: diz o que falta, por quê e para onde ir (`pagina` e `seccion`, para `ui_show_page`). É o mesmo que a etiqueta “IA” do cabeçalho. Siga nesta ordem, um passo de cada vez, e volte a olhar `ia_estado` até ele dizer `todo_bien`.
+
+1. **O assistente** (aba Assistente). `assistant_status`: provedor, se está instalado, se está rodando. `assistant_config {"provider", "model"}` para escolher; `assistant_install` se faltar; `assistant_run` para iniciá-lo. Com uma conta (Claude ou Gemini, sem chave de API), na primeira vez é preciso escrever `/login` no terminal dele: isso quem faz é o operador. Com chave de API, ela é colada na aba Assistente (nunca pelo chat). Se roda mas não vê o sistema, é o MCP: Configurações › Assistente (MCP).
+2. **O modelo local** (só se o assistente usa o provedor “local” ou a voz do operador usa o modelo local). `modelo_local_estado` → `modelo_local_bajar` → `modelo_local_activar`. Baixar demora: avise antes quanto pesa.
+3. **O microfone do operador** (ditado com a tecla e “falar” com o assistente). `voz_microfono` lista e escolhe. Se o reconhecedor não estiver, `voz_ajustes` diz o que baixar. Teste: que o operador dite uma frase com a tecla.
+4. **Os fones do operador**: por onde ele ouve a voz que responde e o que está sendo escutado (PFL). `voz_automaticas {"auriculares": id}` (as saídas vêm de `audio_outputs`). Nunca os alto-falantes da sala se houver microfones abertos: microfonia.
+5. **A voz que responde** (que o assistente fale): `voz_ajustes` (escolher e baixar uma voz em português do Brasil, se houver) e teste-a com `voz_decir {"texto": "Olá, já estou funcionando"}` pelos fones.
+6. **A voz do teleprompter** (se forem usá-la): `voz_teleprompter`.
+7. **Tradução e legendas** (se forem necessárias): `traducciones`, `traduccion_agregar`; os pacotes que faltarem são baixados em Configurações › Tradução.
+
+Ao terminar, conte ao operador em duas linhas o que ficou funcionando e o que não foi configurado de propósito.

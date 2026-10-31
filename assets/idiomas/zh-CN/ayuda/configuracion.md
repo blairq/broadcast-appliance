@@ -1,0 +1,5 @@
+- `settings_list`（或 `{"section": ...}`）：键、值、类型、选项、范围、帮助和生效范围。
+- `settings_set {"values": {"clave": valor, ...}}` 应用并保存。`{"resetSection": "Video"}` 恢复默认值。
+- 生效范围：`live`（立即生效）、`gateway`（重启会议：嘉宾会重新连接）、`restart`（下次启动时）。
+- 分区（设置页左侧那些）：视频、摄像机与输入、音频、翻译、推流、录制、编码、嘉宾、会议、会议网络、远程会议、人脸、签到一体机、控制台与控制界面、提词器、屏幕、活动页面、Pinggy、Cloudflare、自有隧道（WireGuard）、助手（MCP）、系统语音（“操作员语音”和“接待员语音”选项卡）、本地模型、系统控制、外观、插件与下载、系统与数据。要从互联网访问：`help {"topic": "acceso_remoto"}`。
+- 要有**多套**完整配置（每个客户一套、一套测试用、演示用的）并在它们之间切换：`help {"topic": "configuraciones"}`。

@@ -1,0 +1,116 @@
+[
+ {
+  "id": "reunion-chica",
+  "titulo": "Petite réunion",
+  "icono": "☺",
+  "resumen": "Jusqu'à une dizaine de personnes, en présentiel, à distance ou mixte. Peu d'installation : que ça marche et que ce soit enregistré."
+ },
+ {
+  "id": "reunion-hibrida",
+  "titulo": "Réunion de travail hybride",
+  "icono": "⧉",
+  "resumen": "Conseil d'administration, équipe ou comité, une partie dans la salle et une partie à distance ; présentations et documents."
+ },
+ {
+  "id": "comision",
+  "titulo": "Réunion de commission",
+  "icono": "§",
+  "resumen": "Commission d'un organe délibérant : ordre du jour, dossiers, avis, parole ordonnée."
+ },
+ {
+  "id": "sesion-deliberativa",
+  "titulo": "Séance d'un organe délibérant",
+  "icono": "⚖",
+  "resumen": "Conseil municipal, conseil ou chambre : sièges, unité centrale de micros, parole, quorum et vote nominal."
+ },
+ {
+  "id": "asamblea-votacion",
+  "titulo": "Grande assemblée avec vote et quorum",
+  "icono": "✋",
+  "resumen": "Assemblée en présentiel nombreuse : accréditation à l'entrée, quorum, votes et résultat à l'écran."
+ },
+ {
+  "id": "asamblea-remota",
+  "titulo": "Assemblée avec membres à distance",
+  "icono": "⌂",
+  "resumen": "Assemblée ou séance avec quorum et vote où une partie des membres participe à distance."
+ },
+ {
+  "id": "consorcio",
+  "titulo": "Assemblée de copropriété, coopérative ou club",
+  "icono": "⌘",
+  "resumen": "Copropriétaires ou adhérents, en présentiel et en visioconférence, avec vote à la majorité ou en tantièmes."
+ },
+ {
+  "id": "clase-hibrida",
+  "titulo": "Cours hybride",
+  "icono": "✎",
+  "resumen": "Enseignant avec des élèves en classe et à distance ; supports, appel à la main, questions, éventuellement traduction."
+ },
+ {
+  "id": "conferencia",
+  "titulo": "Conférence ou exposé avec public",
+  "icono": "◉",
+  "resumen": "Un ou plusieurs intervenants, public dans la salle et en ligne, questions, diffusion."
+ },
+ {
+  "id": "panel",
+  "titulo": "Table ronde ou débat",
+  "icono": "☰",
+  "resumen": "Modérateur et plusieurs panélistes (en présentiel ou à distance), tours de parole et questions."
+ },
+ {
+  "id": "entrevista",
+  "titulo": "Interview ou podcast",
+  "icono": "🎙",
+  "resumen": "Un ou deux animateurs avec des invités, audio soigné, vidéo pour les réseaux."
+ },
+ {
+  "id": "webinar",
+  "titulo": "Webinaire ou formation",
+  "icono": "▣",
+  "resumen": "Présentation en ligne avec inscrits, questions, sondages et supports à télécharger."
+ },
+ {
+  "id": "streaming-juegos",
+  "titulo": "Diffusion de jeux (streamer)",
+  "icono": "▶",
+  "resumen": "Jeu à l'écran, caméra du streamer, chat du public à l'écran, alertes."
+ },
+ {
+  "id": "acto",
+  "titulo": "Cérémonie officielle ou remise de diplômes",
+  "icono": "★",
+  "resumen": "Cérémonie scolaire, remise de diplômes, anniversaire : hymne, drapeaux, blason, discours et noms."
+ },
+ {
+  "id": "ceremonia",
+  "titulo": "Cérémonie religieuse ou célébration",
+  "icono": "✧",
+  "resumen": "Messe, culte, mariage ou célébration : musique, paroles à l'écran, lectures, diffusion."
+ },
+ {
+  "id": "audiencia-publica",
+  "titulo": "Audience publique",
+  "icono": "◎",
+  "resumen": "Habitants inscrits qui interviennent à tour de rôle avec un temps fixe ; registre des intervenants et procès-verbal."
+ },
+ {
+  "id": "lanzamiento",
+  "titulo": "Présentation ou lancement",
+  "icono": "✦",
+  "resumen": "Lancement d'un produit, d'un livre ou d'un projet : vidéo, présentation, invités et presse."
+ },
+ {
+  "id": "deportivo",
+  "titulo": "Événement sportif local",
+  "icono": "⚽",
+  "resumen": "Match ou tournoi : score, temps, commentaires, ralentis et sponsors."
+ },
+ {
+  "id": "senaletica",
+  "titulo": "Écrans dans la salle et signalétique",
+  "icono": "⊞",
+  "resumen": "Téléviseurs sur place, QR imprimés ou à l'écran, affichage qui change pendant l'événement."
+ }
+]

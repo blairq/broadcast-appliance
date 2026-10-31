@@ -1,0 +1,116 @@
+[
+ {
+  "id": "reunion-chica",
+  "titulo": "Reunião pequena",
+  "icono": "☺",
+  "resumen": "Até umas 10 pessoas, presencial, remota ou mista. Pouca montagem: que funcione e fique gravada."
+ },
+ {
+  "id": "reunion-hibrida",
+  "titulo": "Reunião de trabalho híbrida",
+  "icono": "⧉",
+  "resumen": "Diretoria, equipe ou comitê com parte na sala e parte remota; apresentações e documentos."
+ },
+ {
+  "id": "comision",
+  "titulo": "Reunião de comissão",
+  "icono": "§",
+  "resumen": "Comissão de um órgão deliberativo: ordem do dia, processos, pareceres, palavra organizada."
+ },
+ {
+  "id": "sesion-deliberativa",
+  "titulo": "Sessão de um órgão deliberativo",
+  "icono": "⚖",
+  "resumen": "Câmara, conselho ou colegiado: cadeiras, unidade central de microfones, palavra, quórum e votação nominal."
+ },
+ {
+  "id": "asamblea-votacion",
+  "titulo": "Assembleia grande com votação e quórum",
+  "icono": "✋",
+  "resumen": "Assembleia presencial numerosa: credenciamento na porta, quórum, votações e resultado na tela."
+ },
+ {
+  "id": "asamblea-remota",
+  "titulo": "Assembleia com membros remotos",
+  "icono": "⌂",
+  "resumen": "Assembleia ou sessão com quórum e votação em que parte dos membros participa a distância."
+ },
+ {
+  "id": "consorcio",
+  "titulo": "Assembleia de condomínio, cooperativa ou clube",
+  "icono": "⌘",
+  "resumen": "Condôminos ou sócios, presenciais e por videochamada, com votação por maioria ou por fração."
+ },
+ {
+  "id": "clase-hibrida",
+  "titulo": "Aula híbrida",
+  "icono": "✎",
+  "resumen": "Professor com alunos na sala de aula e remotos; materiais, chamada manual, perguntas, talvez tradução."
+ },
+ {
+  "id": "conferencia",
+  "titulo": "Conferência ou palestra com público",
+  "icono": "◉",
+  "resumen": "Um ou vários oradores, público na sala e online, perguntas, transmissão."
+ },
+ {
+  "id": "panel",
+  "titulo": "Painel ou mesa-redonda",
+  "icono": "☰",
+  "resumen": "Moderador e vários debatedores (presenciais ou remotos), turnos e perguntas."
+ },
+ {
+  "id": "entrevista",
+  "titulo": "Entrevista ou podcast",
+  "icono": "🎙",
+  "resumen": "Um ou dois apresentadores com convidados, áudio caprichado, vídeo para as redes."
+ },
+ {
+  "id": "webinar",
+  "titulo": "Webinar ou capacitação",
+  "icono": "▣",
+  "resumen": "Apresentação online com inscritos, perguntas, enquetes e material para download."
+ },
+ {
+  "id": "streaming-juegos",
+  "titulo": "Transmissão de jogos (streamer)",
+  "icono": "▶",
+  "resumen": "Jogo na tela, câmera do streamer, chat do público na tela, alertas."
+ },
+ {
+  "id": "acto",
+  "titulo": "Solenidade institucional ou formatura",
+  "icono": "★",
+  "resumen": "Solenidade escolar, colação de grau, aniversário: hino, bandeiras, brasão, discursos e nomes."
+ },
+ {
+  "id": "ceremonia",
+  "titulo": "Cerimônia religiosa ou celebração",
+  "icono": "✧",
+  "resumen": "Missa, culto, casamento ou celebração: música, letras na tela, leituras, transmissão."
+ },
+ {
+  "id": "audiencia-publica",
+  "titulo": "Audiência pública",
+  "icono": "◎",
+  "resumen": "Moradores inscritos que expõem por turnos com tempo fixo; registro de oradores e ata."
+ },
+ {
+  "id": "lanzamiento",
+  "titulo": "Apresentação ou lançamento",
+  "icono": "✦",
+  "resumen": "Lançamento de um produto, livro ou projeto: vídeo, apresentação, convidados e imprensa."
+ },
+ {
+  "id": "deportivo",
+  "titulo": "Evento esportivo local",
+  "icono": "⚽",
+  "resumen": "Partida ou torneio: placar, tempo, narração, replays e patrocinadores."
+ },
+ {
+  "id": "senaletica",
+  "titulo": "Telas no local e sinalização",
+  "icono": "⊞",
+  "resumen": "Televisores no local, QR impressos ou na tela, sinalização que muda durante o evento."
+ }
+]

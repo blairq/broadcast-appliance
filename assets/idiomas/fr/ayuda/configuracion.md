@@ -1,0 +1,5 @@
+- `settings_list` (ou `{"section": ...}`) : clé, valeur, type, options, plage, aide et portée.
+- `settings_set {"values": {"clave": valor, ...}}` applique et enregistre. `{"resetSection": "Video"}` rétablit les valeurs par défaut.
+- Portée : `live` (immédiatement), `gateway` (redémarre la conférence : les invités se reconnectent), `restart` (au prochain démarrage).
+- Sections (celles de gauche dans Paramètres) : Vidéo, Caméras et entrées, Audio, Traduction, Diffusion, Enregistrement, Encodage, Invités, Conférence, Réseau de la conférence, Séance à distance, Visages, Bornes d'accueil, Surface de contrôle et surfaces, Prompteur, Écrans, Page de l'événement, Pinggy, Cloudflare, Tunnel propre (WireGuard), Assistant (MCP), Voix du système (onglets Voix de l'opérateur et Voix de l'accueil), Modèles locaux, Contrôle du système, Apparence, Plugins et téléchargements, Système et données. Pour l'accès depuis internet : `help {"topic": "acceso_remoto"}`.
+- Pour avoir PLUSIEURS configurations complètes (une par client, une de test, la démo) et passer de l'une à l'autre : `help {"topic": "configuraciones"}`.

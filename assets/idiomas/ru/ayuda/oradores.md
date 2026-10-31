@@ -1,0 +1,7 @@
+- `speakers_config {"enabled": true, "defaultTime": "3:00", "multi": false, "defaultSlot": 1, "carousel": "manual"|"chain"|"time", "graceSec": 10}`.
+- Когда режим включён, **впустить** ставит человека в **очередь** (он смотрит программу, в эфир не выходит).
+- `speaker_next` выводит следующего; `speaker_on_air {"participant", "on"}` — конкретного человека (on=false снимает его: возвращается как «выступал»).
+- `speaker_move {"participant", "position"}`, `speaker_time {"participant", "time"}`, `participant_requeue`.
+- Часы **никогда никого не снимают**, кроме карусели `time` (после нуля + запас переключает). После истечения времени идёт отрицательный отсчёт; гость его видит.
+- `remotos_fila_ver`: очередь и сколько осталось тому, кто в эфире (отрицательный `remainingSec` = превысил).
+- Табло для планшета: `room_link {"board": true}`.

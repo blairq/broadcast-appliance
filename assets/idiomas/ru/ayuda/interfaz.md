@@ -1,0 +1,5 @@
+- `ui_show_page {"page": "dashboard"|"escenas"|"sala"|"youtube"|"twitch"|"facebook"|"configuracion"}`, `ui_notify {"message"}`.
+- `dashboard_list`: карточки, фон, окна выхода и мониторы.
+- `dashboard_card {"add": "monitor", "source": "guest:1"}` / `{"remove": id}` / `{"reset": true}`.
+- `output_window {"cosas": ["programa"]}` или `{"open": ["program","guest:1"], "layout": "grid"|"focus"|"pip"|"row", "screen": "2", "fullscreen": true}`: отдельное окно, которое запоминается (`screen`: id, порядковый номер или имя монитора).
+- `feeds_list`: допустимые ключи видео.

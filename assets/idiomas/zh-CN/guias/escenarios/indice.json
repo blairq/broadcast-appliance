@@ -1,0 +1,116 @@
+[
+ {
+  "id": "reunion-chica",
+  "titulo": "小型会议",
+  "icono": "☺",
+  "resumen": "最多约 10 人，现场、远程或混合。搭建简单，能用、能录下来就行。"
+ },
+ {
+  "id": "reunion-hibrida",
+  "titulo": "混合式工作会议",
+  "icono": "⧉",
+  "resumen": "董事会、团队或委员会，部分人在会议室、部分人远程；有演示和文件。"
+ },
+ {
+  "id": "comision",
+  "titulo": "委员会会议",
+  "icono": "§",
+  "resumen": "议事机构的委员会：议程、议案、审议意见、有序发言。"
+ },
+ {
+  "id": "sesion-deliberativa",
+  "titulo": "议事机构会议",
+  "icono": "⚖",
+  "resumen": "市议会、理事会或议院：席位、麦克风中央单元、发言权、法定人数和记名表决。"
+ },
+ {
+  "id": "asamblea-votacion",
+  "titulo": "有表决和法定人数的大型大会",
+  "icono": "✋",
+  "resumen": "人数众多的现场大会：入口签到、法定人数、表决，结果显示在屏幕上。"
+ },
+ {
+  "id": "asamblea-remota",
+  "titulo": "有远程成员的大会",
+  "icono": "⌂",
+  "resumen": "有法定人数和表决的大会或会议，部分成员远程参加。"
+ },
+ {
+  "id": "consorcio",
+  "titulo": "业主大会、合作社或俱乐部大会",
+  "icono": "⌘",
+  "resumen": "业主或会员，现场和视频通话参加，按多数或份额比例表决。"
+ },
+ {
+  "id": "clase-hibrida",
+  "titulo": "混合式课堂",
+  "icono": "✎",
+  "resumen": "老师和教室里的学生及远程学生；教材、手工考勤、提问，可能还有翻译。"
+ },
+ {
+  "id": "conferencia",
+  "titulo": "有观众的会议或讲座",
+  "icono": "◉",
+  "resumen": "一位或多位发言人，现场和线上观众，提问，推流。"
+ },
+ {
+  "id": "panel",
+  "titulo": "论坛或圆桌讨论",
+  "icono": "☰",
+  "resumen": "主持人和几位嘉宾（现场或远程），轮流发言和提问。"
+ },
+ {
+  "id": "entrevista",
+  "titulo": "访谈或播客",
+  "icono": "🎙",
+  "resumen": "一两位主持人加嘉宾，讲究音质，为社交媒体出视频。"
+ },
+ {
+  "id": "webinar",
+  "titulo": "网络研讨会或培训",
+  "icono": "▣",
+  "resumen": "面向报名者的线上演示，有提问、问卷调查和可下载的资料。"
+ },
+ {
+  "id": "streaming-juegos",
+  "titulo": "游戏直播（主播）",
+  "icono": "▶",
+  "resumen": "屏幕上的游戏画面、主播摄像头、屏幕上的观众聊天、提醒。"
+ },
+ {
+  "id": "acto",
+  "titulo": "机构典礼或毕业典礼",
+  "icono": "★",
+  "resumen": "学校典礼、毕业典礼、周年纪念：国歌、旗帜、徽章、致辞和姓名。"
+ },
+ {
+  "id": "ceremonia",
+  "titulo": "宗教仪式或庆典",
+  "icono": "✧",
+  "resumen": "弥撒、礼拜、婚礼或庆典：音乐、屏幕上的歌词、诵读、推流。"
+ },
+ {
+  "id": "audiencia-publica",
+  "titulo": "公开听证会",
+  "icono": "◎",
+  "resumen": "报名的居民按限定时间轮流陈述；发言人登记和会议纪要。"
+ },
+ {
+  "id": "lanzamiento",
+  "titulo": "发布会或产品发布",
+  "icono": "✦",
+  "resumen": "产品、书籍或项目的发布：视频、演示、嘉宾和媒体。"
+ },
+ {
+  "id": "deportivo",
+  "titulo": "本地体育赛事",
+  "icono": "⚽",
+  "resumen": "比赛或锦标赛：比分牌、比赛时间、解说、回放和赞助商。"
+ },
+ {
+  "id": "senaletica",
+  "titulo": "现场屏幕和标识",
+  "icono": "⊞",
+  "resumen": "现场的电视、打印的或屏幕上的二维码、活动中会变化的标牌。"
+ }
+]

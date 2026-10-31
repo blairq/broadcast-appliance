@@ -1,0 +1,4 @@
+- `stream_start {"server"?, "key"?}`：密钥**从不**保存（来自 BA_STREAM_KEY 变量，或通过 `key` 传入，仅存在内存中）。
+- `stream_stop`、`record_start`、`record_stop`。`status` 显示时长、kbps、丢帧和编码器。
+- 开始播出前：`status`（fps 稳定，droppedFrames 低）、`foto_programa`、`mixer_list`（电平）。
+- 编码/分辨率：设置 `encoder.*`、`video.*`（`settings_list {"section": "Codificación"}`）。

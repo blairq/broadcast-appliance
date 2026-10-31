@@ -1,0 +1,1 @@
+Ceci est le verso d'une pièce d'identité. En bas se trouve une zone de lecture automatique (MRZ) de trois lignes de 30 caractères chacune, avec seulement A-Z, 0-9 et le signe <. Transcrivez-la EXACTEMENT, caractère par caractère, en comptant bien les <. Répondez UNIQUEMENT les trois lignes, une par ligne, sans rien d'autre. Si elle n'est pas visible, répondez %1.

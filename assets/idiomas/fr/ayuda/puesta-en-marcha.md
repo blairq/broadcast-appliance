@@ -1,0 +1,11 @@
+Pour quelqu'un qui ne connaît pas le système, ou quand quelque chose de l'IA ou de la voix ne répond pas. **Commencez toujours par `ia_estado`** : il dit ce qui manque, pourquoi et où aller (`pagina` et `seccion`, pour `ui_show_page`). C'est la même chose que la pastille « IA » de l'en-tête. Allez dans cet ordre, une étape à la fois, et regardez de nouveau `ia_estado` jusqu'à ce qu'il dise `todo_bien`.
+
+1. **L'assistant** (onglet Assistant). `assistant_status` : fournisseur, s'il est installé, s'il tourne. `assistant_config {"provider", "model"}` pour choisir ; `assistant_install` s'il manque ; `assistant_run` pour le lancer. Avec un compte (Claude ou Gemini, sans clé d'API), la première fois il faut taper `/login` dans son terminal : c'est l'opérateur qui le fait. Avec une clé d'API, on la colle dans l'onglet Assistant (jamais dans le chat). S'il tourne mais ne voit pas le système, c'est le MCP : Paramètres › Assistant (MCP).
+2. **Le modèle local** (seulement si l'assistant utilise le fournisseur « local » ou si la voix de l'opérateur utilise le modèle local). `modelo_local_estado` → `modelo_local_bajar` → `modelo_local_activar`. Le téléchargement prend du temps : indiquez sa taille avant.
+3. **Le micro de l'opérateur** (dictée avec la touche et « parler » à l'assistant). `voz_microfono` liste et choisit. Si le moteur de reconnaissance n'est pas là, `voz_ajustes` dit quoi télécharger. Testez-le : que l'opérateur dicte une phrase avec la touche.
+4. **Le casque de l'opérateur** : par où il entend la voix qui répond et ce qu'il écoute (PFL). `voz_automaticas {"auriculares": id}` (les sorties sont données par `audio_outputs`). Jamais les haut-parleurs de la salle s'il y a des micros ouverts : larsen.
+5. **La voix qui répond** (que l'assistant parle) : `voz_ajustes` (choisir et télécharger une voix française s'il y en a) et testez-la avec `voz_decir {"texto": "Bonjour, je suis prêt"}` dans le casque.
+6. **La voix du prompteur** (si on va l'utiliser) : `voz_teleprompter`.
+7. **Traduction et sous-titres** (si nécessaire) : `traducciones`, `traduccion_agregar` ; les paquets manquants se téléchargent depuis Paramètres › Traduction.
+
+À la fin, dites à l'opérateur en deux lignes ce qui fonctionne et ce qui n'a pas été configuré volontairement.

@@ -1,0 +1,125 @@
+{
+  "_comentario": "How the kiosk UNDERSTANDS what people say in Brazilian Portuguese (registro/Conversacion). What the kiosk SAYS is not here: it is in the catalog (context «totem», i18n/ba_pt-BR.ts). The word lists are compared against the speech-to-text output once flattened (lowercase, without the accents in «aplanar» and with punctuation as spaces): «não» and «nao», «está» and «esta», «é» and «e» are the same word once flattened, so a bare «é» is never a yes (it would match the connector «e»). They can be written with accents: they are flattened when the file is read. A phrase is several words separated by one space; a hyphen is a space too («e-mail» → «e mail»). What the kiosk says has to be answerable with these lists: the catalog confirmation («Diga “sim, está correto” ou “não, está incorreto”», «sim, está tudo correto» / «não, tem algo errado») with the ones in «respuestas», and the dictated email example («joao ponto silva arroba gmail ponto com») with the ones in «correo». See docs/desarrollo/I18N.md, «Tótem: datos del idioma».",
+
+  "aplanar": {
+    "_comentario": "Letter (UTF-8) → what it becomes when flattened. Anything not listed here that is not ASCII is dropped. A space: taken as a separator. The typographic apostrophe becomes the plain one. Guillemets, curly quotes and dashes are spaces.",
+    "á": "a", "à": "a", "â": "a", "ã": "a", "ä": "a", "é": "e", "è": "e", "ê": "e", "ë": "e", "í": "i", "ì": "i", "î": "i",
+    "ï": "i", "ó": "o", "ò": "o", "ô": "o", "õ": "o", "ö": "o", "ú": "u", "ù": "u", "û": "u", "ü": "u", "ç": "c", "ñ": "n",
+    "Á": "a", "À": "a", "Â": "a", "Ã": "a", "Ä": "a", "É": "e", "È": "e", "Ê": "e", "Ë": "e", "Í": "i", "Ì": "i", "Î": "i",
+    "Ï": "i", "Ó": "o", "Ò": "o", "Ô": "o", "Õ": "o", "Ö": "o", "Ú": "u", "Ù": "u", "Û": "u", "Ü": "u", "Ç": "c", "Ñ": "n",
+    "’": "'", "‘": "'", "“": " ", "”": " ", "«": " ", "»": " ", "—": " ", "–": " ", "¿": " ", "¡": " ", "ª": " ", "º": " "
+  },
+
+  "numeros": {
+    "_comentario": "Numbers said in words. «regla» «es» (Conversacion.cpp, grupo()), which fits Portuguese: the hundred is a word of its own («duzentos», «trezentas»; «cem» is in «centenasSolas» because it goes alone: 100, while «cento» takes a rest: «cento e vinte»), followed or not by «e» («conectoresCentena») and 1..99; a ten («trinta») followed or not by the connector «e» and a unit 1..9 («trinta e cinco»); or a unit (0 to 19, one word each: «dezesseis»). «mil» multiplies what comes before (or 1) and adds; the «e» after it is filler («mil e duzentos» = 1200); «millon» multiplies everything before. «ninguno» counts as zero. «meia» is 6 because that is how Brazilians say a six in a phone number («meia meia» = 66). LIMITS: a ten said without «e» («vinte um») gives 20 and 1 as two numbers (in a phone they come out as «201»); «meia» is always 6, even where it means half; feminine forms («duas», «duzentas») are listed one by one. «digitos»: how each digit 0..9 is said, to read back a phone or an email (not flattened).",
+    "regla": "es",
+    "unidades": {
+      "zero": 0, "um": 1, "uma": 1, "dois": 2, "duas": 2, "três": 3, "quatro": 4, "cinco": 5, "seis": 6, "meia": 6,
+      "sete": 7, "oito": 8, "nove": 9, "dez": 10, "onze": 11, "doze": 12, "treze": 13, "catorze": 14, "quatorze": 14,
+      "quinze": 15, "dezesseis": 16, "dezasseis": 16, "dezessete": 17, "dezassete": 17, "dezoito": 18,
+      "dezenove": 19, "dezanove": 19
+    },
+    "decenas": {
+      "vinte": 20, "trinta": 30, "quarenta": 40, "cinquenta": 50, "cincoenta": 50, "sessenta": 60, "setenta": 70,
+      "oitenta": 80, "noventa": 90
+    },
+    "conectores": ["e"],
+    "centenas": {
+      "cem": 100, "cento": 100, "duzentos": 200, "duzentas": 200, "trezentos": 300, "trezentas": 300,
+      "quatrocentos": 400, "quatrocentas": 400, "quinhentos": 500, "quinhentas": 500, "seiscentos": 600,
+      "seiscentas": 600, "setecentos": 700, "setecentas": 700, "oitocentos": 800, "oitocentas": 800,
+      "novecentos": 900, "novecentas": 900
+    },
+    "centenasSolas": ["cem"],
+    "conectoresCentena": ["e"],
+    "mil": ["mil"],
+    "millon": ["milhão", "milhões"],
+    "ninguno": ["nenhum", "nenhuma", "ninguém", "nada"],
+    "digitos": ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"]
+  },
+
+  "respuestas": {
+    "_comentario": "Yes or no. First «noSabe» (neither yes nor no: ask again) and «noFrases» (a no even if it has a yes inside: «não está certo»); then, if one of «si» or of «no» appears (and not both), that one. The first of each list is the one used when the model answers with a boolean. A bare «é» or «tá» is not here: flattened, «é» is the connector «e», and «tá» is in too many sentences.",
+    "si": ["sim", "sim sim", "isso", "isso mesmo", "isso aí", "é isso", "é isso aí", "é sim", "certo", "está certo",
+           "tá certo", "certinho", "correto", "está correto", "tá correto", "sim está correto", "está tudo correto",
+           "tá tudo correto", "sim está tudo correto", "tudo certo", "exato", "exatamente", "claro", "claro que sim",
+           "com certeza", "pode ser", "ok", "okay", "beleza", "perfeito", "positivo", "afirmativo", "uhum", "aham",
+           "tá bom", "está bom", "está ótimo", "tá ótimo", "fechado", "show", "pode confirmar", "confirmo", "confirmado"],
+    "no": ["não", "não não", "negativo", "errado", "está errado", "tá errado", "incorreto", "está incorreto",
+           "tá incorreto", "nada disso", "de jeito nenhum", "nunca", "jamais", "não é", "não era", "tem algo errado",
+           "tem coisa errada", "tem um erro", "não está"],
+    "noSabe": ["não sei", "sei lá", "não faço ideia", "não tenho certeza", "não sei dizer", "não sei não"],
+    "noFrases": ["não está certo", "não tá certo", "não está correto", "não tá correto", "não está tudo correto",
+                 "não tá tudo correto", "não é isso", "não está bom", "não tá bom", "não não", "nada disso",
+                 "de jeito nenhum", "não é", "não era", "está errado", "tá errado", "não tudo certo",
+                 "não tem algo errado", "não tem coisa errada"]
+  },
+
+  "_comentarioListas": "cancelar, repetir and saltear: «exactas» = the whole utterance is that; «contiene» = it appears in the utterance (as whole words).",
+  "cancelar": {
+    "exactas": ["cancelar", "cancela", "cancele", "cancela isso", "tchau", "tchau tchau", "até logo", "até mais",
+                "vou embora", "esquece", "deixa pra lá", "deixa para lá", "desisto", "parar", "pare"],
+    "contiene": ["cancelar o cadastro", "cancela o cadastro", "cancele o cadastro", "cancelar meu cadastro",
+                 "cancelar o credenciamento", "cancela o credenciamento", "cancelar a inscrição", "cancelar minha inscrição"]
+  },
+  "repetir": {
+    "exactas": ["o quê", "o que", "quê", "como", "como é", "como é que é", "hein", "hã", "ahn", "oi", "desculpa",
+                "desculpe", "perdão", "repete", "repita", "repetir", "pode repetir", "repete por favor", "de novo",
+                "outra vez", "mais uma vez", "não entendi", "não te entendi", "não ouvi", "não escutei",
+                "o que você disse", "como disse", "eh"],
+    "contiene": ["pode repetir", "poderia repetir", "repete a pergunta", "repita a pergunta", "fala de novo",
+                 "não entendi a pergunta"]
+  },
+  "saltear": {
+    "exactas": ["passo", "pular", "pula", "próxima", "não sei"],
+    "contiene": ["pular", "pula essa", "pode pular", "próxima pergunta", "próxima", "prefiro não", "prefiro não dizer",
+                 "prefiro não falar", "não quero", "não tenho", "não lembro", "não me lembro", "depois", "outro dia",
+                 "agora não", "deixa pra depois", "deixa para depois"]
+  },
+
+  "correo": {
+    "_comentario": "The dictated email. «signos»: what is said instead of a sign, in order (multi-word phrases are replaced first, then single words). «noSonDigitos»: units of «numeros» that are not turned into a digit («uma» is an article; «um» stays a digit because people dictate «um» for 1, and so does «meia»). «antes» and «despues»: what is said before the email («meu e-mail é») and after («obrigado»), which is removed. «terminaciones»: domain endings that, standing alone after the at sign, take a dot («gmail com» → gmail.com, «uol com br» → uol.com.br). «dominios»: a domain said without its ending that is completed. «decir»: how each sign is read back aloud.",
+    "signos": [["ponto com ponto br", ".com.br"], ["traço baixo", "_"], ["under line", "_"], ["under score", "_"],
+               ["ponto com", ".com"], ["ponto br", ".br"], ["sublinhado", "_"], ["underline", "_"], ["underscore", "_"],
+               ["arroba", "@"], ["aroba", "@"], ["ponto", "."], ["hífen", "-"], ["traço", "-"], ["tracinho", "-"],
+               ["menos", "-"]],
+    "noSonDigitos": ["uma"],
+    "antes": ["meu", "o", "a", "e-mail", "email", "imeil", "mail", "correio", "endereço", "de", "eletrônico", "é",
+              "seria", "esse", "este", "ah", "hum", "bom", "então", "sim", "ok", "certo", "tenho", "anota"],
+    "despues": ["obrigado", "obrigada", "valeu", "só", "isso", "é", "tudo", "pronto"],
+    "terminaciones": ["com", "br", "net", "org", "edu", "gov", "art", "adv", "eng", "io", "co", "pt", "ar", "es"],
+    "dominios": {"gmail": "gmail.com", "hotmail": "hotmail.com", "outlook": "outlook.com", "yahoo": "yahoo.com.br",
+                 "live": "live.com", "icloud": "icloud.com", "uol": "uol.com.br", "bol": "bol.com.br",
+                 "terra": "terra.com.br", "ig": "ig.com.br", "globo": "globo.com", "protonmail": "protonmail.com"},
+    "decir": {".": "ponto", "@": "arroba", "_": "sublinhado", "-": "hífen"}
+  },
+
+  "telefono": {
+    "_comentario": "«mas»: what is said for the + of the country code (only at the start); «decirMas», how it is read back. «repetir»: «duplo cinco» = 55, «triplo zero» = 000 (rare in Brazil, but harmless). «grupo»: how many digits are read and shown together (the first group takes the remainder: a mobile with area code, 11 98765 4321, is shown as 119 8765 4321).",
+    "mas": ["mais"],
+    "decirMas": "mais",
+    "repetir": {"duplo": 2, "dupla": 2, "triplo": 3, "tripla": 3},
+    "grupo": 4
+  },
+
+  "nombre": {
+    "_comentario": "«antes»: what is said before the name, in order (the first one that matches at the start is removed, and again, until none is left). «despues»: at the end. «noEmpiezaCon»: if the utterance starts like this, it is not a name («não quero»). «particulas»: lowercase in the middle of a name («Maria da Silva», «João dos Santos», «Ludwig van Beethoven»).",
+    "antes": ["oi", "olá", "bom dia", "boa tarde", "boa noite", "ah", "hum", "bom", "então", "ok", "sim",
+              "meu nome completo é", "o meu nome completo é", "meu nome é", "o meu nome é", "meu nome", "me chamo",
+              "eu me chamo", "pode me chamar de", "me chamam de", "eu sou o", "eu sou a", "eu sou", "sou o", "sou a",
+              "sou", "aqui é o", "aqui é a", "aqui é", "é o", "é a"],
+    "despues": ["obrigado", "obrigada", "por favor", "valeu"],
+    "noEmpiezaCon": ["não", "prefiro não", "não quero"],
+    "particulas": ["de", "da", "do", "das", "dos", "e", "del", "la", "di", "du", "van", "von", "der", "den", "y"]
+  },
+
+  "opciones": {
+    "_comentario": "Picking an option by its order: «orden» has, for the first, the second…, how it is named; «ultima», the last one.",
+    "orden": [["primeira", "primeiro", "um", "uma", "1"], ["segunda", "segundo", "dois", "duas", "2"],
+              ["terceira", "terceiro", "três", "3"], ["quarta", "quarto", "quatro", "4"], ["quinta", "quinto", "cinco", "5"]],
+    "ultima": ["última", "último", "a última", "o último"]
+  },
+
+  "etiquetaEnMinuscula": true,
+  "_comentarioEtiqueta": "etiquetaEnMinuscula: a field label said in the middle of a sentence starts lowercase («Anotei e-mail…»; an acronym like «CPF» stays)."
+}

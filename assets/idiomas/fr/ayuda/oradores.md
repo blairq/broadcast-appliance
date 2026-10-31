@@ -1,0 +1,7 @@
+- `speakers_config {"enabled": true, "defaultTime": "3:00", "multi": false, "defaultSlot": 1, "carousel": "manual"|"chain"|"time", "graceSec": 10}`.
+- Avec le mode actif, **admettre** place la personne dans la **file** (elle regarde le programme, elle ne passe pas à l'antenne).
+- `speaker_next` fait passer le suivant ; `speaker_on_air {"participant", "on"}` une personne précise (on=false la retire : elle revient comme « a parlé »).
+- `speaker_move {"participant", "position"}`, `speaker_time {"participant", "time"}`, `participant_requeue`.
+- Le chrono **ne retire jamais personne** sauf avec le carrousel `time` (passé zéro + marge, il tourne). Une fois le temps écoulé, il compte en négatif ; l'invité le voit.
+- `remotos_fila_ver` : la file avec ce qu'il reste à celui qui est à l'antenne (`remainingSec` négatif = il a dépassé).
+- Tableau pour tablette : `room_link {"board": true}`.

@@ -1,0 +1,7 @@
+- `speakers_config {"enabled": true, "defaultTime": "3:00", "multi": false, "defaultSlot": 1, "carousel": "manual"|"chain"|"time", "graceSec": 10}`.
+- Com o modo ativo, **admitir** coloca a pessoa na **fila** (ela vê o programa, não entra no ar).
+- `speaker_next` coloca o próximo; `speaker_on_air {"participant", "on"}` alguém específico (on=false o tira: volta como "falei").
+- `speaker_move {"participant", "position"}`, `speaker_time {"participant", "time"}`, `participant_requeue`.
+- O relógio **nunca tira ninguém**, salvo com o carrossel `time` (passado o zero + margem, gira). Passado o tempo, conta em negativo; o convidado vê.
+- `remotos_fila_ver`: a fila com o que resta a quem está no ar (`remainingSec` negativo = passou do tempo).
+- Painel para tablet: `room_link {"board": true}`.

@@ -1,0 +1,125 @@
+{
+  "_comentario": "How the kiosk UNDERSTANDS what people say in French (registro/Conversacion). What the kiosk SAYS is not here: it is in the catalog (context «totem», i18n/ba_fr.ts). The word lists are compared against the speech-to-text output once flattened (lowercase, without the accents in «aplanar» and with punctuation as spaces): so an elision is written with a space where the apostrophe was («c est correct», «je sais pas», «j ai»). Only «nombre» keeps the apostrophe («je m'appelle»). They can be written with accents: they are flattened when the file is read. A phrase is several words separated by one space; a hyphen is a space too («vingt deux», «moi meme»), so every number word here is a single word. What the kiosk says has to be answerable with these lists: the catalog confirmation (« Dites « oui, c'est correct » ou « non, c'est incorrect » ») with the ones in «respuestas». See docs/desarrollo/I18N.md, «Tótem: datos del idioma».",
+
+  "aplanar": {
+    "_comentario": "Letter (UTF-8) → what it becomes when flattened. Anything not listed here that is not ASCII is dropped. A space: taken as a separator. The typographic apostrophe becomes the plain one (so «m’appelle» and «m'appelle» are the same). Guillemets and dashes are spaces.",
+    "à": "a", "â": "a", "ä": "a", "á": "a", "ç": "c", "é": "e", "è": "e", "ê": "e", "ë": "e", "î": "i", "ï": "i", "í": "i",
+    "ô": "o", "ö": "o", "ó": "o", "ù": "u", "û": "u", "ü": "u", "ú": "u", "ÿ": "y", "ñ": "n", "œ": "oe", "æ": "ae",
+    "À": "a", "Â": "a", "Ä": "a", "Á": "a", "Ç": "c", "É": "e", "È": "e", "Ê": "e", "Ë": "e", "Î": "i", "Ï": "i", "Í": "i",
+    "Ô": "o", "Ö": "o", "Ó": "o", "Ù": "u", "Û": "u", "Ü": "u", "Ú": "u", "Ÿ": "y", "Ñ": "n", "Œ": "oe", "Æ": "ae",
+    "’": "'", "‘": "'", "“": " ", "”": " ", "«": " ", "»": " ", " ": " ", " ": " ", "—": " ", "–": " "
+  },
+
+  "numeros": {
+    "_comentario": "Numbers said in words. «regla» «en» (Conversacion.cpp, grupo()): as in French, the hundred MULTIPLIES the unit before it («deux cents»; a bare «cent» = 100), followed or not by 1..99 («cent vingt»); a ten («trente») followed or not by its unit («trente cinq»: the hyphen is a space, so no «conectores»); or a unit (0 to 16). «mille» multiplies what comes before (or 1) and adds; «million» multiplies everything before. «ninguno» counts as zero. LIMITS of this rule for French: 17-19 («dix sept») are two words and give 10 and 7; «vingt et un» (with «et») gives 20 and 1, and 70-99 («soixante dix», «quatre vingt douze») are not composed: they need a French rule in grupo(). «digitos»: how each digit 0..9 is said, to read back a phone or an email (not flattened).",
+    "regla": "en",
+    "unidades": {
+      "zéro": 0, "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7, "huit": 8,
+      "neuf": 9, "dix": 10, "onze": 11, "douze": 12, "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16
+    },
+    "decenas": {
+      "vingt": 20, "trente": 30, "quarante": 40, "cinquante": 50, "soixante": 60, "septante": 70, "huitante": 80,
+      "octante": 80, "nonante": 90
+    },
+    "conectores": [],
+    "centenas": {"cent": 100, "cents": 100},
+    "centenasSolas": [],
+    "conectoresCentena": [],
+    "mil": ["mille", "mil"],
+    "millon": ["million", "millions"],
+    "ninguno": ["aucun", "aucune", "personne", "rien", "nul"],
+    "digitos": ["zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf"]
+  },
+
+  "respuestas": {
+    "_comentario": "Yes or no. First «noSabe» (neither yes nor no: ask again) and «noFrases» (a no even if it has a yes inside: «pas correct», «non c est pas bon»); then, if one of «si» or of «no» appears (and not both), that one. The first of each list is the one used when the model answers with a boolean.",
+    "si": ["oui", "ouais", "ouaip", "oui oui", "si", "bien sûr", "évidemment", "correct", "c est correct",
+           "oui c est correct", "c est ça", "oui c est ça", "c est bien ça", "exact", "exactement", "tout à fait",
+           "absolument", "affirmatif", "d accord", "ok", "okay", "parfait", "très bien", "c est bon", "oui c est bon",
+           "ça marche", "ça me va", "voilà", "effectivement", "en effet", "bien", "super", "carrément", "volontiers",
+           "c est juste", "juste", "mhm"],
+    "no": ["non", "nan", "non non", "négatif", "pas du tout", "faux", "c est faux", "incorrect", "c est incorrect",
+           "non c est incorrect", "pas vraiment", "jamais", "absolument pas", "pas tout à fait", "c est pas ça",
+           "ce n est pas ça", "pas ça", "erreur", "pas"],
+    "noSabe": ["je ne sais pas", "je sais pas", "j sais pas", "sais pas", "chais pas", "aucune idée",
+               "je ne suis pas sûr", "je suis pas sûr", "je ne suis pas sûre", "je suis pas sûre", "pas sûr", "pas sûre"],
+    "noFrases": ["pas correct", "pas bon", "pas juste", "c est pas correct", "ce n est pas correct", "c est pas bon",
+                 "ce n est pas bon", "c est pas juste", "ce n est pas juste", "pas d accord", "pas ok", "non non",
+                 "pas du tout", "pas vraiment", "pas tout à fait", "c est pas ça", "ce n est pas ça",
+                 "non c est faux", "non c est incorrect", "pas bien"]
+  },
+
+  "_comentarioListas": "cancelar, repetir and saltear: «exactas» = the whole utterance is that; «contiene» = it appears in the utterance (as whole words).",
+  "cancelar": {
+    "exactas": ["annuler", "annule", "annulez", "arrêter", "arrête", "arrêtez", "stop", "au revoir", "salut", "ciao",
+                "laisse tomber", "laissez tomber", "tant pis", "je m en vais", "je pars", "on arrête", "c est bon merci"],
+    "contiene": ["annuler l inscription", "annuler mon inscription", "annuler l enregistrement",
+                 "annuler mon enregistrement", "annulez l inscription", "annulez mon inscription"]
+  },
+  "repetir": {
+    "exactas": ["quoi", "comment", "pardon", "excusez moi", "excuse moi", "hein", "plaît il", "vous pouvez répéter",
+                "tu peux répéter", "répéter", "répétez", "répète", "répétez s il vous plaît", "encore", "encore une fois",
+                "une autre fois", "j ai pas compris", "je n ai pas compris", "j ai pas entendu", "je n ai pas entendu",
+                "j ai rien compris", "je n ai rien compris", "qu est ce que vous avez dit", "vous avez dit quoi", "euh"],
+    "contiene": ["pouvez vous répéter", "vous pouvez répéter", "pourriez vous répéter", "tu peux répéter",
+                 "répéter la question", "répétez la question", "redites", "redire"]
+  },
+  "saltear": {
+    "exactas": ["passer", "passe", "passez", "suivant", "je ne sais pas", "je sais pas", "sais pas", "j sais pas"],
+    "contiene": ["passer", "passons", "on passe", "question suivante", "la suivante", "suivante", "suivant",
+                 "je préfère pas", "je préfère ne pas", "je ne préfère pas", "préfère pas", "je ne veux pas",
+                 "je veux pas", "je n en ai pas", "j en ai pas", "je n ai pas", "j ai pas", "je ne me souviens pas",
+                 "je me souviens pas", "je ne m en souviens pas", "je m en souviens pas", "plus tard", "une autre fois",
+                 "pas maintenant"]
+  },
+
+  "correo": {
+    "_comentario": "The dictated email. «signos»: what is said instead of a sign, in order (multi-word phrases are replaced first, then single words). «noSonDigitos»: units of «numeros» that are not turned into a digit («une» is an article, not a number; «un» is kept as a digit because people dictate «un» for 1). «antes» and «despues»: what is said before the email («mon adresse c est») and after («merci»), which is removed. «terminaciones»: domain endings that, standing alone after the at sign, take a dot («gmail com» → gmail.com). «dominios»: a domain said without its ending that is completed. «decir»: how each sign is read back aloud.",
+    "signos": [["tiret bas", "_"], ["tiret du bas", "_"], ["tiret du huit", "_"], ["under score", "_"],
+               ["trait d union", "-"], ["point com", ".com"], ["point fr", ".fr"], ["a commercial", "@"],
+               ["arobase", "@"], ["arrobase", "@"], ["arobas", "@"], ["at", "@"], ["point", "."], ["underscore", "_"],
+               ["tiret", "-"], ["moins", "-"]],
+    "noSonDigitos": ["une"],
+    "antes": ["mon", "ma", "adresse", "mail", "email", "e-mail", "mel", "courriel", "électronique", "c est", "est",
+              "ce", "la", "le", "de", "du", "alors", "donc", "euh", "eh", "bon", "ben", "oui", "ok", "d accord",
+              "voilà", "j ai", "ai", "ça", "serait"],
+    "despues": ["merci", "voilà", "c", "est", "tout", "c est tout", "ça", "fini", "terminé", "s", "il", "vous", "plaît"],
+    "terminaciones": ["com", "fr", "net", "org", "eu", "be", "ch", "ca", "lu", "edu", "gouv", "gov", "io", "co", "es",
+                      "ar"],
+    "dominios": {"gmail": "gmail.com", "hotmail": "hotmail.fr", "yahoo": "yahoo.fr", "outlook": "outlook.fr",
+                 "live": "live.fr", "icloud": "icloud.com", "orange": "orange.fr", "wanadoo": "wanadoo.fr",
+                 "free": "free.fr", "sfr": "sfr.fr", "laposte": "laposte.net",
+                 "protonmail": "protonmail.com"},
+    "decir": {".": "point", "@": "arobase", "_": "tiret bas", "-": "tiret"}
+  },
+
+  "telefono": {
+    "_comentario": "«mas»: what is said for the + of the country code (only at the start); «decirMas», how it is read back. «repetir»: «double cinq» = 55, «triple zéro» = 000. «grupo»: how many digits are read and shown together; in France a number goes in pairs (06 12 34 56 78).",
+    "mas": ["plus"],
+    "decirMas": "plus",
+    "repetir": {"double": 2, "triple": 3},
+    "grupo": 2
+  },
+
+  "nombre": {
+    "_comentario": "«antes»: what is said before the name, in order (the first one that matches at the start is removed, and again, until none is left). Here the apostrophe stays («je m'appelle»). «despues»: at the end. «noEmpiezaCon»: if the utterance starts like this, it is not a name («non merci»). «particulas»: lowercase in the middle of a name («Jean de La Fontaine», «Ludwig van Beethoven»).",
+    "antes": ["bonjour", "bonsoir", "salut", "coucou", "euh", "eh", "bon", "ben", "alors", "donc", "oui", "ok",
+              "d'accord", "voilà", "mon nom complet est", "mon nom complet c'est", "mon nom est", "mon nom c'est",
+              "mon nom", "mon prénom est", "mon prénom c'est", "je m'appelle", "je me nomme", "moi c'est", "c'est",
+              "je suis", "ici", "on m'appelle", "appelez-moi"],
+    "despues": ["merci", "merci beaucoup", "s'il vous plaît", "voilà"],
+    "noEmpiezaCon": ["non", "pas", "je ne", "je veux pas", "je ne veux pas"],
+    "particulas": ["de", "du", "des", "la", "le", "da", "di", "dos", "das", "van", "von", "der", "den", "del",
+                   "y", "e", "el"]
+  },
+
+  "opciones": {
+    "_comentario": "Picking an option by its order: «orden» has, for the first, the second…, how it is named; «ultima», the last one.",
+    "orden": [["premier", "première", "un", "une", "1", "1er", "1re"], ["deuxième", "second", "seconde", "deux", "2", "2e"],
+              ["troisième", "trois", "3", "3e"], ["quatrième", "quatre", "4", "4e"], ["cinquième", "cinq", "5", "5e"]],
+    "ultima": ["dernier", "dernière", "le dernier", "la dernière"]
+  },
+
+  "etiquetaEnMinuscula": true,
+  "_comentarioEtiqueta": "etiquetaEnMinuscula: a field label said in the middle of a sentence starts lowercase («J'ai noté courriel…»; an acronym like «ID» stays)."
+}

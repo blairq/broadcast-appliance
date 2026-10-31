@@ -1,0 +1,123 @@
+{
+  "_comentario": "Cómo se ENTIENDE lo que dice la gente en ruso frente a un tótem de registro (registro/Conversacion). Lo que el tótem DICE no va acá: va en el catálogo (contexto «totem», i18n/ba_ru.ts). Las listas de palabras se comparan contra lo que devuelve la voz a texto ya aplanado (minúsculas, «ё» como «е», y con los signos como espacios): se pueden escribir con «ё», que se aplana al leer el archivo. Una frase es varias palabras separadas por un espacio. Lo que dice el tótem tiene que poder contestarse con estas listas: la confirmación del catálogo («Скажите «да, верно»…») con las de «respuestas». Ver docs/desarrollo/I18N.md, «Tótem: datos del idioma».",
+
+  "aplanar": {
+    "_comentario": "Letra (UTF-8) → cómo queda al aplanar. Lo que no está acá y no es ASCII se descarta: por eso están TODAS las letras cirílicas, cada una con su minúscula. «ё» → «е» (casi nadie la escribe y el reconocedor no siempre la pone). Las comillas y rayas, como espacio.",
+    "а": "а", "б": "б", "в": "в", "г": "г", "д": "д", "е": "е", "ё": "е", "ж": "ж", "з": "з", "и": "и", "й": "й",
+    "к": "к", "л": "л", "м": "м", "н": "н", "о": "о", "п": "п", "р": "р", "с": "с", "т": "т", "у": "у", "ф": "ф",
+    "х": "х", "ц": "ц", "ч": "ч", "ш": "ш", "щ": "щ", "ъ": "ъ", "ы": "ы", "ь": "ь", "э": "э", "ю": "ю", "я": "я",
+    "А": "а", "Б": "б", "В": "в", "Г": "г", "Д": "д", "Е": "е", "Ё": "е", "Ж": "ж", "З": "з", "И": "и", "Й": "й",
+    "К": "к", "Л": "л", "М": "м", "Н": "н", "О": "о", "П": "п", "Р": "р", "С": "с", "Т": "т", "У": "у", "Ф": "ф",
+    "Х": "х", "Ц": "ц", "Ч": "ч", "Ш": "ш", "Щ": "щ", "Ъ": "ъ", "Ы": "ы", "Ь": "ь", "Э": "э", "Ю": "ю", "Я": "я",
+    "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n",
+    "Á": "a", "É": "e", "Í": "i", "Ó": "o", "Ú": "u", "Ü": "u", "Ñ": "n",
+    "«": " ", "»": " ", "„": " ", "“": " ", "”": " ", "—": " ", "–": " ", "’": "'", "‘": "'"
+  },
+
+  "numeros": {
+    "_comentario": "Los números dichos en palabras. «regla» «es» (Conversacion.cpp, grupo()): en ruso la centena es una palabra propia («двести», «триста»), seguida o no de 1..99, y la decena lleva la unidad pegada sin conector («тридцать пять»); unidades del 0 al 19, con los géneros («один», «одна», «одно», «одну»; «два», «две»). «тысяча» multiplica lo que viene antes (o 1) y suma, en todas sus formas («две тысячи», «пять тысяч»); «миллион» multiplica todo lo de antes. «ninguno» cuenta como cero. «digitos»: cómo se dice cada dígito, del 0 al 9, para repetir un teléfono o un correo (no se aplanan).",
+    "regla": "es",
+    "unidades": {
+      "ноль": 0, "нуль": 0, "один": 1, "одна": 1, "одно": 1, "одну": 1, "два": 2, "две": 2, "три": 3, "четыре": 4,
+      "пять": 5, "шесть": 6, "семь": 7, "восемь": 8, "девять": 9, "десять": 10, "одиннадцать": 11,
+      "двенадцать": 12, "тринадцать": 13, "четырнадцать": 14, "пятнадцать": 15, "шестнадцать": 16,
+      "семнадцать": 17, "восемнадцать": 18, "девятнадцать": 19
+    },
+    "decenas": {
+      "двадцать": 20, "тридцать": 30, "сорок": 40, "пятьдесят": 50, "шестьдесят": 60, "семьдесят": 70,
+      "восемьдесят": 80, "девяносто": 90
+    },
+    "conectores": [],
+    "centenas": {
+      "сто": 100, "двести": 200, "триста": 300, "четыреста": 400, "пятьсот": 500, "шестьсот": 600,
+      "семьсот": 700, "восемьсот": 800, "девятьсот": 900
+    },
+    "centenasSolas": [],
+    "conectoresCentena": [],
+    "mil": ["тысяча", "тысячи", "тысяч", "тысячу"],
+    "millon": ["миллион", "миллиона", "миллионов"],
+    "ninguno": ["ничего", "никого", "нисколько", "ни одного", "ни одной"],
+    "digitos": ["ноль", "один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять"]
+  },
+
+  "respuestas": {
+    "_comentario": "Sí o no. Primero «noSabe» (no es ni sí ni no: se vuelve a preguntar) y «noFrases» (un no aunque lleve un sí adentro: «не верно», «да нет»); después, si aparece alguna de «si» o de «no» (y no de las dos), esa. La primera de cada lista es la que se usa cuando el modelo contesta un booleano.",
+    "si": ["да", "ага", "угу", "да да", "конечно", "верно", "да верно", "всё верно", "правильно", "всё правильно",
+           "точно", "именно", "так точно", "так и есть", "подтверждаю", "хорошо", "ладно", "ок", "окей", "отлично",
+           "супер", "согласен", "согласна", "разумеется", "безусловно", "давайте", "давай", "нормально", "пойдёт",
+           "годится", "всё так", "абсолютно"],
+    "no": ["нет", "неа", "не", "нет нет", "неверно", "неправильно", "ошибка", "не так", "не то", "никогда",
+           "ни в коем случае", "вовсе нет", "конечно нет", "да нет", "не совсем", "отнюдь"],
+    "noSabe": ["не знаю", "я не знаю", "не уверен", "не уверена", "без понятия", "понятия не имею",
+               "затрудняюсь ответить"],
+    "noFrases": ["не верно", "неверно", "не правильно", "неправильно", "не так", "не то", "это не так", "нет нет",
+                 "не совсем", "вовсе нет", "конечно нет", "да нет", "не всё верно", "не всё правильно"]
+  },
+
+  "_comentarioListas": "cancelar, repetir y saltear: «exactas» = lo dicho entero es eso; «contiene» = eso aparece en lo dicho (como palabras enteras).",
+  "cancelar": {
+    "exactas": ["отмена", "отменить", "отмени", "отмените", "стоп", "хватит", "до свидания", "пока", "я ухожу",
+                "забудьте", "не надо"],
+    "contiene": ["отменить регистрацию", "отмените регистрацию", "отмени регистрацию", "отказаться от регистрации"]
+  },
+  "repetir": {
+    "exactas": ["что", "как", "чего", "а", "э", "что вы сказали", "повторите", "повтори", "повторить", "ещё раз",
+                "можно ещё раз", "не понял", "не поняла", "я не понял", "я не поняла", "не расслышал",
+                "не расслышала", "простите", "извините", "пардон", "не слышно"],
+    "contiene": ["повторите пожалуйста", "повторите вопрос", "можно ещё раз", "не расслышал", "не расслышала"]
+  },
+  "saltear": {
+    "exactas": ["пропустить", "пропусти", "пропустите", "дальше", "пас", "не знаю"],
+    "contiene": ["пропустить", "пропустите", "следующий", "следующий вопрос", "не хочу", "не буду", "не скажу",
+                 "предпочитаю не", "лучше не", "у меня нет", "нету", "не помню", "потом", "в другой раз",
+                 "не сейчас"]
+  },
+
+  "correo": {
+    "_comentario": "El correo dictado. «signos»: lo que se dice en vez de un signo, en orden (primero se reemplazan las frases de varias palabras, después las palabras sueltas); en ruso la arroba es «собака», y «точка ру» es .ru. «noSonDigitos»: unidades de «numeros» que no se pasan a dígito (ninguna en ruso). «antes» y «despues»: lo que se dice antes del correo («моя почта») y después («спасибо»), que se saca. «terminaciones»: las del dominio que, sueltas después de la arroba, van con punto («gmail com» → gmail.com). «dominios»: un dominio dicho sin terminación que se completa, también como lo escribe el reconocedor en cirílico («яндекс» → yandex.ru). «decir»: cómo se repite cada signo en voz alta.",
+    "signos": [["нижнее подчёркивание", "_"], ["нижнее подчеркивание", "_"], ["точка ру", ".ru"], ["точка ком", ".com"],
+               ["точка нет", ".net"], ["точка орг", ".org"], ["собака", "@"], ["собачка", "@"], ["эт", "@"],
+               ["точка", "."], ["подчёркивание", "_"], ["дефис", "-"], ["тире", "-"], ["минус", "-"],
+               ["ру", ".ru"], ["ком", ".com"]],
+    "noSonDigitos": [],
+    "antes": ["мой", "моя", "моё", "моей", "почта", "почты", "адрес", "электронная", "электронной", "имейл", "емейл",
+              "е-мейл", "email", "e-mail", "это", "вот", "ну", "э", "эм", "да", "так", "значит", "у", "меня",
+              "пишите", "запишите", "записывайте", "такой", "такая"],
+    "despues": ["спасибо", "всё", "это", "пожалуйста", "вот"],
+    "terminaciones": ["ru", "com", "net", "org", "su", "by", "kz", "ua", "io", "info"],
+    "dominios": {"gmail": "gmail.com", "джимейл": "gmail.com", "гмейл": "gmail.com", "гмаил": "gmail.com",
+                 "yandex": "yandex.ru", "яндекс": "yandex.ru", "мейл": "mail.ru", "мэйл": "mail.ru",
+                 "rambler": "rambler.ru", "рамблер": "rambler.ru", "inbox": "inbox.ru", "list": "list.ru",
+                 "bk": "bk.ru", "outlook": "outlook.com", "аутлук": "outlook.com", "hotmail": "hotmail.com",
+                 "icloud": "icloud.com", "айклауд": "icloud.com", "yahoo": "yahoo.com", "яху": "yahoo.com"},
+    "decir": {".": "точка", "@": "собака", "_": "нижнее подчёркивание", "-": "дефис"}
+  },
+
+  "telefono": {
+    "_comentario": "«mas»: lo que se dice por el + del código de país (solo al principio); «decirMas», cómo se lo repite. «repetir»: en ruso no se dice «doble cinco», queda vacío. «grupo»: de a cuántos dígitos se lee y se muestra un número (el primer grupo lleva lo que sobra); de a dos, como se dicta en ruso el final de un número (91 61 23 45 67).",
+    "mas": ["плюс"],
+    "decirMas": "плюс",
+    "repetir": {},
+    "grupo": 2
+  },
+
+  "nombre": {
+    "_comentario": "«antes»: lo que se dice antes del nombre, en orden (se saca la primera que coincida al principio, y de nuevo, hasta que no quede ninguna); las frases largas van antes que sus pedazos. «despues»: al final. «noEmpiezaCon»: si lo dicho empieza así, no es un nombre («не хочу»). «particulas»: van en minúscula en medio de un nombre («Людвиг ван Бетховен», «Али оглы»).",
+    "antes": ["здравствуйте", "здрасте", "привет", "добрый день", "доброе утро", "добрый вечер", "ну", "э", "эм", "да",
+              "хорошо", "так", "меня зовут", "моё полное имя", "моё имя", "моя фамилия", "имя", "зовут", "я", "это"],
+    "despues": ["спасибо", "пожалуйста"],
+    "noEmpiezaCon": ["не", "нет"],
+    "particulas": ["де", "ди", "да", "дель", "ла", "ле", "фон", "ван", "дер", "оглы", "кызы", "ибн", "бен"]
+  },
+
+  "opciones": {
+    "_comentario": "Elegir una opción por el orden: «orden» tiene, para la primera, la segunda…, cómo se la nombra (con los géneros y el acusativo); «ultima», la última.",
+    "orden": [["первый", "первая", "первое", "первую", "один", "1"], ["второй", "вторая", "второе", "вторую", "два", "2"],
+              ["третий", "третья", "третье", "третью", "три", "3"], ["четвёртый", "четвёртая", "четвёртое", "четвёртую", "четыре", "4"],
+              ["пятый", "пятая", "пятое", "пятую", "пять", "5"]],
+    "ultima": ["последний", "последняя", "последнее", "последнюю"]
+  },
+
+  "etiquetaEnMinuscula": true,
+  "_comentarioEtiqueta": "etiquetaEnMinuscula: la etiqueta de un campo dicha en medio de una frase va con la inicial en minúscula («Записала почту…»; una sigla como «ИНН» queda)."
+}
