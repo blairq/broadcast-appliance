@@ -404,10 +404,10 @@ ApplicationWindow {
         }
     }
 
-    // Los carteles que dicen cuál monitor es cuál (Studio.identificarPantallas).
+    // Los carteles que dicen cuál monitor es cuál (Studio.escritorio.identificarPantallas).
     IdentificarPantallas { id: identificar }
     Connections {
-        target: Studio
+        target: Studio.escritorio
         function onIdentificarPedido(ids) { identificar.mostrar(ids) }
     }
 

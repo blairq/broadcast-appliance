@@ -29827,16 +29827,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>推流已恢复</translation>
     </message>
     <message>
-        <location line="+17" />
-        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
-        <translation>没有名为「%1」的显示器：请提供其编号、名称或 ID。</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>El monitor «%1» no está conectado.</source>
-        <translation>显示器「%1」未连接。</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>已保存</translation>
@@ -29850,6 +29840,17 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
+    </message>
+</context>
+<context>
+    <name>EscritorioViewModel</name>
+    <message>
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation>没有名为「%1」的显示器：请提供其编号、名称或 ID。</translation>
+    </message>
+    <message>
+        <source>El monitor «%1» no está conectado.</source>
+        <translation>显示器「%1」未连接。</translation>
     </message>
 </context>
 <context>

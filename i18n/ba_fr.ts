@@ -29946,16 +29946,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Diffusion rétablie</translation>
     </message>
     <message>
-        <location line="+17" />
-        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
-        <translation>Il n'y a pas d'écran « %1 » : indiquez son numéro, son nom ou son id.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>El monitor «%1» no está conectado.</source>
-        <translation>L'écran « %1 » n'est pas connecté.</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>Enregistré</translation>
@@ -29969,6 +29959,17 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Ce qui était à l'antenne avant la coupure a été rétabli (carton ou noir)</translation>
+    </message>
+</context>
+<context>
+    <name>EscritorioViewModel</name>
+    <message>
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation>Il n'y a pas d'écran « %1 » : indiquez son numéro, son nom ou son id.</translation>
+    </message>
+    <message>
+        <source>El monitor «%1» no está conectado.</source>
+        <translation>L'écran « %1 » n'est pas connecté.</translation>
     </message>
 </context>
 <context>

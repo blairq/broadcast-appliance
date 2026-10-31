@@ -29946,16 +29946,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>Transmissão recuperada</translation>
     </message>
     <message>
-        <location line="+17" />
-        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
-        <translation>Não existe um monitor “%1”: diga o número, o nome ou o id dele.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>El monitor «%1» no está conectado.</source>
-        <translation>O monitor “%1” não está conectado.</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>Salvo</translation>
@@ -29969,6 +29959,17 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Foi restaurado o que estava no ar antes da queda (cartela ou preto)</translation>
+    </message>
+</context>
+<context>
+    <name>EscritorioViewModel</name>
+    <message>
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation>Não existe um monitor “%1”: diga o número, o nome ou o id dele.</translation>
+    </message>
+    <message>
+        <source>El monitor «%1» no está conectado.</source>
+        <translation>O monitor “%1” não está conectado.</translation>
     </message>
 </context>
 <context>

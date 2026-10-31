@@ -30065,16 +30065,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Трансляция восстановлена</translation>
     </message>
     <message>
-        <location line="+17" />
-        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
-        <translation>Монитора «%1» нет: укажите его номер, имя или id.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>El monitor «%1» no está conectado.</source>
-        <translation>Монитор «%1» не подключён.</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>Сохранено</translation>
@@ -30088,6 +30078,17 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Восстановлено то, что было в эфире до сбоя (заставка или чёрный)</translation>
+    </message>
+</context>
+<context>
+    <name>EscritorioViewModel</name>
+    <message>
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation>Монитора «%1» нет: укажите его номер, имя или id.</translation>
+    </message>
+    <message>
+        <source>El monitor «%1» no está conectado.</source>
+        <translation>Монитор «%1» не подключён.</translation>
     </message>
 </context>
 <context>

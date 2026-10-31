@@ -5,7 +5,7 @@
 // y ver adónde iba. Esto pone el número y el nombre, grandes, en cada pantalla
 // a la vez, que es como lo resuelven los sistemas operativos.
 //
-// EL MISMO NÚMERO QUE LA PÁGINA. Los monitores salen de Studio.monitores (el
+// EL MISMO NÚMERO QUE LA PÁGINA. Los monitores salen de Studio.escritorio.monitores (el
 // orden físico de pantallas/Monitores, de izquierda a derecha): el «2» del
 // cartel es el «2» de la página Pantallas, no el orden en que el sistema los
 // lista, que puede ser cualquiera.
@@ -47,7 +47,7 @@ Item {
     }
 
     Instantiator {
-        model: raiz.abierto ? Studio.monitores.filter(m => raiz.ids.length === 0 || raiz.ids.indexOf(m.id) >= 0) : []
+        model: raiz.abierto ? Studio.escritorio.monitores.filter(m => raiz.ids.length === 0 || raiz.ids.indexOf(m.id) >= 0) : []
         delegate: Window {
             id: cartel
             required property var modelData

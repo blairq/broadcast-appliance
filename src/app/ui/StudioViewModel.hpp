@@ -33,6 +33,7 @@
 #include "ui/AsistenteViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
 #include "ui/EmisionViewModel.hpp"
+#include "ui/EscritorioViewModel.hpp"
 #include "ui/EscenasViewModel.hpp"
 #include "ui/ImagenViewModel.hpp"
 #include "ui/MezclaViewModel.hpp"
@@ -364,8 +365,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* pantallasConectadas READ pantallasConectadasQml CONSTANT)
     /// Las ventanas sueltas, que se recuerdan (pantallas/Ventanas.hpp).
     Q_PROPERTY(QObject* ventanas READ ventanasQml CONSTANT)
-    /// Los monitores conectados en su orden físico (Monitores::conectadosEnOrden).
-    Q_PROPERTY(QVariantList monitores READ monitores NOTIFY monitoresChanged)
+    /// Dónde se muestra cada cosa en esta máquina (ui/EscritorioViewModel): los monitores en
+    /// su orden físico, identificarlos, las ventanas abiertas, si se pueden ubicar.
+    Q_PROPERTY(QObject* escritorio READ escritorioQml CONSTANT)
     /// La biblioteca de códigos QR y su estudio de diseño.
     Q_PROPERTY(QObject* qr READ qr CONSTANT)
     /// El tema del evento abierto en todas las páginas web (TemaEventoViewModel).
@@ -651,10 +653,10 @@ class StudioViewModel : public QObject {
     QObject* pantallas() const;
     QObject* catalogoQml() const;
     QObject* pantallasConectadasQml() const;
-    CatalogoVisible* catalogoVisible() const { return catalogo_.get(); }
-    MonitoresModel* monitoresModelo() const { return monitores_.get(); }
+    CatalogoVisible* catalogoVisible() const { return &escritorio_->catalogo(); }
+    MonitoresModel* monitoresModelo() const { return &escritorio_->monitoresModelo(); }
     QObject* ventanasQml() const;
-    VentanasModel* ventanasModelo() const { return ventanas_.get(); }
+    VentanasModel* ventanasModelo() const { return &escritorio_->ventanas(); }
     QObject* qr() const;
     QObject* temaEvento() const;
     QObject* enlacesQml() const;
@@ -692,10 +694,10 @@ class StudioViewModel : public QObject {
     QObject* modelos() const;
     QObject* descargas() const;
     QObject* multivistasQml() const;
-    MultiviewViewModel& multivistas() { return *multivistas_; }
-    /// Los monitores conectados, en orden físico: [{id, nombre, orden, sistema,
-    /// principal, ancho, alto, x, y}] (los de Salidas → Pantallas).
-    QVariantList monitores() const;
+    MultiviewViewModel& multivistas() { return escritorio_->multivistas(); }
+    /// El área del escritorio (el catálogo, los monitores, las ventanas, las multivistas).
+    EscritorioViewModel& escritorio() { return *escritorio_; }
+    QObject* escritorioQml() const;
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;
@@ -764,26 +766,6 @@ class StudioViewModel : public QObject {
     /// El objetivo de loudness guardado (modelo, Config/loudness.json).
     audio::ObjetivoLoudness& objetivoLoudness() { return emision_->objetivoLoudness(); }
 
-    /// Muestra un cartel grande en CADA monitor con su número y su nombre,
-    /// unos segundos. Es la única forma de saber cuál es «DP-1» sin ponerse a
-    /// mover ventanas a ver cuál se mueve.
-    /// El cartel con su número y su nombre (los de la página Pantallas) en cada monitor, o
-    /// solo en uno: `cual` es su número, su nombre o su id. Devuelve el error ("" = puesto).
-    Q_INVOKABLE QString identificarPantallas(const QString& cual = {});
-
-    /// Los monitores donde YA hay una ventana nuestra, por nombre. Lo usa una
-    /// ventana que se abre para nacer en uno libre en vez de encima de otra.
-    Q_INVOKABLE QStringList ventanasAbiertas() const;
-
-    /// Si en este escritorio un programa puede decir DONDE va una ventana.
-    ///
-    /// En Wayland no: ubicarlas es del compositor. Y lo peor es que pedirlo no
-    /// falla —Qt hasta informa la pantalla nueva— pero la ventana no se mueve.
-    /// Con esto la interfaz puede hacer lo único que sí funciona (pantalla
-    /// completa en un monitor) en vez de un botón que no hace nada.
-    Q_PROPERTY(bool puedeUbicarVentanas READ puedeUbicarVentanas CONSTANT)
-    static bool puedeUbicarVentanas();
-
    private:
     /// Le manda el estado de los buses a las pantallas de tally de la sala.
     /// Se llama en cada cambio de escena y de aire: un tally que llega tarde
@@ -813,12 +795,9 @@ class StudioViewModel : public QObject {
     /// carpeta). Distinta de `sceneChanged`, que es «cambió la que está al
     /// aire»: una pasa cada pocos segundos en vivo y la otra casi nunca.
     void escenasCambiaron();
-    /// Alguien pidió identificar los monitores (ver `identificarPantallas`).
-    void identificarPedido(const QStringList& ids); ///< vacío: todos
     void seccionConfigChanged();
     /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
     void mostrarSeccion(const QString& pagina, const QString& seccion);
-    void monitoresChanged();
     /// qr_mostrar: abrir una ventana con el QR de `texto`, su descripción, una
     /// explicación y un color (verde, azul… o #rrggbb), con el botón de copiar.
     void mostrarQr(const QString& texto, const QString& descripcion, const QString& mensaje, const QString& color);
@@ -868,12 +847,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<RegistroViewModel> registro_;
     std::unique_ptr<ExtensionesModel> extensiones_;
     std::unique_ptr<RielConfig> riel_;
-    // El catálogo antes que los monitores: los monitores le piden los títulos
-    // (y se destruyen primero).
-    std::unique_ptr<CatalogoVisible> catalogo_;
-    std::unique_ptr<MonitoresModel> monitores_;
-    std::unique_ptr<VentanasModel> ventanas_;
-    std::unique_ptr<MultiviewViewModel> multivistas_; ///< usa ventanas_ y monitores_: va después
+    /// El catálogo, los monitores, las ventanas sueltas y las multivistas (ui/EscritorioViewModel).
+    std::unique_ptr<EscritorioViewModel> escritorio_;
     QString seccionConfig_;
     /// El audio: los racks, la pestaña Audio, la matriz y el Mezclador (ui/MezclaViewModel).
     std::unique_ptr<MezclaViewModel> mezcla_;

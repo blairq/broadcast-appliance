@@ -29946,16 +29946,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Stream recovered</translation>
     </message>
     <message>
-        <location line="+17" />
-        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
-        <translation>There's no monitor “%1”: give its number, name or id.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>El monitor «%1» no está conectado.</source>
-        <translation>Monitor “%1” is not connected.</translation>
-    </message>
-    <message>
         <location line="+31" />
         <source>Guardado</source>
         <translation>Saved</translation>
@@ -29969,6 +29959,17 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+8" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>What was on air before the outage was restored (slate or black)</translation>
+    </message>
+</context>
+<context>
+    <name>EscritorioViewModel</name>
+    <message>
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation>There's no monitor “%1”: give its number, name or id.</translation>
+    </message>
+    <message>
+        <source>El monitor «%1» no está conectado.</source>
+        <translation>Monitor “%1” is not connected.</translation>
     </message>
 </context>
 <context>

@@ -693,7 +693,7 @@ void McpService::registerVentanaTools() {
                           {{"monitor", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "solo este: su numero, su nombre o su id (vacio = todos)")}}}}}};
         t.run = [this](const json& a, Done done) {
             const QString cual = QString::fromStdString(a.value("monitor", std::string()));
-            const QString err = vm_.identificarPantallas(cual);
+            const QString err = vm_.escritorio().identificarPantallas(cual);
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult::ok(cual.isEmpty() ? ba::i18n::traducir("mcp", "Cartel puesto en cada monitor unos segundos.")
                                                : ba::i18n::traducir("mcp", "Cartel puesto en ese monitor unos segundos.")));

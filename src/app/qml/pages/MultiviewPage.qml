@@ -193,7 +193,7 @@ Rectangle {
                             Layout.fillWidth: true
                             // Los de Salidas → Pantallas: orden físico, con el número que se ve al
                             // identificarlos, y se los pide por su id estable.
-                            readonly property var lista: Studio.monitores
+                            readonly property var lista: Studio.escritorio.monitores
                             readonly property string monitor: currentIndex >= 0 && currentIndex < lista.length ? lista[currentIndex].id : ""
                             model: lista.map(m => (m.principal ? qsTr("Monitor %1 — %2  (%3×%4, principal)") : qsTr("Monitor %1 — %2  (%3×%4)"))
                                                      .arg(m.orden).arg(m.nombre).arg(m.ancho).arg(m.alto))

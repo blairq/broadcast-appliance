@@ -35,6 +35,7 @@
 #include "ui/CuentasViewModel.hpp"
 #include "ui/EmisionViewModel.hpp"
 #include "ui/EscenasViewModel.hpp"
+#include "ui/EscritorioViewModel.hpp"
 #include "ui/SalidasViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "audio/ObjetivoLoudness.hpp"
@@ -678,73 +679,19 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                                        .racks = [this]() { return mezcla_ ? &mezcla_->racks() : nullptr; }});
     connect(imagen_.get(), &ImagenViewModel::notify, this, &StudioViewModel::notify);
     marca("imagen");
-    // El catálogo de cosas que se pueden mostrar y los monitores de la máquina
-    // (Salidas → Pantallas). Después de las cámaras, las multivistas, el tablero
-    // y las pantallas de la red: el catálogo los lee a todos.
-    {
-        // Las multivistas antes que el catálogo (las lista) y las ventanas (las migran).
-        multivistas_ = std::make_unique<MultiviewViewModel>(rt.dataRoot() / "Config");
-        CatalogoVisible::Fuentes f;
-        f.escenas = [this]() {
-            QStringList out;
-            for (const std::string& n : rt_.orderedSceneNames()) out << QString::fromStdString(n);
-            return out;
-        };
-        f.multiviews = [this]() { return multivistas_->lista(); };
-        f.fondo = [this]() { return dashboard_ ? dashboard_->background() : QStringList{}; };
-        f.fondoDistribucion = [this]() { return dashboard_ ? dashboard_->backgroundLayout() : QString("grid"); };
-        f.camarasPtz = [this]() {
-            QStringList out;
-            for (const QVariant& v : imagen_->camaras().camaras()) out << v.toMap().value("entrada").toString();
-            return out;
-        };
-        f.paginas = []() { return RielConfig::todasLasPaginas(); };
-        f.contenidosRed = [this]() { return pantallas_ ? pantallas_->contenidos() : QVariantList{}; };
-        // Los tótems de registro: cada uno a una TV, que muestra el QR para registrarse.
-        f.totems = [this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; };
-        // Las fuentes de video sueltas (invitados, sus pantallas, las entradas):
-        // lo que antes solo se podía sacar a una ventana de video por su clave.
-        f.videos = [this]() {
-            QVariantList out;
-            if (frames_) {
-                for (const QString& k : frames_->keys()) out << QVariantMap{{"clave", k}, {"titulo", frames_->label(k)}};
-                // Las cámaras de los tótems de registro: para ver en otro monitor quién se
-                // está registrando (negro mientras ese canal no conversa con nadie).
-                for (int k = 1; k <= FrameService::kRegistroSlots; ++k) {
-                    const QString clave = QString("registro:%1").arg(k);
-                    out << QVariantMap{{"clave", clave}, {"titulo", frames_->label(clave)}};
-                }
-            }
-            for (const QString& e : imagen_->video().entradas()) out << QVariantMap{{"clave", "entrada:" + e}, {"titulo", e}};
-            return out;
-        };
-        catalogo_ = std::make_unique<CatalogoVisible>(std::move(f));
-        const auto refrescar = [this]() { catalogo_->refrescar(); };
-        connect(this, &StudioViewModel::escenasCambiaron, catalogo_.get(), refrescar);
-        connect(multivistas_.get(), &MultiviewViewModel::cambio, catalogo_.get(), refrescar);
-        if (dashboard_) connect(dashboard_.get(), &DashboardModel::backgroundChanged, catalogo_.get(), refrescar);
-        connect(&imagen_->camaras(), &ptz::ControlCamaras::cambio, catalogo_.get(), refrescar);
-        connect(frames_.get(), &FrameService::keysChanged, catalogo_.get(), refrescar);
-        monitores_ = std::make_unique<MonitoresModel>(rt.dataRoot() / "Config" / "monitores.json", catalogo_.get());
-        monitores_->conectarAlSistema();
-        marca("monitores");
-        // Las ventanas sueltas (pantallas/Ventanas.hpp): las mismas cosas del
-        // catálogo y los mismos monitores. La primera vez trae las ventanas de
-        // video que había en ui.json.
-        {
-            ba::diag::Cargando c("ventanas");
-            ventanas_ = std::make_unique<VentanasModel>(
-                c.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "ventanas.json", catalogo_.get(),
-                monitores_.get());
-            if (!c.saltear()) ventanas_->migrarDesde(rt.dataRoot() / "Config" / "ui.json", multivistas_->actual());
-        }
-        multivistas_->setVentanas(ventanas_.get(), monitores_.get());
-        connect(monitores_.get(), &MonitoresModel::cambio, this, &StudioViewModel::monitoresChanged);
-        marca("ventanas");
-    }
-    // Las entradas de video también son cosas que se pueden mostrar (catálogo).
-    connect(&imagen_->video(), &video::VideoGrafos::cambio, catalogo_.get(), [this]() { catalogo_->refrescar(); });
-    catalogo_->refrescar();
+    // Dónde se muestra cada cosa en esta máquina: el catálogo, los monitores, las ventanas
+    // sueltas y las multivistas (ui/EscritorioViewModel). Después de las cámaras, el
+    // tablero y las pantallas de la red: el catálogo los lee a todos.
+    escritorio_ = std::make_unique<EscritorioViewModel>(EscritorioViewModel::Partes{
+        .rt = rt,
+        .cuadros = *frames_,
+        .imagen = *imagen_,
+        .tablero = dashboard_.get(),
+        .pantallas = pantallas_.get(),
+        .totems = [this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; }});
+    connect(this, &StudioViewModel::escenasCambiaron, escritorio_.get(), &EscritorioViewModel::refrescarCatalogo);
+    marca("ventanas");
+    escritorio_->refrescarCatalogo();
     // El respaldo de las entradas al aire que pierden señal (modelo): acá solo se muestra.
     respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, imagen_->video(), salidas_->conmutador(), this);
     connect(respaldo_.get(), &escenas::RespaldoEntradas::sinSenalCambio, this, &StudioViewModel::senalChanged);
@@ -905,9 +852,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // cambian (motor, modelo, apagarlo), la página de tótems dice con qué entiende.
     totems_->setRoles(&asistente_->roles());
     connect(&asistente_->despachador(), &agent::Despachador::cambio, totems_.get(), &TotemsViewModel::cambio);
-    if (catalogo_) connect(totems_.get(), &TotemsViewModel::cambio, catalogo_.get(), [this]() { catalogo_->refrescar(); });
+    connect(totems_.get(), &TotemsViewModel::cambio, escritorio_.get(), &EscritorioViewModel::refrescarCatalogo);
     if (qr_) qr_->setTotems([this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; });
-    if (catalogo_) catalogo_->refrescar();
+    escritorio_->refrescarCatalogo();
     marca("totems");
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
     tick_.start(100);
@@ -1216,22 +1163,10 @@ QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
-QObject* StudioViewModel::catalogoQml() const { return catalogo_.get(); }
-QString StudioViewModel::identificarPantallas(const QString& cual) {
-    if (cual.trimmed().isEmpty()) {
-        emit identificarPedido({});
-        return {};
-    }
-    const QString id = monitores_ ? monitores_->resolver(cual) : QString();
-    if (id.isEmpty()) return tr("No hay un monitor «%1»: decí su número, su nombre o su id.").arg(cual);
-    const QVariantMap m = monitores_->monitor(id);
-    if (!m.value("conectado").toBool()) return tr("El monitor «%1» no está conectado.").arg(cual);
-    emit identificarPedido({id});
-    return {};
-}
+QObject* StudioViewModel::catalogoQml() const { return escritorio_->catalogoQml(); }
 
-QObject* StudioViewModel::pantallasConectadasQml() const { return monitores_.get(); }
-QObject* StudioViewModel::ventanasQml() const { return ventanas_.get(); }
+QObject* StudioViewModel::pantallasConectadasQml() const { return escritorio_->monitoresQml(); }
+QObject* StudioViewModel::ventanasQml() const { return escritorio_->ventanasQml(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::temaEvento() const { return temaEvento_.get(); }
 QObject* StudioViewModel::lineaQml() const { return linea_.get(); }
@@ -1324,19 +1259,6 @@ void StudioViewModel::publicarTally() {
     for (const std::string& f : rt_.engine().fuentesDsk())
         if (!enAire.contains(qs(f))) enAire << qs(f);
     p->publicarTally(aire, armada, enAire, fuentesDe(armada), streaming(), recording());
-}
-
-QStringList StudioViewModel::ventanasAbiertas() const {
-    QStringList out;
-    for (QWindow* w : QGuiApplication::topLevelWindows()) {
-        if (w == nullptr || !w->isVisible() || !w->objectName().startsWith("ba:")) continue;
-        if (w->screen() != nullptr && !out.contains(w->screen()->name())) out << w->screen()->name();
-    }
-    return out;
-}
-
-bool StudioViewModel::puedeUbicarVentanas() {
-    return !QGuiApplication::platformName().contains("wayland", Qt::CaseInsensitive);
 }
 
 void StudioViewModel::copiar(const QString& texto) {
@@ -1652,14 +1574,10 @@ namespace ba::app {
 
 namespace ba::app {
 
-QVariantList StudioViewModel::monitores() const {
-    // Los de Salidas → Pantallas: orden físico e ids estables (una sola lista).
-    return monitores_ ? monitores_->conectadosEnOrden() : QVariantList{};
-}
-
-QObject* StudioViewModel::multivistasQml() const {
-    QQmlEngine::setObjectOwnership(multivistas_.get(), QQmlEngine::CppOwnership);
-    return multivistas_.get();
+QObject* StudioViewModel::multivistasQml() const { return escritorio_->multivistasQml(); }
+QObject* StudioViewModel::escritorioQml() const {
+    QQmlEngine::setObjectOwnership(escritorio_.get(), QQmlEngine::CppOwnership);
+    return escritorio_.get();
 }
 
 } // namespace ba::app

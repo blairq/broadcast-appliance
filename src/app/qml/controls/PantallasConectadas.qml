@@ -87,7 +87,7 @@ Panel {
             GlassButton {
                 anchors { left: parent.left; bottom: parent.bottom }
                 compact: true; text: qsTr("Identificar"); icon: "⧉"
-                onClicked: Studio.identificarPantallas()
+                onClicked: Studio.escritorio.identificarPantallas()
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Muestra en cada monitor su número y su nombre, unos segundos")
             }

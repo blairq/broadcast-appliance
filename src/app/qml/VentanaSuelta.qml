@@ -137,7 +137,7 @@ Window {
             const pantallas = Qt.application.screens
             if (pantallas.length > 1) {
                 const ocupados = {}
-                const vs = Studio.ventanasAbiertas()
+                const vs = Studio.escritorio.ventanasAbiertas()
                 for (let i = 0; i < vs.length; ++i) ocupados[vs[i]] = true
                 for (let k = 0; k < pantallas.length; ++k)
                     if (!ocupados[pantallas[k].name]) { w.screen = pantallas[k]; break }
@@ -145,7 +145,7 @@ Window {
         }
         // Donde el escritorio no deja ubicar ventanas (Wayland), una página va a
         // pantalla completa en su monitor.
-        if (w.pantallaCompleta || (w.esPagina && !Studio.puedeUbicarVentanas)) w.visibility = Window.FullScreen
+        if (w.pantallaCompleta || (w.esPagina && !Studio.escritorio.puedeUbicarVentanas)) w.visibility = Window.FullScreen
         w.listo = true
         if (w.monitor === "") Studio.ventanas.setMonitor(w.ventanaId, barra.idDeMonitor(w.screen))
     }

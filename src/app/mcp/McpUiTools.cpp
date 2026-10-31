@@ -164,7 +164,7 @@ void McpService::registerUiTools() {
             }
             done(ToolResult().data({{"elegida", vm.multivistas().actual().toStdString()},
                                     {"multivistas", vistas},
-                                    {"monitores", qvToJson(vm.monitores())},
+                                    {"monitores", qvToJson(vm.escritorio().monitores())},
                                     {"fuentes_disponibles", disp}}));
         };
         core_.addTool(std::move(t));
@@ -437,7 +437,7 @@ void McpService::registerUiTools() {
             for (const QString& k : dash->background())
                 bg.push_back(k.toStdString());
             // Los monitores de Salidas → Pantallas (orden físico, ids estables).
-            json screens = qvToJson(vm.monitores());
+            json screens = qvToJson(vm.escritorio().monitores());
             json ventanas = json::array();
             if (windows != nullptr)
                 for (const FilaVentana& v : windows->ventanas()) {
