@@ -109,3 +109,15 @@ Nombres que el código crea y después busca por nombre (escenas «Asamblea · O
 «Banca con la palabra», «Chat en vivo», «Previa»; valores de enum): si en el texto aparecen
 como valor que se pasa a una herramienta, quedan en español; si son lo que ve el operador
 como etiqueta, se traducen.
+
+## Ajouts 2026-10-31 (timeline, sorties, thème, émetteur)
+
+| Castellano | Français | Note |
+|---|---|---|
+| línea (de tiempo) | timeline | |
+| escaleta | déroulé | recorrido aussi «déroulé» : si ça gêne, «rundown» |
+| paso / pieza / estante | étape / élément / réserve | |
+| armada / reenganchar / relleno | prête / raccrocher / remplissage | |
+| placa (écran / codec / audio / watchdog) | carton / GPU / interface audio / carte mère | selon le contexte |
+| bajada (gateway) | flux descendant | |
+| Dirección (page) | Régie | Dirección (réseau) = Adresse |

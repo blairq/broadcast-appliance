@@ -108,3 +108,17 @@ Nombres que el código crea y después busca por nombre (escenas «Asamblea · O
 «Banca con la palabra», «Chat en vivo», «Previa»; valores de enum): si en el texto aparecen
 como valor que se pasa a una herramienta, quedan en español; si son lo que ve el operador
 como etiqueta, se traducen.
+
+## Agregados 2026-10-31 (linha do tempo, saídas, tema, emissor)
+
+| Castellano | Português (BR) | Nota |
+|---|---|---|
+| escaleta | Espelho | alternativa: Rundown |
+| línea (de tiempo) / paso / pieza | Linha / passo / peça | |
+| estante (adlibs) | Prateleira | |
+| reenganchar / retoma | Reengatar / retomada | |
+| corte (de luz) / UPS | corte de energia / nobreak | |
+| recortar / recortable / relleno | cortar / cortável / preenchimento | |
+| acento (tema) | Destaque | |
+| placa (cartela / códec / áudio / watchdog) | cartela / GPU / interface de áudio / placa | según el contexto |
+| oído / escucha | escuta | |

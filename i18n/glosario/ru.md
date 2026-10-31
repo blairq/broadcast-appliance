@@ -109,3 +109,17 @@ Nombres que el código crea y después busca por nombre (escenas «Asamblea · O
 «Banca con la palabra», «Chat en vivo», «Previa»; valores de enum): si en el texto aparecen
 como valor que se pasa a una herramienta, quedan en español; si son lo que ve el operador
 como etiqueta, se traducen.
+
+## Добавлено 2026-10-31 (шкала времени, выходы, тема, передатчик)
+
+| Castellano | Русский | Nota |
+|---|---|---|
+| línea (de tiempo) | шкала времени / шкала | |
+| escaleta / storyboard / cues | вёрстка / раскадровка / команды | |
+| paso / pieza / estante | шаг / элемент / полка | |
+| disparador / ancla / relleno | триггер / якорь / заливка | |
+| reenganchar | вернуться к шкале | |
+| emisor aparte | отдельный передатчик | |
+| placa (заставка / кодек / аудио / watchdog) | заставка / видеокарта / аудиоинтерфейс / плата | según el contexto |
+| bloque (de la línea) | блок | bloque (asamblea) = фракция |
+| Dirección (página) | режиссёр | |
