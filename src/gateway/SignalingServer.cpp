@@ -123,6 +123,8 @@ const char* contentTypeFor(const std::string& relOriginal) {
 SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room,
                                  ShareStore& shares, Log& log)
     : cfg_(cfg), auth_(auth), hub_(hub), room_(room), shares_(shares), log_(log) {
+    pinIntentos_ = cfg_.pinIntentos;
+    pinBloqueoS_ = cfg_.pinBloqueoS;
     Room::Sinks sinks;
     sinks.toGuest = [this](const std::string& pid, const json& msg) { sendToGuest(pid, msg); };
     sinks.toHosts = [this](const std::string& ev, const json& data) { broadcastToHosts(ev, data); };
@@ -3088,7 +3090,7 @@ void SignalingServer::ipRecordFailure(std::uint32_t ip) {
     }
     auto& a = ipAttempts_[ip];
     ++a.failures;
-    if (a.failures >= cfg_.pinIntentos) a.lockedUntilUnix = now + cfg_.pinBloqueoS;
+    if (a.failures >= pinIntentos_) a.lockedUntilUnix = now + pinBloqueoS_;
 }
 
 void SignalingServer::ipRecordSuccess(std::uint32_t ip) {
@@ -3099,8 +3101,11 @@ void SignalingServer::ipRecordSuccess(std::uint32_t ip) {
 nlohmann::json SignalingServer::bloqueosPin() const {
     const int now = static_cast<int>(ba::security::nowUnix());
     json ips = json::array();
+    int intentos = 0, bloqueoS = 0;
     {
         std::lock_guard<std::mutex> lock(ipAttemptsLock_);
+        intentos = pinIntentos_;
+        bloqueoS = pinBloqueoS_;
         for (const auto& [ip, a] : ipAttempts_) {
             in_addr in{};
             in.s_addr = ip;
@@ -3117,8 +3122,8 @@ nlohmann::json SignalingServer::bloqueosPin() const {
     const bool global = hasta != 0 && now < hasta;
     return json{{"global", {{"fallos", fallos}, {"bloqueado", global}, {"quedanS", global ? hasta - now : 0}}},
                 {"ips", ips},
-                {"intentosPorIp", cfg_.pinIntentos},
-                {"bloqueoS", cfg_.pinBloqueoS}};
+                {"intentosPorIp", intentos},
+                {"bloqueoS", bloqueoS}};
 }
 
 int SignalingServer::desbloquearPin(const std::string& ip) {

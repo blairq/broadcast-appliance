@@ -26,6 +26,9 @@
 namespace ba::app {
 
 class AppRuntime;
+namespace sala {
+class ConfigSala;
+}
 
 class SettingsModel : public QAbstractListModel {
     Q_OBJECT
@@ -50,7 +53,7 @@ class SettingsModel : public QAbstractListModel {
         HelpRole,
         ScopeRole, ///< "live" "gateway" "restart"
         ModifiedRole,
-        AvanzadoRole ///< de los «avanzados» (ui/AjustesAvanzados): se ven con «Mostrar ajustes avanzados»
+        AvanzadoRole ///< de los «avanzados» (ajustes/Registro): se ven con «Mostrar ajustes avanzados»
     };
 
     explicit SettingsModel(AppRuntime& rt, QObject* parent = nullptr);
@@ -91,6 +94,9 @@ class SettingsModel : public QAbstractListModel {
     void setEnVivo(std::function<bool()> fn) { enVivo_ = std::move(fn); }
     /// Cambiar el cupo de invitados sin reiniciar la sala (T33). "" o el error.
     void setCupoEnCaliente(std::function<std::string(int)> fn) { cupoEnCaliente_ = std::move(fn); }
+    /// La configuración de la sala en caliente (F3-06): sin esto, todo lo de la sala
+    /// queda guardado para cuando arranque.
+    void setConfigSala(sala::ConfigSala* c) { configSala_ = c; }
 
    signals:
     void dirtyChanged();
@@ -100,9 +106,12 @@ class SettingsModel : public QAbstractListModel {
     /// El reinicio de la sala que pidió apply() terminó (corre aparte: no traba la
     /// interfaz). `error` vacío = hecho.
     void salaReiniciada(const QString& error);
+    /// La sala no tomó algo en caliente (corre aparte, como salaReiniciada).
+    void avisoSala(const QString& texto);
 
    private:
     std::function<std::string(int)> cupoEnCaliente_;
+    sala::ConfigSala* configSala_ = nullptr;
     int observador_ = 0;     ///< el aviso «Ajustes» del runtime (otro formulario aplicó)
     bool aplicando_ = false; ///< apply() en curso: su propio aviso no lo recarga
     bool fallo_ = false;     ///< el último apply() no aplicó o no guardó (fallo())

@@ -4,6 +4,7 @@
 
 #include "ui/StudioViewModel.hpp"
 #include "sala/CupoSala.hpp"
+#include "sala/ConfigSala.hpp"
 #include "emision/InputSpecs.hpp"
 #include "sala/VotacionSala.hpp"
 #include "sala/PreguntasSala.hpp"
@@ -372,6 +373,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         emit notify(QString::fromStdString(texto), error ? "error" : "ok");
     });
     cupoSala_->alCambiar([this](int n) { frames_->setGuests(n); });
+    configSala_ = std::make_unique<sala::ConfigSala>(conference_->client());
     seguridad_ = std::make_unique<sala::SeguridadSala>(rt.dataRoot(), conference_->client(), [this]() { return modoVivo(); });
     // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
     conference_->setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
@@ -994,6 +996,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         avisoFueraDeUi_->escuchar(rt.latido());
         settings_->setEnVivo([this]() { return modoVivo(); });
         settings_->setCupoEnCaliente([this](int n) { return cupoSala_->cambiar(n); });
+        settings_->setConfigSala(configSala_.get());
         // ¿Volvemos de una caída? El supervisor dejó escrita la causa.
         {
             const auto archivo = ba::platform::dataRoot() / "Runtime" / "ultima-caida.json";
@@ -2105,6 +2108,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 
     connect(sources_.get(), &SourcesModel::error, this,
             [this](const QString& m) { emit notify(m, "error"); });
+    connect(settings_.get(), &SettingsModel::avisoSala, this, [this](const QString& texto) { emit notify(texto, "error"); });
     connect(settings_.get(), &SettingsModel::salaReiniciada, this, [this](const QString& e) {
         emit notify(e.isEmpty() ? tr("Conferencia reiniciada con la configuración nueva.")
                                 : tr("La conferencia no se reinició (%1): apretá «Reiniciar la conferencia» en Configuración "

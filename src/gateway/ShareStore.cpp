@@ -125,7 +125,7 @@ ShareStore::Result ShareStore::save(uint64_t total, const std::function<int(uint
         res.err = kShort;
         return res;
     }
-    if (total > maxBytes_) {
+    if (total > maxBytes_.load()) {
         res.err = kTooLarge;
         return res;
     }

@@ -21,6 +21,7 @@
 // ============================================================================
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -65,12 +66,14 @@ class ShareStore {
     /// leido; <= 0 es EOF/error).
     Result save(uint64_t total, const std::function<int(uint8_t*, size_t)>& read);
 
-    uint64_t maxBytes() const { return maxBytes_; }
+    uint64_t maxBytes() const { return maxBytes_.load(); }
+    /// El tope por archivo en caliente (Configuración → Conferencia): rige para la próxima subida.
+    void ponerMaxBytes(uint64_t n) { maxBytes_.store(n); }
     const std::filesystem::path& dir() const { return dir_; }
 
    private:
     std::filesystem::path dir_;
-    uint64_t maxBytes_;
+    std::atomic<uint64_t> maxBytes_;
 };
 
 } // namespace ba::gateway

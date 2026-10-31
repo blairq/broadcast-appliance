@@ -32,6 +32,8 @@
 //   GET    /api/v1/qr?target=local|remote[&pin=1]  URL de ingreso (+PIN) + matriz del QR
 //   POST   /api/v1/network/server-config   {endpoint, publicAddress?} -> wg0.conf del servidor
 //   POST   /api/v1/room                    {lobby?, locked?, intake?}
+//   PUT    /api/v1/config/ajustes          {valores: {clave: valor}}  los avanzados «live» (en caliente)
+//   PUT    /api/v1/config/sala             {lobby?, pinIntentos?, pinBloqueoS?, maxUploadMB?}  (en caliente)
 //   POST   /api/v1/pin                     {pin?}  (vacio = generar)
 //   POST   /api/v1/participants/<id>/admit | reject | kick
 //   POST   /api/v1/participants/<id>/request   {what}
@@ -87,6 +89,7 @@
 
 #include "diag/Registro.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "ajustes/Registro.hpp"
 #include "i18n/I18n.hpp"
 
 namespace ba::gateway {
@@ -156,6 +159,73 @@ void sendRoomResult(long long fd, int err) {
 }
 
 } // namespace
+
+void SignalingServer::aplicarConfig(long long fd, const std::string& seccion, const json& req) {
+    if (seccion == "ajustes") {
+        // Los avanzados de la sala que rigen en caliente (alcance «live» en el registro):
+        // los que vienen toman ese valor; los «live» que no vienen vuelven al de siempre.
+        // Los que reinician la sala (los lee una vez al arrancar) no se tocan acá.
+        const json valores = req.value("valores", json::object());
+        if (!valores.is_object()) {
+            sendErr(fd, 400, "valores");
+            return;
+        }
+        json rechazados = json::object();
+        for (const auto& [k, v] : valores.items()) {
+            const ba::ajustes::Definicion* d = ba::ajustes::buscar(k);
+            if (d == nullptr || d->destino != ba::ajustes::Destino::Sala)
+                rechazados[k] = traducir("gateway", "no es un ajuste de la conferencia");
+            else if (std::string(d->alcance) != "live")
+                rechazados[k] = traducir("gateway", "rige al reiniciar la conferencia");
+            else if (const std::string e = ba::ajustes::validar(k, v); !e.empty())
+                rechazados[k] = e;
+        }
+        // Todo o nada: con uno mal no se aplica ninguno (la app avisa cuál).
+        if (!rechazados.empty()) {
+            std::string lista;
+            for (const auto& [k, e] : rechazados.items()) lista += (lista.empty() ? "" : ", ") + k + ": " + e.get<std::string>();
+            sendJson(fd, 409, json{{"ok", false}, {"error", lista}, {"claves", rechazados}});
+            return;
+        }
+        int cambiados = 0;
+        for (const ba::ajustes::Definicion& d : ba::ajustes::registro()) {
+            if (d.destino != ba::ajustes::Destino::Sala || std::string(d.alcance) != "live") continue;
+            const auto it = valores.find(d.clave);
+            ba::ajustes::poner(d.clave, it != valores.end() ? *it : json());
+            ++cambiados;
+        }
+        log_.info(llenar(traducir("gateway", "control: ajustes de la conferencia en caliente (%1 en uso)"),
+                         {std::to_string(valores.size())}));
+        sendJson(fd, 200, json{{"ok", true}, {"enCaliente", cambiados}});
+        return;
+    }
+    if (seccion == "sala") {
+        // Lo de Configuración → Conferencia que la sala aplica andando. Rangos como en la página.
+        const auto entero = [&](const char* k, int min, int max, int& out) {
+            if (!req.contains(k)) return true;
+            if (!req[k].is_number_integer() || req[k].get<int>() < min || req[k].get<int>() > max) return false;
+            out = req[k].get<int>();
+            return true;
+        };
+        int intentos = -1, bloqueoS = -1, maxMB = -1;
+        if (!entero("pinIntentos", 1, 100, intentos) || !entero("pinBloqueoS", 5, 86400, bloqueoS) ||
+            !entero("maxUploadMB", 1, 20480, maxMB) || (req.contains("lobby") && !req["lobby"].is_boolean())) {
+            sendErr(fd, 400, "rango");
+            return;
+        }
+        if (req.contains("lobby")) room_.setLobby(req["lobby"].get<bool>(), nowMsA());
+        {
+            std::lock_guard<std::mutex> l(ipAttemptsLock_);
+            if (intentos > 0) pinIntentos_ = intentos;
+            if (bloqueoS > 0) pinBloqueoS_ = bloqueoS;
+        }
+        if (maxMB > 0) shares_.ponerMaxBytes(static_cast<std::uint64_t>(maxMB) * 1024ull * 1024ull);
+        log_.info(traducir("gateway", "control: configuración de la conferencia en caliente"));
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
+    sendJson(fd, 404, json{{"ok", false}, {"error", llenar(traducir("gateway", "sección desconocida: %1"), {seccion})}});
+}
 
 bool SignalingServer::adminAuthorized(const std::string& headers, const std::string& method) const {
     const std::string auth = http::getHeader(headers, "Authorization");
@@ -260,6 +330,18 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     const json req = body.empty() ? json::object() : json::parse(body, nullptr, false);
     if (!req.is_object()) {
         sendErr(fd, 400, "json");
+        return;
+    }
+
+    // La configuración en caliente (F3-06): lo que la sala aplica andando, sin
+    // reiniciarse ni cortar a nadie. Lo estructural (puertos, TLS…) no está acá.
+    static const std::string kConfig = "/api/v1/config/";
+    if (path.rfind(kConfig, 0) == 0) {
+        if (method != "PUT") {
+            sendErr(fd, 405, "method");
+            return;
+        }
+        aplicarConfig(fd, path.substr(kConfig.size()), req);
         return;
     }
 

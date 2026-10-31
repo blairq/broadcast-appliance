@@ -52,6 +52,8 @@ class ConferenceClient : public QObject {
 
     /// POST a la API (`path` absoluto, p. ej. "/api/v1/room").
     void post(const QString& path, const QJsonObject& body = {}, Done done = {}, int timeoutMs = 5000);
+    /// PUT (la configuración en caliente: /api/v1/config/<sección>).
+    void put(const QString& path, const QJsonObject& body, Done done = {});
     void del(const QString& path, Done done = {});
     void get(const QString& path, Done done);
     /// GET de bytes crudos (fotos de las tarjetas). No avisa `failed`: una

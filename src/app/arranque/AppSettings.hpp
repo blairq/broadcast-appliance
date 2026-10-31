@@ -100,7 +100,7 @@ struct AppConfig {
     int mcpAprobacionMin = 10;  ///< una aprobación pendiente se rechaza sola a los N min
     int modeloContexto = 32768; ///< contexto del modelo local de chat (tokens)
     int modeloCapasGpu = 999;   ///< capas en la GPU (999 = todas; 0 = solo CPU)
-    /// Los avanzados de la app (ba::ajustes; tabla en ui/AjustesAvanzados): solo los cambiados.
+    /// Los avanzados de la app (ba::ajustes; tabla en core/ajustes/Registro): solo los cambiados.
     nlohmann::json ajustes = nlohmann::json::object();
     int replaySegundos = 0; ///< repetición: los últimos N s en memoria (0 = apagada)
     /// Tope de la latencia del estudio (ms; -1 = automático: 250 ms). Una entrada

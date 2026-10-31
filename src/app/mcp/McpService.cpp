@@ -380,6 +380,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     // El cupo en caliente, como en la GUI: sin esto, settings_set con el cupo
     // reiniciaba la sala (y cortaba a todos los invitados).
     settings_->setCupoEnCaliente([this](int n) { return vm_.cupoSala().cambiar(n); });
+    settings_->setConfigSala(&vm_.configSala()); // y lo demás de la sala, también en caliente
     registerHelp();
     registerTools();
     registerImageTools();
