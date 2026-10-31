@@ -335,7 +335,52 @@ bool McpCore::permitida(const Tool& t, const std::string& rol) const {
     return it != roles_.end() && it->second.count(t.category) != 0;
 }
 
-void McpCore::addTool(Tool tool) { tools_.push_back(std::move(tool)); }
+void McpCore::addTool(Tool tool) {
+    // Una herramienta de salida acepta `salida` sin que cada una lo escriba en su
+    // esquema: así dicen todas lo mismo y ninguna se olvida.
+    if (tool.porSalida) {
+        if (!tool.inputSchema.contains("properties") || !tool.inputSchema["properties"].is_object())
+            tool.inputSchema["properties"] = json::object();
+        if (!tool.inputSchema["properties"].contains("salida"))
+            tool.inputSchema["properties"]["salida"] = {
+                {"type", "string"},
+                {"description", ba::i18n::traducir("mcp", "Salida (id o nombre; `salidas_listar`). Sin ella, la por "
+                                                          "omisión (o la de quien llama).")}};
+    }
+    tools_.push_back(std::move(tool));
+}
+
+std::string McpCore::salidaPedida(const json& args, const CallContext& ctx) {
+    if (args.is_object())
+        if (const auto it = args.find("salida"); it != args.end() && it->is_string() && !it->get<std::string>().empty())
+            return it->get<std::string>();
+    return ctx.salida;
+}
+
+std::string McpCore::resolverSalida(const std::string& pedida, std::string& err) const {
+    err.clear();
+    if (pedida.empty() || !salidasLista_) return pedida;
+    const auto bajar = [](std::string x) {
+        for (auto& c : x) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return x;
+    };
+    const json lista = salidasLista_();
+    std::string hay;
+    for (const auto& s : lista) {
+        const std::string id = s.value("id", std::string()), nombre = s.value("nombre", std::string());
+        if (id == pedida || (!nombre.empty() && bajar(nombre) == bajar(pedida)))
+            return s.value("por_omision", false) ? std::string() : id;
+        hay += (hay.empty() ? "" : ", ") + id + (nombre.empty() || nombre == id ? "" : " (" + nombre + ")");
+    }
+    err = ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la salida '%1'. Salidas: %2. `salidas_listar` las muestra."),
+                           {pedida, hay});
+    return {};
+}
+
+std::string McpCore::salidaDe(const json& args) const {
+    std::string err;
+    return resolverSalida(salidaPedida(args, enCurso_), err);
+}
 void McpCore::addTopic(HelpTopic topic) { topics_.push_back(std::move(topic)); }
 void McpCore::addResource(Resource resource) { resources_.push_back(std::move(resource)); }
 void McpCore::addPrompt(Prompt prompt) { prompts_.push_back(std::move(prompt)); }
@@ -766,6 +811,17 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
             {name, problem})));
         return;
     }
+    // La salida de una herramienta de salida: que exista ANTES de aprobar nada ni
+    // correr (con una sola salida y sin pedir ninguna, no cambia nada).
+    std::string salida;
+    if (tool->porSalida) {
+        std::string err;
+        salida = resolverSalida(salidaPedida(args, ctx), err);
+        if (!err.empty()) {
+            finish(ToolResult::error(err));
+            return;
+        }
+    }
     // Un argumento que la herramienta no conoce se ignora… y se avisa: si no,
     // un nombre equivocado (`name` en vez de `fuente`) pasa callado y la
     // herramienta hace otra cosa (mira el programa en vez de la escena pedida).
@@ -873,7 +929,9 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     // el aire pedido por algo automático espera SIEMPRE a una persona, sin
     // importar política, rol ni contaminación. La voz y los disparadores, en
     // vivo, solo leen o hacen lo reversible sin preguntar.
-    const bool enAire = !ctx.humano && hayAire();
+    // Una herramienta de salida es de aire si sale SU salida (otra transmitiendo no
+    // la vuelve de aire); las demás, si sale cualquiera.
+    const bool enAire = !ctx.humano && (tool->porSalida && salidaSale_ ? salidaSale_(salida) : hayAire());
     const bool deAire = enAire && aire_.esDeAire(name, args);
     const bool automaticoEnVivo = enAire && !deAire && mutating(*tool) &&
                                   (ctx.origen == "voz" || ctx.origen == "disparador") && !reversibleEnVivo(name);

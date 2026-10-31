@@ -6,6 +6,10 @@
 // la app se cae con la placa o el negro al aire, al volver se restaura igual.
 // Lo piden la GUI (BotonesSeguridad) y el MCP (aire_ftb, aire_placa), los dos
 // por acá; quien muestre el estado se entera con alCambiar.
+//
+// Cada salida tiene su negro y su placa (PLAN-SALIDAS): `salida` "" = la por
+// omisión. En placa.json lo de siempre es de la por omisión; lo de las demás va
+// en `salidas: {id: {...}}` y vuelve igual (si la salida existe al restaurar).
 // ============================================================================
 #pragma once
 
@@ -28,11 +32,12 @@ class SeguridadAire {
     void alCambiar(std::function<void()> f) { cambio_ = std::move(f); }
 
     /// `audio`: "bajar" (el audio baja con el negro) o "mantener". "" o el error.
-    std::string ftb(bool activar, int ms, const std::string& audio);
+    std::string ftb(bool activar, int ms, const std::string& audio, const std::string& salida = {});
     /// La placa con `texto` (y una imagen opcional). "" o el error.
-    std::string placa(bool activar, const std::string& texto, const std::string& imagen, int ms);
-    /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
-    nlohmann::json estado() const;
+    std::string placa(bool activar, const std::string& texto, const std::string& imagen, int ms,
+                      const std::string& salida = {});
+    /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}, de la salida.
+    nlohmann::json estado(const std::string& salida = {}) const;
     /// Vuelve a poner lo que estaba (tras una caída). true si había algo.
     bool restaurar();
 

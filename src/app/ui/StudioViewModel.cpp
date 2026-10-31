@@ -4549,12 +4549,13 @@ QString StudioViewModel::legalizarUi(const QString& modo) {
     return {};
 }
 
-void StudioViewModel::esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo) {
-    const std::string ahora = rt_.engine().ultimoReplay();
+void StudioViewModel::esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo,
+                                    const std::string& salida) {
+    const std::string ahora = rt_.engine().ultimoReplay(salida);
     if (!ahora.empty() && ahora != antes) return listo(qs(ahora));
     if (ms <= 0) return listo(QString());
-    QTimer::singleShot(200, this, [this, antes, ms, listo = std::move(listo)]() mutable {
-        esperarReplay(antes, ms - 200, std::move(listo));
+    QTimer::singleShot(200, this, [this, antes, ms, listo = std::move(listo), salida]() mutable {
+        esperarReplay(antes, ms - 200, std::move(listo), salida);
     });
 }
 
@@ -4569,7 +4570,7 @@ QString StudioViewModel::repetirUi() {
     return {};
 }
 
-QString StudioViewModel::armarRepeticion(const QString& archivo) {
+QString StudioViewModel::armarRepeticion(const QString& archivo, const std::string& salida) {
     static const std::string kEscena = "Repetición", kFuente = "Repetición (clip)";
     BroadcastEngine& e = rt_.engine();
     const auto escenas = e.sceneNames();
@@ -4592,8 +4593,13 @@ QString StudioViewModel::armarRepeticion(const QString& archivo) {
     scenes_->reload();
     emit escenasCambiaron();
     rt_.save();
-    armarEscena(qs(kEscena));
-    return {};
+    if (salida.empty()) {
+        armarEscena(qs(kEscena));
+        return {};
+    }
+    escenas::Conmutador* c = conmutadores_->de(salida);
+    if (c == nullptr) return tr("No hay una salida «%1».").arg(qs(salida));
+    return qs(c->armar(kEscena));
 }
 
 QString StudioViewModel::isoTodasUi(bool grabar) {

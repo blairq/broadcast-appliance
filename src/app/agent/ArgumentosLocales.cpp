@@ -152,8 +152,10 @@ json estadoPara(const std::string& h, const json& estado) {
             if (estado.contains(k)) out[k] = estado[k];
         return out;
     };
-    if (empieza(h, {"scene_", "transition_", "preview_al_aire"})) return con({"escena_actual", "escena_armada", "escenas"});
-    if (empieza(h, {"audio", "mixer_"})) return con({"audio"});
+    // `salida`/`salidas` solo están con más de una salida (con una, el prompt de siempre).
+    if (empieza(h, {"scene_", "transition_", "preview_al_aire"}))
+        return con({"escena_actual", "escena_armada", "escenas", "salida", "salidas"});
+    if (empieza(h, {"audio", "mixer_"})) return con({"audio", "salida", "salidas"});
     if (empieza(h, {"source_", "foto_fuente", "crear_fuente", "escena_fuentes_ver"}))
         return con({"escena_actual", "escenas", "fuentes_de_la_escena_actual", "audio"});
     if (empieza(h, {"participant_", "speaker_", "chat_", "foto_invitado", "invitados_chat_leer", "publico_chat_leer"})) return con({"participantes"});
@@ -283,6 +285,25 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
         static const std::regex crea("_(create|add|copy|rename|folder|define)$");
         const bool nuevo = std::regex_search(herr, crea) && (k == "name" || k == "newName" || k == "nuevo" ||
                                                              k == "nombre" || k == "to" || k == "folder");
+        // La salida del aparato (PLAN-SALIDAS): una de las que hay, por id o nombre. Solo
+        // si el estado las trae (hay más de una) y la herramienta no usa `salida` para
+        // otra cosa (la salida de audio de un dispositivo, el puerto de una tarjeta).
+        if (k == "salida" && v.is_string() && !v.get<std::string>().empty() && estado.contains("salidas") &&
+            !empieza(herr, {"audio_patch", "audio_output_set", "video_cable"})) {
+            auto cand = lista(estado, "salidas", "id");
+            const auto nombres = lista(estado, "salidas", "nombre");
+            cand.insert(cand.end(), nombres.begin(), nombres.end());
+            std::string nota;
+            const std::string n = ajustar(v.get<std::string>(), cand, nota);
+            if (n.empty()) {
+                r.bloqueos.push_back(ba::i18n::llenar(ba::i18n::traducir("argumentos", "no existe: %1"), {v.get<std::string>()}));
+                r.args[k] = v;
+                continue;
+            }
+            if (!nota.empty()) r.notas.push_back(nota);
+            r.args[k] = n;
+            continue;
+        }
         if (tipo == "string" && v.is_string() && !p.contains("enum") && !especial && !nuevo &&
             esClaveDeNombre(k)) {
             std::string nota;

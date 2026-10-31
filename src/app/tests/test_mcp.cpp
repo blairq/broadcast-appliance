@@ -620,6 +620,92 @@ int main(int argc, char** argv) {
         CHECK(aire.esDeAire("configuracion_cambiar", {{"nombre", "x"}}), "cambiar de configuración: de aire");
     }
 
+    // --- Las salidas (PLAN-SALIDAS, etapa 3): `salida` en las herramientas de salida
+    {
+        McpCore sal;
+        std::string vista = "?"; // la salida que vio la última corrida
+        int corridas = 0;
+        Tool t;
+        t.name = "scene_switch"; // de aire (fija)
+        t.porSalida = true;
+        t.inputSchema = {{"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}};
+        McpCore* sp = &sal;
+        t.run = [sp, &vista, &corridas](const json& a, Done done) {
+            ++corridas;
+            vista = sp->salidaDe(a);
+            done(ToolResult::ok("ok"));
+        };
+        sal.addTool(std::move(t));
+        json lista = json::array({{{"id", "principal"}, {"nombre", "Principal"}, {"por_omision", true}},
+                                  {{"id", "yt2"}, {"nombre", "YouTube 2"}, {"por_omision", false}}});
+        std::set<std::string> salen;
+        sal.setSalidas([&lista]() { return lista; }, [&salen](const std::string& id) { return salen.count(id) > 0; });
+        sal.setHayAire([&salen]() { return !salen.empty(); });
+        sal.setApprovalPolicy(ApprovalPolicy::Never);
+        int preguntas = 0;
+        sal.setApprover([&preguntas](const Tool&, const json&, const std::string&, std::function<void(bool)> d) {
+            ++preguntas;
+            d(false);
+        });
+        const auto llamar = [&](const json& args, const CallContext& c = CallContext{"S", "", "asistente"}) {
+            json res;
+            sal.callTool({{"name", "scene_switch"}, {"arguments", args}}, [&res](json x) { res = x; }, c);
+            return res;
+        };
+        // El esquema la trae sola.
+        const json lst = call(sal, req(1, "tools/list"));
+        bool tiene = false;
+        for (const auto& x : lst["result"]["tools"])
+            if (x["name"] == "scene_switch") tiene = x["inputSchema"]["properties"].contains("salida");
+        CHECK(tiene, "una herramienta de salida tiene `salida` en el esquema");
+        // Sin salida: la por omisión ("").
+        json r = llamar({{"name", "A"}});
+        CHECK(!r.value("isError", true) && vista.empty(), "sin `salida`: la por omisión");
+        r = llamar({{"name", "A"}, {"salida", "yt2"}});
+        CHECK(!r.value("isError", true) && vista == "yt2", "con `salida` por id");
+        r = llamar({{"name", "A"}, {"salida", "youtube 2"}});
+        CHECK(!r.value("isError", true) && vista == "yt2", "con `salida` por nombre (sin mayúsculas)");
+        r = llamar({{"name", "A"}, {"salida", "principal"}});
+        CHECK(!r.value("isError", true) && vista.empty(), "la por omisión por su id es \"\"");
+        const int antes = corridas;
+        r = llamar({{"name", "A"}, {"salida", "no-existe"}});
+        CHECK(r.value("isError", false) && corridas == antes && textOf(r).find("no-existe") != std::string::npos &&
+                  textOf(r).find("yt2") != std::string::npos,
+              "salida inexistente: error claro (con las que hay) y no corre");
+        // La del contexto (perfil, aparato, asistente) si no viene en los argumentos.
+        CallContext c{"S", "", "asistente"};
+        c.salida = "yt2";
+        r = llamar({{"name", "A"}}, c);
+        CHECK(!r.value("isError", true) && vista == "yt2", "sin `salida`: la del contexto");
+        r = llamar({{"name", "A"}, {"salida", "principal"}}, c);
+        CHECK(!r.value("isError", true) && vista.empty(), "`salida` de los argumentos manda sobre el contexto");
+        c.salida = "otra";
+        r = llamar({{"name", "A"}}, c);
+        CHECK(r.value("isError", false), "la del contexto también se valida");
+        // De aire según qué salida sale.
+        salen = {"yt2"};
+        preguntas = 0;
+        r = llamar({{"name", "A"}});
+        CHECK(preguntas == 0 && !r.value("isError", true), "sale otra salida: cambiar la por omisión no es de aire");
+        r = llamar({{"name", "A"}, {"salida", "yt2"}});
+        CHECK(preguntas == 1 && r.value("isError", false), "sale esa salida: es de aire (pregunta; rechazada no corre)");
+        // Una de aire que no es de salida cuenta si sale cualquiera.
+        Tool u;
+        u.name = "stream_stop_todo";
+        u.run = [](const json&, Done done) { done(ToolResult::ok("ok")); };
+        sal.addTool(std::move(u));
+        sal.aire().ajustar("stream_stop_todo", "aire"); // sin archivo: queda en memoria
+        json y;
+        sal.callTool({{"name", "stream_stop_todo"}, {"arguments", json::object()}}, [&y](json x) { y = x; },
+                     CallContext{"S", "", "asistente"});
+        CHECK(preguntas == 2, "las que no son de salida: de aire si sale cualquiera");
+        // Sin setSalidas (un núcleo sin la app), lo pedido pasa tal cual.
+        McpCore solo;
+        std::string err;
+        CHECK(solo.resolverSalida("x", err) == "x" && err.empty(), "sin lista de salidas, no valida");
+        CHECK(McpCore::salidaPedida(json{{"salida", ""}}, CallContext{}) .empty(), "`salida` vacía = la por omisión");
+    }
+
     if (g_failures == 0) {
         std::printf("test_mcp: OK\n");
         return 0;

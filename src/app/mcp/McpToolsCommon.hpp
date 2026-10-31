@@ -11,8 +11,12 @@
 #include "mcp/McpCore.hpp"
 
 namespace ba::app {
+class AppRuntime;
 class StudioViewModel;
+namespace escenas {
+class Conmutador;
 }
+} // namespace ba::app
 
 namespace ba::app::mcp {
 
@@ -35,5 +39,13 @@ std::string personFeedKey(const json& participant);
 /// La advertencia de las herramientas que rearman el motor (el lienzo, los cuadros
 /// por segundo, el reloj del estudio): una sola, para todas las que lo hacen.
 std::string avisoReiniciaMotor();
+
+// --- Las salidas (PLAN-SALIDAS; ver McpSalidasTools.cpp) ---------------------
+/// El conmutador (aire, armada, take, T-bar, AFV) de la salida de la llamada en
+/// curso (McpCore::salidaDe): el de las herramientas de escenas con `salida`.
+escenas::Conmutador& conmutadorDe(const McpCore& core, StudioViewModel& vm, const json& args);
+/// [{id, nombre, color, por_omision, escena, armada, streaming, reconectando,
+/// recording, destinos, limpia, repeticion, placa}], la por omisión primera.
+json resumenSalidas(AppRuntime& rt, StudioViewModel& vm);
 
 } // namespace ba::app::mcp

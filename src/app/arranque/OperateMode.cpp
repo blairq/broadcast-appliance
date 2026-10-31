@@ -1020,8 +1020,9 @@ std::string AppRuntime::grabarAparte(const std::string& fuente) {
     return {};
 }
 
-bool AppRuntime::salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente) {
-    if (!startStreaming(server, key, cambiarEnCaliente)) return false;
+bool AppRuntime::salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente,
+                                   const std::string& salida) {
+    if (!startStreaming(server, key, cambiarEnCaliente, salida)) return false;
     if (engine_.ultimoInicio() != BroadcastEngine::Inicio::YaIgual && alVivoManual_) {
         const std::string srv = server.empty() ? cfg_.streamCfg.server : server;
         if (!srv.empty()) alVivoManual_(srv);
@@ -1029,7 +1030,35 @@ bool AppRuntime::salirAlAireManual(const std::string& server, const std::string&
     return true;
 }
 
-bool AppRuntime::startStreaming(const std::string& server, const std::string& key, bool cambiarEnCaliente) {
+bool AppRuntime::startStreaming(const std::string& server, const std::string& key, bool cambiarEnCaliente,
+                                const std::string& salida) {
+    const std::string id = engine_.idDeSalida(salida);
+    if (id.empty()) {
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
+        return false;
+    }
+    // Otra salida: su transmisión principal va a lo que se pida (la clave de la
+    // por omisión y la última guardada son de la por omisión: no se reusan, que
+    // la misma clave dos veces pisa la transmisión). No se guarda la clave.
+    if (id != salidas::kPorOmision) {
+        if (server.empty() || key.empty()) {
+            lastError_ = ba::i18n::traducir("salidas", "para otra salida, pasá el servidor y la clave (o usá un destino "
+                                                       "guardado con esa salida)");
+            return false;
+        }
+        StreamConfig sc = cfg_.streamCfg;
+        sc.server = server;
+        sc.key = key;
+        const bool salia = engine_.haySalidaEn(id);
+        if (!engine_.startStreaming(sc, cfg_.encoder, cambiarEnCaliente, id)) {
+            lastError_ = engine_.lastError();
+            return false;
+        }
+        if (!salia) engine_.loudness(id).reiniciar();
+        writeOnAirState();
+        avisar(Cambio::Salidas);
+        return true;
+    }
     StreamConfig sc = cfg_.streamCfg;
     if (!server.empty()) {
         sc.server = server;
@@ -1071,10 +1100,12 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
     return true;
 }
 
-void AppRuntime::stopStreaming() {
-    streamStopWanted_ = true;
+void AppRuntime::stopStreaming(const std::string& salida) {
+    const std::string id = engine_.idDeSalida(salida);
+    if (id.empty()) return;
+    if (id == salidas::kPorOmision) streamStopWanted_ = true;
     writeOnAirState();
-    engine_.stopStreaming();
+    engine_.stopStreaming(id);
     avisar(Cambio::Salidas);
 }
 
@@ -1190,6 +1221,22 @@ std::string AppRuntime::aplicarReplay() {
         return ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: %1"), {engine_.lastError()});
     return s > 0 ? ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: guarda los últimos %1 s."), {std::to_string(s)})
                  : ba::i18n::traducir("salidas", "Repetición apagada.");
+}
+
+std::string AppRuntime::ponerReplay(int segundos, const std::string& salida) {
+    const std::string id = engine_.idDeSalida(salida);
+    if (id.empty()) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
+    segundos = std::clamp(segundos, 0, 600);
+    if (id == salidas::kPorOmision) {
+        cfg_.replaySegundos = segundos;
+        save();
+        const std::string nota = aplicarReplay();
+        return segundos > 0 && !engine_.replayEstado().value("activa", false) ? nota : std::string();
+    }
+    if (!engine_.setReplay(segundos, cfg_.rec.directory + "/repeticiones", cfg_.encoder, id))
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: %1"), {engine_.lastError()});
+    avisar(Cambio::Salidas);
+    return {};
 }
 
 void AppRuntime::detenerSenalLimpia(const std::string& salida) {

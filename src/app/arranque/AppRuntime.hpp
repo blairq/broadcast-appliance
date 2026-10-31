@@ -131,14 +131,21 @@ class AppRuntime {
     void detenerSenalLimpia(const std::string& salida = "");
     /// Prende o apaga la repetición con cfg_.replaySegundos. Devuelve la nota para el operador.
     std::string aplicarReplay();
-    /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
-    bool startStreaming(const std::string& server = {}, const std::string& key = {}, bool cambiarEnCaliente = false);
-    void stopStreaming();
+    /// La repetición de `salida` con `segundos` (0 la apaga): la de la por omisión
+    /// queda en la configuración (cfg_.replaySegundos, y se guarda); la de las demás
+    /// vive en el motor. "" o por qué no.
+    std::string ponerReplay(int segundos, const std::string& salida = "");
+    /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno. Otra
+    /// `salida` que la por omisión necesita los dos (su clave no se guarda).
+    bool startStreaming(const std::string& server = {}, const std::string& key = {}, bool cambiarEnCaliente = false,
+                        const std::string& salida = "");
+    void stopStreaming(const std::string& salida = "");
     /// Salir al aire a mano (servidor y clave escritos o los de la configuración):
     /// startStreaming y, si arrancó o cambió de destino, avisa a alVivoManual con el
     /// servidor (nunca la clave). La GUI y el MCP pasan por acá: el vivo queda en el
     /// bus y en el histórico venga de donde venga.
-    bool salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente = false);
+    bool salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente = false,
+                           const std::string& salida = "");
     void alVivoManual(std::function<void(const std::string& servidor)> f) { alVivoManual_ = std::move(f); }
 
     // --- Destinos adicionales de la transmisión (Config/destinos.json; la

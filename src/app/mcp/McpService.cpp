@@ -445,6 +445,14 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                     (*estado)["escena_actual"] = sl.value("current", std::string());
                     (*estado)["escena_armada"] = sl.value("armada", std::string());
                     (*estado)["escenas"] = escenas;
+                    // Con más de una salida: cuáles hay y la del asistente (la por omisión,
+                    // que es la de sus llamadas: CallContext::salida vacía). Con una, nada.
+                    if (const auto sal = rtp->engine().status().salidas; sal.size() > 1) {
+                        json l = json::array();
+                        for (const auto& x : sal) l.push_back({{"id", x.id}, {"nombre", x.nombre}});
+                        (*estado)["salidas"] = l;
+                        (*estado)["salida"] = sal.front().id;
+                    }
                     leer("escena_fuentes_ver", json::object(), [=](bool, const json& src, const std::string&) {
                         json fuentes = json::array();
                         for (const auto& f : src.value("sources", json::array()))
@@ -627,6 +635,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerAtencionTools();
     registerTotemTools();
     registerControlTools();
+    registerSalidasTools();
     // El mapa de categorias va en las `instructions` del initialize (lo arma
     // McpCore en cada initialize, porque depende del rol del cliente) y
     // cuesta unos 400 tokens.
@@ -923,7 +932,9 @@ void McpService::registerTools() {
             ba::i18n::traducir("mcp", "Estado del appliance: escena al aire, transmision y grabacion (con tiempos), fps, cuadros "
             "perdidos, codificador, CPU, niveles del programa, gateway, conferencia y oradores al aire. "
             "`en_vivo`: si sale algo de verdad (transmisión o grabación): es LO que dice si estás en vivo; "
-            "el guion del evento corriendo sin transmitir no lo es. Buen primer llamado.");
+            "el guion del evento corriendo sin transmitir no lo es. `salidas`: cada salida del aparato con su escena, "
+            "su armada, si transmite o graba y su negro/placa (los campos de arriba son los de la por omisión). "
+            "Buen primer llamado.");
         t.run = [&rt, &vm](const json&, Done done) {
             const EngineStatus st = rt.engine().status();
             json room = json::object();
@@ -963,6 +974,7 @@ void McpService::registerTools() {
                      {"gatewayAlive", vm.gatewayAlive()},
                      {"lastError", st.lastError},
                      {"latido", rt.latido().estado()},
+                     {"salidas", resumenSalidas(rt, vm)},
                      {"room", room}}));
         };
         core_.addTool(std::move(t));
@@ -970,36 +982,40 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "aire_ftb";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Fundido a negro (FTB)");
         t.category = "escenas";
         t.description = ba::i18n::traducir("mcp", "Fundido a negro de TODO lo que sale (encima del programa, sin tocar las escenas). `activar` "
                         "true/false, `ms` de fundido (de fábrica 800), `audio`: bajar (de fábrica: el audio baja con "
                         "el negro) o mantener. Activarlo al aire es una acción de aire (pide confirmación si lo pide "
-                        "algo automático); sacarlo, no.");
+                        "algo automático); sacarlo, no. Cada salida tiene su negro (`salida`).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"activar"}},
                          {"properties",
                           {{"activar", {{"type", "boolean"}}},
                            {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}},
                            {"audio", {{"type", "string"}, {"enum", {"bajar", "mantener"}}}}}}};
-        t.run = [&vm](const json& a, Done done) {
+        t.run = [this, &vm](const json& a, Done done) {
             auto& s = vm.seguridadAire();
-            if (const std::string e = s.ftb(a.value("activar", false), a.value("ms", 800), a.value("audio", std::string("bajar")));
+            const std::string salida = core_.salidaDe(a);
+            if (const std::string e =
+                    s.ftb(a.value("activar", false), a.value("ms", 800), a.value("audio", std::string("bajar")), salida);
                 !e.empty())
                 return done(ToolResult::error(e));
-            done(ToolResult().data(s.estado()));
+            done(ToolResult().data(s.estado(salida)));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "aire_placa";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Placa de seguridad");
         t.category = "escenas";
         t.description = ba::i18n::traducir("mcp", "Una placa encima de todo lo que sale (\"Cuarto intermedio\", \"Volvemos enseguida\", \"Minuto "
                         "de silencio\"…), con `texto`, una `imagen` opcional (ruta) y `ms` de fundido (600). No depende "
                         "de las escenas. Activarla al aire pide confirmación si la pide algo automático; sacarla, no. "
-                        "Sobrevive a una caída de la app.");
+                        "Sobrevive a una caída de la app. Cada salida tiene su placa (`salida`).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"activar"}},
                          {"properties",
@@ -1007,27 +1023,29 @@ void McpService::registerTools() {
                            {"texto", {{"type", "string"}}},
                            {"imagen", {{"type", "string"}}},
                            {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
-        t.run = [&vm](const json& a, Done done) {
+        t.run = [this, &vm](const json& a, Done done) {
             auto& s = vm.seguridadAire();
+            const std::string salida = core_.salidaDe(a);
             if (const std::string e = s.placa(a.value("activar", false), a.value("texto", std::string()),
-                                              a.value("imagen", std::string()), a.value("ms", 600));
+                                              a.value("imagen", std::string()), a.value("ms", 600), salida);
                 !e.empty())
                 return done(ToolResult::error(e));
-            done(ToolResult().data(s.estado()));
+            done(ToolResult().data(s.estado(salida)));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "aire_placas_listar";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Textos de placa y estado");
         t.category = "escenas";
         t.readOnly = true;
         t.description = ba::i18n::traducir("mcp", "Los textos de placa de siempre y si ahora hay FTB o placa al aire.");
-        t.run = [&vm](const json&, Done done) {
+        t.run = [this, &vm](const json& a, Done done) {
             json textos = json::array();
             for (const QString& s : vm.textosPlaca()) textos.push_back(s.toStdString());
-            done(ToolResult().data(json{{"textos", textos}, {"estado", vm.seguridadAire().estado()}}));
+            done(ToolResult().data(json{{"textos", textos}, {"estado", vm.seguridadAire().estado(core_.salidaDe(a))}}));
         };
         core_.addTool(std::move(t));
     }
@@ -1113,6 +1131,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_list";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Listar escenas");
         t.category = "escenas";
         t.readOnly = true;
@@ -1124,18 +1143,21 @@ void McpService::registerTools() {
             "carpeta esta cada una (`folder`, \"\" = suelta). Las carpetas solo ordenan la lista de la "
             "pestaña Escenas: no cambian nada de la emision.\n\n"
             "`live` es la que esta AL AIRE; `armada` es la del bus de preview, la que sale con el "
-            "proximo `preview_al_aire`. Son los dos buses de una mesa de switcher.");
-        t.run = [&rt, &vm](const json&, Done done) {
-            const std::string armada = vm.conmutador().armada();
+            "proximo `preview_al_aire`. Son los dos buses de una mesa de switcher. Con `salida`, los de esa salida "
+            "(cada una tiene su aire y su armada; las escenas son de todas).");
+        t.run = [this, &rt, &vm](const json& a, Done done) {
+            const std::string salida = core_.salidaDe(a);
+            const std::string armada = conmutadorDe(core_, vm, a).armada();
+            const std::string alAire = rt.engine().currentScene(salida);
             json scenes = json::array();
             for (const std::string& n : rt.orderedSceneNames()) {
                 scenes.push_back(json{{"name", n},
-                                      {"live", n == rt.engine().currentScene()},
+                                      {"live", n == alAire},
                                       {"armada", n == armada},
                                       {"folder", rt.sceneFolder(n)},
                                       {"sources", rt.engine().sceneSources(n)}});
             }
-            done(ToolResult().data(json{{"current", rt.engine().currentScene()},
+            done(ToolResult().data(json{{"current", alAire},
                                         {"armada", armada},
                                         {"folders", rt.sceneFolders()},
                                         {"scenes", scenes}}));
@@ -1190,6 +1212,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_switch";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Poner una escena al aire (corte directo)");
         t.category = "escenas";
         t.description = ba::i18n::traducir("mcp", "Pone una escena al aire YA, sin pasar por el preview: es «corta a la camara 2», "
@@ -1206,10 +1229,10 @@ void McpService::registerTools() {
             {"properties", {{"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de la escena.")}}}}},
             {"required", {"name"}}};
         t.examples = {R"({"name": "Entrevista"})"};
-        t.run = [&vm, sceneExists, noScene](const json& a, Done done) {
+        t.run = [this, &vm, sceneExists, noScene](const json& a, Done done) {
             const std::string name = a["name"];
             if (!sceneExists(name)) return done(noScene(name));
-            if (const std::string e = vm.conmutador().poner(name); !e.empty())
+            if (const std::string e = conmutadorDe(core_, vm, a).poner(name); !e.empty())
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo: %1"), {e})));
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Al aire: %1"), {name})));
         };
@@ -1219,6 +1242,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_preview";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Armar la proxima escena (sin sacarla al aire)");
         t.category = "escenas";
         t.description =
@@ -1233,10 +1257,10 @@ void McpService::registerTools() {
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
         t.examples = {R"({"name": "06 Debate invitados"})"};
-        t.run = [&vm, sceneExists, noScene](const json& a, Done done) {
+        t.run = [this, &vm, sceneExists, noScene](const json& a, Done done) {
             const std::string name = a["name"];
             if (!sceneExists(name)) return done(noScene(name));
-            if (const std::string e = vm.conmutador().armar(name); !e.empty())
+            if (const std::string e = conmutadorDe(core_, vm, a).armar(name); !e.empty())
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se armo: %1"), {e})));
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Armada: %1. Mirala con foto_fuente y sacala con preview_al_aire."), {name})));
         };
@@ -1245,14 +1269,16 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_cut";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "CUT: corte seco a la armada");
         t.category = "escenas";
         t.description = ba::i18n::traducir("mcp", "Pone al aire la escena armada con un CORTE (sin transicion), aunque la global sea un fundido. "
                         "Deja armada la que salia.");
-        t.run = [&vm](const json&, Done done) {
-            const std::string armada = vm.conmutador().armada();
+        t.run = [this, &vm](const json& a, Done done) {
+            escenas::Conmutador& c = conmutadorDe(core_, vm, a);
+            const std::string armada = c.armada();
             if (armada.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay nada armado (scene_preview).")));
-            if (const std::string e = vm.conmutador().take("cut", 0); !e.empty())
+            if (const std::string e = c.take("cut", 0); !e.empty())
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo: %1"), {e})));
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "AL AIRE (corte): %1"), {armada})));
         };
@@ -1261,6 +1287,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "transicion_manual";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "T-bar: transicion a mano");
         t.category = "escenas";
         t.description = ba::i18n::traducir("mcp", "Lleva la transicion hacia la escena armada a mano: `t` de 0 a 1 (la palanca). Con `soltar`, "
@@ -1269,10 +1296,11 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"t"}},
                          {"properties", {{"t", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}, {"soltar", {{"type", "boolean"}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
-            if (const std::string e = vm.conmutador().tbar(a.value("t", 0.0), a.value("soltar", false)); !e.empty())
+        t.run = [this, &rt, &vm](const json& a, Done done) {
+            const std::string salida = core_.salidaDe(a);
+            if (const std::string e = conmutadorDe(core_, vm, a).tbar(a.value("t", 0.0), a.value("soltar", false)); !e.empty())
                 return done(ToolResult::error(e));
-            done(ToolResult().data({{"al_aire", rt.engine().currentScene()}, {"hacia", rt.engine().manualHacia()}}));
+            done(ToolResult().data({{"al_aire", rt.engine().currentScene(salida)}, {"hacia", rt.engine().manualHacia(salida)}}));
         };
         core_.addTool(std::move(t));
     }
@@ -1300,17 +1328,20 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_afv";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Audio que sigue al video");
         t.category = "audio";
         t.description = ba::i18n::traducir("mcp", "Con `sigue_video`, la `fuente` sube (a su volumen) cuando entra al aire una escena que la tiene y "
-                        "baja a cero cuando sale, con la duracion de la transicion. Sin `sigue_video`, lista las que lo tienen.");
+                        "baja a cero cuando sale, con la duracion de la transicion. Sin `sigue_video`, lista las que lo tienen. "
+                        "Es de cada salida: mueve el fader de la fuente en la mezcla de esa `salida`.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"fuente", {{"type", "string"}}}, {"sigue_video", {{"type", "boolean"}}}}}};
-        t.run = [&vm](const json& a, Done done) {
+        t.run = [this, &vm](const json& a, Done done) {
+            escenas::Conmutador& c = conmutadorDe(core_, vm, a);
             if (a.contains("fuente") && a.contains("sigue_video"))
-                vm.conmutador().setAfv(a.value("fuente", std::string()), a.value("sigue_video", false));
+                c.setAfv(a.value("fuente", std::string()), a.value("sigue_video", false));
             json l = json::array();
-            for (const std::string& f : vm.conmutador().afvFuentes()) l.push_back(f);
+            for (const std::string& f : c.afvFuentes()) l.push_back(f);
             done(ToolResult().data({{"sigue_video", l}}));
         };
         core_.addTool(std::move(t));
@@ -1318,6 +1349,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "preview_al_aire";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "TAKE: sacar al aire la escena armada");
         t.category = "escenas";
         t.description = ba::i18n::traducir("mcp", "Pasa al aire la escena que estaba ARMADA en preview, con la transición configurada. Deja armada la "
@@ -1330,14 +1362,15 @@ void McpService::registerTools() {
                           {{"transicion", {{"type", "string"}, {"enum", {"cut", "fade", "swipe", "slide", "fade_to_color"}},
                                            {"description", ba::i18n::traducir("mcp", "otra transicion solo para este take (si no, la de entrada de la escena o la global)")}}},
                            {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
-        t.run = [&vm](const json& a, Done done) {
-            const std::string armada = vm.conmutador().armada();
+        t.run = [this, &vm](const json& a, Done done) {
+            escenas::Conmutador& c = conmutadorDe(core_, vm, a);
+            const std::string armada = c.armada();
             if (armada.empty())
                 return done(ToolResult::error(
                     ba::i18n::traducir("mcp", "No hay nada armado. Arma el proximo plano con scene_preview {\"name\": ...}.")));
-            if (const std::string e = vm.conmutador().take(a.value("transicion", std::string()), a.value("ms", -1)); !e.empty())
+            if (const std::string e = c.take(a.value("transicion", std::string()), a.value("ms", -1)); !e.empty())
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo: %1"), {e})));
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "AL AIRE: %1. Queda armada: %2."), {armada, vm.conmutador().armada()})));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "AL AIRE: %1. Queda armada: %2."), {armada, c.armada()})));
         };
         core_.addTool(std::move(t));
     }
@@ -1493,6 +1526,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "scene_define";
+        t.porSalida = true; // `switch`: al aire en esa salida
         t.title = ba::i18n::traducir("mcp", "Definir una escena completa");
         t.category = "escenas";
         t.description =
@@ -1543,7 +1577,7 @@ void McpService::registerTools() {
                       kDefaultFontFace +
                       R"(", "size": 96}}, "layout": {"x": 0.1, "y": 0.4, "w": 0.8, "h": 0.2}}
 ], "switch": true})"};
-        t.run = [&rt, &vm, persist, sceneExists](const json& a, Done done) {
+        t.run = [this, &rt, &vm, persist, sceneExists](const json& a, Done done) {
             const std::string name = a["name"];
             std::vector<std::string> log;
             // Las que vienen en la lista nueva: si ya están en la escena, se
@@ -1627,7 +1661,7 @@ void McpService::registerTools() {
             }
             // Por el conmutador (modelo), como scene_switch: transición de entrada y AFV.
             if (a.value("switch", false))
-                if (const std::string e = vm.conmutador().poner(name); !e.empty())
+                if (const std::string e = conmutadorDe(core_, vm, a).poner(name); !e.empty()) // `switch`: en su salida
                     return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Escena armada, pero no salió al aire: %1"), {e})));
             persist();
             std::string msg = ba::i18n::llenar(ba::i18n::traducir("mcp", "Escena '%1': %2 fuente(s)."), {name, std::to_string(added)});
@@ -2053,20 +2087,22 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "mixer_list";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Mezclador");
         t.category = "audio";
         t.readOnly = true;
         t.description = ba::i18n::traducir("mcp", "Foto de los niveles del mezclador, para leer. "
                         "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
                         "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
-                        "programa. -100 = silencio; cerca de 0 = saturando.");
-        t.run = [&rt, &vm](const json&, Done done) {
+                        "programa. -100 = silencio; cerca de 0 = saturando. Cada salida tiene su mezcla: con `salida`, la de esa.");
+        t.run = [this, &rt, &vm](const json& a, Done done) {
+            const std::string salida = core_.salidaDe(a);
             json out = json::array();
             for (const std::string& n : rt.engine().audioSources()) {
-                const float mul = rt.engine().sourceVolume(n);
+                const float mul = rt.engine().sourceVolume(n, salida);
                 out.push_back(json{{"name", n},
                                    {"volumeDb", mul > 0 ? 20.0 * std::log10(mul) : -100.0},
-                                   {"muted", rt.engine().sourceMuted(n)},
+                                   {"muted", rt.engine().sourceMuted(n, salida)},
                                    // Cual se esta escuchando por el monitor
                                    // (audio_escuchar). Sin esto el PFL es
                                    // invisible: queda una fuente sonando en
@@ -2075,34 +2111,39 @@ void McpService::registerTools() {
                                    {"pfl", rt.engine().pfl() == n},
                                    {"peakDb", rt.engine().sourcePeakDb(n)}});
             }
-            done(ToolResult().data(
-                json{{"sources", out}, {"programPeakDb", {vm.programPeakL(), vm.programPeakR()}}}));
+            // El pico de la por omisión lo lee la vista (leerlo acá se lo robaría); el de
+            // las demás, el motor (nadie más lo lee todavía).
+            float l = vm.programPeakL(), r = vm.programPeakR();
+            if (!salida.empty()) rt.engine().programPeaksDb(l, r, salida);
+            done(ToolResult().data(json{{"sources", out}, {"programPeakDb", {l, r}}}));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_set";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Volumen / silencio");
         t.category = "audio";
         t.description =
             ba::i18n::traducir("mcp", "Silencia, sube o baja el audio de una fuente. Es con lo que se CORTA un acople, se baja lo que "
             "satura, se sube lo que no se escucha o se cierra un microfono que quedo abierto. Cambia el "
-            "volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio.");
+            "volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio. En la mezcla de la "
+            "`salida` (cada una tiene la suya; sin ella, la por omisión).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"name", {{"type", "string"}}},
                            {"volumeDb", {{"type", "number"}, {"minimum", -100}, {"maximum", 26}}},
                            {"muted", {{"type", "boolean"}}}}},
                          {"required", {"name"}}};
-        t.run = [&rt, persist](const json& a, Done done) {
+        t.run = [this, &rt, persist](const json& a, Done done) {
             const std::string n = a["name"];
+            const std::string salida = core_.salidaDe(a);
             bool ok = true;
             if (a.contains("volumeDb"))
-                ok =
-                    rt.setVolume(n, static_cast<float>(std::pow(10.0, a["volumeDb"].get<double>() / 20.0))) &&
-                    ok;
-            if (a.contains("muted")) ok = rt.setMuted(n, a["muted"]) && ok;
+                ok = rt.setVolume(n, static_cast<float>(std::pow(10.0, a["volumeDb"].get<double>() / 20.0)), salida) &&
+                     ok;
+            if (a.contains("muted")) ok = rt.setMuted(n, a["muted"], salida) && ok;
             if (!ok)
                 return done(
                     ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente de audio '%1' (mixer_list las muestra)."), {n})));
@@ -2279,6 +2320,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "stream_start";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Salir al aire (transmitir)");
         t.category = "salidas";
         t.openWorld = true;
@@ -2288,7 +2330,8 @@ void McpService::registerTools() {
         t.details = ba::i18n::traducir("mcp", "Si YA esta transmitiendo: al mismo destino no hace nada (lo dice); a OTRO destino da error "
                     "con `activo_en` (no cambia nada), salvo `cambiar_en_caliente`: true, que corta y arranca al "
                     "nuevo. `destino`: el id de un destino adicional (stream_destinos) o \"todos\": arranca esos, "
-                    "ademas del principal.");
+                    "ademas del principal (cada destino sale con el programa de SU salida). Con `salida` (otra que la por "
+                    "omisión), su transmision principal: ahí `server` y `key` son obligatorios (la clave no se guarda).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -2296,7 +2339,8 @@ void McpService::registerTools() {
               {"key", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Clave de transmision (solo en memoria).")}}},
               {"cambiar_en_caliente", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "estando al aire, pasar a este destino")}}},
               {"destino", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de un destino adicional o \"todos\"")}}}}}};
-        t.run = [&rt](const json& a, Done done) {
+        t.run = [this, &rt](const json& a, Done done) {
+            const std::string salida = core_.salidaDe(a);
             if (a.contains("destino")) {
                 const std::string e = rt.iniciarDestino(a.value("destino", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
@@ -2304,13 +2348,13 @@ void McpService::registerTools() {
             }
             // La misma operación del modelo que el botón (el vivo queda en el bus y el histórico).
             if (!rt.salirAlAireManual(a.value("server", std::string()), a.value("key", std::string()),
-                                      a.value("cambiar_en_caliente", false))) {
+                                      a.value("cambiar_en_caliente", false), salida)) {
                 if (rt.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
                     ToolResult r = ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Ya esta transmitiendo a %1: NO se cambio nada. Para pasar a "
                                                                                        "este destino: `cambiar_en_caliente`: true "
                                                                                        "(corta un instante)."),
-                                                                    {rt.engine().destinoActivo()}));
-                    r.structured = json{{"activo_en", rt.engine().destinoActivo()}};
+                                                                    {rt.engine().destinoActivo(salida)}));
+                    r.structured = json{{"activo_en", rt.engine().destinoActivo(salida)}};
                     return done(r);
                 }
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No arranco: %1. Si falta la clave: pasala en `key` o en la "
@@ -2326,19 +2370,21 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "stream_stop";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Cortar la transmision");
         t.category = "salidas";
         t.destructive = true;
         t.description =
             ba::i18n::traducir("mcp", "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo. Con "
-            "`destino` (id o \"todos\"), corta solo ese destino adicional y el principal sigue.");
+            "`destino` (id o \"todos\"), corta solo ese destino adicional y el principal sigue. Con `salida`, la "
+            "transmision principal de esa salida (las demás siguen).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"destino", {{"type", "string"}}}}}};
-        t.run = [&rt](const json& a, Done done) {
+        t.run = [this, &rt](const json& a, Done done) {
             if (a.contains("destino")) {
                 rt.detenerDestino(a.value("destino", std::string()));
                 return done(ToolResult::ok(ba::i18n::traducir("mcp", "Destino cortado; el resto sigue.")));
             }
-            rt.stopStreaming();
+            rt.stopStreaming(core_.salidaDe(a));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Transmision detenida.")));
         };
         core_.addTool(std::move(t));
@@ -2346,6 +2392,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "audio_loudness";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Loudness de lo que sale");
         t.category = "audio";
         t.readOnly = true;
@@ -2353,18 +2400,21 @@ void McpService::registerTools() {
                         "BS.1770-4: `m` momentaneo (400 ms), `s` corto (3 s), `i` integrado desde el reset (arranca "
                         "solo al transmitir o grabar), `tp` true peak maximo (dBTP), `lra` rango, `gr_db` lo que "
                         "baja el limitador del master, `objetivo` y `fuera_de_objetivo` (integrado a mas de 2 LU o TP "
-                        "arriba del techo). audio_measure es por fuente; esto es lo que sale.");
-        t.run = [&rt](const json&, Done done) { done(ToolResult().data(rt.engine().loudness().json())); };
+                        "arriba del techo). audio_measure es por fuente; esto es lo que sale. Cada salida tiene el suyo (`salida`).");
+        t.run = [this, &rt](const json& a, Done done) {
+            done(ToolResult().data(rt.engine().loudness(core_.salidaDe(a)).json()));
+        };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_loudness_reset";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Reiniciar el integrado del loudness");
         t.category = "audio";
         t.description = ba::i18n::traducir("mcp", "Vuelve a cero el integrado, el LRA y el true peak maximo del programa.");
-        t.run = [&rt](const json&, Done done) {
-            rt.engine().loudness().reiniciar();
+        t.run = [this, &rt](const json& a, Done done) {
+            rt.engine().loudness(core_.salidaDe(a)).reiniciar();
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Reiniciado.")));
         };
         core_.addTool(std::move(t));
@@ -3585,6 +3635,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "stream_destino_agregar";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un destino de transmision");
         t.category = "salidas";
         t.description = ba::i18n::traducir("mcp", "Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se "
@@ -3601,9 +3652,12 @@ void McpService::registerTools() {
                            {"respaldo", {{"type", "boolean"}}},
                            {"modo", {{"type", "string"}, {"enum", {"caller", "listener", "rendezvous"}}}},
                            {"latencia_ms", {{"type", "integer"}, {"minimum", 20}, {"maximum", 8000}}}}}};
-        t.run = [&rt](const json& a, Done done) {
+        t.run = [this, &rt](const json& a, Done done) {
+            // Sale con el programa de la salida pedida (o la de quien llama; "" = la por omisión).
+            json d = a;
+            d["salida"] = core_.salidaDe(a);
             std::string id;
-            const std::string e = rt.guardarDestino(a, &id);
+            const std::string e = rt.guardarDestino(d, &id);
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(json{{"id", id}, {"destinos", rt.destinos()}}));
         };
@@ -3612,9 +3666,11 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "stream_destino_editar";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Cambiar un destino de transmision");
         t.category = "salidas";
-        t.description = ba::i18n::traducir("mcp", "Cambia `nombre`, `url`, `clave` o `respaldo` del destino `id`.");
+        t.description = ba::i18n::traducir("mcp", "Cambia `nombre`, `url`, `clave` o `respaldo` del destino `id`; con `salida`, "
+                                                  "lo pasa a tomar el programa de esa salida.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties",
@@ -3623,8 +3679,10 @@ void McpService::registerTools() {
                            {"url", {{"type", "string"}}},
                            {"clave", {{"type", "string"}}},
                            {"respaldo", {{"type", "boolean"}}}}}};
-        t.run = [&rt](const json& a, Done done) {
-            const std::string e = rt.guardarDestino(a);
+        t.run = [this, &rt](const json& a, Done done) {
+            json d = a;
+            if (a.contains("salida")) d["salida"] = core_.salidaDe(a); // por nombre o id → id
+            const std::string e = rt.guardarDestino(d);
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(json{{"destinos", rt.destinos()}}));
         };
@@ -3648,53 +3706,59 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "replay_ajustes";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Repetición: cuántos segundos guardar");
         t.category = "salidas";
         t.description = ba::i18n::traducir("mcp", "Guarda en memoria los últimos `segundos` del programa (5 a 600; 0 la apaga) para "
-                        "replay_guardar. Usa el mismo encode que la transmisión. Sin argumentos informa.");
+                        "replay_guardar. Usa el mismo encode que la transmisión. Sin argumentos informa. Cada salida tiene la "
+                        "suya (`salida`; la de las demás no queda guardada para el próximo arranque).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"segundos", {{"type", "integer"}, {"minimum", 0}, {"maximum", 600}}}}}};
-        t.run = [&rt](const json& a, Done done) {
-            if (a.contains("segundos")) {
-                rt.config().replaySegundos = std::clamp(a.value("segundos", 0), 0, 600);
-                rt.save();
-                const std::string nota = rt.aplicarReplay();
-                if (rt.config().replaySegundos > 0 && !rt.engine().replayEstado().value("activa", false))
-                    return done(ToolResult::error(nota));
-            }
-            done(ToolResult().data(rt.engine().replayEstado()));
+        t.run = [this, &rt](const json& a, Done done) {
+            const std::string salida = core_.salidaDe(a);
+            if (a.contains("segundos"))
+                if (const std::string e = rt.ponerReplay(a.value("segundos", 0), salida); !e.empty())
+                    return done(ToolResult::error(e));
+            done(ToolResult().data(rt.engine().replayEstado(salida)));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "replay_guardar";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Repetir: guardar los últimos segundos");
         t.category = "salidas";
         t.description = ba::i18n::traducir("mcp", "Escribe a disco los últimos segundos de la repetición (Recordings/repeticiones/) y "
                         "devuelve el archivo. Con `y_armar: true` lo pone en la escena «Repetición» y la deja "
                         "armada para el take (no la saca al aire).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"y_armar", {{"type", "boolean"}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
-            const std::string antes = rt.engine().ultimoReplay();
-            if (!rt.engine().guardarReplay()) return done(ToolResult::error(rt.engine().lastError()));
+        t.run = [this, &rt, &vm](const json& a, Done done) {
+            const std::string salida = core_.salidaDe(a);
+            const std::string antes = rt.engine().ultimoReplay(salida);
+            if (!rt.engine().guardarReplay(salida)) return done(ToolResult::error(rt.engine().lastError()));
             const bool armar = a.value("y_armar", false);
-            vm.esperarReplay(antes, 8000, [&vm, armar, done](const QString& f) {
-                if (f.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "el clip no llegó a escribirse en 8 s")));
-                json r{{"archivo", f.toStdString()}};
-                if (armar) {
-                    const QString e = vm.armarRepeticion(f);
-                    r["armada"] = e.isEmpty();
-                    if (!e.isEmpty()) r["error_al_armar"] = e.toStdString();
-                }
-                done(ToolResult().data(r));
-            });
+            vm.esperarReplay(
+                antes, 8000,
+                [&vm, armar, done, salida](const QString& f) {
+                    if (f.isEmpty())
+                        return done(ToolResult::error(ba::i18n::traducir("mcp", "el clip no llegó a escribirse en 8 s")));
+                    json r{{"archivo", f.toStdString()}};
+                    if (armar) {
+                        const QString e = vm.armarRepeticion(f, salida);
+                        r["armada"] = e.isEmpty();
+                        if (!e.isEmpty()) r["error_al_armar"] = e.toStdString();
+                    }
+                    done(ToolResult().data(r));
+                },
+                salida);
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "salida_limpia";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Señal limpia (clean feed)");
         t.category = "salidas";
         t.description = ba::i18n::traducir("mcp", "El programa SIN las capas globales (zócalos DSK, logo) ni la placa de seguridad: lo que "
@@ -3704,16 +3768,17 @@ void McpService::registerTools() {
                         "la corta. Es un encode más (x264, en la CPU): mirá `status.cpu`.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"activar", {{"type", "boolean"}}}, {"destino", {{"type", "string"}}}}}};
-        t.run = [&rt](const json& a, Done done) {
+        t.run = [this, &rt](const json& a, Done done) {
+            const std::string salida = core_.salidaDe(a);
             if (a.contains("activar")) {
                 if (a.value("activar", false)) {
-                    const std::string e = rt.iniciarSenalLimpia(a.value("destino", std::string()));
+                    const std::string e = rt.iniciarSenalLimpia(a.value("destino", std::string()), salida);
                     if (!e.empty()) return done(ToolResult::error(e));
                 } else {
-                    rt.detenerSenalLimpia();
+                    rt.detenerSenalLimpia(salida);
                 }
             }
-            done(ToolResult().data(rt.engine().cleanFeedEstado()));
+            done(ToolResult().data(rt.engine().cleanFeedEstado(salida)));
         };
         core_.addTool(std::move(t));
     }
@@ -3811,22 +3876,26 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "record_start";
+        t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Grabar");
         t.category = "salidas";
         t.description = ba::i18n::traducir("mcp", "EMPEZAR a grabar el programa en disco, con la carpeta y el formato de la "
                         "configuracion. Es para cuando todavia no se esta grabando.");
-        t.run = [&rt](const json&, Done done) {
-            if (rt.engine().status().recording) return done(ToolResult::ok(ba::i18n::traducir("mcp", "Ya esta grabando.")));
+        t.run = [this, &rt](const json& a, Done done) {
+            const std::string salida = core_.salidaDe(a);
+            if (rt.engine().grabacionEstado(salida).value("activa", false))
+                return done(ToolResult::ok(ba::i18n::traducir("mcp", "Ya esta grabando.")));
             const json d = rt.discoGrabacion();
             if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < AppRuntime::kDiscoMinimoH)
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "Queda disco para menos de 15 minutos a este bitrate: no se arranca sola. "
                                               "Liberá espacio o que el operador lo arranque desde Salidas.")));
-            if (!rt.startRecording()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No arranco: %1"), {rt.lastError()})));
+            if (!rt.startRecording(salida))
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No arranco: %1"), {rt.lastError()})));
             // La grabación arranca en el hilo de salidas (la interfaz no espera el
             // codificador): se mira cada 200 ms, sin trabar nada, hasta que tiene archivo.
             auto mirar = std::make_shared<std::function<void(int)>>();
-            *mirar = [&rt, d, done, mirar](int n) {
-                const json g = rt.engine().grabacionEstado();
+            *mirar = [&rt, d, done, mirar, salida](int n) {
+                const json g = rt.engine().grabacionEstado(salida);
                 const std::string archivo = g.value("archivo", std::string());
                 if (g.value("activa", false) && !archivo.empty()) {
                     QTimer::singleShot(0, [mirar]() { *mirar = nullptr; });
@@ -3854,12 +3923,13 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "record_stop";
+        t.porSalida = true;
         t.destructive = true;
         t.title = ba::i18n::traducir("mcp", "Detener grabacion");
         t.category = "salidas";
-        t.description = ba::i18n::traducir("mcp", "PARA de grabar: cierra el archivo y deja de escribir en disco.");
-        t.run = [&rt](const json&, Done done) {
-            rt.stopRecording();
+        t.description = ba::i18n::traducir("mcp", "PARA de grabar: cierra el archivo y deja de escribir en disco. Con `salida`, la grabación de esa salida.");
+        t.run = [this, &rt](const json& a, Done done) {
+            rt.stopRecording(core_.salidaDe(a));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Grabacion detenida.")));
         };
         core_.addTool(std::move(t));

@@ -94,6 +94,11 @@ struct Tool {
     /// guiones guardados con el viejo): no se listan, pero una llamada con uno de ellos
     /// es la misma llamada con `name` (callTool lo cambia al empezar).
     std::vector<std::string> antes;
+    /// Apunta a una salida (PLAN-SALIDAS): acepta `salida` (id o nombre; sin ella, la
+    /// del que llama o la por omisión). addTool le suma la propiedad al esquema;
+    /// callTool la valida (error claro si no existe) y la usa para la guarda de
+    /// aire: cuenta si sale ESA salida. La herramienta la lee con McpCore::salidaDe.
+    bool porSalida = false;
     std::function<void(const json& args, Done done)> run;
 };
 
@@ -119,6 +124,11 @@ struct CallContext {
     /// Qué asistente de la app llama (evento | automatizacion; cabecera X-BA-Asistente).
     /// Al final: hay inicializaciones por posición de los campos de arriba.
     std::string asistente;
+    /// La salida por omisión de quien llama (PLAN-SALIDAS): la de su perfil, su
+    /// aparato o su asistente. Vacía = la por omisión del aparato. Una herramienta
+    /// de salida (Tool::porSalida) usa `salida` de los argumentos si vino; si no,
+    /// esta; si no, la por omisión (ver McpCore::salidaDe). Nadie la mete en los args.
+    std::string salida;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.
@@ -208,6 +218,24 @@ class McpCore {
     void setHayAire(std::function<bool()> fn) { hayAire_ = std::move(fn); }
     bool hayAire() const { return hayAire_ && hayAire_(); }
     McpAire& aire() { return aire_; }
+
+    /// --- Las salidas (PLAN-SALIDAS, etapa 3) -----------------------------------
+    /// `lista`: [{id, nombre, por_omision}] (la por omisión primera); `sale(id)`: esa
+    /// salida transmite o graba (para la guarda de aire de las herramientas de salida).
+    void setSalidas(std::function<json()> lista, std::function<bool(const std::string& id)> sale) {
+        salidasLista_ = std::move(lista);
+        salidaSale_ = std::move(sale);
+    }
+    /// El id de la salida pedida (id o nombre, sin mayúsculas); "" = la por omisión.
+    /// Si no existe, "" y `err` con las que hay. Sin setSalidas, devuelve lo pedido.
+    std::string resolverSalida(const std::string& pedida, std::string& err) const;
+    /// Lo que pidió una llamada: `salida` de los argumentos si vino (texto no vacío);
+    /// si no, la del contexto (CallContext::salida); si no, "" (la por omisión).
+    static std::string salidaPedida(const json& args, const CallContext& ctx);
+    /// La salida de la llamada EN CURSO, resuelta a su id ("" = la por omisión).
+    /// Para el `run` de una herramienta de salida (callTool ya la validó): leerla al
+    /// empezar, que el contexto en curso se limpia cuando `run` vuelve.
+    std::string salidaDe(const json& args) const;
 
     /// Lo que hay que hacer DESPUES de cada herramienta que modifica algo:
     /// persistir y avisarle a la interfaz.
@@ -365,6 +393,8 @@ class McpCore {
     std::vector<Prompt> prompts_;
     Approver approver_;
     std::function<bool()> hayAire_;
+    std::function<json()> salidasLista_;
+    std::function<bool(const std::string&)> salidaSale_;
     McpAire aire_;
     std::function<void()> sincronizar_;
     ApprovalPolicy policy_ = ApprovalPolicy::Untrusted;

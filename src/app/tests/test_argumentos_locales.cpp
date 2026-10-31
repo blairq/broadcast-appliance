@@ -164,6 +164,23 @@ int main() {
                             "</function>\n</tool_call>");
     CHECK(argumentos::argsDesdeTc(tc, kTransicion).value("ms", 0) == 500, "tc: entero sin signo, tal cual");
 
+    // `salida` (PLAN-SALIDAS): con más de una, el estado las trae y se valida contra ellas.
+    {
+        json estado = kEstado;
+        estado["salidas"] = json::parse(R"J([{"id": "principal", "nombre": "Principal"}, {"id": "yt2", "nombre": "YouTube 2"}])J");
+        estado["salida"] = "principal";
+        json ficha = kSceneSwitch;
+        ficha["inputSchema"]["properties"]["salida"] = {{"type", "string"}};
+        r = validar("scene_switch", ficha, json{{"name", "Cierre"}, {"salida", "youtube 2"}}, estado);
+        CHECK(r.args.value("salida", "") == "YouTube 2" && r.bloqueos.empty(), "salida por nombre, sin mayúsculas");
+        r = validar("scene_switch", ficha, json{{"name", "Cierre"}, {"salida", "yt2"}}, estado);
+        CHECK(r.args.value("salida", "") == "yt2" && r.bloqueos.empty(), "salida por id");
+        r = validar("scene_switch", ficha, json{{"name", "Cierre"}, {"salida", "Canal 9"}}, estado);
+        CHECK(!r.bloqueos.empty(), "una salida que no existe: bloqueado");
+        CHECK(argumentos::estadoPara("scene_switch", estado).contains("salidas"), "las de escenas ven las salidas");
+        CHECK(!argumentos::estadoPara("scene_switch", kEstado).contains("salidas"), "con una sola, el estado de siempre");
+    }
+
     std::printf(g_failures == 0 ? "test_argumentos_locales: OK\n" : "test_argumentos_locales: %d fallos\n",
                 g_failures);
     return g_failures == 0 ? 0 : 1;

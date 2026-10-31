@@ -42,7 +42,7 @@ es un resumen por categoría.
 | Fuentes | `source_types`, `escena_fuentes_ver`, `crear_fuente`, `source_remove`, `source_update` (visibilidad, ubicación con presets, orden, settings, volumen, nombre), `source_properties`, `source_set_property`, `guest_source_add` |
 | Audio | `mixer_list`, `audio_set` |
 | Rack de audio (LSP) | Armar: `audio_sources`, `audio_rack` (nodos, cables, medidores), `audio_modules` (catálogo y búsqueda en los ~200 LSP), `audio_module_add` / `_remove`, `audio_patch` (cables), `audio_bypass`. Calibrar con parámetros en unidades reales y presets: `audio_gate`, `audio_compressor`, `audio_deesser`, `audio_eq`, `audio_multiband`, `audio_limiter`; cualquier parámetro: `audio_module_get` / `_set`. Medir: `audio_analyze` (LUFS, espectro por tercios y zonas, piso de ruido, nivel activo, pistas), `audio_measure` (respuesta o curva entrada/salida sobre copias, sin tocar el aire), `audio_generator` (seno, rosa, blanco, barrido). Mostrar: `audio_show` (pestaña Audio), `audio_editor` (interfaz original de LSP) |
-| Salidas | `stream_start` (la clave nunca se guarda), `stream_stop`, `record_start`, `record_stop` |
+| Salidas | `stream_start` (la clave nunca se guarda), `stream_stop`, `record_start`, `record_stop`; las salidas del aparato: `salidas_listar`, `salida_crear`, `salida_editar`, `salida_borrar` (ver abajo) |
 | Imágenes y video | `foto_programa`, `foto_fuente` (cualquier fuente o escena, al aire o no), `foto_todas_escenas`, `capture_feed`, `foto_invitado`, `foto_todos_invitados`, `capture_sequence`, `capture_ui` |
 | Sala | `room_status`, `room_set`, `room_pin`, `participant_admit` / `_admit_all` / `_reject` / `_kick` / `_talk` / `_request` / `_profile`, `chat_send`, `invitados_chat_leer`, `share_list`, `compartida_revisar`, `share_take`, `share_delete`, `room_link` (enlace + QR como imagen, también del tablero), `network_status`, `operator_feed`, `gateway_restart` |
 | Oradores | `remotos_fila_ver`, `speakers_config`, `speaker_on_air`, `speaker_next`, `speaker_move`, `speaker_time`, `participant_requeue` |
@@ -62,6 +62,27 @@ es un resumen por categoría.
 | Medios | `media_list`, `media_find` (sin importar tildes ni mayúsculas), `media_view` (ver la imagen), `medio_poner` (a una escena) |
 | Operador | `operator_message` (barra de abajo, color por prioridad), `operator_ask` (pregunta con botones/texto), `operator_messages`, `guest_chat_pending`, `guest_reply_suggest` (respuestas sugeridas, un click) |
 | Salvaguarda | `security_status` (si esta sesión necesita aprobación) |
+
+## Varias salidas (`salida`)
+
+El aparato puede tener varias salidas, cada una un operador completo
+([PLAN-SALIDAS](../planes/PLAN-SALIDAS.md)). Las herramientas que tocan el
+programa (escenas, take, T-bar, AFV, FTB y placa, mezcla y loudness,
+transmisión y destinos, grabación, repetición, señal limpia, `grafico_mostrar`
+con `armar`) son **herramientas de salida** (`Tool::porSalida`): aceptan
+`salida` (id o nombre, sin mayúsculas) y, sin ella, usan la del que llama
+(`CallContext::salida`: su perfil, su aparato o su asistente) o la por omisión.
+El núcleo (`McpCore::callTool`) la valida antes de aprobar o correr nada: una
+que no existe es un error que lista las que hay. La guarda de aire de esas
+herramientas mira si sale **esa** salida; las demás, si sale cualquiera.
+`status` trae `salidas` (lo de cada una); los campos de siempre son los de la
+por omisión. Con una sola salida ninguna herramienta cambia.
+
+Fuera de esto (siguen en la por omisión): `audio_loudness_objetivo`, las capas
+DSK (`dsk_*`), `banca_al_aire`, `foto_programa`, y las de escenas que toman «la
+escena al aire» cuando no se les dice `scene` (pasales `scene`). Las de audio
+que ya usaban `salida` para otra cosa (`audio_patch`, `audio_output_set`,
+`video_cable`) no cambian.
 
 ## Conectar las cuentas (YouTube, Twitch, Facebook)
 

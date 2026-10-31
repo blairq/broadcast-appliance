@@ -2,3 +2,6 @@
 - `stream_stop`, `record_start`, `record_stop`. `status` muestra tiempos, kbps, cuadros perdidos y codificador.
 - Antes de salir al aire: `status` (fps estable, droppedFrames bajo), `foto_programa`, `mixer_list` (niveles).
 - Codificacion/resolucion: ajustes `encoder.*`, `video.*` (`settings_list {"section": "Codificación"}`).
+- **Varias salidas** (cada una un operador completo: su escena al aire y su armada, su mezcla, sus destinos, su grabación, su repetición, su negro y su placa): `salidas_listar`, `salida_crear {"id", "nombre"?, "color"?}` (dice si la máquina tiene margen; mirá `sistema_recursos`), `salida_editar` (nombre, color o `tope`), `salida_borrar`.
+- Las herramientas que tocan el programa (escenas, take, T-bar, AFV, FTB/placa, mezcla, loudness, transmisión, destinos, grabación, repetición, señal limpia) aceptan `salida` (id o nombre). Sin ella van a la por omisión: con una sola salida nada cambia. `status` trae `salidas` con lo que hace cada una.
+- Con la transmisión o la grabación andando, una acción de aire sobre una salida pide confirmación solo si ESA salida sale.

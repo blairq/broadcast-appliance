@@ -17,32 +17,53 @@ std::filesystem::path archivoPlaca() { return ba::platform::dataRoot() / "Runtim
 SeguridadAire::SeguridadAire(AppRuntime& rt) : rt_(rt) {}
 
 void SeguridadAire::guardar() {
-    config::guardar(archivoPlaca(), rt_.engine().estadoPlaca());
+    auto& e = rt_.engine();
+    nlohmann::json j = e.estadoPlaca();
+    // Las demás salidas, solo si tienen algo puesto (con una sola, el archivo de siempre).
+    nlohmann::json otras = nlohmann::json::object();
+    for (const std::string& id : e.salidaIds()) {
+        if (e.idDeSalida("") == id) continue;
+        const nlohmann::json s = e.estadoPlaca(id);
+        if (s.value("ftb", false) || s.value("placa", false)) otras[id] = s;
+    }
+    if (!otras.empty()) j["salidas"] = otras;
+    config::guardar(archivoPlaca(), j);
     if (cambio_) cambio_();
 }
 
-std::string SeguridadAire::ftb(bool activar, int ms, const std::string& audio) {
+std::string SeguridadAire::ftb(bool activar, int ms, const std::string& audio, const std::string& salida) {
     if (audio != "bajar" && audio != "mantener") return ba::i18n::traducir("emision", "audio: bajar o mantener");
-    if (!rt_.engine().ftb(activar, ms, audio == "bajar")) return rt_.engine().lastError();
+    if (!rt_.engine().ftb(activar, ms, audio == "bajar", salida)) return rt_.engine().lastError();
     guardar();
     return {};
 }
 
-std::string SeguridadAire::placa(bool activar, const std::string& texto, const std::string& imagen, int ms) {
-    if (!rt_.engine().placa(activar, texto, imagen, ms)) return rt_.engine().lastError();
+std::string SeguridadAire::placa(bool activar, const std::string& texto, const std::string& imagen, int ms,
+                                 const std::string& salida) {
+    if (!rt_.engine().placa(activar, texto, imagen, ms, salida)) return rt_.engine().lastError();
     guardar();
     return {};
 }
 
-nlohmann::json SeguridadAire::estado() const { return rt_.engine().estadoPlaca(); }
+nlohmann::json SeguridadAire::estado(const std::string& salida) const { return rt_.engine().estadoPlaca(salida); }
 
 bool SeguridadAire::restaurar() {
     const nlohmann::json j = config::leerObjeto(archivoPlaca());
-    const bool placa = j.value("placa", false), negro = j.value("ftb", false);
-    if (placa) rt_.engine().placa(true, j.value("placa_texto", std::string()), j.value("placa_imagen", std::string()), 0);
-    if (negro) rt_.engine().ftb(true, 0, j.value("ftb_audio", false));
-    if ((placa || negro) && cambio_) cambio_();
-    return placa || negro;
+    // Lo de una salida ("" = la por omisión) como estaba; true si había algo.
+    const auto volver = [this](const nlohmann::json& s, const std::string& salida) {
+        const bool placa = s.value("placa", false), negro = s.value("ftb", false);
+        if (placa)
+            rt_.engine().placa(true, s.value("placa_texto", std::string()), s.value("placa_imagen", std::string()), 0,
+                               salida);
+        if (negro) rt_.engine().ftb(true, 0, s.value("ftb_audio", false), salida);
+        return placa || negro;
+    };
+    bool algo = volver(j, {});
+    const nlohmann::json otras = j.value("salidas", nlohmann::json::object());
+    for (auto it = otras.begin(); it != otras.end(); ++it)
+        if (it.value().is_object() && rt_.engine().existeSalida(it.key())) algo = volver(it.value(), it.key()) || algo;
+    if (algo && cambio_) cambio_();
+    return algo;
 }
 
 } // namespace ba::app::emision
