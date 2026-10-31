@@ -36,3 +36,13 @@ Correr el guion NO es estar en vivo: en vivo es que salga algo de verdad (transm
 
 ## Teleprompter
 El cue `teleprompter` carga un texto de `Discursos/` y lo deja LISTO pero parado. Todo lo demas (escribir los discursos, mandarlos, manejar el texto al aire) es su propia categoria: `help {"topic": "prompter"}`.
+## La cara del evento en la web (tema)
+Cada evento tiene su **tema**: acento, fondo, letra, logo y nombre, en **todas** las páginas web del sistema: la del evento, la de invitados, la sesión remota (donde votan los integrantes), las consultas del público, el tótem de registro y las pantallas de la sala. Las consolas de los operadores (control, botonera, presidencia, rótulos, corrección) toman lo que diga el `alcance`: por omisión, solo el acento y el logo. Nunca cambian los colores con significado: tally, al aire y armado, vúmetros, sí y no de la votación.
+
+- `evento_tema {"accion": "ver"}`: el tema, los colores que van a salir (`resuelto`) y los `avisos` de contraste. Si hay avisos, decíselo al operador y proponé otro color.
+- `evento_tema {"accion": "cambiar", "colores": {"acento": "#00a86b"}, "marca": {"nombre": "Foro 2026"}}`: lo que no se pone se calcula (el texto encima del acento sale del contraste).
+- `evento_tema {"accion": "logo", "archivo": "<ruta>", "cual": "logo"}` (SVG, PNG o WebP, hasta 2 MB; `logoClaro` para fondos oscuros, `favicon` para la pestaña) y `{"accion": "fuente", "archivo": "<ruta>", "familia": "…"}` (WOFF2, WOFF, TTF u OTF, hasta 4 MB). Sin internet: nada de Google Fonts, la letra viaja con el evento.
+- `alcance`: `{"publico": "todo", "control": "acento"}` (cada uno nada, acento o todo).
+- Un sitio generado antes del tema: `evento_tema {"accion": "migrar_sitio"}` (respeta lo cambiado a mano en `estilo.css`).
+
+Se guarda en la carpeta del evento (`tema.json` y `Tema/`). Sin tema propio, el acento y el fondo salen de los del sitio (`evento_web sitio {color, fondo}`). En la app: Servicios → Aspecto de las páginas web → Tema del evento.

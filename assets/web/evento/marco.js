@@ -59,7 +59,7 @@ function aplicar(e) {
   }
   $("sinEvento").classList.add("oculto");
   $("pagina").classList.remove("oculto");
-  if (e.color) document.documentElement.style.setProperty("--color", e.color);
+  // El acento (--color) lo pone el tema del evento (/comun/tema.css), igual que en todas las páginas.
   document.title = e.nombre || t("Evento en vivo");
   $("barra").classList.toggle("oculto", e.barra === false);
   $("estado").textContent = ESTADOS()[e.estado] || e.estado || "";

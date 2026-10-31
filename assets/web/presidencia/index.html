@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="control">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -9,7 +9,9 @@
   <link rel="stylesheet" href="/comun/neuro/temas.css" />
   <link rel="stylesheet" href="/comun/neuro/neuro.css" />
   <link rel="stylesheet" href="consola.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
   <script src="/comun/i18n.js"></script>
+  <script src="/comun/tema.js"></script>
   <script src="/comun/neuro/neuro.js"></script>
 </head>
 <body>
@@ -35,6 +37,7 @@
 
   <!-- Entrar: el PIN de la consola. -->
   <section id="entrar" class="vidrio entrar">
+    <img class="logo" data-tema-logo alt="" hidden />
     <div class="escudo"><div class="sol-chico"></div></div>
     <h1 data-i18n="Presidencia">Presidencia</h1>
     <p id="entrarTexto" class="tenue" data-i18n="Escribí el PIN de la consola.">Escribí el PIN de la consola.</p>

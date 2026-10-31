@@ -18,7 +18,7 @@
 html, body {
   margin: 0;
   min-height: 100%;
-  background: radial-gradient(1200px 700px at 85% -10%, rgba(255, 107, 44, 0.12), transparent 60%), var(--bg);
+  background: radial-gradient(1200px 700px at 85% -10%, var(--ev-acento-suave, rgba(255, 107, 44, 0.12)), transparent 60%), var(--bg);
   color: var(--fg);
   font: 16px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -28,6 +28,8 @@ body { padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); 
 
 .top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+.brand .logo { height: 24px; width: auto; max-width: 140px; object-fit: contain; }
+.brand .logo:not([hidden]) + .dot { display: none; }
 .brand strong { color: var(--fg); text-transform: none; letter-spacing: 0; font-size: 20px; }
 .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 12px var(--ok); }
 .dot.off { background: var(--err); box-shadow: 0 0 12px var(--err); }
@@ -52,7 +54,7 @@ h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: 
 .hero .info { color: var(--muted); }
 .hero .clock { font-size: 76px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.05; }
 .hero .sub { color: var(--muted); font-size: 14px; }
-.hero.warn { background: rgba(255, 107, 44, 0.14); border-color: var(--accent); }
+.hero.warn { background: var(--ev-acento-suave, rgba(255, 107, 44, 0.14)); border-color: var(--accent); }
 .hero.warn .clock { color: var(--accent); animation: pulse 1s ease-in-out infinite; }
 .hero.over { background: rgba(248, 113, 113, 0.14); border-color: var(--err); }
 .hero.over .clock, .hero.over .tag { color: var(--err); }
@@ -66,7 +68,7 @@ h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: 
 .card.next { border: 2px solid var(--accent); }
 .card.away { border-style: dashed; opacity: 0.75; }
 .card .face { width: 100%; aspect-ratio: 4 / 3; font-size: 44px; }
-.card .ord { position: absolute; top: 20px; left: 20px; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 10px; background: var(--accent); color: #140a04; font-weight: 900; font-size: 18px; display: grid; place-items: center; }
+.card .ord { position: absolute; top: 20px; left: 20px; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 10px; background: var(--accent); color: var(--accent-ink, #140a04); font-weight: 900; font-size: 18px; display: grid; place-items: center; }
 .card .badge { position: absolute; top: 20px; right: 20px; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: rgba(0, 0, 0, 0.65); }
 .card.next .badge { background: var(--accent); color: #140a04; }
 .card.away .badge { background: var(--err); color: #1a0505; }

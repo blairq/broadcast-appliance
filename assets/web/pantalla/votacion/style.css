@@ -2,13 +2,20 @@
    decorativo. La medida de referencia no son píxeles sino el ancho de la
    pantalla (vw), porque el mismo HTML va a un televisor de 40" y a un
    proyector de tres metros. */
+:root {
+  /* Los pisa el tema del evento (/comun/tema.css). El rojo de «abierta» no: es un estado. */
+  --fondo: #0d1014;
+  --texto: #e8ecf2;
+  --tenue: #9aa4b2;
+  --acento: #ff6a2b;
+}
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0d1014;
-  color: #e8ecf2;
+  background: var(--fondo);
+  color: var(--texto);
   font: 16px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   display: flex;
   align-items: center;
@@ -22,7 +29,7 @@ main { width: 100%; padding: 4vh 5vw; }
   font-size: 1.6vw;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #9aa4b2;
+  color: var(--tenue);
   margin-bottom: 1.5vh;
 }
 .estado.abierta { color: #ff3b30; }
@@ -50,7 +57,7 @@ h1 {
 .op .lleno {
   height: 100%;
   border-radius: 1vh;
-  background: #ff6a2b;
+  background: var(--acento);
   transition: width 0.4s ease;
 }
 
@@ -61,8 +68,10 @@ h1 {
 .como { width: 22vw; text-align: center; }
 .como img { width: 100%; background: #fff; border-radius: 1vw; padding: 1vw; }
 .como.oculto { display: none; }
-.pie { font-size: 1.4vw; color: #9aa4b2; margin: 1.2vh 0 0; }
+.pie { font-size: 1.4vw; color: var(--tenue); margin: 1.2vh 0 0; }
 .cuenta { font-size: 1.8vw; margin: 2vh 0 0; font-weight: 600; }
 
 .nada { font-size: 2.4vw; color: #6b7480; }
 .hidden { display: none !important; }
+/* El logo del evento (/comun/tema.js), arriba a la derecha. */
+.logo { position: fixed; top: 3vh; right: 3vw; height: 6vh; width: auto; max-width: 18vw; object-fit: contain; }

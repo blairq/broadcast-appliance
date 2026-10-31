@@ -66,8 +66,11 @@ En la carpeta del evento, así que es parte del evento y queda en el historial
 Estilo «dark editorial» (fondo casi negro, bordes de 1px, tipografía grande, un solo acento,
 mono para fechas y metadatos), sin dependencias de afuera: anda aunque la sala no tenga
 internet. El sistema vive en el programa (`assets/web/evento/sitio.css`, servido en
-`/evento/_/sitio.css`), así que mejorarlo mejora todos los eventos; lo propio de cada uno
-(acento, fondo, lo que quiera pisar) va en su `Web/estilo.css`.
+`/evento/_/sitio.css`), así que mejorarlo mejora todos los eventos. La cara de cada evento
+(acento, fondo, letra, logo) es su **tema** (`Eventos/<x>/tema.json`, `evento_tema`; ver
+docs/planes/PLAN-TEMA-EVENTO.md), que vale para todas las páginas web y llega por
+`/comun/tema.css` (entre `sitio.css` y `estilo.css`) y `/comun/tema.js` (el logo); lo que
+solo cambia en el sitio va en su `Web/estilo.css`, que le gana al tema.
 
 La plantilla: barra de navegación (con menú de celular), hero con la palabra de marca de
 fondo, cuenta regresiva en cajas, marquesina con las secciones, «01 / En vivo» (reproductor

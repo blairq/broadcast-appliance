@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="publico">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -19,6 +19,8 @@
   100-300 ms en una red local.
 -->
 <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
+  <script src="/comun/tema.js" defer></script>
 </head>
 <body>
   <video id="video" autoplay playsinline muted></video>
@@ -28,6 +30,7 @@
   <audio id="audio" autoplay></audio>
 
   <div id="aviso" class="aviso">
+    <img class="logo" data-tema-logo alt="" hidden />
     <div class="pulso"></div>
     <div id="aviso-texto" data-i18n="Conectando…">Conectando…</div>
     <div id="aviso-pie" class="pie"></div>

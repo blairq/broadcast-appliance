@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="publico">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -9,11 +9,13 @@
   <meta property="og:type" content="website" />
   <meta property="og:title" content="{{titulo}}" />
   <link rel="stylesheet" href="/evento/_/sitio.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
   <link rel="stylesheet" href="estilo.css" />
   <!-- Los textos de la plantilla salen en el idioma del evento (/comun/i18n.js): cada uno lleva
        data-i18n con el original. Si reescribís uno a mano, sacale el data-i18n. -->
   <script src="/comun/i18n.js" defer></script>
   <script src="/evento/_/vivo.js" defer></script>
+  <script src="/comun/tema.js" defer></script>
 </head>
 <!--
   EL CIERRE (cuando el evento terminó). Plantilla del sistema
@@ -24,6 +26,7 @@
 
   <header class="nav">
     <div class="contenedor">
+      <img class="marca-logo" data-tema-logo alt="" hidden />
       <a class="marca" href="portada.html" data-vivo="nombre">{{titulo}}</a>
       <nav class="nav-links" aria-label="Secciones del sitio" data-i18n-aria-label="Secciones del sitio">
         <a href="#vivo" data-i18n="La grabación">La grabación</a>

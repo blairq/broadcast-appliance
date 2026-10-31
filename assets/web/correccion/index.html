@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="control">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -9,7 +9,9 @@
   <link rel="stylesheet" href="/comun/neuro/temas.css" />
   <link rel="stylesheet" href="/comun/neuro/neuro.css" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
   <script src="/comun/i18n.js"></script>
+  <script src="/comun/tema.js"></script>
   <script src="/comun/neuro/neuro.js"></script>
 </head>
 <body>
@@ -21,6 +23,7 @@
     salen solas cuando se termina el tiempo.
   -->
   <header>
+    <img class="logo" data-tema-logo alt="" hidden />
     <div>
       <h1><span data-i18n="Subtítulos">Subtítulos</span> <span id="estado" class="estado" data-i18n="conectando…">conectando…</span></h1>
       <p class="ayuda" data-i18n="Enter aprueba (con lo que escribiste) · Esc descarta · ↑ ↓ cambian de frase">Enter aprueba (con lo que escribiste) · Esc descarta · ↑ ↓ cambian de frase</p>

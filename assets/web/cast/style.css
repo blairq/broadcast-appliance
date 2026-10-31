@@ -1,5 +1,12 @@
 /* Una pantalla que nadie toca: negro, sin bordes, sin cursor. */
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  /* Los pisa el tema del evento (/comun/tema.css), solo para el cartel de espera. */
+  --fondo: #000;
+  --texto: #fff;
+  --tenue: #8a8a93;
+  --acento: #ff6a2b;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   height: 100%;
@@ -29,15 +36,17 @@ html, body {
   gap: 3vh;
   text-align: center;
   padding: 6vh 6vw;
-  background: #000;
+  background: var(--fondo);
+  color: var(--texto);
   font-size: clamp(20px, 4vh, 54px);
   transition: opacity 0.4s;
 }
 .aviso.oculto { opacity: 0; pointer-events: none; }
-.pie { font-size: clamp(14px, 2.2vh, 28px); color: #8a8a93; }
+.pie { font-size: clamp(14px, 2.2vh, 28px); color: var(--tenue); }
+.aviso .logo { height: 12vh; width: auto; max-width: 40vw; object-fit: contain; }
 .pulso {
   width: 14px; height: 14px; border-radius: 50%;
-  background: #ff6a2b;
+  background: var(--acento);
   animation: latir 1.4s ease-in-out infinite;
 }
 @keyframes latir { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }

@@ -1,10 +1,12 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="publico">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="Votación">Votación</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
+  <script src="/comun/tema.js" defer></script>
 </head>
 <body>
   <!--
@@ -22,6 +24,7 @@
     operador decidió esconder, que es justo lo que no tiene que pasar: ver que
     va perdiendo cambia lo que vota el que todavía no votó.
   -->
+  <img class="logo" data-tema-logo alt="" hidden />
   <main id="hay" class="hidden">
     <div class="estado" id="estado"></div>
     <h1 id="pregunta"></h1>

@@ -134,6 +134,7 @@
 #include "ui/FuenteQrPintor.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "ui/TemaEventoViewModel.hpp"
 #include "net/AccesoRemoto.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/EventoViewModel.hpp"
@@ -419,6 +420,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // propios (sala, prompter, rótulos) se los pide al gateway.
     qr_ = std::make_unique<QrViewModel>(rt, evento_.get(), conference_.get());
     marca("qr");
+    // El tema del evento abierto: lo publica al gateway para todas las páginas web.
+    temaEvento_ = std::make_unique<TemaEventoViewModel>(*evento_, *conference_);
     // Despues de `frames_`: mira los mismos videos que el resto de la interfaz.
     personas_ = std::make_unique<PersonasViewModel>(rt, *this);
     marca("personas");
@@ -3021,6 +3024,7 @@ QString StudioViewModel::identificarPantallas(const QString& cual) {
 QObject* StudioViewModel::pantallasConectadasQml() const { return monitores_.get(); }
 QObject* StudioViewModel::ventanasQml() const { return ventanas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
+QObject* StudioViewModel::temaEvento() const { return temaEvento_.get(); }
 QObject* StudioViewModel::enlacesQml() const { return enlaces_.get(); }
 
 void StudioViewModel::actualizarRanurasBanca(bool forzar) {

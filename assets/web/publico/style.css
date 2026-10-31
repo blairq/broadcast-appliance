@@ -53,6 +53,8 @@ body {
   backdrop-filter: blur(8px);
 }
 .titulo { display: flex; flex-direction: column; min-width: 0; }
+/* El logo del evento (/comun/tema.js). */
+.logo { height: 30px; width: auto; max-width: 120px; object-fit: contain; flex: none; }
 .titulo strong { font-size: 17px; }
 .cuando { color: var(--tenue); font-size: 12px; }
 /* El idioma: chico y al costado, que no le gane a nada. */
@@ -147,7 +149,7 @@ button[disabled] { opacity: 0.5; cursor: default; }
 /* Los botones de votar son grandes y a lo ancho: se aprieta de pie, con una
    mano, y equivocarse de opción no se puede deshacer después de cerrada. */
 .opciones button { width: 100%; justify-content: flex-start; text-align: left; min-height: 52px; }
-.opciones button.mio { border-color: var(--acento); background: rgba(255, 106, 43, 0.14); }
+.opciones button.mio { border-color: var(--acento); background: var(--ev-acento-suave, rgba(255, 106, 43, 0.14)); }
 .opciones button.mio::before { content: "✓ "; color: var(--acento); font-weight: 700; }
 
 .resultado { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }

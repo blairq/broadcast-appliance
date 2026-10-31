@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="publico">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title data-i18n="Evento en vivo">Evento en vivo</title>
   <link rel="stylesheet" href="/evento/_/marco.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
   <!--
     El marco de la página del evento en vivo (src/app/evento/EventoWeb.hpp): la raíz
     de la sala cuando hay un evento con sitio. Arriba, la franja «en vivo» (qué se
@@ -13,9 +14,11 @@
   -->
   <script src="/comun/i18n.js" defer></script>
   <script src="/evento/_/marco.js" defer></script>
+  <script src="/comun/tema.js" defer></script>
 </head>
 <body>
   <header id="barra" class="barra oculto">
+    <img class="logo" data-tema-logo alt="" hidden />
     <span id="estado" class="vivo" data-i18n="Próximamente">Próximamente</span>
     <strong id="nombre"></strong>
     <span id="ahora" class="ahora"></span>

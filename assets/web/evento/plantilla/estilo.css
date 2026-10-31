@@ -1,7 +1,10 @@
-/* Lo propio de este evento, encima del estilo del sitio (/evento/_/sitio.css).
-   Es tuyo: cambiá el acento, el fondo, las tipografías o lo que quieras pisar.
+/* Lo propio de este evento, encima del estilo del sitio (/evento/_/sitio.css) y del
+   TEMA del evento (/comun/tema.css).
+   El acento, el fondo, la letra y el logo son del tema: valen para todas las páginas del
+   evento (esta, la de invitados, la sesión remota, el público, el tótem, las pantallas) y
+   se cambian en la app (Servicios → Aspecto de las páginas web → Tema del evento) o con
+   evento_tema. Acá va lo que solo cambia en el sitio; lo que pongas en este bloque le gana
+   al tema (html[data-ev] va después).
    Plantilla del sistema: assets/web/evento/plantilla/estilo.css. */
-:root {
-  --accent: {{color}};
-  --bg: {{fondo}};
+:root, html[data-ev] {
 }

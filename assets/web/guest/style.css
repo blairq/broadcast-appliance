@@ -23,8 +23,9 @@
 html, body {
   margin: 0;
   min-height: 100%;
-  background: radial-gradient(1200px 700px at 80% -10%, rgba(255, 107, 44, 0.16), transparent 60%),
-              radial-gradient(900px 600px at -10% 110%, rgba(80, 120, 255, 0.12), transparent 60%), var(--bg);
+  /* Los brillos: con tema del evento, el de su acento (y el azul se apaga: --ev-acento-nada). */
+  background: radial-gradient(1200px 700px at 80% -10%, var(--ev-acento-suave, rgba(255, 107, 44, 0.16)), transparent 60%),
+              radial-gradient(900px 600px at -10% 110%, var(--ev-acento-nada, rgba(80, 120, 255, 0.12)), transparent 60%), var(--bg);
   color: var(--fg);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -60,6 +61,9 @@ body.in-room { align-items: stretch; }
 .brand .idioma { margin-left: auto; }
 .brand .idioma select { background: transparent; color: var(--muted); border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px; padding: 3px 6px; font: inherit; font-size: 12px; text-transform: none; letter-spacing: 0; }
+/* El logo del evento (/comun/tema.js): si está, reemplaza al punto. */
+.brand .logo { height: 22px; width: auto; max-width: 140px; object-fit: contain; }
+.brand .logo:not([hidden]) + .dot { display: none; }
 .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
 
 h1 { font-size: 28px; margin: 12px 0 4px; }
@@ -99,7 +103,7 @@ button.primary {
   padding: 14px;
   border: none;
   background: linear-gradient(180deg, var(--accent-2), var(--accent));
-  color: #140a04;
+  color: var(--accent-ink, #140a04);
   font-weight: 650;
 }
 button.primary.small { width: auto; margin: 0; padding: 10px 14px; }
@@ -126,9 +130,9 @@ button.icon { background: none; border: none; padding: 4px 8px; color: var(--mut
 .talk { position: absolute; top: 10px; left: 10px; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 99px; background: rgba(52, 211, 153, 0.9); color: #04140c; }
 .pulse { width: 64px; height: 64px; margin: 6px auto 18px; border-radius: 50%; background: var(--accent); animation: pulse 1.8s ease-out infinite; }
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(255, 107, 44, 0.55); transform: scale(0.92); }
-  70% { box-shadow: 0 0 0 26px rgba(255, 107, 44, 0); transform: scale(1); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 107, 44, 0); transform: scale(0.92); }
+  0% { box-shadow: 0 0 0 0 var(--ev-foco, rgba(255, 107, 44, 0.55)); transform: scale(0.92); }
+  70% { box-shadow: 0 0 0 26px var(--ev-acento-nada, rgba(255, 107, 44, 0)); transform: scale(1); }
+  100% { box-shadow: 0 0 0 0 var(--ev-acento-nada, rgba(255, 107, 44, 0)); transform: scale(0.92); }
 }
 .position { font-weight: 600; margin: 0 0 8px; }
 
@@ -173,9 +177,9 @@ button.icon { background: none; border: none; padding: 4px 8px; color: var(--mut
 }
 .round { position: relative; width: 50px; height: 50px; padding: 0; border-radius: 16px; font-size: 20px; }
 .round.off { background: rgba(248, 113, 113, 0.22); border-color: rgba(248, 113, 113, 0.5); }
-.round.active { background: rgba(255, 107, 44, 0.28); border-color: var(--accent); }
+.round.active { background: var(--ev-acento-medio, rgba(255, 107, 44, 0.28)); border-color: var(--accent); }
 .round.danger { background: rgba(248, 113, 113, 0.18); }
-.unread { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--accent); color: #140a04; font-size: 11px; font-weight: 700; line-height: 18px; }
+.unread { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--accent); color: var(--accent-ink, #140a04); font-size: 11px; font-weight: 700; line-height: 18px; }
 
 .uploads { display: flex; flex-direction: column; gap: 6px; }
 .upload { display: grid; grid-template-columns: 1fr 120px 90px; align-items: center; gap: 10px; font-size: 13px; padding: 8px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
@@ -206,8 +210,8 @@ button.icon { background: none; border: none; padding: 4px 8px; color: var(--mut
 .chat header { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .chat-log { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .msg { max-width: 85%; padding: 8px 11px; border-radius: 12px; background: rgba(255, 255, 255, 0.07); display: flex; flex-direction: column; gap: 2px; }
-.msg.mine { align-self: flex-end; background: rgba(255, 107, 44, 0.22); }
-.msg.host { border: 1px solid rgba(255, 107, 44, 0.45); }
+.msg.mine { align-self: flex-end; background: var(--ev-acento-medio, rgba(255, 107, 44, 0.22)); }
+.msg.host { border: 1px solid var(--ev-acento-fuerte, rgba(255, 107, 44, 0.45)); }
 .msg .who { font-size: 11px; color: var(--muted); }
 .msg .txt { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
 .chat-form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
@@ -266,7 +270,7 @@ button.icon { background: none; border: none; padding: 4px 8px; color: var(--mut
 }
 .orador-aviso {
   background: var(--accent);
-  color: #1a0d05;
+  color: var(--accent-ink, #1a0d05);
   font-weight: 800;
   font-size: 17px;
   text-align: center;

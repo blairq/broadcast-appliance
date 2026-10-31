@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="publico">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -7,6 +7,8 @@
   <title data-i18n="Sesión remota">Sesión remota</title>
   <link rel="apple-touch-icon" href="/comun/icono-180.png" />
   <link rel="stylesheet" href="sesion.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
+  <script src="/comun/tema.js" defer></script>
 </head>
 <body>
   <!--
@@ -18,6 +20,7 @@
     usuario y contraseña (también los da la secretaría).
   -->
   <header class="barra">
+    <img class="logo" data-tema-logo alt="" hidden />
     <span class="titulo" data-i18n="Sesión remota">Sesión remota</span>
     <span id="quien" class="quien"></span>
     <span class="espacio"></span>

@@ -185,7 +185,7 @@ ScrollView {
         Seccion {
             visible: !!pw.w.hay
             titulo: qsTr("Cómo se ve")
-            subtitulo: qsTr("El título, la bajada y los colores de la plantilla (las páginas personalizadas usan los suyos).")
+            subtitulo: qsTr("El título y la bajada de la plantilla. El acento es el del tema del evento, que vale para todas sus páginas (el resto, en Servicios → Aspecto de las páginas web).")
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2
@@ -196,7 +196,7 @@ ScrollView {
                 Text { text: qsTr("Bajada"); color: Theme.textDim; font.pixelSize: 12 }
                 TextField { Layout.fillWidth: true; text: pw.sitio.bajada || ""; placeholderText: qsTr("una línea abajo del título")
                             onEditingFinished: if (text !== (pw.sitio.bajada || "")) pw.guardar({ bajada: text }) }
-                Text { text: qsTr("Color"); color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Acento"); color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     spacing: 6
                     Repeater {
@@ -204,9 +204,17 @@ ScrollView {
                         delegate: Rectangle {
                             required property string modelData
                             implicitWidth: 26; implicitHeight: 26; radius: 13; color: modelData
-                            border.width: (pw.sitio.color || "").toLowerCase() === modelData ? 3 : 1
-                            border.color: (pw.sitio.color || "").toLowerCase() === modelData ? Theme.text : Qt.rgba(1, 1, 1, 0.2)
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pw.guardar({ color: parent.modelData }) }
+                            // El acento del TEMA del evento (TemaEventoViewModel): uno solo para todas las páginas.
+                            readonly property bool elegido: ((Studio.temaEvento.resuelto.colores || {}).acento || "") === modelData
+                            border.width: elegido ? 3 : 1
+                            border.color: elegido ? Theme.text : Qt.rgba(1, 1, 1, 0.2)
+                            MouseArea {
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    const e = Studio.temaEvento.cambiar({ colores: { acento: parent.modelData } })
+                                    if (e !== "") Studio.notify(e, "error")
+                                }
+                            }
                         }
                     }
                 }

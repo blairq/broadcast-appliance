@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-ev="publico">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -7,6 +7,8 @@
   <title data-i18n="Registro">Registro</title>
   <link rel="apple-touch-icon" href="/comun/icono-180.png" />
   <link rel="stylesheet" href="estilo.css" />
+  <link rel="stylesheet" href="/comun/tema.css" />
+  <script src="/comun/tema.js" defer></script>
 </head>
 <body>
   <!--
@@ -20,6 +22,7 @@
       ?pantalla=1  solo muestra el QR para registrarse desde el celular (una TV)
   -->
   <header class="barra">
+    <img class="logo" data-tema-logo alt="" hidden />
     <div class="encabezado">
       <h1 id="titulo" class="titulo" data-i18n="Registro">Registro</h1>
       <p id="subtitulo" class="subtitulo oculto"></p>

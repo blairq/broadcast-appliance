@@ -233,6 +233,12 @@ class SignalingServer {
     /// Las páginas lo leen de /comun/tema.json. :returns: false si el id no vale.
     bool setTemaWeb(const std::string& id);
     std::string temaWeb() const;
+    /// El tema del EVENTO abierto (docs/planes/PLAN-TEMA-EVENTO.md; lo manda la app con
+    /// POST /api/v1/tema-evento al abrir o cambiar de evento y cada vez que la sala vuelve):
+    /// {tema: lo de Eventos/<x>/tema.json, carpeta: Eventos/<x>/Tema}. Sin `tema` (o vacío),
+    /// las páginas quedan como son. Lo resuelve ba::tema (colores que faltan, contraste) y
+    /// arma /comun/tema.css una vez. Devuelve {v, avisos}.
+    nlohmann::json setTemaEvento(const nlohmann::json& cuerpo);
     /// El teleprompter, para que la API de control (A) le cargue discursos y
     /// lo comande sin pasar por la clave del control remoto.
     Prompters& prompters() { return prompters_; }
@@ -554,8 +560,13 @@ class SignalingServer {
     std::string publicAddress_;
     mutable std::mutex temaLock_;
     std::string temaWeb_ = "neuro-oscuro";
-    /// GET /comun/tema.json (todas las superficies). true si lo atendió.
-    bool servirTema(long long fd, const std::string& method, const std::string& path);
+    /// El del evento, ya armado (bajo temaLock_): lo que se publica en /comun/tema.json,
+    /// la hoja, su versión y de dónde salen el logo y las fuentes.
+    nlohmann::json temaEventoPublico_; // null = sin tema
+    std::string temaEventoCss_, temaEventoVersion_, temaEventoCarpeta_;
+    /// GET /comun/tema.json, /comun/tema.css y /comun/tema/<archivo> (todas las superficies,
+    /// por todas las puertas). true si lo atendió.
+    bool servirTema(long long fd, const std::string& method, const std::string& path, const std::string& query);
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
     std::function<direcciones::Entradas()> direccionesEntradas_;

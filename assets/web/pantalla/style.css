@@ -1,10 +1,16 @@
 /* Una pantalla que se mira de lejos: todo grande, nada que distraiga. */
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  /* Los pisa el tema del evento (/comun/tema.css). El QR queda siempre en blanco. */
+  --fondo: #000;
+  --texto: #fff;
+  --tenue: #b9b9c2;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   height: 100%;
-  background: #000;
-  color: #fff;
+  background: var(--fondo);
+  color: var(--texto);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
 }
@@ -35,7 +41,9 @@ html, body {
 }
 .pie {
   font-size: clamp(16px, 3vh, 44px);
-  color: #b9b9c2;
+  color: var(--tenue);
   font-weight: 400;
 }
 .oculto { display: none; }
+/* El logo del evento (/comun/tema.js), arriba a la derecha. */
+.logo { position: fixed; top: 3vh; right: 3vw; height: 7vh; width: auto; max-width: 20vw; object-fit: contain; }
