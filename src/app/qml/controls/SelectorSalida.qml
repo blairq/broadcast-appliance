@@ -1,7 +1,7 @@
 // Selector de salida (docs/planes/PLAN-SALIDAS.md, etapa 5): cuál de las salidas
 // maneja esta interfaz. Cada salida es un operador completo, con su preview, su
 // TAKE y su mezcla; lo que muestran y hacen Dirección, Escenas y el Mezclador es
-// de la elegida (Studio.salidaActiva: el modelo, no esta vista).
+// de la elegida (Studio.salidas.activa: el modelo, no esta vista).
 //
 // Con una sola salida no aparece: la interfaz se ve como siempre.
 //
@@ -14,11 +14,11 @@ import BA
 
 Flow {
     id: sel
-    visible: Studio.variasSalidas
+    visible: Studio.salidas.varias
     spacing: 6
 
     Repeater {
-        model: Studio.salidas
+        model: Studio.salidas.lista
         delegate: Rectangle {
             id: pastilla
             // Por `model`: los roles «id» y «color» chocan con los del Rectangle.
@@ -28,7 +28,7 @@ Flow {
             readonly property color tono: model.color
             readonly property bool transmitiendo: !!model.transmitiendo
             readonly property bool grabando: !!model.grabando
-            readonly property bool elegida: salida === Studio.salidaActiva
+            readonly property bool elegida: salida === Studio.salidas.activa
             height: 30
             width: fila.implicitWidth + 20
             radius: 15
@@ -57,7 +57,7 @@ Flow {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Studio.salidaActiva = pastilla.salida
+                onClicked: Studio.salidas.activa = pastilla.salida
             }
             ToolTip.visible: ma.containsMouse
             ToolTip.delay: 400

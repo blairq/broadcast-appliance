@@ -16,8 +16,8 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     // Las entradas que se graban aparte (ISO); se refresca cada segundo mientras se mira.
-    property var isos: Studio.isosUi()
-    Timer { interval: 1000; repeat: true; running: page.visible; onTriggered: page.isos = Studio.isosUi() }
+    property var isos: Studio.emision.isosUi()
+    Timer { interval: 1000; repeat: true; running: page.visible; onTriggered: page.isos = Studio.emision.isosUi() }
     readonly property var inp: Studio.inputs
     property string hwError: ""
     property string netError: ""
@@ -250,7 +250,7 @@ Rectangle {
                                     text: grabando ? "● ISO" : "○ ISO"
                                     active: grabando
                                     activeColor: Theme.live
-                                    onClicked: { const e = Studio.isoUi(modelData.name, !grabando); if (e !== "") Studio.notify(e, "error"); page.isos = Studio.isosUi() }
+                                    onClicked: { const e = Studio.emision.isoUi(modelData.name, !grabando); if (e !== "") Studio.notify(e, "error"); page.isos = Studio.emision.isosUi() }
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: grabando ? qsTr("Se graba aparte en Recordings/entradas/: tocá para parar") : qsTr("Grabar esta entrada aparte (es un encode más)")
                                 }

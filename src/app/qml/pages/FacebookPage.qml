@@ -93,7 +93,7 @@ Rectangle {
                        text: qsTr("La API de Facebook permite transmitir y administrar videos en PÁGINAS (no en el perfil personal). Para usarla, creá una app de Meta propia (queda en modo desarrollo: solo vos la usás) — unos 5 minutos:") }
                 Repeater {
                     // Depende de redirectUri: se rearma si cambia el puerto.
-                    model: fb.redirectUri !== "" ? Studio.accountGuide("facebook").steps : []
+                    model: fb.redirectUri !== "" ? Studio.cuentas.accountGuide("facebook").steps : []
                     delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true
@@ -350,8 +350,8 @@ Rectangle {
                                 active: dest
                                 onClicked: {
                                     const k = "fb:" + fmsg.model.id
-                                    if (dest) { Studio.quitarDestacadoChatUi(k); dest = false }
-                                    else dest = Studio.destacarChatUi(k)
+                                    if (dest) { Studio.sala.quitarDestacadoChatUi(k); dest = false }
+                                    else dest = Studio.sala.destacarChatUi(k)
                                 }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Destacar para el chat en pantalla")
                             }
@@ -360,7 +360,7 @@ Rectangle {
                                 anchors { right: parent.right; top: parent.top; rightMargin: 40 }
                                 compact: true
                                 text: "?"
-                                onClicked: { const e = Studio.preguntaDesdeChatUi("fb:" + fmsg.model.id); if (e !== "") Studio.notify(e, "error") }
+                                onClicked: { const e = Studio.sala.preguntaDesdeChatUi("fb:" + fmsg.model.id); if (e !== "") Studio.notify(e, "error") }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sumar a la cola de preguntas")
                             }
                         }

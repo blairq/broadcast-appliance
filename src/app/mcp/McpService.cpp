@@ -534,7 +534,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     }
     // El operador delega en el asistente la atencion de alguien del lobby: se
     // habilita la exencion para ESA persona y se le pasa la tarea al agente.
-    vm_.setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {
+    vm_.sala().setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {
         // QUIÉN ATIENDE es una sola regla (sala::quienAtiende, con test): la
         // recepción si está prendida; si no, el de automatización; nunca el del
         // evento. Y si se lo atiende HABLANDO lo decide la atención
@@ -1129,7 +1129,7 @@ void McpService::registerTools() {
         t.description = ba::i18n::traducir("mcp", "Los textos de placa de siempre y si ahora hay FTB o placa al aire.");
         t.run = [this, &vm](const json& a, Done done) {
             json textos = json::array();
-            for (const QString& s : vm.textosPlaca()) textos.push_back(s.toStdString());
+            for (const QString& s : vm.salidas().textosPlaca()) textos.push_back(s.toStdString());
             done(ToolResult().data(json{{"textos", textos}, {"estado", vm.seguridadAire().estado(core_.salidaDe(a))}}));
         };
         core_.addTool(std::move(t));
@@ -1144,8 +1144,8 @@ void McpService::registerTools() {
                         "en el preview para salir con TAKE (false, de fábrica). Sin argumentos, los muestra.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"corte_directo_editor", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            if (a.contains("corte_directo_editor")) vm.setCorteDirectoEditor(a.value("corte_directo_editor", false));
-            done(ToolResult().data(json{{"corte_directo_editor", vm.corteDirectoEditor()}}));
+            if (a.contains("corte_directo_editor")) vm.escenas().setCorteDirectoEditor(a.value("corte_directo_editor", false));
+            done(ToolResult().data(json{{"corte_directo_editor", vm.escenas().corteDirectoEditor()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -2347,7 +2347,7 @@ void McpService::registerTools() {
                            {"aplicar_a", {{"type", "string"}}}}}};
         t.run = [&rt, &vm, persist](const json& a, Done done) {
             const std::string fuente = a.value("aplicar_a", std::string());
-            const QString e = vm.medirSincro(a.value("segundos", 10), [&rt, fuente, persist, done](const json& r0) {
+            const QString e = vm.mezcla().medirSincro(a.value("segundos", 10), [&rt, fuente, persist, done](const json& r0) {
                 json r = r0;
                 if (!fuente.empty() && r.value("confiable", false)) {
                     const int nuevo = std::clamp(rt.engine().sourceSyncOffset(fuente) + r.value("retardo_ms", 0), -5000, 5000);
@@ -2378,8 +2378,8 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"balistica", {{"type", "string"}, {"enum", {"pico", "ppm", "vu"}}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            if (a.contains("balistica")) vm.setBalistica(QString::fromStdString(a.value("balistica", std::string("pico"))));
-            done(ToolResult().data(json{{"balistica", vm.balistica().toStdString()}}));
+            if (a.contains("balistica")) vm.mezcla().setBalistica(QString::fromStdString(a.value("balistica", std::string("pico"))));
+            done(ToolResult().data(json{{"balistica", vm.mezcla().balistica().toStdString()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -2591,7 +2591,7 @@ void McpService::registerTools() {
                          {"required", {"participant"}},
                          {"properties", {{"participant", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.aprobarInfoInvitado(QString::fromStdString(a.value("participant", std::string())),
+            const QString e = vm.sala().aprobarInfoInvitado(QString::fromStdString(a.value("participant", std::string())),
                                                       QString::fromStdString(a.value("texto", std::string())));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Aprobado: el zocalo ya lo usa.")));
@@ -2638,7 +2638,7 @@ void McpService::registerTools() {
             const json j = seg.estado();
             done(ToolResult().data({{"rotar_token_mcp", j.value("rotar_token_mcp", true)},
                                     {"pin_por_sesion", j.value("pin_por_sesion", true)},
-                                    {"modo_vivo", vm_.modoVivoEstado()},
+                                    {"modo_vivo", vm_.app().modoVivoEstado()},
                                     {"passphrase", ba::i18n::traducir("mcp", "todavia no (ver docs/planes/DECISIONES-PENDIENTES.md)")}}));
         };
         core_.addTool(std::move(t));
@@ -2981,7 +2981,7 @@ void McpService::registerTools() {
             auto& o = vm.ordenDelDia();
             done(ToolResult().data({{"puntos", o.puntos()},
                                     {"actual", o.actual()},
-                                    {"tiempos_palabra", o.tiemposPalabra(vm.remotosPalabra())},
+                                    {"tiempos_palabra", o.tiemposPalabra(vm.asamblea().remotosPalabra())},
                                     {"capitulos", o.capitulosTexto(vm.recordStartMs())}}));
         };
         core_.addTool(std::move(t));
@@ -3990,14 +3990,14 @@ void McpService::registerTools() {
             const std::string antes = rt.engine().ultimoReplay(salida);
             if (!rt.engine().guardarReplay(salida)) return done(ToolResult::error(rt.engine().lastError()));
             const bool armar = a.value("y_armar", false);
-            vm.esperarReplay(
+            vm.escenas().esperarReplay(
                 antes, 8000,
                 [&vm, armar, done, salida](const QString& f) {
                     if (f.isEmpty())
                         return done(ToolResult::error(ba::i18n::traducir("mcp", "el clip no llegó a escribirse en 8 s")));
                     json r{{"archivo", f.toStdString()}};
                     if (armar) {
-                        const QString e = vm.armarRepeticion(f, salida);
+                        const QString e = vm.escenas().armarRepeticion(f, salida);
                         r["armada"] = e.isEmpty();
                         if (!e.isEmpty()) r["error_al_armar"] = e.toStdString();
                     }
@@ -4090,7 +4090,7 @@ void McpService::registerTools() {
         t.run = [&rt, &vm](const json& a, Done done) {
             std::vector<std::string> arrancar;
             if (a.contains("invitado")) {
-                const QString f = vm.fuenteDeInvitado(QString::fromStdString(a.value("invitado", std::string())));
+                const QString f = vm.emision().fuenteDeInvitado(QString::fromStdString(a.value("invitado", std::string())));
                 if (f.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "ese invitado no tiene una fuente en el programa (¿esta admitido?)")));
                 arrancar.push_back(f.toStdString());
             }

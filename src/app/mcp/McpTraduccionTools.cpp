@@ -339,8 +339,8 @@ void McpService::registerTraduccionTools() {
                         "frase). `activo` lo prende o apaga; sin argumentos, el estado.");
         x.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
         x.run = [this](const json& a, Done done) {
-            if (a.contains("activo")) vm_.setRotuloTraduccion(a.value("activo", true));
-            done(ToolResult().data(vm_.rotuloTraduccionEstado()));
+            if (a.contains("activo")) vm_.asistente().setRotuloTraduccion(a.value("activo", true));
+            done(ToolResult().data(vm_.asistente().rotuloTraduccionEstado()));
         };
         core_.addTool(std::move(x));
     }

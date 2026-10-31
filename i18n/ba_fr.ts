@@ -1352,9 +1352,143 @@
 <context>
     <name>AlarmasViewModel</name>
     <message>
-        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+85" />
+        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+249" />
         <source>El aviso por «%1» no salió: %2</source>
         <translation>L'alerte pour « %1 » n'est pas partie : %2</translation>
+    </message>
+</context>
+<context>
+    <name>AppViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+84" />
+        <source>Evento «%1» creado: reiniciando para abrirlo</source>
+        <translation>Événement « %1 » créé : redémarrage pour l'ouvrir</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Abriendo el evento «%1»: la app se reinicia</source>
+        <translation>Ouverture de l'événement « %1 » : l'application redémarre</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>No se pudo crear «%1»: %2</source>
+        <translation>Impossible de créer « %1 » : %2</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
+        <translation>Événement « %1 » prêt : ouvrez-le avec « Ouvrir un autre… »</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
+        <translation>La configuration « %1 » était endommagée : la version précédente a été chargée (celle endommagée a été gardée en .corrupto).</translation>
+    </message>
+    <message>
+        <location line="+119" />
+        <source>no se cambia en vivo</source>
+        <translation>ne se modifie pas en direct</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Estás AL AIRE y grabando</source>
+        <translation>Vous êtes À L'ANTENNE et en enregistrement</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+15" />
+        <source>Estás AL AIRE</source>
+        <translation>Vous êtes À L'ANTENNE</translation>
+    </message>
+    <message>
+        <location line="-14" />
+        <source>Estás grabando</source>
+        <translation>Vous enregistrez</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+3" />
+        <source>Hay %n persona conectada</source>
+        <translation><numerusform>%n personne est connectée</numerusform><numerusform>%n personnes sont connectées</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>%1, y hay %n persona conectada</source>
+        <translation><numerusform>%1, et %n personne est connectée</numerusform><numerusform>%1, et %n personnes sont connectées</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>%1 y hay %n persona conectada</source>
+        <translation><numerusform>%1 et %n personne est connectée</numerusform><numerusform>%1 et %n personnes sont connectées</numerusform></translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>se corta la emisión</source>
+        <translation>la diffusion s'arrête</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>se detiene la grabación</source>
+        <translation>l'enregistrement s'arrête</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>esa persona queda afuera</source>
+        <translation>cette personne est déconnectée</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>esas personas quedan afuera</source>
+        <translation>ces personnes sont déconnectées</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1. Si cerrás, %2.</source>
+        <translation>%1. Si vous fermez, %2.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Estás GRABANDO</source>
+        <translation>Vous ENREGISTREZ</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Hay gente conectada</source>
+        <translation>Des personnes sont connectées</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>corta la emisión</source>
+        <translation>arrête la diffusion</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>corta la grabación</source>
+        <translation>arrête l'enregistrement</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>la desconecta</source>
+        <translation>la déconnecte</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>desconecta a quienes están conectados</source>
+        <translation>déconnecte les personnes connectées</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1: actualizar cierra la aplicación y %2.</source>
+        <translation>%1 : la mise à jour ferme l'application et %2.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
+        <translation>%1 : revenir à la version précédente ferme l'application et %2.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1: %2 cierra la aplicación y %3.</source>
+        <translation>%1 : %2 ferme l'application et %3.</translation>
     </message>
 </context>
 <context>
@@ -1551,6 +1685,108 @@
         <location line="+44" />
         <source>Grillas de personas</source>
         <translation>Grilles de personnes</translation>
+    </message>
+</context>
+<context>
+    <name>AsambleaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+150" />
+        <source>Central DCN, banca %1: %2</source>
+        <translation>Unité centrale DCN, siège %1 : %2</translation>
+    </message>
+    <message>
+        <location line="+63" />
+        <location line="+8" />
+        <source>Central (debate): %1</source>
+        <translation>Unité centrale (débat) : %1</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Central (fin del debate): %1</source>
+        <translation>Unité centrale (fin du débat) : %1</translation>
+    </message>
+    <message>
+        <location line="+76" />
+        <source>## Banca virtual</source>
+        <translation>## Siège virtuel</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>## Transcripción</source>
+        <translation>## Transcription</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Archivo</source>
+        <translation>Fichier</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
+        <translation>La transcription est automatique : elle peut contenir des erreurs ; la version sténographique fait foi.</translation>
+    </message>
+    <message>
+        <location line="+94" />
+        <source>La sesión remota no está andando.</source>
+        <translation>La séance à distance n'est pas en cours.</translation>
+    </message>
+    <message>
+        <location line="+57" />
+        <source>%1 (banca %2)</source>
+        <translation>%1 (siège %2)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>%1: queda 1 minuto</source>
+        <translation>%1 : il reste 1 minute</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>%1: se terminó su tiempo</source>
+        <translation>%1 : temps écoulé</translation>
+    </message>
+    <message>
+        <location line="+188" />
+        <source>Punto %1: %2</source>
+        <translation>Point %1 : %2</translation>
+    </message>
+    <message>
+        <location line="+20" />
+        <source>CON QUÓRUM</source>
+        <translation>QUORUM ATTEINT</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>SIN QUÓRUM</source>
+        <translation>QUORUM NON ATTEINT</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 presentes de %2</source>
+        <translation>%1 présents sur %2</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>APROBADO</source>
+        <translation>ADOPTÉ</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>RECHAZADO</source>
+        <translation>REJETÉ</translation>
+    </message>
+</context>
+<context>
+    <name>AsistenteViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+155" />
+        <source>Modo seguro</source>
+        <translation>Mode sans échec</translation>
+    </message>
+    <message>
+        <location line="+167" />
+        <source>Nombres del cuerpo: %1</source>
+        <translation>Noms de l'Assemblée plénière : %1</translation>
     </message>
 </context>
 <context>
@@ -5769,7 +6005,7 @@ Partagez le lien et le PIN (panneau Accès).</translation>
         <translation>Retirer %1 de la conférence ?</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+16" />
         <source>Acceso directo por un servidor propio (WireGuard)</source>
         <translation>Accès direct par votre propre serveur (WireGuard)</translation>
     </message>
@@ -5980,6 +6216,101 @@ L'ancien PIN ne permet plus d'entrer.</translation>
     </message>
 </context>
 <context>
+    <name>ControlViewModel</name>
+    <message>
+        <location filename="../src/app/ui/ControlViewModel.cpp" line="+96" />
+        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
+        <translation>« %1 » (%2) demande l'accès au contrôle web : approuvez-le dans Services → Contrôle web.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
+        <translation>« %1 » (%2) demande à s'appairer comme surface de contrôle avec le profil « %3 » : approuvez-le dans la page Surface de contrôle.</translation>
+    </message>
+    <message>
+        <location line="+147" />
+        <source>No se pudo emparejar.</source>
+        <translation>Impossible d'appairer.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Control web (/control/)</source>
+        <translation>Contrôle web (/control/)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
+        <translation>Ouvrez-le dans le navigateur de l'appareil (sur le réseau local ; le code est valable quelques minutes et ne sert qu'une fois). Approuvez-le ensuite ici, dans Services → Contrôle web.</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <location line="+69" />
+        <source>Tablet emparejada.</source>
+        <translation>Tablette appairée.</translation>
+    </message>
+    <message>
+        <location line="-69" />
+        <location line="+69" />
+        <source>Emparejamiento rechazado.</source>
+        <translation>Appairage refusé.</translation>
+    </message>
+    <message>
+        <location line="-24" />
+        <source>No disponible.</source>
+        <translation>Non disponible.</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>pide emparejarse</source>
+        <translation>demande l'appairage</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>pide entrar al control web</source>
+        <translation>demande l'accès au contrôle web</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Aparato emparejado.</source>
+        <translation>Appareil appairé.</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Pedido rechazado.</source>
+        <translation>Demande refusée.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>todo, o: escenas, audio</source>
+        <translation>tout, ou : scènes, audio</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>quiere conectar un Satellite</source>
+        <translation>veut connecter un Satellite</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Ese pedido ya no está.</source>
+        <translation>Cette demande n'existe plus.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Permitir</source>
+        <translation>Autoriser</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una IP pide conectar: permitila acá abajo</source>
+        <translation>Une IP demande à se connecter : autorisez-la ci-dessous</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 IP piden conectar: permitilas acá abajo</source>
+        <translation>%1 IP demandent à se connecter : autorisez-les ci-dessous</translation>
+    </message>
+</context>
+<context>
     <name>ControlWeb</name>
     <message>
         <location filename="../src/app/control/ControlWeb.cpp" line="+397" />
@@ -6072,6 +6403,36 @@ L'ancien PIN ne permet plus d'entrer.</translation>
         <location line="-5" />
         <source>no pude escribir la lámina %1</source>
         <translation>impossible d'écrire la diapositive %1</translation>
+    </message>
+</context>
+<context>
+    <name>CuentasViewModel</name>
+    <message>
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+91" />
+        <location line="+6" />
+        <source>El escáner de red no está disponible.</source>
+        <translation>Le scanner réseau n'est pas disponible.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <location line="+14" />
+        <source>No escribiste ninguna clave.</source>
+        <translation>Vous n'avez saisi aucune clé.</translation>
+    </message>
+    <message>
+        <location line="-9" />
+        <source>Los plugins no están disponibles.</source>
+        <translation>Les plugins ne sont pas disponibles.</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>No se pudo leer %1.</source>
+        <translation>Impossible de lire %1.</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>Plataforma desconocida: %1.</source>
+        <translation>Plateforme inconnue : %1.</translation>
     </message>
 </context>
 <context>
@@ -7614,6 +7975,65 @@ Réactivez-la depuis le Journal.</translation>
     </message>
 </context>
 <context>
+    <name>EmisionViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EmisionViewModel.cpp" line="+54" />
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation>Attention : le disque permet ~%1 h d'enregistrement</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Grabando en %1</source>
+        <translation>Enregistrement vers %1</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <location line="+10" />
+        <source>No se pudo grabar: %1</source>
+        <translation>Impossible d'enregistrer : %1</translation>
+    </message>
+    <message>
+        <location line="-2" />
+        <source>Grabando (con poco disco)</source>
+        <translation>Enregistrement (peu d'espace disque)</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation>Vous diffusiez déjà vers cette destination : rien n'a changé</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Al aire</source>
+        <translation>À l'antenne</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>No se pudo transmitir: %1</source>
+        <translation>Impossible de diffuser : %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Transmitiendo al destino nuevo</source>
+        <translation>Diffusion vers la nouvelle destination</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation>Impossible de changer de destination : %1</translation>
+    </message>
+    <message>
+        <location line="+63" />
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation>Cet invité n'a pas encore de source dans le programme.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Grabando «%1» aparte</source>
+        <translation>Enregistrement séparé de « %1 »</translation>
+    </message>
+</context>
+<context>
     <name>Emisor</name>
     <message>
         <location filename="../src/app/graficos/Emisor.cpp" line="+213" />
@@ -8308,6 +8728,67 @@ Réactivez-la depuis le Journal.</translation>
         <location line="+10" />
         <source>Elegí un dispositivo de la lista para ponerle nombre, configurarlo, ver lo que se sabe de él y qué se le puede hacer.</source>
         <translation>Choisissez un appareil dans la liste pour le nommer, le configurer, voir ce qu'on en sait et ce qu'on peut en faire.</translation>
+    </message>
+</context>
+<context>
+    <name>EscenasViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EscenasViewModel.cpp" line="+96" />
+        <source>%1 (copia)</source>
+        <translation>%1 (copie)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 (copia %2)</source>
+        <translation>%1 (copie %2)</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Escena copiada: %1</source>
+        <translation>Scène copiée : %1</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Escena copiada, pero %1</source>
+        <translation>Scène copiée, mais %1</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>«%1» protegida: no se puede borrar ni renombrar</source>
+        <translation>« %1 » protégée : impossible de la supprimer ou de la renommer</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>«%1» ya no está protegida</source>
+        <translation>« %1 » n'est plus protégée</translation>
+    </message>
+    <message>
+        <location line="+118" />
+        <source>La repetición no llegó a escribirse.</source>
+        <translation>Le ralenti n'a pas pu être écrit à temps.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Repetición armada: dale TAKE.</source>
+        <translation>Ralenti prêt : faites TAKE.</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>No hay una salida «%1».</source>
+        <translation>Aucune sortie « %1 ».</translation>
+    </message>
+</context>
+<context>
+    <name>EscritorioViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+118" />
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation>Il n'y a pas d'écran « %1 » : indiquez son numéro, son nom ou son id.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>El monitor «%1» no está conectado.</source>
+        <translation>L'écran « %1 » n'est pas connecté.</translation>
     </message>
 </context>
 <context>
@@ -9686,7 +10167,10 @@ Réactivez-la depuis le Journal.</translation>
     <message numerus="yes">
         <location line="+68" />
         <source>El ensayo grabó los tiempos de %n paso(s): confirmalos para que queden como duraciones previstas</source>
-        <translation><numerusform>La répétition a enregistré les durées de %n étape : confirmez-la pour qu'elle devienne la durée prévue</numerusform><numerusform>La répétition a enregistré les durées de %n étapes : confirmez-les pour qu'elles deviennent les durées prévues</numerusform></translation>
+        <translation>
+            <numerusform>La répétition a enregistré les durées de %n étape : confirmez-la pour qu'elle devienne la durée prévue</numerusform>
+            <numerusform>La répétition a enregistré les durées de %n étapes : confirmez-les pour qu'elles deviennent les durées prévues</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+29" />
@@ -11542,6 +12026,21 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <source>Al aire</source>
         <translation>À l'antenne</translation>
     </message>
+    <message>
+        <location line="+26" />
+        <source>Gráfico nuevo</source>
+        <translation>Nouveau graphique</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Se arma con capas y animaciones de un repertorio, sin escribir código.</source>
+        <translation>Se compose de calques et d’animations d’un répertoire, sans écrire de code.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>QML a mano. Mirá docs/GRAFICOS.md antes: hay cuatro o cinco trampas que cuestan tiempo.</source>
+        <translation>QML à la main. Lisez d’abord docs/GRAFICOS.md : il y a quatre ou cinq pièges qui coûtent du temps.</translation>
+    </message>
 </context>
 <context>
     <name>GuestsContent</name>
@@ -11711,7 +12210,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>marge %1 % (%2)</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+94" />
         <source>Térmica: %1</source>
         <translation>Thermique : %1</translation>
     </message>
@@ -12556,6 +13055,60 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
     </message>
 </context>
 <context>
+    <name>ImagenViewModel</name>
+    <message>
+        <location filename="../src/app/ui/ImagenViewModel.cpp" line="+79" />
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3) : passée en mode économique</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3)</translation>
+    </message>
+    <message>
+        <location line="+69" />
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation>l'emplacement %1 de la conférence est vide (le carton s'affiche)</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+5" />
+        <source>el motor no está andando</source>
+        <translation>le moteur ne tourne pas</translation>
+    </message>
+    <message>
+        <location line="+70" />
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation>Disque : il reste %1 Go, moins d'une heure d'enregistrement</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation>Disque : de quoi enregistrer ~%1 h</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation>Aucune destination de diffusion configurée (serveur et clé)</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation>L'entrée « %1 » n'a pas de signal pour l'instant</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>tipo desconocido</source>
+        <translation>type inconnu</translation>
+    </message>
+    <message>
+        <location line="+48" />
+        <source>modo desconocido</source>
+        <translation>mode inconnu</translation>
+    </message>
+</context>
+<context>
     <name>InputsPage</name>
     <message>
         <location filename="../src/app/qml/pages/InputsPage.qml" line="+46" />
@@ -12944,7 +13497,10 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
     <message numerus="yes">
         <location line="+1" />
         <source>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</source>
-        <translation><numerusform>La vérification a trouvé %n problème grave. Consultez « Vérification » avant de partir.</numerusform><numerusform>La vérification a trouvé %n problèmes graves. Consultez « Vérification » avant de partir.</numerusform></translation>
+        <translation>
+            <numerusform>La vérification a trouvé %n problème grave. Consultez « Vérification » avant de partir.</numerusform>
+            <numerusform>La vérification a trouvé %n problèmes graves. Consultez « Vérification » avant de partir.</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+1" />
@@ -13170,7 +13726,10 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
     <message numerus="yes">
         <location line="+21" />
         <source>El ensayo grabó %n paso(s): de %1 a %2 en total</source>
-        <translation><numerusform>La répétition a enregistré %n étape : de %1 à %2 au total</numerusform><numerusform>La répétition a enregistré %n étapes : de %1 à %2 au total</numerusform></translation>
+        <translation>
+            <numerusform>La répétition a enregistré %n étape : de %1 à %2 au total</numerusform>
+            <numerusform>La répétition a enregistré %n étapes : de %1 à %2 au total</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+24" />
@@ -13233,7 +13792,10 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
     <message numerus="yes">
         <location line="+1" />
         <source>Se suman %n paso(s) al final de la línea.</source>
-        <translation><numerusform>%n étape est ajoutée à la fin de la timeline.</numerusform><numerusform>%n étapes sont ajoutées à la fin de la timeline.</numerusform></translation>
+        <translation>
+            <numerusform>%n étape est ajoutée à la fin de la timeline.</numerusform>
+            <numerusform>%n étapes sont ajoutées à la fin de la timeline.</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -13278,7 +13840,10 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
     <message numerus="yes">
         <location line="+8" />
         <source>%n cambio(s) sin confirmar</source>
-        <translation><numerusform>%n modification non confirmée</numerusform><numerusform>%n modifications non confirmées</numerusform></translation>
+        <translation>
+            <numerusform>%n modification non confirmée</numerusform>
+            <numerusform>%n modifications non confirmées</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+10" />
@@ -13386,7 +13951,10 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
     <message numerus="yes">
         <location line="+7" />
         <source>%n cambio(s) sin confirmar</source>
-        <translation><numerusform>%n modification non confirmée</numerusform><numerusform>%n modifications non confirmées</numerusform></translation>
+        <translation>
+            <numerusform>%n modification non confirmée</numerusform>
+            <numerusform>%n modifications non confirmées</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+10" />
@@ -13672,7 +14240,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>MODE TEST (--test) : l'assistant agit SANS demander d'approbation, même à l'antenne</translation>
     </message>
     <message>
-        <location line="+66" />
+        <location line="+81" />
         <source>CONFIRMAR</source>
         <comment>palabra que se escribe para entrar a una página protegida</comment>
         <translation>CONFIRMER</translation>
@@ -13696,12 +14264,12 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <location line="+3" />
         <location line="+36" />
         <location line="+25" />
-        <location line="+12" />
+        <location line="+11" />
         <source>Cancelar</source>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location line="-71" />
+        <location line="-70" />
         <source>Entrar</source>
         <translation>Entrer</translation>
     </message>
@@ -13736,7 +14304,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>Couper</translation>
     </message>
     <message>
-        <location line="+11" />
+        <location line="+10" />
         <source>Queda muy poco disco</source>
         <translation>Très peu d'espace disque</translation>
     </message>
@@ -13774,7 +14342,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>Garder tel quel</translation>
     </message>
     <message>
-        <location line="+143" />
+        <location line="+148" />
         <source>«%1» no se puede abrir en una ventana</source>
         <translation>« %1 » ne peut pas s'ouvrir dans une fenêtre</translation>
     </message>
@@ -15046,6 +15614,24 @@ La matrice ne change pas ce qui entre : elle décide vers quelles sorties cela 
     </message>
 </context>
 <context>
+    <name>MezclaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/MezclaViewModel.cpp" line="+88" />
+        <source>grabación del programa</source>
+        <translation>enregistrement du programme</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation>Audio : « %1 » a été contourné car trop lent (passe sans traitement). Reconstruisez-le dans Audio une fois réglé.</translation>
+    </message>
+    <message>
+        <location line="+33" />
+        <source>ya se está midiendo</source>
+        <translation>mesure déjà en cours</translation>
+    </message>
+</context>
+<context>
     <name>Mezclador</name>
     <message>
         <location filename="../src/app/audio/Mezclador.cpp" line="+204" />
@@ -15674,6 +16260,15 @@ La matrice ne change pas ce qui entre : elle décide vers quelles sorties cela 
         <location line="+8" />
         <source>Vúmetros</source>
         <translation>Vumètres</translation>
+    </message>
+</context>
+<context>
+    <name>MultiviewViewModel</name>
+    <message>
+        <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+75" />
+        <location line="+58" />
+        <source>Multiview %1</source>
+        <translation>Multiview %1</translation>
     </message>
 </context>
 <context>
@@ -26916,7 +27511,7 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
 <context>
     <name>PublicoViewModel</name>
     <message>
-        <location filename="../src/app/ui/PublicoViewModel.cpp" line="+90" />
+        <location filename="../src/app/ui/PublicoViewModel.cpp" line="+128" />
         <source>No pude hablar con el servidor.</source>
         <translation>Impossible de joindre le serveur.</translation>
     </message>
@@ -26959,7 +27554,7 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
         <translation>Tablette de scènes</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="+7" />
         <source>QR para manejar las escenas</source>
         <translation>QR code pour piloter les scènes</translation>
     </message>
@@ -27517,12 +28112,12 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
     </message>
     <message>
         <location line="+0" />
-        <location line="+441" />
+        <location line="+447" />
         <source>Cerrar</source>
         <translation>Fermer</translation>
     </message>
     <message>
-        <location line="-441" />
+        <location line="-447" />
         <source>Cancelar</source>
         <translation>Annuler</translation>
     </message>
@@ -27588,12 +28183,12 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
     </message>
     <message>
         <location line="+1" />
-        <location line="+450" />
+        <location line="+456" />
         <source>Listo</source>
         <translation>Terminé</translation>
     </message>
     <message>
-        <location line="-450" />
+        <location line="-456" />
         <source>Editar lugares</source>
         <translation>Modifier les places</translation>
     </message>
@@ -27713,7 +28308,7 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
         <translation>Nom non validé (bouton « Membres » ci-dessus)</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+8" />
         <source>(nadie con esta banca)</source>
         <translation>(personne sur ce siège)</translation>
     </message>
@@ -27723,7 +28318,7 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
         <translation>sans plan</translation>
     </message>
     <message>
-        <location line="+36" />
+        <location line="+38" />
         <source>PRESIDENCIA</source>
         <translation>PRÉSIDENCE</translation>
     </message>
@@ -28804,6 +29399,79 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
     </message>
 </context>
 <context>
+    <name>SalaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/SalaViewModel.cpp" line="+69" />
+        <source>esta versión no tiene %1</source>
+        <translation>cette version n'a pas %1</translation>
+    </message>
+    <message>
+        <location line="+41" />
+        <source>no hay un invitado «%1» en la conferencia</source>
+        <translation>il n'y a pas d'invité « %1 » dans la conférence</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>Sumada a la cola de preguntas</source>
+        <translation>Ajoutée à la file des questions</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>No se pudo sumar la pregunta: %1</source>
+        <translation>Impossible d'ajouter la question : %1</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>El servidor MCP no está disponible.</source>
+        <translation>Le serveur MCP n'est pas disponible.</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
+        <translation>L'événement a sa propre adresse (%1.a.pinggy.link) mais une diffusion ou un enregistrement est en cours : elle ne change pas maintenant (cela redémarre la conférence). Changez-la depuis Conducteur → Page web dès que possible.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
+        <translation>Passage de l'adresse publique à %1.a.pinggy.link (la conférence redémarre)…</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
+        <translation>Nouveau jour : la conférence a un nouveau PIN (%1)</translation>
+    </message>
+    <message>
+        <location line="+67" />
+        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
+        <translation>Aucun moyen de connexion enregistré : configurez-en un dans Paramètres → Accès à distance.</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>espera en el lobby</source>
+        <translation>en salle d'attente</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>espera en el lobby · %1</source>
+        <translation>en salle d'attente · %1</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Admitir</source>
+        <translation>Admettre</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una persona espera en el lobby: admitila acá abajo</source>
+        <translation>Une personne attend en salle d'attente : admettez-la ci-dessous</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
+        <translation>%1 personnes attendent en salle d'attente : admettez-les ci-dessous</translation>
+    </message>
+</context>
+<context>
     <name>SalidasPage</name>
     <message>
         <location filename="../src/app/qml/pages/SalidasPage.qml" line="+61" />
@@ -28828,7 +29496,10 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
     <message numerus="yes">
         <location line="+6" />
         <source>Tiene %n destino(s) guardado(s): ¿qué pasa con ellos?</source>
-        <translation><numerusform>Elle a %n destination enregistrée : qu'en faire ?</numerusform><numerusform>Elle a %n destinations enregistrées : qu'en faire ?</numerusform></translation>
+        <translation>
+            <numerusform>Elle a %n destination enregistrée : qu'en faire ?</numerusform>
+            <numerusform>Elle a %n destinations enregistrées : qu'en faire ?</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+13" />
@@ -29027,6 +29698,54 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
         <location line="+4" />
         <source>Borrar salida</source>
         <translation>Supprimer la sortie</translation>
+    </message>
+</context>
+<context>
+    <name>SalidasViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+327" />
+        <source>Ya hay %n salida, que es el tope.</source>
+        <translation><numerusform>Il y a déjà %n sortie, c'est la limite.</numerusform><numerusform>Il y a déjà %n sorties, c'est la limite.</numerusform></translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La máquina está al límite (%1): otra salida es otro programa, otro preview y otra mezcla.</source>
+        <translation>La machine est à la limite (%1) : une autre sortie, c'est un autre programme, une autre preview et un autre mix.</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La máquina está justa (%1): mirá la tarjeta Sistema antes de sumar otra.</source>
+        <translation>La machine est juste (%1) : regardez la carte Système avant d'en ajouter une autre.</translation>
+    </message>
+    <message>
+        <location line="+64" />
+        <source>No hay una salida «%1».</source>
+        <translation>Aucune sortie « %1 ».</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <source>Volvemos enseguida</source>
+        <translation>Nous revenons tout de suite</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuarto intermedio</source>
+        <translation>Suspension de séance</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Minuto de silencio</source>
+        <translation>Minute de silence</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sesión suspendida</source>
+        <translation>Séance suspendue</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Dificultades técnicas</source>
+        <translation>Difficultés techniques</translation>
     </message>
 </context>
 <context>
@@ -31673,7 +32392,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+244" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+103" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (échec : %2)</translation>
     </message>
@@ -31688,159 +32407,22 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Chaque événement a maintenant son propre dossier avec tout son contenu. Ont été séparés : %1 (ouvrez-les avec « Ouvrir un autre… » dans la page de l'événement)</translation>
     </message>
     <message>
-        <location line="+157" />
-        <source>esta versión no tiene %1</source>
-        <translation>cette version n'a pas %1</translation>
-    </message>
-    <message>
-        <location line="+33" />
-        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
-        <translation>L'événement a sa propre adresse (%1.a.pinggy.link) mais une diffusion ou un enregistrement est en cours : elle ne change pas maintenant (cela redémarre la conférence). Changez-la depuis Conducteur → Page web dès que possible.</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
-        <translation>Passage de l'adresse publique à %1.a.pinggy.link (la conférence redémarre)…</translation>
-    </message>
-    <message>
-        <location line="+61" />
+        <location line="+208" />
         <source>La playlist sigue donde estaba antes del corte</source>
         <translation>La playlist reprend là où elle était avant la coupure</translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+70" />
         <source>Un rótulo automático no salió: %1</source>
         <translation>Un synthé automatique n'est pas passé : %1</translation>
     </message>
     <message>
-        <location line="+247" />
-        <source>Evento «%1» creado: reiniciando para abrirlo</source>
-        <translation>Événement « %1 » créé : redémarrage pour l'ouvrir</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abriendo el evento «%1»: la app se reinicia</source>
-        <translation>Ouverture de l'événement « %1 » : l'application redémarre</translation>
-    </message>
-    <message>
-        <location line="+8" />
-        <source>No se pudo crear «%1»: %2</source>
-        <translation>Impossible de créer « %1 » : %2</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
-        <translation>Événement « %1 » prêt : ouvrez-le avec « Ouvrir un autre… »</translation>
-    </message>
-    <message>
-        <location line="+267" />
-        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
-        <translation>La configuration « %1 » était endommagée : la version précédente a été chargée (celle endommagée a été gardée en .corrupto).</translation>
-    </message>
-    <message>
-        <location line="+97" />
-        <source>Modo seguro</source>
-        <translation>Mode sans échec</translation>
-    </message>
-    <message>
-        <location line="+203" />
-        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
-        <translation>l'emplacement %1 de la conférence est vide (le carton s'affiche)</translation>
-    </message>
-    <message>
-        <location line="+51" />
-        <location line="+5" />
-        <source>el motor no está andando</source>
-        <translation>le moteur ne tourne pas</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Central DCN, banca %1: %2</source>
-        <translation>Unité centrale DCN, siège %1 : %2</translation>
-    </message>
-    <message>
-        <location line="+64" />
-        <location line="+8" />
-        <source>Central (debate): %1</source>
-        <translation>Unité centrale (débat) : %1</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Central (fin del debate): %1</source>
-        <translation>Unité centrale (fin du débat) : %1</translation>
-    </message>
-    <message>
-        <location line="+81" />
-        <source>## Banca virtual</source>
-        <translation>## Siège virtuel</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>## Transcripción</source>
-        <translation>## Transcription</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Archivo</source>
-        <translation>Fichier</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
-        <translation>La transcription est automatique : elle peut contenir des erreurs ; la version sténographique fait foi.</translation>
-    </message>
-    <message>
-        <location line="+39" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
-        <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3) : passée en mode économique</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
-        <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3)</translation>
-    </message>
-    <message>
-        <location line="+15" />
-        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
-        <translation>Disque : il reste %1 Go, moins d'une heure d'enregistrement</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Disco: alcanza para ~%1 h de grabación</source>
-        <translation>Disque : de quoi enregistrer ~%1 h</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No hay destino de transmisión configurado (servidor y clave)</source>
-        <translation>Aucune destination de diffusion configurée (serveur et clé)</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>La entrada «%1» no tiene señal ahora</source>
-        <translation>L'entrée « %1 » n'a pas de signal pour l'instant</translation>
-    </message>
-    <message>
-        <location line="+45" />
+        <location line="+195" />
         <source>no contestó</source>
         <translation>n'a pas répondu</translation>
     </message>
     <message>
-        <location line="+228" />
-        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
-        <translation>« %1 » (%2) demande l'accès au contrôle web : approuvez-le dans Services → Contrôle web.</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
-        <translation>« %1 » (%2) demande à s'appairer comme surface de contrôle avec le profil « %3 » : approuvez-le dans la page Surface de contrôle.</translation>
-    </message>
-    <message>
-        <location line="+137" />
-        <source>grabación del programa</source>
-        <translation>enregistrement du programme</translation>
-    </message>
-    <message>
-        <location line="+15" />
+        <location line="+75" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conférence redémarrée avec les nouveaux paramètres.</translation>
     </message>
@@ -31850,135 +32432,17 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>La conférence n'a pas redémarré (%1) : appuyez sur « Redémarrer la conférence » dans Paramètres ou dans la page Conférence.</translation>
     </message>
     <message>
-        <location line="+30" />
-        <location line="+14" />
-        <source>No disponible.</source>
-        <translation>Non disponible.</translation>
-    </message>
-    <message>
-        <location line="-10" />
-        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
-        <translation>Aucun moyen de connexion enregistré : configurez-en un dans Paramètres → Accès à distance.</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>pide emparejarse</source>
-        <translation>demande l'appairage</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <location line="+1939" />
-        <source>Tablet emparejada.</source>
-        <translation>Tablette appairée.</translation>
-    </message>
-    <message>
-        <location line="-1939" />
-        <location line="+1939" />
-        <source>Emparejamiento rechazado.</source>
-        <translation>Appairage refusé.</translation>
-    </message>
-    <message>
-        <location line="-1919" />
-        <source>pide entrar al control web</source>
-        <translation>demande l'accès au contrôle web</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Aparato emparejado.</source>
-        <translation>Appareil appairé.</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Pedido rechazado.</source>
-        <translation>Demande refusée.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>todo, o: escenas, audio</source>
-        <translation>tout, ou : scènes, audio</translation>
-    </message>
-    <message>
-        <location line="+9" />
-        <source>quiere conectar un Satellite</source>
-        <translation>veut connecter un Satellite</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Ese pedido ya no está.</source>
-        <translation>Cette demande n'existe plus.</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Permitir</source>
-        <translation>Autoriser</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una IP pide conectar: permitila acá abajo</source>
-        <translation>Une IP demande à se connecter : autorisez-la ci-dessous</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 IP piden conectar: permitilas acá abajo</source>
-        <translation>%1 IP demandent à se connecter : autorisez-les ci-dessous</translation>
-    </message>
-    <message>
-        <location line="+16" />
-        <source>espera en el lobby</source>
-        <translation>en salle d'attente</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>espera en el lobby · %1</source>
-        <translation>en salle d'attente · %1</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Admitir</source>
-        <translation>Admettre</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una persona espera en el lobby: admitila acá abajo</source>
-        <translation>Une personne attend en salle d'attente : admettez-la ci-dessous</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
-        <translation>%1 personnes attendent en salle d'attente : admettez-les ci-dessous</translation>
-    </message>
-    <message>
         <location filename="../src/app/ui/BitacoraEvento.cpp" line="+278" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>Le disque des événements est plein à %1 % (il reste %2 Go)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+146" />
-        <source>%1 (banca %2)</source>
-        <translation>%1 (siège %2)</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>%1: queda 1 minuto</source>
-        <translation>%1 : il reste 1 minute</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>%1: se terminó su tiempo</source>
-        <translation>%1 : temps écoulé</translation>
-    </message>
-    <message>
-        <location line="+45" />
-        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
-        <translation>Audio : « %1 » a été contourné car trop lent (passe sans traitement). Reconstruisez-le dans Audio une fois réglé.</translation>
-    </message>
-    <message>
-        <location line="+4" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+163" />
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>L'interface a été bloquée %1 s ; l'antenne a continué</translation>
     </message>
     <message>
-        <location line="+44" />
+        <location line="+20" />
         <source>Grabación detenida</source>
         <translation>Enregistrement arrêté</translation>
     </message>
@@ -32024,155 +32488,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Diffusion rétablie</translation>
     </message>
     <message>
-        <location line="+142" />
-        <location line="+7" />
-        <source>El escáner de red no está disponible.</source>
-        <translation>Le scanner réseau n'est pas disponible.</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <location line="+13" />
-        <source>No escribiste ninguna clave.</source>
-        <translation>Vous n'avez saisi aucune clé.</translation>
-    </message>
-    <message>
-        <location line="-9" />
-        <source>Los plugins no están disponibles.</source>
-        <translation>Les plugins ne sont pas disponibles.</translation>
-    </message>
-    <message>
-        <location line="+22" />
-        <source>No se pudo leer %1.</source>
-        <translation>Impossible de lire %1.</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>Plataforma desconocida: %1.</source>
-        <translation>Plateforme inconnue : %1.</translation>
-    </message>
-    <message>
-        <location line="+18" />
-        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
-        <translation>Il n'y a pas d'écran « %1 » : indiquez son numéro, son nom ou son id.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>El monitor «%1» no está conectado.</source>
-        <translation>L'écran « %1 » n'est pas connecté.</translation>
-    </message>
-    <message>
-        <location line="+157" />
-        <source>Punto %1: %2</source>
-        <translation>Point %1 : %2</translation>
-    </message>
-    <message>
-        <location line="+37" />
-        <source>CON QUÓRUM</source>
-        <translation>QUORUM ATTEINT</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>SIN QUÓRUM</source>
-        <translation>QUORUM NON ATTEINT</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 presentes de %2</source>
-        <translation>%1 présents sur %2</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>APROBADO</source>
-        <translation>ADOPTÉ</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>RECHAZADO</source>
-        <translation>REJETÉ</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
-        <translation>Attention : le disque permet ~%1 h d'enregistrement</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Grabando en %1</source>
-        <translation>Enregistrement vers %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <location line="+10" />
-        <source>No se pudo grabar: %1</source>
-        <translation>Impossible d'enregistrer : %1</translation>
-    </message>
-    <message>
-        <location line="-2" />
-        <source>Grabando (con poco disco)</source>
-        <translation>Enregistrement (peu d'espace disque)</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
-        <translation>Vous diffusiez déjà vers cette destination : rien n'a changé</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Al aire</source>
-        <translation>À l'antenne</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>No se pudo transmitir: %1</source>
-        <translation>Impossible de diffuser : %1</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Transmitiendo al destino nuevo</source>
-        <translation>Diffusion vers la nouvelle destination</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No se pudo cambiar de destino: %1</source>
-        <translation>Impossible de changer de destination : %1</translation>
-    </message>
-    <message>
-        <location line="+142" />
-        <source>%1 (copia)</source>
-        <translation>%1 (copie)</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1 (copia %2)</source>
-        <translation>%1 (copie %2)</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Escena copiada: %1</source>
-        <translation>Scène copiée : %1</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Escena copiada, pero %1</source>
-        <translation>Scène copiée, mais %1</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>«%1» protegida: no se puede borrar ni renombrar</source>
-        <translation>« %1 » protégée : impossible de la supprimer ou de la renommer</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>«%1» ya no está protegida</source>
-        <translation>« %1 » n'est plus protégée</translation>
-    </message>
-    <message>
-        <location line="+48" />
-        <source>El servidor MCP no está disponible.</source>
-        <translation>Le serveur MCP n'est pas disponible.</translation>
-    </message>
-    <message>
-        <location line="+31" />
+        <location line="+258" />
         <source>Guardado</source>
         <translation>Enregistré</translation>
     </message>
@@ -32181,257 +32497,10 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <source>No se pudo guardar: %1</source>
         <translation>Impossible d'enregistrer : %1</translation>
     </message>
-    <message numerus="yes">
-        <location line="+203" />
-        <source>Ya hay %n salida, que es el tope.</source>
-        <translation><numerusform>Il y a déjà %n sortie, c'est la limite.</numerusform><numerusform>Il y a déjà %n sorties, c'est la limite.</numerusform></translation>
-    </message>
     <message>
-        <location line="+4" />
-        <source>La máquina está al límite (%1): otra salida es otro programa, otro preview y otra mezcla.</source>
-        <translation>La machine est à la limite (%1) : une autre sortie, c'est un autre programme, une autre preview et un autre mix.</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>La máquina está justa (%1): mirá la tarjeta Sistema antes de sumar otra.</source>
-        <translation>La machine est juste (%1) : regardez la carte Système avant d'en ajouter une autre.</translation>
-    </message>
-    <message>
-        <location line="+31" />
-        <location line="+814" />
-        <source>No hay una salida «%1».</source>
-        <translation>Aucune sortie « %1 ».</translation>
-    </message>
-    <message>
-        <location line="-717" />
-        <source>Volvemos enseguida</source>
-        <translation>Nous revenons tout de suite</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Cuarto intermedio</source>
-        <translation>Suspension de séance</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Minuto de silencio</source>
-        <translation>Minute de silence</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Sesión suspendida</source>
-        <translation>Séance suspendue</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Dificultades técnicas</source>
-        <translation>Difficultés techniques</translation>
-    </message>
-    <message>
-        <location line="-1339" />
+        <location line="-408" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Ce qui était à l'antenne avant la coupure a été rétabli (carton ou noir)</translation>
-    </message>
-    <message>
-        <location line="+1356" />
-        <source>no hay un invitado «%1» en la conferencia</source>
-        <translation>il n'y a pas d'invité « %1 » dans la conférence</translation>
-    </message>
-    <message>
-        <location line="+23" />
-        <source>Sumada a la cola de preguntas</source>
-        <translation>Ajoutée à la file des questions</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>No se pudo sumar la pregunta: %1</source>
-        <translation>Impossible d'ajouter la question : %1</translation>
-    </message>
-    <message>
-        <location line="+71" />
-        <source>Nombres del cuerpo: %1</source>
-        <translation>Noms de l'Assemblée plénière : %1</translation>
-    </message>
-    <message>
-        <location line="+29" />
-        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
-        <translation>Nouveau jour : la conférence a un nouveau PIN (%1)</translation>
-    </message>
-    <message>
-        <location line="+223" />
-        <source>No se pudo emparejar.</source>
-        <translation>Impossible d'appairer.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Control web (/control/)</source>
-        <translation>Contrôle web (/control/)</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
-        <translation>Ouvrez-le dans le navigateur de l'appareil (sur le réseau local ; le code est valable quelques minutes et ne sert qu'une fois). Approuvez-le ensuite ici, dans Services → Contrôle web.</translation>
-    </message>
-    <message>
-        <location line="+44" />
-        <source>La sesión remota no está andando.</source>
-        <translation>La séance à distance ne tourne pas.</translation>
-    </message>
-    <message>
-        <location line="+69" />
-        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
-        <translation>Cet invité n'a pas encore de source dans le programme.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Grabando «%1» aparte</source>
-        <translation>Enregistrement séparé de « %1 »</translation>
-    </message>
-    <message>
-        <location line="+97" />
-        <source>ya se está midiendo</source>
-        <translation>mesure déjà en cours</translation>
-    </message>
-    <message>
-        <location line="+27" />
-        <source>tipo desconocido</source>
-        <translation>type inconnu</translation>
-    </message>
-    <message>
-        <location line="+50" />
-        <source>modo desconocido</source>
-        <translation>mode inconnu</translation>
-    </message>
-    <message>
-        <location line="+21" />
-        <source>La repetición no llegó a escribirse.</source>
-        <translation>Le ralenti n'a pas pu être écrit à temps.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Repetición armada: dale TAKE.</source>
-        <translation>Ralenti prêt : faites TAKE.</translation>
-    </message>
-    <message>
-        <location line="+133" />
-        <source>no se cambia en vivo</source>
-        <translation>ne se change pas en direct</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Estás AL AIRE y grabando</source>
-        <translation>Vous êtes À L'ANTENNE et en enregistrement</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <location line="+15" />
-        <source>Estás AL AIRE</source>
-        <translation>Vous êtes À L'ANTENNE</translation>
-    </message>
-    <message>
-        <location line="-14" />
-        <source>Estás grabando</source>
-        <translation>Vous enregistrez</translation>
-    </message>
-    <message numerus="yes">
-        <location line="+3" />
-        <source>Hay %n persona conectada</source>
-        <translation>
-            <numerusform>%n personne est connectée</numerusform>
-            <numerusform>%n personnes sont connectées</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1" />
-        <source>%1, y hay %n persona conectada</source>
-        <translation>
-            <numerusform>%1, et %n personne est connectée</numerusform>
-            <numerusform>%1, et %n personnes sont connectées</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1" />
-        <source>%1 y hay %n persona conectada</source>
-        <translation>
-            <numerusform>%1 et %n personne est connectée</numerusform>
-            <numerusform>%1 et %n personnes sont connectées</numerusform>
-        </translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>se corta la emisión</source>
-        <translation>la diffusion s'arrête</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>se detiene la grabación</source>
-        <translation>l'enregistrement s'arrête</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>esa persona queda afuera</source>
-        <translation>cette personne est déconnectée</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>esas personas quedan afuera</source>
-        <translation>ces personnes sont déconnectées</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1. Si cerrás, %2.</source>
-        <translation>%1. Si vous fermez, %2.</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Estás GRABANDO</source>
-        <translation>Vous ENREGISTREZ</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Hay gente conectada</source>
-        <translation>Des personnes sont connectées</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>corta la emisión</source>
-        <translation>arrête la diffusion</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>corta la grabación</source>
-        <translation>arrête l'enregistrement</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>la desconecta</source>
-        <translation>la déconnecte</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>desconecta a quienes están conectados</source>
-        <translation>déconnecte les personnes connectées</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1: actualizar cierra la aplicación y %2.</source>
-        <translation>%1 : la mise à jour ferme l'application et %2.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
-        <translation>%1 : revenir à la version précédente ferme l'application et %2.</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1: %2 cierra la aplicación y %3.</source>
-        <translation>%1 : %2 ferme l'application et %3.</translation>
-    </message>
-    <message>
-        <location line="+165" />
-        <location line="+75" />
-        <source>Multiview %1</source>
-        <translation>Multiview %1</translation>
     </message>
 </context>
 <context>
@@ -35232,12 +35301,12 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
     </message>
     <message>
         <location line="+0" />
-        <location line="+1219" />
+        <location line="+1220" />
         <source>Cancelar</source>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location line="-1183" />
+        <location line="-1184" />
         <source>Vista previa</source>
         <translation>Preview</translation>
     </message>
@@ -35985,7 +36054,7 @@ Escucha:
         <translation>Retirer la carte</translation>
     </message>
     <message>
-        <location line="+30" />
+        <location line="+31" />
         <source>Superresolución</source>
         <translation>Super-résolution</translation>
     </message>
@@ -42677,7 +42746,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="-83" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4571" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-602" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>démarrage : %1 a pris %2 ms</translation>
     </message>
@@ -42997,7 +43066,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>mode sans échec : rien n'est chargé depuis le disque pendant cette exécution</translation>
     </message>
     <message>
-        <location line="+220" />
+        <location line="+174" />
         <source>playlist tras el corte: %1</source>
         <translation>playlist après la coupure : %1</translation>
     </message>
@@ -43329,18 +43398,18 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>le contenu ne s'affiche que si la liste est vide</translation>
     </message>
     <message>
-        <location line="+15" />
+        <location line="+18" />
         <source>Resultado de la sesión</source>
         <translation>Résultat de la séance</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+23" />
         <source>falta el nombre de la plantilla</source>
         <translation>le nom du modèle manque</translation>
     </message>
     <message>
         <location line="+18" />
-        <location line="+13" />
+        <location line="+12" />
         <source>no se pudo guardar la plantilla</source>
         <translation>impossible d'enregistrer le modèle</translation>
     </message>
@@ -43428,31 +43497,31 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1329" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-331" />
         <source>pendiente</source>
         <translation>en attente</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>en tratamiento</source>
         <translation>en discussion</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+1" />
         <source>votado</source>
         <translation>voté</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>a comisión</source>
         <translation>renvoyé en commission</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+1" />
         <source>retirado</source>
         <translation>retiré</translation>
     </message>
@@ -43614,13 +43683,13 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+5" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-6" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-6" />
         <source>APROBADO</source>
         <translation>ADOPTÉ</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>RECHAZADO</source>
         <translation>REJETÉ</translation>
     </message>
@@ -43960,7 +44029,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>ne prend pas part au vote</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-7" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-7" />
         <source>Hay quórum</source>
         <translation>Quorum atteint</translation>
     </message>
@@ -44933,12 +45002,12 @@ Données (de %2) : %3</translation>
         <translation> Ce que je sais déjà : %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-712" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-231" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>L'application a redémarré et l'événement « %1 » est déjà ouvert. Si vous étiez au milieu de quelque chose, reprenez où vous en étiez ; sinon, attendez la demande de l'opérateur.</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+80" />
         <source>el invitado %1</source>
         <translation>l'invité %1</translation>
     </message>
@@ -44948,12 +45017,12 @@ Données (de %2) : %3</translation>
         <translation>à votre question "%1" : %2</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+1" />
         <source>descarto tu pregunta "%1".</source>
         <translation>écarte votre question "%1".</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+2" />
         <source>le mando a %1: "%2"</source>
         <translation>j'envoie à %1 : "%2"</translation>
     </message>
@@ -44973,7 +45042,7 @@ Données (de %2) : %3</translation>
         <translation>a fermé le formulaire des caméras %1 sans enregistrer.</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="+4" />
         <source>guardo usuario y clave de la camara %1. Siguiente paso: camara_ficha {"ip": "%1"}.</source>
         <translation>a enregistré l'identifiant et le mot de passe de la caméra %1. Étape suivante : camara_ficha {"ip": "%1"}.</translation>
     </message>
@@ -44983,17 +45052,17 @@ Données (de %2) : %3</translation>
         <translation>a fermé le formulaire de la caméra %1 sans enregistrer.</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="+4" />
         <source>guardo la credencial de %1. Siguiente paso: %1_login.</source>
         <translation>a enregistré l'identifiant de %1. Étape suivante : %1_login.</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+1" />
         <source>cerro el formulario de credenciales de %1 sin guardar.</source>
         <translation>a fermé le formulaire d'identifiants de %1 sans enregistrer.</translation>
     </message>
     <message>
-        <location line="+3288" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="-46" />
         <source>las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican</source>
         <translation>les pages de la liste demandent de taper CONFIRMAR avec un motif ; les réglages qui redémarrent la passerelle ou le programme ne sont pas appliqués</translation>
     </message>
@@ -50075,7 +50144,7 @@ Données (de %2) : %3</translation>
 <context>
     <name>estudio</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+28" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="-177" />
         <source>%1 y %2</source>
         <translation>%1 et %2</translation>
     </message>
@@ -50913,12 +50982,12 @@ Données (de %2) : %3</translation>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4320" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-215" />
         <source>cada evento a su carpeta: %1</source>
         <translation>chaque événement dans son dossier : %1</translation>
     </message>
     <message>
-        <location line="+586" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+52" />
         <source>[eventos] papelera: %1 con más de %2 días, borrados</source>
         <translation>[eventos] corbeille : %1 de plus de %2 jours, supprimés</translation>
     </message>
@@ -53397,7 +53466,7 @@ Données (de %2) : %3</translation>
         <translation>non</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1571" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+636" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>« %1 » n'a pas démarré à l'ouverture : %2</translation>
     </message>
@@ -56270,7 +56339,7 @@ Chemins avec variables (%USERPROFILE%\Desktop sous Windows ; ~/Desktop ou $HOME
         <location filename="../src/app/escritorio/control_linux.cpp" line="+11" />
         <location line="+12" />
         <location filename="../src/app/escritorio/control_mac.mm" line="+21" />
-        <location filename="../src/app/mcp/McpUiTools.cpp" line="+417" />
+        <location filename="../src/app/mcp/McpUiTools.cpp" line="+418" />
         <source>Aviso mostrado.</source>
         <translation>Notification affichée.</translation>
     </message>
@@ -83684,7 +83753,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
 <context>
     <name>modo-vivo</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+2122" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+112" />
         <source>modo en vivo: se desbloqueó «%1» — motivo: %2</source>
         <translation>mode direct : « %1 » a été déverrouillé — motif : %2</translation>
     </message>

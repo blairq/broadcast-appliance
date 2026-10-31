@@ -197,7 +197,7 @@ Rectangle {
                                     text: qsTr("Armar en PVW"); icon: "▷"; active: true
                                     onClicked: {
                                         if (page.r.disparar(tarjeta.modelData.id, false) === "")
-                                            Studio.armarEscena(tarjeta.modelData.escena)
+                                            Studio.escenas.armarEscena(tarjeta.modelData.escena)
                                     }
                                     ToolTip.visible: hovered
                                     ToolTip.text: qsTr("Lo dibuja en «%1» y la deja armada: sale con TAKE").arg(tarjeta.modelData.escena)

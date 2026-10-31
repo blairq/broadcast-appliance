@@ -115,11 +115,11 @@ Item {
                 height: 16; radius: 5
                 color: Qt.rgba(1, 1, 1, 0.06)
                 // La clave («pico», «ppm», «vu») no se traduce: solo su etiqueta.
-                Text { anchors.centerIn: parent; text: Studio.balistica === "pico" ? qsTr("PICO") : Studio.balistica.toUpperCase(); color: Theme.textDim; font { pixelSize: 9; weight: Font.Bold } }
+                Text { anchors.centerIn: parent; text: Studio.mezcla.balistica === "pico" ? qsTr("PICO") : Studio.mezcla.balistica.toUpperCase(); color: Theme.textDim; font { pixelSize: 9; weight: Font.Bold } }
                 MouseArea {
                     id: balMa
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: Studio.balistica = Studio.balistica === "pico" ? "ppm" : Studio.balistica === "ppm" ? "vu" : "pico"
+                    onClicked: Studio.mezcla.balistica = Studio.mezcla.balistica === "pico" ? "ppm" : Studio.mezcla.balistica === "ppm" ? "vu" : "pico"
                 }
                 ToolTip.visible: balMa.containsMouse; ToolTip.delay: 500
                 ToolTip.text: qsTr("Balística de los medidores: PICO (instantáneo), PPM (EBU IIb: cae 24 dB en 2,8 s) o VU (integra 300 ms)")
@@ -129,8 +129,8 @@ Item {
         // true peak (rojo arriba del objetivo), LRA y el objetivo.
         ColumnLayout {
             id: ld
-            property var l: Studio.loudnessUi()
-            Timer { interval: 300; running: ld.visible; repeat: true; onTriggered: ld.l = Studio.loudnessUi() }
+            property var l: Studio.emision.loudnessUi()
+            Timer { interval: 300; running: ld.visible; repeat: true; onTriggered: ld.l = Studio.emision.loudnessUi() }
             readonly property var ob: l.objetivo || ({ lufs: -23, tp: -1, perfil: "r128" })
             Layout.fillHeight: true
             Layout.fillWidth: false
@@ -156,7 +156,7 @@ Item {
                     Text { visible: (ld.l.gr_db || 0) < -0.1; text: "LIM " + Number(ld.l.gr_db).toFixed(1); color: Theme.amber; font.pixelSize: 10 }
                 }
             }
-            GlassButton { compact: true; text: qsTr("Reset"); onClicked: Studio.resetLoudnessUi()
+            GlassButton { compact: true; text: qsTr("Reset"); onClicked: Studio.emision.resetLoudnessUi()
                           ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Vuelve a cero el integrado y el LRA (arranca solo al transmitir o grabar)") }
         }
         Rectangle { width: 1; Layout.fillHeight: true; color: Qt.rgba(1, 1, 1, 0.1) }
@@ -323,7 +323,7 @@ Item {
                     }
                     // PFL: escucharla por el monitor sin tocar el aire (uno a la vez, amarillo).
                     Rectangle {
-                        readonly property bool on: Studio.pfl === name
+                        readonly property bool on: Studio.mezcla.pfl === name
                         Layout.fillWidth: true
                         height: 18; radius: 6
                         color: on ? Theme.canalPfl : Qt.rgba(1, 1, 1, 0.05)
@@ -331,21 +331,21 @@ Item {
                         MouseArea {
                             id: pflMa
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
-                            onClicked: { const e = Studio.pflUi(name); if (e !== "") Studio.notify(e, "error") }
+                            onClicked: { const e = Studio.mezcla.pflUi(name); if (e !== "") Studio.notify(e, "error") }
                         }
                         ToolTip.visible: pflMa.containsMouse; ToolTip.delay: 500
                         ToolTip.text: qsTr("Escucharla en los auriculares sin tocar lo que sale al aire (se suma a lo que ya va ahí, como la voz del asistente). Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla.")
                     }
                     // AFV: el audio sigue al video (sube y baja con su escena).
                     Rectangle {
-                        readonly property bool on: Studio.afvFuentes.indexOf(name) >= 0
+                        readonly property bool on: Studio.escenas.afvFuentes.indexOf(name) >= 0
                         Layout.fillWidth: true
                         height: 18; radius: 6
                         color: on ? Theme.canalAfv : Qt.rgba(1, 1, 1, 0.05)
                         Text { anchors.centerIn: parent; text: "AFV"; color: parent.on ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: Studio.setAfv(name, !parent.on)
+                            onClicked: Studio.escenas.setAfv(name, !parent.on)
                         }
                         ToolTip.visible: afvMa.containsMouse; ToolTip.delay: 500
                         ToolTip.text: qsTr("Audio que sigue al video: sube cuando entra al aire una escena con esta fuente y baja cuando sale")

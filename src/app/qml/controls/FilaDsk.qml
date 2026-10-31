@@ -25,7 +25,7 @@ Flow {
                 text: qsTr("Es una capa fija (por ejemplo, el intérprete de lengua de señas): sale de la transmisión."),
                 accept: qsTr("Bajarla"), reject: qsTr("Cancelar"), action: () => hacer(true)
             })
-        else if (subir && Studio.aireActiva.alAire)
+        else if (subir && Studio.salidas.aire.alAire)
             ApplicationWindow.window.confirm({
                 title: qsTr("¿Subir «%1»?").arg(c.nombre), text: qsTr("Se ve en la transmisión y en la grabación."),
                 accept: qsTr("Subir"), reject: qsTr("Cancelar"), action: () => hacer(false)
@@ -87,7 +87,7 @@ Flow {
                 id: contenidoF
                 Layout.fillWidth: true
                 editable: true
-                model: Studio.nombresParaDsk()
+                model: Studio.control.nombresParaDsk()
                 onActivated: (i) => {
                     const actual = editText.split(",").map(s => s.trim()).filter(s => s !== "" && s !== model[i])
                     editText = actual.concat([model[i]]).join(", ")

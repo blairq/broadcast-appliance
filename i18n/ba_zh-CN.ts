@@ -1349,9 +1349,143 @@
 <context>
     <name>AlarmasViewModel</name>
     <message>
-        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+85" />
+        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+249" />
         <source>El aviso por «%1» no salió: %2</source>
         <translation>通过「%1」发送的通知未能发出：%2</translation>
+    </message>
+</context>
+<context>
+    <name>AppViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+84" />
+        <source>Evento «%1» creado: reiniciando para abrirlo</source>
+        <translation>活动「%1」已创建：正在重启以打开它</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Abriendo el evento «%1»: la app se reinicia</source>
+        <translation>正在打开活动「%1」：应用将重启</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>No se pudo crear «%1»: %2</source>
+        <translation>无法创建「%1」：%2</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
+        <translation>活动「%1」已就绪：请用「打开其他…」打开</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
+        <translation>配置「%1」已损坏：已载入上一版本（损坏的文件保存为 .corrupto）。</translation>
+    </message>
+    <message>
+        <location line="+119" />
+        <source>no se cambia en vivo</source>
+        <translation>直播中不能更改</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Estás AL AIRE y grabando</source>
+        <translation>正在播出并录制</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+15" />
+        <source>Estás AL AIRE</source>
+        <translation>正在播出</translation>
+    </message>
+    <message>
+        <location line="-14" />
+        <source>Estás grabando</source>
+        <translation>正在录制</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+3" />
+        <source>Hay %n persona conectada</source>
+        <translation><numerusform>有 %n 人已连接</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>%1, y hay %n persona conectada</source>
+        <translation><numerusform>%1，且有 %n 人已连接</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>%1 y hay %n persona conectada</source>
+        <translation><numerusform>%1，且有 %n 人已连接</numerusform></translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>se corta la emisión</source>
+        <translation>播出将中断</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>se detiene la grabación</source>
+        <translation>录制将停止</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>esa persona queda afuera</source>
+        <translation>该人将被断开</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>esas personas quedan afuera</source>
+        <translation>这些人将被断开</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1. Si cerrás, %2.</source>
+        <translation>%1。如果关闭，%2。</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Estás GRABANDO</source>
+        <translation>正在录制</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Hay gente conectada</source>
+        <translation>有人已连接</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>corta la emisión</source>
+        <translation>中断播出</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>corta la grabación</source>
+        <translation>停止录制</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>la desconecta</source>
+        <translation>断开该人的连接</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>desconecta a quienes están conectados</source>
+        <translation>断开所有已连接的人</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1: actualizar cierra la aplicación y %2.</source>
+        <translation>%1：更新会关闭应用，并%2。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
+        <translation>%1：回退到上一版本会关闭应用，并%2。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1: %2 cierra la aplicación y %3.</source>
+        <translation>%1：%2 会关闭应用，并%3。</translation>
     </message>
 </context>
 <context>
@@ -1540,6 +1674,108 @@
         <location line="+44" />
         <source>Grillas de personas</source>
         <translation>人物网格</translation>
+    </message>
+</context>
+<context>
+    <name>AsambleaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+150" />
+        <source>Central DCN, banca %1: %2</source>
+        <translation>DCN 中央单元，席位 %1：%2</translation>
+    </message>
+    <message>
+        <location line="+63" />
+        <location line="+8" />
+        <source>Central (debate): %1</source>
+        <translation>中央单元（辩论）：%1</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Central (fin del debate): %1</source>
+        <translation>中央单元（辩论结束）：%1</translation>
+    </message>
+    <message>
+        <location line="+76" />
+        <source>## Banca virtual</source>
+        <translation>## 虚拟席位</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>## Transcripción</source>
+        <translation>## 转写</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Archivo</source>
+        <translation>文件</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
+        <translation>转写为自动生成：可能有错误；以速记版本为准。</translation>
+    </message>
+    <message>
+        <location line="+94" />
+        <source>La sesión remota no está andando.</source>
+        <translation>远程会议未运行。</translation>
+    </message>
+    <message>
+        <location line="+57" />
+        <source>%1 (banca %2)</source>
+        <translation>%1（席位 %2）</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>%1: queda 1 minuto</source>
+        <translation>%1：剩余 1 分钟</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>%1: se terminó su tiempo</source>
+        <translation>%1：时间到</translation>
+    </message>
+    <message>
+        <location line="+188" />
+        <source>Punto %1: %2</source>
+        <translation>第 %1 项：%2</translation>
+    </message>
+    <message>
+        <location line="+20" />
+        <source>CON QUÓRUM</source>
+        <translation>达到法定人数</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>SIN QUÓRUM</source>
+        <translation>未达法定人数</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 presentes de %2</source>
+        <translation>%2 人中 %1 人出席</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>APROBADO</source>
+        <translation>通过</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>RECHAZADO</source>
+        <translation>未通过</translation>
+    </message>
+</context>
+<context>
+    <name>AsistenteViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+155" />
+        <source>Modo seguro</source>
+        <translation>安全模式</translation>
+    </message>
+    <message>
+        <location line="+167" />
+        <source>Nombres del cuerpo: %1</source>
+        <translation>议事机构名单：%1</translation>
     </message>
 </context>
 <context>
@@ -5744,7 +5980,7 @@ Compartí el enlace y el PIN (panel Acceso).</source>
         <translation>将 %1 移出会议？</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+16" />
         <source>Acceso directo por un servidor propio (WireGuard)</source>
         <translation>通过自有服务器直接访问（WireGuard）</translation>
     </message>
@@ -5955,6 +6191,101 @@ El PIN anterior deja de servir para entrar.</source>
     </message>
 </context>
 <context>
+    <name>ControlViewModel</name>
+    <message>
+        <location filename="../src/app/ui/ControlViewModel.cpp" line="+96" />
+        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
+        <translation>「%1」（%2）请求网页控制访问：请在 服务 → 网页控制 中批准。</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
+        <translation>「%1」（%2）请求以配置文件「%3」配对为控制台：请在「控制台」页面中批准。</translation>
+    </message>
+    <message>
+        <location line="+147" />
+        <source>No se pudo emparejar.</source>
+        <translation>无法配对。</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Control web (/control/)</source>
+        <translation>网页控制（/control/）</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
+        <translation>请在设备的浏览器中打开（需在本地网络；代码几分钟内有效且只能使用一次）。然后在此处 服务 → 网页控制 中批准。</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <location line="+69" />
+        <source>Tablet emparejada.</source>
+        <translation>平板已配对。</translation>
+    </message>
+    <message>
+        <location line="-69" />
+        <location line="+69" />
+        <source>Emparejamiento rechazado.</source>
+        <translation>配对已拒绝。</translation>
+    </message>
+    <message>
+        <location line="-24" />
+        <source>No disponible.</source>
+        <translation>不可用。</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>pide emparejarse</source>
+        <translation>请求配对</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>pide entrar al control web</source>
+        <translation>请求网页控制访问</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Aparato emparejado.</source>
+        <translation>设备已配对。</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Pedido rechazado.</source>
+        <translation>请求已拒绝。</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>todo, o: escenas, audio</source>
+        <translation>全部，或：场景、音频</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>quiere conectar un Satellite</source>
+        <translation>请求连接 Satellite</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Ese pedido ya no está.</source>
+        <translation>该请求已不存在。</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Permitir</source>
+        <translation>允许</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una IP pide conectar: permitila acá abajo</source>
+        <translation>有一个 IP 请求连接：请在下方允许</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 IP piden conectar: permitilas acá abajo</source>
+        <translation>%1 个 IP 请求连接：请在下方允许</translation>
+    </message>
+</context>
+<context>
     <name>ControlWeb</name>
     <message>
         <location filename="../src/app/control/ControlWeb.cpp" line="+397" />
@@ -6047,6 +6378,36 @@ El PIN anterior deja de servir para entrar.</source>
         <location line="-5" />
         <source>no pude escribir la lámina %1</source>
         <translation>无法写入幻灯片 %1</translation>
+    </message>
+</context>
+<context>
+    <name>CuentasViewModel</name>
+    <message>
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+91" />
+        <location line="+6" />
+        <source>El escáner de red no está disponible.</source>
+        <translation>网络扫描器不可用。</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <location line="+14" />
+        <source>No escribiste ninguna clave.</source>
+        <translation>未输入任何密钥。</translation>
+    </message>
+    <message>
+        <location line="-9" />
+        <source>Los plugins no están disponibles.</source>
+        <translation>插件不可用。</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>No se pudo leer %1.</source>
+        <translation>无法读取 %1。</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>Plataforma desconocida: %1.</source>
+        <translation>未知平台：%1。</translation>
     </message>
 </context>
 <context>
@@ -7586,6 +7947,65 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>EmisionViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EmisionViewModel.cpp" line="+54" />
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation>注意：磁盘约可录制 %1 小时</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Grabando en %1</source>
+        <translation>正在录制到 %1</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <location line="+10" />
+        <source>No se pudo grabar: %1</source>
+        <translation>无法录制：%1</translation>
+    </message>
+    <message>
+        <location line="-2" />
+        <source>Grabando (con poco disco)</source>
+        <translation>录制中（磁盘空间不足）</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation>已在向该目标推流：无任何变化</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Al aire</source>
+        <translation>播出</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>No se pudo transmitir: %1</source>
+        <translation>无法推流：%1</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Transmitiendo al destino nuevo</source>
+        <translation>正在向新目标推流</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation>无法更改目标：%1</translation>
+    </message>
+    <message>
+        <location line="+63" />
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation>该嘉宾在节目中尚无来源。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Grabando «%1» aparte</source>
+        <translation>正在单独录制「%1」</translation>
+    </message>
+</context>
+<context>
     <name>Emisor</name>
     <message>
         <location filename="../src/app/graficos/Emisor.cpp" line="+213" />
@@ -8278,6 +8698,67 @@ Se prende desde el Registro.</source>
         <location line="+10" />
         <source>Elegí un dispositivo de la lista para ponerle nombre, configurarlo, ver lo que se sabe de él y qué se le puede hacer.</source>
         <translation>从列表中选择一台设备，可为其命名、进行设置、查看已知信息及可执行的操作。</translation>
+    </message>
+</context>
+<context>
+    <name>EscenasViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EscenasViewModel.cpp" line="+96" />
+        <source>%1 (copia)</source>
+        <translation>%1（副本）</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 (copia %2)</source>
+        <translation>%1（副本 %2）</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Escena copiada: %1</source>
+        <translation>场景已复制：%1</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Escena copiada, pero %1</source>
+        <translation>场景已复制，但 %1</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>«%1» protegida: no se puede borrar ni renombrar</source>
+        <translation>「%1」已受保护：无法删除或重命名</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>«%1» ya no está protegida</source>
+        <translation>「%1」已取消保护</translation>
+    </message>
+    <message>
+        <location line="+118" />
+        <source>La repetición no llegó a escribirse.</source>
+        <translation>回放未能及时写入。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Repetición armada: dale TAKE.</source>
+        <translation>回放已载入：请按 TAKE。</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>No hay una salida «%1».</source>
+        <translation>不存在输出「%1」。</translation>
+    </message>
+</context>
+<context>
+    <name>EscritorioViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+118" />
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation>没有名为「%1」的显示器：请提供其编号、名称或 ID。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>El monitor «%1» no está conectado.</source>
+        <translation>显示器「%1」未连接。</translation>
     </message>
 </context>
 <context>
@@ -9651,7 +10132,9 @@ Se prende desde el Registro.</source>
     <message numerus="yes">
         <location line="+68" />
         <source>El ensayo grabó los tiempos de %n paso(s): confirmalos para que queden como duraciones previstas</source>
-        <translation><numerusform>彩排记录了 %n 个步骤的时长：请确认，使其成为预计时长</numerusform></translation>
+        <translation>
+            <numerusform>彩排记录了 %n 个步骤的时长：请确认，使其成为预计时长</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+29" />
@@ -11505,6 +11988,21 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <source>Al aire</source>
         <translation>播出</translation>
     </message>
+    <message>
+        <location line="+26" />
+        <source>Gráfico nuevo</source>
+        <translation>新建图形</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Se arma con capas y animaciones de un repertorio, sin escribir código.</source>
+        <translation>用素材库中的图层和动画搭建，无需编写代码。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>QML a mano. Mirá docs/GRAFICOS.md antes: hay cuatro o cinco trampas que cuestan tiempo.</source>
+        <translation>手写 QML。请先阅读 docs/GRAFICOS.md：有四五个容易耗费时间的陷阱。</translation>
+    </message>
 </context>
 <context>
     <name>GuestsContent</name>
@@ -11674,7 +12172,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>余量 %1 %（%2）</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+94" />
         <source>Térmica: %1</source>
         <translation>温度：%1</translation>
     </message>
@@ -12509,6 +13007,60 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     </message>
 </context>
 <context>
+    <name>ImagenViewModel</name>
+    <message>
+        <location filename="../src/app/ui/ImagenViewModel.cpp" line="+79" />
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）：已降为经济模式</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）</translation>
+    </message>
+    <message>
+        <location line="+69" />
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation>会议位置 %1 为空（显示垫片画面）</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+5" />
+        <source>el motor no está andando</source>
+        <translation>引擎未运行</translation>
+    </message>
+    <message>
+        <location line="+70" />
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation>磁盘：剩余 %1 GB，录制时间不足一小时</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation>磁盘：约可录制 %1 小时</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation>未配置推流目标（服务器和密钥）</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation>输入「%1」当前无信号</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>tipo desconocido</source>
+        <translation>未知类型</translation>
+    </message>
+    <message>
+        <location line="+48" />
+        <source>modo desconocido</source>
+        <translation>未知模式</translation>
+    </message>
+</context>
+<context>
     <name>InputsPage</name>
     <message>
         <location filename="../src/app/qml/pages/InputsPage.qml" line="+46" />
@@ -12897,7 +13449,9 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+1" />
         <source>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</source>
-        <translation><numerusform>检查发现 %n 个严重问题。开播前请查看「检查」。</numerusform></translation>
+        <translation>
+            <numerusform>检查发现 %n 个严重问题。开播前请查看「检查」。</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+1" />
@@ -13123,7 +13677,9 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+21" />
         <source>El ensayo grabó %n paso(s): de %1 a %2 en total</source>
-        <translation><numerusform>彩排记录了 %n 个步骤：总计从 %1 到 %2</numerusform></translation>
+        <translation>
+            <numerusform>彩排记录了 %n 个步骤：总计从 %1 到 %2</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+24" />
@@ -13186,7 +13742,9 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+1" />
         <source>Se suman %n paso(s) al final de la línea.</source>
-        <translation><numerusform>将在时间线末尾添加 %n 个步骤。</numerusform></translation>
+        <translation>
+            <numerusform>将在时间线末尾添加 %n 个步骤。</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -13231,7 +13789,9 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+8" />
         <source>%n cambio(s) sin confirmar</source>
-        <translation><numerusform>%n 项更改未确认</numerusform></translation>
+        <translation>
+            <numerusform>%n 项更改未确认</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+10" />
@@ -13339,7 +13899,9 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+7" />
         <source>%n cambio(s) sin confirmar</source>
-        <translation><numerusform>%n 项更改未确认</numerusform></translation>
+        <translation>
+            <numerusform>%n 项更改未确认</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+10" />
@@ -13623,7 +14185,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>测试模式（--test）：助手执行操作时不请求批准，在播时也是如此</translation>
     </message>
     <message>
-        <location line="+66" />
+        <location line="+81" />
         <source>CONFIRMAR</source>
         <comment>palabra que se escribe para entrar a una página protegida</comment>
         <translation>确认</translation>
@@ -13647,12 +14209,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <location line="+3" />
         <location line="+36" />
         <location line="+25" />
-        <location line="+12" />
+        <location line="+11" />
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-71" />
+        <location line="-70" />
         <source>Entrar</source>
         <translation>进入</translation>
     </message>
@@ -13687,7 +14249,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>停止</translation>
     </message>
     <message>
-        <location line="+11" />
+        <location line="+10" />
         <source>Queda muy poco disco</source>
         <translation>磁盘空间不足</translation>
     </message>
@@ -13724,7 +14286,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>保持不变</translation>
     </message>
     <message>
-        <location line="+143" />
+        <location line="+148" />
         <source>«%1» no se puede abrir en una ventana</source>
         <translation>「%1」无法在窗口中打开</translation>
     </message>
@@ -14992,6 +15554,24 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
     </message>
 </context>
 <context>
+    <name>MezclaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/MezclaViewModel.cpp" line="+88" />
+        <source>grabación del programa</source>
+        <translation>节目录制</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation>音频：「%1」因过慢被跳过（未经处理直通）。修复后请在「音频」中重建。</translation>
+    </message>
+    <message>
+        <location line="+33" />
+        <source>ya se está midiendo</source>
+        <translation>已在测量中</translation>
+    </message>
+</context>
+<context>
     <name>Mezclador</name>
     <message>
         <location filename="../src/app/audio/Mezclador.cpp" line="+204" />
@@ -15617,6 +16197,15 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location line="+8" />
         <source>Vúmetros</source>
         <translation>电平表</translation>
+    </message>
+</context>
+<context>
+    <name>MultiviewViewModel</name>
+    <message>
+        <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+75" />
+        <location line="+58" />
+        <source>Multiview %1</source>
+        <translation>多画面监看 %1</translation>
     </message>
 </context>
 <context>
@@ -26814,7 +27403,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
 <context>
     <name>PublicoViewModel</name>
     <message>
-        <location filename="../src/app/ui/PublicoViewModel.cpp" line="+90" />
+        <location filename="../src/app/ui/PublicoViewModel.cpp" line="+128" />
         <source>No pude hablar con el servidor.</source>
         <translation>无法连接服务器。</translation>
     </message>
@@ -26857,7 +27446,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>场景平板</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="+7" />
         <source>QR para manejar las escenas</source>
         <translation>用于控制场景的二维码</translation>
     </message>
@@ -27414,12 +28003,12 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
     <message>
         <location line="+0" />
-        <location line="+441" />
+        <location line="+447" />
         <source>Cerrar</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location line="-441" />
+        <location line="-447" />
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
@@ -27485,12 +28074,12 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
     <message>
         <location line="+1" />
-        <location line="+450" />
+        <location line="+456" />
         <source>Listo</source>
         <translation>完成</translation>
     </message>
     <message>
-        <location line="-450" />
+        <location line="-456" />
         <source>Editar lugares</source>
         <translation>编辑布局</translation>
     </message>
@@ -27610,7 +28199,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>姓名未验证（上方的「成员」按钮）</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+8" />
         <source>(nadie con esta banca)</source>
         <translation>（此席位无人）</translation>
     </message>
@@ -27620,7 +28209,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>无镜头</translation>
     </message>
     <message>
-        <location line="+36" />
+        <location line="+38" />
         <source>PRESIDENCIA</source>
         <translation>主席</translation>
     </message>
@@ -28696,6 +29285,79 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
     </message>
 </context>
 <context>
+    <name>SalaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/SalaViewModel.cpp" line="+69" />
+        <source>esta versión no tiene %1</source>
+        <translation>此版本没有 %1</translation>
+    </message>
+    <message>
+        <location line="+41" />
+        <source>no hay un invitado «%1» en la conferencia</source>
+        <translation>会议中没有名为「%1」的嘉宾</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>Sumada a la cola de preguntas</source>
+        <translation>已加入提问队列</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>No se pudo sumar la pregunta: %1</source>
+        <translation>无法添加提问：%1</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>El servidor MCP no está disponible.</source>
+        <translation>MCP 服务器不可用。</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
+        <translation>活动有其专属地址（%1.a.pinggy.link），但正在推流或录制：现在不会更改（会重启会议）。请在方便时从 串联单 → 网页 中更改。</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
+        <translation>正在将公网地址切换为 %1.a.pinggy.link（会议将重启）…</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
+        <translation>新的一天：会议已更换新 PIN（%1）</translation>
+    </message>
+    <message>
+        <location line="+67" />
+        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
+        <translation>没有已保存的连接方式：请在 设置 → 远程访问 中设置。</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>espera en el lobby</source>
+        <translation>在等候室等候</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>espera en el lobby · %1</source>
+        <translation>在等候室等候 · %1</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Admitir</source>
+        <translation>接纳</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una persona espera en el lobby: admitila acá abajo</source>
+        <translation>有一人在等候室等候：请在下方接纳</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
+        <translation>%1 人在等候室等候：请在下方接纳</translation>
+    </message>
+</context>
+<context>
     <name>SalidasPage</name>
     <message>
         <location filename="../src/app/qml/pages/SalidasPage.qml" line="+61" />
@@ -28720,7 +29382,9 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
     <message numerus="yes">
         <location line="+6" />
         <source>Tiene %n destino(s) guardado(s): ¿qué pasa con ellos?</source>
-        <translation><numerusform>该输出保存了 %n 个目标：如何处理？</numerusform></translation>
+        <translation>
+            <numerusform>该输出保存了 %n 个目标：如何处理？</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+13" />
@@ -28919,6 +29583,54 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <location line="+4" />
         <source>Borrar salida</source>
         <translation>删除输出</translation>
+    </message>
+</context>
+<context>
+    <name>SalidasViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+327" />
+        <source>Ya hay %n salida, que es el tope.</source>
+        <translation><numerusform>已有 %n 个输出，已达上限。</numerusform></translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La máquina está al límite (%1): otra salida es otro programa, otro preview y otra mezcla.</source>
+        <translation>设备已达极限（%1）：再加一个输出就意味着再多一路节目、一路预览和一路混音。</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La máquina está justa (%1): mirá la tarjeta Sistema antes de sumar otra.</source>
+        <translation>设备负载已很紧张（%1）：添加前请先查看「系统」卡片。</translation>
+    </message>
+    <message>
+        <location line="+64" />
+        <source>No hay una salida «%1».</source>
+        <translation>不存在输出「%1」。</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <source>Volvemos enseguida</source>
+        <translation>马上回来</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuarto intermedio</source>
+        <translation>暂时休会</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Minuto de silencio</source>
+        <translation>默哀一分钟</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sesión suspendida</source>
+        <translation>会议暂停</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Dificultades técnicas</source>
+        <translation>技术故障</translation>
     </message>
 </context>
 <context>
@@ -31555,7 +32267,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+244" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+103" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -31570,159 +32282,22 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>现在每个活动都有包含其全部内容的独立文件夹。已拆分出：%1（可在活动页面用「打开其他…」打开）</translation>
     </message>
     <message>
-        <location line="+157" />
-        <source>esta versión no tiene %1</source>
-        <translation>此版本没有 %1</translation>
-    </message>
-    <message>
-        <location line="+33" />
-        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
-        <translation>活动有其专属地址（%1.a.pinggy.link），但正在推流或录制：现在不会更改（会重启会议）。请在方便时从 串联单 → 网页 中更改。</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
-        <translation>正在将公网地址切换为 %1.a.pinggy.link（会议将重启）…</translation>
-    </message>
-    <message>
-        <location line="+61" />
+        <location line="+208" />
         <source>La playlist sigue donde estaba antes del corte</source>
         <translation>播放列表从中断前的位置继续</translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+70" />
         <source>Un rótulo automático no salió: %1</source>
         <translation>自动字幕条未能播出：%1</translation>
     </message>
     <message>
-        <location line="+247" />
-        <source>Evento «%1» creado: reiniciando para abrirlo</source>
-        <translation>活动「%1」已创建：正在重启以打开它</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abriendo el evento «%1»: la app se reinicia</source>
-        <translation>正在打开活动「%1」：应用将重启</translation>
-    </message>
-    <message>
-        <location line="+8" />
-        <source>No se pudo crear «%1»: %2</source>
-        <translation>无法创建「%1」：%2</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
-        <translation>活动「%1」已就绪：请用「打开其他…」打开</translation>
-    </message>
-    <message>
-        <location line="+267" />
-        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
-        <translation>配置「%1」已损坏：已载入上一版本（损坏的文件保存为 .corrupto）。</translation>
-    </message>
-    <message>
-        <location line="+97" />
-        <source>Modo seguro</source>
-        <translation>安全模式</translation>
-    </message>
-    <message>
-        <location line="+203" />
-        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
-        <translation>会议位置 %1 为空（显示垫片画面）</translation>
-    </message>
-    <message>
-        <location line="+51" />
-        <location line="+5" />
-        <source>el motor no está andando</source>
-        <translation>引擎未运行</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Central DCN, banca %1: %2</source>
-        <translation>DCN 中央单元，席位 %1：%2</translation>
-    </message>
-    <message>
-        <location line="+64" />
-        <location line="+8" />
-        <source>Central (debate): %1</source>
-        <translation>中央单元（辩论）：%1</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Central (fin del debate): %1</source>
-        <translation>中央单元（辩论结束）：%1</translation>
-    </message>
-    <message>
-        <location line="+81" />
-        <source>## Banca virtual</source>
-        <translation>## 虚拟席位</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>## Transcripción</source>
-        <translation>## 转写</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Archivo</source>
-        <translation>文件</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
-        <translation>转写为自动生成：可能有错误；以速记版本为准。</translation>
-    </message>
-    <message>
-        <location line="+39" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
-        <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）：已降为经济模式</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
-        <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）</translation>
-    </message>
-    <message>
-        <location line="+15" />
-        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
-        <translation>磁盘：剩余 %1 GB，录制时间不足一小时</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Disco: alcanza para ~%1 h de grabación</source>
-        <translation>磁盘：约可录制 %1 小时</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No hay destino de transmisión configurado (servidor y clave)</source>
-        <translation>未配置推流目标（服务器和密钥）</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>La entrada «%1» no tiene señal ahora</source>
-        <translation>输入「%1」当前无信号</translation>
-    </message>
-    <message>
-        <location line="+45" />
+        <location line="+195" />
         <source>no contestó</source>
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+228" />
-        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
-        <translation>「%1」（%2）请求网页控制访问：请在 服务 → 网页控制 中批准。</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
-        <translation>「%1」（%2）请求以配置文件「%3」配对为控制台：请在「控制台」页面中批准。</translation>
-    </message>
-    <message>
-        <location line="+137" />
-        <source>grabación del programa</source>
-        <translation>节目录制</translation>
-    </message>
-    <message>
-        <location line="+15" />
+        <location line="+75" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
     </message>
@@ -31732,135 +32307,17 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>会议未能重启（%1）：请在「设置」或「会议」页面中点「重启会议」。</translation>
     </message>
     <message>
-        <location line="+30" />
-        <location line="+14" />
-        <source>No disponible.</source>
-        <translation>不可用。</translation>
-    </message>
-    <message>
-        <location line="-10" />
-        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
-        <translation>没有已保存的连接方式：请在 设置 → 远程访问 中设置。</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>pide emparejarse</source>
-        <translation>请求配对</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <location line="+1939" />
-        <source>Tablet emparejada.</source>
-        <translation>平板已配对。</translation>
-    </message>
-    <message>
-        <location line="-1939" />
-        <location line="+1939" />
-        <source>Emparejamiento rechazado.</source>
-        <translation>配对已拒绝。</translation>
-    </message>
-    <message>
-        <location line="-1919" />
-        <source>pide entrar al control web</source>
-        <translation>请求网页控制访问</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Aparato emparejado.</source>
-        <translation>设备已配对。</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Pedido rechazado.</source>
-        <translation>请求已拒绝。</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>todo, o: escenas, audio</source>
-        <translation>全部，或：场景、音频</translation>
-    </message>
-    <message>
-        <location line="+9" />
-        <source>quiere conectar un Satellite</source>
-        <translation>请求连接 Satellite</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Ese pedido ya no está.</source>
-        <translation>该请求已不存在。</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Permitir</source>
-        <translation>允许</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una IP pide conectar: permitila acá abajo</source>
-        <translation>有一个 IP 请求连接：请在下方允许</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 IP piden conectar: permitilas acá abajo</source>
-        <translation>%1 个 IP 请求连接：请在下方允许</translation>
-    </message>
-    <message>
-        <location line="+16" />
-        <source>espera en el lobby</source>
-        <translation>在等候室等候</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>espera en el lobby · %1</source>
-        <translation>在等候室等候 · %1</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Admitir</source>
-        <translation>接纳</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una persona espera en el lobby: admitila acá abajo</source>
-        <translation>有一人在等候室等候：请在下方接纳</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
-        <translation>%1 人在等候室等候：请在下方接纳</translation>
-    </message>
-    <message>
         <location filename="../src/app/ui/BitacoraEvento.cpp" line="+278" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>活动磁盘已用 %1 %（剩余 %2 GB）</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+146" />
-        <source>%1 (banca %2)</source>
-        <translation>%1（席位 %2）</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>%1: queda 1 minuto</source>
-        <translation>%1：剩余 1 分钟</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>%1: se terminó su tiempo</source>
-        <translation>%1：时间到</translation>
-    </message>
-    <message>
-        <location line="+45" />
-        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
-        <translation>音频：「%1」因过慢被跳过（未经处理直通）。修复后请在「音频」中重建。</translation>
-    </message>
-    <message>
-        <location line="+4" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+163" />
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>界面卡顿了 %1 秒；播出未中断</translation>
     </message>
     <message>
-        <location line="+44" />
+        <location line="+20" />
         <source>Grabación detenida</source>
         <translation>录制已停止</translation>
     </message>
@@ -31906,155 +32363,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>推流已恢复</translation>
     </message>
     <message>
-        <location line="+142" />
-        <location line="+7" />
-        <source>El escáner de red no está disponible.</source>
-        <translation>网络扫描器不可用。</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <location line="+13" />
-        <source>No escribiste ninguna clave.</source>
-        <translation>未输入任何密钥。</translation>
-    </message>
-    <message>
-        <location line="-9" />
-        <source>Los plugins no están disponibles.</source>
-        <translation>插件不可用。</translation>
-    </message>
-    <message>
-        <location line="+22" />
-        <source>No se pudo leer %1.</source>
-        <translation>无法读取 %1。</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>Plataforma desconocida: %1.</source>
-        <translation>未知平台：%1。</translation>
-    </message>
-    <message>
-        <location line="+18" />
-        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
-        <translation>没有名为「%1」的显示器：请提供其编号、名称或 ID。</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>El monitor «%1» no está conectado.</source>
-        <translation>显示器「%1」未连接。</translation>
-    </message>
-    <message>
-        <location line="+157" />
-        <source>Punto %1: %2</source>
-        <translation>第 %1 项：%2</translation>
-    </message>
-    <message>
-        <location line="+37" />
-        <source>CON QUÓRUM</source>
-        <translation>达到法定人数</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>SIN QUÓRUM</source>
-        <translation>未达法定人数</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 presentes de %2</source>
-        <translation>%2 人中 %1 人出席</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>APROBADO</source>
-        <translation>通过</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>RECHAZADO</source>
-        <translation>未通过</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
-        <translation>注意：磁盘约可录制 %1 小时</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Grabando en %1</source>
-        <translation>正在录制到 %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <location line="+10" />
-        <source>No se pudo grabar: %1</source>
-        <translation>无法录制：%1</translation>
-    </message>
-    <message>
-        <location line="-2" />
-        <source>Grabando (con poco disco)</source>
-        <translation>录制中（磁盘空间不足）</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
-        <translation>已在向该目标推流：无任何变化</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Al aire</source>
-        <translation>在播</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>No se pudo transmitir: %1</source>
-        <translation>无法推流：%1</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Transmitiendo al destino nuevo</source>
-        <translation>正在向新目标推流</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No se pudo cambiar de destino: %1</source>
-        <translation>无法更改目标：%1</translation>
-    </message>
-    <message>
-        <location line="+142" />
-        <source>%1 (copia)</source>
-        <translation>%1（副本）</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1 (copia %2)</source>
-        <translation>%1（副本 %2）</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Escena copiada: %1</source>
-        <translation>场景已复制：%1</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Escena copiada, pero %1</source>
-        <translation>场景已复制，但 %1</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>«%1» protegida: no se puede borrar ni renombrar</source>
-        <translation>「%1」已受保护：无法删除或重命名</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>«%1» ya no está protegida</source>
-        <translation>「%1」已取消保护</translation>
-    </message>
-    <message>
-        <location line="+48" />
-        <source>El servidor MCP no está disponible.</source>
-        <translation>MCP 服务器不可用。</translation>
-    </message>
-    <message>
-        <location line="+31" />
+        <location line="+258" />
         <source>Guardado</source>
         <translation>已保存</translation>
     </message>
@@ -32063,254 +32372,10 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <source>No se pudo guardar: %1</source>
         <translation>无法保存：%1</translation>
     </message>
-    <message numerus="yes">
-        <location line="+203" />
-        <source>Ya hay %n salida, que es el tope.</source>
-        <translation><numerusform>已有 %n 个输出，已达上限。</numerusform></translation>
-    </message>
     <message>
-        <location line="+4" />
-        <source>La máquina está al límite (%1): otra salida es otro programa, otro preview y otra mezcla.</source>
-        <translation>设备已达极限（%1）：再加一个输出就意味着再多一路节目、一路预览和一路混音。</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>La máquina está justa (%1): mirá la tarjeta Sistema antes de sumar otra.</source>
-        <translation>设备负载已很紧张（%1）：添加前请先查看「系统」卡片。</translation>
-    </message>
-    <message>
-        <location line="+31" />
-        <location line="+814" />
-        <source>No hay una salida «%1».</source>
-        <translation>不存在输出「%1」。</translation>
-    </message>
-    <message>
-        <location line="-717" />
-        <source>Volvemos enseguida</source>
-        <translation>马上回来</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Cuarto intermedio</source>
-        <translation>暂时休会</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Minuto de silencio</source>
-        <translation>默哀一分钟</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Sesión suspendida</source>
-        <translation>会议暂停</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Dificultades técnicas</source>
-        <translation>技术故障</translation>
-    </message>
-    <message>
-        <location line="-1339" />
+        <location line="-408" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
-    </message>
-    <message>
-        <location line="+1356" />
-        <source>no hay un invitado «%1» en la conferencia</source>
-        <translation>会议中没有名为「%1」的嘉宾</translation>
-    </message>
-    <message>
-        <location line="+23" />
-        <source>Sumada a la cola de preguntas</source>
-        <translation>已加入提问队列</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>No se pudo sumar la pregunta: %1</source>
-        <translation>无法添加提问：%1</translation>
-    </message>
-    <message>
-        <location line="+71" />
-        <source>Nombres del cuerpo: %1</source>
-        <translation>议事机构名单：%1</translation>
-    </message>
-    <message>
-        <location line="+29" />
-        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
-        <translation>新的一天：会议已更换新 PIN（%1）</translation>
-    </message>
-    <message>
-        <location line="+223" />
-        <source>No se pudo emparejar.</source>
-        <translation>无法配对。</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Control web (/control/)</source>
-        <translation>网页控制（/control/）</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
-        <translation>请在设备的浏览器中打开（需在本地网络；代码几分钟内有效且只能使用一次）。然后在此处 服务 → 网页控制 中批准。</translation>
-    </message>
-    <message>
-        <location line="+44" />
-        <source>La sesión remota no está andando.</source>
-        <translation>远程会议未运行。</translation>
-    </message>
-    <message>
-        <location line="+69" />
-        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
-        <translation>该嘉宾在节目中尚无来源。</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Grabando «%1» aparte</source>
-        <translation>正在单独录制「%1」</translation>
-    </message>
-    <message>
-        <location line="+97" />
-        <source>ya se está midiendo</source>
-        <translation>已在测量中</translation>
-    </message>
-    <message>
-        <location line="+27" />
-        <source>tipo desconocido</source>
-        <translation>未知类型</translation>
-    </message>
-    <message>
-        <location line="+50" />
-        <source>modo desconocido</source>
-        <translation>未知模式</translation>
-    </message>
-    <message>
-        <location line="+21" />
-        <source>La repetición no llegó a escribirse.</source>
-        <translation>回放未能及时写入。</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Repetición armada: dale TAKE.</source>
-        <translation>回放已载入：请按 TAKE。</translation>
-    </message>
-    <message>
-        <location line="+133" />
-        <source>no se cambia en vivo</source>
-        <translation>直播中不可更改</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Estás AL AIRE y grabando</source>
-        <translation>正在播出并录制</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <location line="+15" />
-        <source>Estás AL AIRE</source>
-        <translation>正在播出</translation>
-    </message>
-    <message>
-        <location line="-14" />
-        <source>Estás grabando</source>
-        <translation>正在录制</translation>
-    </message>
-    <message numerus="yes">
-        <location line="+3" />
-        <source>Hay %n persona conectada</source>
-        <translation>
-            <numerusform>有 %n 人已连接</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1" />
-        <source>%1, y hay %n persona conectada</source>
-        <translation>
-            <numerusform>%1，且有 %n 人已连接</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1" />
-        <source>%1 y hay %n persona conectada</source>
-        <translation>
-            <numerusform>%1，且有 %n 人已连接</numerusform>
-        </translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>se corta la emisión</source>
-        <translation>播出将中断</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>se detiene la grabación</source>
-        <translation>录制将停止</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>esa persona queda afuera</source>
-        <translation>该人将被断开</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>esas personas quedan afuera</source>
-        <translation>这些人将被断开</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1. Si cerrás, %2.</source>
-        <translation>%1。如果关闭，%2。</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Estás GRABANDO</source>
-        <translation>正在录制</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Hay gente conectada</source>
-        <translation>有人已连接</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>corta la emisión</source>
-        <translation>中断播出</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>corta la grabación</source>
-        <translation>中断录制</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>la desconecta</source>
-        <translation>断开该人的连接</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>desconecta a quienes están conectados</source>
-        <translation>断开所有已连接的人</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1: actualizar cierra la aplicación y %2.</source>
-        <translation>%1：更新会关闭应用，并%2。</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
-        <translation>%1：回退到上一版本会关闭应用，并%2。</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1: %2 cierra la aplicación y %3.</source>
-        <translation>%1：%2 会关闭应用，并%3。</translation>
-    </message>
-    <message>
-        <location line="+165" />
-        <location line="+75" />
-        <source>Multiview %1</source>
-        <translation>多画面监看 %1</translation>
     </message>
 </context>
 <context>
@@ -35097,12 +35162,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
     <message>
         <location line="+0" />
-        <location line="+1219" />
+        <location line="+1220" />
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-1183" />
+        <location line="-1184" />
         <source>Vista previa</source>
         <translation>预览</translation>
     </message>
@@ -35849,7 +35914,7 @@ Escucha:
         <translation>移除卡片</translation>
     </message>
     <message>
-        <location line="+30" />
+        <location line="+31" />
         <source>Superresolución</source>
         <translation>超分辨率</translation>
     </message>
@@ -42535,7 +42600,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-83" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4571" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-602" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -42855,7 +42920,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>安全模式：本次运行不从磁盘载入任何内容</translation>
     </message>
     <message>
-        <location line="+220" />
+        <location line="+174" />
         <source>playlist tras el corte: %1</source>
         <translation>中断后的播放列表：%1</translation>
     </message>
@@ -43187,18 +43252,18 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>仅在列表为空时显示其中内容</translation>
     </message>
     <message>
-        <location line="+15" />
+        <location line="+18" />
         <source>Resultado de la sesión</source>
         <translation>会议结果</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+23" />
         <source>falta el nombre de la plantilla</source>
         <translation>缺少模板名称</translation>
     </message>
     <message>
         <location line="+18" />
-        <location line="+13" />
+        <location line="+12" />
         <source>no se pudo guardar la plantilla</source>
         <translation>无法保存模板</translation>
     </message>
@@ -43286,31 +43351,31 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1329" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-331" />
         <source>pendiente</source>
         <translation>待审议</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>en tratamiento</source>
         <translation>正在审议</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+1" />
         <source>votado</source>
         <translation>已表决</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>a comisión</source>
         <translation>交付委员会</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+1" />
         <source>retirado</source>
         <translation>已撤回</translation>
     </message>
@@ -43472,13 +43537,13 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+5" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-6" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-6" />
         <source>APROBADO</source>
         <translation>通过</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>RECHAZADO</source>
         <translation>未通过</translation>
     </message>
@@ -43816,7 +43881,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不参与</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-7" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-7" />
         <source>Hay quórum</source>
         <translation>达到法定人数</translation>
     </message>
@@ -44789,12 +44854,12 @@ Datos (de %2): %3</source>
         <translation> 已知信息：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-712" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-231" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>应用已重启，活动「%1」已打开。如果您之前正在处理某事，从中断处继续；否则等待操作员的指示。</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+80" />
         <source>el invitado %1</source>
         <translation>嘉宾 %1</translation>
     </message>
@@ -44804,12 +44869,12 @@ Datos (de %2): %3</source>
         <translation>关于您的问题“%1”：%2</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+1" />
         <source>descarto tu pregunta "%1".</source>
         <translation>已舍弃您的问题“%1”。</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+2" />
         <source>le mando a %1: "%2"</source>
         <translation>已发送给 %1：“%2”</translation>
     </message>
@@ -44829,7 +44894,7 @@ Datos (de %2): %3</source>
         <translation>关闭了摄像机 %1 的表单，未保存。</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="+4" />
         <source>guardo usuario y clave de la camara %1. Siguiente paso: camara_ficha {"ip": "%1"}.</source>
         <translation>已保存摄像机 %1 的用户名和密码。下一步：camara_ficha {"ip": "%1"}。</translation>
     </message>
@@ -44839,17 +44904,17 @@ Datos (de %2): %3</source>
         <translation>关闭了摄像机 %1 的表单，未保存。</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="+4" />
         <source>guardo la credencial de %1. Siguiente paso: %1_login.</source>
         <translation>已保存 %1 的凭据。下一步：%1_login。</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+1" />
         <source>cerro el formulario de credenciales de %1 sin guardar.</source>
         <translation>关闭了 %1 的凭据表单，未保存。</translation>
     </message>
     <message>
-        <location line="+3288" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="-46" />
         <source>las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican</source>
         <translation>列表中的页面要求输入 CONFIRMAR 并说明原因；会重启网关或程序的设置不会应用</translation>
     </message>
@@ -49929,7 +49994,7 @@ Datos (de %2): %3</source>
 <context>
     <name>estudio</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+28" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="-177" />
         <source>%1 y %2</source>
         <translation>%1 和 %2</translation>
     </message>
@@ -50767,12 +50832,12 @@ Datos (de %2): %3</source>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4320" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-215" />
         <source>cada evento a su carpeta: %1</source>
         <translation>每个活动放入各自的文件夹：%1</translation>
     </message>
     <message>
-        <location line="+586" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+52" />
         <source>[eventos] papelera: %1 con más de %2 días, borrados</source>
         <translation>[eventos] 回收站：已删除超过 %2 天的 %1</translation>
     </message>
@@ -53251,7 +53316,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1571" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+636" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -56124,7 +56189,7 @@ Rutas con variables (%USERPROFILE%\Desktop en Windows; ~/Desktop o $HOME en macO
         <location filename="../src/app/escritorio/control_linux.cpp" line="+11" />
         <location line="+12" />
         <location filename="../src/app/escritorio/control_mac.mm" line="+21" />
-        <location filename="../src/app/mcp/McpUiTools.cpp" line="+417" />
+        <location filename="../src/app/mcp/McpUiTools.cpp" line="+418" />
         <source>Aviso mostrado.</source>
         <translation>已显示通知。</translation>
     </message>
@@ -83520,7 +83585,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>modo-vivo</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+2122" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+112" />
         <source>modo en vivo: se desbloqueó «%1» — motivo: %2</source>
         <translation>直播模式：已解锁「%1」— 原因：%2</translation>
     </message>

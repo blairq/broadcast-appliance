@@ -227,14 +227,14 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
                 const std::string id = a.value("tema", std::string());
                 if (!control::temaWebValido(id)) return done(ToolResult::error(ba::i18n::llenar(
                     ba::i18n::traducir("mcp", "No hay un tema «%1» (web_tema sin nada: la lista)."), {id})));
-                vm.setTemaWeb(QString::fromStdString(id));
+                vm.control().setTemaWeb(QString::fromStdString(id));
             }
             json lista = json::array();
             for (const auto& x : control::temasWeb())
                 lista.push_back({{"id", x.id},
                                  {"nombre", QCoreApplication::translate("control-web", x.nombre).toStdString()},
                                  {"descripcion", QCoreApplication::translate("control-web", x.descripcion).toStdString()}});
-            done(ToolResult().data({{"actual", vm.temaWeb().toStdString()}, {"temas", lista}}));
+            done(ToolResult().data({{"actual", vm.control().temaWeb().toStdString()}, {"temas", lista}}));
         };
         core.addTool(std::move(t));
     }

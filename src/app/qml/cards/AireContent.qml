@@ -15,10 +15,10 @@ import "../controls"
 
 Item {
     id: t
-    readonly property var placa: Studio.placa
+    readonly property var placa: Studio.salidas.placa
     // Lo que sale de la salida que maneja la interfaz (con una sola, la de siempre).
-    readonly property var aire: Studio.aireActiva
-    readonly property bool porOmision: !Studio.salidaActivaDatos.id || !!Studio.salidaActivaDatos.porOmision
+    readonly property var aire: Studio.salidas.aire
+    readonly property bool porOmision: !Studio.salidas.activaDatos.id || !!Studio.salidas.activaDatos.porOmision
 
     // Un renglón de estado: etiqueta, reloj y el botón.
     component Fila: Rectangle {
@@ -95,9 +95,9 @@ Item {
                            font { family: Theme.font; pixelSize: 14; weight: Font.DemiBold } }
                 }
             }
-            GlassButton { text: qsTr("CUT"); enabled: Studio.escenaArmada !== ""; onClicked: Studio.takeCon("cut", 0)
+            GlassButton { text: qsTr("CUT"); enabled: Studio.escenaArmada !== ""; onClicked: Studio.escenas.takeCon("cut", 0)
                           ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Corte seco a la armada") }
-            GlassButton { text: qsTr("AUTO"); active: true; enabled: Studio.escenaArmada !== ""; onClicked: Studio.take()
+            GlassButton { text: qsTr("AUTO"); active: true; enabled: Studio.escenaArmada !== ""; onClicked: Studio.escenas.take()
                           ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("TAKE con la transición") }
         }
 
@@ -126,8 +126,8 @@ Item {
             accion: t.aire.grabando ? qsTr("Detener") : qsTr("Grabar")
             // La de la por omisión con lo suyo de siempre (el aviso del disco); las demás, la de su salida.
             function grabar(si) {
-                if (t.porOmision) { if (si !== Studio.recording) Studio.toggleRecording(); return }
-                const e = Studio.grabarSalida(Studio.salidaActiva, si)
+                if (t.porOmision) { if (si !== Studio.recording) Studio.emision.toggleRecording(); return }
+                const e = Studio.salidas.grabar(Studio.salidas.activa, si)
                 if (e !== "") Studio.notify(e, "error")
             }
             onTocar: {

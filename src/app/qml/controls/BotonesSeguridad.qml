@@ -1,7 +1,7 @@
 // FTB y PLACA a un toque: lo que tapa todo lo que sale (encima del programa,
 // sin tocar las escenas). Al aire, prenderlos pide confirmación; apagarlos, no.
 // Titilan mientras están puestos. Son de la salida que maneja la interfaz
-// (Studio.salidaActiva): su negro, su placa y su aire.
+// (Studio.salidas.activa): su negro, su placa y su aire.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -16,15 +16,15 @@ GridLayout {
     columns: angosta || width < 420 ? 2 : 4
     columnSpacing: 6
     rowSpacing: 4
-    readonly property var estado: Studio.placa
+    readonly property var estado: Studio.salidas.placa
 
     function poner(cual, activar) {
         const hacer = function() {
-            const e = cual === "ftb" ? Studio.ftbUi(activar, 800, audioFtb.checked ? "bajar" : "mantener")
-                                     : Studio.placaUi(activar, textoPlaca.editText, "", 600)
+            const e = cual === "ftb" ? Studio.salidas.ftbUi(activar, 800, audioFtb.checked ? "bajar" : "mantener")
+                                     : Studio.salidas.placaUi(activar, textoPlaca.editText, "", 600)
             if (e !== "") Studio.notify(e, "error")
         }
-        if (activar && Studio.aireActiva.alAire)
+        if (activar && Studio.salidas.aire.alAire)
             ApplicationWindow.window.confirm({
                 title: cual === "ftb" ? qsTr("¿Mandar la salida a negro?") : qsTr("¿Tapar la salida con la placa «%1»?").arg(textoPlaca.editText),
                 text: qsTr("Se ve en la transmisión y en la grabación."),
@@ -71,7 +71,7 @@ GridLayout {
         Layout.fillWidth: true
         Layout.minimumWidth: seg.angosta ? 100 : 140
         editable: true
-        model: Studio.textosPlaca()
+        model: Studio.salidas.textosPlaca()
         // Editable, el campo queda con el cursor al final y en angosto se veía
         // la cola del texto («…mos enseguida»): sin foco, que se vea el principio.
         function alPrincipio() { if (!activeFocus && contentItem) contentItem.cursorPosition = 0 }

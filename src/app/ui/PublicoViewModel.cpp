@@ -46,6 +46,44 @@ QVariantMap PublicoViewModel::recuento() const { return recuento_; }
 QVariantMap PublicoViewModel::votacion() const { return votacion_; }
 QVariantMap PublicoViewModel::enlace() const { return enlace_; }
 bool PublicoViewModel::enLinea() const { return enLinea_; }
+
+nlohmann::json PublicoViewModel::preguntasParaLaWeb() const {
+    nlohmann::json alAire = nlohmann::json::array(), elegidas = nlohmann::json::array(), respondidas = nlohmann::json::array();
+    for (const QVariant& v : preguntas_) {
+        const QVariantMap p = v.toMap();
+        const QString est = p.value("estado").toString();
+        nlohmann::json q{{"texto", p.value("texto").toString().toStdString()},
+                         {"nombre", p.value("nombre").toString().toStdString()},
+                         {"votos", p.value("votos").toInt()},
+                         {"estado", est.toStdString()}};
+        if (est == "al_aire") alAire.push_back(q);
+        else if (est == "elegida") elegidas.push_back(q);
+        else if (est == "respondida") respondidas.push_back(q);
+    }
+    nlohmann::json out = alAire;
+    for (auto& q : elegidas) out.push_back(q);
+    for (auto& q : respondidas) out.push_back(q);
+    if (out.size() > 40) out.erase(out.begin() + 40, out.end());
+    return out;
+}
+
+nlohmann::json PublicoViewModel::votacionParaLaWeb() const {
+    const QVariantMap& v = votacion_;
+    if (!v.value("hubo").toBool()) return nullptr;
+    const bool abierta = v.value("abierta").toBool();
+    nlohmann::json vo{{"pregunta", v.value("pregunta").toString().toStdString()},
+                      {"abierta", abierta},
+                      {"modo", v.value("modo").toString().toStdString()},
+                      {"votaron", v.value("votaron").toInt()},
+                      {"podian", v.value("podian").toInt()}};
+    if (!abierta || v.value("enVivo").toBool()) {
+        nlohmann::json res = nlohmann::json::array();
+        for (const QVariant& r : v.value("resultado").toList())
+            res.push_back({{"opcion", r.toMap().value("opcion").toString().toStdString()}, {"votos", r.toMap().value("votos").toInt()}});
+        vo["resultado"] = res;
+    }
+    return vo;
+}
 bool PublicoViewModel::activo() const { return mirando_ > 0; }
 
 void PublicoViewModel::setActivo(bool a) {

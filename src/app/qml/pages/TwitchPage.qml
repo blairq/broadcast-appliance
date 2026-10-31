@@ -65,7 +65,7 @@ Rectangle {
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 14
                        text: qsTr("Para que la app (y el asistente por MCP) pueda cambiar el título y la categoría del canal, tomar la clave de transmisión, leer y escribir el chat y administrar los VODs, registrá una app en Twitch (una sola vez, unos 3 minutos):") }
                 Repeater {
-                    model: Studio.accountGuide("twitch").steps
+                    model: Studio.cuentas.accountGuide("twitch").steps
                     delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true
@@ -314,8 +314,8 @@ Rectangle {
                                 active: dest
                                 onClicked: {
                                     const k = "tw:" + tmsg.model.id
-                                    if (dest) { Studio.quitarDestacadoChatUi(k); dest = false }
-                                    else dest = Studio.destacarChatUi(k)
+                                    if (dest) { Studio.sala.quitarDestacadoChatUi(k); dest = false }
+                                    else dest = Studio.sala.destacarChatUi(k)
                                 }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Destacar para el chat en pantalla")
                             }
@@ -324,7 +324,7 @@ Rectangle {
                                 anchors { right: parent.right; top: parent.top; rightMargin: 40 }
                                 compact: true
                                 text: "?"
-                                onClicked: { const e = Studio.preguntaDesdeChatUi("tw:" + tmsg.model.id); if (e !== "") Studio.notify(e, "error") }
+                                onClicked: { const e = Studio.sala.preguntaDesdeChatUi("tw:" + tmsg.model.id); if (e !== "") Studio.notify(e, "error") }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sumar a la cola de preguntas")
                             }
                         }

@@ -62,6 +62,14 @@ class PublicoViewModel : public QObject {
     bool activo() const;
     void setActivo(bool a);
     bool enLinea() const;
+    /// Para la página web del evento, SOLO las moderadas (la que se responde, las
+    /// elegidas, las respondidas, hasta 40); nunca las nuevas sin revisar ni las
+    /// descartadas: [{texto, nombre, votos, estado}].
+    nlohmann::json preguntasParaLaWeb() const;
+    /// Para la página web del evento, la votación (null si no hubo): la pregunta y si
+    /// está abierta; el resultado solo cuando ya se puede mostrar (cerrada, o el
+    /// operador eligió mostrarlo mientras está abierta).
+    nlohmann::json votacionParaLaWeb() const;
 
     /// Mueve una pregunta por la cola: elegir, des_elegir, al_aire, responder,
     /// descartar, limpiar o vaciar. Las dos últimas no llevan id.

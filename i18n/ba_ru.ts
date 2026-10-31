@@ -1355,9 +1355,143 @@
 <context>
     <name>AlarmasViewModel</name>
     <message>
-        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+85" />
+        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+249" />
         <source>El aviso por «%1» no salió: %2</source>
         <translation>Уведомление через «%1» не отправлено: %2</translation>
+    </message>
+</context>
+<context>
+    <name>AppViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+84" />
+        <source>Evento «%1» creado: reiniciando para abrirlo</source>
+        <translation>Мероприятие «%1» создано: перезапуск, чтобы открыть его</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Abriendo el evento «%1»: la app se reinicia</source>
+        <translation>Открытие мероприятия «%1»: приложение перезапускается</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>No se pudo crear «%1»: %2</source>
+        <translation>Не удалось создать «%1»: %2</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
+        <translation>Мероприятие «%1» готово: откройте его через «Открыть другое…»</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
+        <translation>Конфигурация «%1» была повреждена: загружена предыдущая версия (повреждённая сохранена как .corrupto).</translation>
+    </message>
+    <message>
+        <location line="+119" />
+        <source>no se cambia en vivo</source>
+        <translation>не меняется в прямом эфире</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Estás AL AIRE y grabando</source>
+        <translation>Вы В ЭФИРЕ, и идёт запись</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <location line="+15" />
+        <source>Estás AL AIRE</source>
+        <translation>Вы В ЭФИРЕ</translation>
+    </message>
+    <message>
+        <location line="-14" />
+        <source>Estás grabando</source>
+        <translation>Идёт запись</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+3" />
+        <source>Hay %n persona conectada</source>
+        <translation><numerusform>Подключён %n человек</numerusform><numerusform>Подключены %n человека</numerusform><numerusform>Подключено %n человек</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>%1, y hay %n persona conectada</source>
+        <translation><numerusform>%1, и подключён %n человек</numerusform><numerusform>%1, и подключены %n человека</numerusform><numerusform>%1, и подключено %n человек</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>%1 y hay %n persona conectada</source>
+        <translation><numerusform>%1, и подключён %n человек</numerusform><numerusform>%1, и подключены %n человека</numerusform><numerusform>%1, и подключено %n человек</numerusform></translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>se corta la emisión</source>
+        <translation>эфир прервётся</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>se detiene la grabación</source>
+        <translation>запись остановится</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>esa persona queda afuera</source>
+        <translation>этот человек будет отключён</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>esas personas quedan afuera</source>
+        <translation>эти люди будут отключены</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1. Si cerrás, %2.</source>
+        <translation>%1. Если закрыть, %2.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Estás GRABANDO</source>
+        <translation>Идёт ЗАПИСЬ</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Hay gente conectada</source>
+        <translation>Есть подключённые люди</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>corta la emisión</source>
+        <translation>прерывает эфир</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>corta la grabación</source>
+        <translation>останавливает запись</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>la desconecta</source>
+        <translation>отключает его</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>desconecta a quienes están conectados</source>
+        <translation>отключает всех подключённых</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1: actualizar cierra la aplicación y %2.</source>
+        <translation>%1: обновление закрывает приложение и %2.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
+        <translation>%1: возврат к предыдущей версии закрывает приложение и %2.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1: %2 cierra la aplicación y %3.</source>
+        <translation>%1: %2 закрывает приложение и %3.</translation>
     </message>
 </context>
 <context>
@@ -1562,6 +1696,108 @@
         <location line="+44" />
         <source>Grillas de personas</source>
         <translation>Сетки людей</translation>
+    </message>
+</context>
+<context>
+    <name>AsambleaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+150" />
+        <source>Central DCN, banca %1: %2</source>
+        <translation>Центральный блок DCN, место %1: %2</translation>
+    </message>
+    <message>
+        <location line="+63" />
+        <location line="+8" />
+        <source>Central (debate): %1</source>
+        <translation>Центральный блок (дебаты): %1</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Central (fin del debate): %1</source>
+        <translation>Центральный блок (конец дебатов): %1</translation>
+    </message>
+    <message>
+        <location line="+76" />
+        <source>## Banca virtual</source>
+        <translation>## Виртуальное место</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>## Transcripción</source>
+        <translation>## Транскрипция</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Archivo</source>
+        <translation>Файл</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
+        <translation>Транскрипция автоматическая: в ней могут быть ошибки; официальной является стенограмма.</translation>
+    </message>
+    <message>
+        <location line="+94" />
+        <source>La sesión remota no está andando.</source>
+        <translation>Удалённое заседание не работает.</translation>
+    </message>
+    <message>
+        <location line="+57" />
+        <source>%1 (banca %2)</source>
+        <translation>%1 (место %2)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>%1: queda 1 minuto</source>
+        <translation>%1: осталась 1 минута</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>%1: se terminó su tiempo</source>
+        <translation>%1: время вышло</translation>
+    </message>
+    <message>
+        <location line="+188" />
+        <source>Punto %1: %2</source>
+        <translation>Пункт %1: %2</translation>
+    </message>
+    <message>
+        <location line="+20" />
+        <source>CON QUÓRUM</source>
+        <translation>КВОРУМ ЕСТЬ</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>SIN QUÓRUM</source>
+        <translation>НЕТ КВОРУМА</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 presentes de %2</source>
+        <translation>присутствуют %1 из %2</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>APROBADO</source>
+        <translation>ПРИНЯТО</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>RECHAZADO</source>
+        <translation>ОТКЛОНЕНО</translation>
+    </message>
+</context>
+<context>
+    <name>AsistenteViewModel</name>
+    <message>
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="+155" />
+        <source>Modo seguro</source>
+        <translation>Безопасный режим</translation>
+    </message>
+    <message>
+        <location line="+167" />
+        <source>Nombres del cuerpo: %1</source>
+        <translation>Имена состава: %1</translation>
     </message>
 </context>
 <context>
@@ -5794,7 +6030,7 @@ Compartí el enlace y el PIN (panel Acceso).</source>
         <translation>Удалить %1 из конференции?</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+16" />
         <source>Acceso directo por un servidor propio (WireGuard)</source>
         <translation>Прямой доступ через собственный сервер (WireGuard)</translation>
     </message>
@@ -6005,6 +6241,101 @@ El PIN anterior deja de servir para entrar.</source>
     </message>
 </context>
 <context>
+    <name>ControlViewModel</name>
+    <message>
+        <location filename="../src/app/ui/ControlViewModel.cpp" line="+96" />
+        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
+        <translation>«%1» (%2) запрашивает доступ к веб-управлению: одобрите в Службы → Веб-управление.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
+        <translation>«%1» (%2) запрашивает сопряжение как пульт управления с профилем «%3»: одобрите на странице «Пульт управления».</translation>
+    </message>
+    <message>
+        <location line="+147" />
+        <source>No se pudo emparejar.</source>
+        <translation>Не удалось выполнить сопряжение.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Control web (/control/)</source>
+        <translation>Веб-управление (/control/)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
+        <translation>Откройте это в браузере устройства (в локальной сети; код действует несколько минут и одноразовый). Затем одобрите здесь, в Службы → Веб-управление.</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <location line="+69" />
+        <source>Tablet emparejada.</source>
+        <translation>Планшет сопряжён.</translation>
+    </message>
+    <message>
+        <location line="-69" />
+        <location line="+69" />
+        <source>Emparejamiento rechazado.</source>
+        <translation>Сопряжение отклонено.</translation>
+    </message>
+    <message>
+        <location line="-24" />
+        <source>No disponible.</source>
+        <translation>Недоступно.</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>pide emparejarse</source>
+        <translation>запрашивает сопряжение</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>pide entrar al control web</source>
+        <translation>запрашивает доступ к веб-управлению</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Aparato emparejado.</source>
+        <translation>Устройство сопряжено.</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Pedido rechazado.</source>
+        <translation>Запрос отклонён.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>todo, o: escenas, audio</source>
+        <translation>всё или: сцены, аудио</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>quiere conectar un Satellite</source>
+        <translation>хочет подключить Satellite</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Ese pedido ya no está.</source>
+        <translation>Этого запроса больше нет.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Permitir</source>
+        <translation>Разрешить</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una IP pide conectar: permitila acá abajo</source>
+        <translation>IP запрашивает подключение: разрешите его ниже</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 IP piden conectar: permitilas acá abajo</source>
+        <translation>IP запрашивают подключение (%1): разрешите их ниже</translation>
+    </message>
+</context>
+<context>
     <name>ControlWeb</name>
     <message>
         <location filename="../src/app/control/ControlWeb.cpp" line="+397" />
@@ -6097,6 +6428,36 @@ El PIN anterior deja de servir para entrar.</source>
         <location line="-5" />
         <source>no pude escribir la lámina %1</source>
         <translation>не удалось записать слайд %1</translation>
+    </message>
+</context>
+<context>
+    <name>CuentasViewModel</name>
+    <message>
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+91" />
+        <location line="+6" />
+        <source>El escáner de red no está disponible.</source>
+        <translation>Сетевой сканер недоступен.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <location line="+14" />
+        <source>No escribiste ninguna clave.</source>
+        <translation>Вы не ввели ключ.</translation>
+    </message>
+    <message>
+        <location line="-9" />
+        <source>Los plugins no están disponibles.</source>
+        <translation>Плагины недоступны.</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>No se pudo leer %1.</source>
+        <translation>Не удалось прочитать %1.</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>Plataforma desconocida: %1.</source>
+        <translation>Неизвестная платформа: %1.</translation>
     </message>
 </context>
 <context>
@@ -7642,6 +8003,65 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>EmisionViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EmisionViewModel.cpp" line="+54" />
+        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
+        <translation>Внимание: на диске места на ~%1 ч записи</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Grabando en %1</source>
+        <translation>Запись в %1</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <location line="+10" />
+        <source>No se pudo grabar: %1</source>
+        <translation>Не удалось начать запись: %1</translation>
+    </message>
+    <message>
+        <location line="-2" />
+        <source>Grabando (con poco disco)</source>
+        <translation>Идёт запись (мало места на диске)</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
+        <translation>Трансляция на это назначение уже шла: ничего не изменилось</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Al aire</source>
+        <translation>В эфир</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>No se pudo transmitir: %1</source>
+        <translation>Не удалось начать трансляцию: %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Transmitiendo al destino nuevo</source>
+        <translation>Трансляция на новое назначение</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No se pudo cambiar de destino: %1</source>
+        <translation>Не удалось сменить назначение: %1</translation>
+    </message>
+    <message>
+        <location line="+63" />
+        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
+        <translation>У этого гостя ещё нет источника в программе.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Grabando «%1» aparte</source>
+        <translation>«%1» записывается отдельно</translation>
+    </message>
+</context>
+<context>
     <name>Emisor</name>
     <message>
         <location filename="../src/app/graficos/Emisor.cpp" line="+213" />
@@ -8338,6 +8758,67 @@ Se prende desde el Registro.</source>
         <location line="+10" />
         <source>Elegí un dispositivo de la lista para ponerle nombre, configurarlo, ver lo que se sabe de él y qué se le puede hacer.</source>
         <translation>Выберите устройство из списка, чтобы дать ему имя, настроить его, посмотреть, что о нём известно и что с ним можно сделать.</translation>
+    </message>
+</context>
+<context>
+    <name>EscenasViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EscenasViewModel.cpp" line="+96" />
+        <source>%1 (copia)</source>
+        <translation>%1 (копия)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 (copia %2)</source>
+        <translation>%1 (копия %2)</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Escena copiada: %1</source>
+        <translation>Сцена скопирована: %1</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Escena copiada, pero %1</source>
+        <translation>Сцена скопирована, но %1</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>«%1» protegida: no se puede borrar ni renombrar</source>
+        <translation>«%1» защищена: её нельзя удалить или переименовать</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>«%1» ya no está protegida</source>
+        <translation>«%1» больше не защищена</translation>
+    </message>
+    <message>
+        <location line="+118" />
+        <source>La repetición no llegó a escribirse.</source>
+        <translation>Повтор не успел записаться.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Repetición armada: dale TAKE.</source>
+        <translation>Повтор загружен: нажмите TAKE.</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>No hay una salida «%1».</source>
+        <translation>Нет выхода «%1».</translation>
+    </message>
+</context>
+<context>
+    <name>EscritorioViewModel</name>
+    <message>
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+118" />
+        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
+        <translation>Монитора «%1» нет: укажите его номер, имя или id.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>El monitor «%1» no está conectado.</source>
+        <translation>Монитор «%1» не подключён.</translation>
     </message>
 </context>
 <context>
@@ -9721,7 +10202,11 @@ Se prende desde el Registro.</source>
     <message numerus="yes">
         <location line="+68" />
         <source>El ensayo grabó los tiempos de %n paso(s): confirmalos para que queden como duraciones previstas</source>
-        <translation><numerusform>Репетиция записала время %n шага: подтвердите, чтобы оно стало плановой длительностью</numerusform><numerusform>Репетиция записала время %n шагов: подтвердите, чтобы оно стало плановой длительностью</numerusform><numerusform>Репетиция записала время %n шагов: подтвердите, чтобы оно стало плановой длительностью</numerusform></translation>
+        <translation>
+            <numerusform>Репетиция записала время %n шага: подтвердите, чтобы оно стало плановой длительностью</numerusform>
+            <numerusform>Репетиция записала время %n шагов: подтвердите, чтобы оно стало плановой длительностью</numerusform>
+            <numerusform>Репетиция записала время %n шагов: подтвердите, чтобы оно стало плановой длительностью</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+29" />
@@ -11579,6 +12064,21 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <source>Al aire</source>
         <translation>В эфир</translation>
     </message>
+    <message>
+        <location line="+26" />
+        <source>Gráfico nuevo</source>
+        <translation>Новая графика</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Se arma con capas y animaciones de un repertorio, sin escribir código.</source>
+        <translation>Собирается из слоёв и анимаций из набора, без написания кода.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>QML a mano. Mirá docs/GRAFICOS.md antes: hay cuatro o cinco trampas que cuestan tiempo.</source>
+        <translation>QML вручную. Сначала прочитайте docs/GRAFICOS.md: там четыре-пять ловушек, на которые уходит время.</translation>
+    </message>
 </context>
 <context>
     <name>GuestsContent</name>
@@ -11748,7 +12248,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>запас %1 % (%2)</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+94" />
         <source>Térmica: %1</source>
         <translation>Температура: %1</translation>
     </message>
@@ -12603,6 +13103,60 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     </message>
 </context>
 <context>
+    <name>ImagenViewModel</name>
+    <message>
+        <location filename="../src/app/ui/ImagenViewModel.cpp" line="+79" />
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3): переведено в экономичный режим</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3)</translation>
+    </message>
+    <message>
+        <location line="+69" />
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation>место %1 конференции пустое (показывается заставка)</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+5" />
+        <source>el motor no está andando</source>
+        <translation>движок не работает</translation>
+    </message>
+    <message>
+        <location line="+70" />
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation>Диск: осталось %1 ГБ, меньше часа записи</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation>Диск: хватит на ~%1 ч записи</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation>Не настроено назначение трансляции (сервер и ключ)</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation>У входа «%1» сейчас нет сигнала</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>tipo desconocido</source>
+        <translation>неизвестный тип</translation>
+    </message>
+    <message>
+        <location line="+48" />
+        <source>modo desconocido</source>
+        <translation>неизвестный режим</translation>
+    </message>
+</context>
+<context>
     <name>InputsPage</name>
     <message>
         <location filename="../src/app/qml/pages/InputsPage.qml" line="+46" />
@@ -12991,7 +13545,11 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+1" />
         <source>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</source>
-        <translation><numerusform>Проверка нашла %n серьёзную проблему. Посмотрите «Проверку» перед выходом.</numerusform><numerusform>Проверка нашла %n серьёзные проблемы. Посмотрите «Проверку» перед выходом.</numerusform><numerusform>Проверка нашла %n серьёзных проблем. Посмотрите «Проверку» перед выходом.</numerusform></translation>
+        <translation>
+            <numerusform>Проверка нашла %n серьёзную проблему. Посмотрите «Проверку» перед выходом.</numerusform>
+            <numerusform>Проверка нашла %n серьёзные проблемы. Посмотрите «Проверку» перед выходом.</numerusform>
+            <numerusform>Проверка нашла %n серьёзных проблем. Посмотрите «Проверку» перед выходом.</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+1" />
@@ -13217,7 +13775,11 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+21" />
         <source>El ensayo grabó %n paso(s): de %1 a %2 en total</source>
-        <translation><numerusform>Репетиция записала %n шаг: от %1 до %2 в сумме</numerusform><numerusform>Репетиция записала %n шага: от %1 до %2 в сумме</numerusform><numerusform>Репетиция записала %n шагов: от %1 до %2 в сумме</numerusform></translation>
+        <translation>
+            <numerusform>Репетиция записала %n шаг: от %1 до %2 в сумме</numerusform>
+            <numerusform>Репетиция записала %n шага: от %1 до %2 в сумме</numerusform>
+            <numerusform>Репетиция записала %n шагов: от %1 до %2 в сумме</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+24" />
@@ -13280,7 +13842,11 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+1" />
         <source>Se suman %n paso(s) al final de la línea.</source>
-        <translation><numerusform>В конец шкалы добавляется %n шаг.</numerusform><numerusform>В конец шкалы добавляются %n шага.</numerusform><numerusform>В конец шкалы добавляются %n шагов.</numerusform></translation>
+        <translation>
+            <numerusform>В конец шкалы добавляется %n шаг.</numerusform>
+            <numerusform>В конец шкалы добавляются %n шага.</numerusform>
+            <numerusform>В конец шкалы добавляются %n шагов.</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -13325,7 +13891,11 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+8" />
         <source>%n cambio(s) sin confirmar</source>
-        <translation><numerusform>%n неподтверждённое изменение</numerusform><numerusform>%n неподтверждённых изменения</numerusform><numerusform>%n неподтверждённых изменений</numerusform></translation>
+        <translation>
+            <numerusform>%n неподтверждённое изменение</numerusform>
+            <numerusform>%n неподтверждённых изменения</numerusform>
+            <numerusform>%n неподтверждённых изменений</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+10" />
@@ -13433,7 +14003,11 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     <message numerus="yes">
         <location line="+7" />
         <source>%n cambio(s) sin confirmar</source>
-        <translation><numerusform>%n неподтверждённое изменение</numerusform><numerusform>%n неподтверждённых изменения</numerusform><numerusform>%n неподтверждённых изменений</numerusform></translation>
+        <translation>
+            <numerusform>%n неподтверждённое изменение</numerusform>
+            <numerusform>%n неподтверждённых изменения</numerusform>
+            <numerusform>%n неподтверждённых изменений</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+10" />
@@ -13721,7 +14295,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>ТЕСТОВЫЙ РЕЖИМ (--test): ассистент действует БЕЗ запроса одобрения, даже в эфире</translation>
     </message>
     <message>
-        <location line="+66" />
+        <location line="+81" />
         <source>CONFIRMAR</source>
         <comment>palabra que se escribe para entrar a una página protegida</comment>
         <translation>ПОДТВЕРДИТЬ</translation>
@@ -13745,12 +14319,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <location line="+3" />
         <location line="+36" />
         <location line="+25" />
-        <location line="+12" />
+        <location line="+11" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-71" />
+        <location line="-70" />
         <source>Entrar</source>
         <translation>Войти</translation>
     </message>
@@ -13785,7 +14359,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Остановить</translation>
     </message>
     <message>
-        <location line="+11" />
+        <location line="+10" />
         <source>Queda muy poco disco</source>
         <translation>На диске очень мало места</translation>
     </message>
@@ -13824,7 +14398,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Оставить как есть</translation>
     </message>
     <message>
-        <location line="+143" />
+        <location line="+148" />
         <source>«%1» no se puede abrir en una ventana</source>
         <translation>«%1» нельзя открыть в окне</translation>
     </message>
@@ -15100,6 +15674,24 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
     </message>
 </context>
 <context>
+    <name>MezclaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/MezclaViewModel.cpp" line="+88" />
+        <source>grabación del programa</source>
+        <translation>запись программы</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
+        <translation>Аудио: «%1» пропущен из-за медленной работы (проходит без обработки). Пересоберите его в «Аудио», когда всё будет в порядке.</translation>
+    </message>
+    <message>
+        <location line="+33" />
+        <source>ya se está midiendo</source>
+        <translation>уже измеряется</translation>
+    </message>
+</context>
+<context>
     <name>Mezclador</name>
     <message>
         <location filename="../src/app/audio/Mezclador.cpp" line="+204" />
@@ -15731,6 +16323,15 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location line="+8" />
         <source>Vúmetros</source>
         <translation>Индикаторы уровня</translation>
+    </message>
+</context>
+<context>
+    <name>MultiviewViewModel</name>
+    <message>
+        <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+75" />
+        <location line="+58" />
+        <source>Multiview %1</source>
+        <translation>Мультивью %1</translation>
     </message>
 </context>
 <context>
@@ -27018,7 +27619,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
 <context>
     <name>PublicoViewModel</name>
     <message>
-        <location filename="../src/app/ui/PublicoViewModel.cpp" line="+90" />
+        <location filename="../src/app/ui/PublicoViewModel.cpp" line="+128" />
         <source>No pude hablar con el servidor.</source>
         <translation>Не удалось связаться с сервером.</translation>
     </message>
@@ -27061,7 +27662,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>Планшет сцен</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="+7" />
         <source>QR para manejar las escenas</source>
         <translation>QR для управления сценами</translation>
     </message>
@@ -27620,12 +28221,12 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
     <message>
         <location line="+0" />
-        <location line="+441" />
+        <location line="+447" />
         <source>Cerrar</source>
         <translation>Закрыть</translation>
     </message>
     <message>
-        <location line="-441" />
+        <location line="-447" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
@@ -27691,12 +28292,12 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     </message>
     <message>
         <location line="+1" />
-        <location line="+450" />
+        <location line="+456" />
         <source>Listo</source>
         <translation>Готово</translation>
     </message>
     <message>
-        <location line="-450" />
+        <location line="-456" />
         <source>Editar lugares</source>
         <translation>Изменить расстановку</translation>
     </message>
@@ -27816,7 +28417,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>Имя не проверено (кнопка «Участники» вверху)</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+8" />
         <source>(nadie con esta banca)</source>
         <translation>(никого на этом месте)</translation>
     </message>
@@ -27826,7 +28427,7 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <translation>нет плана</translation>
     </message>
     <message>
-        <location line="+36" />
+        <location line="+38" />
         <source>PRESIDENCIA</source>
         <translation>ПРЕДСЕДАТЕЛЬ</translation>
     </message>
@@ -28912,6 +29513,79 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
     </message>
 </context>
 <context>
+    <name>SalaViewModel</name>
+    <message>
+        <location filename="../src/app/ui/SalaViewModel.cpp" line="+69" />
+        <source>esta versión no tiene %1</source>
+        <translation>в этой версии нет %1</translation>
+    </message>
+    <message>
+        <location line="+41" />
+        <source>no hay un invitado «%1» en la conferencia</source>
+        <translation>в конференции нет гостя «%1»</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>Sumada a la cola de preguntas</source>
+        <translation>Добавлено в очередь вопросов</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>No se pudo sumar la pregunta: %1</source>
+        <translation>Не удалось добавить вопрос: %1</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>El servidor MCP no está disponible.</source>
+        <translation>Сервер MCP недоступен.</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
+        <translation>У мероприятия есть свой адрес (%1.a.pinggy.link), но идёт трансляция или запись: сейчас он не меняется (это перезапускает конференцию). Измените его в Сценарий → Веб-страница, когда будет можно.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
+        <translation>Переключение публичного адреса на %1.a.pinggy.link (конференция перезапускается)…</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
+        <translation>Новый день: у конференции новый PIN (%1)</translation>
+    </message>
+    <message>
+        <location line="+67" />
+        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
+        <translation>Нет сохранённого способа подключения: настройте его в Настройки → Удалённый доступ.</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>espera en el lobby</source>
+        <translation>ждёт в зале ожидания</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>espera en el lobby · %1</source>
+        <translation>ждёт в зале ожидания · %1</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Admitir</source>
+        <translation>Допустить</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una persona espera en el lobby: admitila acá abajo</source>
+        <translation>Один человек ждёт в зале ожидания: допустите его ниже</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
+        <translation>В зале ожидания ждут %1 чел.: допустите их ниже</translation>
+    </message>
+</context>
+<context>
     <name>SalidasPage</name>
     <message>
         <location filename="../src/app/qml/pages/SalidasPage.qml" line="+61" />
@@ -28936,7 +29610,11 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
     <message numerus="yes">
         <location line="+6" />
         <source>Tiene %n destino(s) guardado(s): ¿qué pasa con ellos?</source>
-        <translation><numerusform>У него %n сохранённое назначение: что с ним сделать?</numerusform><numerusform>У него %n сохранённых назначения: что с ними сделать?</numerusform><numerusform>У него %n сохранённых назначений: что с ними сделать?</numerusform></translation>
+        <translation>
+            <numerusform>У него %n сохранённое назначение: что с ним сделать?</numerusform>
+            <numerusform>У него %n сохранённых назначения: что с ними сделать?</numerusform>
+            <numerusform>У него %n сохранённых назначений: что с ними сделать?</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+13" />
@@ -29135,6 +29813,54 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <location line="+4" />
         <source>Borrar salida</source>
         <translation>Удалить выход</translation>
+    </message>
+</context>
+<context>
+    <name>SalidasViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+327" />
+        <source>Ya hay %n salida, que es el tope.</source>
+        <translation><numerusform>Уже есть %n выход — это лимит.</numerusform><numerusform>Уже есть %n выхода — это лимит.</numerusform><numerusform>Уже есть %n выходов — это лимит.</numerusform></translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La máquina está al límite (%1): otra salida es otro programa, otro preview y otra mezcla.</source>
+        <translation>Машина на пределе (%1): ещё один выход — это ещё одна программа, превью и микс.</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La máquina está justa (%1): mirá la tarjeta Sistema antes de sumar otra.</source>
+        <translation>Ресурсов машины впритык (%1): посмотрите карточку «Система», прежде чем добавлять ещё.</translation>
+    </message>
+    <message>
+        <location line="+64" />
+        <source>No hay una salida «%1».</source>
+        <translation>Нет выхода «%1».</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <source>Volvemos enseguida</source>
+        <translation>Скоро вернёмся</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuarto intermedio</source>
+        <translation>Перерыв</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Minuto de silencio</source>
+        <translation>Минута молчания</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sesión suspendida</source>
+        <translation>Заседание приостановлено</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Dificultades técnicas</source>
+        <translation>Технические неполадки</translation>
     </message>
 </context>
 <context>
@@ -31791,7 +32517,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+244" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+103" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (не удалось: %2)</translation>
     </message>
@@ -31806,159 +32532,22 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Теперь у каждого мероприятия своя папка со всем содержимым. Выделены: %1 (откройте их через «Открыть другое…» на странице мероприятия)</translation>
     </message>
     <message>
-        <location line="+157" />
-        <source>esta versión no tiene %1</source>
-        <translation>в этой версии нет %1</translation>
-    </message>
-    <message>
-        <location line="+33" />
-        <source>El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.</source>
-        <translation>У мероприятия есть свой адрес (%1.a.pinggy.link), но идёт трансляция или запись: сейчас он не меняется (это перезапускает конференцию). Измените его в Сценарий → Веб-страница, когда будет можно.</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…</source>
-        <translation>Переключение публичного адреса на %1.a.pinggy.link (конференция перезапускается)…</translation>
-    </message>
-    <message>
-        <location line="+61" />
+        <location line="+208" />
         <source>La playlist sigue donde estaba antes del corte</source>
         <translation>Плейлист продолжается с того места, где был до сбоя</translation>
     </message>
     <message>
-        <location line="+65" />
+        <location line="+70" />
         <source>Un rótulo automático no salió: %1</source>
         <translation>Автоматический титр не вышел: %1</translation>
     </message>
     <message>
-        <location line="+247" />
-        <source>Evento «%1» creado: reiniciando para abrirlo</source>
-        <translation>Мероприятие «%1» создано: перезапуск, чтобы открыть его</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abriendo el evento «%1»: la app se reinicia</source>
-        <translation>Открытие мероприятия «%1»: приложение перезапускается</translation>
-    </message>
-    <message>
-        <location line="+8" />
-        <source>No se pudo crear «%1»: %2</source>
-        <translation>Не удалось создать «%1»: %2</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Evento «%1» listo: abrilo con «Abrir otro…»</source>
-        <translation>Мероприятие «%1» готово: откройте его через «Открыть другое…»</translation>
-    </message>
-    <message>
-        <location line="+267" />
-        <source>La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).</source>
-        <translation>Конфигурация «%1» была повреждена: загружена предыдущая версия (повреждённая сохранена как .corrupto).</translation>
-    </message>
-    <message>
-        <location line="+97" />
-        <source>Modo seguro</source>
-        <translation>Безопасный режим</translation>
-    </message>
-    <message>
-        <location line="+203" />
-        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
-        <translation>место %1 конференции пустое (показывается заставка)</translation>
-    </message>
-    <message>
-        <location line="+51" />
-        <location line="+5" />
-        <source>el motor no está andando</source>
-        <translation>движок не работает</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Central DCN, banca %1: %2</source>
-        <translation>Центральный блок DCN, место %1: %2</translation>
-    </message>
-    <message>
-        <location line="+64" />
-        <location line="+8" />
-        <source>Central (debate): %1</source>
-        <translation>Центральный блок (дебаты): %1</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Central (fin del debate): %1</source>
-        <translation>Центральный блок (конец дебатов): %1</translation>
-    </message>
-    <message>
-        <location line="+81" />
-        <source>## Banca virtual</source>
-        <translation>## Виртуальное место</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>## Transcripción</source>
-        <translation>## Транскрипция</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Archivo</source>
-        <translation>Файл</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.</source>
-        <translation>Транскрипция автоматическая: в ней могут быть ошибки; официальной является стенограмма.</translation>
-    </message>
-    <message>
-        <location line="+39" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
-        <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3): переведено в экономичный режим</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
-        <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3)</translation>
-    </message>
-    <message>
-        <location line="+15" />
-        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
-        <translation>Диск: осталось %1 ГБ, меньше часа записи</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Disco: alcanza para ~%1 h de grabación</source>
-        <translation>Диск: хватит на ~%1 ч записи</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No hay destino de transmisión configurado (servidor y clave)</source>
-        <translation>Не настроено назначение трансляции (сервер и ключ)</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>La entrada «%1» no tiene señal ahora</source>
-        <translation>У входа «%1» сейчас нет сигнала</translation>
-    </message>
-    <message>
-        <location line="+45" />
+        <location line="+195" />
         <source>no contestó</source>
         <translation>не ответил</translation>
     </message>
     <message>
-        <location line="+228" />
-        <source>«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.</source>
-        <translation>«%1» (%2) запрашивает доступ к веб-управлению: одобрите в Службы → Веб-управление.</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página Botonera.</source>
-        <translation>«%1» (%2) запрашивает сопряжение как пульт управления с профилем «%3»: одобрите на странице «Пульт управления».</translation>
-    </message>
-    <message>
-        <location line="+137" />
-        <source>grabación del programa</source>
-        <translation>запись программы</translation>
-    </message>
-    <message>
-        <location line="+15" />
+        <location line="+75" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Конференция перезапущена с новыми настройками.</translation>
     </message>
@@ -31968,135 +32557,17 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Конференция не перезапустилась (%1): нажмите «Перезапустить конференцию» в «Настройках» или на странице «Конференция».</translation>
     </message>
     <message>
-        <location line="+30" />
-        <location line="+14" />
-        <source>No disponible.</source>
-        <translation>Недоступно.</translation>
-    </message>
-    <message>
-        <location line="-10" />
-        <source>No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.</source>
-        <translation>Нет сохранённого способа подключения: настройте его в Настройки → Удалённый доступ.</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>pide emparejarse</source>
-        <translation>запрашивает сопряжение</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <location line="+1939" />
-        <source>Tablet emparejada.</source>
-        <translation>Планшет сопряжён.</translation>
-    </message>
-    <message>
-        <location line="-1939" />
-        <location line="+1939" />
-        <source>Emparejamiento rechazado.</source>
-        <translation>Сопряжение отклонено.</translation>
-    </message>
-    <message>
-        <location line="-1919" />
-        <source>pide entrar al control web</source>
-        <translation>запрашивает доступ к веб-управлению</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Aparato emparejado.</source>
-        <translation>Устройство сопряжено.</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Pedido rechazado.</source>
-        <translation>Запрос отклонён.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>todo, o: escenas, audio</source>
-        <translation>всё или: сцены, аудио</translation>
-    </message>
-    <message>
-        <location line="+9" />
-        <source>quiere conectar un Satellite</source>
-        <translation>хочет подключить Satellite</translation>
-    </message>
-    <message>
-        <location line="+6" />
-        <source>Ese pedido ya no está.</source>
-        <translation>Этого запроса больше нет.</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Permitir</source>
-        <translation>Разрешить</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una IP pide conectar: permitila acá abajo</source>
-        <translation>IP запрашивает подключение: разрешите его ниже</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 IP piden conectar: permitilas acá abajo</source>
-        <translation>IP запрашивают подключение (%1): разрешите их ниже</translation>
-    </message>
-    <message>
-        <location line="+16" />
-        <source>espera en el lobby</source>
-        <translation>ждёт в зале ожидания</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>espera en el lobby · %1</source>
-        <translation>ждёт в зале ожидания · %1</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Admitir</source>
-        <translation>Допустить</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Una persona espera en el lobby: admitila acá abajo</source>
-        <translation>Один человек ждёт в зале ожидания: допустите его ниже</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 personas esperan en el lobby: admitilas acá abajo</source>
-        <translation>В зале ожидания ждут %1 чел.: допустите их ниже</translation>
-    </message>
-    <message>
         <location filename="../src/app/ui/BitacoraEvento.cpp" line="+278" />
         <source>El disco de los eventos está al %1 % (quedan %2 GB)</source>
         <translation>Диск мероприятий заполнен на %1 % (осталось %2 ГБ)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+146" />
-        <source>%1 (banca %2)</source>
-        <translation>%1 (место %2)</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>%1: queda 1 minuto</source>
-        <translation>%1: осталась 1 минута</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>%1: se terminó su tiempo</source>
-        <translation>%1: время вышло</translation>
-    </message>
-    <message>
-        <location line="+45" />
-        <source>Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.</source>
-        <translation>Аудио: «%1» пропущен из-за медленной работы (проходит без обработки). Пересоберите его в «Аудио», когда всё будет в порядке.</translation>
-    </message>
-    <message>
-        <location line="+4" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+163" />
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>Интерфейс завис на %1 с; эфир продолжался</translation>
     </message>
     <message>
-        <location line="+44" />
+        <location line="+20" />
         <source>Grabación detenida</source>
         <translation>Запись остановлена</translation>
     </message>
@@ -32142,155 +32613,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Трансляция восстановлена</translation>
     </message>
     <message>
-        <location line="+142" />
-        <location line="+7" />
-        <source>El escáner de red no está disponible.</source>
-        <translation>Сетевой сканер недоступен.</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <location line="+13" />
-        <source>No escribiste ninguna clave.</source>
-        <translation>Вы не ввели ключ.</translation>
-    </message>
-    <message>
-        <location line="-9" />
-        <source>Los plugins no están disponibles.</source>
-        <translation>Плагины недоступны.</translation>
-    </message>
-    <message>
-        <location line="+22" />
-        <source>No se pudo leer %1.</source>
-        <translation>Не удалось прочитать %1.</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>Plataforma desconocida: %1.</source>
-        <translation>Неизвестная платформа: %1.</translation>
-    </message>
-    <message>
-        <location line="+18" />
-        <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
-        <translation>Монитора «%1» нет: укажите его номер, имя или id.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>El monitor «%1» no está conectado.</source>
-        <translation>Монитор «%1» не подключён.</translation>
-    </message>
-    <message>
-        <location line="+157" />
-        <source>Punto %1: %2</source>
-        <translation>Пункт %1: %2</translation>
-    </message>
-    <message>
-        <location line="+37" />
-        <source>CON QUÓRUM</source>
-        <translation>КВОРУМ ЕСТЬ</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>SIN QUÓRUM</source>
-        <translation>НЕТ КВОРУМА</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1 presentes de %2</source>
-        <translation>присутствуют %1 из %2</translation>
-    </message>
-    <message>
-        <location line="+14" />
-        <source>APROBADO</source>
-        <translation>ПРИНЯТО</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>RECHAZADO</source>
-        <translation>ОТКЛОНЕНО</translation>
-    </message>
-    <message>
-        <location line="+32" />
-        <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
-        <translation>Внимание: на диске места на ~%1 ч записи</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Grabando en %1</source>
-        <translation>Запись в %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <location line="+10" />
-        <source>No se pudo grabar: %1</source>
-        <translation>Не удалось начать запись: %1</translation>
-    </message>
-    <message>
-        <location line="-2" />
-        <source>Grabando (con poco disco)</source>
-        <translation>Идёт запись (мало места на диске)</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Ya estabas transmitiendo a ese destino: no cambió nada</source>
-        <translation>Трансляция на это назначение уже шла: ничего не изменилось</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Al aire</source>
-        <translation>В эфире</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>No se pudo transmitir: %1</source>
-        <translation>Не удалось начать трансляцию: %1</translation>
-    </message>
-    <message>
-        <location line="+7" />
-        <source>Transmitiendo al destino nuevo</source>
-        <translation>Трансляция на новое назначение</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No se pudo cambiar de destino: %1</source>
-        <translation>Не удалось сменить назначение: %1</translation>
-    </message>
-    <message>
-        <location line="+142" />
-        <source>%1 (copia)</source>
-        <translation>%1 (копия)</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1 (copia %2)</source>
-        <translation>%1 (копия %2)</translation>
-    </message>
-    <message>
-        <location line="+11" />
-        <source>Escena copiada: %1</source>
-        <translation>Сцена скопирована: %1</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Escena copiada, pero %1</source>
-        <translation>Сцена скопирована, но %1</translation>
-    </message>
-    <message>
-        <location line="+13" />
-        <source>«%1» protegida: no se puede borrar ni renombrar</source>
-        <translation>«%1» защищена: её нельзя удалить или переименовать</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>«%1» ya no está protegida</source>
-        <translation>«%1» больше не защищена</translation>
-    </message>
-    <message>
-        <location line="+48" />
-        <source>El servidor MCP no está disponible.</source>
-        <translation>Сервер MCP недоступен.</translation>
-    </message>
-    <message>
-        <location line="+31" />
+        <location line="+258" />
         <source>Guardado</source>
         <translation>Сохранено</translation>
     </message>
@@ -32299,260 +32622,10 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <source>No se pudo guardar: %1</source>
         <translation>Не удалось сохранить: %1</translation>
     </message>
-    <message numerus="yes">
-        <location line="+203" />
-        <source>Ya hay %n salida, que es el tope.</source>
-        <translation><numerusform>Уже есть %n выход — это лимит.</numerusform><numerusform>Уже есть %n выхода — это лимит.</numerusform><numerusform>Уже есть %n выходов — это лимит.</numerusform></translation>
-    </message>
     <message>
-        <location line="+4" />
-        <source>La máquina está al límite (%1): otra salida es otro programa, otro preview y otra mezcla.</source>
-        <translation>Машина на пределе (%1): ещё один выход — это ещё одна программа, превью и микс.</translation>
-    </message>
-    <message>
-        <location line="+3" />
-        <source>La máquina está justa (%1): mirá la tarjeta Sistema antes de sumar otra.</source>
-        <translation>Ресурсов машины впритык (%1): посмотрите карточку «Система», прежде чем добавлять ещё.</translation>
-    </message>
-    <message>
-        <location line="+31" />
-        <location line="+814" />
-        <source>No hay una salida «%1».</source>
-        <translation>Нет выхода «%1».</translation>
-    </message>
-    <message>
-        <location line="-717" />
-        <source>Volvemos enseguida</source>
-        <translation>Скоро вернёмся</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Cuarto intermedio</source>
-        <translation>Перерыв</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Minuto de silencio</source>
-        <translation>Минута молчания</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Sesión suspendida</source>
-        <translation>Заседание приостановлено</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Dificultades técnicas</source>
-        <translation>Технические неполадки</translation>
-    </message>
-    <message>
-        <location line="-1339" />
+        <location line="-408" />
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Восстановлено то, что было в эфире до сбоя (заставка или чёрный)</translation>
-    </message>
-    <message>
-        <location line="+1356" />
-        <source>no hay un invitado «%1» en la conferencia</source>
-        <translation>в конференции нет гостя «%1»</translation>
-    </message>
-    <message>
-        <location line="+23" />
-        <source>Sumada a la cola de preguntas</source>
-        <translation>Добавлено в очередь вопросов</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>No se pudo sumar la pregunta: %1</source>
-        <translation>Не удалось добавить вопрос: %1</translation>
-    </message>
-    <message>
-        <location line="+71" />
-        <source>Nombres del cuerpo: %1</source>
-        <translation>Имена состава: %1</translation>
-    </message>
-    <message>
-        <location line="+29" />
-        <source>Día nuevo: la conferencia tiene PIN nuevo (%1)</source>
-        <translation>Новый день: у конференции новый PIN (%1)</translation>
-    </message>
-    <message>
-        <location line="+223" />
-        <source>No se pudo emparejar.</source>
-        <translation>Не удалось выполнить сопряжение.</translation>
-    </message>
-    <message>
-        <location line="+4" />
-        <source>Control web (/control/)</source>
-        <translation>Веб-управление (/control/)</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>Abrilo en el navegador del aparato (de la red local; el código vale unos minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.</source>
-        <translation>Откройте это в браузере устройства (в локальной сети; код действует несколько минут и одноразовый). Затем одобрите здесь, в Службы → Веб-управление.</translation>
-    </message>
-    <message>
-        <location line="+44" />
-        <source>La sesión remota no está andando.</source>
-        <translation>Удалённое заседание не запущено.</translation>
-    </message>
-    <message>
-        <location line="+69" />
-        <source>Ese invitado no tiene una fuente en el programa todavía.</source>
-        <translation>У этого гостя ещё нет источника в программе.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Grabando «%1» aparte</source>
-        <translation>«%1» записывается отдельно</translation>
-    </message>
-    <message>
-        <location line="+97" />
-        <source>ya se está midiendo</source>
-        <translation>уже измеряется</translation>
-    </message>
-    <message>
-        <location line="+27" />
-        <source>tipo desconocido</source>
-        <translation>неизвестный тип</translation>
-    </message>
-    <message>
-        <location line="+50" />
-        <source>modo desconocido</source>
-        <translation>неизвестный режим</translation>
-    </message>
-    <message>
-        <location line="+21" />
-        <source>La repetición no llegó a escribirse.</source>
-        <translation>Повтор не успел записаться.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Repetición armada: dale TAKE.</source>
-        <translation>Повтор загружен: нажмите TAKE.</translation>
-    </message>
-    <message>
-        <location line="+133" />
-        <source>no se cambia en vivo</source>
-        <translation>нельзя менять в эфире</translation>
-    </message>
-    <message>
-        <location line="+35" />
-        <source>Estás AL AIRE y grabando</source>
-        <translation>Вы В ЭФИРЕ, и идёт запись</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <location line="+15" />
-        <source>Estás AL AIRE</source>
-        <translation>Вы В ЭФИРЕ</translation>
-    </message>
-    <message>
-        <location line="-14" />
-        <source>Estás grabando</source>
-        <translation>Идёт запись</translation>
-    </message>
-    <message numerus="yes">
-        <location line="+3" />
-        <source>Hay %n persona conectada</source>
-        <translation>
-            <numerusform>Подключён %n человек</numerusform>
-            <numerusform>Подключены %n человека</numerusform>
-            <numerusform>Подключено %n человек</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1" />
-        <source>%1, y hay %n persona conectada</source>
-        <translation>
-            <numerusform>%1, и подключён %n человек</numerusform>
-            <numerusform>%1, и подключены %n человека</numerusform>
-            <numerusform>%1, и подключено %n человек</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1" />
-        <source>%1 y hay %n persona conectada</source>
-        <translation>
-            <numerusform>%1, и подключён %n человек</numerusform>
-            <numerusform>%1, и подключены %n человека</numerusform>
-            <numerusform>%1, и подключено %n человек</numerusform>
-        </translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>se corta la emisión</source>
-        <translation>эфир прервётся</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>se detiene la grabación</source>
-        <translation>запись остановится</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>esa persona queda afuera</source>
-        <translation>этот человек будет отключён</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>esas personas quedan afuera</source>
-        <translation>эти люди будут отключены</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1. Si cerrás, %2.</source>
-        <translation>%1. Если закрыть, %2.</translation>
-    </message>
-    <message>
-        <location line="+5" />
-        <source>Estás GRABANDO</source>
-        <translation>Идёт ЗАПИСЬ</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>Hay gente conectada</source>
-        <translation>Есть подключённые люди</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>corta la emisión</source>
-        <translation>прерывает эфир</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>corta la grabación</source>
-        <translation>останавливает запись</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>la desconecta</source>
-        <translation>отключает его</translation>
-    </message>
-    <message>
-        <location line="+0" />
-        <source>desconecta a quienes están conectados</source>
-        <translation>отключает всех подключённых</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1: actualizar cierra la aplicación y %2.</source>
-        <translation>%1: обновление закрывает приложение и %2.</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>%1: volver a la versión anterior cierra la aplicación y %2.</source>
-        <translation>%1: возврат к предыдущей версии закрывает приложение и %2.</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>%1: %2 cierra la aplicación y %3.</source>
-        <translation>%1: %2 закрывает приложение и %3.</translation>
-    </message>
-    <message>
-        <location line="+165" />
-        <location line="+75" />
-        <source>Multiview %1</source>
-        <translation>Мультивью %1</translation>
     </message>
 </context>
 <context>
@@ -35367,12 +35440,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
     <message>
         <location line="+0" />
-        <location line="+1219" />
+        <location line="+1220" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-1183" />
+        <location line="-1184" />
         <source>Vista previa</source>
         <translation>Предпросмотр</translation>
     </message>
@@ -36121,7 +36194,7 @@ Escucha:
         <translation>Удалить карточку</translation>
     </message>
     <message>
-        <location line="+30" />
+        <location line="+31" />
         <source>Superresolución</source>
         <translation>Сверхразрешение</translation>
     </message>
@@ -42819,7 +42892,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-83" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4571" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-602" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -43139,7 +43212,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>безопасный режим: в этом запуске ничего не загружается с диска</translation>
     </message>
     <message>
-        <location line="+220" />
+        <location line="+174" />
         <source>playlist tras el corte: %1</source>
         <translation>плейлист после сбоя: %1</translation>
     </message>
@@ -43471,18 +43544,18 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>содержимое показывается, только если список пуст</translation>
     </message>
     <message>
-        <location line="+15" />
+        <location line="+18" />
         <source>Resultado de la sesión</source>
         <translation>Итоги заседания</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+23" />
         <source>falta el nombre de la plantilla</source>
         <translation>не указано название шаблона</translation>
     </message>
     <message>
         <location line="+18" />
-        <location line="+13" />
+        <location line="+12" />
         <source>no se pudo guardar la plantilla</source>
         <translation>не удалось сохранить шаблон</translation>
     </message>
@@ -43570,31 +43643,31 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1329" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-331" />
         <source>pendiente</source>
         <translation>ожидает</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>en tratamiento</source>
         <translation>рассматривается</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+1" />
         <source>votado</source>
         <translation>проголосовано</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>a comisión</source>
         <translation>передан в комиссию</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+1" />
         <source>retirado</source>
         <translation>снят</translation>
     </message>
@@ -43756,13 +43829,13 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+5" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-6" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-6" />
         <source>APROBADO</source>
         <translation>ПРИНЯТО</translation>
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+0" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="+0" />
         <source>RECHAZADO</source>
         <translation>ОТКЛОНЕНО</translation>
     </message>
@@ -44104,7 +44177,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>не участвует</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-7" />
+        <location filename="../src/app/ui/AsambleaViewModel.cpp" line="-7" />
         <source>Hay quórum</source>
         <translation>Кворум есть</translation>
     </message>
@@ -45077,12 +45150,12 @@ Datos (de %2): %3</source>
         <translation> Что я уже знаю: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-712" />
+        <location filename="../src/app/ui/AsistenteViewModel.cpp" line="-231" />
         <source>La app se reinició y ya está abierto el evento «%1». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.</source>
         <translation>Приложение перезапустилось, мероприятие «%1» уже открыто. Если вы были в середине работы, продолжайте с того места; если нет, ждите запроса оператора.</translation>
     </message>
     <message>
-        <location line="+92" />
+        <location line="+80" />
         <source>el invitado %1</source>
         <translation>гость %1</translation>
     </message>
@@ -45092,12 +45165,12 @@ Datos (de %2): %3</source>
         <translation>на ваш вопрос "%1": %2</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="+1" />
         <source>descarto tu pregunta "%1".</source>
         <translation>отклоняет ваш вопрос "%1".</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+2" />
         <source>le mando a %1: "%2"</source>
         <translation>отправляю %1: "%2"</translation>
     </message>
@@ -45117,7 +45190,7 @@ Datos (de %2): %3</source>
         <translation>закрыл форму камер %1 без сохранения.</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="+4" />
         <source>guardo usuario y clave de la camara %1. Siguiente paso: camara_ficha {"ip": "%1"}.</source>
         <translation>сохранил логин и пароль камеры %1. Следующий шаг: camara_ficha {"ip": "%1"}.</translation>
     </message>
@@ -45127,17 +45200,17 @@ Datos (de %2): %3</source>
         <translation>закрыл форму камеры %1 без сохранения.</translation>
     </message>
     <message>
-        <location line="+5" />
+        <location line="+4" />
         <source>guardo la credencial de %1. Siguiente paso: %1_login.</source>
         <translation>сохранил учётные данные %1. Следующий шаг: %1_login.</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+1" />
         <source>cerro el formulario de credenciales de %1 sin guardar.</source>
         <translation>закрыл форму учётных данных %1 без сохранения.</translation>
     </message>
     <message>
-        <location line="+3288" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="-46" />
         <source>las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican</source>
         <translation>страницы из списка требуют ввести CONFIRMAR с причиной; настройки, перезапускающие шлюз или программу, не применяются</translation>
     </message>
@@ -50221,7 +50294,7 @@ Datos (de %2): %3</source>
 <context>
     <name>estudio</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+28" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="-177" />
         <source>%1 y %2</source>
         <translation>%1 и %2</translation>
     </message>
@@ -51059,12 +51132,12 @@ Datos (de %2): %3</source>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-4320" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-215" />
         <source>cada evento a su carpeta: %1</source>
         <translation>каждое мероприятие в свою папку: %1</translation>
     </message>
     <message>
-        <location line="+586" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+52" />
         <source>[eventos] papelera: %1 con más de %2 días, borrados</source>
         <translation>[eventos] корзина: %1 старше %2 дней удалены</translation>
     </message>
@@ -53543,7 +53616,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+1571" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+636" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -56416,7 +56489,7 @@ Rutas con variables (%USERPROFILE%\Desktop en Windows; ~/Desktop o $HOME en macO
         <location filename="../src/app/escritorio/control_linux.cpp" line="+11" />
         <location line="+12" />
         <location filename="../src/app/escritorio/control_mac.mm" line="+21" />
-        <location filename="../src/app/mcp/McpUiTools.cpp" line="+417" />
+        <location filename="../src/app/mcp/McpUiTools.cpp" line="+418" />
         <source>Aviso mostrado.</source>
         <translation>Уведомление показано.</translation>
     </message>
@@ -83848,7 +83921,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>modo-vivo</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+2122" />
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+112" />
         <source>modo en vivo: se desbloqueó «%1» — motivo: %2</source>
         <translation>режим прямого эфира: «%1» разблокирована — причина: %2</translation>
     </message>

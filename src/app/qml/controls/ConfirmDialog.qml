@@ -89,11 +89,11 @@ Dialog {
         width: dlg.availableWidth
         spacing: 10
 
-        // En vivo (sale algo de verdad: Studio.modoVivo, no el guion corriendo sin
+        // En vivo (sale algo de verdad: Studio.app.modoVivo, no el guion corriendo sin
         // transmitir): no se bloquea nada -el operador sabe lo que hace- pero se le
         // recuerda donde esta parado antes de decidir.
         Rectangle {
-            visible: Studio.modoVivo
+            visible: Studio.app.modoVivo
             width: parent.width
             height: enVivoTxt.implicitHeight + 16
             radius: 6

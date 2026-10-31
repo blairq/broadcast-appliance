@@ -475,7 +475,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     json out{{"hash", EventoViewModel::hashActa(texto).toStdString()},
                              {"acta", texto.toStdString()},
                              {"votaciones", votaciones.size()},
-                             {"tiempos_palabra", vm.ordenDelDia().tiemposPalabra(vm.remotosPalabra())}};
+                             {"tiempos_palabra", vm.ordenDelDia().tiemposPalabra(vm.asamblea().remotosPalabra())}};
                     if (!archivo.isEmpty()) out["archivo"] = archivo.toStdString();
                     // Si B no contesto, el acta sale igual PERO se dice: un acta a
                     // la que le faltan las votaciones y no lo aclara es peor que

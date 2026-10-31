@@ -89,7 +89,7 @@ ApplicationWindow {
     property int paginaPermitida: 0
     onPageChanged: {
         const id = Studio.riel.idDePagina(page)
-        if (Studio.paginaBloqueada(id)) {
+        if (Studio.app.paginaBloqueada(id)) {
             desbloqueo.pagina = page
             desbloqueo.idPagina = id
             page = paginaPermitida
@@ -126,7 +126,7 @@ ApplicationWindow {
                     compact: true; text: qsTr("Entrar"); active: true
                     enabled: confirmarF.text.trim().toUpperCase() === desbloqueo.palabra.toUpperCase() && motivoF.text.trim().length >= 3
                     onClicked: {
-                        Studio.desbloquearPagina(desbloqueo.idPagina, motivoF.text.trim())
+                        Studio.app.desbloquearPagina(desbloqueo.idPagina, motivoF.text.trim())
                         desbloqueo.close()
                         win.page = desbloqueo.pagina
                     }
@@ -154,7 +154,7 @@ ApplicationWindow {
         if (quitting) return
         confirm({
             title: qsTr("¿Cerrar Broadcast Appliance?"),
-            text: Studio.impactoDeCerrar.hay ? Studio.avisoDeCerrar("")
+            text: Studio.app.impactoDeCerrar.hay ? Studio.app.avisoDeCerrar("")
                   : qsTr("Se cierran la conferencia, las salidas y los asistentes."),
             accept: qsTr("Cerrar"),
             reject: qsTr("Cancelar"),
@@ -171,7 +171,7 @@ ApplicationWindow {
     /// ejemplo los de un grafico) para no tener que armar el contexto cada uno.
     function pedirAlAsistente(texto) { barraIA.mandar(texto) }
     function openStreamDialog() {
-        if (Studio.streamServer && Studio.streamKeyAvailable) Studio.startStreaming("", "")
+        if (Studio.streamServer && Studio.streamKeyAvailable) Studio.emision.startStreaming("", "")
         else streamDlg.open()
     }
     function confirm(opts) { confirmDlg.ask(opts) }
@@ -183,19 +183,18 @@ ApplicationWindow {
             text: qsTr("La emisión en vivo se va a detener."),
             accept: qsTr("Cortar"),
             reject: qsTr("Cancelar"),
-            action: function() { Studio.stopStreaming() }
+            action: function() { Studio.emision.stopStreaming() }
         })
     }
 
     Connections {
-        target: Studio
-        function onNotify(message, level) { toasts.show(message, level) }
+        target: Studio.emision
         function onPedirConfirmarGrabacion(horas) {
             confirm({
                 title: qsTr("Queda muy poco disco"),
                 text: qsTr("Alcanza para ~%n minutos de grabación a este bitrate. ¿Grabar igual?", "", Math.round(horas * 60)),
                 accept: qsTr("Grabar igual"), reject: qsTr("Cancelar"),
-                action: function() { Studio.grabarIgual() }
+                action: function() { Studio.emision.grabarIgual() }
             })
         }
         // Ya al aire y se pidió otro destino: nunca se cambia sin preguntar.
@@ -204,9 +203,13 @@ ApplicationWindow {
                 title: qsTr("Ya estás transmitiendo"),
                 text: qsTr("Sale a %1. ¿Cambiar a %2? La transmisión se corta un instante.").arg(actual).arg(nuevoServer),
                 accept: qsTr("Cambiar de destino"), reject: qsTr("Seguir como está"),
-                action: function() { Studio.cambiarDestinoStream(nuevoServer, nuevoKey) }
+                action: function() { Studio.emision.cambiarDestinoStream(nuevoServer, nuevoKey) }
             })
         }
+    }
+    Connections {
+        target: Studio
+        function onNotify(message, level) { toasts.show(message, level) }
         // Cierre pedido por la app (launcher por el canal de control,
         // actualizacion, MCP): nunca se pregunta. Si la guardia llego a frenar
         // ese quit, se repite ya sin guardia.
@@ -417,10 +420,10 @@ ApplicationWindow {
         }
     }
 
-    // Los carteles que dicen cuál monitor es cuál (Studio.identificarPantallas).
+    // Los carteles que dicen cuál monitor es cuál (Studio.escritorio.identificarPantallas).
     IdentificarPantallas { id: identificar }
     Connections {
-        target: Studio
+        target: Studio.escritorio
         function onIdentificarPedido(ids) { identificar.mostrar(ids) }
     }
 
@@ -651,7 +654,7 @@ ApplicationWindow {
     // --- Volvimos de una caída: la causa y cuánto tardó el aire en volver -----------
     Rectangle {
         id: cartelCaida
-        readonly property var c: Studio.caidaReciente
+        readonly property var c: Studio.app.caidaReciente
         visible: !!(c && c.causa)
         anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 70 }
         width: Math.min(parent.width - 80, 720)
@@ -680,7 +683,7 @@ ApplicationWindow {
             }
             RowLayout {
                 Text { Layout.fillWidth: true; text: qsTr("El detalle queda en la página Registro."); color: Theme.textFaint; font.pixelSize: 11 }
-                GlassButton { compact: true; text: qsTr("Entendido"); onClicked: Studio.cerrarCartelCaida() }
+                GlassButton { compact: true; text: qsTr("Entendido"); onClicked: Studio.app.cerrarCartelCaida() }
             }
         }
     }
@@ -743,7 +746,7 @@ ApplicationWindow {
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: { srvField.text = Studio.streamServer; keyField.text = "" }
-        onAccepted: Studio.startStreaming(srvField.text, keyField.text)
+        onAccepted: Studio.emision.startStreaming(srvField.text, keyField.text)
         ColumnLayout {
             spacing: 10
             Label { text: qsTr("Servidor RTMP") }
@@ -757,26 +760,26 @@ ApplicationWindow {
     }
     ConfirmDialog { id: confirmDlg }
     // La app está por cerrarse para que el launcher la reabra (otro evento, actualización):
-    // el aviso con la cuenta regresiva, encima de todo y sin poder cerrarlo (Studio.reinicio).
+    // el aviso con la cuenta regresiva, encima de todo y sin poder cerrarlo (Studio.app.reinicio).
     Popup {
         id: reinicioDlg
         anchors.centerIn: parent
         width: Math.min(460, win.width - 32)
         modal: true
         closePolicy: Popup.NoAutoClose
-        visible: !!Studio.reinicio.aviso
+        visible: !!Studio.app.reinicio.aviso
         padding: 24
         background: Rectangle { color: Theme.panel; radius: 12; border.color: Theme.glassBorder }
         contentItem: Column {
             spacing: 12
             Text {
                 width: parent.width; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
-                text: Studio.reinicio.aviso || ""
+                text: Studio.app.reinicio.aviso || ""
                 color: Theme.text; font.pixelSize: 16
             }
             Text {
                 width: parent.width; horizontalAlignment: Text.AlignHCenter
-                text: Studio.reinicio.segundos > 0 ? Studio.reinicio.segundos : "…"
+                text: Studio.app.reinicio.segundos > 0 ? Studio.app.reinicio.segundos : "…"
                 color: Theme.accent; font.pixelSize: 48; font.bold: true
             }
             Text {

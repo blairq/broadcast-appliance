@@ -10,8 +10,9 @@
 //     (alarmasCambio): la vista se entera sola, venga el cambio de un disparo, del MCP o
 //     de un reconocimiento. Antes la franja y la tarjeta Sistema llamaban a un
 //     Q_INVOKABLE cada vez que algo les decía que releyeran.
-//   - Lo que el vigía lee de la interfaz, como foto (agent/EntradasAlarmas: la
-//     interfaz llama `refrescarFoto` en su reloj).
+//   - Lo que el vigía lee: de dónde sale cada entrada (las de la interfaz, como foto
+//     que la interfaz refresca en su reloj con `refrescarFoto`; las directas, seguras
+//     entre hilos, siguen con la interfaz trabada: agent/EntradasAlarmas).
 //   - Cada disparo: los notificadores desde el hilo del vigía (AvisoFueraDeUi, sale
 //     aunque la interfaz no ande) y, en la interfaz, el bus de eventos (control web),
 //     el aviso en pantalla y el sonido.
@@ -32,12 +33,21 @@
 #include "agent/AlertEngine.hpp"
 
 namespace ba::app {
+class AppRuntime;
 class AvisoFueraDeUi;
+class ChatOverlayRenderer;
+class ConferenceViewModel;
+class EnergiaAire;
+class RecursosViewModel;
+} // namespace ba::app
+namespace ba::app::video {
+class VideoGrafos;
 }
 
 namespace ba::app::agent {
 class AlarmaSonora;
 class EntradasAlarmas;
+class FlujosTexto;
 } // namespace ba::app::agent
 
 namespace ba::app {
@@ -51,10 +61,18 @@ class AlarmasViewModel : public QObject {
     /// El sonido de las alarmas (volumen, dispositivo, probar).
     Q_PROPERTY(QObject* sonido READ sonido CONSTANT)
    public:
-    /// `deLaInterfaz` y `directas`: ver agent/EntradasAlarmas. `datos`: la carpeta de
-    /// la configuración (Config/alertas.json y el sonido).
-    AlarmasViewModel(agent::AlertInputs deLaInterfaz, agent::AlertInputs directas, const std::filesystem::path& datos,
-                     QObject* parent = nullptr);
+    /// De dónde lee el vigía. Los que se arman después de las alarmas (o se van antes)
+    /// se piden cada vez.
+    struct Fuentes {
+        AppRuntime& rt;            ///< el motor, el disco, la persistencia; Config/alertas.json y el sonido
+        EnergiaAire& energia;      ///< la alarma «en batería»
+        ConferenceViewModel& sala; ///< la foto de la sala y su chat
+        ChatOverlayRenderer& chat; ///< el chat de las plataformas
+        std::function<RecursosViewModel*()> recursos; ///< lo lee el hilo del vigía
+        std::function<agent::FlujosTexto*()> flujos;  ///< las salidas de texto
+        std::function<video::VideoGrafos*()> video;   ///< la señal de cada entrada, la superresolución
+    };
+    explicit AlarmasViewModel(Fuentes f, QObject* parent = nullptr);
     ~AlarmasViewModel() override;
 
     /// El vigía (el MCP, los asistentes, el plano de control que lo adopta).
@@ -85,6 +103,10 @@ class AlarmasViewModel : public QObject {
     void releer();
     void enHiloDelVigia(const nlohmann::json& ev); ///< los notificadores
     void enLaInterfaz(const nlohmann::json& ev);   ///< bus, aviso, sonido
+    /// Las entradas que se leen en el hilo de la interfaz (van como foto).
+    static agent::AlertInputs deLaInterfaz(const Fuentes& f);
+    /// Las seguras entre hilos (el motor, la foto de las salidas, la persistencia, los recursos).
+    static agent::AlertInputs directas(const Fuentes& f);
 
     std::unique_ptr<agent::EntradasAlarmas> entradas_;
     std::unique_ptr<agent::AlertEngine> motor_;

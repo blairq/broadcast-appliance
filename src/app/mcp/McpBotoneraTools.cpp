@@ -819,7 +819,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Si el modo en vivo esta activo (transmitiendo o con el evento en vivo; opcionalmente grabando), "
                         "que paginas protege (piden escribir CONFIRMAR con un motivo) y cuales se desbloquearon.");
-        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.modoVivoEstado())); };
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.app().modoVivoEstado())); };
         core.addTool(std::move(t));
     }
     {
@@ -836,9 +836,9 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                            {"incluir_grabando", {{"type", "boolean"}}},
                            {"paginas", {{"type", "array"}, {"items", {{"type", "string"}}}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const std::string e = vm.setModoVivoAjustes(a);
+            const std::string e = vm.app().setModoVivoAjustes(a);
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult().data(vm.modoVivoEstado()));
+            done(ToolResult().data(vm.app().modoVivoEstado()));
         };
         core.addTool(std::move(t));
     }
@@ -855,8 +855,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                         "al volver, con cuanto tardo el aire en volver.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"n", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            json d{{"caidas", vm.caidas(a.value("n", 10))}};
-            const QVariantMap c = vm.caidaReciente();
+            json d{{"caidas", vm.app().caidas(a.value("n", 10))}};
+            const QVariantMap c = vm.app().caidaReciente();
             if (!c.isEmpty()) {
                 d["recien"] = {{"causa", c.value("causa").toString().toStdString()}, {"habia_aire", c.value("habia_aire").toBool()}};
                 if (c.contains("aire_vuelta_s")) d["recien"]["aire_vuelta_s"] = c.value("aire_vuelta_s").toDouble();
@@ -914,7 +914,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                         "el bus: aire/medios). Para avisar antes de que termine y armar lo que sigue.");
         t.run = [&vm](const json&, Done done) {
             json out = json::array();
-            for (const QVariant& v : vm.mediosAlAire()) {
+            for (const QVariant& v : vm.salidas().mediosAlAire()) {
                 const QVariantMap m = v.toMap();
                 out.push_back({{"fuente", m.value("fuente").toString().toStdString()},
                                {"restante_s", m.value("restante_s").toInt()},
@@ -937,8 +937,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"destino", {{"type", "string"}}}, {"minutos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 10}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            json d{{"destinos", vm.saludActual()}};
-            if (a.contains("destino")) d["serie"] = vm.saludSerie(a.value("destino", std::string()), a.value("minutos", 5));
+            json d{{"destinos", vm.emision().saludActual()}};
+            if (a.contains("destino")) d["serie"] = vm.emision().saludSerie(a.value("destino", std::string()), a.value("minutos", 5));
             done(ToolResult().data(d));
         };
         core.addTool(std::move(t));
@@ -1002,7 +1002,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             if (a.contains("activo")) b.setApiRemotaActiva(a.value("activo", false));
             done(ToolResult().data(json{{"activo", b.apiRemotaActiva()},
                                         {"accesos", b.accesosHttp()},
-                                        {"url", vm.urlApiRemota().toStdString()}}));
+                                        {"url", vm.control().urlApiRemota().toStdString()}}));
         };
         core.addTool(std::move(t));
     }

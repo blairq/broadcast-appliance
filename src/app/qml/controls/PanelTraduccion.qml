@@ -312,8 +312,8 @@ ColumnLayout {
         }
         CheckBox {
             text: qsTr("Rotular «Traducción automática» mientras sale una traducción (capa DSK 4)")
-            checked: Studio.rotuloTraduccionActivo()
-            onToggled: Studio.setRotuloTraduccion(checked)
+            checked: Studio.asistente.rotuloTraduccionActivo()
+            onToggled: Studio.asistente.setRotuloTraduccion(checked)
         }
     }
 
@@ -518,9 +518,9 @@ ColumnLayout {
         id: vocSec
         Layout.fillWidth: true
         spacing: 6
-        property var v: Studio.vocabularioUi()
+        property var v: Studio.asistente.vocabularioUi()
         property string grupo: "operador"
-        function refrescar() { v = Studio.vocabularioUi() }
+        function refrescar() { v = Studio.asistente.vocabularioUi() }
         readonly property var grupos: Object.keys((v && v.grupos) || {})
         RowLayout {
             Text {
@@ -532,7 +532,7 @@ ColumnLayout {
             }
             GlassButton {
                 compact: true; text: qsTr("Importar del Cuerpo")
-                onClicked: { Studio.vocabularioDelCuerpoUi(); vocSec.refrescar() }
+                onClicked: { Studio.asistente.vocabularioDelCuerpoUi(); vocSec.refrescar() }
             }
         }
         Text {
@@ -558,7 +558,7 @@ ColumnLayout {
                 readonly property bool on: !!(((vocSec.v.grupos || {})[vocSec.grupo] || {}).activo)
                 compact: true
                 text: (on ? qsTr("Apagar «%1»") : qsTr("Prender «%1»")).arg(vocSec.grupo)
-                onClicked: { Studio.vocabularioGrupoUi(vocSec.grupo, !on); vocSec.refrescar() }
+                onClicked: { Studio.asistente.vocabularioGrupoUi(vocSec.grupo, !on); vocSec.refrescar() }
             }
         }
         Flow {
@@ -569,7 +569,7 @@ ColumnLayout {
                     required property var modelData
                     compact: true
                     text: modelData.termino + ((modelData.variantes || []).length ? " ←" + modelData.variantes.join(", ") : "") + "  ✕"
-                    onClicked: { Studio.vocabularioQuitarUi(modelData.termino); vocSec.refrescar() }
+                    onClicked: { Studio.asistente.vocabularioQuitarUi(modelData.termino); vocSec.refrescar() }
                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sacar este término")
                 }
             }
@@ -581,7 +581,7 @@ ColumnLayout {
             GlassButton {
                 compact: true; text: qsTr("Agregar a %1").arg(vocSec.grupo)
                 onClicked: {
-                    const r = Studio.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
+                    const r = Studio.asistente.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
                     if (r !== "") Studio.notify(r, "error"); else { vocTerm.text = ""; vocVar.text = ""; vocSec.refrescar() }
                 }
             }
@@ -592,7 +592,7 @@ ColumnLayout {
             GlassButton {
                 compact: true; text: qsTr("Probar")
                 onClicked: {
-                    const r = Studio.vocabularioProbarUi(vocPrueba.text)
+                    const r = Studio.asistente.vocabularioProbarUi(vocPrueba.text)
                     vocRes.text = r.texto + ((r.reemplazos || []).length ? "   (" + r.reemplazos.map(x => x.original + " → " + x.reemplazo).join(", ") + ")" : "   " + qsTr("(sin cambios)"))
                 }
             }

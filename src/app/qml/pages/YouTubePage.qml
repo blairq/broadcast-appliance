@@ -77,7 +77,7 @@ Rectangle {
                     text: qsTr("Para que la app (y el asistente por MCP) pueda crear transmisiones en vivo y administrar tus videos, Google pide que cada instalación tenga su propia credencial. Se hace una sola vez, en unos 5 minutos:")
                 }
                 Repeater {
-                    model: Studio.accountGuide("youtube").steps
+                    model: Studio.cuentas.accountGuide("youtube").steps
                     delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true
@@ -158,7 +158,7 @@ Rectangle {
                             }
                             GlassButton {
                                 text: qsTr("Importar el JSON de Descargas")
-                                onClicked: saveError.text = Studio.saveAccountCredential("youtube", { "fromDownloads": true })
+                                onClicked: saveError.text = Studio.cuentas.saveAccountCredential("youtube", { "fromDownloads": true })
                                 ToolTip.visible: hovered; ToolTip.text: qsTr("Busca el client_secret_….json más nuevo que bajaste de Google (paso 5)")
                             }
                             Text { id: saveError; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
@@ -488,8 +488,8 @@ Rectangle {
                                 active: dest
                                 onClicked: {
                                     const k = "yt:" + msg.model.id
-                                    if (dest) { Studio.quitarDestacadoChatUi(k); dest = false }
-                                    else dest = Studio.destacarChatUi(k)
+                                    if (dest) { Studio.sala.quitarDestacadoChatUi(k); dest = false }
+                                    else dest = Studio.sala.destacarChatUi(k)
                                 }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Destacar para el chat en pantalla")
                             }
@@ -498,7 +498,7 @@ Rectangle {
                                 anchors { right: parent.right; top: parent.top; rightMargin: 40 }
                                 compact: true
                                 text: "?"
-                                onClicked: { const e = Studio.preguntaDesdeChatUi("yt:" + msg.model.id); if (e !== "") Studio.notify(e, "error") }
+                                onClicked: { const e = Studio.sala.preguntaDesdeChatUi("yt:" + msg.model.id); if (e !== "") Studio.notify(e, "error") }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sumar a la cola de preguntas")
                             }
                         }

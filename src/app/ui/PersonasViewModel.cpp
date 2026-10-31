@@ -998,7 +998,7 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
     // no preguntarle quién es. `marcarAtendido` evita además que el camino de
     // siempre la aborde con el cuestionario completo.
     conf->marcarAtendido(uid);
-    d_->vm.assistantIntake(uid, nombre, true);
+    d_->vm.sala().assistantIntake(uid, nombre, true);
     // SE AVISA SIEMPRE. Que alguien entre a la sala sin que nadie lo decida en
     // el momento está bien si estaba en la lista, pero el operador tiene que
     // enterarse en el acto: es gente que aparece en su sala.

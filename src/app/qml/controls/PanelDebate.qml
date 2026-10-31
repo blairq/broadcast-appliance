@@ -122,7 +122,7 @@ ColumnLayout {
         GlassButton { compact: true; text: "+30 s"; onClicked: pd.deb.sumarUi(30) }
         GlassButton { compact: true; text: "−30 s"; onClicked: pd.deb.sumarUi(-30) }
         Item { Layout.fillWidth: true }
-        GlassButton { text: qsTr("🔇 Silenciar a todos"); onClicked: Studio.silenciarTodos() }
+        GlassButton { text: qsTr("🔇 Silenciar a todos"); onClicked: Studio.asamblea.silenciarTodos() }
         GlassButton { text: qsTr("Terminar el debate"); activeColor: Theme.live; onClicked: pd.deb.terminarUi() }
     }
     Text {

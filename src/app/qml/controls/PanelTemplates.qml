@@ -23,11 +23,11 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 16
         Repeater {
-            model: Studio.temasWeb
+            model: Studio.control.temasWeb
             delegate: Panel {
                 id: tarjeta
                 required property var modelData
-                readonly property bool elegido: Studio.temaWeb === modelData.id
+                readonly property bool elegido: Studio.control.temaWeb === modelData.id
                 width: 300
                 padding: 14
                 implicitHeight: col.implicitHeight + 2 * padding
@@ -100,7 +100,7 @@ ColumnLayout {
                         text: tarjeta.elegido ? qsTr("Elegido") : qsTr("Usar este")
                         enabled: !tarjeta.elegido
                         active: tarjeta.elegido
-                        onClicked: Studio.temaWeb = tarjeta.modelData.id
+                        onClicked: Studio.control.temaWeb = tarjeta.modelData.id
                     }
                 }
             }

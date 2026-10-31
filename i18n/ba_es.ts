@@ -32,6 +32,33 @@
     </message>
 </context>
 <context>
+    <name>AppViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/AppViewModel.cpp" line="+250"/>
+        <source>Hay %n persona conectada</source>
+        <translation>
+            <numerusform>Hay %n persona conectada</numerusform>
+            <numerusform>Hay %n personas conectadas</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%1, y hay %n persona conectada</source>
+        <translation>
+            <numerusform>%1, y hay %n persona conectada</numerusform>
+            <numerusform>%1, y hay %n personas conectadas</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%1 y hay %n persona conectada</source>
+        <translation>
+            <numerusform>%1 y hay %n persona conectada</numerusform>
+            <numerusform>%1 y hay %n personas conectadas</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>AsambleaPage</name>
     <message numerus="yes">
         <location filename="../src/app/qml/pages/AsambleaPage.qml" line="+80"/>
@@ -510,7 +537,7 @@
 <context>
     <name>Main</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/Main.qml" line="+181"/>
+        <location filename="../src/app/qml/Main.qml" line="+195"/>
         <source>Alcanza para ~%n minutos de grabación a este bitrate. ¿Grabar igual?</source>
         <translation>
             <numerusform>Alcanza para ~%n minuto de grabación a este bitrate. ¿Grabar igual?</numerusform>
@@ -1082,6 +1109,17 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     </message>
 </context>
 <context>
+    <name>SalidasViewModel</name>
+    <message numerus="yes">
+        <location filename="../src/app/ui/SalidasViewModel.cpp" line="+327"/>
+        <source>Ya hay %n salida, que es el tope.</source>
+        <translation>
+            <numerusform>Ya hay %n salida, que es el tope.</numerusform>
+            <numerusform>Ya hay %n salidas, que es el tope.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>ScenesPage</name>
     <message numerus="yes">
         <location filename="../src/app/qml/pages/ScenesPage.qml" line="+572"/>
@@ -1170,41 +1208,6 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>
             <numerusform>y %n más esperando</numerusform>
             <numerusform>y %n más esperando</numerusform>
-        </translation>
-    </message>
-</context>
-<context>
-    <name>StudioViewModel</name>
-    <message numerus="yes">
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+3593"/>
-        <source>Ya hay %n salida, que es el tope.</source>
-        <translation>
-            <numerusform>Ya hay %n salida, que es el tope.</numerusform>
-            <numerusform>Ya hay %n salidas, que es el tope.</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+993"/>
-        <source>Hay %n persona conectada</source>
-        <translation>
-            <numerusform>Hay %n persona conectada</numerusform>
-            <numerusform>Hay %n personas conectadas</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1"/>
-        <source>%1, y hay %n persona conectada</source>
-        <translation>
-            <numerusform>%1, y hay %n persona conectada</numerusform>
-            <numerusform>%1, y hay %n personas conectadas</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location line="+1"/>
-        <source>%1 y hay %n persona conectada</source>
-        <translation>
-            <numerusform>%1 y hay %n persona conectada</numerusform>
-            <numerusform>%1 y hay %n personas conectadas</numerusform>
         </translation>
     </message>
 </context>

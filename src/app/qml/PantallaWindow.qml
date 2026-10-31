@@ -50,7 +50,7 @@ Window {
         w.height = w.pantalla.height
         // Donde el escritorio no deja ubicar ventanas (Wayland), lo único que
         // respeta es pantalla completa EN un monitor.
-        w.visibility = w.pantallaCompleta || !Studio.puedeUbicarVentanas ? Window.FullScreen : Window.Maximized
+        w.visibility = w.pantallaCompleta || !Studio.escritorio.puedeUbicarVentanas ? Window.FullScreen : Window.Maximized
     }
     onPantallaChanged: ubicar()
     onPantallaCompletaChanged: ubicar()

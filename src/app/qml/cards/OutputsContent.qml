@@ -58,9 +58,9 @@ Item {
             id: destinos
             Layout.fillWidth: true
             spacing: 3
-            property var lista: Studio.destinosUi()
-            function refrescar() { lista = Studio.destinosUi() }
-            Connections { target: Studio; function onDestinosChanged() { destinos.refrescar() } }
+            property var lista: Studio.emision.destinosUi()
+            function refrescar() { lista = Studio.emision.destinosUi() }
+            Connections { target: Studio.emision; function onDestinosChanged() { destinos.refrescar() } }
             Timer { interval: 2000; running: destinos.lista.some(d => d.activo); repeat: true; onTriggered: destinos.refrescar() }
             Repeater {
                 model: destinos.lista
@@ -77,21 +77,21 @@ Item {
                         compact: true; text: modelData.activo ? qsTr("Cortar") : qsTr("Iniciar")
                         active: modelData.activo; activeColor: Theme.live
                         onClicked: {
-                            if (!modelData.activo) { const e = Studio.iniciarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error"); return }
+                            if (!modelData.activo) { const e = Studio.emision.iniciarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error"); return }
                             const id = modelData.id, n = modelData.nombre
                             ApplicationWindow.window.confirm({ title: qsTr("¿Cortar «%1»?").arg(n), text: qsTr("Los demás destinos siguen."),
-                                                               accept: qsTr("Cortar"), reject: qsTr("Cancelar"), action: function() { Studio.detenerDestinoUi(id) } })
+                                                               accept: qsTr("Cortar"), reject: qsTr("Cancelar"), action: function() { Studio.emision.detenerDestinoUi(id) } })
                         }
                     }
                     GlassButton { compact: true; text: "✕"; visible: !modelData.activo
-                                  onClicked: { const e = Studio.borrarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error") } }
+                                  onClicked: { const e = Studio.emision.borrarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error") } }
                 }
             }
             RowLayout {
                 spacing: 6
                 GlassButton { compact: true; text: qsTr("+ Destino…"); onClicked: nuevoDestino.open() }
                 GlassButton { compact: true; visible: destinos.lista.length > 1; text: qsTr("Iniciar todos")
-                              onClicked: { const e = Studio.iniciarDestinoUi("todos"); if (e !== "") Studio.notify(e, "error") } }
+                              onClicked: { const e = Studio.emision.iniciarDestinoUi("todos"); if (e !== "") Studio.notify(e, "error") } }
             }
         }
         // El destino nuevo sale con el programa de la por omisión (los de las demás
@@ -100,7 +100,7 @@ Item {
         // Salud de cada destino que transmite: kbps (con su gráfica del último minuto),
         // cuadros perdidos, congestión y reconexiones.
         Repeater {
-            model: Studio.saludSalidas.filter(d => d.activo)
+            model: Studio.emision.saludSalidas.filter(d => d.activo)
             delegate: RowLayout {
                 required property var modelData
                 Layout.fillWidth: true
@@ -145,8 +145,8 @@ Item {
         RowLayout {
             id: isos
             Layout.fillWidth: true
-            property var lista: Studio.isosUi()
-            Timer { interval: 3000; running: isos.visible; repeat: true; triggeredOnStart: true; onTriggered: isos.lista = Studio.isosUi() }
+            property var lista: Studio.emision.isosUi()
+            Timer { interval: 3000; running: isos.visible; repeat: true; triggeredOnStart: true; onTriggered: isos.lista = Studio.emision.isosUi() }
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: isos.lista.length === 0 ? qsTr("ISO: ninguna entrada se graba aparte")
@@ -156,15 +156,15 @@ Item {
                 color: isos.lista.length > 0 ? Theme.live : Theme.textFaint
                 font.pixelSize: 10
             }
-            GlassButton { compact: true; text: qsTr("Todas"); onClicked: { const e = Studio.isoTodasUi(true); if (e !== "") Studio.notify(e, "warn"); isos.lista = Studio.isosUi() } }
-            GlassButton { compact: true; text: qsTr("Ninguna"); enabled: isos.lista.length > 0; onClicked: { Studio.isoTodasUi(false); isos.lista = Studio.isosUi() } }
+            GlassButton { compact: true; text: qsTr("Todas"); onClicked: { const e = Studio.emision.isoTodasUi(true); if (e !== "") Studio.notify(e, "warn"); isos.lista = Studio.emision.isosUi() } }
+            GlassButton { compact: true; text: qsTr("Ninguna"); enabled: isos.lista.length > 0; onClicked: { Studio.emision.isoTodasUi(false); isos.lista = Studio.emision.isosUi() } }
         }
         // Señal limpia: el programa sin DSK ni placa, a un destino guardado o a disco.
         RowLayout {
             id: limpia
             Layout.fillWidth: true
-            property var e: Studio.limpiaUi()
-            Timer { interval: 2000; running: limpia.visible; repeat: true; triggeredOnStart: true; onTriggered: limpia.e = Studio.limpiaUi() }
+            property var e: Studio.emision.limpiaUi()
+            Timer { interval: 2000; running: limpia.visible; repeat: true; triggeredOnStart: true; onTriggered: limpia.e = Studio.emision.limpiaUi() }
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: {
@@ -187,9 +187,9 @@ Item {
             GlassButton {
                 compact: true; text: limpia.e.activa ? qsTr("Cortar") : qsTr("Arrancar")
                 onClicked: {
-                    const x = Studio.limpiaActivarUi(!limpia.e.activa, limpia.e.activa ? "" : limpiaA.model[limpiaA.currentIndex].id)
+                    const x = Studio.emision.limpiaActivarUi(!limpia.e.activa, limpia.e.activa ? "" : limpiaA.model[limpiaA.currentIndex].id)
                     if (x !== "") Studio.notify(x, "error")
-                    limpia.e = Studio.limpiaUi()
+                    limpia.e = Studio.emision.limpiaUi()
                 }
             }
         }
@@ -197,8 +197,8 @@ Item {
         RowLayout {
             id: grab
             Layout.fillWidth: true
-            property var g: Studio.grabacionUi()
-            Timer { interval: 2000; running: grab.visible; repeat: true; triggeredOnStart: true; onTriggered: grab.g = Studio.grabacionUi() }
+            property var g: Studio.emision.grabacionUi()
+            Timer { interval: 2000; running: grab.visible; repeat: true; triggeredOnStart: true; onTriggered: grab.g = Studio.emision.grabacionUi() }
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: {
@@ -216,15 +216,15 @@ Item {
                 compact: true
                 visible: grab.g.replay && grab.g.replay.activa
                 text: qsTr("⟲ Repetir %1 s").arg(grab.g.replay ? grab.g.replay.segundos : 0)
-                onClicked: { const e = Studio.repetirUi(); if (e !== "") Studio.notify(e, "error") }
+                onClicked: { const e = Studio.escenas.repetirUi(); if (e !== "") Studio.notify(e, "error") }
             }
         }
         // El disco a este bitrate y el pase a MP4 al terminar.
         Text {
             id: disco
-            property var d: Studio.discoUi()
-            property var r: Studio.remuxUi()
-            Timer { interval: 5000; running: disco.visible; repeat: true; triggeredOnStart: true; onTriggered: { disco.d = Studio.discoUi(); disco.r = Studio.remuxUi() } }
+            property var d: Studio.emision.discoUi()
+            property var r: Studio.emision.remuxUi()
+            Timer { interval: 5000; running: disco.visible; repeat: true; triggeredOnStart: true; onTriggered: { disco.d = Studio.emision.discoUi(); disco.r = Studio.emision.remuxUi() } }
             Layout.fillWidth: true; elide: Text.ElideRight
             text: {
                 // Las horas son de todo lo que se graba (copia e ISO incluidas), en el disco que antes se llena.
@@ -249,7 +249,7 @@ Item {
             glyph: Studio.recording ? "■" : "●"
             // Grabar arranca directo; detener pide confirmacion (un clic cortaba el respaldo).
             onTriggered: {
-                if (!Studio.recording) { Studio.toggleRecording(); return }
+                if (!Studio.recording) { Studio.emision.toggleRecording(); return }
                 ApplicationWindow.window.confirm({
                     title: qsTr("¿Detener la grabación?"),
                     text: Studio.streaming ? qsTr("El archivo se cierra y lo que siga no queda grabado. La transmisión sigue al aire.")
@@ -257,7 +257,7 @@ Item {
                     accept: qsTr("Detener"),
                     reject: qsTr("Seguir grabando"),
                     // toggleRecording alterna: si ya se detuvo sola con el dialogo abierto, no volver a grabar.
-                    action: function() { if (Studio.recording) Studio.toggleRecording() }
+                    action: function() { if (Studio.recording) Studio.emision.toggleRecording() }
                 })
             }
         }

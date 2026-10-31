@@ -3,7 +3,7 @@
 // punto de ingest de respaldo de la plataforma (la misma clave: sale a los dos a la vez).
 // Lo usan la tarjeta «Salidas» (los de la por omisión) y la página Salidas (los de
 // cada salida: `salida`, su id; vacío = la por omisión). Guarda por
-// Studio.guardarDestinoUi: el modelo valida y avisa.
+// Studio.emision.guardarDestinoUi: el modelo valida y avisa.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -51,7 +51,7 @@ Popup {
                     if (dUrlResp.visible && dUrlResp.text !== "") d.url_respaldo = dUrlResp.text
                     if (dUrl.text.startsWith("srt://")) { d.modo = dModo.currentText; d.latencia_ms = dLat.value }
                     if (dlg.salida !== "") d.salida = dlg.salida
-                    const e = Studio.guardarDestinoUi(d)
+                    const e = Studio.emision.guardarDestinoUi(d)
                     if (e !== "") Studio.notify(e, "error"); else dlg.close()
                 }
             }

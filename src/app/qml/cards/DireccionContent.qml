@@ -29,7 +29,7 @@ Item {
     Keys.onPressed: (e) => {
         if ((e.key === Qt.Key_T || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) &&
             Studio.escenaArmada !== "" && !Studio.focoEnTexto()) {
-            Studio.take()
+            Studio.escenas.take()
             e.accepted = true
         }
     }
@@ -57,7 +57,7 @@ Item {
         FilaDsk { Layout.fillWidth: true }
         // --- El medio al aire: cuánto le queda (rojo en los últimos 10 s) ---------
         Repeater {
-            model: Studio.mediosAlAire
+            model: Studio.salidas.mediosAlAire
             delegate: RowLayout {
                 required property var modelData
                 Layout.fillWidth: true
@@ -142,13 +142,13 @@ Item {
             GlassButton {
                 text: qsTr("CUT")
                 enabled: Studio.escenaArmada !== ""
-                onClicked: Studio.takeCon("cut", 0)
+                onClicked: Studio.escenas.takeCon("cut", 0)
                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Corte seco a la armada (sin transición)")
             }
             GlassButton {
                 text: qsTr("AUTO"); active: true
                 enabled: Studio.escenaArmada !== ""
-                onClicked: Studio.take()
+                onClicked: Studio.escenas.take()
                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("TAKE con la transición (la de entrada de la escena o la global)")
             }
         }
@@ -162,20 +162,20 @@ Item {
                 id: tbar
                 Layout.fillWidth: true
                 from: 0; to: 1; value: 0
-                onMoved: Studio.tbar(value, false)
-                onPressedChanged: if (!pressed) { Studio.tbar(value, true); value = 0 }
+                onMoved: Studio.escenas.tbar(value, false)
+                onPressedChanged: if (!pressed) { Studio.escenas.tbar(value, true); value = 0 }
             }
             Text { text: qsTr("Entra con"); color: Theme.textDim; font.pixelSize: 11 }
             ComboBox {
                 id: entrada
                 implicitWidth: 120
-                readonly property var actual: Studio.escenaArmada !== "" ? Studio.transicionEntrada(Studio.escenaArmada) : ({})
+                readonly property var actual: Studio.escenaArmada !== "" ? Studio.escenas.transicionEntrada(Studio.escenaArmada) : ({})
                 model: [ { t: qsTr("la global"), v: "" }, { t: qsTr("corte"), v: "cut" }, { t: qsTr("fundido"), v: "fade" },
                          { t: qsTr("barrido"), v: "swipe" }, { t: qsTr("deslizar"), v: "slide" }, { t: qsTr("a color"), v: "fade_to_color" } ]
                 textRole: "t"
                 currentIndex: Math.max(0, model.findIndex(o => o.v === (actual.tipo || "")))
                 onActivated: (i) => {
-                    const e = Studio.setTransicionEntrada(Studio.escenaArmada, model[i].v, model[i].v === "cut" ? 0 : -1)
+                    const e = Studio.escenas.setTransicionEntrada(Studio.escenaArmada, model[i].v, model[i].v === "cut" ? 0 : -1)
                     if (e !== "") Studio.notify(e, "error")
                 }
                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La transición con la que entra la escena armada")
@@ -188,13 +188,13 @@ Item {
             spacing: 14
             // Los de la salida que maneja la interfaz (con una sola, la de siempre).
             StatusPill {
-                text: Studio.aireActiva.transmitiendo ? qsTr("AL AIRE · %1").arg(Studio.aireActiva.tiempoTransmision) : qsTr("fuera del aire")
-                dot: Studio.aireActiva.transmitiendo ? Theme.live : Theme.textFaint
-                pulse: !!Studio.aireActiva.transmitiendo
+                text: Studio.salidas.aire.transmitiendo ? qsTr("AL AIRE · %1").arg(Studio.salidas.aire.tiempoTransmision) : qsTr("fuera del aire")
+                dot: Studio.salidas.aire.transmitiendo ? Theme.live : Theme.textFaint
+                pulse: !!Studio.salidas.aire.transmitiendo
             }
             StatusPill {
-                visible: !!Studio.aireActiva.grabando
-                text: qsTr("REC · %1").arg(Studio.aireActiva.tiempoGrabacion)
+                visible: !!Studio.salidas.aire.grabando
+                text: qsTr("REC · %1").arg(Studio.salidas.aire.tiempoGrabacion)
                 dot: Theme.live; pulse: true
             }
             Item { Layout.fillWidth: true }

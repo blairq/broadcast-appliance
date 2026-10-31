@@ -52,7 +52,7 @@ Item {
     property bool volver: false
     function aMonitor(pantalla) {
         destino = pantalla
-        volver = completa || !Studio.puedeUbicarVentanas
+        volver = completa || !Studio.escritorio.puedeUbicarVentanas
         if (completa) {
             // Salir de pantalla completa tiene animación (Mac): mover recién después.
             ventana.visibility = Window.Windowed
@@ -111,7 +111,7 @@ Item {
                         // «eDP-1» no le dice nada a nadie hasta que se lo ve
                         // puesto en la pantalla que es.
                         text: qsTr("Identificar pantallas")
-                        onTriggered: Studio.identificarPantallas()
+                        onTriggered: Studio.escritorio.identificarPantallas()
                     }
                     MenuSeparator { id: sepMonitores }
                     // Los monitores de Salidas → Pantallas: en su orden físico y con
@@ -140,7 +140,7 @@ Item {
                     }
                     MenuItem {
                         enabled: false
-                        visible: !Studio.puedeUbicarVentanas
+                        visible: !Studio.escritorio.puedeUbicarVentanas
                         height: visible ? implicitHeight : 0
                         text: qsTr("(este escritorio solo deja mandarla a pantalla completa)")
                     }
