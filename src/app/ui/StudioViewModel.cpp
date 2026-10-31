@@ -75,6 +75,7 @@
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
 #include "agent/Notificador.hpp"
+#include "emision/AvisoFueraDeUi.hpp"
 #include "control/Botonera.hpp"
 #include "control/BotoneraGateway.hpp"
 #include "control/ControlWeb.hpp"
@@ -966,6 +967,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(twitch_.get(), &TwitchViewModel::vivo, this, alVivo);
         connect(facebook_.get(), &FacebookViewModel::vivo, this, alVivo);
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
+        // La interfaz trabada con aire: la detecta el latido en su hilo y la lleva
+        // AvisoFueraDeUi en el suyo (esta vista, la que se traba, no interviene).
+        avisoFueraDeUi_ = std::make_unique<AvisoFueraDeUi>(rt.dataRoot());
+        avisoFueraDeUi_->escuchar(rt.latido());
         settings_->setEnVivo([this]() { return modoVivo(); });
         settings_->setCupoEnCaliente([this](int n) { return cupoSala_->cambiar(n); });
         // ¿Volvemos de una caída? El supervisor dejó escrita la causa.

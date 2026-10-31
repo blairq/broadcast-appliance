@@ -24,6 +24,17 @@
     $("mensaje").classList.remove("oculto");
   }
   const sinMensaje = () => $("mensaje").classList.add("oculto");
+  // Activa: queda a la vista. Terminada: se dice un rato y se va.
+  let relojAlarma;
+  function alarmaSistema(m) {
+    const a = $("alarmaSistema");
+    a.querySelector("strong").textContent = m.titulo || "";
+    a.querySelector("span").textContent = m.texto || "";
+    a.classList.toggle("terminada", !m.activa);
+    a.classList.remove("oculto");
+    clearTimeout(relojAlarma);
+    if (!m.activa) relojAlarma = setTimeout(() => a.classList.add("oculto"), 8000);
+  }
 
   const leer = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
   const guardar = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };
@@ -163,6 +174,9 @@
         });
         break;
       }
+      case "alarma": // de la app, sin pasar por su interfaz (la interfaz trabada con aire)
+        alarmaSistema(m);
+        break;
       case "error":
         avisar(t(m.error) || t("error"), true);
         break;

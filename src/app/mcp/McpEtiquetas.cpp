@@ -1012,6 +1012,7 @@ const Fila kPropias[] = {
     {"multiview", QT_TRANSLATE_NOOP("mcp-etiquetas", "multiview multivista muro mosaico de camaras ver varias fuentes juntas pantalla dividida")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"diag_probar_caida", QT_TRANSLATE_NOOP("mcp-etiquetas", "probar una caida volcado crash dump prueba de errores")},
+    {"diag_trabar_ui", QT_TRANSLATE_NOOP("mcp-etiquetas", "trabar colgar interfaz bucle ocupado prueba latido alarma caos")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"direcciones", QT_TRANSLATE_NOOP("mcp-etiquetas", "direccion ip url enlace link red local tunel afuera puerto donde entra 127.0.0.1 localhost pinggy")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra

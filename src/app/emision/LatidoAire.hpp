@@ -16,6 +16,10 @@
 // solo si NO hay transmisión ni grabación (y así el supervisor relanza una app
 // que quedó inservible sin cortar nada que esté saliendo).
 //
+// La interfaz trabada CON aire es una alarma (F1-13): el aviso sale de este
+// hilo (ponerAviso), no del de la interfaz, que es justo el que no anda. Lo
+// lleva AvisoFueraDeUi a los notificadores y al control web.
+//
 // La política se guarda en Config/supervisor.json.
 #pragma once
 
@@ -29,6 +33,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace ba::app {
 
@@ -37,7 +42,16 @@ class LatidoAire {
     struct Politica {
         int esperaUiS = 60;                    ///< cuánto se tolera la UI trabada con el motor vivo
         bool matarSiUiTrabadaSinAire = true;   ///< pasada la espera, relanzar si no hay aire
+        /// A qué notificadores va la alarma «interfaz trabada con aire»: todos (de
+        /// fábrica) o los de `notificar` (vacía = ninguno).
+        bool notificarTodos = true;
+        std::vector<std::string> notificar;
     };
+    /// La alarma «interfaz trabada con aire»: `trabada` al empezar (pasados
+    /// supervisor.uiTrabadaMs) y false cuando la interfaz vuelve; `ms`, lo que lleva
+    /// (o lo que duró). Se llama DESDE EL HILO DEL LATIDO: no puede tocar nada de la
+    /// interfaz ni tardar (encolar y volver).
+    using Aviso = std::function<void(bool trabada, std::uint64_t ms, bool motorVivo)>;
 
     /// `latir`: marca el latido en el bloque de salud (lo serializa la app).
     /// `cuadros`: el contador de cuadros del motor (video_output_get_total_frames).
@@ -45,6 +59,8 @@ class LatidoAire {
                  std::function<std::uint64_t()> cuadros);
     void detener();
     ~LatidoAire() { detener(); }
+    /// Quién lleva la alarma afuera (nullptr = nadie). Se puede cambiar andando.
+    void ponerAviso(Aviso a);
 
     /// Lo llama el tick de la interfaz: está viva, y si hay aire.
     void uiTick(bool hayAire);
@@ -62,6 +78,7 @@ class LatidoAire {
     void bucle();
     void escribirEstadoUi(bool trabada, std::uint64_t ms) const;
     void guardar() const;
+    void avisar(bool trabada, std::uint64_t ms, bool vivo);
 
     std::filesystem::path datos_;
     std::function<void()> latir_;
@@ -84,6 +101,10 @@ class LatidoAire {
     std::shared_ptr<EscritorEstado> escritor_ = std::make_shared<EscritorEstado>();
     mutable std::mutex mu_; // la política
     Politica pol_;
+    /// Tomado MIENTRAS se avisa: así ponerAviso(nullptr) espera al que esté en curso
+    /// y el que lleva la alarma se puede destruir después sin carrera.
+    std::mutex avisoMu_;
+    Aviso aviso_;
 };
 
 } // namespace ba::app

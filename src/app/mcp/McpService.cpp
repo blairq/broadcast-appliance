@@ -30,6 +30,7 @@
 
 #include <QBuffer>
 #include <QCoreApplication>
+#include <QTimer>
 #include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -1115,14 +1116,17 @@ void McpService::registerTools() {
             ba::i18n::traducir("mcp", "El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira "
             "los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la "
             "interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` "
-            "(de fábrica true), se relanza solo si no hay transmisión ni grabación. Sin argumentos, la muestra "
+            "(de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire "
+            "es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` "
+            "(«todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra "
             "(con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"espera_ui_s", {{"type", "integer"}, {"minimum", 10}, {"maximum", 3600}}},
-                           {"matar_si_ui_trabada_sin_aire", {{"type", "boolean"}}}}}};
+                           {"matar_si_ui_trabada_sin_aire", {{"type", "boolean"}}},
+                           {"notificar", {{"type", {"string", "array"}}, {"items", {{"type", "string"}}}}}}}};
         t.run = [&rt](const json& a, Done done) {
-            if (a.contains("espera_ui_s") || a.contains("matar_si_ui_trabada_sin_aire")) {
+            if (a.contains("espera_ui_s") || a.contains("matar_si_ui_trabada_sin_aire") || a.contains("notificar")) {
                 const std::string e = rt.latido().ponerPolitica(a);
                 if (!e.empty()) return done(ToolResult::error(e));
             }
@@ -3549,6 +3553,31 @@ void McpService::registerTools() {
                     std::abort();
                 }
             }).detach();
+        };
+        core_.addTool(std::move(t));
+    }
+    if (rt.config().modoPrueba) {
+        // Solo con --test: la interfaz trabada a propósito (un bucle ocupado en su
+        // hilo), para probar lo que tiene que seguir andando sin ella: el latido, el
+        // aire y la alarma al control web y a los notificadores (F1-13, banco de caos).
+        Tool t;
+        t.name = "diag_trabar_ui";
+        t.title = ba::i18n::traducir("mcp", "Trabar la interfaz (solo --test)");
+        t.category = "sistema";
+        t.description = ba::i18n::traducir("mcp", "SOLO EN MODO PRUEBA. Traba el hilo de la interfaz `segundos` (1 a 60) con un "
+                        "bucle ocupado, medio segundo después de contestar. Mientras dure, nada de la interfaz "
+                        "(ni este MCP) contesta.");
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"segundos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 60}}}}},
+                         {"required", {"segundos"}}};
+        t.run = [](const json& a, Done done) {
+            const int s = std::clamp(a.value("segundos", 5), 1, 60);
+            done(ToolResult().data(json{{"trabando_s", s}}));
+            QTimer::singleShot(500, qApp, [s]() {
+                const auto fin = std::chrono::steady_clock::now() + std::chrono::seconds(s);
+                while (std::chrono::steady_clock::now() < fin) {
+                }
+            });
         };
         core_.addTool(std::move(t));
     }

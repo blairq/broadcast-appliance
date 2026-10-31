@@ -44,6 +44,10 @@
     <ba-boton id="botonCompleta" compacto redondo title="Pantalla completa" data-i18n-title="Pantalla completa">⤢</ba-boton>
   </header>
 
+  <!-- Alarmas de la app que no dependen de su interfaz (la interfaz trabada con aire): quedan
+       a la vista hasta que la app avisa que terminó. -->
+  <div id="alarmaSistema" class="alarma-sistema oculto" role="alert"><strong></strong> <span></span></div>
+
   <main id="tablero" class="tablero"></main>
 
   <!-- Qué tarjetas mostrar (se guarda en el aparato). -->
