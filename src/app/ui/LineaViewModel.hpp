@@ -17,9 +17,11 @@
 //
 // EL PRESUPUESTO DE MINIATURAS (3.5 A y la memoria «CPU ociosa»): al aire, el programa
 // de la salida; el próximo, su PVW (ya existen, no cuestan nada más); las dos escenas
-// que siguen, vistas vivas chicas («mini:<escena>» en FrameService, 320 de ancho, ~5
-// cuadros por segundo) que se sueltan a los 10 s de no hacer falta; el resto, una foto
-// cada 20 s, solo de las que se ven (cada caja avisa con `mirarFoto`).
+// que siguen, vistas vivas chicas («mini:<escena>» en FrameService, 320 de ancho: el
+// motor compone esa escena aparte a 5 cuadros por segundo, Motor::kMiniFps) que se
+// sueltan a los 10 s de no hacer falta; el resto, una foto cada 20 s, solo de las que
+// se ven (cada caja avisa con `mirarFoto`). El próximo y los dos que siguen, si ponen
+// gráficos, tienen además su miniatura «con gráficos» (L10, `conGraficos`).
 //
 // LA EDICIÓN SIN QUE SALGA (Silent Edition de Millumin): arrastrar en la Línea no
 // toca el plan; se junta en `pendientes` (operaciones de linea_editar) y lo que se ve

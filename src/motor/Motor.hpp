@@ -204,9 +204,12 @@ class Motor {
     bool tbar(const std::string& nombre, double t, bool soltar, std::string* error = nullptr, const std::string& salida = "");
     std::string tbarHacia(const std::string& salida = "") const;
     /// Una composición de `nombre` aunque no esté al aire (el editor, el DSK): cuenta
-    /// pedidos. Devuelve el productor ("" si no existe la escena).
-    std::string usarEscena(const std::string& nombre);
-    void soltarEscena(const std::string& nombre);
+    /// pedidos. Devuelve el productor ("" si no existe la escena). Con `mini`, otra
+    /// composición de la misma escena a kMiniFps (las miniaturas de la línea de tiempo,
+    /// vista «mini:<escena>»): el mezclador trabaja 5 veces por segundo, no 30.
+    std::string usarEscena(const std::string& nombre, bool mini = false);
+    void soltarEscena(const std::string& nombre, bool mini = false);
+    static constexpr int kMiniFps = 5;
     /// Lo que entregan los buses de video: "programa", "limpio" (el programa sin DSK),
     /// "preview" (de `salida`, o de la que diga la clave: "programa:<id>"…), "multiview";
     /// y cuánto tardan.
@@ -448,6 +451,7 @@ class Motor {
         int pedidos = 0;
     };
     std::map<std::string, CompEscena> vEscenas_;
+    std::map<std::string, CompEscena> vMinis_; ///< las de la línea de tiempo (a kMiniFps)
     mutable std::mutex instantaneaM_; ///< solo para copiar el puntero: nunca se tiene haciendo algo
     std::shared_ptr<const nlohmann::json> instantanea_;
     void publicarNiveles();
@@ -529,10 +533,10 @@ class Motor {
     std::string alAireYa(const std::string& nombre, const std::string& transicion, int ms, const std::string& salida);
     std::string dskYa(const nlohmann::json& capas, int fundidoMs, const std::string& salida);
     bool tbarYa(const std::string& nombre, double t, bool soltar, std::string* error, const std::string& salida);
-    std::string usarEscenaYa(const std::string& nombre);
-    /// El lienzo de una escena interna (el suyo, o el del estudio).
-    Lienzo lienzoDe(const Escena& e) const;
-    void soltarEscenaYa(const std::string& nombre);
+    std::string usarEscenaYa(const std::string& nombre, bool mini = false);
+    /// El lienzo de una escena interna (el suyo, o el del estudio); `mini`, a kMiniFps.
+    Lienzo lienzoDe(const Escena& e, bool mini = false) const;
+    void soltarEscenaYa(const std::string& nombre, bool mini = false);
     std::string retornoYa(int n, const std::string& modo, const std::string& propia);
     std::string escucharYa(const std::string& modo, const std::string& id, const std::string& salida);
     std::string ponerEscuchaYa(const std::string& id, bool on);

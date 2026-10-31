@@ -98,9 +98,12 @@ std::string Motor::iniciar() {
         const std::string bus = clave.substr(0, clave.find(':'));
         if (bus == "programa" || bus == "preview" || bus == "limpio" || clave == "multiview")
             return productorDeVideoYa(clave, lat, "");
-        if (clave.rfind("escena:", 0) == 0) {
-            auto it = vEscenas_.find(clave.substr(7));
-            if (it == vEscenas_.end() || !it->second.comp) return {};
+        // «escena:X» la composición de la escena; «mini:X», la chica de la línea de tiempo.
+        const bool mini = clave.rfind("mini:", 0) == 0;
+        if (mini || clave.rfind("escena:", 0) == 0) {
+            auto& comps = mini ? vMinis_ : vEscenas_;
+            auto it = comps.find(clave.substr(mini ? 5 : 7));
+            if (it == comps.end() || !it->second.comp) return {};
             if (lat != nullptr) *lat = it->second.comp->latenciaSalidaNs();
             return it->second.comp->productor();
         }
@@ -167,6 +170,7 @@ void Motor::detener() {
         s = std::move(vacia);
     }
     vEscenas_.clear();
+    vMinis_.clear();
     matriz_.clear();
     vMulti_.reset();
     mvAux_.clear();
@@ -397,8 +401,9 @@ void Motor::bucle() {
                     if (s.preview) s.preview->tic();
                 }
                 if (vMulti_) vMulti_->tic();
-                for (auto& [n, c] : vEscenas_)
-                    if (c.comp) c.comp->tic();
+                for (auto* comps : {&vEscenas_, &vMinis_})
+                    for (auto& [n, c] : *comps)
+                        if (c.comp) c.comp->tic();
             }
             Tramo tResto("resto de la vuelta (toma de audio, multiview, puente, escucha)");
             for (auto& [sid, s] : salidas_)
@@ -714,15 +719,19 @@ std::string Motor::definirEscenaYa(const json& j) {
         }
         if (e.nombre == s.armada && s.preview) s.preview->mostrar(e);
     }
-    if (auto it = vEscenas_.find(e.nombre); it != vEscenas_.end() && it->second.comp) {
+    // La composición aparte de la escena y su miniatura (la de la línea, a pocos cuadros).
+    for (const bool mini : {false, true}) {
+        auto& comps = mini ? vMinis_ : vEscenas_;
+        auto it = comps.find(e.nombre);
+        if (it == comps.end() || !it->second.comp) continue;
         // Otro lienzo u otros filtros (no solo sus valores): se rearma; los consumidores
         // la siguen leyendo por el mismo nombre.
-        const Lienzo l = lienzoDe(e);
+        const Lienzo l = lienzoDe(e, mini);
         Composicion& c = *it->second.comp;
         // También otro mezclador (la «Mezcla de GStreamer»: otro módulo, o una propiedad fija).
         if (c.lienzo().ancho != l.ancho || c.lienzo().alto != l.alto || !c.ponerFiltros(e.filtros) || !c.ponerMezclador(e.mezclador)) {
             std::unique_ptr<Composicion> vieja = std::move(it->second.comp);
-            it->second.comp = std::make_unique<Composicion>(*reloj_, l, "escena:" + e.nombre, Composicion::Opciones::de(e));
+            it->second.comp = std::make_unique<Composicion>(*reloj_, l, (mini ? "mini:" : "escena:") + e.nombre, Composicion::Opciones::de(e));
             desarmarAparte(std::move(vieja));
         }
         it->second.comp->mostrar(e);
@@ -789,13 +798,14 @@ void Motor::actualizarUso() {
     std::set<const Composicion*> vistas;
     for (bool cambio = true; cambio;) {
         cambio = false;
-        for (const auto& [n, c] : vEscenas_) {
-            if (!c.comp || vistas.count(c.comp.get()) || !leidos.count(c.comp->productor())) continue;
-            vistas.insert(c.comp.get());
-            sumar(uso, c.comp->entradasEnUso());
-            sumar(leidos, c.comp->productoresEnUso());
-            cambio = true;
-        }
+        for (const auto* comps : {&vEscenas_, &vMinis_})
+            for (const auto& [n, c] : *comps) {
+                if (!c.comp || vistas.count(c.comp.get()) || !leidos.count(c.comp->productor())) continue;
+                vistas.insert(c.comp.get());
+                sumar(uso, c.comp->entradasEnUso());
+                sumar(leidos, c.comp->productoresEnUso());
+                cambio = true;
+            }
     }
     for (auto& [id, c] : canales_) {
         Tramo t("uso: poner en uso una entrada");
@@ -1005,6 +1015,8 @@ std::string Motor::verPedirYa(const std::string& clave, int ancho, int alto) {
     const std::string b = clave.substr(0, clave.rfind('@')); // el nombre puede tener «@»; el canal, no
     if (b.rfind("escena:", 0) == 0 && usarEscena(b.substr(7)).empty())
         return llenar(traducir("motor", "no hay una escena «%1»"), {b.substr(7)});
+    if (b.rfind("mini:", 0) == 0 && usarEscena(b.substr(5), true).empty())
+        return llenar(traducir("motor", "no hay una escena «%1»"), {b.substr(5)});
     const std::string e = vistas_->pedir(clave, ancho, alto);
     actualizarUso();
     return e;
@@ -1015,6 +1027,7 @@ void Motor::verSoltarYa(const std::string& clave) {
     if (vistas_) vistas_->soltar(clave);
     const std::string b = clave.substr(0, clave.rfind('@')); // el nombre puede tener «@»; el canal, no
     if (b.rfind("escena:", 0) == 0) soltarEscena(b.substr(7));
+    if (b.rfind("mini:", 0) == 0) soltarEscena(b.substr(5), true);
 }
 
 void Motor::verAvisar(const std::string& clave, std::function<void(const Cuadro&)> fn) {
@@ -1116,35 +1129,43 @@ void Motor::cuadros() {
     }
 }
 
-Lienzo Motor::lienzoDe(const Escena& e) const {
+Lienzo Motor::lienzoDe(const Escena& e, bool mini) const {
     Lienzo l = cfg_.lienzo;
     if (e.lienzoAncho > 0 && e.lienzoAlto > 0) {
         l.ancho = e.lienzoAncho;
         l.alto = e.lienzoAlto;
     }
+    // La miniatura de la línea: la misma escena a pocos cuadros por segundo. El mezclador
+    // compone kMiniFps veces por segundo (no 30): es lo que ahorra GPU de verdad.
+    if (mini) {
+        l.fpsN = kMiniFps;
+        l.fpsD = 1;
+    }
     return l;
 }
 
-std::string Motor::usarEscenaYa(const std::string& nombre) {
+std::string Motor::usarEscenaYa(const std::string& nombre, bool mini) {
     BA_CON_CANDADO(mu_);
     auto e = escenas_.find(nombre);
     if (e == escenas_.end() || !cfg_.video) return {};
-    CompEscena& c = vEscenas_[nombre];
+    CompEscena& c = (mini ? vMinis_ : vEscenas_)[nombre];
     if (!c.comp) {
-        c.comp = std::make_unique<Composicion>(*reloj_, lienzoDe(e->second), "escena:" + nombre, Composicion::Opciones::de(e->second));
+        c.comp = std::make_unique<Composicion>(*reloj_, lienzoDe(e->second, mini), (mini ? "mini:" : "escena:") + nombre,
+                                               Composicion::Opciones::de(e->second));
         c.comp->mostrar(e->second);
     }
     ++c.pedidos;
     return c.comp->productor();
 }
 
-void Motor::soltarEscenaYa(const std::string& nombre) {
+void Motor::soltarEscenaYa(const std::string& nombre, bool mini) {
     BA_CON_CANDADO(mu_);
-    auto it = vEscenas_.find(nombre);
-    if (it == vEscenas_.end()) return;
+    auto& comps = mini ? vMinis_ : vEscenas_;
+    auto it = comps.find(nombre);
+    if (it == comps.end()) return;
     if (--it->second.pedidos > 0) return;
     std::unique_ptr<Composicion> comp = std::move(it->second.comp);
-    vEscenas_.erase(it);
+    comps.erase(it);
     desarmarAparte(std::move(comp));
 }
 
@@ -2100,15 +2121,15 @@ bool Motor::tbar(const std::string& nombre, double t, bool soltar, std::string* 
     pedirFoto();
     return e.empty() && (t >= 1.0 || (soltar && t >= 0.5));
 }
-std::string Motor::usarEscena(const std::string& nombre) {
+std::string Motor::usarEscena(const std::string& nombre, bool mini) {
     orden("usarEscena", [=, this]() {
-        return usarEscenaYa(nombre).empty() ? llenar(traducir("motor", "no hay una escena «%1»"), {nombre}) : std::string();
+        return usarEscenaYa(nombre, mini).empty() ? llenar(traducir("motor", "no hay una escena «%1»"), {nombre}) : std::string();
     });
-    return "video:escena:" + nombre; // Composicion::productor
+    return (mini ? "video:mini:" : "video:escena:") + nombre; // Composicion::productor
 }
-void Motor::soltarEscena(const std::string& nombre) {
+void Motor::soltarEscena(const std::string& nombre, bool mini) {
     orden("soltarEscena", [=, this]() {
-        soltarEscenaYa(nombre);
+        soltarEscenaYa(nombre, mini);
         return std::string();
     });
 }
