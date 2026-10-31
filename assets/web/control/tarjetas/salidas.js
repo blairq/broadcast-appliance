@@ -1,4 +1,5 @@
-/* La tarjeta «Salidas» del dashboard: transmitir y grabar. Lo común, en comun.js. */
+/* La tarjeta «Salidas» del dashboard: qué salida maneja el aparato (con varias), y
+   transmitir y grabar la de él. Lo común, en comun.js. */
 (() => {
   "use strict";
   const { el, boton, maxDb, ms, vacio, texto, attr, sincronizar } = BA.tj;
@@ -7,6 +8,27 @@
     id: "salidas", get titulo() { return t("Salidas"); }, temas: ["salidas", "estado"],
     herramientas: ["stream_start", "stream_stop", "record_start", "record_stop"],
     crear(c, api) {
+      // Una ficha por salida, con su color: tocarla hace que el aparato maneje esa.
+      this.elegir = el("div", "fila elegir-salida");
+      const pintar = () => {
+        // El tablero se rearma (otras tarjetas, otro perfil): la que quedó afuera se desengancha.
+        if (!this.elegir.isConnected && this.armada) { removeEventListener("ba-salida", pintar); return; }
+        const lista = api.salidas || [];
+        this.elegir.classList.toggle("oculto", lista.length < 2);
+        const actual = api.salidaActual();
+        sincronizar(this.elegir, lista.map((x) => x.id), (id) => {
+          const b = boton("", () => api.elegirSalida(id), { compacto: true });
+          return b;
+        }, (b, id) => {
+          const x = lista.find((y) => y.id === id);
+          texto(b, x.nombre || x.id);
+          attr(b, "variante", actual && actual.id === id ? "acento" : "");
+          b.style.boxShadow = x.color ? "inset 0 -4px 0 " + x.color : "";
+        });
+      };
+      addEventListener("ba-salida", pintar);
+      pintar();
+      this.armada = true;
       this.destinos = el("div", "columna");
       const tx = el("div", "fila");
       tx.append(boton(t("Transmitir"), () => api.hacer("stream_start", {}), { variante: "aire", confirmar: t("¿Salir al aire?"), clase: "lleno" }),
@@ -16,7 +38,7 @@
       this.grab.append(this.chipGrab, el("span", "espacio"),
         boton(t("⏺ Grabar"), () => api.hacer("record_start", {}), { variante: "aire", compacto: true }),
         boton(t("■ Parar"), () => api.hacer("record_stop", {}), { compacto: true, confirmar: t("¿Parar la grabación?") }));
-      c.append(this.destinos, tx, this.grab);
+      c.append(this.elegir, this.destinos, tx, this.grab);
     },
     actualizar(tema, d) {
       if (tema === "estado") {

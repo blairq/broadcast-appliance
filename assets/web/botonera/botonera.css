@@ -13,6 +13,9 @@ body { display: flex; flex-direction: column;
 .barra { display: flex; align-items: center; gap: 12px; padding: 10px 16px; min-height: 52px; font-size: 14px; }
 .perfil { font-weight: 650; }
 .pagina { color: var(--texto-suave); }
+/* La salida que maneja la tablet: el borde (y una franja) con su color, lo pone app.js. */
+.salida { appearance: none; font: inherit; font-weight: 650; padding: 6px 12px 6px 14px; border-radius: 11px; max-width: 40vw;
+  color: var(--texto); background: var(--superficie); border: 2px solid var(--borde); box-shadow: var(--relieve); }
 .espacio { flex: 1; }
 .conexion { font-size: 16px; }
 .conexion.viva { color: var(--ok); text-shadow: 0 0 8px var(--ok); }

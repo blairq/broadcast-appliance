@@ -1784,11 +1784,25 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
         if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
     });
+    // Las salidas para las superficies de control (botonera, atajos, control web):
+    // [{id, nombre, color, por_omision}], las que andan, la por omisión primera.
+    const auto listaSalidas = [this]() {
+        nlohmann::json out = nlohmann::json::array();
+        for (const QJsonValue& v : salidasModelo_->items()) {
+            const QJsonObject f = v.toObject();
+            out.push_back({{"id", f.value("id").toString().toStdString()},
+                           {"nombre", f.value("nombre").toString().toStdString()},
+                           {"color", f.value("color").toString().toStdString()},
+                           {"por_omision", f.value("porOmision").toBool()}});
+        }
+        return out;
+    };
     // La botonera: el modelo, los permisos y la ejecución viven acá; el gateway
     // es solo el borde de red (TLS, tokens, WebSocket de las tablets).
     {
         control::Botonera::Ganchos g;
         g.escenas = [this]() { return rt_.engine().sceneNames(); };
+        g.salidas = listaSalidas;
         g.fuentesAudio = [this]() { return rt_.engine().audioSources(); };
         g.pdfs = [this]() {
             std::vector<std::pair<std::string, std::string>> out;
@@ -1874,7 +1888,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             auto& g = acciones_->ganchos();
             g.escenas = [this]() { return rt_.engine().sceneNames(); };
             g.fuentesAudio = [this]() { return rt_.engine().audioSources(); };
-            g.mudo = [this](const std::string& f) { return rt_.engine().sourceMuted(f); };
+            g.mudo = [this](const std::string& f, const std::string& salida) { return rt_.engine().sourceMuted(f, salida); };
+            g.salidas = listaSalidas;
             g.dskArriba = [this](int capa) {
                 for (const auto& c : dsk_->capas())
                     if (c.value("capa", 0) == capa) return c.value("visible", false);
@@ -1900,6 +1915,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         });
         // El control web (dashboard /control/): sus aparatos y el puente con el gateway (como la botonera).
         controlWeb_ = std::make_unique<control::ControlWeb>(rt.dataRoot());
+        controlWeb_->ganchos().salidas = listaSalidas;
         controlWebGw_ = std::make_unique<control::ControlWebGateway>(*controlWeb_, *cli);
         // El tema de las páginas web: cada vez que la sala (re)arranca, se lo vuelve a pasar.
         connect(conference_.get(), &ConferenceViewModel::onlineChanged, this, [this]() {
@@ -3735,6 +3751,7 @@ void StudioViewModel::publicarSalidas() {
     // El gateway sabe qué salidas hay para que la sesión remota y el cast elijan (se la
     // vuelve a mandar sola si el gateway se reinicia).
     if (conference_) conference_->client().ponerSalidas(alGateway);
+    if (controlWeb_) controlWeb_->salidasCambiaron(); // sus aparatos ven la lista nueva
 }
 
 escenas::Conmutador& StudioViewModel::conmutadorActivo() const {
@@ -4148,6 +4165,31 @@ void StudioViewModel::publicarEventos() {
                                   {"fuentes_preview", fuentesDe(armada)},
                                   {"transmitiendo", streaming_},
                                   {"grabando", recording_}});
+    {
+        // Lo mismo de cada salida (aire/<id>/…, salida/<id>/…): las superficies que
+        // manejan otra salida leen los suyos (PLAN-SALIDAS, etapa 4).
+        nlohmann::json ss = nlohmann::json::array();
+        for (const QJsonValue& v : salidasModelo_->items()) {
+            const QJsonObject f = v.toObject();
+            const std::string id = f.value("id").toString().toStdString();
+            const std::string esc = f.value("alAire").toString().toStdString();
+            const QString arm = f.value("armada").toString();
+            nlohmann::json fa = fuentesDe(qs(esc));
+            for (const std::string& d : rt_.engine().fuentesDsk(id))
+                if (std::find(fa.begin(), fa.end(), d) == fa.end()) fa.push_back(d);
+            ss.push_back({{"id", id},
+                          {"nombre", f.value("nombre").toString().toStdString()},
+                          {"color", f.value("color").toString().toStdString()},
+                          {"por_omision", f.value("porOmision").toBool()},
+                          {"escena", esc},
+                          {"armada", arm.toStdString()},
+                          {"fuentes_programa", fa},
+                          {"fuentes_preview", fuentesDe(arm)},
+                          {"transmitiendo", f.value("transmitiendo").toBool()},
+                          {"grabando", f.value("grabando").toBool()}});
+        }
+        bus_->publicarSalidas(ss);
+    }
     // Los tiempos cambian cada segundo: se publican una vez por segundo.
     const bool segundo = busTicks_ % 10 == 0;
     nlohmann::json stream{{"activo", streaming_},

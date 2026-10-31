@@ -171,6 +171,47 @@ Salida {
 4. **Control** — temas `aire/<salida>/…` y `salida/<id>/…` en el `BusEventos` (los de hoy
    siguen como la salida por omisión); `salida` en perfiles y aparatos de Botonera y
    ControlWeb, con acción «cambiar de salida»; tarjetas web y plantillas por salida.
+   *Hecho (2026-10-31)*:
+   - `BusEventos`: además de los de siempre (que siguen siendo de la por omisión),
+     `aire/<id>/escena|armada|tally`, `salida/<id>/stream|grabacion|estado` y `salidas {lista}`
+     para cada salida (también la por omisión), con `publicarSalidas` (los temas de una salida
+     borrada se olvidan). `temaDeSalida(tema, salida, porOmision)` pasa «aire/tally» → «aire/<id>/tally»
+     (escena, armada, salida/stream, salida/grabacion) y «{{salida}}» → el id. `aire/+/tally` es
+     medición. Lo publica `StudioViewModel::publicarEventos` con la lista de `salidas`.
+   - `mcp::CallContext::salida` (el mismo campo que la etapa 3): cada superficie lo llena con la
+     suya; nadie mete `salida` en los argumentos (así no choca con `audio_*`).
+   - `Botonera`: `salida` en el perfil (`editarPerfil`, `crearPerfil`, `perfiles()`) y en el
+     aparato (`elegirSalida`, `salidaDe`: la del aparato > la del perfil > la por omisión; una
+     salida que ya no está cuenta como la por omisión). Los locales (plugins: Stream Deck, MIDI,
+     OSC; Companion Satellite) la guardan en `salidas_locales` y vuelven con ella. Lo que corre
+     va con esa salida (`Ganchos::ejecutar` la recibe → `ctx.salida` en GuiMode); las ligaduras
+     leen los temas de esa salida (una celda hecha para «la» salida sigue a la del aparato); el
+     tema local `superficie/salida` {id, nombre, color} y «{{v}}» en fondo/color/borde. El estado
+     lleva `salida` y `salidas`. Cambiar: mensaje `{type: salida, id}` (botonera web, plugins
+     con `sup.salida(id, …)`, gateway y Plugins lo dejan pasar) o la acción
+     `{tipo: salida, ir_a: <id>|siguiente|anterior|perfil}`. Plantillas: «Director» con la celda
+     «Salida» (con varias salidas) y «Salidas» (una celda por salida con su color, lo que tiene
+     al aire, AIRE/REC; TAKE, FTB, REC, AIRE de la que maneja). En la página Botonera: la salida
+     del perfil, la de cada aparato y la de los atajos.
+   - `Acciones` (atajos): `salida` (Q_PROPERTY, no se guarda) que manejan los atajos; las de
+     aire aceptan «<acción>@<salida>»; internas `salida:siguiente|anterior|<id>`; con varias
+     salidas el catálogo lista TAKE/FTB/placa/grabar de cada una. El mudo se lee de la salida.
+     `accion_ejecutar` (MCP) respeta «@<salida>» y las internas de salida.
+   - `ControlWeb`: `salida` del aparato (`setSalida`, `salidaDe`, `{type: salida}` desde el
+     aparato, `salidaUi` en Servicios); `ctx.salida` en cada llamar; los temas se consultan una
+     vez por salida que los mira (a una herramienta `porSalida` le llega `salida` en los
+     argumentos, porque el sondeo no pasa por el despachador); auth y `{type: salida}` traen la
+     lista; `salidasCambiaron` avisa a los aparatos. Web: selector de salida (con su color) en
+     la barra de /botonera/ y /control/; la tarjeta «Salidas» elige cuál maneja el aparato.
+   - Tests: `test_botonera` (temas por salida, dos aparatos con dos salidas: tally, ctx, celda
+     «Salida», perfil, plantilla, locales tras reiniciar, salida borrada) y `test_control_web`
+     (dos aparatos mirando lo suyo, cambiar desde el aparato, salida borrada).
+   *Falta*: el `deAireAhora` de la botonera pregunta por cualquier aire, no el de SU salida
+   (pide confirmar de más, nunca de menos); las capas DSK de los atajos (`dsk:<n>`) miran la por
+   omisión; `aire/medios` y `aire/dsk` siguen sin id; no hay fader/T-bar por salida en el bus; la
+   descripción de los temas en `botonera_*` (McpBotoneraTools) no menciona los nuevos; los textos
+   nuevos de la web y de tr() esperan la próxima extracción de i18n. Probar en la GUI con dos
+   salidas y una tablet/Stream Deck reales.
 5. **Interfaz** — selector de salida en Dirección, Escenas y Mezclador (cada operador ve la
    suya); multiview con todas; página «Salidas» (crear, nombre y color, destinos,
    grabación, codificador); `FrameService` con `program:<id>` / `armada:<id>`.

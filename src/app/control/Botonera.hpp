@@ -16,9 +16,17 @@
 // estando al aire, pide confirmación en el mismo aparato.
 //
 // Config/botonera.json: {perfiles: [{id, nombre, herramientas_permitidas[],
-//   puede_editar, paginas: [{id, nombre, columnas, filas, celdas: [Celda]}]}]}
+//   puede_editar, salida?, paginas: [{id, nombre, columnas, filas, celdas: [Celda]}]}]}
 // Config/botonera-dispositivos.json: los aparatos emparejados (solo el hash
-//   del token, con sal), su perfil y página.
+//   del token, con sal), su perfil, su página y su salida.
+//
+// Muchas salidas (docs/planes/PLAN-SALIDAS.md): cada aparato maneja UNA salida,
+// la suya (`salida` del aparato) o, si no eligió, la de su perfil; sin ninguna,
+// la por omisión. Lo que corre va con esa salida en el contexto (CallContext::salida:
+// la herramienta que no dice salida usa esa) y las ligaduras leen los temas de esa
+// salida (BusEventos::temaDeSalida: «aire/tally» es el tally de la que maneja). Se
+// cambia desde el mismo aparato: {type: salida, id} o una celda con la acción
+// {tipo: salida, ir_a}.
 // Logs/botonera.log: la auditoría (emparejar, revocar, cada acción hecha o
 //   rechazada, cada edición).
 //
@@ -29,9 +37,13 @@
 //   estado: [Ligadura]}
 // Acción: {tipo: herramienta, herramienta, args} | {tipo: pagina, ir_a}
 //   | {tipo: secuencia, pasos: [Acción], espera_ms} | {tipo: receta, id}
+//   | {tipo: salida, ir_a: <id> | siguiente | anterior | perfil} (la que maneja el
+//     aparato; «perfil» vuelve a la de su perfil)
 // Ligadura: {tema, ruta, op (== != > < >= <= en contiene existe), valor,
 //   efecto: fondo|color|texto|titilar|valor|icono, dato}
-//   (sin op, siempre aplica; en texto, «{{v}}» es el valor del tema).
+//   (sin op, siempre aplica; en texto, «{{v}}» es el valor del tema; en fondo,
+//   color y borde, un dato «{{v}}» también). El tema «superficie/salida» es la
+//   salida que maneja ESE aparato: {id, nombre, color, por_omision}.
 #pragma once
 
 #include <QObject>
@@ -57,15 +69,20 @@ class Botonera : public QObject {
     Q_PROPERTY(QVariantList perfiles READ perfilesUi NOTIFY cambio)
     Q_PROPERTY(QVariantList dispositivos READ dispositivosUi NOTIFY dispositivosCambio)
     Q_PROPERTY(QVariantList solicitudes READ solicitudesUi NOTIFY solicitudesCambio)
+    /// Las salidas para los selectores: [{id, nombre, color, por_omision}] (las avisa el bus).
+    Q_PROPERTY(QVariantList salidas READ salidasUi NOTIFY salidasCambio)
    public:
     using json = nlohmann::json;
     /// Resultado de una herramienta: ok y un texto corto para el aparato.
     using Listo = std::function<void(bool ok, const std::string& texto)>;
     struct Ganchos {
         /// Ejecuta una herramienta MCP como «botonera:<dispositivo>» (persona).
+        /// `salida`: la que maneja el aparato ("" = la por omisión), para CallContext::salida.
         std::function<void(const std::string& herramienta, const json& args, const std::string& dispositivo,
-                           const std::string& perfil, Listo listo)>
+                           const std::string& perfil, const std::string& salida, Listo listo)>
             ejecutar;
+        /// Las salidas del aparato: [{id, nombre, color, por_omision}], la por omisión primera.
+        std::function<json()> salidas;
         /// ¿Esta llamada cambia el aire y ahora hay aire? (pide confirmación).
         std::function<bool(const std::string& herramienta, const json& args)> deAireAhora;
         /// Para las plantillas: escenas, fuentes de audio, bancas.
@@ -104,12 +121,22 @@ class Botonera : public QObject {
     /// "tablet", "plugin", "satellite" o "" si no existe.
     std::string origenDe(const std::string& dispositivo) const;
 
+    // --- Salidas ---------------------------------------------------------------------
+    /// La salida que maneja el aparato: la suya, si no la de su perfil; "" = la por
+    /// omisión (también si la que tenía ya no existe).
+    std::string salidaDe(const std::string& dispositivo) const;
+    /// {id, nombre, color, por_omision} de una salida ("" o una que no está = la por omisión).
+    json infoSalida(const std::string& salida) const;
+    /// El aparato pasa a manejar `salida` (id o nombre; «siguiente», «anterior»; «» o
+    /// «perfil» = vuelve a la de su perfil). "" o el error.
+    std::string elegirSalida(const std::string& dispositivo, const std::string& salida);
+
     // --- Modelo ----------------------------------------------------------------
     json perfiles() const;
     json perfil(const std::string& id) const;
     /// Crea un perfil (vacío o desde una plantilla). Devuelve "" o el error.
     std::string crearPerfil(const json& p, const std::string& plantilla, std::string* idOut);
-    /// Cambia nombre, herramientas_permitidas, puede_editar. `humano`: solo una
+    /// Cambia nombre, herramientas_permitidas, puede_editar, salida ("" = la por omisión). `humano`: solo una
     /// persona puede AMPLIAR herramientas_permitidas o prender puede_editar.
     std::string editarPerfil(const std::string& id, const json& cambios, bool humano);
     bool borrarPerfil(const std::string& id);
@@ -210,7 +237,8 @@ class Botonera : public QObject {
     QVariantList dispositivosUi() const;
     QVariantList solicitudesUi() const;
     Q_INVOKABLE QVariantMap paginaUi(const QString& perfil, const QString& pagina) const;
-    Q_INVOKABLE QString crearPerfilUi(const QString& nombre, const QString& plantilla);
+    /// `salida`: la que manejan sus aparatos ("" = la por omisión).
+    Q_INVOKABLE QString crearPerfilUi(const QString& nombre, const QString& plantilla, const QString& salida = {});
     /// Le suma a la primera página del perfil la fila del guion («◀ Cue», el cue actual,
     /// «Cue ▶») si no la tiene: un perfil hecho antes con la plantilla «director». "" o el error.
     std::string completarGuion(const std::string& perfil);
@@ -235,6 +263,8 @@ class Botonera : public QObject {
     /// Probar una celda desde el escritorio (como si la apretaran en el aparato «escritorio»).
     Q_INVOKABLE void probarUi(const QString& perfil, const QString& pagina, int x, int y);
     Q_INVOKABLE QString asignarUi(const QString& dispositivo, const QString& perfil, const QString& pagina);
+    Q_INVOKABLE QString elegirSalidaUi(const QString& dispositivo, const QString& salida);
+    QVariantList salidasUi() const;
     Q_INVOKABLE int revocarUi(const QString& dispositivo);
     Q_INVOKABLE QVariantList auditoriaUi() const;
     Q_INVOKABLE QStringList herramientasUi(const QString& filtro) const;
@@ -247,6 +277,7 @@ class Botonera : public QObject {
     void cambio();
     void dispositivosCambio();
     void solicitudesCambio();
+    void salidasCambio();
     /// Hay que mandarle algo a un aparato: {type: estado|confirmar|aviso, …}.
     void mensaje(const QString& dispositivo, const nlohmann::json& msg);
     /// Cambió la lista de credenciales (sumar, revocar, vencer): al gateway.
@@ -275,8 +306,12 @@ class Botonera : public QObject {
     /// La ruta de medio_poner de la cara de la celda ("" si no tiene o no se puede poner al aire) y si es video.
     std::string medioDeCelda(const json& celda, bool* video = nullptr) const;
     bool alTocarCara(const json& celda) const;
-    json renderCelda(const json& celda, const std::string& claveValor) const;
-    json renderPagina(const json& perfil, const json& pagina, const std::string& dispositivo) const;
+    /// `salida`: infoSalida de la que maneja el aparato (las ligaduras leen sus temas).
+    json renderCelda(const json& celda, const std::string& claveValor, const json& salida) const;
+    /// La salida que pide el perfil o el aparato, si todavía existe ("" si no).
+    std::string salidaValida(const std::string& salida) const;
+    json renderPagina(const json& perfil, const json& pagina, const std::string& dispositivo,
+                      const std::string& salida) const;
     std::string validarCelda(const json& c) const;
     std::string validarAccion(const json& a, int profundidad) const;
     void correr(const std::string& dispositivo, const json& perfil, const json& accion, const std::string& celda,
@@ -294,6 +329,9 @@ class Botonera : public QObject {
     json datos_;
     json disp_ = json::array();
     std::map<std::string, std::string> paginaDe_; ///< dispositivo -> página (si no es la guardada)
+    /// Los aparatos locales (plugins, satélites) se registran de nuevo en cada
+    /// arranque: la salida que eligieron se guarda aparte y vuelve al registrarse.
+    std::map<std::string, std::string> salidaLocal_;
     std::map<std::string, double> valores_;      ///< perfil/página/x/y -> último valor de fader/perilla
     std::map<std::string, std::pair<json, double>> faderPend_; ///< dispositivo|celda -> (acción, valor) a mandar
     std::map<std::string, std::pair<json, double>> perillaPend_; ///< dispositivo|celda -> (acción, delta acumulado)

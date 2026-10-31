@@ -9,6 +9,12 @@
 // una capa). La ejecución pasa por el mismo camino que todo lo demás (McpCore,
 // como una persona: «atajo»).
 //
+// Muchas salidas (docs/planes/PLAN-SALIDAS.md): los atajos manejan UNA salida
+// (`salida`, "" = la por omisión) y lo que corren va con esa en el contexto
+// (CallContext::salida). Una acción con «@<salida>» al final («take@cam2») va a esa
+// sin importar cuál manejan. «salida:siguiente», «salida:anterior» y «salida:<id>»
+// cambian la que manejan (no se guarda: al arrancar, la por omisión).
+//
 // Atajos (Config/atajos.json): [{tecla: "Ctrl+Shift+T", accion, global}]. Los
 // locales funcionan con la ventana del programa al frente (un Shortcut de QML
 // por atajo); los GLOBALES, aunque la ventana no tenga el foco (macOS:
@@ -35,14 +41,20 @@ class Acciones : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList atajos READ atajosUi NOTIFY cambio)
     Q_PROPERTY(bool globalesDisponibles READ globalesDisponibles CONSTANT)
+    /// La salida que manejan los atajos ("" = la por omisión).
+    Q_PROPERTY(QString salida READ salidaUi WRITE setSalidaUi NOTIFY salidaCambio)
    public:
     using json = nlohmann::json;
     using Listo = std::function<void(bool ok, const std::string& texto)>;
     struct Ganchos {
-        std::function<void(const std::string& herramienta, const json& args, Listo listo)> ejecutar;
+        /// `salida`: la de la acción o la que manejan los atajos ("" = la por omisión).
+        std::function<void(const std::string& herramienta, const json& args, const std::string& salida, Listo listo)>
+            ejecutar;
+        /// Las salidas: [{id, nombre, color, por_omision}], la por omisión primera.
+        std::function<json()> salidas;
         std::function<std::vector<std::string>()> escenas;
         std::function<std::vector<std::string>()> fuentesAudio;
-        std::function<bool(const std::string& fuente)> mudo;
+        std::function<bool(const std::string& fuente, const std::string& salida)> mudo;
         std::function<bool(int capa)> dskArriba;
     };
     Acciones(const std::filesystem::path& datos, QObject* parent = nullptr);
@@ -51,12 +63,20 @@ class Acciones : public QObject {
 
     /// [{id, nombre, grupo, herramienta?, args?}] (las de escenas y fuentes, con lo que hay ahora).
     json catalogo() const;
-    /// La herramienta y los argumentos de una acción ({herramienta, args} o {error}).
+    /// La herramienta y los argumentos de una acción ({herramienta, args, salida, salida_pedida},
+    /// {elegir_salida} para las que cambian la salida, o {error}). `salida`: la de «@<salida>»
+    /// (salida_pedida) o la que manejan los atajos.
     json resolver(const std::string& id) const;
     /// Ejecuta una acción por su id (como una persona: el atajo). "" (mandada) o el error.
     std::string ejecutar(const std::string& id, Listo listo = {});
 
     json atajos() const { return atajos_; }
+    const std::string& salida() const { return salida_; }
+    /// Cambia la salida que manejan los atajos (id; «siguiente», «anterior»; "" = la
+    /// por omisión). "" o el error.
+    std::string setSalida(const std::string& salida);
+    QString salidaUi() const { return QString::fromStdString(salida_); }
+    void setSalidaUi(const QString& s) { setSalida(s.toStdString()); }
     /// Asigna `tecla` (texto de QKeySequence, p. ej. "Ctrl+Shift+T" o "F5") a `accion`. "" o el error (conflicto incluido).
     std::string asignar(const std::string& tecla, const std::string& accion, bool global);
     bool quitar(const std::string& tecla);
@@ -72,6 +92,7 @@ class Acciones : public QObject {
 
    signals:
     void cambio();
+    void salidaCambio();
 
    private:
     void guardar() const;
@@ -79,6 +100,10 @@ class Acciones : public QObject {
     std::filesystem::path archivo_;
     Ganchos g_;
     json atajos_ = json::array();
+    std::string salida_;
+    /// Si `id` es el de una salida (o su nombre), su id; si no, "".
+    std::string salidaExistente(const std::string& id) const;
+    json resolverSinSalida(const std::string& id, const std::string& salida) const;
     std::unique_ptr<AtajosGlobales> globales_;
 };
 

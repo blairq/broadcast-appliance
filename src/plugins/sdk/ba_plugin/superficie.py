@@ -30,6 +30,11 @@ sola, en el cuadro de ese momento, así que para animarla alcanza con redibujar 
 que tengan ``cara_animada(celda)``). Si una celda cambia el aire estando al aire, la app pide
 confirmación: ``estado["confirmar"]`` dice cuál, y apretarla de nuevo (dentro de 5 s) confirma
 (``presionar`` lo hace solo).
+
+Muchas salidas: cada aparato maneja una (``estado["salida"]``: ``{id, nombre, color, por_omision}``;
+``estado["salidas"]``: todas). Lo que hace y el tally que muestra son de esa. ``salida(id, "cam2")``
+la cambia (``"siguiente"``, ``"anterior"``; ``""`` vuelve a la de su perfil); una celda con la acción
+``{tipo: salida, ir_a: siguiente}`` hace lo mismo desde la tecla.
 """
 
 from __future__ import annotations
@@ -141,6 +146,10 @@ class Superficies:
 
     def pagina(self, id: str, pagina_id: str) -> None:
         self._entrada(id, {"type": "pagina", "id": pagina_id})
+
+    def salida(self, id: str, salida_id: str) -> None:
+        """El aparato pasa a manejar otra salida (id o nombre; "siguiente", "anterior"; "" = la de su perfil)."""
+        self._entrada(id, {"type": "salida", "id": salida_id})
 
     def cancelar(self, id: str) -> None:
         """Descarta la confirmación de aire pendiente."""
