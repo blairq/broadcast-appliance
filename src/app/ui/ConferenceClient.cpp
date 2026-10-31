@@ -186,6 +186,8 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit registroEvento(obj);
     } else if (event == "prompter") {
         emit prompterEvento(obj);
+    } else if (event == "rotulos") {
+        emit rotulosEvento(obj);
     } else if (event == "votacion" || event == "preguntas") {
         emit estadoEvento(QString::fromUtf8(event), obj);
     } else if (event == "programa") {

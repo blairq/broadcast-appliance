@@ -118,6 +118,8 @@ class ControlSala {
     /// El estado de los rótulos para el celular que los encarga (también es su
     /// latido); `listo` recibe los encargos pendientes ({encargos: […]}).
     void publicarRotulos(const nlohmann::json& estado, Listo listo);
+    /// Se lleva los encargos de los celulares (la respuesta trae `encargos`).
+    void tomarRotulos(Listo listo);
     /// El estado público del evento para su página (/evento/).
     void publicarEventoWeb(const nlohmann::json& estado);
     /// Los códigos de votante acreditados en la puerta desde la última vez ({codigos: […]}).

@@ -260,6 +260,10 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     claves_.correccion = cfg_.correccionKey;
     claves_.rotulos = cfg_.rotulosKey;
     claves_.publico = cfg_.publicoKey;
+    rotulador_.setAppConectada([this]() {
+        std::lock_guard<std::mutex> l(sseLock_);
+        return !sse_.empty();
+    });
     // El arranque (ver epoch_): sin entropía, la hora alcanza (solo tiene que no repetirse).
     if (!ba::security::randomSecretHex(8, epoch_))
         epoch_ = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -1553,6 +1557,8 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                    json{{"ok", false}, {"error", QT_TRANSLATE_NOOP("web/comun", "falta id de fuente")}}.dump());
                 return;
             }
+            // A se los viene a llevar cuando se entera (nadie pregunta cada segundo).
+            broadcastToHosts("rotulos", json{{"pendientes", rotulador_.pendientes()}});
             http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }

@@ -9,9 +9,10 @@
 // direcciones y nada mas:
 //
 //   A -> B   el estado: que fuentes hay en la escena al aire, con que campos
-//            y que valores. A lo empuja cuando cambia.
+//            y que valores. A lo empuja cuando cambia (y a una sala nueva).
 //   B -> A   los encargos: "en la fuente 7 poné estos valores y sacalo al
-//            aire". Se encolan hasta que A los viene a buscar.
+//            aire". Se encolan, se le avisa a A (evento «rotulos») y A se los
+//            lleva de una vez (`tomar`): ninguno se ejecuta dos veces.
 //
 // Por que encolar y no ejecutar: el que dibuja es A, y A puede estar ocupado o
 // recien arrancando. Un encargo encolado se ejecuta tarde; una llamada directa
@@ -24,6 +25,8 @@
 // ni queda en los registros.
 // ============================================================================
 #pragma once
+
+#include <functional>
 
 #include <cstdint>
 #include <mutex>
@@ -43,6 +46,9 @@ class Rotulador {
 
     /// A publica lo que hay. Reemplaza lo anterior entero.
     void publicar(const nlohmann::json& estado);
+    /// Si la app está (su flujo de eventos abierto): es lo que el celular muestra
+    /// como «la app no responde». Sin esto, se usa cuándo publicó por última vez.
+    void setAppConectada(std::function<bool()> fn) { appConectada_ = std::move(fn); }
 
     /// Lo que ve el celular: las fuentes con sus campos y valores, y cuando
     /// fue la ultima vez que A hablo (para poder avisar «la app no responde»).
@@ -64,6 +70,7 @@ class Rotulador {
     nlohmann::json estado_ = nlohmann::json::object();
     std::int64_t publicadoMs_ = 0;
     std::vector<nlohmann::json> encargos_;
+    std::function<bool()> appConectada_;
 };
 
 } // namespace ba::gateway

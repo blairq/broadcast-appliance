@@ -239,8 +239,10 @@ std::string ControlSala::configurarProxy(const nlohmann::json& cambios, Reinicia
 void ControlSala::verRed(Listo listo) { pedir(sala_, "GET", "/api/v1/network", {}, std::move(listo)); }
 
 void ControlSala::publicarRotulos(const nlohmann::json& estado, Listo listo) {
-    pedir(sala_, "POST", "/api/v1/rotulos", {{"estado", estado}, {"tomar", true}}, std::move(listo));
+    pedir(sala_, "POST", "/api/v1/rotulos", {{"estado", estado}}, std::move(listo));
 }
+
+void ControlSala::tomarRotulos(Listo listo) { pedir(sala_, "POST", "/api/v1/rotulos", {{"tomar", true}}, std::move(listo)); }
 
 void ControlSala::publicarEventoWeb(const nlohmann::json& estado) {
     pedir(sala_, "POST", "/api/v1/evento-web", estado, {});
