@@ -3,204 +3,78 @@
 // ============================================================================
 
 #include "ui/StudioViewModel.hpp"
-#include "sala/CupoSala.hpp"
-#include "sala/ConfigSala.hpp"
-#include "emision/InputSpecs.hpp"
-#include "sala/VotacionSala.hpp"
-#include "sala/PreguntasSala.hpp"
-#include "sala/SeguridadSala.hpp"
-#include "escenas/Conmutador.hpp"
-#include "asamblea/Votaciones.hpp"
-#include "asamblea/Presidencia.hpp"
-#include "escenas/RespaldoEntradas.hpp"
-#include "escenas/AjustesEscenas.hpp"
-#include "escenas/ControlGrillas.hpp"
-#include "arranque/EnergiaAire.hpp"
-#include "arranque/ModoVivoConfig.hpp"
-#include "ui/EnlacesViewModel.hpp"
-#include "ui/RecursosViewModel.hpp"
-#include "diag/ChequeosEquipo.hpp"
-#include "platform/GstEntorno.hpp"
-#include "Piezas.hpp" // motor::derivaDePlacas (los chequeos del equipo)
-#include "emision/SalidasConfig.hpp"
-#include "arranque/InterfazConfig.hpp"
-#include "agent/RotuloTraduccionConfig.hpp"
-#include "emision/RetornosInvitados.hpp"
-#include "emision/SeguridadAire.hpp"
-#include "ui/AlarmasViewModel.hpp"
-#include "ui/AppViewModel.hpp"
-#include "ui/AsambleaViewModel.hpp"
-#include "ui/AsistenteViewModel.hpp"
-#include "ui/ControlViewModel.hpp"
-#include "ui/CuentasViewModel.hpp"
-#include "ui/EmisionViewModel.hpp"
-#include "ui/EscenasViewModel.hpp"
-#include "ui/EscritorioViewModel.hpp"
-#include "ui/SalidasViewModel.hpp"
-#include "ui/BitacoraEvento.hpp"
-#include "audio/ObjetivoLoudness.hpp"
-#include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
-#include "persist/ColaEscritura.hpp"
-#include "platform/Paths.hpp"
-#include <fstream>
-#include <map>
-#include <set>
-#include <QClipboard>
-#include <QDateTime>
-#include <QQmlEngine>
-#include <QTimer>
-#include <QElapsedTimer>
 
-#include <QGuiApplication>
-#include <QScreen>
-#include <QWindow>
-
-
-#include <QFile>
-#include <QHostAddress>
-#include <QJsonArray>
-#include <QCryptographicHash>
-#include <QJsonDocument>
-#include <QBuffer>
-#include <QFileInfo>
-#include <QPointer>
-#include <QJsonObject>
-#include <QNetworkInterface>
-#include <QStorageInfo>
-#include <QUrl>
-
-#include "comun/Duracion.hpp"
-#include "comun/HoraMonotonica.hpp"
-
-#include <algorithm>
-#include <cstdlib>
-#include <cstring>
-
-#include "net/AccountGuides.hpp"
-#include "agent/AgentViewModel.hpp"
-#include "agent/EstadoIA.hpp"
-#include "ui/DocumentosViewModel.hpp"
-#include "ui/PdfEscena.hpp"
-#include "ui/ManualesViewModel.hpp"
-#include "agent/AlarmaSonora.hpp"
-#include "agent/SubtitulosCC.hpp"
-#include "agent/Vocabulario.hpp"
-#include "agent/Notificador.hpp"
-#include "emision/AvisoFueraDeUi.hpp"
-#include "control/Botonera.hpp"
-#include "control/BotoneraGateway.hpp"
-#include "control/ControlWeb.hpp"
-#include "control/ControlWebGateway.hpp"
-#include "control/TemasWeb.hpp"
-#include "sala/Direcciones.hpp"
-#include "sala/Pedido.hpp"
-#include "asamblea/Debate.hpp"
-#include "control/CarasBotonera.hpp"
-#include "control/BusEventos.hpp"
-#include "control/Dsk.hpp"
-#include "control/Acciones.hpp"
-#include "arranque/AppSettings.hpp"
-#include "control/SatelliteServidor.hpp"
-#include "qr/Qr.hpp"
-#include "asamblea/Bancas.hpp"
-#include "asamblea/ConferenciaDcn.hpp"
-#include "asamblea/SesionRemota.hpp"
-#include "asamblea/SeguirMicrofono.hpp"
-#include "asamblea/OrdenDelDia.hpp"
-#include "asamblea/InformesResultado.hpp"
-#include "evento/APdf.hpp"
-#include "asamblea/Quorum.hpp"
-#include "asamblea/Cuerpo.hpp"
-#include "asamblea/CuerpoViewModel.hpp"
-#include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
-#include "agent/ServidorModeloLocal.hpp"
-#include "agent/ModelosLocales.hpp"
-#include "net/Descargas.hpp"
-
-#include <QHash>
-#include "agent/Roles.hpp"
-#include "agent/Subtitulos.hpp"
-#include "agent/Traductor.hpp"
-#include "agent/VocesRack.hpp"
-#include "agent/Voz.hpp"
-#include "agent/VozPrompter.hpp"
+#include "agent/Notificador.hpp"
 #include "arranque/AppRuntime.hpp"
-#include "fault/ModoSeguro.hpp"
+#include "arranque/Configuraciones.hpp"
+#include "arranque/EnergiaAire.hpp"
+#include "arranque/InterfazConfig.hpp"
+#include "asamblea/Bancas.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
+#include "asamblea/OrdenDelDia.hpp"
+#include "asamblea/SesionRemota.hpp"
+#include "comun/Duracion.hpp"
+#include "control/BusEventos.hpp"
+#include "control/ControlWeb.hpp"
+#include "control/Dsk.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 #include "diag/VigiaBucle.hpp"
-#include "graficos/GraficoSource.hpp"
-#include "evento/Bitacora.hpp"
-#include "evento/CierreEvento.hpp"
-#include "evento/FotosConfig.hpp"
-#include "mcp/McpTraza.hpp"
 #include "dispositivos/Dispositivos.hpp"
 #include "dispositivos/Registro.hpp"
+#include "emision/AvisoFueraDeUi.hpp"
+#include "escenas/Conmutador.hpp"
+#include "escenas/ControlGrillas.hpp"
+#include "escenas/RespaldoEntradas.hpp"
 #include "graficos/Emisor.hpp"
+#include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"
-#include "net/HttpsClient.hpp"
+#include "medios/Playlist.hpp"
+#include "platform/Paths.hpp"
 #include "plugins/Plugins.hpp"
-#include "ptz/ControlCamaras.hpp"
-#include "red/Red.hpp"
+#include "sala/CupoSala.hpp"
+#include "ui/AlarmasViewModel.hpp"
+#include "ui/AtencionViewModel.hpp"
+#include "ui/BitacoraEvento.hpp"
 #include "ui/CarruselViewModel.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
-#include "ui/FuenteQrPintor.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
-#include "ui/TemaEventoViewModel.hpp"
-#include "ui/LineaViewModel.hpp"
-#include "net/AccesoRemoto.hpp"
+#include "ui/CuentasViewModel.hpp"
 #include "ui/DashboardModel.hpp"
+#include "ui/DocumentosViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
-#include "ui/HistoricoViewModel.hpp"
-#include "video/BancoSuperRes.hpp"
 #include "ui/ExtensionesModel.hpp"
-#include "ui/FacebookViewModel.hpp"
 #include "ui/FrameService.hpp"
-#include "ui/ImagenViewModel.hpp"
+#include "ui/FuenteQrPintor.hpp"
 #include "ui/GraficoViewModel.hpp"
+#include "ui/HistoricoViewModel.hpp"
 #include "ui/InputsViewModel.hpp"
+#include "ui/LineaViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/MediosViewModel.hpp"
-#include "ui/MezclaViewModel.hpp"
-#include "ui/MultiviewViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PantallasViewModel.hpp"
-#include "pantallas/Catalogo.hpp"
-#include "pantallas/Monitores.hpp"
-#include "pantallas/Ventanas.hpp"
-#include "ui/AtencionViewModel.hpp"
-#include "ui/TotemsViewModel.hpp"
+#include "ui/PdfEscena.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/PropertiesModel.hpp"
 #include "ui/PublicoViewModel.hpp"
-#include "ui/SalaViewModel.hpp"
 #include "ui/QrViewModel.hpp"
+#include "ui/RecursosViewModel.hpp"
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RielConfig.hpp"
 #include "ui/RotuladorViewModel.hpp"
-#include "ui/Seguidor.hpp"
 #include "ui/SettingsModel.hpp"
-#include "ui/SystemViewModel.hpp"
-#include "arranque/Configuraciones.hpp"
-#include "ui/TwitchViewModel.hpp"
-#include "ui/YouTubeViewModel.hpp"
+#include "ui/TemaEventoViewModel.hpp"
+#include "ui/TotemsViewModel.hpp"
 #include "video/SuperRes.hpp"
-#include "medios/Playlist.hpp"
-#include "ui/PuestoCorreccion.hpp"
-#include "video/Scopes.hpp"
-#include "video/VideoGrafos.hpp"
-#include "tiempos/TiemposModel.hpp"
-#include "resolucion/ResolucionModel.hpp"
-#include "video/Camaras.hpp"
-#include "video/CatalogoGst.hpp"
-#include "Motor.hpp"
-#include "platform/Hilo.hpp"
-#include <QCoreApplication>
+
+#include <QClipboard>
+#include <QGuiApplication>
+#include <QJsonDocument>
 
 namespace ba::app {
 
@@ -208,16 +82,6 @@ namespace {
 
 QString qs(const std::string& s) { return QString::fromStdString(s); }
 
-/// Un hijo objeto, o {} si falta o no es un objeto (value() sobre null tira una excepción).
-nlohmann::json hijoObjeto(const nlohmann::json& j, const char* k) {
-    return j.is_object() && j.contains(k) && j[k].is_object() ? j[k] : nlohmann::json::object();
-}
-
-} // namespace
-
-namespace {
-/// ¿Le llegan cuadros a la entrada? El motor publica cuánto hace del último dato
-/// (`sin_datos_s`: -1 si todavía no llegó nada).
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
@@ -1441,10 +1305,6 @@ QStringList StudioViewModel::sinSenal() const { return respaldo_ ? respaldo_->si
 
 QObject* StudioViewModel::ccQml() const { return asistente_->ccQml(); }
 
-} // namespace ba::app
-
-namespace ba::app {
-
 QObject* StudioViewModel::busQml() const { return bus_.get(); }
 
 void StudioViewModel::publicarEventos() {
@@ -1497,10 +1357,6 @@ void StudioViewModel::publicarEventos() {
     }
 }
 
-} // namespace ba::app
-
-namespace ba::app {
-
 QObject* StudioViewModel::botoneraQml() const { return control_->botoneraQml(); }
 QObject* StudioViewModel::recursosQml() const {
     if (recursos_) QQmlEngine::setObjectOwnership(recursos_.get(), QQmlEngine::CppOwnership);
@@ -1511,7 +1367,6 @@ QObject* StudioViewModel::controlQml() const {
     QQmlEngine::setObjectOwnership(control_.get(), QQmlEngine::CppOwnership);
     return control_.get();
 }
-
 
 QObject* StudioViewModel::satelliteQml() const { return control_->satelliteQml(); }
 QObject* StudioViewModel::carasBotoneraQml() const { return control_->carasBotoneraQml(); }
@@ -1530,17 +1385,8 @@ QString StudioViewModel::capitulosPuntosUi() const {
     return qs(asamblea_->ordenDelDia().capitulosTexto(recordStartMs()));
 }
 
-} // namespace ba::app
-
-namespace ba::app {
-
-
 QObject* StudioViewModel::playlistQml() const { return playlist_.get(); }
 QObject* StudioViewModel::puestoCorreccionQml() const { return asistente_->puestoCorreccionQml(); }
-
-} // namespace ba::app
-
-namespace ba::app {
 
 } // namespace ba::app
 
@@ -1556,19 +1402,7 @@ int StudioViewModel::personasConectadas() const {
            (asamblea_ ? asamblea_->sesionRemota()->conectados() : 0);
 }
 
-} // namespace ba::app
-
-namespace ba::app {
-
 std::filesystem::path StudioViewModel::datosRaiz() const { return rt_.dataRoot(); }
-
-} // namespace ba::app
-
-namespace ba::app {
-
-} // namespace ba::app
-
-namespace ba::app {
 
 } // namespace ba::app
 
