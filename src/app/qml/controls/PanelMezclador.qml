@@ -28,7 +28,8 @@ Item {
     readonly property var nE: mz ? mz.nivelesEntradas : []
     readonly property var nS: mz ? mz.nivelesSalidas : []
     readonly property var lu: mz ? mz.loudness : ({})
-    property var tiras: ({})     // nombre -> {volumenDb, mute, pfl, envios}
+    // nombre -> {volumenDb, mute, pfl, envios}: el modelo avisa cuando algo cambia.
+    readonly property var tiras: mz ? mz.tiras : ({})
     readonly property bool matrizAbierta: mz ? mz.matrizAbierta : false // del modelo (mezclador_pestana)
     property string elegida: ""
     // La pestaña es del modelo (el asistente la cambia: mezclador_pestana).
@@ -38,39 +39,29 @@ Item {
 
     Suscripcion { objetivo: m.mz; activa: m.visible }
 
-    // El estado de las tiras (fader, mute, envíos) cambia poco: se relee seguido sin
-    // pedir un aviso por cada cosa.
-    Timer { interval: 400; running: m.visible; repeat: true; triggeredOnStart: true; onTriggered: m.leerTiras() }
-    function leerTiras() {
-        if (!mz) return
-        const t = {}
-        for (let i = 0; i < entradas.length; ++i) t[entradas[i]] = mz.tira(entradas[i])
-        tiras = t
-        // Los grupos (los mismos de la tarjeta, del modelo del mezclador): cuáles están
-        // compactados y su volumen general (VCA).
-        const gs = Studio.mixer ? Studio.mixer.grupos() : []
-        const porClave = {}, deTira = {}
-        for (let i = 0; i < gs.length; ++i) {
-            porClave[gs[i].grupo] = gs[i]
-            for (let k = 0; k < gs[i].tiras.length; ++k) deTira[gs[i].tiras[k]] = gs[i].grupo
-        }
-        grupos = porClave
-        // La estructura (qué grupos, qué tiras, cuáles compactados) cambia poco: la vista se
-        // rearma solo si cambió. Si se rearmara en cada lectura, titilaría y cortaría el
-        // arrastre de un fader (el VCA cambia mientras se lo mueve: va por `grupos`).
-        const est = JSON.stringify(gs.map((x) => [x.grupo, x.tiras, x.compacto]))
-        if (est !== estructura) { estructura = est; grupoDe = deTira }
+    // Los grupos (los mismos de la tarjeta, del modelo del mezclador): cuáles están
+    // compactados y su volumen general (VCA). La consola se rearma con la ESTRUCTURA (qué
+    // grupos, qué tiras, cuáles compactados), que cambia poco: si se rearmara con cada VCA,
+    // titilaría y cortaría el arrastre de un fader.
+    readonly property var grupos: {   // clave -> {grupo, nombre, tiras, compacto, volumenDb}
+        const gs = Studio.mixer ? Studio.mixer.grupos : [], porClave = {}
+        for (let i = 0; i < gs.length; ++i) porClave[gs[i].grupo] = gs[i]
+        return porClave
     }
-    property var grupos: ({})  // clave -> {grupo, nombre, tiras, compacto, volumenDb}
-    property var grupoDe: ({}) // tira -> clave de su grupo
-    property string estructura: ""
+    readonly property var estructura: Studio.mixer ? Studio.mixer.estructuraGrupos : [] // [[grupo, tiras, compacto]]
+    readonly property var grupoDe: {  // tira -> clave de su grupo
+        const deTira = {}
+        for (let i = 0; i < estructura.length; ++i)
+            for (let k = 0; k < estructura[i][1].length; ++k) deTira[estructura[i][1][k]] = estructura[i][0]
+        return deTira
+    }
     // Lo que muestra la consola, en orden: cada tira; al empezar un grupo desplegado, su VCA;
     // un grupo compactado, un solo bloque (sin faders, una casilla por tira).
     readonly property var vista: {
         const out = [], vistos = {}
         for (let i = 0; i < entradas.length; ++i) {
             const n = entradas[i], g = grupoDe[n]
-            const compacto = g !== undefined && estructura.length > 0 && m.compactoEnEstructura(g)
+            const compacto = g !== undefined && m.compactoEnEstructura(g)
             if (g !== undefined && !vistos[g]) {
                 vistos[g] = true
                 out.push({ tipo: compacto ? "bloque" : "vca", grupo: g })
@@ -81,8 +72,7 @@ Item {
     }
     // De la estructura (no de `grupos`, que cambia con el VCA): ¿ese grupo está compactado?
     function compactoEnEstructura(g) {
-        const est = JSON.parse(estructura)
-        for (let i = 0; i < est.length; ++i) if (est[i][0] === g) return est[i][2]
+        for (let i = 0; i < estructura.length; ++i) if (estructura[i][0] === g) return estructura[i][2]
         return false
     }
     function indiceEnVista(nombre) {
@@ -126,7 +116,7 @@ Item {
     }
 
     // Sincronizar un canal con su video (el mismo de la tarjeta y de «Sincronía y red»).
-    RetardoCanal { id: retardoPop; onAplicado: m.leerTiras() }
+    RetardoCanal { id: retardoPop }
 
     // El Profiler emite un barrido por la salida que se elija en su interfaz: suena.
     // Un diálogo propio (en una ventana suelta no está el de la principal).
@@ -214,7 +204,7 @@ Item {
                     width: 30
                     db: t.st.volumenDb !== undefined ? t.st.volumenDb : 0
                     alMover: (v) => Studio.mixer.setVolumeDb(t.nombre, v)
-                    alCero: () => { Studio.mixer.setVolumeDb(t.nombre, 0); m.leerTiras() }
+                    alCero: () => Studio.mixer.setVolumeDb(t.nombre, 0)
                 }
             }
             // El nivel del fader.
@@ -230,7 +220,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 3
                 Boton { texto: "M"; on: !!t.st.mute; colorOn: Theme.canalMute; ayuda: qsTr("Mute")
-                        alTocar: () => { Studio.mixer.setMuted(t.nombre, !t.st.mute); m.leerTiras() } }
+                        alTocar: () => { Studio.mixer.setMuted(t.nombre, !t.st.mute) } }
                 Boton { texto: "AFV"; on: Studio.escenas.afvFuentes.indexOf(t.nombre) >= 0; colorOn: Theme.canalAfv; ayuda: qsTr("Sigue al video: sube cuando su escena sale al aire")
                         alTocar: () => Studio.escenas.setAfv(t.nombre, Studio.escenas.afvFuentes.indexOf(t.nombre) < 0) }
             }
@@ -414,12 +404,12 @@ Item {
                     Layout.fillWidth: true
                     text: "VCA"; color: Theme.accentSoft
                     font { family: Theme.font; pixelSize: 10; weight: Font.Bold; letterSpacing: 1 }
-                    TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(v.clave, 0); m.leerTiras() } }
+                    TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(v.clave, 0) } }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
                 Boton { texto: "−"; Layout.fillWidth: false; Layout.preferredWidth: 20
                         ayuda: qsTr("Compactar %1: sin faders, una casilla por tira").arg(v.g.nombre || "")
-                        alTocar: () => { Studio.mixer.setCompacto(v.clave, true); m.leerTiras() } }
+                        alTocar: () => { Studio.mixer.setCompacto(v.clave, true) } }
             }
             Item {
                 Layout.fillWidth: true
@@ -429,7 +419,7 @@ Item {
                     width: 30
                     db: v.db
                     alMover: (x) => Studio.mixer.setGananciaGrupoDb(v.clave, x)
-                    alCero: () => { Studio.mixer.setGananciaGrupoDb(v.clave, 0); m.leerTiras() }
+                    alCero: () => { Studio.mixer.setGananciaGrupoDb(v.clave, 0) }
                 }
             }
             Text {
@@ -437,7 +427,7 @@ Item {
                 text: m.texto(v.db)
                 color: Math.abs(v.db) > 0.05 ? Theme.accent : Theme.textDim
                 font { family: Theme.font; pixelSize: 10 }
-                TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(v.clave, 0); m.leerTiras() } }
+                TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(v.clave, 0) } }
             }
             Text {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
@@ -470,7 +460,7 @@ Item {
                 spacing: 4
                 Boton { texto: "+"; Layout.fillWidth: false; Layout.preferredWidth: 20
                         ayuda: qsTr("Mostrar los faders de %1 (%n tira)", "", bq.miembros.length).arg(bq.g.nombre || "")
-                        alTocar: () => { Studio.mixer.setCompacto(bq.clave, false); m.leerTiras() } }
+                        alTocar: () => { Studio.mixer.setCompacto(bq.clave, false) } }
                 Text {
                     Layout.fillWidth: true
                     text: bq.g.nombre || ""; color: Theme.text; elide: Text.ElideRight
@@ -483,7 +473,6 @@ Item {
                 alTocar: () => {
                     const alguna = bq.miembros.some((n) => !(m.tiras[n] || {}).mute)
                     Studio.mixer.setMutedGrupo(bq.clave, alguna)
-                    m.leerTiras()
                 }
             }
             // El VCA parado al costado de las casillas (alto hay de sobra), y las casillas.
@@ -500,7 +489,7 @@ Item {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: "VCA"; color: Theme.accentSoft; font { family: Theme.font; pixelSize: 8; weight: Font.Bold }
-                        TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(bq.clave, 0); m.leerTiras() } }
+                        TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(bq.clave, 0) } }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                     Item {
@@ -511,14 +500,14 @@ Item {
                             width: 14
                             db: bq.db
                             alMover: (x) => Studio.mixer.setGananciaGrupoDb(bq.clave, x)
-                            alCero: () => { Studio.mixer.setGananciaGrupoDb(bq.clave, 0); m.leerTiras() }
+                            alCero: () => { Studio.mixer.setGananciaGrupoDb(bq.clave, 0) }
                         }
                     }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: m.texto(bq.db); color: Math.abs(bq.db) > 0.05 ? Theme.accent : Theme.textFaint
                         font { family: Theme.font; pixelSize: 8 }
-                        TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(bq.clave, 0); m.leerTiras() } }
+                        TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(bq.clave, 0) } }
                     }
                 }
             Item {
@@ -548,7 +537,7 @@ Item {
                             HoverHandler { id: casHov; cursorShape: Qt.PointingHandCursor }
                             ToolTip.visible: casHov.hovered; ToolTip.delay: 400
                             ToolTip.text: (cas.muda ? qsTr("%1 · muda (un clic la silencia)") : qsTr("%1 (un clic la silencia)")).arg(cas.modelData)
-                            TapHandler { onTapped: { Studio.mixer.setMuted(cas.modelData, !cas.muda); m.leerTiras() } }
+                            TapHandler { onTapped: { Studio.mixer.setMuted(cas.modelData, !cas.muda) } }
                         }
                     }
                 }
@@ -738,7 +727,6 @@ Item {
                     const t = m.tiras[m.elegida] || {}
                     const v = t.volumenDb !== undefined ? t.volumenDb : 0
                     Studio.mixer.setVolumeDb(m.elegida, Math.max(-60, Math.min(12, v + db)))
-                    m.leerTiras()
                 }
                 Keys.onPressed: (e) => {
                     const grande = (e.modifiers & Qt.ShiftModifier) !== 0
@@ -752,7 +740,7 @@ Item {
                         case Qt.Key_Up: lista.ajustar(grande ? 3 : 1); e.accepted = true; break
                         case Qt.Key_Down: lista.ajustar(grande ? -3 : -1); e.accepted = true; break
                         case Qt.Key_M:
-                            if (m.elegida !== "") { Studio.mixer.setMuted(m.elegida, !(m.tiras[m.elegida] || {}).mute); m.leerTiras() }
+                            if (m.elegida !== "") { Studio.mixer.setMuted(m.elegida, !(m.tiras[m.elegida] || {}).mute) }
                             e.accepted = true; break
                     }
                 }

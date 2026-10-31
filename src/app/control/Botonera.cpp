@@ -6,6 +6,7 @@
 #include <QFile>
 
 #include "control/BusEventos.hpp"
+#include "comun/UsoPorVistas.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18n.hpp"
 
@@ -224,11 +225,18 @@ Botonera::Botonera(const fs::path& datos, BusEventos& bus, Ganchos g, QObject* p
     // El estado vivo: cualquier tema puede cambiar lo que muestra una celda.
     // Se recalcula a lo sumo cada 50 ms y solo se manda lo que cambió.
     sub_ = bus_.suscribir("#", [this](const std::string& tema, const json&) {
-        sucio_ = true;
+        ensuciar();
         if (tema == "salidas") emit salidasCambio(); // los selectores del escritorio
     });
+    // Solo cuando algo cambió y hay quien lo mire (ensuciar): sin aparatos ni vistas, quieto.
+    refresco_.setSingleShot(true);
+    refresco_.setInterval(50);
     connect(&refresco_, &QTimer::timeout, this, &Botonera::refrescar);
-    refresco_.start(50);
+    usoPaginas_ = std::make_unique<UsoPorVistas>(this, [this](const QString& que) {
+        if (!usoPaginas_->activo(que) && paginas_.remove(que) > 0) emit paginasCambio();
+        sucio_ = true;
+        refrescar(); // la que empieza a mirarse, ya
+    });
     // Faders y perillas: el último valor gana, a lo sumo 30 por segundo por control.
     connect(&coalescer_, &QTimer::timeout, this, [this]() {
         enCoalescer_ = true;
@@ -311,6 +319,7 @@ void Botonera::auditar(const std::string& dispositivo, const std::string& que, c
     ba::diag::registro().linea(ba::diag::Nivel::Info, "botonera", 0,
                                dispositivo + " " + que + (detalle.empty() ? "" : " " + detalle));
     while (auditoria_.size() > kAuditoria()) auditoria_.pop_front();
+    emit auditoriaCambio();
     std::error_code ec;
     fs::create_directories(log_.parent_path(), ec);
     std::ofstream o(log_, std::ios::app);
@@ -500,7 +509,7 @@ std::string Botonera::crearPerfil(const json& p, const std::string& plantilla, s
     datos_["perfiles"].push_back(nuevo);
     guardar();
     if (idOut != nullptr) *idOut = nuevo["id"];
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return {};
 }
@@ -548,7 +557,7 @@ std::string Botonera::editarPerfil(const std::string& id, const json& c, bool hu
     *orig = std::move(copia);
     guardar();
     auditar(humano ? "escritorio" : "asistente", "editar_perfil", id + " " + c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return {};
 }
@@ -561,7 +570,7 @@ bool Botonera::borrarPerfil(const std::string& id) {
     if (ps.size() == n) return false;
     guardar();
     auditar("escritorio", "borrar_perfil", id);
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return true;
 }
@@ -577,7 +586,7 @@ std::string Botonera::crearPagina(const std::string& perfil, const std::string& 
          {"celdas", json::array()}});
     guardar();
     if (idOut != nullptr) *idOut = id;
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return {};
 }
@@ -593,7 +602,7 @@ std::string Botonera::editarPagina(const std::string& perfil, const std::string&
     for (const char* k : {"columnas", "filas"})
         if (c.contains(k)) (*g)[k] = c.value(k, 0);
     guardar();
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return {};
 }
@@ -608,7 +617,7 @@ bool Botonera::borrarPagina(const std::string& perfil, const std::string& pagina
              gs.end());
     if (gs.size() == n) return false;
     guardar();
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return true;
 }
@@ -698,7 +707,7 @@ std::string Botonera::setCelda(const std::string& perfil, const std::string& pag
     cs.push_back(c);
     guardar();
     auditar("escritorio", "editar_celda", perfil + "/" + pagina + " " + claveCelda(x, y));
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return {};
 }
@@ -713,7 +722,7 @@ bool Botonera::borrarCelda(const std::string& perfil, const std::string& pagina,
              cs.end());
     if (cs.size() == n) return false;
     guardar();
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return true;
 }
@@ -1004,7 +1013,7 @@ std::string Botonera::completarGuion(const std::string& perfil) {
         if (std::find(ps.begin(), ps.end(), json("evento_correr")) == ps.end()) ps.push_back("evento_correr");
     }
     guardar();
-    sucio_ = true;
+    ensuciar();
     emit cambio();
     return {};
 }
@@ -1457,6 +1466,15 @@ json Botonera::render(const std::string& dispositivo) const {
     return renderPagina(*p, *g, dispositivo, salidaDe(dispositivo));
 }
 
+void Botonera::ensuciar() {
+    sucio_ = true;
+    if (!refresco_.isActive() && (!conectados_.empty() || (usoPaginas_ && usoPaginas_->alguien()))) refresco_.start();
+}
+
+void Botonera::usar(QObject* vista, bool si, const QString& que) {
+    if (!que.isEmpty()) usoPaginas_->usar(vista, si, que);
+}
+
 void Botonera::refrescar() {
     if (!sucio_) return;
     sucio_ = false;
@@ -1467,6 +1485,18 @@ void Botonera::refrescar() {
         ultimoRender_[id] = r;
         emit mensaje(QString::fromStdString(id), r);
     }
+    // Las páginas que mira el escritorio (como el aparato «escritorio»).
+    bool cambio = false;
+    for (auto it = paginas_.begin(); it != paginas_.end();)
+        it = usoPaginas_->activo(it.key()) ? std::next(it) : (cambio = true, paginas_.erase(it));
+    for (const QString& que : usoPaginas_->usados()) {
+        const qsizetype barra = que.indexOf('/');
+        QVariantMap r = paginaUi(que.left(barra), barra < 0 ? QString() : que.mid(barra + 1));
+        if (paginas_.value(que).toMap() == r) continue;
+        paginas_[que] = std::move(r);
+        cambio = true;
+    }
+    if (cambio) emit paginasCambio();
 }
 
 // ============================================================================
@@ -1500,7 +1530,7 @@ std::string Botonera::asignar(const std::string& dispositivo, const std::string&
     guardarDispositivos();
     auditar(dispositivo, "asignar", perfil + (pagina.empty() ? "" : "/" + pagina));
     ultimoRender_.erase(dispositivo);
-    sucio_ = true;
+    ensuciar();
     emit dispositivosCambio();
     return {};
 }
@@ -1657,7 +1687,7 @@ void Botonera::marcarConexion(const std::string& dispositivo, bool conectado, co
         (*d)["ultimo_uso_ms"] = ahoraMs();
         if (!ip.empty()) (*d)["ip"] = ip;
         ultimoRender_.erase(dispositivo); // que reciba todo de nuevo
-        sucio_ = true;
+        ensuciar();
         auditar(dispositivo, "conectado", ip);
     } else {
         conectados_.erase(dispositivo);
@@ -1826,19 +1856,19 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
         auto pe = pendientes_.find(dev);
         if (pe == pendientes_.end() || pe->second.celda != celda || pe->second.venceMs < ahoraMs()) {
             pendientes_.erase(dev);
-            sucio_ = true;
+            ensuciar();
             return avisar(dev, traducirEvento("botonera", "La confirmación venció: volvé a apretar."), true);
         }
         const json accion = pe->second.accion;
         pendientes_.erase(pe);
         ultimoRender_.erase(dev);
-        sucio_ = true;
+        ensuciar();
         correr(dev, *p, accion, celda, valores_.count(kv) ? valores_[kv] : 0, 0, true);
         return;
     }
     if (t == "cancelar") {
         pendientes_.erase(dev);
-        sucio_ = true;
+        ensuciar();
         return;
     }
     if (t == "presionar" && (tipo == "boton" || tipo == "perilla")) {
@@ -1901,7 +1931,7 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
         valores_[kv] = nuevo;
         faderPend_[kd] = {(*c)["accion"], nuevo};
         if (!coalescer_.isActive()) coalescer_.start();
-        sucio_ = true;
+        ensuciar();
         return;
     }
 }
@@ -1988,7 +2018,7 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
                      json{{"type", "confirmar"}, {"celda", celda}, {"vence_ms", kConfirmarMs()},
                           {"texto", traducirEvento("botonera", "Cambia el aire: confirmá")}});
         ultimoRender_.erase(dev);
-        sucio_ = true;
+        ensuciar();
         return;
     }
     const bool esFader = enCoalescer_;

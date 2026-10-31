@@ -51,8 +51,10 @@ Mezclador::Mezclador(AppRuntime& rt, VentanillaMotor& ventanilla, Matriz* matriz
     // Una entrada con audio que llega o se va: con la foto del motor.
     connect(&v_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
         if ((partes & FotoMotor::Mezcla) != 0) rehacerListas();
+        if ((partes & FotoMotor::Medidas) != 0) revisarLoudness();
     });
     rehacerListas();
+    revisarLoudness();
     calibracion_ = std::make_unique<Calibracion>(rt.dataRoot(), rt.modoPrueba());
 }
 
@@ -87,11 +89,21 @@ void Mezclador::rehacerListas() {
             salidas << QVariantMap{{"id", c.value("id")}, {"nombre", c.value("nombre")}, {"tipo", c.value("tipo")}};
             ids.push_back(c.value("id").toString().toStdString());
         }
-    if (entradas == entradas_ && salidas == salidas_) return;
-    entradas_ = entradas;
-    salidas_ = salidas;
-    idSalidas_ = std::move(ids);
-    emit listasCambio();
+    if (entradas != entradas_ || salidas != salidas_) {
+        entradas_ = entradas;
+        salidas_ = salidas;
+        idSalidas_ = std::move(ids);
+        emit listasCambio();
+    }
+    revisarTiras();
+}
+
+void Mezclador::revisarTiras() {
+    QVariantMap t;
+    for (const QString& n : entradas_) t[n] = tira(n);
+    if (t == tiras_) return;
+    tiras_ = std::move(t);
+    emit tirasCambio();
 }
 
 void Mezclador::medirYa() {
@@ -101,9 +113,6 @@ void Mezclador::medirYa() {
 
 void Mezclador::tic() {
     // (Las entradas que llegan o se van las trae la foto: rehacerListas.)
-    static int vueltas = 0;
-    ++vueltas;
-
     std::unordered_map<std::string, const motor::NivelAudio*> porId;
     const std::shared_ptr<const NivelesMotor::Niveles> niveles = rt_.niveles().niveles();
     if (niveles)
@@ -156,15 +165,17 @@ void Mezclador::tic() {
     }
     nivelesE_ = std::move(ne);
     nivelesS_ = std::move(ns);
-    // El loudness cambia despacio (el momentáneo integra 400 ms): 5 veces por segundo
-    // alcanza, y se ahorra la vuelta por JSON en cada cuadro.
-    if (vueltas % 6 == 0 || loudness_.isEmpty()) {
-        // De la foto (la parte Medidas: el loudness de cada salida, por su id).
-        const FotoMotor& f = v_.foto();
-        const std::string id = f.mezcla.salida(salida_);
-        loudness_ = f.loudness.contains(id) ? aMapa(f.loudness[id]) : QVariantMap{};
-    }
     emit nivelesCambio();
+}
+
+void Mezclador::revisarLoudness() {
+    // De la foto (la parte Medidas: el loudness de cada salida, por su id).
+    const FotoMotor& f = v_.foto();
+    const std::string id = f.mezcla.salida(salida_);
+    QVariantMap l = f.loudness.contains(id) ? aMapa(f.loudness[id]) : QVariantMap{};
+    if (l == loudness_) return;
+    loudness_ = std::move(l);
+    emit loudnessCambio();
 }
 
 QVariantMap Mezclador::tira(const QString& nombre) const {

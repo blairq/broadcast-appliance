@@ -20,7 +20,6 @@
 #include "ui/VideoViewModel.hpp"
 #include "video/BancoSuperRes.hpp"
 #include "video/Camaras.hpp"
-#include "video/Scopes.hpp"
 #include "video/SuperRes.hpp"
 #include "video/VideoGrafos.hpp"
 
@@ -28,7 +27,6 @@
 #include "audio/RackManager.hpp"
 #endif
 
-#include <QBuffer>
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QPointer>
@@ -57,6 +55,17 @@ ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p
     // El PTZ de cada entrada (y Mejorar imagen): se entera de las entradas nuevas y de lo
     // que cambia en Configuración por la foto del motor.
     camaras_ = std::make_unique<ptz::ControlCamaras>(rt, p_.ventanilla, rt.dataRoot());
+    // El legalizador llega con la foto (la configuración de la imagen, parte Video).
+    const auto revisarLegalizador = [this]() {
+        const QString l = qs(p_.ventanilla.foto().configImagen.value("legalizar", std::string("no")));
+        if (l == legalizador_) return;
+        legalizador_ = l;
+        emit legalizadorCambio();
+    };
+    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, [revisarLegalizador](unsigned partes) {
+        if ((partes & FotoMotor::Video) != 0) revisarLegalizador();
+    });
+    revisarLegalizador();
     armarTiempos();
     armarResolucion();
     // El grafo de tarjetas de video de cada entrada (después del PTZ). Es del dueño del
@@ -294,56 +303,45 @@ QVariantList ImagenViewModel::chequeosDelAparato(bool hayDestino) const {
     return out;
 }
 
-QVariantMap ImagenViewModel::scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const {
-    video::TipoScope t = video::TipoScope::Onda;
-    if (!video::tipoScopeDeTexto(tipo, t)) return {{"error", tr("tipo desconocido")}};
-    QImage img;
-    std::uint64_t serie = 0;
+bool ImagenViewModel::cuadroScope(const QString& fuente, QImage& img, std::uint64_t& serie, QString& error) const {
     // El programa: el cuadro que ya se rinde para los monitores (no cuesta otro render).
-    if (fuente.isEmpty() && p_.cuadros.latest("program", img, serie) && !img.isNull()) {
-    } else {
-        // Otra fuente: se pide aparte (capturarAparte) y se usa el último cuadro
-        // que llegó; el panel pregunta cada 200 ms, así que el próximo ya lo tiene.
-        // La interfaz no espera el cuadro.
-        if (!scopeCapturando_) {
-            scopeCapturando_ = true;
-            // La captura la arranca el dueño del motor; el cuadro vuelve a este hilo.
-            QPointer<const ImagenViewModel> yo(this);
-            p_.ventanilla.pedir("scope_cuadro", [&rt = p_.rt, yo, fuente]() {
-                rt.engine().capturarAparte(
-                    fuente.toStdString(), 640, [yo, fuente](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
-                        QImage llego;
-                        if (e.empty() && w > 0 && h > 0) llego = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-                        QMetaObject::invokeMethod(
-                            qApp,
-                            [yo, fuente, llego, e]() {
-                                if (!yo) return;
-                                yo->scopeCapturando_ = false;
-                                yo->scopeFuente_ = fuente;
-                                yo->scopeCuadro_ = llego;
-                                yo->scopeError_ = QString::fromStdString(e);
-                            },
-                            Qt::QueuedConnection);
-                    });
-            });
-        }
-        if (scopeFuente_ != fuente || scopeCuadro_.isNull())
-            return scopeError_.isEmpty() || scopeFuente_ != fuente ? QVariantMap{{"esperando", true}}
-                                                                   : QVariantMap{{"error", scopeError_}};
-        img = scopeCuadro_;
+    if (fuente.isEmpty()) return p_.cuadros.latest("program", img, serie) && !img.isNull();
+    // Otra fuente: se pide aparte (capturarAparte) y se usa el último cuadro que llegó; la
+    // vista vuelve a preguntar, así que el próximo ya lo tiene. La interfaz no espera.
+    if (!scopeCapturando_) {
+        scopeCapturando_ = true;
+        // La captura la arranca el dueño del motor; el cuadro vuelve a este hilo.
+        QPointer<const ImagenViewModel> yo(this);
+        p_.ventanilla.pedir("scope_cuadro", [&rt = p_.rt, yo, fuente]() {
+            rt.engine().capturarAparte(
+                fuente.toStdString(), 640, [yo, fuente](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
+                    QImage llego;
+                    if (e.empty() && w > 0 && h > 0) llego = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+                    QMetaObject::invokeMethod(
+                        qApp,
+                        [yo, fuente, llego, e]() {
+                            if (!yo) return;
+                            yo->scopeCapturando_ = false;
+                            yo->scopeFuente_ = fuente;
+                            yo->scopeCuadro_ = llego;
+                            yo->scopeError_ = QString::fromStdString(e);
+                            ++yo->scopeSerie_;
+                        },
+                        Qt::QueuedConnection);
+                });
+        });
     }
-    const video::Legalidad l = video::medirLegalidad(img);
-    const QImage s = video::dibujarScope(img, t, std::clamp(ancho, 200, 1600), std::clamp(alto, 120, 1200));
-    QByteArray png;
-    QBuffer buf(&png);
-    buf.open(QIODevice::WriteOnly);
-    s.save(&buf, "PNG");
-    return {{"imagen", "data:image/png;base64," + QString::fromLatin1(png.toBase64())},
-            {"legalidad", QVariantMap{{"negros_aplastados_pct", std::round(l.lumaBajaPct * 10) / 10},
-                                      {"blancos_quemados_pct", std::round(l.lumaAltaPct * 10) / 10},
-                                      {"fuera_de_gama_pct", std::round(l.cromaPct * 10) / 10}}},
-            {"legalizador", qs(p_.ventanilla.foto().configImagen.value("legalizar", std::string("no")))}};
+    if (scopeFuente_ != fuente) return false;
+    if (scopeCuadro_.isNull()) {
+        error = scopeError_;
+        return false;
+    }
+    img = scopeCuadro_;
+    serie = scopeSerie_;
+    return true;
 }
+
+QString ImagenViewModel::legalizador() const { return legalizador_; }
 
 QString ImagenViewModel::legalizarUi(const QString& modo) {
     const std::string m = modo.toStdString();

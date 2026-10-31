@@ -129,9 +129,8 @@ Item {
         // true peak (rojo arriba del objetivo), LRA y el objetivo.
         ColumnLayout {
             id: ld
-            // El de la salida que maneja esta interfaz (la activa).
-            property var l: Studio.emision.loudnessUi(Studio.salidas.activa)
-            Timer { interval: 300; running: ld.visible; repeat: true; onTriggered: ld.l = Studio.emision.loudnessUi(Studio.salidas.activa) }
+            // El de la salida que maneja esta interfaz (la activa): lo avisa el modelo.
+            readonly property var l: Studio.mezclador ? Studio.mezclador.loudness : ({})
             readonly property var ob: l.objetivo || ({ lufs: -23, tp: -1, perfil: "r128" })
             Layout.fillHeight: true
             Layout.fillWidth: false

@@ -61,6 +61,12 @@ class UsoPorVistas {
     }
     /// Si alguna vista usa algo (lo que sea).
     bool alguien() const { return !usos_.isEmpty(); }
+    /// Lo que alguna vista usa ahora (cada `que` una vez).
+    QSet<QString> usados() const {
+        QSet<QString> out;
+        for (auto it = usos_.cbegin(); it != usos_.cend(); ++it) out.unite(it.value());
+        return out;
+    }
 
    private:
     void soltarTodo(QObject* vista) {

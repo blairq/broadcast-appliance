@@ -408,7 +408,32 @@ MixerModel::MixerModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* par
         for (const auto& g : j["compactos"])
             if (g.is_string()) compactos_.insert(g.get<std::string>());
     connect(&v_, &VentanillaMotor::cambio, this, &MixerModel::alCambiar);
+    // Los grupos se revisan con lo que cambia en las filas (no con los picos, que son a 30 Hz).
+    connect(this, &QAbstractItemModel::modelReset, this, &MixerModel::revisarGrupos);
+    connect(this, &QAbstractItemModel::dataChanged, this,
+            [this](const QModelIndex&, const QModelIndex&, const QList<int>& roles) {
+                if (roles.isEmpty() || roles.contains(MutedRole) || roles.contains(GananciaGrupoDbRole) ||
+                    roles.contains(CompactoRole) || roles.contains(GrupoRole))
+                    revisarGrupos();
+            });
     reload();
+}
+
+void MixerModel::revisarGrupos() {
+    QVariantList g = gruposEn(salida_);
+    QVariantList est;
+    for (const QVariant& v : g) {
+        const QVariantMap m = v.toMap();
+        est << QVariant(QVariantList{m.value("grupo"), m.value("tiras"), m.value("compacto")});
+    }
+    if (g != grupos_cache_) {
+        grupos_cache_ = std::move(g);
+        emit gruposCambio();
+    }
+    if (est != estructura_) {
+        estructura_ = std::move(est);
+        emit estructuraCambio();
+    }
 }
 
 int MixerModel::rowCount(const QModelIndex&) const { return static_cast<int>(names_.size()); }
@@ -667,7 +692,16 @@ void MixerModel::refreshLevels() {
             hasta = static_cast<int>(i);
         }
     }
-    if (desde >= 0) emit dataChanged(index(desde), index(hasta), {PeakDbRole});
+    if (desde >= 0) {
+        emit dataChanged(index(desde), index(hasta), {PeakDbRole});
+        emit picosCambio();
+    }
+}
+
+QVariantMap MixerModel::picos() const {
+    QVariantMap out;
+    for (std::size_t i = 0; i < names_.size() && i < peaks_.size(); ++i) out[qs(names_[i])] = peaks_[i];
+    return out;
 }
 
 double MixerModel::picoDe(const std::string& nombre) const {

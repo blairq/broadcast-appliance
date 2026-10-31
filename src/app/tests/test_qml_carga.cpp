@@ -9,6 +9,7 @@
 // TerminalView) reemplazados por unos de mentira: las propiedades de Studio se
 // resuelven al ejecutar, así que para compilar alcanza con que exista.
 #include "ui/Vumetro.hpp"
+#include <QAbstractListModel>
 #include <QDirIterator>
 #include <QGuiApplication>
 #include <QQmlComponent>
@@ -64,6 +65,46 @@ class TerminalFalsa : public QQuickItem {
     QString fontFamily_;
 };
 
+class MonitorBusFalso : public QAbstractListModel { // control/MonitorBus.hpp
+    Q_OBJECT
+    Q_PROPERTY(QObject* bus MEMBER bus_ NOTIFY cambio)
+    Q_PROPERTY(QString filtro MEMBER filtro_ NOTIFY cambio)
+    Q_PROPERTY(bool conMediciones MEMBER conMediciones_ NOTIFY cambio)
+    Q_PROPERTY(bool activo MEMBER activo_ NOTIFY cambio)
+    Q_PROPERTY(QVariantList recientes MEMBER recientes_ NOTIFY cambio)
+   public:
+    int rowCount(const QModelIndex& = {}) const override { return 0; }
+    QVariant data(const QModelIndex&, int) const override { return {}; }
+   signals:
+    void cambio();
+
+   private:
+    QObject* bus_ = nullptr;
+    QString filtro_;
+    bool conMediciones_ = false, activo_ = false;
+    QVariantList recientes_;
+};
+
+class ScopeFalso : public QObject { // ui/ScopeVista.hpp
+    Q_OBJECT
+    Q_PROPERTY(QObject* imagen MEMBER imagen_ NOTIFY cambio)
+    Q_PROPERTY(QString fuente MEMBER fuente_ NOTIFY cambio)
+    Q_PROPERTY(QString tipo MEMBER tipo_ NOTIFY cambio)
+    Q_PROPERTY(int ancho MEMBER ancho_ NOTIFY cambio)
+    Q_PROPERTY(int alto MEMBER alto_ NOTIFY cambio)
+    Q_PROPERTY(bool activo MEMBER activo_ NOTIFY cambio)
+    Q_PROPERTY(QVariantMap dato MEMBER dato_ NOTIFY cambio)
+   signals:
+    void cambio();
+
+   private:
+    QObject* imagen_ = nullptr;
+    QString fuente_, tipo_;
+    int ancho_ = 0, alto_ = 0;
+    bool activo_ = false;
+    QVariantMap dato_;
+};
+
 class ImagenVivaFalsa : public QQuickItem { // ui/ImagenViva.hpp
     Q_OBJECT
     Q_PROPERTY(QImage imagen MEMBER imagen_ NOTIFY cambio)
@@ -89,6 +130,8 @@ int main(int argc, char** argv) {
     qmlRegisterType<TerminalFalsa>("BA", 1, 0, "TerminalView");
     qmlRegisterType<ImagenVivaFalsa>("BA", 1, 0, "ImagenViva");
     qmlRegisterType<ba::app::Vumetro>("BA", 1, 0, "Vumetro");
+    qmlRegisterType<MonitorBusFalso>("BA", 1, 0, "MonitorBus");
+    qmlRegisterType<ScopeFalso>("BA", 1, 0, "Scope");
     qmlRegisterSingletonType(QUrl::fromLocalFile(dir + "/Theme.qml"), "BA", 1, 0, "Theme");
 
     QQmlEngine engine;

@@ -1,6 +1,7 @@
 // Los instrumentos de video (T39): forma de onda, RGB parade, vectorscopio e
 // histograma del programa o de una entrada, con cuánto está fuera de rango y el
-// legalizador para TV. Se refresca ~5 veces por segundo mientras está abierto.
+// legalizador para TV. Se dibuja con cada cuadro nuevo (~5 por segundo) mientras está
+// abierto (ui/ScopeVista).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -11,7 +12,7 @@ Popup {
     property string entrada: ""          // la entrada elegida en la página (opcional)
     property string fuente: ""           // "" = el programa
     property string tipo: "onda"
-    property var dato: ({})
+    readonly property var dato: scope.dato
     anchors.centerIn: parent
     width: Math.min(parent.width - 80, 760)
     height: Math.min(parent.height - 80, 600)
@@ -19,9 +20,15 @@ Popup {
     padding: 16
     background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
 
-    function refrescar() { pop.dato = Studio.imagen.scopeUi(pop.fuente, pop.tipo, Math.round(vista.width), Math.round(vista.height)) }
-    Timer { interval: 200; repeat: true; running: pop.visible; onTriggered: pop.refrescar() }
-    onOpened: refrescar()
+    Scope {
+        id: scope
+        imagen: Studio.imagen
+        fuente: pop.fuente
+        tipo: pop.tipo
+        ancho: Math.round(vista.width)
+        alto: Math.round(vista.height)
+        activo: pop.visible
+    }
 
     // El contenido del Popup (no un hijo anclado a él): con anchors.fill, su alto natural
     // (textos que se parten según el ancho) volvía al del Popup y daba binding loop.
@@ -37,13 +44,13 @@ Popup {
             Repeater {
                 model: [{ id: "", t: qsTr("Programa") }].concat(pop.entrada !== "" ? [{ id: pop.entrada, t: pop.entrada }] : [])
                 delegate: GlassButton { required property var modelData; compact: true; text: modelData.t; active: pop.fuente === modelData.id
-                                        onClicked: { pop.fuente = modelData.id; pop.refrescar() } }
+                                        onClicked: pop.fuente = modelData.id }
             }
             Item { Layout.fillWidth: true }
             Repeater {
                 model: [{ id: "onda", t: qsTr("Onda") }, { id: "parade", t: qsTr("Parade") }, { id: "vector", t: qsTr("Vector") }, { id: "histograma", t: qsTr("Histograma") }]
                 delegate: GlassButton { required property var modelData; compact: true; text: modelData.t; active: pop.tipo === modelData.id
-                                        onClicked: { pop.tipo = modelData.id; pop.refrescar() } }
+                                        onClicked: pop.tipo = modelData.id }
             }
         }
         Rectangle {
@@ -79,7 +86,7 @@ Popup {
                 Layout.preferredWidth: 260
                 textRole: "t"
                 model: [{ id: "no", t: qsTr("No") }, { id: "pal", t: qsTr("Sí, PAL (+133 %)") }, { id: "ntsc", t: qsTr("Sí, estricto (+120 %)") }, { id: "rango", t: qsTr("Solo el rango") }]
-                currentIndex: Math.max(0, model.findIndex(m => m.id === (pop.dato.legalizador || "no")))
+                currentIndex: Math.max(0, model.findIndex(m => m.id === (Studio.imagen.legalizador || "no")))
                 onActivated: (i) => { const e = Studio.imagen.legalizarUi(model[i].id); if (e !== "") Studio.notify(e, "error") }
             }
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10

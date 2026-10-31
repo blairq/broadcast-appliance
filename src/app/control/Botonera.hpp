@@ -57,8 +57,13 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
+
+namespace ba::app {
+class UsoPorVistas;
+}
 
 namespace ba::app::control {
 
@@ -71,6 +76,11 @@ class Botonera : public QObject {
     Q_PROPERTY(QVariantList solicitudes READ solicitudesUi NOTIFY solicitudesCambio)
     /// Las salidas para los selectores: [{id, nombre, color, por_omision}] (las avisa el bus).
     Q_PROPERTY(QVariantList salidas READ salidasUi NOTIFY salidasCambio)
+    /// Lo que muestra cada página que mira el escritorio (`usar(vista, si, "<perfil>/<página>")`):
+    /// {"<perfil>/<página>": paginaUi}. Al día con el estado vivo (tally, niveles), como un aparato.
+    Q_PROPERTY(QVariantMap paginas READ paginas NOTIFY paginasCambio)
+    /// La auditoría, la más nueva primero: [{hora, dispositivo, que, detalle}] (hasta 200).
+    Q_PROPERTY(QVariantList auditoria READ auditoriaUi NOTIFY auditoriaCambio)
    public:
     using json = nlohmann::json;
     /// Resultado de una herramienta: ok y un texto corto para el aparato.
@@ -240,7 +250,11 @@ class Botonera : public QObject {
     QVariantList perfilesUi() const;
     QVariantList dispositivosUi() const;
     QVariantList solicitudesUi() const;
-    Q_INVOKABLE QVariantMap paginaUi(const QString& perfil, const QString& pagina) const;
+    QVariantMap paginaUi(const QString& perfil, const QString& pagina) const;
+    QVariantMap paginas() const { return paginas_; }
+    /// Una vista del escritorio empieza o deja de mirar la página `que` («<perfil>/<página>»;
+    /// la cuenta es por vista: comun/UsoPorVistas).
+    Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que);
     /// `salida`: la que manejan sus aparatos ("" = la por omisión).
     Q_INVOKABLE QString crearPerfilUi(const QString& nombre, const QString& plantilla, const QString& salida = {});
     /// Le suma a la primera página del perfil la fila del guion («◀ Cue», el cue actual,
@@ -270,7 +284,7 @@ class Botonera : public QObject {
     Q_INVOKABLE QString elegirSalidaUi(const QString& dispositivo, const QString& salida);
     QVariantList salidasUi() const;
     Q_INVOKABLE int revocarUi(const QString& dispositivo);
-    Q_INVOKABLE QVariantList auditoriaUi() const;
+    QVariantList auditoriaUi() const;
     Q_INVOKABLE QStringList herramientasUi(const QString& filtro) const;
     /// El catálogo por categorías para el selector de herramientas (ver Ganchos::catalogo).
     Q_INVOKABLE QVariantList catalogoUi() const;
@@ -282,6 +296,8 @@ class Botonera : public QObject {
     void dispositivosCambio();
     void solicitudesCambio();
     void salidasCambio();
+    void paginasCambio();
+    void auditoriaCambio();
     /// Hay que mandarle algo a un aparato: {type: estado|confirmar|aviso, …}.
     void mensaje(const QString& dispositivo, const nlohmann::json& msg);
     /// Cambió la lista de credenciales (sumar, revocar, vencer): al gateway.
@@ -322,6 +338,8 @@ class Botonera : public QObject {
                 double valor, double delta, bool confirmado);
     void avisar(const std::string& dispositivo, const std::string& texto, bool error);
     void refrescar(); ///< recalcula lo que muestra cada aparato y manda lo que cambió
+    /// Algo cambió: se refresca pronto, si hay alguien mirando (un aparato, una vista).
+    void ensuciar();
     bool limiteOk(const std::string& dispositivo);
     json armarPlantilla(const std::string& id) const;
     std::string idNuevo(const char* prefijo) const;
@@ -359,6 +377,8 @@ class Botonera : public QObject {
     std::map<std::string, Solicitud> solicitudes_;
     std::deque<json> auditoria_;
     QTimer refresco_;
+    std::unique_ptr<UsoPorVistas> usoPaginas_;
+    QVariantMap paginas_;
     QTimer coalescer_;
     int sub_ = 0;
     bool sucio_ = true;

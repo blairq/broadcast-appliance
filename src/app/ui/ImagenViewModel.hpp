@@ -84,6 +84,8 @@ class ImagenViewModel : public QObject {
     /// video.fps: "25", "30000/1001"), texto ("25", "29,97")}] (las que no parpadean)}. Se
     /// avisa y se ofrece, no se cambia solo. Cambia al aplicar la configuración.
     Q_PROPERTY(QVariantMap redElectrica READ redElectrica NOTIFY redElectricaChanged)
+    /// Legalizar para TV: no | pal | ntsc | rango (de la foto).
+    Q_PROPERTY(QString legalizador READ legalizador NOTIFY legalizadorCambio)
    public:
     struct Partes {
         AppRuntime& rt;
@@ -129,9 +131,12 @@ class ImagenViewModel : public QObject {
     /// si hay destino de transmisión, las entradas sin señal).
     QVariantList chequeosDelAparato(bool hayDestino) const;
 
-    /// Un scope (onda|parade|vector|histograma) de `fuente` ("" = programa):
-    /// {imagen: data URL PNG, legalidad: {...}, legalizador} o {error}.
-    Q_INVOKABLE QVariantMap scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const;
+    /// El último cuadro de `fuente` para los scopes ("" = el programa, el que ya se rinde
+    /// para los monitores; otra fuente se pide aparte y llega después: la interfaz no
+    /// espera). true si hay: `serie` cambia con cada cuadro nuevo. false: `error`, o vacío
+    /// si todavía no llegó (ui/ScopeVista lo vuelve a pedir).
+    bool cuadroScope(const QString& fuente, QImage& img, std::uint64_t& serie, QString& error) const;
+    QString legalizador() const;
     /// Legalizar para TV: no | pal | ntsc | rango. "" o el error.
     Q_INVOKABLE QString legalizarUi(const QString& modo);
 
@@ -139,6 +144,7 @@ class ImagenViewModel : public QObject {
     /// Para el operador (ya traducido).
     void notify(const QString& texto, const QString& nivel);
     void redElectricaChanged();
+    void legalizadorCambio();
 
    private:
     void armarTiempos();
@@ -156,10 +162,12 @@ class ImagenViewModel : public QObject {
     std::unique_ptr<video::SuperRes> superres_;
     std::unique_ptr<video::BancoSuperRes> bancoSr_;
     // El scope de una fuente que no es el programa: el último cuadro que llegó
-    // (scopeUi lo pide aparte; la interfaz no espera el cuadro).
+    // (cuadroScope lo pide aparte; la interfaz no espera el cuadro).
     mutable bool scopeCapturando_ = false;
     mutable QString scopeFuente_, scopeError_;
     mutable QImage scopeCuadro_;
+    mutable std::uint64_t scopeSerie_ = 0;
+    QString legalizador_;
 };
 
 } // namespace ba::app

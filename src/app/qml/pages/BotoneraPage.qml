@@ -24,7 +24,11 @@ Rectangle {
     property string pestana: "editor"   // editor | aparatos | eventos | auditoria
     property string perfilId: ""
     property string paginaId: ""
-    property var render: ({})
+    // Lo que muestra la página elegida, con lo vivo (tally, niveles): lo avisa el modelo
+    // mientras se la mira (Botonera::usar, como un aparato más).
+    readonly property string claveRender: perfilId !== "" ? perfilId + "/" + paginaId : ""
+    readonly property var render: claveRender !== "" && bot.paginas[claveRender] ? bot.paginas[claveRender] : ({})
+    Suscripcion { objetivo: page.bot; que: page.claveRender; activa: page.visible && page.claveRender !== "" }
     property int selX: -1
     property int selY: -1
     property var emparejo: ({})
@@ -56,7 +60,6 @@ Rectangle {
         if (page.perfilId === "" && page.bot.perfiles.length > 0) page.perfilId = page.bot.perfiles[0].id
         const p = perfilActual()
         if (p && !p.paginas.some(g => g.id === page.paginaId)) page.paginaId = p.paginas.length ? p.paginas[0].id : ""
-        page.render = page.perfilId !== "" ? page.bot.paginaUi(page.perfilId, page.paginaId) : ({})
     }
     function celdaRender(x, y) {
         for (const c of (page.render.celdas || []))
@@ -83,12 +86,6 @@ Rectangle {
             page.emparejoHasta = r.vence_ms || 0
             if (r.error && !r.url) Studio.notify(r.error, "error")
         }
-    }
-    // Lo vivo (tally, niveles) se ve en la grilla mientras se mira.
-    Timer {
-        interval: 250; repeat: true
-        running: page.visible && page.pestana === "editor"
-        onTriggered: page.render = page.perfilId !== "" ? page.bot.paginaUi(page.perfilId, page.paginaId) : ({})
     }
     // Las caras animadas (video corto) de la grilla, a 8 cuadros/s.
     function urlCuadro(cara, ahora) {
@@ -1007,14 +1004,12 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     padding: 10
-                    // Modelo con clave (el tema): cada segundo se actualiza el valor de cada fila
-                        // en su lugar. Reemplazarlo entero rearmaba la lista y saltaba.
-                        ListModel { id: modeloTemas }
+                    // Una fila por tema, actualizada en su lugar por el modelo (no salta).
                     ListView {
                         id: temasLista
                         anchors.fill: parent
                         clip: true
-                        model: modeloTemas
+                        model: monitorBus
                         delegate: Text {
                             required property string tema
                             required property string valor
@@ -1034,10 +1029,9 @@ Rectangle {
                     padding: 10
                     ListView {
                         id: recientesLista
-                        property string firma: ""
                         anchors.fill: parent
                         clip: true
-                        model: []
+                        model: monitorBus.recientes
                         delegate: Text {
                             required property var modelData
                             width: ListView.view.width
@@ -1093,26 +1087,13 @@ Rectangle {
                     }
                 }
             }
-            Timer {
-                interval: 1000; repeat: true; triggeredOnStart: true
-                running: page.visible && page.pestana === "eventos"
-                onTriggered: {
-                    const temas = Studio.bus.temasUi(filtroEv.text)
-                    const vistos = {}
-                    for (let i = 0; i < temas.length; ++i) {
-                        const t = temas[i]
-                        vistos[t.tema] = true
-                        let j = 0
-                        while (j < modeloTemas.count && modeloTemas.get(j).tema !== t.tema) ++j
-                        if (j === modeloTemas.count) modeloTemas.insert(Math.min(i, modeloTemas.count), { tema: t.tema, valor: t.valor })
-                        else if (modeloTemas.get(j).valor !== t.valor) modeloTemas.setProperty(j, "valor", t.valor)
-                    }
-                    for (let k = modeloTemas.count - 1; k >= 0; --k) if (!vistos[modeloTemas.get(k).tema]) modeloTemas.remove(k)
-                    // Recientes: solo si llegó algo nuevo (si no, la lista se queda quieta).
-                    const r = Studio.bus.recientesUi(filtroEv.text, conMediciones.checked)
-                    const firma = r.length > 0 ? r[0].hora + r[0].tema + r.length : ""
-                    if (firma !== recientesLista.firma) { recientesLista.firma = firma; recientesLista.model = r }
-                }
+            // Lo que publica el bus, mientras se mira esta pestaña (control/MonitorBus).
+            MonitorBus {
+                id: monitorBus
+                bus: Studio.bus
+                filtro: filtroEv.text
+                conMediciones: conMediciones.checked
+                activo: page.visible && page.pestana === "eventos"
             }
         }
 
@@ -1126,7 +1107,7 @@ Rectangle {
                 id: audLista
                 anchors.fill: parent
                 clip: true
-                model: []
+                model: page.bot.auditoria
                 delegate: Text {
                     required property var modelData
                     width: ListView.view.width
@@ -1135,11 +1116,6 @@ Rectangle {
                     font.pixelSize: 11; font.family: Theme.mono
                     elide: Text.ElideRight
                 }
-            }
-            Timer {
-                interval: 1500; repeat: true; triggeredOnStart: true
-                running: page.visible && page.pestana === "auditoria"
-                onTriggered: audLista.model = page.bot.auditoriaUi()
             }
         }
     }

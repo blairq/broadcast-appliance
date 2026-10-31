@@ -51,13 +51,17 @@ class Mezclador : public QObject {
     Q_PROPERTY(QStringList entradas READ entradas NOTIFY listasCambio)
     /// Las salidas (columnas de la matriz): [{id, nombre, tipo}] (tipo: pista, escucha, fisica, salida, entrada).
     Q_PROPERTY(QVariantList salidas READ salidas NOTIFY listasCambio)
+    /// El estado de cada tira: {nombre: {nombre, volumenDb, mute, pfl, afl, retardoMs, envios:
+    /// [ids de columnas]}}. Avisa solo cuando algo cambió (la foto, la matriz, la salida).
+    Q_PROPERTY(QVariantMap tiras READ tiras NOTIFY tirasCambio)
     /// Por entrada, en el orden de `entradas`, 6 números: pico L, pico R, RMS L, RMS R,
     /// retención L, retención R (dB, -100 = nada).
     Q_PROPERTY(QVariantList nivelesEntradas READ nivelesEntradas NOTIFY nivelesCambio)
     /// Lo mismo por salida, en el orden de `salidas`.
     Q_PROPERTY(QVariantList nivelesSalidas READ nivelesSalidas NOTIFY nivelesCambio)
-    /// El loudness del programa: {momentaneo, corto, integrado, lra, true_peak_db, objetivo…}.
-    Q_PROPERTY(QVariantMap loudness READ loudness NOTIFY nivelesCambio)
+    /// El loudness del programa de la salida que se muestra: {m, s, i, lra, tp, objetivo…}.
+    /// Llega con la foto (la parte Medidas), sin que nadie tenga que usar el mezclador.
+    Q_PROPERTY(QVariantMap loudness READ loudness NOTIFY loudnessCambio)
     /// Si alguna vista lo está usando (el temporizador corre).
     Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
     /// Los analizadores de LSP que se pueden abrir sobre una entrada: [{id, nombre, para}].
@@ -84,15 +88,20 @@ class Mezclador : public QObject {
     /// Una vista (la ventana, la tarjeta) empieza o deja de usarlo. Mientras haya
     /// alguna, mide a 30 Hz; si se destruye sin avisar, se la saca sola.
     Q_INVOKABLE void usar(QObject* vista, bool si);
-    /// El estado de una tira: {nombre, volumenDb, mute, pfl, envios: [ids de columnas]}.
-    Q_INVOKABLE QVariantMap tira(const QString& nombre) const;
+    QVariantMap tiras() const { return tiras_; }
+    /// El estado de una tira (lo de `tiras`).
+    QVariantMap tira(const QString& nombre) const;
     /// De qué salida son el volumen y el mute de las tiras, los medidores de las pistas y el
     /// loudness (PLAN-SALIDAS: la salida activa de la interfaz, que tiene su propia mezcla;
     /// "" = la por omisión). Lo mueve el modelo del estudio con la salida activa.
-    void setSalida(const std::string& salida) { salida_ = salida; }
+    void setSalida(const std::string& salida) {
+        salida_ = salida;
+        revisarTiras();
+        revisarLoudness();
+    }
     const std::string& salida() const { return salida_; }
     /// A qué destinos va cada entrada: {nombre: [ids]} (para los chips de envío).
-    Q_INVOKABLE QVariantMap envios() const;
+    QVariantMap envios() const;
     QVariantList analisisLsp() const;
     /// Abre sobre la entrada el analizador de LSP `cual` (espectro, fase,
     /// osciloscopio, latencia, perfil) con su interfaz. "" si salió; si no, el motivo.
@@ -116,12 +125,16 @@ class Mezclador : public QObject {
 
    signals:
     void listasCambio();
+    void tirasCambio();
+    void loudnessCambio();
     void nivelesCambio();
     void activoCambio();
     void pestanaCambio();
 
    private:
     void rehacerListas();
+    void revisarTiras();
+    void revisarLoudness();
     void tic();
 
     AppRuntime& rt_;
@@ -136,6 +149,7 @@ class Mezclador : public QObject {
     UsoPorVistas usos_;
     QStringList entradas_;
     QVariantList salidas_;
+    QVariantMap tiras_;
     std::vector<std::string> idSalidas_; ///< el id de cada salida (orden de salidas_)
     QVariantList nivelesE_, nivelesS_;
     QVariantMap loudness_;

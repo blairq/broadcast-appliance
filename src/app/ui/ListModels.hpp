@@ -166,6 +166,15 @@ class SourcesModel : public QAbstractListModel {
 
 class MixerModel : public QAbstractListModel {
     Q_OBJECT
+    /// Los grupos de ahora (ver gruposEn): cambia con el mudo y el VCA de cada uno.
+    Q_PROPERTY(QVariantList grupos READ grupos NOTIFY gruposCambio)
+    /// Solo la forma de los grupos: [[grupo, [tiras], compacto]]. Cambia poco: la ventana del
+    /// mezclador rearma su consola con esto (con `grupos` titilaría y cortaría el arrastre
+    /// de un fader de VCA).
+    Q_PROPERTY(QVariantList estructuraGrupos READ estructuraGrupos NOTIFY estructuraCambio)
+    /// El pico (dBFS, con caída suave) de cada tira: {nombre: dB}. Avisa solo cuando alguno
+    /// se movió (en silencio, nunca): lo usan los vúmetros chicos (el muro de video).
+    Q_PROPERTY(QVariantMap picos READ picos NOTIFY picosCambio)
    public:
     enum Roles {
         NameRole = Qt::UserRole + 1,
@@ -223,7 +232,9 @@ class MixerModel : public QAbstractListModel {
     /// Los grupos de ahora: [{grupo, nombre, tiras: [nombres], compacto, volumenDb, mudo}] (la
     /// ventana del mezclador, que arma sus tiras con esto). `mudo` (todas sus tiras) y
     /// `volumenDb`, en la salida que muestra.
-    Q_INVOKABLE QVariantList grupos() const { return gruposEn(salida_); }
+    QVariantList grupos() const { return grupos_cache_; }
+    QVariantList estructuraGrupos() const { return estructura_; }
+    QVariantMap picos() const;
     /// Lo mismo con el mudo y el VCA de `salida` (el MCP).
     QVariantList gruposEn(const std::string& salida) const;
     /// {pico_db, volumen_db, mudo} de la fila en la mezcla de `salida` (redondeados: lo que
@@ -246,6 +257,15 @@ class MixerModel : public QAbstractListModel {
                std::function<void()> listo = {});
     void soltarPendiente(const std::string& clave);
     int filaDe(const std::string& nombre) const;
+    /// Rehace `grupos` y su estructura y avisa lo que cambió.
+    void revisarGrupos();
+
+   signals:
+    void gruposCambio();
+    void estructuraCambio();
+    void picosCambio();
+
+   private:
 
     AppRuntime& rt_;
     VentanillaMotor& v_;
@@ -257,6 +277,7 @@ class MixerModel : public QAbstractListModel {
     std::map<std::string, std::string> nombresGrupo_; ///< clave -> lo que se muestra
     std::set<std::string> compactos_; ///< los grupos compactados (Config/mezclador-vista.json)
     std::map<QString, QAbstractItemModel*> delGrupo_; ///< los filtros por grupo (hijos de este)
+    QVariantList grupos_cache_, estructura_;
     /// Lo pedido que todavía no volvió (en la salida que se muestra): se muestra esto.
     struct Pendiente {
         int pedidos = 0;

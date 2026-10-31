@@ -40,9 +40,8 @@ Item {
     property bool operador: true
     property bool tally: operador
     property bool vumetros: operador
-    // Los vúmetros se leen a 10 Hz (un solo reloj para todas las celdas).
-    property int pulso: 0
-    Timer { interval: 100; repeat: true; running: wall.vumetros && wall.visible; onTriggered: wall.pulso++ }
+    // Los picos de las fuentes (los avisa el modelo del mezclador cuando se mueven).
+    readonly property var picos: wall.vumetros && Studio.mixer ? Studio.mixer.picos : ({})
 
     /// La fuente del programa que muestra la celda (para el tally y el nivel).
     function fuenteDe(key) {
@@ -177,7 +176,7 @@ Item {
             Rectangle {
                 id: vum
                 readonly property string f: wall.fuenteDe(modelData)
-                readonly property real db: (wall.pulso, f !== "" ? Studio.picoDe(f) : -100)
+                readonly property real db: f !== "" && wall.picos[f] !== undefined ? wall.picos[f] : -100
                 visible: wall.vumetros && f !== "" && db > -90
                 anchors { right: parent.right; top: parent.top; bottom: parent.bottom; margins: 6 }
                 width: 6; radius: 3; z: 3

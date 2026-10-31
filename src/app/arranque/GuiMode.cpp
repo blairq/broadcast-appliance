@@ -11,6 +11,8 @@
 #include "arranque/GuiMode.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "arranque/ArranqueAviso.hpp"
+#include "control/MonitorBus.hpp"
+#include "ui/ScopeVista.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/Paths.hpp"
 
@@ -412,6 +414,8 @@ int runGui(int argc, char** argv) {
         qmlRegisterType<term::TerminalView>("BA", 1, 0, "TerminalView");
         qmlRegisterType<Vumetro>("BA", 1, 0, "Vumetro");
         qmlRegisterType<ImagenViva>("BA", 1, 0, "ImagenViva");
+        qmlRegisterType<control::MonitorBus>("BA", 1, 0, "MonitorBus");
+        qmlRegisterType<ScopeVista>("BA", 1, 0, "Scope");
         // Fuente de la terminal del Asistente (viaja en el bundle: data/fonts).
         for (const QString& dir :
              {QString::fromStdWString((ba::platform::bundleRoot() / "data" / "fonts").wstring()),
