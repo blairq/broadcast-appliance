@@ -113,14 +113,38 @@ quede solo en `SignalingServer`).
   `/correccion/`, `/registro-atiende/`, `/board/`. acento siempre: `/prompter/`. Nada: tally,
   carrusel (sus marcos ya lo traen).
 
+## Estado (2026-10-31, segunda tanda): hecho
+
+- **Tema claro**: lo que las páginas del público tenían fijo para fondo oscuro (resaltes
+  `rgba(255,255,255,…)`, campos y velos negros, la sombra, el borde del selector de idioma) pasa a
+  variables con su valor de siempre en `:root` (`--tinte`, `--tinte-fuerte`, `--campo`, `--velo`,
+  `--sombra`, `--borde-fuerte`): `/invitados/`, `/sesion/`, `/publico/`, `/pantalla/votacion/`, el
+  sitio. La hoja las puentea en el nivel «todo» con `--ev-*` que `resolver` calcula según el modo
+  (claro: el color del texto con poca opacidad, sombra 0,14; oscuro: lo de antes). Quedan fijos a
+  propósito: lo que va encima de video (rótulos de los recuadros, el PIP) y los carteles de la
+  votación (colores con significado).
+- **Gráficos y QR con el tema por omisión**: `graficos::Catalogo::valoresPorDefecto` da a un
+  parámetro de color `acento` (o que lo nombra con `"tema": "acento"`) el acento del evento abierto;
+  el estilo de fábrica de los QR toma `ba::tema::coloresQr` (oscuro sobre claro con contraste ≥ 4,5:
+  el acento, si no el texto, si no negro; el fondo del evento solo si es claro) y su logo al centro
+  (`imagenComoDataUrl`; en la dirección al gateway viaja `logoEvento=1` y él pone el suyo). Lo pone
+  `TemaEventoViewModel::ponerPorOmision` al abrir o cambiar el tema. Lo guardado o pasado a mano
+  sigue mandando.
+- **Logo**: tampoco entra un SVG con atributos de evento (`onload=`…). Probado contra el modelo
+  (PNG, WebP, SVG con script/foreignObject/javascript:/onload, RIFF que no es WebP, tope de 2 MB, la
+  huella) y el gateway (PNG/WebP con su tipo y nosniff, SVG con sandbox, > 4 MB, GIF y nombres que
+  no son de `Tema/` no salen; el QR con el logo del evento).
+- **Ayuda y prompt** del tema en en/fr/ru/pt-BR/zh-CN (la misma sección que la castellana).
+
 ## Falta
 
 - Probar en un navegador con la app en `--test` (y en un Chromecast/TV viejo): `curl
   http://127.0.0.1:<puerto>/comun/tema.css`, cambiar el acento con `evento_tema` y ver que las
-  páginas cambien solas en ≤ 15 s; un tema claro sobre las páginas de la sala (quedan colores
-  fijos pensados para fondo oscuro: sombras, `rgba(255,255,255,…)` de algunos bordes).
+  páginas cambien solas en ≤ 15 s; un tema claro de punta a punta en `/invitados/` y `/sesion/`
+  (capturas), y un zócalo y un QR nuevos con el acento y el logo del evento.
 - Los sitios ya generados no cambian solos: `evento_tema migrar_sitio` (o el botón «Pasar el
   sitio al tema»).
-- Opcional: los gráficos QML (`acento`) y `qr::Estilo` con el tema como valor por omisión.
-- `docs/mcp.json` se regenera con `tools/docs/mcp-inventario.py --desde-codigo`; las ayudas y el
-  prompt del asistente en los otros idiomas (solo se escribió el castellano).
+- El logo SVG dentro de un QR que dibuja la app (QtSvg y `<image>` con un SVG en data URL): mirarlo
+  en la pestaña QR; si QtSvg no lo pinta, rasterizarlo a PNG al ponerlo.
+- Las cadenas nuevas (`ajustes`, `emisor`, `motor`) a los catálogos (`tools/i18n/extraer.py` y la
+  traducción por lotes); `docs/mcp.json` no cambió (ninguna herramienta nueva).
