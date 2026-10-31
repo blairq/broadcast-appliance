@@ -11,6 +11,7 @@
 #include "red/Plan.hpp"
 #include "red/Rtsp.hpp"
 #include "video/CatalogoGst.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "video/VideoGrafos.hpp"
 
 #include "emision/BroadcastEngine.hpp"
@@ -190,7 +191,7 @@ struct Red::Escaneo {
     int trabajos = 0; ///< web y RTSP en vuelo (fase 2)
 };
 
-Red::Red(const std::filesystem::path& datos, const QString& dirCredenciales, video::VideoGrafos* video,
+Red::Red(const std::filesystem::path& datos, const QString& dirCredenciales, VideoViewModel* video,
          ptz::ControlCamaras* camaras, QObject* parent)
     : QObject(parent), video_(video), camaras_(camaras), dirCred_(dirCredenciales) {
     biblioteca_.leer((datos / "camaras-urls.json").string());
@@ -958,27 +959,27 @@ QVariantMap Red::fichaDe(const QString& ip) const {
 
 // --- Agregar al estudio ------------------------------------------------------------------------
 
-std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
-    if (video_ == nullptr) return ba::i18n::traducir("red", "el video no está disponible");
+void Red::agregar(const std::string& ip, const json& op, Agregado listo) {
+    const auto fallar = [&listo](const std::string& e) { listo(e, json::object()); };
+    if (video_ == nullptr) return fallar(ba::i18n::traducir("red", "el video no está disponible"));
     // Solo el PTZ de una entrada que ya existe (cuando llega la clave después).
     if (op.value("solo_ptz", false)) {
         const std::string entrada = op.value("entrada", std::string());
-        if (entrada.empty()) return ba::i18n::traducir("asistente", "con `solo_ptz` hace falta `entrada` (la que ya muestra esta cámara)");
+        if (entrada.empty()) return fallar(ba::i18n::traducir("asistente", "con `solo_ptz` hace falta `entrada` (la que ya muestra esta cámara)"));
         QString u, c;
-        if (!clave(ip, u, c)) return ba::i18n::traducir("asistente", "falta la clave ONVIF: camara_credenciales primero");
-        if (!camaras_) return ba::i18n::traducir("red", "el PTZ no está disponible");
+        if (!clave(ip, u, c)) return fallar(ba::i18n::traducir("asistente", "falta la clave ONVIF: camara_credenciales primero"));
+        if (!camaras_) return fallar(ba::i18n::traducir("red", "el PTZ no está disponible"));
         const json fi = fichas_.count(ip) ? fichas_.at(ip) : json::object();
         QVariantMap conf{{"host", QString::fromStdString(ip)}, {"usuario", u}, {"clave", c}};
         const std::string pp = fi.value("ptz", json::object()).value("perfil", std::string());
         if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
         const QString e = camaras_->configurar(QString::fromStdString(entrada), "onvif", conf);
-        if (!e.isEmpty()) return e.toStdString();
-        if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"ptz", ba::i18n::traducir("red", "ONVIF configurado")}};
-        return {};
+        if (!e.isEmpty()) return fallar(e.toStdString());
+        return listo({}, json{{"entrada", entrada}, {"ptz", ba::i18n::traducir("red", "ONVIF configurado")}});
     }
     const std::string escena = op.value("escena", std::string());
     if (escena.empty() && !op.value("solo_ptz", false))
-        return ba::i18n::traducir("asistente", "falta `escena` (preguntale al operador en cuál va)");
+        return fallar(ba::i18n::traducir("asistente", "falta `escena` (preguntale al operador en cuál va)"));
     QString usuario, pass;
     const bool conClave = clave(ip, usuario, pass);
     const json fi = fichas_.count(ip) ? fichas_.at(ip) : json::object();
@@ -999,23 +1000,25 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
                 break;
             }
     if (url.empty())
-        return ba::i18n::traducir("asistente", "no hay una URL que ande: camara_credenciales y camara_ficha primero (o `url` a mano)");
+        return fallar(ba::i18n::traducir("asistente", "no hay una URL que ande: camara_credenciales y camara_ficha primero (o `url` a mano)"));
     // ¿Ya hay una entrada con esta misma URL? Otra copia abriría otro stream
-    // (doble ancho de banda, doble decodificación).
+    // (doble ancho de banda, doble decodificación). Lo que ya hay sale de la foto.
     for (const auto& ya : video_->entradasDeHost(ip))
         if (ya.value("url", std::string()) == rtsp::sinClave(QString::fromStdString(url)).toStdString() &&
             !op.value("duplicar", false)) {
             const std::string n = ya.value("entrada", std::string());
             if (!op.value("reusar", false))
-                return ba::i18n::llenar(ba::i18n::traducir("asistente",
-                                                           "ya existe la entrada «%1» con esta misma URL: `reusar: true` la "
-                                                           "suma a «%2» (la misma, sin abrir otro stream) o `duplicar: true` "
-                                                           "si de verdad hace falta otra"),
-                                        {n, escena});
-            const std::string e2 = video_->sumarAEscena(n, escena);
-            if (!e2.empty()) return e2;
-            if (hecho != nullptr) *hecho = {{"entrada", n}, {"reusada", true}, {"escena", escena}};
-            return {};
+                return fallar(ba::i18n::llenar(ba::i18n::traducir("asistente",
+                                                                  "ya existe la entrada «%1» con esta misma URL: `reusar: true` la "
+                                                                  "suma a «%2» (la misma, sin abrir otro stream) o `duplicar: true` "
+                                                                  "si de verdad hace falta otra"),
+                                               {n, escena}));
+            video_->pedir("camara_reusar", [n, escena](video::VideoGrafos& g) { return g.sumarAEscena(n, escena); },
+                          [listo, n, escena](const std::string& e2) {
+                              if (!e2.empty()) return listo(e2, json::object());
+                              listo({}, json{{"entrada", n}, {"reusada", true}, {"escena", escena}});
+                          });
+            return;
         }
     // El nombre: el pedido, el de ONVIF o «Marca ip».
     std::string nombre = op.value("nombre", std::string());
@@ -1028,46 +1031,52 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
     const int latencia = op.value("latencia_ms", 200);
     const QString uri =
         conClave ? rtsp::conClave(QString::fromStdString(url), usuario, pass) : QString::fromStdString(url);
-    const std::string err =
-        video_->crearEntradaRed(nombre, uri.toStdString(), latencia, escena, 1, normalizar ? 1 : 0);
-    if (!err.empty()) return err;
-    json h{{"entrada", nombre},
-           {"url", url},
-           {"normalizar", normalizar},
-           {"latencia_ms", latencia},
-           {"escena", escena}};
-    // El PTZ por ONVIF, si lo tiene (y no se pidió que no).
-    const bool tienePtz = fi.value("ptz", json::object()).value("tiene", false);
-    if (op.value("ptz", tienePtz) && tienePtz && camaras_) {
-        QVariantMap conf{{"host", QString::fromStdString(ip)}, {"usuario", usuario}, {"clave", pass}};
-        const std::string pp = fi["ptz"].value("perfil", std::string());
-        if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
-        const QString e2 = camaras_->configurar(QString::fromStdString(nombre), "onvif", conf);
-        h["ptz"] =
-            e2.isEmpty() ? json(ba::i18n::traducir("red", "ONVIF configurado"))
-                         : json(ba::i18n::llenar(ba::i18n::traducir("red", "no se pudo configurar: %1"), {e2.toStdString()}));
-    } else if (tienePtz) {
-        h["ptz"] = ba::i18n::traducir("red", "no (se pidió sin PTZ)");
-    } else if (e.contains("onvif") && (!conClave || fi.empty() || fi.contains("error"))) {
-        // No se sabe: ONVIF no se pudo consultar (falta la clave), no que no tenga.
-        h["ptz"] = ba::i18n::llenar(
-            ba::i18n::traducir("asistente",
-                               "PENDIENTE: la cámara anuncia ONVIF («%1») pero no se pudo consultar (falta su usuario y "
-                               "clave ONVIF). Con la clave: camara_ficha y camara_agregar {\"ip\": \"%2\", \"solo_ptz\": "
-                               "true, \"entrada\": \"%3\"}. Mientras, PTZ digital."),
-            {e["onvif"].value("nombre", std::string()), ip, nombre});
-    } else {
-        h["ptz"] = ba::i18n::traducir("red", "no tiene PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)");
-    }
-    if (hecho != nullptr) *hecho = h;
-    return {};
+    // La entrada la crea el grafo, en el dueño; el PTZ (de esta máquina, con la cámara)
+    // se configura cuando vuelve.
+    QPointer<Red> yo(this);
+    video_->pedir(
+        "camara_agregar",
+        [nombre, u = uri.toStdString(), latencia, escena, normalizar](video::VideoGrafos& g) {
+            return g.crearEntradaRed(nombre, u, latencia, escena, 1, normalizar ? 1 : 0);
+        },
+        [yo, listo, ip, op, nombre, url, normalizar, latencia, escena, conClave, usuario, pass, fi, e](const std::string& err) {
+            if (!err.empty()) return listo(err, json::object());
+            json h{{"entrada", nombre}, {"url", url}, {"normalizar", normalizar}, {"latencia_ms", latencia}, {"escena", escena}};
+            // El PTZ por ONVIF, si lo tiene (y no se pidió que no).
+            const bool tienePtz = fi.value("ptz", json::object()).value("tiene", false);
+            if (op.value("ptz", tienePtz) && tienePtz && yo && yo->camaras_) {
+                QVariantMap conf{{"host", QString::fromStdString(ip)}, {"usuario", usuario}, {"clave", pass}};
+                const std::string pp = fi["ptz"].value("perfil", std::string());
+                if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
+                const QString e2 = yo->camaras_->configurar(QString::fromStdString(nombre), "onvif", conf);
+                h["ptz"] = e2.isEmpty()
+                               ? json(ba::i18n::traducir("red", "ONVIF configurado"))
+                               : json(ba::i18n::llenar(ba::i18n::traducir("red", "no se pudo configurar: %1"), {e2.toStdString()}));
+            } else if (tienePtz) {
+                h["ptz"] = ba::i18n::traducir("red", "no (se pidió sin PTZ)");
+            } else if (e.contains("onvif") && (!conClave || fi.empty() || fi.contains("error"))) {
+                // No se sabe: ONVIF no se pudo consultar (falta la clave), no que no tenga.
+                h["ptz"] = ba::i18n::llenar(
+                    ba::i18n::traducir("asistente",
+                                       "PENDIENTE: la cámara anuncia ONVIF («%1») pero no se pudo consultar (falta su usuario y "
+                                       "clave ONVIF). Con la clave: camara_ficha y camara_agregar {\"ip\": \"%2\", \"solo_ptz\": "
+                                       "true, \"entrada\": \"%3\"}. Mientras, PTZ digital."),
+                    {e["onvif"].value("nombre", std::string()), ip, nombre});
+            } else {
+                h["ptz"] = ba::i18n::traducir("red", "no tiene PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)");
+            }
+            listo({}, h);
+        });
 }
 
 QString Red::agregarDesdeUi(const QString& ip, const QString& nombre, const QString& escena) {
-    json h;
     json op{{"escena", escena.toStdString()}};
     if (!nombre.trimmed().isEmpty()) op["nombre"] = nombre.trimmed().toStdString();
-    return QString::fromStdString(agregar(ip.toStdString(), op, &h));
+    QPointer<Red> yo(this);
+    agregar(ip.toStdString(), op, [yo](const std::string& e, const json&) {
+        if (yo) emit yo->agregarListo(QStringLiteral("agregar"), QString::fromStdString(e));
+    });
+    return {};
 }
 
 QVariantList Red::entradasDe(const QString& ip) const {
@@ -1077,28 +1086,33 @@ QVariantList Red::entradasDe(const QString& ip) const {
 }
 
 QString Red::ptzDesdeUi(const QString& ip, const QString& entrada) {
-    json h;
-    return QString::fromStdString(
-        agregar(ip.toStdString(), json{{"solo_ptz", true}, {"entrada", entrada.toStdString()}}, &h));
+    QPointer<Red> yo(this);
+    agregar(ip.toStdString(), json{{"solo_ptz", true}, {"entrada", entrada.toStdString()}}, [yo](const std::string& e, const json&) {
+        if (yo) emit yo->agregarListo(QStringLiteral("ptz"), QString::fromStdString(e));
+    });
+    return {};
 }
 
 QString Red::reusarDesdeUi(const QString& ip, const QString& escena) {
-    json h;
-    return QString::fromStdString(
-        agregar(ip.toStdString(), json{{"reusar", true}, {"escena", escena.toStdString()}}, &h));
+    QPointer<Red> yo(this);
+    agregar(ip.toStdString(), json{{"reusar", true}, {"escena", escena.toStdString()}}, [yo](const std::string& e, const json&) {
+        if (yo) emit yo->agregarListo(QStringLiteral("reusar"), QString::fromStdString(e));
+    });
+    return {};
 }
 
 // --- El PTZ real desde la página PTZ ---------------------------------------------------------------
 
 namespace {
-std::string ipDeEntrada(const QString& entrada) {
-    const QString uri = QString::fromStdString(fuentes::ajustesDe(entrada.toStdString()).value("uri", std::string()));
-    return QUrl(uri).host().toStdString();
+/// El host de la dirección de una entrada de red (de la foto del motor, por la vista del video).
+std::string ipDeEntrada(const VideoViewModel* video, const QString& entrada) {
+    if (video == nullptr) return {};
+    return QUrl(QString::fromStdString(video->uriDe(entrada.toStdString()))).host().toStdString();
 }
 } // namespace
 
 QVariantMap Red::camaraDeEntrada(const QString& entrada) const {
-    const std::string ip = ipDeEntrada(entrada);
+    const std::string ip = ipDeEntrada(video_, entrada);
     if (ip.empty()) return {};
     const json e = equipo(ip);
     const json fi = fichas_.count(ip) ? fichas_.at(ip) : json::object();
@@ -1125,7 +1139,7 @@ QVariantMap Red::camaraDeEntrada(const QString& entrada) const {
 }
 
 void Red::activarPtzReal(const QString& entrada, const QString& usuario, const QString& clave) {
-    const std::string ip = ipDeEntrada(entrada);
+    const std::string ip = ipDeEntrada(video_, entrada);
     if (ip.empty()) return emit ptzListo(entrada, false, tr("«%1» no es una cámara de red").arg(entrada));
     if (!usuario.trimmed().isEmpty() && !clave.isEmpty() && !guardarClave(ip, usuario.trimmed(), clave))
         return emit ptzListo(entrada, false, tr("No se pudo guardar la clave"));
@@ -1159,14 +1173,15 @@ void Red::activarPtz(const std::string& ip, const QString& entrada,
         if (!ptz.value("tiene", false))
             return listo(false, tr("La cámara contestó por ONVIF pero no ofrece PTZ (o ese usuario no tiene "
                                    "permiso de PTZ). Queda el PTZ digital."));
-        json h;
-        const std::string e =
-            yo->agregar(ip, json{{"solo_ptz", true}, {"entrada", entrada.toStdString()}}, &h);
-        if (!e.empty()) return listo(false, QString::fromStdString(e));
         const size_t presets = ptz.value("presets", json::array()).size();
-        listo(true, presets ? tr("PTZ real activado por ONVIF (%1 presets de la cámara). El joystick ahora mueve la cámara.")
-                                  .arg(presets)
-                            : tr("PTZ real activado por ONVIF. El joystick ahora mueve la cámara."));
+        yo->agregar(ip, json{{"solo_ptz", true}, {"entrada", entrada.toStdString()}},
+                    [listo, presets](const std::string& e, const json&) {
+                        if (!e.empty()) return listo(false, QString::fromStdString(e));
+                        listo(true, presets ? tr("PTZ real activado por ONVIF (%1 presets de la cámara). El joystick ahora "
+                                                 "mueve la cámara.")
+                                                  .arg(presets)
+                                            : tr("PTZ real activado por ONVIF. El joystick ahora mueve la cámara."));
+                    });
     });
 }
 

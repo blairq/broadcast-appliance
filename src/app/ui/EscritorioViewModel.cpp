@@ -14,7 +14,7 @@
 #include "ui/MultiviewViewModel.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/RielConfig.hpp"
-#include "video/VideoGrafos.hpp"
+#include "ui/VideoViewModel.hpp"
 
 #include <QGuiApplication>
 #include <QQmlEngine>
@@ -67,7 +67,7 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
             const QString clave = QString("registro:%1").arg(k);
             out << QVariantMap{{"clave", clave}, {"titulo", cuadros.label(clave)}};
         }
-        for (const QString& e : p_.imagen.video().entradas()) out << QVariantMap{{"clave", "entrada:" + e}, {"titulo", e}};
+        for (const QString& e : p_.imagen.videoVm().entradas()) out << QVariantMap{{"clave", "entrada:" + e}, {"titulo", e}};
         return out;
     };
     catalogo_ = std::make_unique<CatalogoVisible>(std::move(f));
@@ -90,7 +90,7 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
     multivistas_->setVentanas(ventanas_.get(), monitores_.get());
     connect(monitores_.get(), &MonitoresModel::cambio, this, &EscritorioViewModel::monitoresCambio);
     // Las entradas de video también son cosas que se pueden mostrar (catálogo).
-    connect(&p_.imagen.video(), &video::VideoGrafos::cambio, catalogo_.get(), refrescar);
+    connect(&p_.imagen.videoVm(), &VideoViewModel::cambio, catalogo_.get(), refrescar);
 }
 
 EscritorioViewModel::~EscritorioViewModel() = default;

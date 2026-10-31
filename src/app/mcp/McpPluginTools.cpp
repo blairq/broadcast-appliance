@@ -368,16 +368,20 @@ void McpService::registerPluginTools() {
               {"parametros", {{"type", "object"}}}}}};
         t.run = [p](const json& a, Done done) {
             if (!p) return done(ToolResult::error(ba::i18n::traducir("mcp", "los plugins no están disponibles")));
+            if (a.value("fuente", std::string()).empty()) {
+                // La de video la pone el grafo (en el dueño del motor): la respuesta llega después.
+                p->ponerTarjeta(a.value("id", std::string()), a.value("tarjeta", std::string()),
+                                a.value("entrada", std::string()), a.value("parametros", json::object()),
+                                [done](const std::string& e, const json& hecho) {
+                                    if (!e.empty()) return done(ToolResult::error(e));
+                                    done(ToolResult().data(hecho));
+                                });
+                return;
+            }
             json hecho;
-            std::string e;
-            if (!a.value("fuente", std::string()).empty())
-                e = p->ponerFiltroAudio(a.value("id", std::string()), a.value("tarjeta", std::string()),
-                                        a.value("fuente", std::string()),
-                                        a.value("parametros", json::object()), &hecho);
-            else
-                e = p->ponerTarjeta(a.value("id", std::string()), a.value("tarjeta", std::string()),
-                                    a.value("entrada", std::string()), a.value("parametros", json::object()),
-                                    &hecho);
+            const std::string e = p->ponerFiltroAudio(a.value("id", std::string()), a.value("tarjeta", std::string()),
+                                                      a.value("fuente", std::string()),
+                                                      a.value("parametros", json::object()), &hecho);
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(hecho));
         };

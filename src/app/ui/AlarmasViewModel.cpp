@@ -7,6 +7,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "arranque/EnergiaAire.hpp"
+#include "emision/TurnoMotor.hpp"
 #include "emision/AvisoFueraDeUi.hpp"
 #include "i18n/I18n.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
@@ -96,62 +97,6 @@ agent::AlertInputs AlarmasViewModel::deLaInterfaz(const Fuentes& f) {
             QJsonDocument(static_cast<JsonListModel*>(s->chat())->items()).toJson(QJsonDocument::Compact).toStdString(),
             nullptr, false);
     };
-    // Señal de cada entrada de video (las de GStreamer: cuadros que llegan). Se
-    // consulta como mucho una vez por segundo.
-    in.senales = [video = f.video, cache = std::make_shared<std::pair<qint64, std::vector<std::pair<std::string, bool>>>>(),
-                  // Histéresis: la que quedó sin señal vuelve a «con señal» recién
-                  // después de 10 s seguidos con cuadros. Una cámara que se corta y
-                  // vuelve cada pocos segundos disparaba la alarma otra vez a cada
-                  // rato (y la franja roja reaparecía apenas se la reconocía).
-                  vuelta = std::make_shared<std::map<std::string, std::pair<bool, qint64>>>(),
-                  desde = QDateTime::currentMSecsSinceEpoch()]() {
-        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        // Recién arrancada, las entradas todavía se están conectando (una cámara de red
-        // tarda unos segundos): no hay alarmas de «sin señal» los primeros 15 s.
-        if (ahora - desde < 15000) return std::vector<std::pair<std::string, bool>>{};
-        video::VideoGrafos* v = video ? video() : nullptr;
-        if (v != nullptr && ahora - cache->first > 1000) {
-            cache->first = ahora;
-            cache->second.clear();
-            for (const QString& e : v->entradas()) {
-                const json st = v->estadoEntrada(e.toStdString());
-                if (!st.contains("gstreamer")) continue; // sin el dato de GStreamer: sin cuadros que mirar
-                const json g = st.value("gstreamer", json::object());
-                if (!g.is_object()) continue;
-                // Las de los invitados y el remoto: sin nadie conectado no hay cuadros, y
-                // no es una falla (para eso está «invitado caído»).
-                const json aj = st.value("ajustes", json::object());
-                if (aj.is_object() && (aj.value("video_invitado", false) ||
-                                       aj.value("pipeline", std::string()).rfind("bavideoanillo", 0) == 0))
-                    continue;
-                const bool activa = st.value("activa", true);
-                // Una que todavía no entregó nada (una cámara de red conectándose): hasta
-                // los 45 s del arranque no es «sin señal»; la que tenía y la perdió, sí.
-                const bool nuncaLlego = g.value("sin_datos_s", 0.0) < 0.0;
-                bool con = !activa || video::VideoGrafos::tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
-                // La primera vez que se la ve no «vuelve» de nada: arranca dada por buena
-                // (si no, a los 15 s del arranque todas pasaban 10 s «sin señal»).
-                auto& [reportada, conDesde] =
-                    vuelta->try_emplace(e.toStdString(), std::pair<bool, qint64>{true, 0}).first->second;
-                if (!con) {
-                    reportada = false;
-                    conDesde = 0;
-                } else if (!reportada && activa) {
-                    if (conDesde == 0) conDesde = ahora;
-                    if (ahora - conDesde < 10000) con = false; // todavía no se la da por vuelta
-                    else reportada = true;
-                } else {
-                    reportada = true;
-                }
-                cache->second.emplace_back(e.toStdString(), con);
-            }
-        }
-        return cache->second;
-    };
-    in.superres = [video = f.video]() {
-        video::VideoGrafos* v = video ? video() : nullptr;
-        return v != nullptr ? v->programador().value("entradas", json::object()) : json::object();
-    };
     return in;
 }
 
@@ -206,6 +151,71 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
                                       {"sale", sale}});
         }
         return out;
+    };
+    // Señal de cada entrada de video (las de GStreamer: cuadros que llegan), directa del
+    // grafo de video, que es del dueño del motor como este hilo: la alarma sale con la
+    // interfaz trabada. Se consulta como mucho una vez por segundo, con el turno del motor
+    // y sin esperar: si la interfaz lo tiene, queda la de la vez anterior.
+    directas.senales = [&rt, video = f.video, cache = std::make_shared<std::pair<qint64, std::vector<std::pair<std::string, bool>>>>(),
+                  // Histéresis: la que quedó sin señal vuelve a «con señal» recién
+                  // después de 10 s seguidos con cuadros. Una cámara que se corta y
+                  // vuelve cada pocos segundos disparaba la alarma otra vez a cada
+                  // rato (y la franja roja reaparecía apenas se la reconocía).
+                  vuelta = std::make_shared<std::map<std::string, std::pair<bool, qint64>>>(),
+                  desde = QDateTime::currentMSecsSinceEpoch()]() {
+        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+        // Recién arrancada, las entradas todavía se están conectando (una cámara de red
+        // tarda unos segundos): no hay alarmas de «sin señal» los primeros 15 s.
+        if (ahora - desde < 15000) return std::vector<std::pair<std::string, bool>>{};
+        video::VideoGrafos* v = video ? video() : nullptr;
+        if (v != nullptr && ahora - cache->first > 1000 && rt.engine().turno().tomarHasta(50)) {
+            const TurnoMotor& turno = rt.engine().turno();
+            cache->first = ahora;
+            cache->second.clear();
+            for (const QString& e : v->entradas()) {
+                const json st = v->estadoEntrada(e.toStdString());
+                if (!st.contains("gstreamer")) continue; // sin el dato de GStreamer: sin cuadros que mirar
+                const json g = st.value("gstreamer", json::object());
+                if (!g.is_object()) continue;
+                // Las de los invitados y el remoto: sin nadie conectado no hay cuadros, y
+                // no es una falla (para eso está «invitado caído»).
+                const json aj = st.value("ajustes", json::object());
+                if (aj.is_object() && (aj.value("video_invitado", false) ||
+                                       aj.value("pipeline", std::string()).rfind("bavideoanillo", 0) == 0))
+                    continue;
+                const bool activa = st.value("activa", true);
+                // Una que todavía no entregó nada (una cámara de red conectándose): hasta
+                // los 45 s del arranque no es «sin señal»; la que tenía y la perdió, sí.
+                const bool nuncaLlego = g.value("sin_datos_s", 0.0) < 0.0;
+                bool con = !activa || video::VideoGrafos::tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
+                // La primera vez que se la ve no «vuelve» de nada: arranca dada por buena
+                // (si no, a los 15 s del arranque todas pasaban 10 s «sin señal»).
+                auto& [reportada, conDesde] =
+                    vuelta->try_emplace(e.toStdString(), std::pair<bool, qint64>{true, 0}).first->second;
+                if (!con) {
+                    reportada = false;
+                    conDesde = 0;
+                } else if (!reportada && activa) {
+                    if (conDesde == 0) conDesde = ahora;
+                    if (ahora - conDesde < 10000) con = false; // todavía no se la da por vuelta
+                    else reportada = true;
+                } else {
+                    reportada = true;
+                }
+                cache->second.emplace_back(e.toStdString(), con);
+            }
+            turno.soltar();
+        }
+        return cache->second;
+    };
+    // La superresolución que no llega (el programador, también del dueño).
+    directas.superres = [&rt, video = f.video, cache = std::make_shared<json>(json::object())]() {
+        video::VideoGrafos* v = video ? video() : nullptr;
+        if (v != nullptr && rt.engine().turno().tomarHasta(50)) {
+            *cache = v->programador().value("entradas", json::object());
+            rt.engine().turno().soltar();
+        }
+        return *cache;
     };
     directas.loudness = [&motor]() { return motor.loudnessPrograma().json(); };
     // El corte de luz: medido acá (una consulta al sistema, una vez cada 5 s), no en la

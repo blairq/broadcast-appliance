@@ -318,7 +318,9 @@ void McpService::registerTiemposTools() {
             if (el.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "hace falta `elemento`, o `entrada` y `tarjeta`")));
             out["elemento"] = el;
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
-            const video::CatalogoGst& c = v->gst();
+            // El catálogo se lee desde cualquier hilo (una vez armado no cambia).
+            const std::shared_ptr<const video::CatalogoGst> cat = v->catalogoGst();
+            const video::CatalogoGst& c = *cat;
             if (!c.disponible()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "GStreamer no está disponible: %1"), {c.error()})));
             const json in = c.interior(el);
             if (!in.value("existe", false) && !out.contains("en_uso"))

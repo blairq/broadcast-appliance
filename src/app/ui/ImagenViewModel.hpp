@@ -5,7 +5,9 @@
 // la imagen, cada pieza su modelo:
 //
 //   ptz::ControlCamaras       el PTZ de cada entrada (digital y de hardware) y Mejorar imagen
-//   video::VideoGrafos        el grafo de tarjetas de video de cada entrada (y el legalizador)
+//   video::VideoGrafos        el grafo de tarjetas de video de cada entrada (y el legalizador):
+//                             ES DEL DUEÑO DEL MOTOR (lo adopta la ventanilla); la interfaz lo
+//                             ve y le pide por VideoViewModel (Studio.video)
 //   video::SuperRes / Banco   la superresolución de las entradas de red y qué puede esta máquina
 //   tiempos::TiemposModel     el grafo de demoras de cada entrada a cada salida
 //   resolucion::ResolucionModel  el plan de resolución de cada entrada
@@ -16,6 +18,12 @@
 // sala), se los sincroniza con las entradas, se cede la superresolución cuando la
 // máquina calienta y se avisa cuando no llega. Los scopes y la revisión previa del
 // evento (lo que mira del aparato) también son de acá.
+//
+// NADA DE ACÁ ENTRA AL MOTOR (F3-03, docs/arquitectura/05-motor-del-plano.md): lo que se
+// muestra sale de la foto del motor (la parte Video: la vista del grafo, las fuentes de
+// video con su tamaño, lo que está al aire, la configuración de la imagen) y lo que se
+// cambia se pide por la ventanilla. Del motor solo se lee lo que publica para cualquier
+// hilo (la instantánea del motor y la foto de las salidas, para los tiempos).
 //
 // En QML los modelos siguen en Studio (Studio.camaras, Studio.video…); lo propio del
 // área en Studio.imagen (scopes, legalizar).
@@ -33,12 +41,15 @@
 
 namespace ba::app {
 class AppRuntime;
+class BroadcastEngine;
 class ConferenceViewModel;
 class FrameService;
 class InputsViewModel;
 class PersonasViewModel;
 class RecursosViewModel;
 class Seguidor;
+class VentanillaMotor;
+class VideoViewModel;
 } // namespace ba::app
 namespace ba::app::audio {
 class RackManager;
@@ -76,6 +87,10 @@ class ImagenViewModel : public QObject {
    public:
     struct Partes {
         AppRuntime& rt;
+        VentanillaMotor& ventanilla;   ///< la foto del motor y las órdenes (F3-03)
+        /// Solo lo que el motor publica para cualquier hilo (la instantánea, la foto de las
+        /// salidas): lo que leen los tiempos.
+        BroadcastEngine& motorEntreHilos;
         control::BusEventos& bus;      ///< la superresolución que no llega
         ConferenceViewModel& sala;     ///< los lugares de la sala sin nadie (tiempos)
         InputsViewModel& entradas;     ///< las entradas nuevas y lo que cambia en Configuración
@@ -88,7 +103,10 @@ class ImagenViewModel : public QObject {
     ~ImagenViewModel() override;
 
     ptz::ControlCamaras& camaras() { return *camaras_; }
+    /// El grafo de video: vive en el dueño (el MCP del control, el vigía, las órdenes).
     video::VideoGrafos& video() { return *video_; }
+    /// Lo que la interfaz ve de él y cómo le pide (Studio.video).
+    VideoViewModel& videoVm() { return *videoVm_; }
     tiempos::TiemposModel& tiempos() { return *tiempos_; }
     resolucion::ResolucionModel& resolucion() { return *resolucion_; }
     video::SuperRes& superres() { return *superres_; }
@@ -132,6 +150,7 @@ class ImagenViewModel : public QObject {
     std::unique_ptr<tiempos::TiemposModel> tiempos_;
     std::unique_ptr<resolucion::ResolucionModel> resolucion_;
     std::unique_ptr<video::VideoGrafos> video_;
+    std::unique_ptr<VideoViewModel> videoVm_;
     std::unique_ptr<red::Red> red_;
     std::unique_ptr<Seguidor> seguidor_;
     std::unique_ptr<video::SuperRes> superres_;

@@ -50,9 +50,7 @@
 namespace ba::app {
 class AppRuntime;
 class OperatorMessages;
-namespace video {
-class VideoGrafos;
-}
+class VideoViewModel;
 namespace ptz {
 class ControlCamaras;
 }
@@ -85,7 +83,9 @@ class Plugins : public QObject {
     using Llamador = std::function<void(const std::string& plugin, const std::string& herramienta, const json& args,
                                         std::function<void(json resultado)> listo)>;
 
-    Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras* camaras,
+    /// `video`: el grafo de video visto desde la interfaz (es del dueño del motor: las
+    /// entradas y las tarjetas de los plugins se le piden por la ventanilla).
+    Plugins(AppRuntime& rt, VideoViewModel* video, ptz::ControlCamaras* camaras,
             OperatorMessages* mensajes, QObject* parent = nullptr);
     ~Plugins() override;
 
@@ -191,9 +191,10 @@ class Plugins : public QObject {
     /// Mueve un control del panel (o toca un botón) como si fuera el operador. "" o el error.
     std::string ponerValor(const std::string& id, const std::string& clave, const json& valor);
 
-    /// Pone una tarjeta de video del plugin en una entrada (grafo).
-    std::string ponerTarjeta(const std::string& id, const std::string& tarjeta, const std::string& entrada,
-                             const json& parametros, json* hecho);
+    /// Pone una tarjeta de video del plugin en una entrada (grafo, en el dueño del motor):
+    /// `listo` con "" o el error y qué se hizo.
+    void ponerTarjeta(const std::string& id, const std::string& tarjeta, const std::string& entrada,
+                      const json& parametros, std::function<void(const std::string& error, const json& hecho)> listo);
     /// Pone una tarjeta de audio del plugin como filtro de una fuente.
     std::string ponerFiltroAudio(const std::string& id, const std::string& tarjeta, const std::string& fuente,
                                  const json& parametros, json* hecho);
@@ -286,7 +287,7 @@ class Plugins : public QObject {
     void guardarValores();
 
     AppRuntime& rt_;
-    QPointer<video::VideoGrafos> video_;
+    QPointer<VideoViewModel> video_;
     QPointer<ptz::ControlCamaras> camaras_;
     QPointer<OperatorMessages> mensajes_;
     Llamador llamador_;

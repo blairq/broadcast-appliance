@@ -12,7 +12,9 @@
 //     Q_INVOKABLE cada vez que algo les decía que releyeran.
 //   - Lo que el vigía lee: de dónde sale cada entrada (las de la interfaz, como foto
 //     que la interfaz refresca en su reloj con `refrescarFoto`; las directas, seguras
-//     entre hilos, siguen con la interfaz trabada: agent/EntradasAlarmas).
+//     entre hilos, siguen con la interfaz trabada: agent/EntradasAlarmas). La señal de
+//     cada entrada de video y la superresolución son directas: el grafo de video es del
+//     dueño del motor, el mismo hilo que el vigía (con el turno, sin esperar).
 //   - Cada disparo: los notificadores desde el hilo del vigía (AvisoFueraDeUi, sale
 //     aunque la interfaz no ande) y, en la interfaz, el bus de eventos (control web),
 //     el aviso en pantalla y el sonido.
@@ -70,7 +72,9 @@ class AlarmasViewModel : public QObject {
         ChatOverlayRenderer& chat; ///< el chat de las plataformas
         std::function<RecursosViewModel*()> recursos; ///< lo lee el hilo del vigía
         std::function<agent::FlujosTexto*()> flujos;  ///< las salidas de texto
-        std::function<video::VideoGrafos*()> video;   ///< la señal de cada entrada, la superresolución
+        /// La señal de cada entrada, la superresolución: lo llama el hilo del vigía (el
+        /// grafo vive ahí); nulo mientras no está.
+        std::function<video::VideoGrafos*()> video;
     };
     explicit AlarmasViewModel(Fuentes f, QObject* parent = nullptr);
     ~AlarmasViewModel() override;

@@ -27,7 +27,7 @@
 #include "ui/OperatorMessages.hpp"
 #include "video/Camaras.hpp"
 #include "video/CatalogoGst.hpp"
-#include "video/VideoGrafos.hpp"
+#include "ui/VideoViewModel.hpp"
 #if defined(BA_HAVE_NDI)
 #include "emision/NdiSource.hpp"
 #endif
@@ -185,7 +185,7 @@ struct BusquedaLocal {
 void registrarTodo(Dispositivos& d, const Dependencias& dep) {
     QPointer<red::Red> red = dep.red;
     QPointer<plugins::Plugins> pl = dep.plugins;
-    QPointer<video::VideoGrafos> video = dep.video;
+    QPointer<VideoViewModel> video = dep.video;
     QPointer<ptz::ControlCamaras> camaras = dep.camaras;
     QPointer<OperatorMessages> mensajes = dep.mensajes;
     QPointer<InputsViewModel> entradas = dep.entradas;
@@ -607,13 +607,14 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                            {},
                            [red](const QVariantMap& e, const QVariantMap& a, Listo listo) {
                                if (!red) return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner no está disponible")}});
-                               json h;
                                json op{{"escena", a.value("escena").toString().toStdString()}};
                                if (!a.value("nombre").toString().isEmpty())
                                    op["nombre"] = a.value("nombre").toString().toStdString();
-                               const std::string err = red->agregar(ipDe(e).toStdString(), op, &h);
-                               listo(err.empty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Agregada")}, {"datos", aV(h)}}
-                                                 : QVariantMap{{"error", QString::fromStdString(err)}});
+                               red->agregar(ipDe(e).toStdString(), op, [listo](const std::string& err, const json& h) {
+                                   listo(err.empty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Agregada")},
+                                                                   {"datos", aV(h)}}
+                                                     : QVariantMap{{"error", QString::fromStdString(err)}});
+                               });
                            }});
         d.registrar(
             "camara_red",
@@ -656,11 +657,14 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                                const QString nombre = a.value("nombre").toString().isEmpty()
                                                           ? e.value("nombre").toString()
                                                           : a.value("nombre").toString();
+                               const auto alTerminar = [listo, nombre](const QString& err) {
+                                   listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada «%1» agregada")
+                                                                                   .arg(nombre)}}
+                                                       : QVariantMap{{"error", err}});
+                               };
                                const QString err = entradas->addHardware(e.value("valor").toString(), nombre,
-                                                                         a.value("escena").toString(), {});
-                               listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada «%1» agregada")
-                                                                               .arg(nombre)}}
-                                                   : QVariantMap{{"error", err}});
+                                                                         a.value("escena").toString(), {}, alTerminar);
+                               if (!err.isEmpty()) alTerminar(err);
                            }});
         d.registrar("microfono",
                     Accion{"agregar",
@@ -671,10 +675,13 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                            {},
                            [entradas](const QVariantMap& e, const QVariantMap& a, Listo listo) {
                                if (!entradas) return listo({{"error", QCoreApplication::translate("dispositivos", "las entradas no están disponibles")}});
+                               const auto alTerminar = [listo](const QString& err) {
+                                   listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada de audio agregada")}}
+                                                       : QVariantMap{{"error", err}});
+                               };
                                const QString err =
-                                   entradas->addAudioInput(e.value("valor").toString(), a.value("nombre").toString());
-                               listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada de audio agregada")}}
-                                                   : QVariantMap{{"error", err}});
+                                   entradas->addAudioInput(e.value("valor").toString(), a.value("nombre").toString(), alTerminar);
+                               if (!err.isEmpty()) alTerminar(err);
                            }});
         d.registrar("ndi", Accion{"agregar",
                                   QCoreApplication::translate("dispositivos", "Agregar como entrada de video"),
@@ -688,10 +695,13 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                                       const QString nombre = a.value("nombre").toString().isEmpty()
                                                                  ? e.value("nombre").toString()
                                                                  : a.value("nombre").toString();
+                                      const auto alTerminar = [listo](const QString& err) {
+                                          listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada NDI agregada")}}
+                                                              : QVariantMap{{"error", err}});
+                                      };
                                       const QString err = entradas->addNdi(e.value("valor").toString(), nombre,
-                                                                           a.value("escena").toString());
-                                      listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada NDI agregada")}}
-                                                          : QVariantMap{{"error", err}});
+                                                                           a.value("escena").toString(), alTerminar);
+                                      if (!err.isEmpty()) alTerminar(err);
                                   }});
     }
     (void)video;

@@ -86,21 +86,10 @@ QString ControlCamaras::capturarMiniatura(const QString& entrada, const QString&
     // El cuadro llega aparte (la interfaz no lo espera); lo que sigue, cuando llega.
     const std::string fuente = c->entrada;
     const QString posicion = p->id;
-    QPointer<ControlCamaras> yo(this);
-    rt_.engine().capturarAparte(
-        fuente, 320, [yo, entrada, posicion](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
-            QImage img;
-            if (e.empty() && w > 0 && h > 0)
-                img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
-            QMetaObject::invokeMethod(
-                qApp,
-                [yo, entrada, posicion, img]() {
-                    if (!yo) return;
-                    const QString err = yo->guardarMiniatura(entrada, posicion, img);
-                    if (!err.isEmpty()) emit yo->aviso(err);
-                },
-                Qt::QueuedConnection);
-        });
+    capturar(fuente, 320, [this, entrada, posicion](const QImage& img) {
+        const QString err = guardarMiniatura(entrada, posicion, img);
+        if (!err.isEmpty()) emit aviso(err);
+    });
     return {};
 }
 
@@ -240,7 +229,7 @@ void ControlCamaras::miniaturaPronto(const QString& entrada, const QString& id) 
 QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
     // La definición de la entrada ahora.
     int w = 0, h = 0;
-    rt_.engine().sourceSize(c.entrada, w, h);
+    tamano(c.entrada, w, h);
     p.ancho = w;
     p.alto = h;
     // El recorte digital.
@@ -429,7 +418,7 @@ QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& i
         }
     }
     int w = 0, h = 0;
-    rt_.engine().sourceSize(c->entrada, w, h);
+    tamano(c->entrada, w, h);
     if (p->ancho > 0 && w > 0 && (p->ancho != w || p->alto != h))
         avisos << QCoreApplication::translate("ptz", "se registró en %1 y la entrada ahora es %2x%3 (el recorte es proporcional: "
                                  "cae en el mismo lugar)")

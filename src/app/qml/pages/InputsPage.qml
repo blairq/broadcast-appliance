@@ -20,6 +20,16 @@ Rectangle {
     readonly property var inp: Studio.inputs
     property string hwError: ""
     property string netError: ""
+    // Agregar lo hace el motor: lo que valida el modelo vuelve en el acto y lo que dice el
+    // motor llega acá (si salió, se limpian los campos).
+    Connections {
+        target: page.inp
+        function onAgregado(que, error) {
+            if (que === "hardware") { page.hwError = error; if (error === "") hwName.text = "" }
+            else if (que === "red") { page.netError = error; if (error === "") { netUrl.text = ""; netName.text = "" } }
+            else if (que === "ndi") page.netError = error
+        }
+    }
     // Miniaturas vivas solo mientras la pagina esta a la vista.
     onVisibleChanged: inp.setActive(visible)
     // Solo prende: si se crea oculta (en segundo plano) no apaga a la otra que comparte `inp` (Cámaras PTZ).
@@ -91,7 +101,6 @@ Rectangle {
                                 onClicked: {
                                     page.hwError = page.inp.addHardware(devBox.currentValue, hwName.text, hwScene.currentText,
                                                                         modeBox.currentIndex >= 0 ? modeBox.model[modeBox.currentIndex] : ({}))
-                                    if (page.hwError === "") hwName.text = ""
                                 }
                             }
                         }
@@ -174,7 +183,6 @@ Rectangle {
                                 text: qsTr("Agregar"); active: true; enabled: netUrl.text.trim() !== ""
                                 onClicked: {
                                     page.netError = page.inp.addNetwork(netUrl.text, netName.text, netScene.currentText, lowLat.checked)
-                                    if (page.netError === "") { netUrl.text = ""; netName.text = "" }
                                 }
                             }
                         }

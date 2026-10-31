@@ -13,6 +13,12 @@
 // conectados. Una entrada muestra el nombre de su dispositivo, o que esta
 // ausente (y se la espera), en vez del id tecnico. Las paginas «Entradas de
 // video» y «Entradas de audio» usan este mismo modelo.
+//
+// NO ENTRA AL MOTOR (F3-03, docs/arquitectura/05-motor-del-plano.md): las entradas (con
+// su tamaño, sus escenas, el modo de la cámara) salen de la foto del motor (parte Video:
+// FotoMotor::fuentesVideo) y se rearman cuando llega; agregar, quitar y mantener las
+// miniaturas vivas se le pide al dueño por la ventanilla. Lo que valida acá vuelve en el
+// acto; lo que dice el motor, por `agregado`.
 // ============================================================================
 #pragma once
 
@@ -22,7 +28,7 @@
 #include <QTimer>
 #include <QVariantList>
 
-#include <atomic>
+#include <functional>
 #include <set>
 #include <string>
 
@@ -30,6 +36,7 @@ namespace ba::app {
 
 class AppRuntime;
 class StudioViewModel;
+class VentanillaMotor;
 namespace dispositivos {
 class Dispositivos;
 }
@@ -52,7 +59,7 @@ class InputsViewModel : public QObject {
     Q_PROPERTY(QVariantList ndiFound READ ndiFound NOTIFY ndiChanged)
     Q_PROPERTY(bool ndiSearching READ ndiSearching NOTIFY ndiChanged)
    public:
-    InputsViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* parent = nullptr);
+    InputsViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, StudioViewModel& vm, QObject* parent = nullptr);
     ~InputsViewModel() override;
 
     QVariantList devices() const { return devices_; }
@@ -70,20 +77,36 @@ class InputsViewModel : public QObject {
     bool ndiSearching() const { return ndiSearching_; }
     /// Busca emisores NDI en la red (en segundo plano, unos segundos).
     Q_INVOKABLE void searchNdi();
-    Q_INVOKABLE QString addNdi(const QString& ndiName, const QString& name, const QString& scene);
+    Q_INVOKABLE QString addNdi(const QString& ndiName, const QString& name, const QString& scene) {
+        return addNdi(ndiName, name, scene, {});
+    }
 
     Q_INVOKABLE void refresh();
     /// Modos de una camara: [{label, pixelformat, resolution, framerate}].
     Q_INVOKABLE QVariantList modes(const QString& device) const;
-    /// "" o el error.
+    /// Los add*: "" o el error de lo que se valida acá; lo que diga el motor llega por
+    /// `agregado` (que: hardware | red | ndi | audio), o a `listo` si se lo da C++ (los
+    /// dispositivos, el MCP).
+    using Listo = std::function<void(const QString& error)>;
+    QString addNdi(const QString& ndiName, const QString& name, const QString& scene, Listo listo);
+    QString addAudioInput(const QString& device, const QString& name, Listo listo);
+    QString addHardware(const QString& device, const QString& name, const QString& scene, const QVariantMap& mode,
+                        Listo listo);
+    QString addNetwork(const QString& url, const QString& name, const QString& scene, bool lowLatency, Listo listo);
     /// Agrega un microfono o entrada de audio del sistema (sin video).
-    Q_INVOKABLE QString addAudioInput(const QString& device, const QString& name = {});
+    Q_INVOKABLE QString addAudioInput(const QString& device, const QString& name = {}) {
+        return addAudioInput(device, name, Listo{});
+    }
     /// Con que nombre queda esa entrada de audio (el de la fuente creada).
     Q_INVOKABLE QString audioInputName(const QString& device) const;
     Q_INVOKABLE QString addHardware(const QString& device, const QString& name, const QString& scene,
-                                    const QVariantMap& mode);
+                                    const QVariantMap& mode) {
+        return addHardware(device, name, scene, mode, {});
+    }
     Q_INVOKABLE QString addNetwork(const QString& url, const QString& name, const QString& scene,
-                                   bool lowLatency);
+                                   bool lowLatency) {
+        return addNetwork(url, name, scene, lowLatency, {});
+    }
     Q_INVOKABLE void remove(const QString& name);
     /// La pagina esta a la vista (miniaturas vivas).
     Q_INVOKABLE void setActive(bool on);
@@ -94,6 +117,8 @@ class InputsViewModel : public QObject {
     void audioInputsChanged();
     void stampChanged();
     void ndiChanged();
+    /// Terminó de agregarse una entrada (lo hizo el dueño del motor): `error` vacío si salió.
+    void agregado(const QString& que, const QString& error);
 
    private:
     void rebuildInputs();
@@ -105,8 +130,11 @@ class InputsViewModel : public QObject {
     /// El dispositivo de la maquina que usa una entrada: {dispositivo, dispositivoId, estado, conectado}.
     QVariantMap dispositivoDe(const QString& tipo, const QString& valor) const;
     void syncHolds();
+    /// Una orden al dueño del motor que agrega una fuente: la respuesta va a `agregado`.
+    void pedirAgregar(const char* que, std::function<std::string(AppRuntime&)> orden, Listo listo);
 
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     StudioViewModel& vm_;
     QVariantList devices_;
     QVariantList audioDevices_;
@@ -121,19 +149,20 @@ class InputsViewModel : public QObject {
     QVariantList ndiFound_;
     bool ndiSearching_ = false;
     int observador_ = -1;
-    std::atomic<unsigned> avisosPendientes_{0};
 };
 
 /// image://inputs/<nombre>?<stamp>: miniatura de una entrada.
 class InputThumbProvider : public QQuickImageProvider {
    public:
     // En segundo plano: capturar espera el cuadro de la fuente (no se traba la interfaz).
-    explicit InputThumbProvider(AppRuntime& rt)
-        : QQuickImageProvider(QQuickImageProvider::Image, QQmlImageProviderBase::ForceAsynchronousImageLoading), rt_(rt) {}
+    InputThumbProvider(AppRuntime& rt, VentanillaMotor& ventanilla)
+        : QQuickImageProvider(QQuickImageProvider::Image, QQmlImageProviderBase::ForceAsynchronousImageLoading), rt_(rt),
+          ventanilla_(ventanilla) {}
     QImage requestImage(const QString& id, QSize* size, const QSize& requested) override;
 
    private:
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
 };
 
 } // namespace ba::app

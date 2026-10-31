@@ -72,6 +72,9 @@ void AppRuntime::publicarFoto() {
             cambiaron |= FotoMotor::Emision;
         if (n.ajustes != a.ajustes) cambiaron |= FotoMotor::Ajustes;
         if (n.medios != a.medios || n.salud != a.salud || n.loudness != a.loudness) cambiaron |= FotoMotor::Medidas;
+        if (n.video != a.video || n.fuentesVideo != a.fuentesVideo || n.alAire != a.alAire ||
+            n.configImagen != a.configImagen)
+            cambiaron |= FotoMotor::Video;
     }
     if (cambiaron == 0) return;
     foto_ = f;

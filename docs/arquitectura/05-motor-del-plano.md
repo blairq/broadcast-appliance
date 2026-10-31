@@ -1,9 +1,10 @@
 # El motor es del plano de control (F3-03)
 
 Cómo se migra un área de la interfaz para que no toque el motor. Hecho para escenas,
-fuentes del editor, salidas, emisión, las pastillas de la raíz y las vistas de video
-(`FrameService`); falta para Mezcla/audio, Imagen/video, Control/DSK, Asamblea, Sala,
-Asistente y Escritorio.
+fuentes del editor, salidas, emisión, las pastillas de la raíz, las vistas de video
+(`FrameService`) e Imagen/video (el grafo de video, las cámaras PTZ, las entradas, la
+superresolución, los tiempos, la resolución, la red); falta para Mezcla/audio,
+Control/DSK, Asamblea, Sala, Asistente y Escritorio.
 
 ## Quién es dueño de qué
 
@@ -53,6 +54,37 @@ Patrones que salieron al migrar:
 Para sumar algo a la foto: un campo en `FotoMotor` (con su parte), lo arma
 `AppRuntime::armarFoto` (o un modelo del dueño con `aportarALaFoto`), y quien lo cambia
 ensucia la parte (`fotoSucia`) o avisa (`AppRuntime::avisar`).
+
+## Un modelo que ES del motor: vive en el dueño (el grafo de video)
+
+Cuando lo que un área tiene es lógica del motor (arma la cadena de cada entrada, revisa
+cada 1,5 s, prende y apaga la superresolución cada 250 ms) y no solo una vista, el modelo
+se muda al dueño en vez de pedir cada cosa: así lo de sus relojes sigue con la interfaz
+trabada, sus herramientas MCP corren en el control con el resultado de siempre y el vigía
+lo lee en su hilo. Es lo que se hizo con `video/VideoGrafos`:
+
+- Se arma en la interfaz y al final se adopta (`ventanilla.adoptar`): sus `QTimer` son
+  hijos (`QTimer t_{this}`) para mudarse con él. Lo que corre por sus relojes toma el
+  turno con `tomarHasta(0)` y, si la interfaz lo tiene, saltea esa vuelta; lo que no puede
+  saltearse (el final de una medición) va a la agenda (`AppRuntime::despuesEnDueno`).
+- Publica una VISTA (lo que antes leía QML de él) con `aportarALaFoto` en una parte propia
+  (`FotoMotor::Video`) y la ensucia cuando cambia. El aporte también trae lo del motor que
+  miran los demás modelos del área (`fuentesVideo`, `alAire`, `configImagen`).
+- La interfaz tiene un view model (`ui/VideoViewModel`, `Studio.video`) con la API de
+  antes para QML: propiedades que salen de la vista (lo que se sondeaba con
+  `estadoRed()`, `programadorUi()`… ahora son propiedades), y cada edición es una orden
+  (`pedir`) que devuelve "" y avisa el error por `notify`. Los otros modelos de la
+  interfaz que lo usaban (superresolución, red, seguidor, plugins, Personas, escritorio,
+  dispositivos) leen de esa vista y piden por `VideoViewModel::pedir(que, orden, listo)`;
+  donde un llamador necesitaba el resultado (una herramienta MCP de la interfaz, el
+  formulario de un dispositivo) se lo da `listo`.
+- Lo que el modelo le pregunta a otros desde el dueño tiene que ser seguro entre hilos
+  (el resolvedor de plugins de la superresolución lee archivos; el banco tiene candado) y
+  se pone antes de adoptarlo.
+- Los que se quedan en la interfaz con poco motor (`ptz/ControlCamaras`,
+  `ui/InputsViewModel`) leen la foto y piden las capturas por la ventanilla. Una miniatura
+  que carga un hilo de imágenes (no la interfaz) puede esperar una orden con tope
+  (`std::promise` + `wait_for`), por si el plano ya paró.
 
 ## La red de seguridad: el turno y las llamadas directas
 

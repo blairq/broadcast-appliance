@@ -4,6 +4,7 @@
 #include "arranque/ArchivoConfig.hpp"
 
 #include "arranque/AppRuntime.hpp"
+#include "emision/TurnoMotor.hpp"
 #include "escenas/Conmutador.hpp"
 #include "video/VideoGrafos.hpp"
 
@@ -15,7 +16,18 @@
 namespace ba::app::escenas {
 
 RespaldoEntradas::RespaldoEntradas(AppRuntime& rt, video::VideoGrafos& video, Conmutador& conmutador, QObject* parent)
-    : QObject(parent), rt_(rt), video_(video), conmutador_(conmutador) {}
+    : QObject(parent), rt_(rt), video_(video), conmutador_(conmutador) {
+    // Cada segundo, con el turno del motor si está libre (si la interfaz lo tiene, esta
+    // vuelta se saltea: la próxima la alcanza).
+    reloj_.setInterval(1000);
+    connect(&reloj_, &QTimer::timeout, this, [this]() {
+        const TurnoMotor& t = rt_.engine().turno();
+        if (!t.tomarHasta(0)) return;
+        revisar();
+        t.soltar();
+    });
+    reloj_.start();
+}
 
 nlohmann::json RespaldoEntradas::leer() const {
     // Por entrada, bajo «entradas» (el nombre de una entrada no choca con `esquema`).

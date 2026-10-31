@@ -707,7 +707,10 @@ class StudioViewModel : public QObject {
     QObject* resolucion() const;
     resolucion::ResolucionModel* resolucionModel() const { return &imagen_->resolucion(); }
     QObject* video() const;
+    /// El grafo de video: vive en el dueño del motor (solo el MCP del control y las órdenes).
     video::VideoGrafos* videoGrafos() const { return &imagen_->video(); }
+    /// Lo que la interfaz ve de él y cómo le pide (para los modelos de la interfaz).
+    VideoViewModel* videoVista() const { return &imagen_->videoVm(); }
     QObject* red() const;
     red::Red* redEquipos() const { return &imagen_->red(); }
     /// Los plugins de Python (docs/funciones/PLUGINS.md).
@@ -917,8 +920,10 @@ class StudioViewModel : public QObject {
     void refrescarAvisos();
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     unsigned vigiaTicks_ = 0;
-    std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa los grafos de video y el conmutador de la por omisión
-    void revisarSenales();
+    std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa los grafos de video y el conmutador de la por omisión (del dueño)
+    QStringList sinSenal_; ///< lo último que avisó el respaldo (vive en el dueño)
+    /// El grafo de video para el vigía de las alarmas (lo lee su hilo; nulo al irse).
+    std::atomic<video::VideoGrafos*> videoParaVigia_{nullptr};
     /// Los asistentes, la voz, las salidas de texto y la barra de mensajes
     /// (ui/AsistenteViewModel). Usa las alarmas (su vigía) y la sala; la atención y los
     /// tótems usan su voz y sus modelos (van más abajo).

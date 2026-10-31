@@ -4,6 +4,7 @@
 
 #include "ptz/ControlCamaras.hpp"
 #include "ui/PersonasViewModel.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "video/VideoGrafos.hpp"
 
 #include "Entrada.hpp"
@@ -141,8 +142,10 @@ QString Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
     // La tarjeta Rostros (que reconozca: Personas pone el nombre de cada cara) y
     // la de Seguimiento con su objetivo; el resto pasa en el pipeline.
     personas_->usarCamara(entrada, true);
-    const std::string err = grafos_->configurarSeguir(entrada.toStdString(), obj.toStdString());
-    if (!err.empty()) return QString::fromStdString(err);
+    // La tarjeta la pone el grafo, en el dueño del motor (si no se puede, avisa).
+    grafos_->pedir("ptz_seguir", [e = entrada.toStdString(), o = obj.toStdString()](video::VideoGrafos& g) {
+        return g.configurarSeguir(e, o);
+    });
     emit cambio();
     return {};
 #else
@@ -169,7 +172,8 @@ void Seguidor::dejar(const QString& entrada) {
     if (it == seguidas_.end()) return;
     const bool estabaMoviendo = !it->second->parada;
     seguidas_.erase(it);
-    if (grafos_) grafos_->configurarSeguir(entrada.toStdString(), "");
+    if (grafos_)
+        grafos_->pedir("ptz_seguir", [e = entrada.toStdString()](video::VideoGrafos& g) { return g.configurarSeguir(e, ""); });
     if (camaras_ && estabaMoviendo) camaras_->parar(entrada);
     if (personas_) personas_->usarCamara(entrada, false);
     emit cambio();

@@ -18,9 +18,14 @@
 // borra y se vuelve a agregar con el mismo nombre, recupera su PTZ). Las
 // claves de las cámaras van cifradas en Credenciales/, nunca en el json.
 //
-// Los filtros se ponen y se sacan solos: cada 1,5 s (y cuando cambian las
-// entradas) se revisa que cada entrada tenga lo que le corresponde. Así una
+// Los filtros se ponen y se sacan solos: cada vez que cambian las entradas o la
+// configuración se revisa que cada entrada tenga lo que le corresponde. Así una
 // entrada nueva ya tiene su PTZ, y un cambio en Configuración rige enseguida.
+//
+// Es de la interfaz (F3-03): las entradas, su tamaño, lo que está al aire (el interlock)
+// y «Mejorar imagen» general los lee de la foto del motor (parte Video, ver
+// emision/FotoMotor.hpp), y las fotos de las cámaras se le piden al motor por la
+// ventanilla. Mover una cámara es hablar con ella (su backend), no con el motor.
 //
 // La implementación va en tres archivos (y lo de adentro, en ControlCamarasCamara.hpp):
 // ControlCamaras.cpp (lo que se muestra, entradas, órdenes, configuración, disco),
@@ -29,6 +34,7 @@
 
 #pragma once
 
+#include <QImage>
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
@@ -44,6 +50,7 @@
 
 namespace ba::app {
 class AppRuntime;
+class VentanillaMotor;
 }
 
 namespace ba::app::ptz {
@@ -68,7 +75,7 @@ class ControlCamaras : public QObject {
     Q_PROPERTY(bool mejoraGeneral READ mejoraGeneral NOTIFY cambio)
 
    public:
-    ControlCamaras(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent = nullptr);
+    ControlCamaras(AppRuntime& rt, VentanillaMotor& ventanilla, std::filesystem::path dataRoot, QObject* parent = nullptr);
     ~ControlCamaras() override;
 
     QVariantList camaras() const;
@@ -232,7 +239,15 @@ class ControlCamaras : public QObject {
     std::function<void(const QString&)> dejarDeSeguir_;
     bool interlockActivo_ = true;
     bool seguirSuavePermitido_ = true;
+    /// Un cuadro de `fuente` (lo pide el dueño del motor): `listo` en este hilo, nula si no dio.
+    void capturar(const std::string& fuente, int ancho, std::function<void(QImage)> listo);
+    /// El tamaño de la entrada ahora (de la foto).
+    void tamano(const std::string& entrada, int& w, int& h) const;
+    /// Mejorar imagen general (de la foto): {activa, ruido, color, nitidez}.
+    bool mejoraActiva() const;
+
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     std::filesystem::path archivo_;
     QString credenciales_;
     std::map<std::string, std::unique_ptr<Camara>> camaras_; ///< todas las conocidas (por nombre)
@@ -240,7 +255,6 @@ class ControlCamaras : public QObject {
         pulsos_; ///< por entrada: el pulso óptico vigente (uno nuevo cancela el anterior)
     std::map<std::string, QString> tipoEntrada_; ///< las presentes ahora: hardware | red | ndi
     std::unique_ptr<OnvifBusqueda> busqueda_;
-    QTimer revision_;
     QTimer guardado_;
 };
 

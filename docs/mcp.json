@@ -4743,7 +4743,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -4753,7 +4753,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1331
+        "linea": 1365
       },
       "roles": [
         "asistente",
@@ -9751,7 +9751,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": true,
@@ -12372,7 +12372,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRedTools.cpp",
-        "linea": 233
+        "linea": 234
       },
       "roles": [
         "asistente",
@@ -12427,7 +12427,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRedTools.cpp",
-        "linea": 67
+        "linea": 68
       },
       "roles": [
         "asistente",
@@ -12463,7 +12463,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRedTools.cpp",
-        "linea": 204
+        "linea": 205
       },
       "roles": [
         "asistente",
@@ -12499,7 +12499,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRedTools.cpp",
-        "linea": 291
+        "linea": 293
       },
       "roles": [
         "asistente",
@@ -12745,7 +12745,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRedTools.cpp",
-        "linea": 37
+        "linea": 38
       },
       "roles": [
         "asistente",
@@ -12894,7 +12894,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 397
+        "linea": 400
       },
       "roles": [
         "asistente",
@@ -12929,7 +12929,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 464
+        "linea": 467
       },
       "roles": [
         "asistente",
@@ -12987,7 +12987,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 376
+        "linea": 379
       },
       "roles": [
         "asistente",
@@ -13112,7 +13112,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpSystemTools.cpp",
-        "linea": 420
+        "linea": 423
       },
       "roles": [
         "asistente",
@@ -18880,7 +18880,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 345
+        "linea": 354
       },
       "roles": [
         "asistente",
@@ -18950,7 +18950,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 478
+        "linea": 487
       },
       "roles": [
         "asistente",
@@ -19008,7 +19008,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 692
+        "linea": 701
       },
       "roles": [
         "asistente",
@@ -19065,7 +19065,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 256
+        "linea": 263
       },
       "roles": [
         "asistente",
@@ -19129,7 +19129,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 391
+        "linea": 400
       },
       "roles": [
         "asistente",
@@ -19182,7 +19182,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 168
+        "linea": 172
       },
       "roles": [
         "asistente",
@@ -19241,7 +19241,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 303
+        "linea": 310
       },
       "roles": [
         "asistente",
@@ -19303,7 +19303,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 429
+        "linea": 438
       },
       "roles": [
         "asistente",
@@ -19347,7 +19347,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 562
+        "linea": 571
       },
       "roles": [
         "asistente",
@@ -19379,7 +19379,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -19389,7 +19389,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 231
+        "linea": 235
       },
       "roles": [
         "asistente",
@@ -19453,7 +19453,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
-        "linea": 192
+        "linea": 196
       },
       "roles": [
         "asistente",
@@ -24460,7 +24460,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPluginTools.cpp",
-        "linea": 500
+        "linea": 504
       },
       "roles": [
         "asistente"
@@ -24561,7 +24561,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPluginTools.cpp",
-        "linea": 482
+        "linea": 486
       },
       "roles": [
         "asistente"
@@ -24638,7 +24638,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPluginTools.cpp",
-        "linea": 388
+        "linea": 392
       },
       "roles": [
         "asistente"
@@ -24788,7 +24788,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPluginTools.cpp",
-        "linea": 440
+        "linea": 444
       },
       "roles": [
         "asistente"
@@ -24825,7 +24825,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPluginTools.cpp",
-        "linea": 459
+        "linea": 463
       },
       "roles": [
         "asistente"
@@ -32973,7 +32973,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -32983,7 +32983,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1142
+        "linea": 1171
       },
       "roles": [
         "asistente"
@@ -33020,7 +33020,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -33030,7 +33030,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1212
+        "linea": 1243
       },
       "roles": [
         "asistente"
@@ -33106,7 +33106,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -33116,7 +33116,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1247
+        "linea": 1279
       },
       "roles": [
         "asistente"
@@ -33141,7 +33141,7 @@
         }
       },
       "clase": "lectura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": true,
       "destructiva": false,
       "idempotente": false,
@@ -33151,7 +33151,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 938
+        "linea": 964
       },
       "roles": [
         "asistente"
@@ -33183,7 +33183,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -33193,7 +33193,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1298
+        "linea": 1331
       },
       "roles": [
         "asistente"
@@ -33239,7 +33239,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1808
+        "linea": 1856
       },
       "roles": [
         "asistente"
@@ -33295,7 +33295,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1715
+        "linea": 1763
       },
       "roles": [
         "asistente"
@@ -33340,7 +33340,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1666
+        "linea": 1714
       },
       "roles": [
         "asistente"
@@ -33384,7 +33384,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1972
+        "linea": 2024
       },
       "roles": [
         "asistente"
@@ -33410,7 +33410,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1376
+        "linea": 1411
       },
       "roles": [
         "asistente"
@@ -33443,7 +33443,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1789
+        "linea": 1837
       },
       "roles": [
         "asistente"
@@ -33478,7 +33478,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1863
+        "linea": 1915
       },
       "roles": [
         "asistente"
@@ -33515,7 +33515,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1840
+        "linea": 1892
       },
       "roles": [
         "asistente"
@@ -33548,7 +33548,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1897
+        "linea": 1949
       },
       "roles": [
         "asistente"
@@ -33581,7 +33581,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1517
+        "linea": 1564
       },
       "roles": [
         "asistente"
@@ -33643,7 +33643,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1483
+        "linea": 1530
       },
       "roles": [
         "asistente"
@@ -33669,7 +33669,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1464
+        "linea": 1511
       },
       "roles": [
         "asistente"
@@ -33727,7 +33727,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -33737,7 +33737,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1167
+        "linea": 1197
       },
       "roles": [
         "asistente"
@@ -33763,7 +33763,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1697
+        "linea": 1745
       },
       "roles": [
         "asistente"
@@ -33802,7 +33802,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1766
+        "linea": 1814
       },
       "roles": [
         "asistente"
@@ -33876,7 +33876,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1408
+        "linea": 1443
       },
       "roles": [
         "asistente"
@@ -33916,7 +33916,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1924
+        "linea": 1976
       },
       "roles": [
         "asistente"
@@ -33953,7 +33953,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1647
+        "linea": 1695
       },
       "roles": [
         "asistente"
@@ -34022,7 +34022,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1559
+        "linea": 1606
       },
       "roles": [
         "asistente"
@@ -34068,7 +34068,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1623
+        "linea": 1671
       },
       "roles": [
         "asistente"
@@ -34099,7 +34099,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1535
+        "linea": 1582
       },
       "roles": [
         "asistente"
@@ -34138,7 +34138,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34148,7 +34148,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 511
+        "linea": 529
       },
       "roles": [
         "asistente"
@@ -34185,7 +34185,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34195,7 +34195,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 552
+        "linea": 571
       },
       "roles": [
         "asistente"
@@ -34226,7 +34226,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34236,7 +34236,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 2119
+        "linea": 2173
       },
       "roles": [
         "asistente"
@@ -34298,7 +34298,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34308,7 +34308,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 1066
+        "linea": 1094
       },
       "roles": [
         "asistente"
@@ -34340,7 +34340,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34350,7 +34350,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 230
+        "linea": 243
       },
       "roles": [
         "asistente"
@@ -34371,7 +34371,7 @@
         }
       },
       "clase": "lectura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": true,
       "destructiva": false,
       "idempotente": false,
@@ -34381,7 +34381,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 982
+        "linea": 1009
       },
       "roles": [
         "asistente"
@@ -34406,7 +34406,7 @@
         }
       },
       "clase": "lectura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": true,
       "destructiva": false,
       "idempotente": false,
@@ -34416,7 +34416,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 120
+        "linea": 129
       },
       "roles": [
         "asistente"
@@ -34445,7 +34445,7 @@
         }
       },
       "clase": "lectura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": true,
       "destructiva": false,
       "idempotente": false,
@@ -34455,7 +34455,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 76
+        "linea": 80
       },
       "roles": [
         "asistente"
@@ -34479,7 +34479,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": true,
       "idempotente": false,
@@ -34489,7 +34489,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 632
+        "linea": 653
       },
       "roles": [
         "asistente"
@@ -34523,7 +34523,7 @@
         }
       },
       "clase": "lectura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": true,
       "destructiva": false,
       "idempotente": false,
@@ -34533,7 +34533,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 144
+        "linea": 156
       },
       "roles": [
         "asistente"
@@ -34578,7 +34578,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34588,7 +34588,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 809
+        "linea": 832
       },
       "roles": [
         "asistente"
@@ -34604,7 +34604,7 @@
         "properties": {}
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34614,7 +34614,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 921
+        "linea": 946
       },
       "roles": [
         "asistente"
@@ -34662,7 +34662,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34672,7 +34672,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 872
+        "linea": 896
       },
       "roles": [
         "asistente"
@@ -34763,7 +34763,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34773,7 +34773,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 657
+        "linea": 679
       },
       "roles": [
         "asistente"
@@ -34814,7 +34814,7 @@
         }
       },
       "clase": "aire",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34824,7 +34824,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 2009
+        "linea": 2061
       },
       "roles": [
         "asistente"
@@ -34859,7 +34859,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34869,7 +34869,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 607
+        "linea": 627
       },
       "roles": [
         "asistente"
@@ -34904,7 +34904,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34914,7 +34914,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 2082
+        "linea": 2135
       },
       "roles": [
         "asistente"
@@ -34981,7 +34981,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -34991,7 +34991,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 273
+        "linea": 287
       },
       "roles": [
         "asistente"
@@ -35023,7 +35023,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": true,
@@ -35033,7 +35033,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 478
+        "linea": 495
       },
       "roles": [
         "asistente"
@@ -35064,7 +35064,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 394
+        "linea": 409
       },
       "roles": [
         "asistente"
@@ -35103,7 +35103,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": false,
       "idempotente": false,
@@ -35113,7 +35113,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 421
+        "linea": 436
       },
       "roles": [
         "asistente"
@@ -35141,7 +35141,7 @@
         }
       },
       "clase": "escritura",
-      "hilo": "interfaz",
+      "hilo": "control",
       "soloLectura": false,
       "destructiva": true,
       "idempotente": false,
@@ -35151,7 +35151,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpVideoTools.cpp",
-        "linea": 455
+        "linea": 471
       },
       "roles": [
         "asistente"

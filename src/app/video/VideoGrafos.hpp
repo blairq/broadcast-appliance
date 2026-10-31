@@ -1,4 +1,18 @@
-// src/app/video/VideoGrafos.hpp — el grafo de video del estudio (Studio.video)
+// src/app/video/VideoGrafos.hpp — el grafo de video del estudio
+//
+// ES DEL DUEÑO DEL MOTOR (F3-03, docs/arquitectura/05-motor-del-plano.md). Es el
+// que maneja el video del motor: arma la cadena de cada entrada, revisa las entradas
+// cada 1,5 s, prende y apaga la superresolución cada 250 ms y mide los desfases. Vive
+// en el hilo del plano de control (lo adopta la ventanilla, ui/ImagenViewModel), así
+// que todo eso sigue con la interfaz trabada y nada de acá entra al motor desde la
+// interfaz. Sus relojes corren con el turno del motor (si la interfaz lo tiene, esa
+// vuelta se saltea); las herramientas MCP de video corren en el control (con el
+// turno) y las órdenes de la interfaz llegan por la ventanilla.
+//
+// LA INTERFAZ NO LO TOCA: lee su VISTA (vista(): las entradas, el grafo de cada una,
+// sus estados, el programador, el reloj…), que viaja en la foto del motor (parte
+// FotoMotor::Video), y le pide por la ventanilla (ui/VideoViewModel es Studio.video).
+// Lo único que se puede llamar desde otro hilo está marcado («desde cualquier hilo»).
 //
 // UN grafo (video/GrafoVideo) con un sub-grafo por entrada de video (cámara,
 // red, NDI) y nodos del estudio (el compositor). Las tarjetas de imagen de
@@ -44,6 +58,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <memory>
 #include <set>
 #include <string>
@@ -52,77 +67,65 @@
 
 namespace ba::app {
 class AppRuntime;
+struct FotoMotor;
 }
 
 namespace ba::app::video {
 
 class VideoGrafos : public QObject {
     Q_OBJECT
-    /// Las entradas de video que hay.
-    Q_PROPERTY(QStringList entradas READ entradas NOTIFY cambio)
-    /// Las mismas, agrupadas como en el audio: [{nombre, grupo («Cámaras»,
-    /// «Red», «NDI»), tarjetas (cuántas tiene)}]
-    Q_PROPERTY(QVariantList entradasInfo READ entradasInfo NOTIFY cambio)
-    /// La que se está editando.
-    Q_PROPERTY(QString entrada READ entrada WRITE seleccionar NOTIFY cambio)
-    /// Su sub-grafo: {nodos:[{id,tipo,titulo,etiqueta,grupo,x,y,params,externo,
-    /// entradas:[{id,tipo,pedido}],salidas:[…]}], cables:[{desde,salida,hacia,entrada}], trivial}
-    Q_PROPERTY(QVariantMap grafo READ grafo NOTIFY cambio)
-    /// Todo el estudio (mismo formato).
-    Q_PROPERTY(QVariantMap estudio READ estudio NOTIFY cambio)
-    /// Qué muestra la página: "racks" (una entrada) o "estudio" (todo).
-    Q_PROPERTY(QString vista READ vista WRITE setVista NOTIFY vistaCambio)
-    /// Las tarjetas propias: [{tipo,titulo,descripcion,params,ambito}]
-    Q_PROPERTY(QVariantList catalogo READ catalogo CONSTANT)
 
    public:
     VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent = nullptr);
+    ~VideoGrafos() override;
 
-    QString vista() const { return vista_; }
-    void setVista(const QString& v) {
-        if (v == vista_ || (v != "racks" && v != "estudio")) return;
-        vista_ = v;
-        emit vistaCambio();
-    }
+    // --- La vista (lo que lee la interfaz, en la foto) ---------------------------------
+    /// {entradas, info: [{nombre, grupo, tarjetas}], grafos: {entrada: describir}, estudio,
+    /// estados: {entrada: estadoEntrada}, red: [estadoEntrada + diagnostico de las de
+    /// GStreamer], diagnostico: [{entrada, diagnostico}], programador, reloj, latencia,
+    /// automixer: {mesas, microfonos}, filtros_audio: {entrada: […]}, eventos: {entrada:
+    /// {tarjeta: [{evento, direccion, n, hace_ms}]}}, escenas, nodos: [{id, tipo, etiqueta,
+    /// grupo}], formularios: {id: {elemento, valores, pads?: {puerto: {plantilla, valores}}}}
+    /// (los módulos de GStreamer), tamanos: [[ancho, alto]], legalizar, motores_superres,
+    /// hay_superres, entrada (la elegida)}. Solo en el dueño.
+    const nlohmann::json& vista() const { return vista_; }
+    /// Rearma la vista y, si cambió, ensucia la parte Video de la foto (en el dueño).
+    void publicarVista();
+
     QStringList entradas() const;
-    QVariantList entradasInfo() const;
+    /// Las mismas, agrupadas como en el audio: [{nombre, grupo («Cámaras», «Red»,
+    /// «NDI»), tarjetas (cuántas tiene)}].
+    nlohmann::json entradasInfo() const;
     QString entrada() const { return entrada_; }
     void seleccionar(const QString& entrada);
-    QVariantMap grafo() const;
-    QVariantMap estudio() const;
+    /// Las tarjetas propias: [{tipo,titulo,descripcion,params,ambito}].
     static QVariantList catalogo();
-    /// Los filtros de video de OBS que se pueden poner como tarjeta:
-    /// [{id, nombre, propio (de esta app)}], por nombre.
-    Q_INVOKABLE QVariantList filtrosObs() const;
-    /// Los controles de una tarjeta de OBS o de GStreamer (como
-    /// PropertiesModel): [{name, label, kind, value, min, max, step, options,
-    /// suffix, help}].
-    Q_INVOKABLE QVariantList propiedades(const QString& id) const;
-    /// Los módulos de video de GStreamer (CatalogoGst::modulos).
-    Q_INVOKABLE QVariantList modulosGst() const;
-    /// Las propiedades de un módulo, para el detalle del catálogo.
-    Q_INVOKABLE QVariantList propiedadesModulo(const QString& elemento) const;
-    /// Las propiedades de un elemento con estos valores puestos (para editar un filtro ya armado).
-    Q_INVOKABLE QVariantList propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const;
-    /// Los filtros de audio de GStreamer (para la cadena de audio de una entrada).
-    Q_INVOKABLE QVariantList modulosAudio() const;
-    /// "GStreamer 1.28.7", o por qué no está.
-    Q_INVOKABLE QString versionGst() const;
+    /// El catálogo de GStreamer, compartido (vacío hasta que está listo). Desde
+    /// cualquier hilo: una vez armado no cambia.
+    std::shared_ptr<const CatalogoGst> catalogoGst() const;
+    /// Las propiedades de un módulo como controles de PropertiesModel (las usa la vista).
+    static QVariantList controlesGst(const nlohmann::json& propiedades);
+    /// Lo que necesita el formulario de un módulo de GStreamer (una tarjeta, una Mezcla o el
+    /// controlador de una): {elemento, valores, pads?: {puerto: {plantilla, valores}}}, o null.
+    nlohmann::json formulario(const std::string& id) const;
+    /// Sus controles (como PropertiesModel): los del módulo o, con `puerto`, los de ese pad de
+    /// la Mezcla. Sin el grafo: lo usan la vista (con la foto) y el MCP.
+    static QVariantList controlesDe(const CatalogoGst& c, const nlohmann::json& formulario, const std::string& puerto = {});
+    /// Un valor de la interfaz como lo lee GStreamer (un 3.0 va como 3).
+    static nlohmann::json paraGst(nlohmann::json v);
     /// Las entradas virtuales que se pueden crear: [{id, nombre, descripcion, pipeline}].
-    Q_INVOKABLE static QVariantList virtuales();
+    static QVariantList virtuales();
 
     // --- Editar (la interfaz; la entrada elegida). "" o el error. -------------
-    Q_INVOKABLE QString agregar(const QString& tipo, const QString& despues);
-    Q_INVOKABLE QString agregarFiltro(const QString& filtroId, const QString& despues);
+    QString agregar(const QString& tipo, const QString& despues);
+    QString agregarFiltro(const QString& filtroId, const QString& despues);
     /// Un módulo de GStreamer como tarjeta (`elemento`, p. ej. "videobalance").
-    Q_INVOKABLE QString agregarModulo(const QString& elemento, const QString& despues);
+    QString agregarModulo(const QString& elemento, const QString& despues);
     /// Un módulo de GStreamer de VARIAS entradas (compositor, smpte, glmosaic…) como
     /// «Mezcla de GStreamer» del estudio. "" o el error.
-    Q_INVOKABLE QString agregarMezcla(const QString& elemento);
-    /// Las propiedades del pad `puerto` de una Mezcla de GStreamer (como propiedades()).
-    Q_INVOKABLE QVariantList propiedadesPad(const QString& id, const QString& puerto) const;
+    QString agregarMezcla(const QString& elemento);
     /// Una propiedad del pad `puerto` de una Mezcla de GStreamer. "" o el error.
-    Q_INVOKABLE QString ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor);
+    QString ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor);
     /// Una tarjeta de SUPERRESOLUCIÓN (un filtro de GStreamer que agranda x2: bafsr, bavtsuperres o
     /// baonnxsr con `modelo`) en `entrada` (vacía: la elegida), después de `despues`. "" o el error.
     std::string agregarSuperres(const std::string& entrada, const std::string& motor,
@@ -131,59 +134,51 @@ class VideoGrafos : public QObject {
     /// la agrega o le cambia el plugin a la que hay. "" o el error.
     std::string superresPlugin(const std::string& entrada, const std::string& plugin,
                                const nlohmann::json& extra = nlohmann::json::object());
-    Q_INVOKABLE QString agregarSuperresUi(const QString& motor, const QString& modelo,
+    QString agregarSuperresUi(const QString& motor, const QString& modelo,
                                           const QString& despues);
     /// Crea una entrada virtual en la escena (vacía = la del aire): `preset` es
     /// un id de virtuales() o, si empieza con «pipeline:», el pipeline de origen.
-    Q_INVOKABLE QString crearVirtual(const QString& nombre, const QString& preset, const QString& escena);
-    Q_INVOKABLE QString quitar(const QString& id);
+    QString crearVirtual(const QString& nombre, const QString& preset, const QString& escena);
+    QString quitar(const QString& id);
     /// Lleva una tarjeta a otro lugar de la cadena de su entrada: después de
     /// `despues` (vacío = justo antes de la escena). "" o el error.
-    Q_INVOKABLE QString reubicar(const QString& id, const QString& despues);
+    QString reubicar(const QString& id, const QString& despues);
     /// La corre un lugar antes (-1) o después (+1) en la cadena. "" o el error.
-    Q_INVOKABLE QString correr(const QString& id, int paso);
-    /// Los eventos de GStreamer «ba/*» que salen de cada tarjeta de la entrada
-    /// elegida (sondas en sus pads): tarjeta -> [{evento, direccion (abajo|arriba),
-    /// n, hace_ms}]. Para ver en Racks cómo se hablan las tarjetas.
-    Q_INVOKABLE QVariantMap eventosDeEntrada() const;
-    Q_INVOKABLE QString conectar(const QString& desde, const QString& salida, const QString& hacia,
+    QString correr(const QString& id, int paso);
+    QString conectar(const QString& desde, const QString& salida, const QString& hacia,
                                  const QString& entrada);
-    Q_INVOKABLE QString desconectar(const QString& desde, const QString& salida, const QString& hacia,
+    QString desconectar(const QString& desde, const QString& salida, const QString& hacia,
                                     const QString& entrada);
-    Q_INVOKABLE QString mover(const QString& id, int x, int y);
-    Q_INVOKABLE QString ajustar(const QString& id, const QVariantMap& params);
+    QString mover(const QString& id, int x, int y);
+    QString ajustar(const QString& id, const QVariantMap& params);
     /// Hace un controlador con la tarjeta `id` (la misma corrección para varias entradas).
-    Q_INVOKABLE QString controlar(const QString& id);
+    QString controlar(const QString& id);
     /// Agrega a `entrada` una tarjeta manejada por el controlador `control`.
-    Q_INVOKABLE QString agregarControlada(const QString& control, const QString& entrada);
+    QString agregarControlada(const QString& control, const QString& entrada);
     /// Suelta la tarjeta de su controlador (se queda con los valores que tenía).
-    Q_INVOKABLE QString soltarControl(const QString& id);
+    QString soltarControl(const QString& id);
     /// Un ajuste de una tarjeta de OBS o de GStreamer (lo que cambia en su formulario).
-    Q_INVOKABLE QString ajustarFiltro(const QString& id, const QString& clave, const QVariant& valor);
+    QString ajustarFiltro(const QString& id, const QString& clave, const QVariant& valor);
     /// Pone la salida o el compositor `id` en la escena (vacía = la que está al aire).
-    Q_INVOKABLE QString aEscena(const QString& id, const QString& escena);
+    QString aEscena(const QString& id, const QString& escena);
     /// La entrada elegida vuelve a «entrada -> escena».
-    Q_INVOKABLE QString limpiar();
+    QString limpiar();
     /// Acomoda todas las tarjetas: una franja por entrada (en columnas según la
     /// cadena, las ramas abajo), los controladores a la izquierda, los
     /// compositores a la derecha. "" o el error.
-    Q_INVOKABLE QString ordenar();
+    QString ordenar();
     // --- Sincronía y red, para la interfaz (controls/VistaSincronia.qml, en Latencias) ---
-    Q_INVOKABLE QVariantMap relojUi() const;
-    Q_INVOKABLE QString configurarRelojUi(const QVariantMap& cambios);
-    /// Las entradas de GStreamer (red y plugins) con su estado y diagnóstico.
-    Q_INVOKABLE QVariantList estadoRed() const;
-    /// Todas las entradas de video, con su diagnóstico (las que tienen algo que decir).
-    Q_INVOKABLE QVariantList diagnosticoUi() const;
+    QString configurarRelojUi(const QVariantMap& cambios);
     /// Mide (y con `aplicar` corrige) cuánto atrasa `b` de `a`: el resultado llega por `medicion`.
-    Q_INVOKABLE void medirUi(const QString& a, const QString& b, bool aplicar);
-    Q_INVOKABLE QString desfaseUi(const QString& entrada, double ms);
+    void medirUi(const QString& a, const QString& b, bool aplicar);
+    QString desfaseUi(const QString& entrada, double ms);
     /// Superresolución x2 de una entrada de red (macOS 26: bavtsuperres). "" o el error.
-    Q_INVOKABLE QString superresUi(const QString& entrada, bool activa);
+    QString superresUi(const QString& entrada, bool activa);
     /// Cómo sincroniza la entrada: "colchon" o "gstreamer" (latencia del estudio).
-    Q_INVOKABLE QString sincroniaUi(const QString& entrada, const QString& modo);
+    QString sincroniaUi(const QString& entrada, const QString& modo);
     /// Si este sistema tiene superresolución (el elemento de GStreamer está registrado).
-    Q_INVOKABLE bool haySuperres() const;
+    /// Desde cualquier hilo (el registro de GStreamer).
+    static bool haySuperres();
     /// El motor de superresolución de una entrada de red: "" (ninguno), apple,
     /// fsr u onnx (con `modelo`, la ruta del .onnx). "" o el error.
     /// Los filtros de AUDIO de una entrada de GStreamer (elementos de GStreamer
@@ -197,16 +192,15 @@ class VideoGrafos : public QObject {
     /// {latencia_ms, tope_ms, automatico, tarde: [{nombre, pide_ms}]}. `tope`: -2 no cambia,
     /// -1 automático (250 ms), >= 0 ese (se guarda).
     nlohmann::json estudioLatencia(int tope = -2);
-    Q_INVOKABLE QVariantMap estudioLatenciaUi();
-    Q_INVOKABLE void ponerTopeEstudioUi(int tope);
+    void ponerTopeEstudioUi(int tope);
     /// La clase de sincronía de una entrada: "sala" (sincronizada: marca la latencia del estudio),
     /// "propia" (con su propia demora: no arrastra a las demás) o "auto" (la de su tipo).
     std::string claseSincronia(const std::string& entrada, const std::string& clase);
-    Q_INVOKABLE QString claseSincroniaUi(const QString& entrada, const QString& clase) {
+    QString claseSincroniaUi(const QString& entrada, const QString& clase) {
         return QString::fromStdString(claseSincronia(entrada.toStdString(), clase.toStdString()));
     }
     /// Bajar la latencia del estudio ahora (a lo que piden las sincronizadas). "" o por qué no.
-    Q_INVOKABLE QString bajarLatenciaUi();
+    QString bajarLatenciaUi();
 
     // --- Automixer de mesa redonda (T32) ---------------------------------------------------
     /// Pone al micrófono (o a cualquier entrada de GStreamer con audio) en la mesa
@@ -220,9 +214,8 @@ class VideoGrafos : public QObject {
     /// [{grupo, ajustes, microfonos: [{nombre, canal, ganancia_db, nivel_db}]}], en vivo.
     nlohmann::json automixerEstado() const;
     /// {mesas: automixerEstado, microfonos: [nombres de los micrófonos por GStreamer]}.
-    Q_INVOKABLE QVariantMap automixerUi() const;
-    Q_INVOKABLE QString automixerPonerUi(const QString& entrada, const QString& grupo);
-    Q_INVOKABLE QString automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes);
+    QString automixerPonerUi(const QString& entrada, const QString& grupo);
+    QString automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes);
 
     // --- Canal de control de las entradas de GStreamer ------------------------------------
     /// Manda `control` (un objeto plano) a la cadena de GStreamer de la entrada como
@@ -242,19 +235,17 @@ class VideoGrafos : public QObject {
     /// Configuración: {activo, max_activas, transicion_ms}; estado por entrada.
     nlohmann::json programador() const;
     std::string configurarProgramador(const nlohmann::json& cambios);
-    Q_INVOKABLE QVariantMap programadorUi() const;
-    Q_INVOKABLE QString configurarProgramadorUi(const QVariantMap& cambios);
-    Q_INVOKABLE QVariantList filtrosAudioUi(const QString& entrada) const;
+    QString configurarProgramadorUi(const QVariantMap& cambios);
     /// Agrega uno de los de uso común (compresor, pasa_altos, eco, volumen) al final.
-    Q_INVOKABLE QString agregarFiltroAudioUi(const QString& entrada, const QString& cual);
-    Q_INVOKABLE QString quitarFiltroAudioUi(const QString& entrada, int indice);
+    QString agregarFiltroAudioUi(const QString& entrada, const QString& cual);
+    QString quitarFiltroAudioUi(const QString& entrada, int indice);
     /// Reemplaza todos los filtros de audio de la entrada (editor: agregar, editar, ordenar).
-    Q_INVOKABLE QString ponerFiltrosAudioUi(const QString& entrada, const QVariantList& filtros);
+    QString ponerFiltrosAudioUi(const QString& entrada, const QVariantList& filtros);
     std::string superresMotor(const std::string& entrada, const std::string& motor,
                               const std::string& modelo);
-    Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
-    /// Qué motores hay en este sistema: [apple?, fsr?, onnx?].
-    Q_INVOKABLE QStringList motoresSuperres() const;
+    QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
+    /// Qué motores hay en este sistema: [apple?, fsr?, onnx?]. Desde cualquier hilo.
+    static QStringList motoresSuperres();
     /// Los tamaños (ancho, alto) de las entradas de video que hay (para el banco).
     std::vector<std::pair<int, int>> tamanosDeEntradas() const;
     /// Lo que va a tardar `plugin` con entradas de ancho×alto según el banco de
@@ -284,9 +275,8 @@ class VideoGrafos : public QObject {
     /// {motor, modelo, escala_red, proveedor?} o "" + error (lo pone SuperRes).
     using ResolverPlugin = std::function<nlohmann::json(const std::string& id, std::string* error)>;
     void setResolverPlugin(ResolverPlugin r) { resolverPlugin_ = std::move(r); }
-    Q_INVOKABLE QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena,
+    QString nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena,
                                         int latenciaMs, bool normalizar);
-    Q_INVOKABLE QStringList escenasUi() const;
 
     // --- Para MCP --------------------------------------------------------------
     /// El sub-grafo de `entrada` (o todo el estudio si `entrada` es vacía), o {"error"}.
@@ -399,7 +389,7 @@ class VideoGrafos : public QObject {
                                 nlohmann::json* hecho);
     /// Un atajo sobre una Panorámica que ya está: "360" o "fila" (con las cámaras que tiene).
     std::string presetPanoramica(const std::string& id, const std::string& preset, double campo);
-    Q_INVOKABLE QString presetPanoramicaUi(const QString& id, const QString& preset, double campo) {
+    QString presetPanoramicaUi(const QString& id, const QString& preset, double campo) {
         return QString::fromStdString(presetPanoramica(id.toStdString(), preset.toStdString(), campo));
     }
     /// Los parámetros de un atajo para `cuantas` cámaras.
@@ -420,20 +410,28 @@ class VideoGrafos : public QObject {
     /// entradas que ya tiene conectadas: borra las capas que tenía y pone las de
     /// capasDeDisposicion. La usan la página Video y video_mosaico. "" o el error.
     std::string aplicarDisposicion(const std::string& compositor, const std::string& disposicion);
-    Q_INVOKABLE QString aplicarDisposicionUi(const QString& compositor, const QString& disposicion) {
+    QString aplicarDisposicionUi(const QString& compositor, const QString& disposicion) {
         return QString::fromStdString(aplicarDisposicion(compositor.toStdString(), disposicion.toStdString()));
     }
     /// Crea una entrada virtual; "" o el error.
     std::string crearEntradaVirtual(const std::string& nombre, const std::string& preset,
                                     const std::string& escena);
 
-   public slots:
-    /// Revisa entradas y filtros (al cambiar las entradas, y cada 1,5 s).
+    /// Corre `fn` en el dueño con el turno (la agenda: después de lo que esté corriendo).
+    /// Desde cualquier hilo.
+    void enLaAgenda(std::function<void()> fn) const;
+    /// Revisa entradas y filtros y rearma la vista (en el dueño, con el turno).
     void sincronizar();
+    /// Que el legalizador vuelva a leerse de la configuración (se aplicó la configuración).
+    void releerLegalizar();
+
+   public slots:
+    /// Lo mismo, cuando avisan que cambiaron las entradas: con el turno si está libre (si
+    /// no, lo hace la próxima revisión).
+    void revisar();
 
    signals:
     void cambio();
-    void vistaCambio();
     /// El catálogo de GStreamer quedó listo.
     void gstListo();
     /// El resultado de medirUi.
@@ -445,7 +443,18 @@ class VideoGrafos : public QObject {
    private:
     ResolverPlugin resolverPlugin_;
     void evaluarSuperres();
-    QTimer programadorTimer_;
+    /// Corre `f` con el turno del motor si está libre (los relojes propios: si la interfaz
+    /// lo tiene, esta vuelta se saltea). false si no corrió.
+    bool conTurno(const std::function<void()>& f);
+    nlohmann::json armarVista() const;
+    /// La mesa del automixer en la vista, al ritmo del programador (si hay mesas).
+    void refrescarAutomixer();
+    /// Lo que suma a la foto (en el dueño, con el turno): la vista y lo del motor que
+    /// miran las cámaras y las entradas (FotoMotor::fuentesVideo, alAire, configImagen).
+    void aportar(FotoMotor& foto, unsigned partes);
+    /// Los eventos «ba/*» de las tarjetas de una entrada (eventosDeEntrada, para la vista).
+    nlohmann::json eventosDe(const std::string& entrada) const;
+    QTimer programadorTimer_{this};
     nlohmann::json programador_ = {{"activo", true},          {"capacidad", "auto"},      {"max_activas", 3},
                                    {"uso_pct", 85},            {"transicion_ms", 400},     {"en_preview", true},
                                    {"sin_turno", "barato"},    {"umbral_aumento", 1.1},    {"forzar", nlohmann::json::object()},
@@ -503,14 +512,16 @@ class VideoGrafos : public QObject {
     std::map<std::string, std::map<std::string, std::string>> sinCorrer_;
     QStringList entradas_;
     QString entrada_;
-    QString vista_ = QStringLiteral("racks");
-    QTimer revision_;
+    QTimer revision_{this};
+    nlohmann::json vista_ = nlohmann::json::object();
+    int aporte_ = -1; ///< lo que suma a la foto (AppRuntime::aportarALaFoto)
     std::string erroresVistos_;       ///< los errores de las tarjetas, la última vez
     nlohmann::json reloj_ = {{"tipo", "sistema"},
                              {"latencia_ms", 200}}; ///< el del estudio (video-reloj.json)
     /// El catálogo se arma en un hilo al arrancar (GStreamer revisa sus
     /// plugins; la primera vez tarda): mientras tanto, uno vacío.
     std::shared_ptr<const CatalogoGst> gst_ = std::make_shared<CatalogoGst>();
+    mutable std::mutex gstMu_; ///< gst_ se lee desde otros hilos (catalogoGst)
     std::map<std::string, int> compAudio_; ///< entrada -> ms de audio agregados por las tarjetas
     std::map<std::string, std::set<std::string>> enEntrada_; ///< entrada -> tarjetas que corren en GStreamer
     /// Salida (su nombre) -> el productor que lee su escena: "" = el final de la

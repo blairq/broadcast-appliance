@@ -30,7 +30,8 @@ void McpService::registerRedTools() {
     if (rd == nullptr) return;
     const QPointer<red::Red> r = rd;
     auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
-    video::VideoGrafos* vg = vm_.videoGrafos();
+    // La red es de la interfaz: el grafo de video lo ve por su vista (la foto del motor).
+    VideoViewModel* vg = vm_.videoVista();
     const json ip = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La IP del equipo (como en red_escanear).")}};
     {
         Tool t;
@@ -270,19 +271,20 @@ void McpService::registerRedTools() {
               {"ptz", {{"type", "boolean"}}},
               {"esperar_seg",
                {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "cuánto esperar a que conecte (0: no esperar)")}}}}}};
-        t.run = [r, vg](const json& a, Done done) {
+        t.run = [r, vv = QPointer<VideoViewModel>(vg)](const json& a, Done done) {
             if (!r) return done(ToolResult::error(ba::i18n::traducir("mcp", "el escáner no está disponible")));
-            json hecho;
-            const std::string e = r->agregar(a.value("ip", std::string()), a, &hecho);
-            if (!e.empty()) return done(ToolResult::error(e));
-            if (vg == nullptr || a.value("solo_ptz", false)) return done(ToolResult().data(hecho));
-            // Espera a que conecte: vuelve con la resolución y el diagnóstico (el
-            // reloj corrido de la cámara, por ejemplo) sin otro video_estado.
-            esperarEntrada(QPointer<video::VideoGrafos>(vg), hecho.value("entrada", std::string()),
-                           a.value("esperar_seg", 5) * 1000, [done, hecho](json st) mutable {
-                               hecho["estado"] = std::move(st);
-                               done(ToolResult().data(hecho));
-                           });
+            // La entrada la crea el grafo (en el dueño del motor): sigue cuando vuelve.
+            r->agregar(a.value("ip", std::string()), a, [vv, a, done](const std::string& e, json hecho) {
+                if (!e.empty()) return done(ToolResult::error(e));
+                if (!vv || a.value("solo_ptz", false)) return done(ToolResult().data(hecho));
+                // Espera a que conecte: vuelve con la resolución y el diagnóstico (el
+                // reloj corrido de la cámara, por ejemplo) sin otro video_estado.
+                esperarEntrada(vv, hecho.value("entrada", std::string()), a.value("esperar_seg", 5) * 1000,
+                               [done, hecho](json st) mutable {
+                                   hecho["estado"] = std::move(st);
+                                   done(ToolResult().data(hecho));
+                               });
+            });
         };
         core_.addTool(std::move(t));
     }

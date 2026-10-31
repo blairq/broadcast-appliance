@@ -32,7 +32,7 @@ Popup {
     padding: 16
     background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
 
-    readonly property var modulos: vg ? vg.modulosAudio() : []
+    readonly property var modulos: vg ? vg.modulosAudio : []
     readonly property var modulosVisibles: modulos.filter(m => filtroTexto === "" ||
         (m.elemento + " " + (m.nombre || "") + " " + (m.descripcion || "")).toLowerCase().indexOf(filtroTexto.toLowerCase()) >= 0)
     // Las tarjetas de audio de los plugins de Python instalados.

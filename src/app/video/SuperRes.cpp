@@ -4,6 +4,7 @@
 
 #include "platform/Paths.hpp"
 #include "plugins/Hijo.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "video/VideoGrafos.hpp"
 #include "net/Descargas.hpp"
 
@@ -111,7 +112,7 @@ std::string bajarVerificado(net::Descargas::Contexto& ctx, const std::string& ur
 }
 } // namespace
 
-SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
+SuperRes::SuperRes(fs::path dataRoot, VideoViewModel* video, QObject* parent)
     : QObject(parent), root_(std::move(dataRoot)), video_(video) {
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
@@ -136,11 +137,9 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
         std::error_code e2;
         if (fs::exists(lib, e2)) qputenv("BA_ORT_GPU", QByteArray::fromStdString(lib.string()));
     }
-    // Las tarjetas guardan el id del plugin; al mandarlas a la cadena de la
-    // entrada se traduce a lo de esta máquina (CoreML, ONNX…).
-    if (video_ != nullptr)
-        video_->setResolverPlugin(
-            [this](const std::string& id, std::string* error) { return resolverPlugin(id, error); });
+    // Las tarjetas guardan el id del plugin; al mandarlas a la cadena de la entrada se
+    // traduce a lo de esta máquina (CoreML, ONNX…): VideoGrafos llama a resolverPlugin
+    // desde el dueño (lo engancha ui/ImagenViewModel).
     // GStreamer arranca en otro hilo: hasta que registra los elementos, no hay
     // motores. Se mira cada 2 s hasta que aparecen (la interfaz se actualiza).
     auto* t = new QTimer(this);
@@ -155,7 +154,6 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
 }
 
 SuperRes::~SuperRes() {
-    if (video_ != nullptr) video_->setResolverPlugin({});
     // Lo que la cola de descargas espera de acá termina (cancelado): si no, su
     // hilo se quedaba esperando para siempre.
     for (auto& l : listosVivos_) l(tr("cancelada").toStdString());
@@ -187,9 +185,7 @@ bool SuperRes::laboratorioListo() const {
     return marca.find("torch-directml") != std::string::npos;
 }
 
-QStringList SuperRes::motores() const {
-    return video_ != nullptr ? video_->motoresSuperres() : QStringList{};
-}
+QStringList SuperRes::motores() const { return VideoGrafos::motoresSuperres(); }
 
 json SuperRes::modelos() const {
     json out = json::array();
@@ -545,11 +541,12 @@ std::string SuperRes::entrenar(const std::string& entrada, double minutos, int s
             "entrenar", tr("Entrenar con lo que ve «%1»").arg(q(entrada)),
             QString::fromStdString(entrada), a, [this, entrada, salida, aplicarAlFin](bool ok) {
                 if (ok && aplicarAlFin) {
-                    const std::string e = aplicar(entrada, "onnx", salida.string());
-                    trabajo_["texto"] =
-                        e.empty() ? tr("Listo y aplicado a «%1»").arg(QString::fromStdString(entrada))
-                                  : tr("Listo, pero no se pudo aplicar: %1").arg(q(e));
-                    emit trabajoCambio();
+                    const auto alAplicar = [this, entrada](const std::string& e) {
+                        trabajo_["texto"] = e.empty() ? tr("Listo y aplicado a «%1»").arg(QString::fromStdString(entrada))
+                                                      : tr("Listo, pero no se pudo aplicar: %1").arg(q(e));
+                        emit trabajoCambio();
+                    };
+                    if (const std::string e = aplicar(entrada, "onnx", salida.string(), alAplicar); !e.empty()) alAplicar(e);
                 }
                 emit cambio();
             });
@@ -601,10 +598,13 @@ std::string SuperRes::destilar(const std::string& entrada, const std::string& ma
         return correr("destilar", tr("Destilar «%1» para «%2»").arg(q(receta.value("nombre", maestro)), q(entrada)),
                       QString::fromStdString(entrada), a, [this, entrada, salida, aplicarAlFin](bool ok) {
                           if (ok && aplicarAlFin) {
-                              const std::string e = aplicar(entrada, "onnx", salida.string());
-                              trabajo_["texto"] = e.empty() ? tr("Lista y aplicada a «%1»").arg(q(entrada))
-                                                            : tr("Lista, pero no se pudo aplicar: %1").arg(q(e));
-                              emit trabajoCambio();
+                              const auto alAplicar = [this, entrada](const std::string& e) {
+                                  trabajo_["texto"] = e.empty() ? tr("Lista y aplicada a «%1»").arg(q(entrada))
+                                                                : tr("Lista, pero no se pudo aplicar: %1").arg(q(e));
+                                  emit trabajoCambio();
+                              };
+                              if (const std::string e = aplicar(entrada, "onnx", salida.string(), alAplicar); !e.empty())
+                                  alAplicar(e);
                           }
                           emit cambio();
                       });
@@ -643,7 +643,7 @@ void SuperRes::cortarHijo() {
 }
 
 std::string SuperRes::aplicar(const std::string& entrada, const std::string& motor,
-                              const std::string& modelo) {
+                              const std::string& modelo, std::function<void(const std::string&)> listo) {
     if (video_ == nullptr) return tr("no hay video").toStdString();
     std::string ruta = modelo;
     if (motor == "onnx" && !modelo.empty() && modelo.find('/') == std::string::npos &&
@@ -652,8 +652,14 @@ std::string SuperRes::aplicar(const std::string& entrada, const std::string& mot
     std::error_code ec;
     if (motor == "onnx" && !fs::exists(ruta, ec))
         return tr("no existe el modelo «%1» (superres_estado lista los que hay)").arg(q(modelo)).toStdString();
-    // Relativa a los datos: la carpeta se puede mover y la tarjeta sigue andando.
-    return video_->superresMotor(entrada, motor, motor == "onnx" ? ba::platform::rutaGuardable(ruta) : std::string());
+    // Relativa a los datos: la carpeta se puede mover y la tarjeta sigue andando. El grafo es
+    // del dueño del motor: se le pide.
+    video_->pedir("superres_aplicar",
+                  [entrada, motor, m = motor == "onnx" ? ba::platform::rutaGuardable(ruta) : std::string()](VideoGrafos& g) {
+                      return g.superresMotor(entrada, motor, m);
+                  },
+                  std::move(listo));
+    return {};
 }
 
 namespace {
@@ -1013,11 +1019,14 @@ std::string SuperRes::instalarRuntimeGpu(const std::string& tipoPedido, bool con
 #endif
 }
 
-std::string SuperRes::tarjetaConPlugin(const std::string& entrada, const std::string& id, const json& extra) {
+std::string SuperRes::tarjetaConPlugin(const std::string& entrada, const std::string& id, const json& extra,
+                                       std::function<void(const std::string&)> listo) {
     if (video_ == nullptr) return tr("no hay video").toStdString();
     std::string err;
     if (resolverPlugin(id, &err).empty()) return err;
-    return video_->superresPlugin(entrada, id, extra);
+    video_->pedir("superres_tarjeta", [entrada, id, extra](VideoGrafos& g) { return g.superresPlugin(entrada, id, extra); },
+                  std::move(listo));
+    return {};
 }
 
 QVariantMap SuperRes::runtimeGpuUi() const { return qv(runtimeGpu()).toMap(); }
@@ -1184,7 +1193,11 @@ std::string SuperRes::crearVariantes(const std::string& plugin, const std::vecto
     if (reemplazar) args << "--reemplazar";
     return correr("variantes", tr("Variantes de «%1» (%2)").arg(q(plugin), q(lista)),
                   {}, args, [this](bool ok) {
-                      if (ok && video_ != nullptr) video_->reaplicarEntradas(); // las tarjetas la usan ya
+                      if (ok && video_ != nullptr) // las tarjetas la usan ya
+                          video_->pedir("superres_variantes", [](VideoGrafos& g) {
+                              g.reaplicarEntradas();
+                              return std::string();
+                          });
                       emit cambio();
                   });
 }
@@ -1198,7 +1211,11 @@ std::string SuperRes::borrarVariante(const std::string& plugin, const std::strin
         return tr("no hay una variante «%1» de «%2»").arg(q(id), q(plugin)).toStdString();
     fs::remove_all(d, ec);
     if (ec) return ec.message();
-    if (video_ != nullptr) video_->reaplicarEntradas();
+    if (video_ != nullptr)
+        video_->pedir("superres_variantes", [](VideoGrafos& g) {
+            g.reaplicarEntradas();
+            return std::string();
+        });
     emit cambio();
     return {};
 }

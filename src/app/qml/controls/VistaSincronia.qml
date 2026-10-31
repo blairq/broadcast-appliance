@@ -6,6 +6,8 @@
 //   - El reloj del estudio y el colchón de las entradas de red.
 //   - Las entradas de red y de plugins, con su diagnóstico; comprobar dos cámaras; el audio
 //     de cada canal con su video; una entrada de red nueva.
+// Todo lo que se ve sale de las propiedades de Studio.video (la vista del grafo de video,
+// que llega con la foto del motor): se rearma solo cuando cambia, sin sondear.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -19,26 +21,19 @@ Item {
     /// La edad con que sale el programa, medida (el mapa de tiempos); -1 si no se sabe.
     property real programaMs: -1
 
-    property var reloj: ({})
-    property var red: []
-    property var diag: []
+    readonly property var reloj: pop.vg ? pop.vg.reloj : ({})
+    readonly property var red: pop.vg ? pop.vg.estadoRed : []
+    readonly property var diag: pop.vg ? pop.vg.diagnostico : []
     property string medicionTexto: ""
     property bool midiendo: false
 
-    function refrescar() {
-        if (!pop.vg) return
-        pop.reloj = pop.vg.relojUi()
-        pop.red = pop.vg.estadoRed()
-        pop.diag = pop.vg.diagnosticoUi()
-    }
-    function avisar(e, ok) { Studio.notify(e !== "" ? e : ok, e !== "" ? "error" : "info"); pop.refrescar() }
+    function avisar(e, ok) { Studio.notify(e !== "" ? e : ok, e !== "" ? "error" : "info") }
     function colorGravedad(g) { return g === "error" ? Theme.live : g === "aviso" ? Theme.warn : Theme.textDim }
     function entradasTodas() { return pop.vg ? pop.vg.entradas : [] }
 
-    function alMostrarse() { pop.refrescar(); tipoReloj.currentIndex = Math.max(0, ["sistema", "ntp", "ptp", "red"].indexOf(pop.reloj.tipo || "sistema")) }
+    function alMostrarse() { tipoReloj.currentIndex = Math.max(0, ["sistema", "ntp", "ptp", "red"].indexOf(pop.reloj.tipo || "sistema")) }
     onVisibleChanged: if (visible) alMostrarse()
     Component.onCompleted: if (visible) alMostrarse()
-    Timer { interval: 2000; repeat: true; running: pop.visible; onTriggered: { pop.red = pop.vg.estadoRed(); pop.diag = pop.vg.diagnosticoUi() } }
     Connections {
         target: pop.vg
         function onMedicion(r) {
@@ -49,7 +44,6 @@ Item {
             if (r.aplicado) t += "\n" + qsTr("Corregido. Medido de nuevo: %1").arg(r.despues ? r.despues.desfase_ms + " ms — " + r.despues.significa : "—")
             if (r.no_aplicado) t += "\n" + qsTr("No se pudo corregir: %1").arg(r.no_aplicado)
             pop.medicionTexto = t
-            pop.refrescar()
         }
     }
 
@@ -68,9 +62,9 @@ Item {
                 Layout.fillWidth: true
                 padding: 16
                 implicitHeight: latCol.implicitHeight + 2 * padding
-                property var lat: ({ latencia_ms: 0, objetivo_ms: 0, margen_ms: 30, tope_ms: 0, automatico: true, tarde: [], entradas: [] })
-                Timer { interval: 1500; repeat: true; running: pop.visible; triggeredOnStart: true
-                        onTriggered: if (pop.vg) latPanel.lat = pop.vg.estudioLatenciaUi() }
+                readonly property var lat: pop.vg && pop.vg.latencia.latencia_ms !== undefined
+                                           ? pop.vg.latencia
+                                           : ({ latencia_ms: 0, objetivo_ms: 0, margen_ms: 30, tope_ms: 0, automatico: true, tarde: [], entradas: [] })
                 // Las de video con señal (las de solo audio y las que no reciben nada, aparte: no suman a la vista).
                 readonly property var conSenal: (lat.entradas || []).filter(e => e.video && ((e.pide_ms || 0) > 0 || (e.edad_p50_ms || 0) > 0))
                 readonly property int sinSenal: (lat.entradas || []).length - conSenal.length
@@ -83,15 +77,11 @@ Item {
                     return m * 1.15
                 }
                 function ms(v) { return Math.round(v || 0) + " ms" }
-                /// Cambia la clase y se ve enseguida (no espera la vuelta del reloj de 1,5 s).
+                /// Cambia la clase: la latencia nueva llega con la vista (la entrada se rearma).
                 function cambiarClase(entrada, clase) {
                     pop.avisar(pop.vg.claseSincroniaUi(entrada, clase),
                                (clase === "sala" ? qsTr("«%1» se sincroniza con la sala") : qsTr("«%1» va con su propia demora")).arg(entrada))
-                    latPanel.lat = pop.vg.estudioLatenciaUi()
-                    refrescoClase.restart()
                 }
-                // La entrada se rearma con la clase nueva: otra mirada al ratito, con lo que ya midió.
-                Timer { id: refrescoClase; interval: 600; onTriggered: if (pop.vg) latPanel.lat = pop.vg.estudioLatenciaUi() }
 
                 // Una entrada: su barra contra la línea de la latencia del estudio, y su clase.
                 component FilaSinc: Rectangle {
@@ -448,9 +438,9 @@ Item {
                                                   (fila.g.sincronia === "gstreamer" ? " " + qsTr("(ahora %1 ms)").arg(fila.g.latencia_estudio_ms || 0) : "")
                                 }
                                 // Superresolución x2 (macOS 26): para cámaras chicas (el tope lo pone el sistema).
-                                Text { visible: pop.vg.haySuperres(); text: qsTr("Superres x2"); color: Theme.textDim; font.pixelSize: 11 }
+                                Text { visible: pop.vg.haySuperres; text: qsTr("Superres x2"); color: Theme.textDim; font.pixelSize: 11 }
                                 Toggle {
-                                    visible: pop.vg.haySuperres()
+                                    visible: pop.vg.haySuperres
                                     checked: fila.g.superres === true
                                     onToggled: (w) => pop.avisar(pop.vg.superresUi(fila.modelData.entrada, w), w ? qsTr("Superresolución prendida") : qsTr("Superresolución apagada"))
                                     ToolTip.visible: hov.hovered; ToolTip.delay: 400
@@ -474,14 +464,12 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.leftMargin: 170
                                 spacing: 6
-                                property var lista: pop.vg.filtrosAudioUi(fila.modelData.entrada)
-                                function refrescar() { lista = pop.vg.filtrosAudioUi(fila.modelData.entrada) }
+                                readonly property var lista: pop.vg.filtrosAudio[fila.modelData.entrada] || []
                                 function mover(i, d) {
                                     const l = lista.slice(), j = i + d
                                     if (j < 0 || j >= l.length) return
                                     const x = l[i]; l[i] = l[j]; l[j] = x
                                     pop.avisar(pop.vg.ponerFiltrosAudioUi(fila.modelData.entrada, l), qsTr("Orden cambiado"))
-                                    refrescar()
                                 }
                                 Text { text: qsTr("Audio:"); color: Theme.textDim; font.pixelSize: 11; height: 26; verticalAlignment: Text.AlignVCenter }
                                 Repeater {
@@ -510,7 +498,7 @@ Item {
                                         GlassButton {
                                             compact: true; text: "✕"
                                             ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sacar este filtro")
-                                            onClicked: { pop.avisar(pop.vg.quitarFiltroAudioUi(fila.modelData.entrada, chip.index), qsTr("Filtro sacado")); filaAudio.refrescar() }
+                                            onClicked: pop.avisar(pop.vg.quitarFiltroAudioUi(fila.modelData.entrada, chip.index), qsTr("Filtro sacado"))
                                         }
                                     }
                                 }
@@ -527,7 +515,7 @@ Item {
                                     implicitWidth: 140
                                     onActivated: (i) => {
                                         const v = model[i].v
-                                        if (v) { pop.avisar(pop.vg.agregarFiltroAudioUi(fila.modelData.entrada, v), qsTr("Filtro agregado (la demora se compensa sola)")); filaAudio.refrescar() }
+                                        if (v) pop.avisar(pop.vg.agregarFiltroAudioUi(fila.modelData.entrada, v), qsTr("Filtro agregado (la demora se compensa sola)"))
                                         currentIndex = 0
                                     }
                                 }
@@ -642,7 +630,7 @@ Item {
                         spacing: 8
                         TextField { id: nNombre; Layout.preferredWidth: 160; placeholderText: qsTr("Nombre") }
                         TextField { id: nUri; Layout.fillWidth: true; placeholderText: "srt://… / rtmp://… / rtsp://…" }
-                        ComboBox { id: nEscena; Layout.preferredWidth: 180; editable: true; model: pop.vg ? pop.vg.escenasUi() : []; editText: "" }
+                        ComboBox { id: nEscena; Layout.preferredWidth: 180; editable: true; model: pop.vg ? pop.vg.escenas : []; editText: "" }
                         SpinBox { id: nLat; from: 0; to: 5000; stepSize: 50; editable: true; value: pop.reloj.latencia_ms || 200 }
                         CheckBox { id: nNorm; text: qsTr("Normalizar"); checked: true }
                         GlassButton {
@@ -704,7 +692,6 @@ Item {
             editorAudio.entrada = entrada
             abrir(fila.lista, i)
         }
-        onGuardado: if (filaQueAbrio) filaQueAbrio.refrescar()
     }
 
     // Sincronizar un canal de audio con su video (el mismo de la tarjeta y la ventana del Mezclador).

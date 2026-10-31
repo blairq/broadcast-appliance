@@ -42,6 +42,7 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
 #include "platform/Hilo.hpp"
@@ -53,18 +54,21 @@ namespace ba::app::mcp {
 namespace {
 
 /// Una fuente o escena ("" = el programa) como QImage, sin que espere la
-/// interfaz (el MCP corre en su hilo): prepara acá, el cuadro se espera en otro hilo y `listo` se llama de
-/// vuelta en el hilo de la interfaz, con la imagen (o nula y el error).
+/// interfaz (el MCP corre en su hilo): la captura la arranca el dueño del motor (su
+/// agenda, con el turno), el cuadro se espera en otro hilo y `listo` se llama de vuelta en
+/// el hilo de la interfaz, con la imagen (o nula y el error).
 void renderAparte(AppRuntime& rt, const std::string& name, int maxWidth,
                   std::function<void(QImage img, std::string err)> listo) {
-    rt.engine().capturarAparte(
-        name, maxWidth,
-        [listo = std::move(listo)](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) mutable {
-            QImage img;
-            if (e.empty() && w > 0 && h > 0) img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-            QMetaObject::invokeMethod(
-                qApp, [listo = std::move(listo), img, e]() mutable { listo(img, e); }, Qt::QueuedConnection);
-        });
+    rt.despuesEnDueno([&rt, name, maxWidth, listo = std::move(listo)]() mutable {
+        rt.engine().capturarAparte(
+            name, maxWidth,
+            [listo = std::move(listo)](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) mutable {
+                QImage img;
+                if (e.empty() && w > 0 && h > 0) img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+                QMetaObject::invokeMethod(
+                    qApp, [listo = std::move(listo), img, e]() mutable { listo(img, e); }, Qt::QueuedConnection);
+            });
+    });
 }
 
 bool feedImage(StudioViewModel& vm, const std::string& key, QImage& out) {
@@ -179,7 +183,7 @@ void McpService::registerImageTools() {
                     return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay imagen del programa: %1"), {err})));
                 ToolResult r;
                 r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Programa — escena '%1' (%2x%3)"),
-                                       {rt.engine().currentScene(), std::to_string(img.width()),
+                                       {vm.currentScene().toStdString(), std::to_string(img.width()),
                                         std::to_string(img.height())}));
                 addImage(r, img, a, 1280, core, rt.dataRoot());
                 done(r);
@@ -219,7 +223,7 @@ void McpService::registerImageTools() {
                          {{"negros_aplastados_pct", std::round(l.lumaBajaPct * 10) / 10},
                           {"blancos_quemados_pct", std::round(l.lumaAltaPct * 10) / 10},
                           {"fuera_de_gama_pct", std::round(l.cromaPct * 10) / 10}}},
-                        {"legalizador", vm.videoGrafos() != nullptr ? vm.videoGrafos()->legalizar() : std::string("no")}});
+                        {"legalizador", vm.videoVista() != nullptr ? vm.videoVista()->legalizar() : std::string("no")}});
             addImage(r, s, a, s.width(), core, rt.dataRoot());
             done(r);
             });
@@ -238,10 +242,13 @@ void McpService::registerImageTools() {
             "+120 %) | rango (solo luma y croma). Para entregar a un canal. Sin argumentos informa.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"modo", {{"type", "string"}, {"enum", {"no", "pal", "ntsc", "rango"}}}}}}};
+        // La configuración y el grafo de video son del dueño del motor: corre allá.
+        t.hilo = Hilo::Control;
         t.run = [&rt, &vm](const json& a, Done done) {
             if (a.contains("modo")) {
                 rt.config().legalizar = a.value("modo", std::string("no"));
                 rt.save();
+                rt.fotoSucia(FotoMotor::Ajustes);
                 if (vm.videoGrafos() != nullptr) vm.videoGrafos()->setLegalizar(rt.config().legalizar);
             }
             json r{{"modo", rt.config().legalizar}};
@@ -309,15 +316,18 @@ void McpService::registerImageTools() {
             "Como el multiview de un switcher.");
         t.inputSchema = withImageProps(
             json{{"cellWidth", {{"type", "integer"}, {"minimum", 160}, {"maximum", 960}, {"default", 400}}}});
-        t.run = [&rt, &core](const json& a, Done done) {
+        t.run = [&rt, &vm, &core](const json& a, Done done) {
             const int cellW = a.value("cellWidth", 400);
-            const std::vector<std::string> nombres = rt.engine().sceneNames();
+            // Las escenas y la del aire, de la foto del motor.
+            std::vector<std::string> nombres;
+            if (VideoViewModel* vv = vm.videoVista())
+                for (const QString& n : vv->escenas()) nombres.push_back(n.toStdString());
             if (nombres.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay escenas.")));
             // Una escena por vez, sin que espere la interfaz (renderAparte); al
             // final, la grilla.
             auto juntas = std::make_shared<std::vector<std::pair<QString, QImage>>>();
             auto paso = std::make_shared<std::function<void(std::size_t)>>();
-            *paso = [&rt, &core, a, done, cellW, nombres, juntas, paso](std::size_t i) {
+            *paso = [&rt, &vm, &core, a, done, cellW, nombres, juntas, paso](std::size_t i) {
             if (i < nombres.size()) {
                 renderAparte(rt, nombres[i], cellW, [juntas, nombres, i, paso](QImage img, std::string) {
                     juntas->emplace_back(QString::fromStdString(nombres[i]), img);
@@ -331,9 +341,8 @@ void McpService::registerImageTools() {
                 std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(items.size())))));
             ToolResult r;
             r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "%n escena; al aire: %1", nullptr, static_cast<int>(items.size())),
-                                   {rt.engine().currentScene()}));
-            addImage(r, contactSheet(items, cellW, cols, QString::fromStdString(rt.engine().currentScene())),
-                     a, 0, core, rt.dataRoot());
+                                   {vm.currentScene().toStdString()}));
+            addImage(r, contactSheet(items, cellW, cols, vm.currentScene()), a, 0, core, rt.dataRoot());
             done(r);
             };
             (*paso)(0);

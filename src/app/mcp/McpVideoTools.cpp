@@ -3,7 +3,10 @@
 //
 // Lo mismo que la página «Video»: operan sobre el mismo objeto
 // (video/VideoGrafos), así que lo que se arma por acá se ve allá en el acto y
-// lo corre la GPU (filtro ba_video_grafo).
+// lo corre la GPU (filtro ba_video_grafo). VideoGrafos es del dueño del motor
+// (F3-03): las del grafo corren en el plano de control (Hilo::Control, con el
+// turno) y siguen con la interfaz trabada. Las de la superresolución son de la
+// interfaz (video/SuperRes): le piden al grafo por la vista (ui/VideoViewModel).
 //
 // En su propia categoría («video»): no está en el perfil del modelo reactivo,
 // así que agregarlas no le cambia el prompt.
@@ -15,6 +18,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "video/Diagnostico.hpp"
 #include "video/BancoSuperRes.hpp"
 #include "video/SuperRes.hpp"
@@ -77,6 +81,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "El grafo de video");
         t.category = "video";
         t.clase = Clase::Lectura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description = QT_TRANSLATE_NOOP("mcp", "Sin `entrada`: todo el estudio (cada entrada con su sub-grafo, los nodos del "
                         "estudio y los cables "
                         "entre ellos) y las tarjetas propias. Con `entrada`: su sub-grafo, con los nodos de "
@@ -94,14 +99,18 @@ void McpService::registerVideoTools() {
                {{"type", "string"},
                 {"enum", {"racks", "estudio"}},
                 {"description", QT_TRANSLATE_NOOP("mcp", "Además, que la página Video muestre esa vista (y esa entrada).")}}}}}};
-        t.run = [v](const json& a, Done done) {
+        t.run = [v, vv = QPointer<VideoViewModel>(vm_.videoVista())](const json& a, Done done) {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             v->sincronizar();
             const std::string e = a.value("entrada", std::string());
-            if (a.contains("mostrar")) {
-                v->setVista(QString::fromStdString(a.value("mostrar", std::string())));
-                if (!e.empty()) v->seleccionar(QString::fromStdString(e));
-            }
+            // Qué muestra la página es de la interfaz: se le encarga a su hilo.
+            if (a.contains("mostrar") && vv)
+                QMetaObject::invokeMethod(vv.data(), [vv, m = QString::fromStdString(a.value("mostrar", std::string())),
+                                                      q = QString::fromStdString(e)]() {
+                    if (!vv) return;
+                    vv->setVista(m);
+                    if (!q.isEmpty()) vv->seleccionar(q);
+                });
             json d = v->describir(e);
             if (d.contains("error")) return done(ToolResult::error(d.value("error", std::string())));
             if (e.empty()) {
@@ -121,6 +130,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Los controles de una tarjeta");
         t.category = "video";
         t.clase = Clase::Lectura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Con `id` de una tarjeta (un módulo de GStreamer, o una Mezcla de GStreamer): sus controles (nombre, "
             "tipo, valor, rango, opciones). Con `puerto` (una Mezcla de GStreamer): los de esa entrada (xpos, ypos, "
@@ -134,8 +144,10 @@ void McpService::registerVideoTools() {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const QString id = QString::fromStdString(a.value("id", std::string()));
             const QString puerto = QString::fromStdString(a.value("puerto", std::string()));
-            if (!puerto.isEmpty()) return done(ToolResult().data(deQt(v->propiedadesPad(id, puerto))));
-            done(ToolResult().data(deQt(id.isEmpty() ? v->filtrosObs() : v->propiedades(id))));
+            // Sin `id`, vacío: los filtros de OBS se fueron con libobs.
+            done(ToolResult().data(
+                deQt(id.isEmpty() ? QVariantList{}
+                                  : video::VideoGrafos::controlesDe(v->gst(), v->formulario(id.toStdString()), puerto.toStdString()))));
         };
         core_.addTool(std::move(t));
     }
@@ -145,6 +157,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Los módulos de video de GStreamer (catálogo documentado)");
         t.category = "video";
         t.clase = Clase::Lectura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description = QT_TRANSLATE_NOOP("mcp", "El catálogo de módulos de video de GStreamer que trae el programa, con su "
                         "documentación en castellano "
                         "(para qué sirven y cómo se usan en vivo). Sin argumentos: un resumen por categoría. "
@@ -231,6 +244,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Crear una entrada virtual (barras, negro, un pipeline de GStreamer)");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Sin `nombre`: las entradas virtuales que hay (barras HD, barras 75 %, barras con la hora, "
             "negro, "
@@ -274,6 +288,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar una tarjeta de video");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la "
             "`entrada` "
@@ -422,6 +437,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Mover una tarjeta en la cadena");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Lleva la tarjeta `id` a otro lugar de la cadena de su entrada: después de `despues` (el id de otra "
             "tarjeta, o de la entrada para ponerla primera; vacío = justo antes de la escena), o un lugar antes "
@@ -457,6 +473,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Quitar una tarjeta de video");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Quita la tarjeta `id`: un filtro se puentea (lo de antes queda unido con lo de después).");
         t.inputSchema = {{"type", "object"},
@@ -479,6 +496,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Ajustar una tarjeta de video");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.idempotent = true;
         t.description = QT_TRANSLATE_NOOP("mcp", "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su "
                         "`etiqueta`. Un módulo de GStreamer: `{\"propiedades\": {…}}` (se "
@@ -512,6 +530,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Conectar o desconectar en el grafo de video");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Un cable de `desde` a `hacia` (cualquier par de tarjetas del estudio, aunque sean de entradas "
             "distintas). `entrada`: el puerto de `hacia` (vacío = el primero; en un compositor, uno nuevo). "
@@ -553,6 +572,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Manejar tarjetas de varias entradas con un controlador");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Un controlador es un nodo del estudio con el molde de una tarjeta: las tarjetas conectadas a su "
             "salida "
@@ -608,6 +628,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Poner una salida, un compositor o una mezcla del grafo en una escena");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Pone la tarjeta salida `id` (o un compositor, una panorámica o una mezcla) como fuente en `escena` (obligatoria: nunca la "
             "del aire sin "
@@ -634,6 +655,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Volver el video de una entrada a como vino");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description = QT_TRANSLATE_NOOP("mcp", "Deja la `entrada` en «entrada -> escena»: saca sus tarjetas y lo que llegaba a su "
                         "escena desde afuera.");
         t.inputSchema = {
@@ -658,6 +680,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Armar la cadena de tarjetas de una entrada (en una llamada)");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Arma, en orden, las tarjetas de la `entrada` (de la cámara hacia la escena) en UNA llamada y "
             "valida "
@@ -810,6 +833,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Mosaico, imagen en imagen o lado a lado de varias entradas (en una llamada)");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Junta `entradas` en una `escena` (si no existe, la crea) en UNA llamada: crea el compositor (o "
             "rearma el que se llame `nombre`), "
@@ -873,6 +897,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Unir varias cámaras en una imagen (panorámica o 360), en una llamada");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Une `camaras` (de 1 a 8 entradas, un stream cada una, en orden: la primera es la lente 1) en una "
             "sola imagen, todo en la placa: la tarjeta Panorámica del estudio (o rearma la que se llame "
@@ -922,6 +947,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Acomodar las tarjetas del grafo de video");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Acomoda las tarjetas del grafo (una franja por entrada, en columnas según la cadena; el botón "
             "«Ordenar» de la página Video). No cambia ninguna conexión.");
@@ -939,6 +965,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Dónde pasa el video (y el audio) de la GPU a la CPU, pipeline por pipeline");
         t.category = "video";
         t.clase = Clase::Lectura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
             "salidas): cada enlace con la memoria negociada de verdad (GLMemory, D3D11Memory, VAMemory, "
@@ -983,6 +1010,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Las entradas de video y cómo está cada una (y qué le pasa)");
         t.category = "video";
         t.clase = Clase::Lectura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Sin `entrada`: LISTA todas las entradas de video (cámaras, red, virtuales) con su diagnóstico "
             "resumido. Con `entrada`: tamaño, cuadros por segundo "
@@ -1067,6 +1095,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Recibir un stream de red (SRT, RTMP, RTSP, UDP, HTTP) sincronizado");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description = QT_TRANSLATE_NOOP("mcp", "Crea una entrada de video (y audio) desde `uri`: srt://host:puerto (o "
                         "srt://:puerto?mode=listener para "
                         "recibir), rtmp://servidor/app/clave, rtsp://camara/stream, udp://@:5000, "
@@ -1143,6 +1172,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Mandar un evento de control a la cadena de GStreamer de una entrada");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "El canal de control de las entradas de GStreamer: `control` (un objeto plano: texto, números, sí/no) "
             "viaja por la cadena de la entrada como evento estándar de GStreamer «ba/control» (personalizado, hacia "
@@ -1168,6 +1198,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Programador de superresolución: qué cámaras usan la red según programa y preview");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven "
             "grandes: el programador mira el programa y el preview (la escena armada) y pone cada cámara en activo "
@@ -1213,6 +1244,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Filtros de audio de una entrada (en su cadena de GStreamer)");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Pone (o saca, con una lista vacía) los filtros de AUDIO de una entrada de GStreamer (red, pipeline, "
             "plugin): elementos de GStreamer en la cadena de su audio, en orden. Para un plugin de Python de "
@@ -1248,6 +1280,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Sincronía del estudio: la latencia, quién la marca y cada entrada");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "El estado de la sincronía. Todas las entradas SINCRONIZADAS (clase «sala»: cámaras, capturadoras, "
             "micrófonos de la sala) salen alineadas entre sí y con el audio: el estudio espera a la más lenta. Devuelve:\n"
@@ -1299,6 +1332,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Si una entrada se sincroniza con la sala o va con su propia demora");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "La clase de sincronía de una `entrada`:\n"
             "- `sala`: sincronizada. Marca la latencia del estudio (el estudio espera a la más lenta de estas) y "
@@ -1332,6 +1366,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Automixer de mesa redonda (micrófonos de las bancas)");
         t.category = "audio";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Automixer estilo Dugan para una mesa de micrófonos: el que habla pasa al frente, los demás bajan y "
             "la suma queda acotada (no se suman ruido ni retorno al abrir muchos). Corre en GStreamer, en la "
@@ -1432,30 +1467,42 @@ void McpService::registerVideoTools() {
                                               {"enum", {"auto", "dml", "vulkan", "tensorrt", "cuda", "openvino", "migraphx", "cpu"}}}},
                                {"despues", {{"type", "string"}}}}}};
             t.examples = {R"({"entrada": "Cámara 1", "plugin": "realesr-general-x4v3"})"};
-            t.run = [srp, v = vm_.videoGrafos()](const json& a, Done done) {
-                if (!srp || v == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
+            t.run = [srp, vv = QPointer<VideoViewModel>(vm_.videoVista())](const json& a, Done done) {
+                if (!srp || !vv) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string entrada = a.value("entrada", std::string());
                 if (a.contains("plugin")) {
                     json extra = json::object();
                     if (a.contains("unidades")) extra["unidades"] = a.value("unidades", std::string("auto"));
                     if (a.contains("proveedor")) extra["proveedor"] = a.value("proveedor", std::string("auto"));
-                    const std::string e = srp->tarjetaConPlugin(entrada, a.value("plugin", std::string()), extra);
-                    if (!e.empty()) return done(ToolResult::error(e));
-                    return done(ToolResult().text(ba::i18n::llenar(
-                        ba::i18n::traducir("mcp", "Tarjeta con el plugin «%1». video_estado muestra el tamaño nuevo y "
-                                                  "su demora (el audio se atrasa solo) en unos segundos; la entrada "
-                                                  "tiene que estar a la vista."),
-                        {a.value("plugin", std::string())})));
+                    // La pone el grafo (en el dueño del motor): la respuesta, cuando vuelve.
+                    const auto alTerminar = [done, plugin = a.value("plugin", std::string())](const std::string& e) {
+                        if (!e.empty()) return done(ToolResult::error(e));
+                        done(ToolResult().text(ba::i18n::llenar(
+                            ba::i18n::traducir("mcp", "Tarjeta con el plugin «%1». video_estado muestra el tamaño nuevo y "
+                                                      "su demora (el audio se atrasa solo) en unos segundos; la entrada "
+                                                      "tiene que estar a la vista."),
+                            {plugin})));
+                    };
+                    if (const std::string e = srp->tarjetaConPlugin(entrada, a.value("plugin", std::string()), extra, alTerminar);
+                        !e.empty())
+                        alTerminar(e);
+                    return;
                 }
                 if (!a.contains("motor")) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `plugin` (o `motor`)")));
                 std::string modelo = a.value("modelo", std::string());
                 if (!modelo.empty() && modelo.find('/') == std::string::npos &&
                     modelo.find('\\') == std::string::npos)
                     modelo = (srp->carpetaModelos() / modelo).string();
-                const std::string e =
-                    v->agregarSuperres(entrada, a.value("motor", std::string()), modelo, a.value("despues", std::string()));
-                if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text(ba::i18n::traducir("mcp", "Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos.")));
+                vv->pedir("superres_tarjeta",
+                          [entrada, motor = a.value("motor", std::string()), modelo,
+                           despues = a.value("despues", std::string())](video::VideoGrafos& g) {
+                              return g.agregarSuperres(entrada, motor, modelo, despues);
+                          },
+                          [done](const std::string& e) {
+                              if (!e.empty()) return done(ToolResult::error(e));
+                              done(ToolResult().text(
+                                  ba::i18n::traducir("mcp", "Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos.")));
+                          });
             };
             core_.addTool(std::move(t));
         }
@@ -1591,7 +1638,7 @@ void McpService::registerVideoTools() {
                   {"reemplazar", {{"type", "boolean"}}}}}};
             t.examples = {R"({"plugin": "lsdir-compact-x4", "faltantes": true})",
                           R"({"plugin": "nomosuni-compact-x2", "ancho": 1024, "alto": 576, "para": "cámara del patio"})"};
-            t.run = [srp, v](const json& a, Done done) {
+            t.run = [srp, vv = QPointer<VideoViewModel>(vm_.videoVista())](const json& a, Done done) {
                 if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string p = a.value("plugin", std::string());
                 std::vector<std::string> tam;
@@ -1600,8 +1647,9 @@ void McpService::registerVideoTools() {
                 for (const auto& x : a.value("tamanos", json::array()))
                     if (x.is_string()) tam.push_back(x.get<std::string>());
                 if (a.contains("ancho") && a.contains("alto")) tam.push_back(par(a.value("ancho", 0), a.value("alto", 0)));
-                if (const std::string e = a.value("entrada", std::string()); !e.empty() && v) {
-                    const json o = v->estadoEntrada(e).value("gstreamer", json::object()).value("origen", json::object());
+                if (const std::string e = a.value("entrada", std::string()); !e.empty() && vv) {
+                    // De la foto del motor (la vista del grafo).
+                    const json o = vv->estadoEntrada(e).value("gstreamer", json::object()).value("origen", json::object());
                     if (o.value("ancho", 0) <= 0) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» todavía no tiene imagen"), {e})));
                     tam.push_back(par(o.value("ancho", 0), o.value("alto", 0)));
                 }
@@ -1826,12 +1874,16 @@ void McpService::registerVideoTools() {
                                {"modelo", {{"type", "string"}}}}}};
             t.run = [srp](const json& a, Done done) {
                 if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
-                const std::string e =
-                    srp->aplicar(a.value("entrada", std::string()), a.value("motor", std::string()),
-                                 a.value("modelo", std::string()));
-                if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text(ba::i18n::traducir("mcp", "Hecho. En unos segundos video_estado muestra el tamaño nuevo y lo "
-                                       "que tarda (superres_ms).")));
+                // Lo pone el grafo (en el dueño del motor): la respuesta, cuando vuelve.
+                const auto alTerminar = [done](const std::string& e) {
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    done(ToolResult().text(ba::i18n::traducir("mcp", "Hecho. En unos segundos video_estado muestra el tamaño nuevo y lo "
+                                                                     "que tarda (superres_ms).")));
+                };
+                if (const std::string e = srp->aplicar(a.value("entrada", std::string()), a.value("motor", std::string()),
+                                                       a.value("modelo", std::string()), alTerminar);
+                    !e.empty())
+                    alTerminar(e);
             };
             core_.addTool(std::move(t));
         }
@@ -2010,6 +2062,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "El reloj del estudio (sincronía de las entradas de red)");
         t.category = "video";
         t.clase = Clase::Aire;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia el reloj del estudio (reinicia el motor: corta lo que sale)");
         t.aireSi = AireSi::RelojNuevo;
         t.description = std::string(QT_TRANSLATE_NOOP("mcp", "Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. "
@@ -2083,6 +2136,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Medir (y corregir) cuánto atrasa una entrada respecto de otra");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Mide durante `segundos` (de fábrica 8) cuánto atrasa `b` respecto de `a`, comparando cuadro a "
             "cuadro "
@@ -2120,6 +2174,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Correr una entrada en el tiempo a mano");
         t.category = "video";
         t.clase = Clase::Escritura;
+        t.hilo = Hilo::Control; // VideoGrafos es del dueño del motor (F3-03)
         t.description = QT_TRANSLATE_NOOP("mcp", "Atrasa (o adelanta) una entrada `ms` milisegundos: una entrada de red, con el "
                         "desfase de su colchón "
                         "(para los dos lados, en vivo); una cámara local, solo para atrás (una tarjeta "

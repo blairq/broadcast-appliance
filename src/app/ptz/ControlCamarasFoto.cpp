@@ -88,34 +88,24 @@ QVariantMap ControlCamaras::sacarFoto(const QString& entrada) {
     c->foto.cuando = Posiciones::ahora();
     // La imagen llega aparte; la interfaz se entera con cambio().
     const std::string fuente = c->entrada;
-    QPointer<ControlCamaras> yo(this);
-    rt_.engine().capturarAparte(fuente, 1280, [yo, entrada](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
-        QImage img;
-        if (e.empty() && w > 0 && h > 0)
-            img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
-        QMetaObject::invokeMethod(
-            qApp,
-            [yo, entrada, img]() {
-                if (!yo) return;
-                Camara* c = yo->camara(entrada, nullptr);
-                if (c == nullptr) return;
-                if (img.isNull()) {
-                    emit yo->aviso(QCoreApplication::translate("ptz", "La entrada «%1» no da imagen ahora: no hay foto").arg(entrada));
-                    return;
-                }
-                std::error_code ec;
-                std::filesystem::create_directories(yo->carpetaMiniaturas(), ec);
-                const QString nombre = QString::fromStdString(yo->nombreClave(c->entrada)) + "-foto.jpg";
-                const QString ruta = QString::fromStdWString((yo->carpetaMiniaturas() / nombre.toStdWString()).wstring());
-                if (!img.save(ruta, "JPG", 85)) {
-                    emit yo->aviso(QCoreApplication::translate("ptz", "No se pudo guardar la foto en %1").arg(ruta));
-                    return;
-                }
-                c->foto.archivo = nombre;
-                ++c->foto.rev;
-                emit yo->cambio();
-            },
-            Qt::QueuedConnection);
+    capturar(fuente, 1280, [this, entrada](const QImage& img) {
+        Camara* c = camara(entrada, nullptr);
+        if (c == nullptr) return;
+        if (img.isNull()) {
+            emit this->aviso(QCoreApplication::translate("ptz", "La entrada «%1» no da imagen ahora: no hay foto").arg(entrada));
+            return;
+        }
+        std::error_code ec;
+        std::filesystem::create_directories(carpetaMiniaturas(), ec);
+        const QString nombre = QString::fromStdString(nombreClave(c->entrada)) + "-foto.jpg";
+        const QString ruta = QString::fromStdWString((carpetaMiniaturas() / nombre.toStdWString()).wstring());
+        if (!img.save(ruta, "JPG", 85)) {
+            emit this->aviso(QCoreApplication::translate("ptz", "No se pudo guardar la foto en %1").arg(ruta));
+            return;
+        }
+        c->foto.archivo = nombre;
+        ++c->foto.rev;
+        emit cambio();
     });
     return {{"ok", true}, {"aviso", aviso}};
 }
