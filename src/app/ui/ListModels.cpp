@@ -423,18 +423,23 @@ QAbstractItemModel* MixerModel::delGrupo(const QString& grupo) {
     return m;
 }
 
-QVariantList MixerModel::grupos() const {
+QVariantList MixerModel::gruposEn(const std::string& salida) const {
     QVariantList out;
     for (std::size_t i = 0; i < grupos_.size(); ++i) {
         if (grupos_[i].empty() || (i > 0 && grupos_[i - 1] == grupos_[i])) continue;
         QStringList tiras;
-        for (std::size_t k = i; k < grupos_.size() && grupos_[k] == grupos_[i]; ++k) tiras << qs(names_[k]);
+        bool mudo = true;
+        for (std::size_t k = i; k < grupos_.size() && grupos_[k] == grupos_[i]; ++k) {
+            tiras << qs(names_[k]);
+            mudo = mudo && rt_.engine().sourceMuted(names_[k], salida);
+        }
         const auto nom = nombresGrupo_.find(grupos_[i]);
         out.push_back(QVariantMap{{"grupo", qs(grupos_[i])},
                                   {"nombre", qs(nom != nombresGrupo_.end() ? nom->second : grupos_[i])},
                                   {"tiras", tiras},
                                   {"volumenDb", mulToDb(rt_.engine().gananciaGrupo(grupos_[i]))},
-                                  {"compacto", compactos_.count(grupos_[i]) > 0}});
+                                  {"compacto", compactos_.count(grupos_[i]) > 0},
+                                  {"mudo", mudo}});
     }
     return out;
 }
@@ -445,10 +450,19 @@ bool MixerModel::setGananciaGrupoDb(const QString& grupo, double db) {
     return rt_.setGananciaGrupo(grupo.toStdString(), d <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, d / 20.0)));
 }
 
-void MixerModel::setMutedGrupo(const QString& grupo, bool muted) {
-    const std::string g = grupo.toStdString();
+void MixerModel::setMutedGrupo(const QString& grupo, bool muted) { setMutedGrupoEn(grupo.toStdString(), muted, salida_); }
+
+void MixerModel::setMutedGrupoEn(const std::string& g, bool muted, const std::string& salida) {
     for (std::size_t i = 0; i < grupos_.size(); ++i)
-        if (!g.empty() && grupos_[i] == g) rt_.setMuted(names_[i], muted, salida_);
+        if (!g.empty() && grupos_[i] == g) rt_.setMuted(names_[i], muted, salida);
+}
+
+nlohmann::json MixerModel::nivelEn(int fila, const std::string& salida) const {
+    if (fila < 0 || fila >= static_cast<int>(names_.size())) return {};
+    const std::string& n = names_[static_cast<std::size_t>(fila)];
+    return {{"pico_db", std::max(-60.0, std::round(static_cast<double>(peaks_[static_cast<std::size_t>(fila)])))},
+            {"volumen_db", std::round(mulToDb(rt_.engine().sourceVolume(n, salida)) * 10) / 10},
+            {"mudo", rt_.engine().sourceMuted(n, salida)}};
 }
 
 void MixerModel::setCompacto(const QString& grupo, bool compacto) {

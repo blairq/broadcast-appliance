@@ -87,6 +87,22 @@ double rmsHasta(Motor& m, const std::string& salida, F cumple, int topeMs = 4000
     return v;
 }
 
+/// El RMS de la pista n de una salida (dBFS), esperando hasta que cumpla (o el tope).
+template <typename F>
+double rmsPistaHasta(Motor& m, const std::string& salida, int n, F cumple, int topeMs = 4000) {
+    double v = -999;
+    for (int t = 0; t <= topeMs; t += 100) {
+        const json e = m.estado();
+        const std::string k = std::to_string(n);
+        v = e["salidas"].contains(salida) && e["salidas"][salida]["pistas"].contains(k)
+                ? e["salidas"][salida]["pistas"][k].value("rms_db", -120.0)
+                : -999;
+        if (cumple(v)) break;
+        esperar(100);
+    }
+    return v;
+}
+
 bool suena(double db) { return std::fabs(db - (-15.05)) < 1.5; } // un seno de 0,25
 bool calla(double db) { return db < -60; }
 
@@ -269,6 +285,23 @@ int main() {
     m.ponerMute("tono", false);
     m.ponerNivel("tono", 1.0, "nadie");
     CHECK(fallo("ponerNivel"), "el fader de una salida que no existe falla");
+
+    // Las pistas 2-6 son de cada salida, con su mando: la grabación de la B lleva las suyas.
+    CHECK(m.ponerPistas("tono", {1, 2}).empty(), "el tono también a la pista 2");
+    CHECK(m.productorDeBus("pista2") == "bus:pista2", "la pista 2 de la por omisión, con el nombre de siempre");
+    CHECK(m.productorDeBus("pista2", &lat, "b") == "bus:pista2:b", "la de la B, con su id");
+    CHECK(m.productorDeBus("pista2:b") == "bus:pista2:b", "la de la B por la clave");
+    CHECK(m.productorDeBus("pista2:nadie").empty(), "la de una salida que no existe: nada");
+    CHECK(suena(rmsPistaHasta(m, "principal", 2, suena)) && suena(rmsPistaHasta(m, "b", 2, suena)), "el tono en la pista 2 de las dos");
+    m.ponerNivel("tono", 0.0, "b");
+    {
+        const double b = rmsPistaHasta(m, "b", 2, calla);
+        std::printf("fader de la B a 0: pista 2 de la principal %.1f, de la B %.1f\n", rmsPistaHasta(m, "principal", 2, suena), b);
+        CHECK(calla(b), "el fader de la B la calla en la pista 2 de la B");
+        CHECK(suena(rmsPistaHasta(m, "principal", 2, suena)), "y no en la de la principal");
+    }
+    m.ponerNivel("tono", 1.0, "b");
+    CHECK(m.ponerPistas("tono", {1}).empty(), "el tono solo al programa otra vez");
 
     // El tally del multiview: rojo si está al aire en alguna salida (la roja, solo en la B).
     m.alAire("Roja", "corte", 0, "b");

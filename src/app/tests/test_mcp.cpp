@@ -859,6 +859,15 @@ int main(int argc, char** argv) {
         sal.callTool({{"name", "stream_stop_todo"}, {"arguments", json::object()}}, [&y](json x) { y = x; },
                      CallContext{"S", "", "asistente"});
         CHECK(preguntas == 2, "las que no son de salida: de aire si sale cualquiera");
+        // Lo mismo sin llamar: la botonera lo pregunta antes (para pedir confirmar en el aparato).
+        CHECK(!sal.cambiaElAire("scene_switch", {{"name", "A"}}, ""), "cambiaElAire: la por omisión no sale");
+        CHECK(sal.cambiaElAire("scene_switch", {{"name", "A"}}, "yt2"), "cambiaElAire: sale la del aparato");
+        CHECK(sal.cambiaElAire("scene_switch", {{"name", "A"}, {"salida", "yt2"}}, ""), "cambiaElAire: la de los argumentos manda");
+        CHECK(sal.cambiaElAire("stream_stop_todo", json::object(), ""), "cambiaElAire: la que no es de salida, si sale cualquiera");
+        CHECK(sal.cambiaElAire("scene_switch", {{"name", "A"}}, "no-existe"), "cambiaElAire: una salida que no existe confirma de más");
+        salen.clear();
+        CHECK(!sal.cambiaElAire("scene_switch", {{"name", "A"}}, "yt2") && !sal.cambiaElAire("stream_stop_todo", json::object(), ""),
+              "cambiaElAire: sin aire, no");
         // Sin setSalidas (un núcleo sin la app), lo pedido pasa tal cual.
         McpCore solo;
         std::string err;

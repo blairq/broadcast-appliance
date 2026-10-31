@@ -6,13 +6,17 @@
 //
 // Temas (los publica la app; los de los plugins van bajo plugin/<id>/<canal>):
 //   aire/escena, aire/armada, aire/tally          lo que está al aire y armado (la salida por omisión)
+//   aire/medios                                   [{fuente, restante_s}] lo que se reproduce al aire (ídem)
+//   aire/dsk                                      las capas DSK, `visible` en la por omisión
+//   aire/tbar                                     {hacia, posicion} la T-bar de la por omisión (posicion 0…1)
 //   salida/stream, salida/grabacion               transmisión y grabación (la por omisión)
 //   salidas                                       {lista: [{id, nombre, color, por_omision}]}
-//   aire/<salida>/escena|armada|tally             lo mismo, de CADA salida (también la por omisión)
+//   aire/<salida>/escena|armada|tally|medios|dsk|tbar  lo mismo, de CADA salida (también la por omisión)
 //   salida/<salida>/estado                        {id, nombre, color, por_omision, escena, armada,
 //                                                  transmitiendo, grabando}
 //   salida/<salida>/stream, salida/<salida>/grabacion  {activo, …} de cada salida
-//   audio/nivel/<fuente> (10 Hz como mucho)       pico, volumen y mudo
+//   audio/nivel/<fuente> (10 Hz como mucho)       pico, volumen y mudo (el fader de la por omisión)
+//   audio/<salida>/nivel/<fuente>                 lo mismo con el fader y el mudo de esa salida
 //   audio/loudness                                M/S/I, true peak, LRA (1 Hz)
 //   alarma/<id>                                   alarmas de los disparadores
 //   entrada/senal                                 entradas sin señal
@@ -88,17 +92,19 @@ class BusEventos : public QObject {
     void setMediciones(std::vector<std::string> patrones);
     /// Las de fábrica: lo que se publica muchas veces por segundo (o cada segundo) y no es un hecho.
     static std::vector<std::string> medicionesDeFabrica() {
-        return {"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally", "aire/+/tally",
-                "linea/+/overunder"};
+        return {"audio/nivel/#", "audio/+/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally",
+                "aire/+/tally", "aire/tbar", "aire/+/tbar", "linea/+/overunder"};
     }
     /// El tema de `tema` para la salida `salida` (su id): «aire/tally» → «aire/<salida>/tally»
-    /// (lo mismo con escena, armada, salida/stream y salida/grabacion) y «{{salida}}» → el
+    /// (lo mismo con escena, armada, medios, dsk, tbar, salida/stream y salida/grabacion),
+    /// «audio/nivel/<f>» → «audio/<salida>/nivel/<f>» y «{{salida}}» → el
     /// id. Si `porOmision`, los temas sin id ya son los suyos y quedan como están. Así
     /// una celda hecha para «la» salida sigue a la que maneje su superficie.
     static std::string temaDeSalida(const std::string& tema, const std::string& salida, bool porOmision);
     /// Publica los temas de cada salida (ver arriba). `salidas`: [{id, nombre, color,
     /// por_omision, escena, armada, fuentes_programa, fuentes_preview, transmitiendo,
-    /// grabando, reconectando}]. Los de una salida que ya no está se olvidan.
+    /// grabando, reconectando, medios?, dsk?, tbar?, niveles? {fuente: {pico_db,
+    /// volumen_db, mudo}}}]. Los de una salida que ya no está se olvidan.
     void publicarSalidas(const json& salidas);
     Q_INVOKABLE QVariantList temasUi(const QString& filtro = {}) const;
 

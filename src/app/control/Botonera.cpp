@@ -1962,6 +1962,9 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
         for (const auto& c : r.value("celdas", json::array()))
             if (claveCelda(c.value("x", 0), c.value("y", 0)) == celda) activo = c.value("activo", false);
     }
+    // La salida que maneja el aparato (el escritorio prueba con la del perfil).
+    const std::string salida =
+        buscarDispositivo(dev) != nullptr ? salidaDe(dev) : salidaValida(perfil.value("salida", std::string()));
     bool deAire = false;
     for (auto& p : pasos) {
         const std::string h = p["herramienta"];
@@ -1971,7 +1974,7 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
             return;
         }
         p["args"] = plantilla(p["args"], valor, delta, activo);
-        if (g_.deAireAhora && g_.deAireAhora(h, p["args"])) deAire = true;
+        if (g_.deAireAhora && g_.deAireAhora(h, p["args"], salida)) deAire = true;
     }
     // Una acción con «confirmar» (p. ej. el micrófono del presidente) también se confirma en el aparato.
     if ((deAire || accion.value("confirmar", false)) && !confirmado) {
@@ -1991,9 +1994,6 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
     }
     if (!g_.ejecutar) return;
     const std::string perfilId = perfil.value("id", std::string());
-    // La salida que maneja el aparato (el escritorio prueba con la del perfil).
-    const std::string salida =
-        buscarDispositivo(dev) != nullptr ? salidaDe(dev) : salidaValida(perfil.value("salida", std::string()));
     const int espera = accion.value("espera_ms", 0);
     QPointer<Botonera> yo(this);
     // Se ejecutan en orden; una secuencia espera `espera_ms` entre pasos.

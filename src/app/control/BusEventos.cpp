@@ -160,10 +160,12 @@ std::string BusEventos::temaDeSalida(const std::string& tema, const std::string&
     for (auto p = t.find(k); p != std::string::npos; p = t.find(k, p + salida.size())) t.replace(p, k.size(), salida);
     if (porOmision || salida.empty()) return t;
     // Solo los temas que son de UNA salida; los demás (audio, sala, alarmas…) son de todas.
-    static const std::set<std::string> deAire{"aire/escena", "aire/armada", "aire/tally"};
+    static const std::set<std::string> deAire{"aire/escena", "aire/armada", "aire/tally", "aire/medios", "aire/dsk", "aire/tbar"};
     static const std::set<std::string> deSalida{"salida/stream", "salida/grabacion"};
     if (deAire.count(t)) return "aire/" + salida + t.substr(4);
     if (deSalida.count(t)) return "salida/" + salida + t.substr(6);
+    // El fader y el mudo de una fuente son de cada salida (su mezcla).
+    if (t.rfind("audio/nivel/", 0) == 0) return "audio/" + salida + t.substr(5);
     return t;
 }
 
@@ -189,6 +191,12 @@ void BusEventos::publicarSalidas(const json& salidas) {
                                            {"grabando", rec},
                                            {"salida", id},
                                            {"color", s.value("color", std::string())}});
+        // Lo que viene solo si quien publica lo tiene (los tests y lo viejo, sin esto).
+        if (s.contains("medios")) publicar("aire/" + id + "/medios", s["medios"]);
+        if (s.contains("dsk")) publicar("aire/" + id + "/dsk", s["dsk"]);
+        if (s.contains("tbar")) publicar("aire/" + id + "/tbar", s["tbar"]);
+        if (s.contains("niveles") && s["niveles"].is_object())
+            for (const auto& [fuente, n] : s["niveles"].items()) publicar("audio/" + id + "/nivel/" + fuente, n);
         publicar("salida/" + id + "/stream", {{"activo", tx}, {"reconectando", s.value("reconectando", false)}});
         publicar("salida/" + id + "/grabacion", {{"activo", rec}});
         publicar("salida/" + id + "/estado", {{"id", id},
@@ -211,7 +219,9 @@ void BusEventos::publicarSalidas(const json& salidas) {
     std::lock_guard<std::mutex> l(mu_);
     for (const auto& id : idas)
         for (auto it = ultimos_.begin(); it != ultimos_.end();)
-            if (coincide("aire/" + id + "/#", it->first) || coincide("salida/" + id + "/#", it->first)) it = ultimos_.erase(it);
+            if (coincide("aire/" + id + "/#", it->first) || coincide("salida/" + id + "/#", it->first) ||
+                coincide("audio/" + id + "/nivel/#", it->first))
+                it = ultimos_.erase(it);
             else ++it;
 }
 

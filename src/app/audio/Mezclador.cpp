@@ -144,9 +144,11 @@ void Mezclador::tic() {
     ns.reserve(static_cast<qsizetype>(idSalidas_.size() * 6));
     for (const std::string& id : idSalidas_) {
         float p[2] = {-100, -100}, r[2] = {-100, -100};
-        // Las pistas las mide el motor (la 1 es el bus Programa); los buses virtuales y
-        // las salidas de la placa, la matriz (pico solo: el RMS se aproxima con él).
-        const std::string bus = id == "pista1" ? "bus:programa" : id.rfind("pista", 0) == 0 ? "bus:" + id : "";
+        // Las pistas las mide el motor (la 1 es el bus Programa), las de la salida que se
+        // muestra (las demás llevan su id: bus:programa:<id>, bus:pista2:<id>); los buses
+        // virtuales y las salidas de la placa, la matriz (pico solo: el RMS se aproxima con él).
+        const std::string suya = salida_.empty() ? std::string() : ":" + salida_;
+        const std::string bus = id == "pista1" ? "bus:programa" + suya : id.rfind("pista", 0) == 0 ? "bus:" + id + suya : "";
         if (!bus.empty()) {
             if (const auto it = porId.find(bus); it != porId.end())
                 for (int c = 0; c < 2; ++c) {
@@ -165,7 +167,7 @@ void Mezclador::tic() {
     nivelesS_ = std::move(ns);
     // El loudness cambia despacio (el momentáneo integra 400 ms): 5 veces por segundo
     // alcanza, y se ahorra la vuelta por JSON en cada cuadro.
-    if (vueltas % 6 == 0 || loudness_.isEmpty()) loudness_ = aMapa(rt_.engine().loudness().json());
+    if (vueltas % 6 == 0 || loudness_.isEmpty()) loudness_ = aMapa(rt_.engine().loudness(salida_).json());
     emit nivelesCambio();
 }
 

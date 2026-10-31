@@ -11,6 +11,8 @@
 // cada salida las sube y las baja por su cuenta (la línea de tiempo sube el logo
 // en la principal y no en la sala). Lo de la por omisión va en `visible`; lo de
 // las demás, en `visible_en: {<salida>: true}`, y vuelve igual tras un corte.
+// La interfaz maneja las de su salida activa (setSalida, como el Mezclador): `capas`
+// trae `visible` de ESA salida y mostrarUi sube y baja en ella.
 #pragma once
 
 #include <QObject>
@@ -35,8 +37,13 @@ class Dsk : public QObject {
     using json = nlohmann::json;
     Dsk(const std::filesystem::path& datos, BroadcastEngine& engine, QObject* parent = nullptr);
 
-    /// [{capa, nombre, contenido[], recuadro, fijo, transicion_ms, visible}].
-    json capas() const;
+    /// [{capa, nombre, contenido[], recuadro, fijo, transicion_ms, visible, opacidad}]:
+    /// `visible` y `opacidad`, los de `salida` (vacía: la por omisión).
+    json capas(const std::string& salida = {}) const;
+    /// ¿Está arriba en `salida`? (vacía: la por omisión).
+    bool arriba(int capa, const std::string& salida = {}) const;
+    /// La salida que maneja la interfaz ("" = la por omisión): la de `capas` y mostrarUi.
+    void setSalida(const std::string& salida);
     /// Define la capa (1..4). `def`: {nombre?, contenido?[] (escenas o fuentes), recuadro?, fijo?, transicion_ms?}.
     std::string definir(int capa, const json& def);
     /// Sube o baja en `salida` (vacía: la por omisión). Bajar una fija necesita
@@ -67,6 +74,7 @@ class Dsk : public QObject {
     BroadcastEngine& engine_;
     json capas_ = json::array();
     std::function<void(const json&)> alCambiar_;
+    std::string salidaUi_; ///< ver setSalida
 };
 
 } // namespace ba::app::control

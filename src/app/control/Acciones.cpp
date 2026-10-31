@@ -32,7 +32,8 @@ json herr(const std::string& id, const std::string& nombre, const std::string& g
 /// Las acciones de aire que se listan también para cada salida («take@cam2»).
 const std::set<std::string>& dePorSalida() {
     static const std::set<std::string> s{"take",     "ftb",        "ftb_sacar",       "placa",          "placa_sacar", "grabar",
-                                         "linea_go", "linea_hold", "linea_siguiente", "linea_anterior", "linea_saltar"};
+                                         "linea_go", "linea_hold", "linea_siguiente", "linea_anterior", "linea_saltar",
+                                         "dsk:1",    "dsk:2",      "dsk:3",           "dsk:4"};
     return s;
 }
 
@@ -211,7 +212,7 @@ json Acciones::resolverSinSalida(const std::string& id, const std::string& salid
     if (id.rfind("dsk:", 0) == 0) {
         const int capa = std::atoi(id.c_str() + 4);
         if (capa < 1 || capa > 4) return {{"error", traducir("acciones", "capa inválida")}};
-        const bool arriba = g_.dskArriba && g_.dskArriba(capa);
+        const bool arriba = g_.dskArriba && g_.dskArriba(capa, salida); // la capa es de cada salida
         return {{"herramienta", "dsk_mostrar"}, {"args", {{"capa", capa}, {"visible", !arriba}}}};
     }
     if (id.rfind("mudo:", 0) == 0) {

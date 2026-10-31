@@ -479,8 +479,8 @@ int runGui(int argc, char** argv) {
                                            },
                                            ctx);
             };
-            g.deAireAhora = [&mcpService](const std::string& h, const nlohmann::json& args) {
-                return mcpService.core().hayAire() && mcpService.core().aire().esDeAire(mcpService.core().nombreActual(h), args);
+            g.deAireAhora = [&mcpService](const std::string& h, const nlohmann::json& args, const std::string& salida) {
+                return mcpService.core().cambiaElAire(h, args, salida);
             };
             g.herramientas = [&mcpService]() {
                 std::set<std::string> out;

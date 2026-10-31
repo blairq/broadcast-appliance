@@ -1250,7 +1250,7 @@ std::string BroadcastEngine::destinoActivo(const std::string& salida) const {
 
 namespace {
 /// Lo que leen las salidas del programa de una salida: su video y su audio (pista 1
-/// y las pedidas; las pistas 2-6 por ahora siguen a la por omisión, ver Motor).
+/// y las pedidas: las pistas 2-6 de ESA salida, con su mezcla; ver Motor).
 motor::Fuentes fuentesDelPrograma(motor::Motor& m, const std::string& salida, const std::vector<int>& pistasExtra,
                                   bool limpio = false) {
     motor::Fuentes f;
@@ -1260,7 +1260,7 @@ motor::Fuentes fuentesDelPrograma(motor::Motor& m, const std::string& salida, co
     f.latAudioNs = lat;
     for (int p : pistasExtra) {
         std::int64_t l = 0;
-        const std::string prod = m.productorDeBus("pista" + std::to_string(p), &l);
+        const std::string prod = m.productorDeBus("pista" + std::to_string(p), &l, salida);
         if (!prod.empty()) {
             f.audios.push_back(prod);
             f.latAudioNs = std::max(f.latAudioNs, l);
@@ -1732,11 +1732,11 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     const std::string pedido = rec.container.empty() ? std::string("mkv") : rec.container;
     // MP4/MOV no sobreviven a un corte: se graba en MKV y se pasa al terminar.
     const std::string remuxA = pedido == "mp4" || pedido == "mov" ? pedido : std::string();
-    // Las pistas 2-6 (la Matriz) siguen a la mezcla de la por omisión: solo ella las graba.
+    // Las pistas 2-6 (la Matriz): las de esta salida, con su mezcla.
     std::vector<int> pistas;
     s->pistasGrabacionMask = 0;
     for (int p : rec.pistas)
-        if (s->porOmision() && p >= 2 && p <= 6 && std::find(pistas.begin(), pistas.end(), p) == pistas.end()) {
+        if (p >= 2 && p <= 6 && std::find(pistas.begin(), pistas.end(), p) == pistas.end()) {
             pistas.push_back(p);
             s->pistasGrabacionMask |= 1 << (p - 1);
         }
@@ -1759,12 +1759,12 @@ std::pair<int, int> kbpsVideoAudio(const RecordConfig& rec, const EncoderConfig&
 }
 } // namespace
 
-int BroadcastEngine::kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool porOmision) {
+int BroadcastEngine::kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool conPistas) {
     const auto [video, audio] = kbpsVideoAudio(rec, enc);
-    // Las pistas 2-6 (solo la por omisión las graba) suman su audio.
+    // Las pistas 2-6 suman su audio (el emisor aparte todavía no las graba).
     std::set<int> pistas;
     for (int p : rec.pistas)
-        if (porOmision && p >= 2 && p <= 6) pistas.insert(p);
+        if (conPistas && p >= 2 && p <= 6) pistas.insert(p);
     return video + audio * static_cast<int>(1 + pistas.size());
 }
 
@@ -1837,7 +1837,7 @@ std::string BroadcastEngine::startRecordingYa(Salida& s, const RecordConfig& rec
         return ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo iniciar la grabación: %1"), {e});
     }
     s.rec = std::move(g);
-    s.kbpsRec = kbpsGrabacion(rec, enc, s.porOmision());
+    s.kbpsRec = kbpsGrabacion(rec, enc);
     s.recordPath = (std::filesystem::path(rec.directory) / (c.nombre + "-00000.mkv")).string();
     // La copia en otro disco: lo mismo ya codificado (si no arranca, la principal sigue). Con
     // «record.copiaCodificadorPropio», un encode aparte (cubre también un codificador que se traba).

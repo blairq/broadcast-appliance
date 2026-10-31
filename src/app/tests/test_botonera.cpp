@@ -61,6 +61,8 @@ int main(int argc, char** argv) {
     // --- Botonera ---------------------------------------------------------------
     std::vector<std::pair<std::string, json>> llamadas;
     bool hayAire = false;
+    std::string aireSolo;          // con algo: solo esa salida sale (la confirmación es de la del aparato)
+    std::vector<std::string> aireDe; // la salida con la que se preguntó si cambia el aire
     Botonera::Ganchos g;
     g.escenas = [] { return std::vector<std::string>{"Cámara 1", "Cámara 2"}; };
     g.fuentesAudio = [] { return std::vector<std::string>{"Mic 1"}; };
@@ -68,7 +70,10 @@ int main(int argc, char** argv) {
         return std::set<std::string>{"scene_preview", "preview_al_aire", "aire_ftb", "record_start", "stream_start",
                                      "audio_set", "banca_al_aire", "recinto_orador_terminar", "prompter_control", "receta_correr"};
     };
-    g.deAireAhora = [&](const std::string& h, const json&) { return hayAire && h == "preview_al_aire"; };
+    g.deAireAhora = [&](const std::string& h, const json&, const std::string& salida) {
+        aireDe.push_back(salida);
+        return hayAire && h == "preview_al_aire" && (aireSolo.empty() || salida == aireSolo);
+    };
     std::vector<std::string> salidasLlamadas; // la salida (CallContext::salida) de cada llamada
     g.ejecutar = [&](const std::string& h, const json& a, const std::string&, const std::string&, const std::string& sal,
                      Botonera::Listo l) {
@@ -403,6 +408,13 @@ int main(int argc, char** argv) {
         CHECK(BusEventos::temaDeSalida("salida/stream", "cam2", false) == "salida/cam2/stream", "temaDeSalida: salida/stream");
         CHECK(BusEventos::temaDeSalida("aire/tally", "principal", true) == "aire/tally", "la por omisión: los temas de siempre");
         CHECK(BusEventos::temaDeSalida("audio/loudness", "cam2", false) == "audio/loudness", "lo que no es de una salida no cambia");
+        CHECK(BusEventos::temaDeSalida("aire/dsk", "cam2", false) == "aire/cam2/dsk" &&
+                  BusEventos::temaDeSalida("aire/medios", "cam2", false) == "aire/cam2/medios" &&
+                  BusEventos::temaDeSalida("aire/tbar", "cam2", false) == "aire/cam2/tbar",
+              "temaDeSalida: dsk, medios y T-bar de otra salida");
+        CHECK(BusEventos::temaDeSalida("audio/nivel/Mic 1", "cam2", false) == "audio/cam2/nivel/Mic 1",
+              "temaDeSalida: el fader de una fuente en otra salida");
+        CHECK(BusEventos::temaDeSalida("audio/nivel/Mic 1", "principal", true) == "audio/nivel/Mic 1", "en la por omisión, el de siempre");
         CHECK(BusEventos::temaDeSalida("salida/{{salida}}/estado", "cam2", false) == "salida/cam2/estado", "{{salida}} en el tema");
         bus.publicarSalidas(json::array(
             {json{{"id", "principal"}, {"nombre", "Principal"}, {"color", "#c62828"}, {"por_omision", true},
@@ -413,6 +425,16 @@ int main(int argc, char** argv) {
         CHECK(bus.ultimo("salida/cam2/grabacion")["valor"]["activo"] == true, "salida/<salida>/grabacion");
         CHECK(bus.ultimo("salida/principal/estado")["valor"]["transmitiendo"] == true, "salida/<salida>/estado");
         CHECK(bus.ultimo("salidas")["valor"]["lista"].size() == 2, "la lista de salidas");
+        bus.publicarSalidas(json::array(
+            {json{{"id", "principal"}, {"nombre", "Principal"}, {"color", "#c62828"}, {"por_omision", true},
+                  {"escena", "Cámara 1"}, {"armada", "Cámara 2"}, {"transmitiendo", true}},
+             json{{"id", "cam2"}, {"nombre", "Segunda"}, {"color", "#1565c0"}, {"escena", "Cámara 2"}, {"armada", "Cámara 1"},
+                  {"grabando", true}, {"tbar", {{"hacia", "Cámara 1"}, {"posicion", 0.5}}},
+                  {"dsk", json::array({json{{"capa", 1}, {"visible", true}}})},
+                  {"niveles", {{"Mic 1", {{"pico_db", -20}, {"volumen_db", -6}, {"mudo", false}}}}}}}));
+        CHECK(bus.ultimo("aire/cam2/tbar")["valor"]["posicion"] == 0.5, "aire/<salida>/tbar");
+        CHECK(bus.ultimo("aire/cam2/dsk")["valor"][0]["visible"] == true, "aire/<salida>/dsk");
+        CHECK(bus.ultimo("audio/cam2/nivel/Mic 1")["valor"]["volumen_db"] == -6, "audio/<salida>/nivel/<fuente>");
 
         // Una botonera con dos salidas: cada aparato maneja la suya.
         Botonera::Ganchos g2 = g;
@@ -457,6 +479,25 @@ int main(int argc, char** argv) {
         bs.entrada("d2", {{"type", "presionar"}, {"x", 0}, {"y", 0}});
         CHECK(salidasLlamadas.size() == 2 && salidasLlamadas[0].empty() && salidasLlamadas[1] == "cam2",
               "cada aparato corre con su salida");
+        // La confirmación de aire es de la salida del aparato: sale solo cam2, así que el
+        // TAKE de d1 (la principal) corre derecho y el de d2 pide confirmar.
+        int tx = -1, ty = -1;
+        for (const auto& c : celdasDir)
+            if (c.value("accion", json::object()).value("herramienta", std::string()) == "preview_al_aire") {
+                tx = c["x"];
+                ty = c["y"];
+            }
+        CHECK(tx >= 0, "el Director tiene el TAKE");
+        hayAire = true;
+        aireSolo = "cam2";
+        aireDe.clear();
+        llamadas.clear();
+        bs.entrada("d1", {{"type", "presionar"}, {"x", tx}, {"y", ty}});
+        bs.entrada("d2", {{"type", "presionar"}, {"x", tx}, {"y", ty}});
+        CHECK(aireDe.size() == 2 && aireDe[0].empty() && aireDe[1] == "cam2", "se pregunta con la salida de cada aparato");
+        CHECK(llamadas.size() == 1 && llamadas[0].first == "preview_al_aire", "sin aire en su salida no pide confirmar; con aire, sí");
+        hayAire = false;
+        aireSolo.clear();
         // Cambiar de salida desde el aparato: el mensaje y la celda «Salida» (siguiente, da la vuelta).
         bs.entrada("d2", {{"type", "salida"}, {"id", ""}});
         CHECK(bs.salidaDe("d2").empty(), "{type: salida, id: \"\"}: vuelve a la del perfil");
@@ -506,7 +547,8 @@ int main(int argc, char** argv) {
         CHECK(bs2.salidaDe("d1").empty(), "salida borrada: la por omisión");
         // Los temas de una salida borrada se olvidan.
         bus.publicarSalidas(json::array({json{{"id", "principal"}, {"nombre", "Principal"}, {"por_omision", true}}}));
-        CHECK(bus.ultimo("aire/cam2/tally").is_null(), "los temas de una salida borrada se olvidan");
+        CHECK(bus.ultimo("aire/cam2/tally").is_null() && bus.ultimo("audio/cam2/nivel/Mic 1").is_null(),
+              "los temas de una salida borrada se olvidan");
     }
 
     // Persistencia del modelo.

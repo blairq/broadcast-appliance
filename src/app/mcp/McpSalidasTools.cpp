@@ -52,6 +52,7 @@ json resumenSalidas(AppRuntime& rt, StudioViewModel& vm) {
                        {"destinos", s.destinos},
                        {"limpia", s.limpia},
                        {"repeticion", s.repeticion},
+                       {"codificador", g.value("codificador", std::string())},
                        {"placa", rt.engine().estadoPlaca(s.porOmision ? std::string() : s.id)}});
     }
     return out;
@@ -134,30 +135,35 @@ void McpService::registerSalidasTools() {
     {
         Tool t;
         t.name = "salida_editar";
-        t.title = ba::i18n::traducir("mcp", "Cambiar el nombre o el color de una salida (o el tope)");
+        t.title = ba::i18n::traducir("mcp", "Cambiar el nombre, el color o el codificador de una salida (o el tope)");
         t.category = "salidas";
         t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir(
             "mcp",
-            "`id` con `nombre` y/o `color` (#RRGGBB). `tope` (1 a 16) cambia cuántas salidas puede tener el aparato "
-            "(no baja de las que ya hay: borrá alguna antes).");
+            "`id` con `nombre`, `color` (#RRGGBB) y/o `codificador` (el de video de esa salida: auto, nvenc, qsv, amf, "
+            "vaapi, videotoolbox o x264; vacío = el de la configuración; la por omisión usa siempre el de la "
+            "configuración; rige desde lo próximo que arranque en ella). `tope` (1 a 16) cambia cuántas salidas "
+            "puede tener el aparato (no baja de las que ya hay: borrá alguna antes).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", idProp},
                            {"nombre", {{"type", "string"}}},
                            {"color", {{"type", "string"}}},
+                           {"codificador", {{"type", "string"}}},
                            {"tope", {{"type", "integer"}, {"minimum", 1}, {"maximum", 16}}}}}};
-        t.examples = {R"({"id": "youtube2", "nombre": "YouTube en inglés"})", R"({"tope": 6})"};
+        t.examples = {R"({"id": "youtube2", "nombre": "YouTube en inglés"})", R"({"id": "youtube2", "codificador": "x264"})",
+                      R"({"tope": 6})"};
         t.run = [&rt, &vm](const json& a, Done done) {
-            const bool cambia = a.contains("nombre") || a.contains("color");
+            const bool cambia = a.contains("nombre") || a.contains("color") || a.contains("codificador");
             if (!cambia && !a.contains("tope"))
-                return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta qué cambiar: `nombre`, `color` o `tope`.")));
+                return done(ToolResult::error(
+                    ba::i18n::traducir("mcp", "Falta qué cambiar: `nombre`, `color`, `codificador` o `tope`.")));
             if (a.contains("tope"))
                 if (const std::string e = rt.setTopeSalidas(a.value("tope", 0)); !e.empty())
                     return done(ToolResult::error(e));
             if (cambia) {
                 json cambios = json::object();
-                for (const char* k : {"nombre", "color"})
+                for (const char* k : {"nombre", "color", "codificador"})
                     if (a.contains(k)) cambios[k] = a[k];
                 if (const std::string e = rt.editarSalida(a.value("id", std::string()), cambios); !e.empty())
                     return done(ToolResult::error(e));
@@ -178,11 +184,19 @@ void McpService::registerSalidasTools() {
         t.description = ba::i18n::traducir(
             "mcp",
             "Para todo lo que sale de ella (transmisiones, grabación, repetición, señal limpia) y la saca. La por "
-            "omisión no se borra. Sus destinos guardados quedan en stream_destinos: pasalos a otra salida con "
-            "stream_destino_editar.");
-        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", idProp}}}};
+            "omisión no se borra. Si tiene destinos guardados, `destinos` dice qué pasa con ellos: el id de otra "
+            "salida (pasan a ella) o «borrar» (se borran con su clave); sin decirlo no se borra nada y el error dice "
+            "cuántos tiene. Preguntale al operador antes de borrarlos.");
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties",
+                          {{"id", idProp},
+                           {"destinos",
+                            {{"type", "string"},
+                             {"description", ba::i18n::traducir("mcp", "Sus destinos guardados: el id de otra salida o «borrar».")}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
-            if (const std::string e = rt.borrarSalida(a.value("id", std::string())); !e.empty())
+            if (const std::string e = rt.borrarSalida(a.value("id", std::string()), a.value("destinos", std::string()));
+                !e.empty())
                 return done(ToolResult::error(e));
             done(ToolResult().data(json{{"salidas", resumenSalidas(rt, vm)}}));
         };

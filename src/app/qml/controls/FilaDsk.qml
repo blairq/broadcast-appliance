@@ -1,7 +1,8 @@
 // Las 4 capas DSK (encima del programa, no cambian con la escena): un toque
 // sube o baja, iluminadas cuando están arriba. «✎» edita la capa (contenido,
 // recuadro, fija) y tiene la plantilla «Intérprete LSA». Al aire, subir pide
-// confirmación; bajar una fija (LSA) siempre la pide.
+// confirmación; bajar una fija (LSA) siempre la pide. Las capas suben y bajan en
+// la salida que maneja la interfaz (el modelo las muestra de ella).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -24,7 +25,7 @@ Flow {
                 text: qsTr("Es una capa fija (por ejemplo, el intérprete de lengua de señas): sale de la transmisión."),
                 accept: qsTr("Bajarla"), reject: qsTr("Cancelar"), action: () => hacer(true)
             })
-        else if (subir && Studio.alAire)
+        else if (subir && Studio.aireActiva.alAire)
             ApplicationWindow.window.confirm({
                 title: qsTr("¿Subir «%1»?").arg(c.nombre), text: qsTr("Se ve en la transmisión y en la grabación."),
                 accept: qsTr("Subir"), reject: qsTr("Cancelar"), action: () => hacer(false)

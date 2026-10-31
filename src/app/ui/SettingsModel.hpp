@@ -39,6 +39,9 @@ class SettingsModel : public QAbstractListModel {
     Q_PROPERTY(QVariantMap draft READ draft NOTIFY draftChanged)
     /// El idioma guardado no es el que se está usando: cambia al reiniciar el programa.
     Q_PROPERTY(bool idiomaPendiente READ idiomaPendiente NOTIFY idiomaPendienteChanged)
+    /// Los codificadores de video que se pueden elegir ([{value, label}], los de
+    /// «encoder.video»): también los usa la página Salidas para el de cada salida.
+    Q_PROPERTY(QVariantList codificadores READ codificadores CONSTANT)
    public:
     enum Roles {
         KeyRole = Qt::UserRole + 1,
@@ -66,6 +69,7 @@ class SettingsModel : public QAbstractListModel {
     bool idiomaPendiente() const;
     QStringList sections() const;
     QVariantMap draft() const { return draft_; }
+    QVariantList codificadores() const;
 
     Q_INVOKABLE void setValue(const QString& key, const QVariant& value);
     Q_INVOKABLE QVariant value(const QString& key) const;

@@ -120,14 +120,32 @@ Salida {
      (lista con aire/armada/transmitiendo/grabando de cada una), que además se manda al
      gateway con `ponerSalidas`.
    - Tests: `test_salidas_config` (salidas.json, destinos, al-aire viejo y nuevo) y `test_afv`.
-   *Falta*: las pistas 2-6, los retornos mix-minus, el directo y la selección siguen a la
-   por omisión (motor); la grabación de otra salida no lleva pistas extra. La medición de
-   sincronía y las alarmas de video (luma/quietud) miran solo la por omisión. Las capas
-   (DSK/placa/FTB) siguen sin volver tras `resetVideo` (como antes). `SeguridadAire`,
-   `ObjetivoLoudness` y el tally del `BusEventos` siguen siendo de la por omisión (etapas 3-5).
-   `RespaldoEntradas` mira las fuentes al aire de todas pero corta en la por omisión. Un test
-   de la app con el motor (dos salidas andando con `BroadcastEngine`) no existe todavía:
-   lo de abajo del motor lo prueba `test_motor_salidas`.
+   *Hecho (2026-10-31, cierre)*:
+   - Las pistas 2-6 son de cada salida en el motor (`Motor::Salida::pistas`: `pista<n>` la por
+     omisión, `pista<n>:<id>` las demás, con el mando de ESA salida y el techo de su
+     loudness); `productorDeBus("pista2", …, salida)` o `"pista2:<id>"`; el estado trae
+     `salidas.<id>.pistas`. La grabación de cualquier salida lleva sus pistas
+     (`fuentesDelPrograma(salida)`; solo el emisor aparte sigue sin 2-6). Los retornos
+     mix-minus ya eran por salida (F2-02); el directo, la selección y el afl usan el mando de
+     la salida que se elige al escuchar (`Motor::escuchar(…, salida)`). Test:
+     `test_motor_salidas` (la pista 2 de cada salida con su fader).
+   - El volumen y el mute de las demás salidas se guardan en `Config/salidas.json`
+     (`mezcla: {fuente: {volumen, mute}}`, `AppRuntime::guardarMando`) y vuelven al arrancar
+     (`crearSalidasGuardadas`). El codificador de video por salida (`codificador`, ver etapa 5).
+   - Borrar una salida decide qué pasa con sus destinos guardados: a otra salida o borrados
+     (con su clave); sin decirlo, no la borra (`salidas::destinosDeBorrada`,
+     `AppRuntime::borrarSalida(id, susDestinos)`, `salida_borrar` con `destinos`, el diálogo
+     de la página Salidas). Test: `test_salidas_config`.
+   - `gateway.programaW/H` cambiado en Configuración re-llama a `ponerTopeRetorno` (cada
+     salida rehace su canal al tamaño nuevo).
+
+   *Falta*: la Matriz (escucha de la app y sus buses) sigue el mute de la por omisión. La
+   medición de sincronía y las alarmas de video (luma/quietud) miran solo la por omisión. Las
+   capas (DSK/placa/FTB) siguen sin volver tras `resetVideo` (como antes). `ObjetivoLoudness`
+   es uno para todas. `RespaldoEntradas` mira las fuentes al aire de todas pero corta en la
+   por omisión. El VCA de los grupos (`setGananciaGrupo`) es de todas las salidas. Un test de
+   la app con el motor (dos salidas andando con `BroadcastEngine`) no existe todavía: lo de
+   abajo del motor lo prueban `test_motor_salidas` y `test_motor_retornos`.
 3. **MCP** — argumento opcional `salida` en las ~60 herramientas; `salidas_listar`,
    `salida_crear`, `salida_editar`, `salida_borrar`; `status` con todas; `McpAire` decide
    «de aire» según qué salida está saliendo; `ArgumentosLocales` con la salida del asistente.
@@ -160,8 +178,14 @@ Salida {
      asistente: la por omisión) y valida `salida` contra ellas; con una, el prompt de siempre.
    - Tests: `test_mcp` (esquema, por id y por nombre, inexistente, contexto, args sobre
      contexto, guarda de aire por salida) y `test_argumentos_locales`.
-   *Falta*: `dsk_*` (el modelo `control/Dsk` es de la por omisión: etapa 4),
-   `audio_loudness_objetivo` (`ObjetivoLoudness`), `banca_al_aire` (`Bancas` corta en la por
+   *Hecho (2026-10-31, cierre)*: `dsk_capas_ver` y `dsk_mostrar` son de salida (`porSalida`:
+   cada salida sube y baja sus capas; la definición es de todas). `audio_mezclador_grupos` es
+   de salida: el mudo del grupo va a la mezcla pedida (`MixerModel::setMutedGrupoEn`,
+   `gruposEn`), no a la que muestra la interfaz. `salida_editar` con `codificador`,
+   `salida_borrar` con `destinos`. `McpCore::cambiaElAire(herramienta, args, salida)`: la
+   misma guarda de aire que `callTool`, para preguntar antes (la botonera).
+
+   *Falta*: `audio_loudness_objetivo` (`ObjetivoLoudness`), `banca_al_aire` (`Bancas` corta en la por
    omisión), `foto_programa` (FrameService, etapa 5), las de escenas que toman «la escena al
    aire» sin `scene` (crear_fuente, source_*, escena_fuentes_ver… siguen con la de la por
    omisión: su guarda de aire tiene que seguir siendo global porque la escena es de todas),
@@ -206,12 +230,26 @@ Salida {
    - Tests: `test_botonera` (temas por salida, dos aparatos con dos salidas: tally, ctx, celda
      «Salida», perfil, plantilla, locales tras reiniciar, salida borrada) y `test_control_web`
      (dos aparatos mirando lo suyo, cambiar desde el aparato, salida borrada).
-   *Falta*: el `deAireAhora` de la botonera pregunta por cualquier aire, no el de SU salida
-   (pide confirmar de más, nunca de menos); las capas DSK de los atajos (`dsk:<n>`) miran la por
-   omisión; `aire/medios` y `aire/dsk` siguen sin id; no hay fader/T-bar por salida en el bus; la
-   descripción de los temas en `botonera_*` (McpBotoneraTools) no menciona los nuevos; los textos
-   nuevos de la web y de tr() esperan la próxima extracción de i18n. Probar en la GUI con dos
-   salidas y una tablet/Stream Deck reales.
+   *Hecho (2026-10-31, cierre)*:
+   - `BusEventos`: `aire/<id>/medios` (lo que se reproduce al aire en ESA salida),
+     `aire/<id>/dsk` (las capas con `visible` de esa salida), `aire/<id>/tbar` {hacia,
+     posicion} (y `aire/tbar` de la por omisión; `Conmutador::tbarPosicion`) y
+     `audio/<id>/nivel/<fuente>` (su fader y su mudo; `audio/nivel/<fuente>` es siempre el de la
+     por omisión, antes salía el de la salida activa de la interfaz). `temaDeSalida` los pasa
+     (también «audio/nivel/<f>»): una celda hecha para «la» salida sigue a la del aparato. Se
+     olvidan con la salida. Las mediciones nuevas (`audio/+/nivel/#`, `aire/+/tbar`) no tapan
+     los hechos.
+   - La confirmación de aire de la botonera (`Ganchos::deAireAhora(h, args, salida)`) mira la
+     salida del aparato (`McpCore::cambiaElAire`): un TAKE en una salida que no sale corre
+     derecho aunque otra esté al aire.
+   - Los atajos `dsk:<n>` son de la salida de los atajos (y `dsk:<n>@<salida>`): el estado de
+     la capa es el de esa salida (`Dsk::arriba(capa, salida)`) y `dsk_mostrar` va a ella.
+   - `eventos_temas` describe los temas por salida.
+   - Tests: `test_botonera` (temas nuevos, la confirmación con dos aparatos en dos salidas) y
+     `test_mcp` (`cambiaElAire`).
+
+   *Falta*: los textos nuevos de la web y de tr() esperan la próxima extracción de i18n.
+   Probar en la GUI con dos salidas y una tablet/Stream Deck reales.
 5. **Interfaz** — selector de salida en Dirección, Escenas y Mezclador (cada operador ve la
    suya); multiview con todas; página «Salidas» (crear, nombre y color, destinos,
    grabación, codificador); `FrameService` con `program:<id>` / `armada:<id>`.
@@ -244,12 +282,28 @@ Salida {
      al aire y armada, grabar/detener, sus destinos (iniciar, cortar, borrar, «+ Destino…»
      con `salida`) y borrar. El diálogo de destino es uno (`controls/DialogoDestino.qml`),
      también el de la tarjeta Salidas.
-   *Falta*: DSK, FTB y placa siguen manejando la por omisión aunque la activa sea otra
-   (`SeguridadAire` y `FilaDsk` sin salida); la transmisión principal y el estado de
-   aire/grabación de Dirección y Aire son los de la por omisión; el codificador es uno solo
-   (se muestra; por salida no se elige todavía); la salida activa no se guarda (vuelve a la
-   por omisión al arrancar); el volumen y el mute de las demás salidas no se guardan (viven
-   en el motor). El MCP no tiene cómo elegir la salida activa de la interfaz (etapa 3).
+   *Hecho (2026-10-31, cierre)*:
+   - DSK, FTB y placa de la activa: `StudioViewModel::placa` (propiedad: el negro y la placa
+     de la activa; `ftbUi`/`placaUi` van a ella) y `control::Dsk::setSalida` (las `capas`
+     con `visible` de la activa; `mostrarUi` sube y baja en ella). `BotonesSeguridad`,
+     `FilaDsk` y la tarjeta Aire se enlazan a eso; confirmar «al aire» mira el aire de la
+     activa (`aireActiva.alAire`), también el corte directo de la página Escenas.
+   - `StudioViewModel::aireActiva` {transmitiendo, grabando, reconectando, alAire,
+     tiempoTransmision, tiempoGrabacion}: las pastillas de Dirección y las filas de la tarjeta
+     Aire son de la activa (los relojes de cada salida los lleva el modelo y no se reinician al
+     cambiar de activa). En otra salida, la fila de transmisión dice que sale por sus destinos
+     (página Salidas) y la de grabación graba la suya (`grabarSalida`).
+   - La activa vuelve al arrancar (`Config/interfaz.json`, `salida_activa`; si ya no existe,
+     la por omisión). El Mezclador muestra las pistas y el loudness de la activa.
+   - El codificador por salida: en la tarjeta de cada salida (la por omisión, el de la
+     configuración), `Config/salidas.json` `codificador`, `AppRuntime::codificadorDe(salida)`
+     en todo lo que arranca en ella (transmisión, destinos, grabación, repetición, señal
+     limpia); rige desde lo próximo que arranque. Las opciones son las de Configuración
+     (`SettingsModel::codificadores`).
+   - Borrar una salida pregunta qué hacer con sus destinos (ver etapa 2).
+
+   *Falta*: el MCP no tiene cómo elegir la salida activa de la interfaz (etapa 3). Probar en
+   la GUI con dos salidas (no se abrió la app: compilado por partes y con los tests).
 6. **Gateway** — un canal por salida (`BA.Salida.<id>` video+audio); retorno de cada
    invitado, cast y sesión remota eligen salida.
    *Hecho del lado del gateway (2026-10-31)*: nombres en `ipc/CanalesSalida.hpp`

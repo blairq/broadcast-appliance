@@ -750,7 +750,8 @@ class BroadcastEngine {
     nlohmann::json discoEstado() const;
     /// Lo que escribe en disco la grabación de una salida (video + audio de cada pista):
     /// lo usa al arrancarla y quien calcula de antemano para cuánto alcanza el disco.
-    static int kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool porOmision = true);
+    /// `conPistas` false: solo la del programa (el emisor aparte todavía no graba las 2-6).
+    static int kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool conPistas = true);
     /// Para probar (modo --test): la grabación del programa, como con el disco trabado `ms`.
     void simularDiscoTrabado(int ms);
 

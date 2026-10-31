@@ -65,8 +65,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                         "{programa, preview, fuentes_programa, fuentes_preview, transmitiendo, grabando}, salida/stream, "
                         "salida/grabacion, audio/nivel/<fuente> {pico_db, volumen_db, mudo}, audio/loudness {m, s, i, "
                         "tp, lra, fuera_de_objetivo}, alarma/<regla>, entrada/senal, oradores/al_aire, "
-                        "sala/participantes y plugin/<id>/<canal>. `patron` filtra: «+» un nivel, «#» el resto "
-                        "(audio/nivel/+, aire/#). Sirven para ligaduras de la botonera y @plugin.escuchar.");
+                        "sala/participantes y plugin/<id>/<canal>. Además aire/medios, aire/dsk y aire/tbar {hacia, "
+                        "posicion}. Esos son de la salida por omisión; los de cada salida llevan su id: "
+                        "aire/<salida>/escena|armada|tally|medios|dsk|tbar, salida/<salida>/stream|grabacion|estado, "
+                        "audio/<salida>/nivel/<fuente> (su fader y su mudo) y `salidas` {lista}. Una ligadura con el "
+                        "tema sin id sigue a la salida que maneja el aparato. `patron` filtra: «+» un nivel, «#» el "
+                        "resto (audio/nivel/+, aire/#). Sirven para ligaduras de la botonera y @plugin.escuchar.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"patron", {{"type", "string"}}}}}};
         t.run = [&bus](const json& a, Done done) {
             done(ToolResult().data({{"temas", bus.temas(a.value("patron", std::string()))}}));
@@ -644,8 +648,9 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.category = "dsk";
         t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las capas del DSK, por encima de todas las escenas (logo, intérprete, reloj): qué tienen y si están "
-            "arriba.");
-        t.run = [&vm](const json&, Done done) { done(ToolResult().data({{"capas", vm.dsk().capas()}})); };
+            "arriba en la `salida` (cada una sube y baja las suyas; sin ella, la por omisión).");
+        t.porSalida = true;
+        t.run = [&vm, &core](const json& a, Done done) { done(ToolResult().data({{"capas", vm.dsk().capas(core.salidaDe(a))}})); };
         core.addTool(std::move(t));
     }
     {
@@ -690,16 +695,19 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.category = "dsk";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "sube o baja una capa (DSK) encima del programa");
-        t.description = ba::i18n::traducir("mcp", "Sube (`visible` true) o baja la `capa` con su fundido. Es de aire. Bajar una capa FIJA (el "
-                        "interprete de LSA) necesita `confirmar`: true, y solo si el operador lo pidio.");
+        t.description = ba::i18n::traducir("mcp", "Sube (`visible` true) o baja la `capa` con su fundido en la `salida` (sin ella, la por "
+                        "omisión). Es de aire. Bajar una capa FIJA (el interprete de LSA) necesita `confirmar`: true, y "
+                        "solo si el operador lo pidio.");
+        t.porSalida = true;
         t.inputSchema = {{"type", "object"},
                          {"required", {"capa", "visible"}},
                          {"properties",
                           {{"capa", {{"type", "integer"}, {"minimum", 1}, {"maximum", 4}}},
                            {"visible", {{"type", "boolean"}}},
                            {"confirmar", {{"type", "boolean"}}}}}};
-        t.run = [&vm](const json& a, Done done) {
-            const std::string e = vm.dsk().mostrar(a.value("capa", 1), a.value("visible", true), a.value("confirmar", false));
+        t.run = [&vm, &core](const json& a, Done done) {
+            const std::string e =
+                vm.dsk().mostrar(a.value("capa", 1), a.value("visible", true), a.value("confirmar", false), core.salidaDe(a));
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult::ok(a.value("visible", true) ? ba::i18n::traducir("mcp", "Arriba.") : ba::i18n::traducir("mcp", "Abajo.")));
         };

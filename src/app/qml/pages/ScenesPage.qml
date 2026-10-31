@@ -186,7 +186,7 @@ Rectangle {
                                     activeColor: "#16a34a"
                                     onClicked: {
                                         if (!Studio.corteDirectoEditor) { Studio.armarEscena(esc); return }
-                                        if (!Studio.alAire) { Studio.takeScene(esc); return }
+                                        if (!Studio.aireActiva.alAire) { Studio.takeScene(esc); return } // el aire de la salida que maneja
                                         const n = esc
                                         ApplicationWindow.window.confirm({
                                             title: qsTr("¿Cortar a «%1» al aire?").arg(n),

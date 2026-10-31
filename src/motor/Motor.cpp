@@ -32,6 +32,7 @@ Motor::Motor(Config c) : cfg_(std::move(c)) {
     // La salida por omisión existe siempre (también antes de arrancar): lo que no
     // dice a qué salida apunta va a ella.
     salidas_[porOmision_].nombre = traducir("motor", "Principal");
+    salidas_[porOmision_].id = porOmision_;
 }
 
 Motor::~Motor() { detener(); }
@@ -164,6 +165,7 @@ void Motor::detener() {
         desarmarSalida(s, false);
         Salida vacia; // sin nada al aire ni mandos: las entradas se van
         vacia.nombre = std::move(s.nombre);
+        vacia.id = sid;
         s = std::move(vacia);
     }
     vEscenas_.clear();
@@ -173,7 +175,6 @@ void Motor::detener() {
     escucha_.reset();
     retornos_.clear();
     canales_.clear();
-    pistas_.clear();
     directo_.reset();
     seleccion_.reset();
     afl_.reset();
@@ -273,7 +274,8 @@ std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
                      programa = std::shared_ptr<Composicion>(std::move(s.programa)),
                      preview = std::shared_ptr<Composicion>(std::move(s.preview)),
                      mezcla = std::shared_ptr<Mezcla>(std::move(s.mezcla)),
-                     retornos = std::make_shared<std::map<int, std::unique_ptr<Mezcla>>>(std::move(s.retornos))]() mutable {
+                     retornos = std::make_shared<std::map<int, std::unique_ptr<Mezcla>>>(std::move(s.retornos)),
+                     pistas = std::make_shared<std::map<int, std::unique_ptr<Mezcla>>>(std::move(s.pistas))]() mutable {
         for (GstElement* p : {toma ? toma->pipeline : nullptr, puente, puenteEmisor})
             if (p != nullptr) {
                 gst_element_set_state(p, GST_STATE_NULL);
@@ -281,6 +283,7 @@ std::shared_future<void> Motor::desarmarSalida(Salida& s, bool aparte) {
             }
         toma.reset();
         retornos.reset();
+        pistas.reset();
         preview.reset();
         programa.reset();
         mezcla.reset();
@@ -301,6 +304,7 @@ std::string Motor::crearSalidaYa(const std::string& id, const std::string& nombr
     if (salidas_.count(id) > 0) return llenar(traducir("motor", "ya hay una salida «%1»"), {id});
     esperarDesarme("salida:" + id); // una borrada con el mismo id: sus productores se llaman igual
     Salida& s = salidas_[id];
+    s.id = id;
     s.nombre = nombre.empty() ? id : nombre;
     // Su mezcla arranca como la de la por omisión, pero sin nada al aire.
     for (const auto& [cid, c] : canales_) {
@@ -380,11 +384,11 @@ void Motor::bucle() {
                     if (s.mezcla) s.mezcla->tic();
                     for (auto& [n, m] : s.retornos)
                         if (m) m->tic();
+                    for (auto& [n, p] : s.pistas) p->tic();
                 }
                 if (directo_) directo_->tic();
                 if (seleccion_) seleccion_->tic();
                 if (afl_) afl_->tic();
-                for (auto& [n, p] : pistas_) p->tic();
                 for (auto& [id, b] : matriz_) {
                     b.mezcla->tic();
                     if (b.salida) b.salida->tic(b.mezcla->latenciaSalidaNs());
@@ -476,19 +480,21 @@ void Motor::enBus(Mezcla& m, const std::string& id, const Canal& c, const Mando&
     m.ponerEscena(id, c.global || k.enEscena ? 1.0 : 0.0, fundidoMs);
 }
 
-Mezcla* Motor::pista(int n, bool crear) {
-    auto it = pistas_.find(n);
-    if (it != pistas_.end()) return it->second.get();
+Mezcla* Motor::pista(Salida& s, int n, bool crear) {
+    auto it = s.pistas.find(n);
+    if (it != s.pistas.end()) return it->second.get();
     if (!crear) return nullptr;
     Mezcla::Opciones op;
     op.medidores = false;
     // Con limitador como el programa: una pista se puede publicar (otro idioma) y sin
     // él recortaba en el códec (docs/arquitectura/03-hardware-y-sonido.md §3.5).
     op.limitador = true;
-    auto m = std::make_unique<Mezcla>(*reloj_, "pista" + std::to_string(n), op);
+    // La de la por omisión con el nombre de siempre (bus:pista<n>); las demás, con su id.
+    const std::string nombre = "pista" + std::to_string(n) + (s.id == porOmision_ ? std::string() : ":" + s.id);
+    auto m = std::make_unique<Mezcla>(*reloj_, nombre, op);
     Mezcla* p = m.get();
-    p->ponerLimitador(true, techoPistas_);
-    pistas_[n] = std::move(m);
+    p->ponerLimitador(true, s.techoDb); // el techo de su salida (ponerLoudness)
+    s.pistas[n] = std::move(m);
     return p;
 }
 
@@ -512,13 +518,12 @@ void Motor::aplicarEnSalida(Salida& s, const std::string& id, int fundidoMs) {
         auto r = retornos_.find(n);
         if (m && r != retornos_.end()) enBus(*m, id, c, k, alPrograma && r->second.oye(id), fundidoMs);
     }
-    if (&s == salidaDeEscucha()) aplicarEscucha(id, c, k);
-    if (&s != &porOmision()) return;
-    // Por ahora siguen a la salida por omisión (su mando): las pistas.
+    // Sus pistas 2-6: con su mando, como su bus (la grabación de cada salida lleva las suyas).
     for (int n = 2; n <= 6; ++n) {
         const bool va = (c.pistas & (1u << (n - 1))) != 0;
-        if (Mezcla* p = pista(n, va)) enBus(*p, id, c, k, va, fundidoMs);
+        if (Mezcla* p = pista(s, n, va)) enBus(*p, id, c, k, va, fundidoMs);
     }
+    if (&s == salidaDeEscucha()) aplicarEscucha(id, c, k);
 }
 
 void Motor::aplicarEscucha(const std::string& id, const Canal& c, const Mando& k) {
@@ -629,12 +634,12 @@ std::string Motor::quitarEntradaYa(const std::string& id) {
         if (s.mezcla) s.mezcla->quitar(id);
         for (auto& [n, m] : s.retornos)
             if (m) m->quitar(id);
+        for (auto& [n, p] : s.pistas) p->quitar(id);
         s.mandos.erase(id);
     }
     if (directo_) directo_->quitar(id);
     if (seleccion_) seleccion_->quitar(id);
     if (afl_) afl_->quitar(id);
-    for (auto& [n, p] : pistas_) p->quitar(id);
     if ((escuchaModo_ == "pfl" || escuchaModo_ == "afl") && escuchaId_ == id) escuchar("apagado");
     indexarDeApp(id, nullptr);
     std::shared_ptr<Entrada> e = std::move(it->second.entrada);
@@ -1665,11 +1670,9 @@ std::string Motor::ponerLoudnessYa(bool agc, double objetivoLufs, double techoDb
     s->techoDb = techoDb;
     if (!s->mezcla->ponerLimitador(true, techoDb) || !s->mezcla->ponerAgc(agc, objetivoLufs))
         return traducir("motor", "el programa no tiene limitador (falta balimitador)");
-    // Las pistas 2-6 siguen a la salida por omisión: el mismo techo (si se publican como
-    // alternativa, otro idioma, pasan por el mismo códec). Sin AGC: son mezclas aparte.
-    if (s == laSalida(porOmision_))
-        for (auto& [n, p] : pistas_) p->ponerLimitador(true, techoDb);
-    techoPistas_ = techoDb;
+    // Sus pistas 2-6: el mismo techo (si se publican como alternativa, otro idioma,
+    // pasan por el mismo códec). Sin AGC: son mezclas aparte.
+    for (auto& [n, p] : s->pistas) p->ponerLimitador(true, techoDb);
     return {};
 }
 
@@ -1681,8 +1684,12 @@ std::string Motor::productorDeBus(const std::string& bus, std::int64_t* latencia
     if (bus == "programa" || bus.rfind("programa:", 0) == 0) {
         Salida* s = laSalida(bus == "programa" ? salida : bus.substr(9));
         m = s != nullptr ? s->mezcla.get() : nullptr;
-    } else if (bus.rfind("pista", 0) == 0 && bus.size() == 6)
-        m = pista(bus[5] - '0', true);
+    } else if (bus.rfind("pista", 0) == 0 && bus.size() >= 6 && bus[5] >= '2' && bus[5] <= '6' &&
+               (bus.size() == 6 || bus[6] == ':')) {
+        const std::string sid = bus.size() == 6 ? salida : bus.substr(7);
+        Salida* s = laSalida(sid);
+        m = s != nullptr ? pista(*s, bus[5] - '0', true) : nullptr;
+    }
     if (m == nullptr) return {};
     if (latenciaNs != nullptr) *latenciaNs = m->latenciaSalidaNs();
     return m->productor();
@@ -1695,7 +1702,7 @@ std::shared_ptr<const std::vector<Motor::NivelAudio>> Motor::niveles() const {
 
 void Motor::publicarNiveles() {
     auto v = std::make_shared<std::vector<NivelAudio>>();
-    v->reserve(canales_.size() + pistas_.size() + (retornos_.size() + 1) * salidas_.size());
+    v->reserve(canales_.size() + (retornos_.size() + 6) * salidas_.size());
     for (const auto& [id, c] : canales_) {
         if (!c.entrada || !c.entrada->daAudio()) continue;
         NivelAudio n;
@@ -1717,7 +1724,8 @@ void Motor::publicarNiveles() {
         v->push_back(std::move(n));
     };
     for (const auto& [sid, s] : salidas_) deBus(sid == porOmision_ ? "programa" : "programa:" + sid, s.mezcla.get());
-    for (const auto& [num, m] : pistas_) deBus("pista" + std::to_string(num), m.get());
+    for (const auto& [sid, s] : salidas_)
+        for (const auto& [num, m] : s.pistas) deBus(m->nombre(), m.get());
     for (const auto& [id, b] : matriz_) deBus("matriz:" + id, b.mezcla.get());
     for (const auto& [sid, s] : salidas_)
         for (const auto& [num, m] : s.retornos) deBus(m ? m->nombre() : std::string(), m.get());
@@ -1831,8 +1839,6 @@ json Motor::estadoYa() const {
     for (const auto& [id, c] : canales_)
         if (c.entrada->daAudio() && !entraAlOido(*c.entrada)) fuera.push_back(id);
     const json oido = {{"latencia_ms", static_cast<double>(latenciaOidoNs()) / 1e6}, {"no_entran", fuera}};
-    json pistas = json::object();
-    for (const auto& [n, p] : pistas_) pistas[std::to_string(n)] = p->estado();
     json tarde = json::array();
     for (const auto& [id, c] : canales_)
         if (c.entrada->llegaTarde()) tarde.push_back(id);
@@ -1852,6 +1858,8 @@ json Motor::estadoYa() const {
             mandos[id] = {{"nivel", k.nivel}, {"mute", k.mute}, {"en_escena", k.enEscena}};
             if (k.enEscena) enEscena.push_back(id);
         }
+        json pistasS = json::object();
+        for (const auto& [n, p] : s.pistas) pistasS[std::to_string(n)] = p->estado();
         salidas[sid] = {{"nombre", s.nombre},
                         {"por_omision", sid == porOmision_},
                         {"al_aire", s.alAire},
@@ -1861,6 +1869,7 @@ json Motor::estadoYa() const {
                         {"en_escena", enEscena},
                         {"mandos", mandos},
                         {"programa", s.mezcla ? s.mezcla->estado() : json()},
+                        {"pistas", pistasS},
                         {"video", {{"programa", s.programa ? s.programa->estado() : json()},
                                    {"preview", s.preview ? s.preview->estado() : json()}}}};
     }
@@ -1912,7 +1921,7 @@ json Motor::estadoYa() const {
                        if (v.comp && !v.comp->error().empty()) m[k] = v.comp->error();
                    return m;
                }()}}},
-            {"pistas", pistas},
+            {"pistas", po["pistas"]},
             {"retornos", ret},
             {"oido", oido},
             {"escucha", esc},

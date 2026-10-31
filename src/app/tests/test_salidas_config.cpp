@@ -1,5 +1,6 @@
 // Las salidas guardadas (PLAN-SALIDAS, etapa 2; modelo, sin motor): Config/salidas.json
-// con la por omisión siempre, el tope, crear/borrar/editar, el `salida` de los destinos y
+// con la por omisión siempre, el tope, crear/borrar/editar, la mezcla y el codificador de
+// cada una, el `salida` de los destinos (y qué pasa con ellos al borrar su salida) y
 // Runtime/al-aire.json por salida, que un archivo viejo se siga leyendo igual y que lo
 // nuevo lo entienda un arranque viejo.
 #include "emision/SalidasConfig.hpp"
@@ -48,17 +49,75 @@ int main() {
     }
     {
         salidas::Lista l = salidas::leer(json{{"tope", 2}});
-        CHECK(!salidas::agregar(l, {"con espacio", "", "", 0}).empty(), "id con espacio: no");
-        CHECK(!salidas::agregar(l, {"principal", "", "", 0}).empty(), "repetir la por omisión: no");
-        CHECK(salidas::agregar(l, {"streaming2", "YouTube 2", "", 0}).empty(), "agregar una");
+        CHECK(!salidas::agregar(l, {"con espacio", "", "", 0, {}, {}}).empty(), "id con espacio: no");
+        CHECK(!salidas::agregar(l, {"principal", "", "", 0, {}, {}}).empty(), "repetir la por omisión: no");
+        CHECK(salidas::agregar(l, {"streaming2", "YouTube 2", "", 0, {}, {}}).empty(), "agregar una");
         CHECK(l.salidas.back().color == salidas::colorDeFabrica(1) && l.salidas.back().orden == 1, "con su color y al final");
-        CHECK(!salidas::agregar(l, {"tercera", "", "", 0}).empty(), "pasar el tope: no");
+        CHECK(!salidas::agregar(l, {"tercera", "", "", 0, {}, {}}).empty(), "pasar el tope: no");
         CHECK(salidas::editar(l, "streaming2", {{"nombre", "YT"}, {"color", "#00FF00"}}).empty() && l.buscar("streaming2")->nombre == "YT",
               "editar nombre y color");
         CHECK(!salidas::editar(l, "streaming2", {{"color", "verde"}}).empty(), "un color que no es #RRGGBB: no");
         CHECK(!salidas::quitar(l, "principal").empty() && !salidas::quitar(l, "").empty(), "la por omisión no se borra");
         CHECK(salidas::quitar(l, "streaming2").empty() && l.salidas.size() == 1, "borrar la otra");
         CHECK(!salidas::quitar(l, "streaming2").empty(), "borrar una que no está: no");
+    }
+    // --- La mezcla y el codificador de cada una ---
+    {
+        salidas::Lista l = salidas::leer(json{{"tope", 3}});
+        CHECK(salidas::agregar(l, {"tv", "TV", "", 0, {}, {}}).empty(), "agregar la TV");
+        CHECK(salidas::ponerMando(l, "tv", "Mic 1", {0.5, false}), "anotar el fader de una fuente en la TV");
+        CHECK(!salidas::ponerMando(l, "tv", "Mic 1", {0.5, false}), "lo mismo otra vez: nada que guardar");
+        CHECK(salidas::ponerMando(l, "tv", "Mic 1", {0.5, true}), "el mute");
+        CHECK(!salidas::ponerMando(l, "principal", "Mic 1", {0.1, false}) && !salidas::ponerMando(l, "", "Mic 1", {0.1, false}),
+              "la por omisión no (lo suyo va en la escena)");
+        CHECK(!salidas::ponerMando(l, "nadie", "Mic 1", {0.1, false}), "una salida que no está: no");
+        CHECK(salidas::editar(l, "tv", {{"codificador", "x264"}}).empty() && l.buscar("tv")->codificador == "x264",
+              "el codificador de la TV");
+        CHECK(!salidas::editar(l, "tv", {{"codificador", "h265-raro"}}).empty() && l.buscar("tv")->codificador == "x264",
+              "un codificador que no existe: no, queda el de antes");
+        CHECK(!salidas::editar(l, "principal", {{"codificador", "x264"}}).empty(), "la por omisión usa el de la configuración");
+        const json j = salidas::aJson(l);
+        const salidas::Lista otra = salidas::leer(j);
+        const salidas::Salida* tv = otra.buscar("tv");
+        CHECK(tv != nullptr && tv->codificador == "x264" && tv->mezcla.count("Mic 1") == 1 &&
+                  tv->mezcla.at("Mic 1") == (salidas::Mando{0.5, true}),
+              "la mezcla y el codificador vuelven al leer");
+        CHECK(!j["salidas"][0].contains("mezcla") && !j["salidas"][0].contains("codificador"), "la por omisión no los lleva");
+        CHECK(salidas::editar(l, "tv", {{"codificador", ""}}).empty() && l.buscar("tv")->codificador.empty(),
+              "vacío: vuelve al de la configuración");
+        // Un archivo tocado a mano: un volumen que no es número no entra; uno enorme, al tope.
+        const salidas::Lista rara = salidas::leer(
+            json{{"salidas", {{{"id", "tv"}, {"mezcla", {{"a", {{"volumen", "alto"}}}, {"b", {{"volumen", 99}, {"mute", true}}}}}}}}});
+        CHECK(rara.buscar("tv")->mezcla.count("a") == 0 && rara.buscar("tv")->mezcla.at("b").volumen == 4.0,
+              "mezcla rota: lo que no es número no entra; lo enorme, al tope");
+    }
+    // --- Los destinos de una salida que se borra: una decisión, nunca basura ---
+    {
+        salidas::Lista l = salidas::leer(json{{"tope", 4}});
+        CHECK(salidas::agregar(l, {"tv", "TV", "", 0, {}, {}}).empty() && salidas::agregar(l, {"sala", "Sala", "", 0, {}, {}}).empty(),
+              "dos salidas más");
+        const json todos = json::array({json{{"id", "d1"}, {"salida", "tv"}}, json{{"id", "d2"}, {"salida", "tv"}},
+                                        json{{"id", "d3"}}, json{{"id", "d4"}, {"salida", "sala"}}});
+        CHECK(salidas::destinosDe(todos, "tv") == 2 && salidas::destinosDe(todos, "principal") == 1, "cuántos tiene cada una");
+        json d = todos;
+        std::vector<std::string> borrados;
+        CHECK(!salidas::destinosDeBorrada(d, l, "tv", "", &borrados).empty() && d == todos,
+              "con destinos y sin decir qué hacer: no, y no toca nada");
+        CHECK(!salidas::destinosDeBorrada(d, l, "tv", "tv", &borrados).empty() && d == todos, "a sí misma: no");
+        CHECK(!salidas::destinosDeBorrada(d, l, "tv", "nadie", &borrados).empty() && d == todos, "a una que no existe: no");
+        CHECK(salidas::destinosDeBorrada(d, l, "tv", "sala", &borrados).empty() && salidas::destinosDe(d, "sala") == 3 &&
+                  salidas::destinosDe(d, "tv") == 0 && borrados.empty() && d.size() == 4,
+              "pasan a otra salida");
+        d = todos;
+        CHECK(salidas::destinosDeBorrada(d, l, "tv", "principal", &borrados).empty() && salidas::destinosDe(d, "principal") == 3 &&
+                  !d[0].contains("salida"),
+              "a la por omisión: sin campo");
+        d = todos;
+        CHECK(salidas::destinosDeBorrada(d, l, "tv", "borrar", &borrados).empty() && d.size() == 2 && borrados.size() == 2 &&
+                  borrados[0] == "d1" && borrados[1] == "d2",
+              "borrados (con sus ids, para sacar las claves)");
+        d = todos;
+        CHECK(salidas::destinosDeBorrada(d, l, "nada-que-ver", "", &borrados).empty() && d == todos, "sin destinos: nada que decidir");
     }
     // --- destinos.json ---
     {

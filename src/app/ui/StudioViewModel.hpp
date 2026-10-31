@@ -321,8 +321,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* scenes READ scenes CONSTANT)
     /// Las salidas (PLAN-SALIDAS), la por omisión primera: filas con id, nombre, color,
     /// porOmision, alAire, armada, transmitiendo, grabando, archivo (lo que graba),
-    /// destinos ([{id, nombre, activo, reconectando, respaldo}], los suyos) y programa
-    /// (la clave de FrameService de su programa). Se rehace
+    /// destinos ([{id, nombre, activo, reconectando, respaldo}], los suyos), programa
+    /// (la clave de FrameService de su programa) y codificador (el que eligió; "" = el
+    /// de la configuración). Se rehace
     /// sola cuando cambia algo de eso (el modelo avisa).
     Q_PROPERTY(QObject* salidas READ salidas CONSTANT)
     // --- La salida activa de la interfaz (PLAN-SALIDAS, etapa 5) ----------------
@@ -340,6 +341,12 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QVariantMap salidaActivaDatos READ salidaActivaDatos NOTIFY salidaActivaChanged)
     /// Hay más de una salida: el selector se muestra solo entonces.
     Q_PROPERTY(bool variasSalidas READ variasSalidas NOTIFY salidaActivaChanged)
+    /// Lo que sale de la activa: {transmitiendo (su principal o algún destino), grabando,
+    /// reconectando, alAire (transmisión, grabación o señal limpia: lo que pide confirmar),
+    /// tiempoTransmision, tiempoGrabacion}. Con la por omisión, lo de streaming/recording.
+    Q_PROPERTY(QVariantMap aireActiva READ aireActiva NOTIFY statusChanged)
+    /// El FTB y la placa de la activa: {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
+    Q_PROPERTY(QVariantMap placa READ placaActiva NOTIFY placaChanged)
     /// Las claves de FrameService del programa y del preview de la activa.
     Q_PROPERTY(QString claveProgramaActiva READ claveProgramaActiva NOTIFY salidaActivaChanged)
     Q_PROPERTY(QString claveArmadaActiva READ claveArmadaActiva NOTIFY salidaActivaChanged)
@@ -502,12 +509,11 @@ class StudioViewModel : public QObject {
     /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
     Q_INVOKABLE bool focoEnTexto() const;
     // --- FTB y placa de seguridad (encima de todo lo que sale) ---------------
+    // Los dos son de la salida activa (cada salida tiene su negro y su placa).
     /// Fundido a negro; `audio`: "bajar" (de fábrica) o "mantener". "" o el error.
     Q_INVOKABLE QString ftbUi(bool activar, int ms = 800, const QString& audio = "bajar");
     /// La placa con `texto` (y una imagen opcional). "" o el error.
     Q_INVOKABLE QString placaUi(bool activar, const QString& texto = {}, const QString& imagen = {}, int ms = 600);
-    /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
-    Q_INVOKABLE QVariantMap estadoPlacaUi() const;
     /// Los textos de placa de siempre (y los que se usaron).
     Q_INVOKABLE QStringList textosPlaca() const;
     /// Hay aire: transmitiendo o grabando.
@@ -965,7 +971,11 @@ class StudioViewModel : public QObject {
     /// Crear, cambiar y sacar salidas en caliente (AppRuntime): "" o por qué no.
     Q_INVOKABLE QString crearSalida(const QString& id, const QString& nombre, const QString& color = {});
     Q_INVOKABLE QString editarSalida(const QString& id, const QString& nombre, const QString& color);
-    Q_INVOKABLE QString borrarSalida(const QString& id);
+    /// El codificador de video de la salida ("" = el de la configuración): rige desde lo
+    /// próximo que arranque en ella.
+    Q_INVOKABLE QString setCodificadorSalida(const QString& id, const QString& codificador);
+    /// `susDestinos`: "borrar" o el id de otra salida (con destinos guardados hay que decirlo).
+    Q_INVOKABLE QString borrarSalida(const QString& id, const QString& susDestinos = {});
     /// Una salida nueva con su nombre (el id sale del nombre, único) y su color ("" = el
     /// que le toque). Queda como la activa. "" o por qué no.
     Q_INVOKABLE QString crearSalidaUi(const QString& nombre, const QString& color);
@@ -976,6 +986,8 @@ class StudioViewModel : public QObject {
     void setSalidaActiva(const QString& id);
     QVariantMap salidaActivaDatos() const;
     bool variasSalidas() const;
+    QVariantMap aireActiva() const;
+    QVariantMap placaActiva() const;
     QString claveProgramaActiva() const;
     QString claveArmadaActiva() const;
     int topeSalidas() const { return topeSalidas_; }
@@ -1336,6 +1348,13 @@ class StudioViewModel : public QObject {
     /// pared. Para los capitulos hacen falta los dos en la misma escala.
     qint64 recSinceMs_ = 0;
     std::chrono::steady_clock::time_point streamSince_{};
+    /// Lo que sale de cada una de las demás salidas y desde cuándo (los relojes de
+    /// aireActiva; la por omisión usa streaming_/recording_ y sus *Since_).
+    struct AireDeSalida {
+        bool transmite = false, graba = false, reconecta = false;
+        std::chrono::steady_clock::time_point transmiteDesde{}, grabaDesde{};
+    };
+    std::map<std::string, AireDeSalida> aireSalidas_;
     double fps_ = 0;
     QString encoder_;
     int dropped_ = 0;

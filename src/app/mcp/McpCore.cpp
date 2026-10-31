@@ -437,6 +437,25 @@ thread_local CallContext t_enCurso;
 
 const CallContext& McpCore::contextoEnCurso() const { return t_enCurso; }
 
+bool McpCore::hayAireEn(const Tool& tool, const std::string& salida) const {
+    return tool.porSalida && salidaSale_ ? salidaSale_(salida) : hayAire();
+}
+
+bool McpCore::cambiaElAire(const std::string& herramienta, const json& args, const std::string& salidaDeQuien) const {
+    const std::string name = nombreActual(herramienta);
+    const Tool* tool = findTool(name);
+    if (tool == nullptr) return hayAire() && aire_.esDeAire(name, args);
+    std::string salida;
+    if (tool->porSalida) {
+        CallContext ctx;
+        ctx.salida = salidaDeQuien;
+        std::string err;
+        salida = resolverSalida(salidaPedida(args, ctx), err);
+        if (!err.empty()) return hayAire() && aire_.esDeAire(name, args); // no existe: confirmar de más, nunca de menos
+    }
+    return hayAireEn(*tool, salida) && aire_.esDeAire(name, args);
+}
+
 std::string McpCore::salidaDe(const json& args) const {
     std::string err;
     return resolverSalida(salidaPedida(args, t_enCurso), err);
@@ -1171,7 +1190,7 @@ void McpCore::procesar(const Tool* tool, const std::string& name, const json& ar
     // vivo, solo leen o hacen lo reversible sin preguntar.
     // Una herramienta de salida es de aire si sale SU salida (otra transmitiendo no
     // la vuelve de aire); las demás, si sale cualquiera.
-    const bool enAire = !ctx.humano && mutating(*tool) && (tool->porSalida && salidaSale_ ? salidaSale_(salida) : hayAire());
+    const bool enAire = !ctx.humano && mutating(*tool) && hayAireEn(*tool, salida);
     const bool deAire = enAire && aire_.esDeAire(name, args);
     const bool automaticoEnVivo = enAire && !deAire && mutating(*tool) &&
                                   (ctx.origen == "voz" || ctx.origen == "disparador") && !tool->reversible;
