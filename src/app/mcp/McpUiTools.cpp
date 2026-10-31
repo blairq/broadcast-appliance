@@ -70,6 +70,7 @@ void McpService::registerUiTools() {
         t.name = "multiview";
         t.title = ba::i18n::traducir("mcp", "Multiview: ver y armar las multivistas (y sacarlas a una ventana)");
         t.category = "interfaz";
+        t.clase = Clase::Ui;
         t.description =
             ba::i18n::traducir("mcp", "Las multivistas (pestañas de la página Multiview): varias fuentes en un muro con separación de color y "
             "borde por cuadro. Sin argumentos devuelve todas y cuál está elegida, y qué fuentes se pueden poner. "
@@ -172,6 +173,7 @@ void McpService::registerUiTools() {
         t.name = "ui_show_page";
         t.title = ba::i18n::traducir("mcp", "Mostrar una pagina");
         t.category = "interfaz";
+        t.clase = Clase::Ui;
         t.description = ba::i18n::traducir("mcp", "Cambia la pagina que ve el operador. Las que hay salen del catalogo de la "
                         "interfaz (ver el enum de `page`): si se agrega una pagina nueva al programa, "
                         "aparece aca sola.");
@@ -223,6 +225,7 @@ void McpService::registerUiTools() {
         t.name = "ui_abrir_panel";
         t.title = ba::i18n::traducir("mcp", "Abrir un panel o diálogo de una página");
         t.category = "interfaz";
+        t.clase = Clase::Ui;
         t.description = ba::i18n::traducir("mcp", "Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo "
                         "cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, "
                         "entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con "
@@ -273,6 +276,7 @@ void McpService::registerUiTools() {
         t.name = "ui_page_window";
         t.title = ba::i18n::traducir("mcp", "Sacar una pagina a su ventana");
         t.category = "interfaz";
+        t.clase = Clase::Ui;
         t.description = ba::i18n::traducir("mcp", "Abre una pagina en su PROPIA ventana, para mandarla a otro monitor.");
         t.details =
             ba::i18n::traducir("mcp", "No la saca de la ventana principal: abre otra vista de lo mismo. Las dos se mantienen "
@@ -319,6 +323,7 @@ void McpService::registerUiTools() {
         t.name = "ui_panel_window";
         t.title = ba::i18n::traducir("mcp", "Sacar un panel a su ventana");
         t.category = "interfaz";
+        t.clase = Clase::Ui;
         t.description =
             ba::i18n::traducir("mcp", "Abre el padron, la cola de preguntas, la urna, el carrusel o el control PTZ de una camara en su "
             "PROPIA ventana, para mandarla a otro monitor.");
@@ -397,6 +402,7 @@ void McpService::registerUiTools() {
         t.name = "ui_notify";
         t.title = ba::i18n::traducir("mcp", "Aviso en pantalla");
         t.category = "interfaz";
+        t.clase = Clase::Ui;
         t.description = ba::i18n::traducir("mcp", "Muestra un aviso (toast) al operador en la app.");
         t.inputSchema = {
             {"type", "object"},
@@ -417,7 +423,7 @@ void McpService::registerUiTools() {
         t.name = "dashboard_list";
         t.title = ba::i18n::traducir("mcp", "Dashboard y ventanas de salida");
         t.category = "interfaz";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Tarjetas del dashboard (id, tipo, posicion), tipos que se pueden agregar, fondo, ventanas "
             "sueltas abiertas (cosas del catalogo, disposicion, monitor, pantalla completa) y monitores "
@@ -459,6 +465,7 @@ void McpService::registerUiTools() {
         t.name = "dashboard_card";
         t.title = ba::i18n::traducir("mcp", "Agregar / quitar tarjeta");
         t.category = "interfaz";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Agrega una tarjeta al dashboard (kind de dashboard_list; monitor lleva `source` = clave de "
             "video) o quita una por id. reset=true vuelve a la disposicion por defecto.");
@@ -486,6 +493,7 @@ void McpService::registerUiTools() {
         t.name = "dashboard_background";
         t.title = ba::i18n::traducir("mcp", "Fondo del dashboard");
         t.category = "interfaz";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Fondo del dashboard: videos sueltos (claves de feeds_list) con su disposición, o una de las "
                         "multivistas de la página Multiview (`multiview`: su id o su nombre; sale con sus fuentes y su "
                         "estilo, en vivo). `feeds` vuelve a los videos sueltos. `dim` oscurece (0..1).");
@@ -530,6 +538,7 @@ void McpService::registerUiTools() {
         t.name = "output_window";
         t.title = ba::i18n::traducir("mcp", "Ventanas sueltas (video, paneles, paginas)");
         t.category = "interfaz";
+        t.clase = Clase::Ui;
         t.description =
             ba::i18n::traducir("mcp", "Abre una ventana suelta con cosas del catalogo (`cosas`: ids de catalogo_listar: el programa, una "
             "escena, una multiview, un invitado «video:guest:1», un panel, una pagina) o con videos por su clave "
@@ -594,7 +603,7 @@ void McpService::registerUiTools() {
         t.name = "feeds_list";
         t.title = ba::i18n::traducir("mcp", "Videos disponibles");
         t.category = "sistema";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Claves de video que la app puede mostrar o capturar (program, armada, guest:N, share:N, "
             "lobby:K, backstage:K, registro:K (la cámara de un tótem de registro), operator) con su etiqueta "
@@ -632,6 +641,7 @@ void McpService::registerUiTools() {
         t.name = "ui_barra";
         t.title = ba::i18n::traducir("mcp", "La barra de navegacion");
         t.category = "interfaz";
+        t.clase = Clase::Ui;
         t.description = ba::i18n::traducir("mcp", "Donde va la barra lateral, de que tamaño y que paginas muestra.");
         t.details =
             ba::i18n::traducir("mcp", "Sin argumentos, informa como esta. Con ellos, cambia lo que se le diga y deja el resto.\n\n"
@@ -708,7 +718,7 @@ void McpService::registerUiTools() {
         t.name = "logs_tail";
         t.title = ba::i18n::traducir("mcp", "Registros");
         t.category = "sistema";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.");
         t.details = ba::i18n::traducir("mcp", "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
                     "nivel, modulo y descripcion, entrelazando los tres procesos y con filtros. Esto sirve "
@@ -757,7 +767,7 @@ void McpService::registerUiTools() {
         t.name = "system_info";
         t.title = ba::i18n::traducir("mcp", "Carpeta del sistema, credenciales y respaldos");
         t.category = "sistema";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Donde vive el sistema (todo en una carpeta portable), que credenciales hay "
                         "guardadas (solo nombres; "
                         "estan cifradas en Credenciales/), los respaldos de datos y si hay una version "
@@ -780,6 +790,7 @@ void McpService::registerUiTools() {
         t.name = "system_update";
         t.title = ba::i18n::traducir("mcp", "Actualizar el sistema");
         t.category = "sistema";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description =
             ba::i18n::traducir("mcp", "Actualiza el programa desde una carpeta con la version nueva (descomprimida, FUERA de la "
@@ -817,6 +828,8 @@ void McpService::registerUiTools() {
         t.name = "app_quit";
         t.title = ba::i18n::traducir("mcp", "Cerrar la aplicacion");
         t.category = "sistema";
+        t.clase = Clase::Aire;
+        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cierra el programa");
         t.destructive = true;
         t.description =
             ba::i18n::traducir("mcp", "Cierra la aplicacion (corta transmision y grabacion; el servidor MCP tambien se cierra).");

@@ -250,7 +250,7 @@ void McpService::registerSystemTools() {
         t.name = "system_hardware";
         t.title = ba::i18n::traducir("mcp", "El equipo: monitores, audio, video, GPU");
         t.category = "equipo";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El hardware y cuanto queda: espacio en DISCO, memoria, procesador, temperatura. Todo el "
             "hardware de una vez: monitores (nombre, resolucion, posicion, escala, Hz, principal), "
@@ -290,7 +290,7 @@ void McpService::registerSystemTools() {
         t.name = "sistema_recursos";
         t.title = ba::i18n::traducir("mcp", "Cuánto se usa de la máquina (CPU, GPU, RAM, red)");
         t.category = "equipo";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir(
             "mcp",
             "Lo que se está usando AHORA de la máquina, medido cada segundo: CPU de toda la máquina y de nuestros "
@@ -355,7 +355,7 @@ void McpService::registerSystemTools() {
         t.name = "monitors";
         t.title = ba::i18n::traducir("mcp", "Monitores");
         t.category = "equipo";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Monitores conectados en su ORDEN FISICO (de izquierda a derecha y de arriba abajo, el numero que "
             "se ve al identificarlos), con su `id` estable (fabricante|modelo|serie: no cambia con el cable ni "
@@ -376,7 +376,7 @@ void McpService::registerSystemTools() {
         t.name = "audio_devices";
         t.title = ba::i18n::traducir("mcp", "Placas de audio");
         t.category = "equipo";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Que placas y conectores de audio tiene la maquina: entradas (microfonos, lineas, interfaces) y "
             "salidas (parlantes, auriculares, HDMI). Salen del registro de la maquina (Dispositivos y equipos): "
@@ -405,6 +405,7 @@ void McpService::registerSystemTools() {
         t.name = "audio_input_add";
         t.title = ba::i18n::traducir("mcp", "Agregar un microfono o entrada de audio");
         t.category = "equipo";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "QUE ES: suma a la emision una entrada de audio de esta maquina (microfono, linea, interfaz). "
             "PARA QUE: el audio del lugar, un microfono de mano, una consola. COMO SE USA: `device` es el "
@@ -438,7 +439,7 @@ void McpService::registerSystemTools() {
         t.name = "gst_elementos";
         t.title = ba::i18n::traducir("mcp", "Elementos de GStreamer que hacen falta");
         t.category = "equipo";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Si están los elementos de GStreamer que usa el aparato: los imprescindibles (sin ellos algo de hoy no anda: "
             "invitados, racks, voces, NDI…) y los del motor que viene (mezcla, composición, robustez, subtítulos). "
@@ -457,6 +458,7 @@ void McpService::registerSystemTools() {
         t.name = "inicio_con_el_equipo";
         t.title = ba::i18n::traducir("mcp", "Arrancar solo al encender el equipo");
         t.category = "equipo";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Que el aparato vuelva solo después de un corte de luz. Sin argumentos: si arranca solo con el equipo y "
             "qué falta del sistema (que la máquina se encienda al volver la luz y que la sesión se inicie sola: eso "
@@ -477,6 +479,7 @@ void McpService::registerSystemTools() {
         t.name = "audio_input_remove";
         t.title = ba::i18n::traducir("mcp", "Quitar un microfono o entrada de audio");
         t.category = "equipo";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description =
             ba::i18n::traducir("mcp", "Saca de la emision una entrada de audio del equipo (las que agrega audio_input_add; mixer_list "
@@ -499,7 +502,7 @@ void McpService::registerSystemTools() {
         t.name = "video_devices";
         t.title = ba::i18n::traducir("mcp", "Camaras y capturadoras");
         t.category = "equipo";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Camaras USB, capturadoras y cualquier dispositivo de video (por GStreamer: V4L2 en Linux, Media "
             "Foundation en Windows, AVFoundation en macOS), del registro de la maquina: `name` es el nombre que "
@@ -543,7 +546,7 @@ void McpService::registerSystemTools() {
         t.name = "dispositivos_video";
         t.title = ba::i18n::traducir("mcp", "Todo lo que anuncia cada dispositivo de video");
         t.category = "equipo";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Como gst-device-monitor, pero de la app: cada dispositivo de video con su API (mediafoundation, "
             "ksvideo, avf, v4l2), propiedades, el elemento que lo abre, si la app lo usa (`usable`; en Windows la "

@@ -77,6 +77,7 @@ void McpService::registerPrompterTools() {
         t.name = "prompter_lista";
         t.title = ba::i18n::traducir("mcp", "Los teleprompters (varios, cada uno con su texto y su página)");
         t.category = "prompter";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Sin argumentos: los teleprompters del evento ({id, nombre, titulo cargado, corriendo, oradores}) "
                         "y cuál está elegido. Cada uno tiene su texto, su velocidad y su página: el principal en /prompter/, "
                         "los demás en /prompter/<id>/ (el enlace y el QR, en la página Teleprompter). `agregar: nombre` crea "
@@ -117,7 +118,7 @@ void McpService::registerPrompterTools() {
         t.name = "prompter_estado";
         t.title = ba::i18n::traducir("mcp", "Como esta el teleprompter");
         t.category = "prompter";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Que discurso esta cargado, si esta corriendo, por donde va, a que velocidad, "
                         "cuanto falta, y que pantallas hay conectadas (atril y control).");
         t.details = ba::i18n::traducir("mcp", "Antes de que alguien suba al atril, lo que importa es `oradores`: si es 0, la tablet "
@@ -138,7 +139,7 @@ void McpService::registerPrompterTools() {
         t.name = "prompter_documentos";
         t.title = ba::i18n::traducir("mcp", "Los discursos que hay");
         t.category = "prompter";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los discursos de una carpeta de Discursos/ (del evento abierto), con cuantas "
                         "palabras tienen y cuanto dura leerlos. Sin `carpeta`, los de la raiz.");
         t.inputSchema = {{"type", "object"},
@@ -172,7 +173,7 @@ void McpService::registerPrompterTools() {
         t.name = "prompter_leer";
         t.title = ba::i18n::traducir("mcp", "Leer un discurso");
         t.category = "prompter";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "El texto completo de un discurso, por su ruta relativa "
                         "(\"intendente.txt\" o \"Apertura/intendente.txt\").");
         t.inputSchema = {
@@ -201,6 +202,7 @@ void McpService::registerPrompterTools() {
         t.name = "prompter_escribir";
         t.title = ba::i18n::traducir("mcp", "Escribir un discurso");
         t.category = "prompter";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Escribe (o crea) un discurso y lo guarda en la carpeta del evento. PISA lo que "
                         "hubiera. No lo manda al teleprompter: eso es prompter_cargar.");
         t.details = ba::i18n::traducir("mcp", "Para escribir o acortar un discurso: prompter_leer, contar cuanto dura "
@@ -237,6 +239,7 @@ void McpService::registerPrompterTools() {
         t.name = "prompter_archivos";
         t.title = ba::i18n::traducir("mcp", "Ordenar los discursos");
         t.category = "prompter";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Lo mismo que la lista de la página Prompter: `accion` carpeta (crea `nombre`), renombrar "
                         "(`rel` → `nombre`), mover (`rel` a la carpeta `carpeta`, \"\" = la raíz) o borrar (`rel`).");
         t.inputSchema = {{"type", "object"},
@@ -265,6 +268,7 @@ void McpService::registerPrompterTools() {
         t.name = "prompter_cargar";
         t.title = ba::i18n::traducir("mcp", "Mandar un discurso al teleprompter");
         t.category = "prompter";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Manda un discurso a la pantalla del orador. Queda LISTO pero PARADO: arrancarlo "
                         "es otra cosa (prompter_control).");
         t.inputSchema = {{"type", "object"},
@@ -286,6 +290,8 @@ void McpService::registerPrompterTools() {
         t.name = "prompter_control";
         t.title = ba::i18n::traducir("mcp", "Manejar el texto que esta al aire");
         t.category = "prompter";
+        t.clase = Clase::Escritura;
+        t.reversible = true;
         t.description =
             ba::i18n::traducir("mcp", "Arranca o para el texto, cambia la velocidad, salta a una parte o le escribe un aviso al "
             "orador. Lo que no se manda, no se toca. `panico` para en seco sin mover la posicion.");

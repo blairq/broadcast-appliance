@@ -204,6 +204,7 @@ void McpService::registerProcedimientoTools() {
         t.name = "evento_preparar";
         t.title = ba::i18n::traducir("mcp", "Preparar el principio y el final del evento");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Arma la señal de ajuste (barras con la hora, tono de 1 kHz y el nombre del evento), la placa «Antes de "
             "empezar» con la hora de inicio, la de «Fin de transmisión» y los bloques «Previa» y «Cierre» del guion. "
@@ -410,6 +411,7 @@ void McpService::registerProcedimientoTools() {
         t.name = "evento_verificar";
         t.title = ba::i18n::traducir("mcp", "¿Está todo para salir? (lista de control)");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "La lista de control del evento abierto según su tipo (`tipo`: salon o asamblea; de fábrica, lo dice el "
             "guion): revisa sola lo que se puede revisar, dice qué falta y cómo se arregla, y anota en la lista de "

@@ -97,7 +97,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.antes = {"evento_listar"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = ba::i18n::traducir("mcp", "Los guiones del evento abierto");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Los guiones guardados DENTRO del evento abierto, con su fecha, su duracion prevista y cuantos cues "
             "tiene cada uno. Los eventos (cada uno con sus escenas, medios, asamblea…) son eventos_listar.");
@@ -149,6 +149,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_web";
         t.title = ba::i18n::traducir("mcp", "La página web del evento en vivo");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "El sitio del evento abierto: una página por sección (bloque) del guion, una portada (antes de empezar) "
@@ -265,7 +266,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.antes = {"evento_ver"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = ba::i18n::traducir("mcp", "El guion abierto");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El guion completo del evento abierto: bloques con su hora prevista y sus cues, cada uno con "
             "tipo, duracion, si encadena solo y que le falta para poder ejecutarse.");
@@ -293,6 +294,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.antes = {"evento_abrir"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = ba::i18n::traducir("mcp", "Abrir o crear un guion (dentro del evento abierto)");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Abre un guion guardado DENTRO del evento abierto (o crea otro guion ahí con `nombre`). NO "
                         "cambia de evento: para pasar a otro evento (sus escenas, mezclador, medios, asamblea) es "
                         "evento_cambiar, y para uno nuevo, evento_nuevo.");
@@ -339,7 +341,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_en_curso";
         t.title = ba::i18n::traducir("mcp", "El evento en curso");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Qué evento está en curso: el que recibe todo lo que pasa (grabaciones, vivos, registro).");
         t.details =
             ba::i18n::traducir("mcp", "No es lo mismo que el evento ABIERTO (el que se edita): se puede preparar el de la semana que viene "
@@ -368,7 +370,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_bitacora";
         t.title = ba::i18n::traducir("mcp", "La bitácora de un evento");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Lo que pasó durante un evento, en orden: escenas al aire, grabación y transmisión, oradores, "
             "votaciones, cada herramienta del MCP que cambió algo, cada botón de la botonera, cada cue del guion, "
@@ -427,7 +429,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_config";
         t.title = ba::i18n::traducir("mcp", "La configuración de un evento");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Con qué configuración se hizo un evento: la foto de Config/ al entrar en curso (`inicio`), al terminar "
             "(`cierre`) o la última vista (`ultima`, de fábrica). Sin `archivo`: la lista de archivos; con `archivo`: "
@@ -498,7 +500,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_grabaciones";
         t.title = ba::i18n::traducir("mcp", "Grabaciones, vivos y transcripciones de un evento");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Lo que produjo un evento: cada grabación (archivo, desde/hasta, tamaño y sus capítulos: qué escena "
             "estaba al aire en cada momento), cada vivo (plataforma, URL pública, estudio, caídas) y las "
@@ -568,7 +570,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_sellos";
         t.title = ba::i18n::traducir("mcp", "Verificar que un evento no se tocó");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Compara la carpeta de un evento cerrado con su sellos.json (sha256 de cada archivo al cerrarlo): dice "
             "si está intacto, qué archivos cambiaron, cuáles faltan y cuáles se agregaron después.");
@@ -606,7 +608,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "historico_buscar";
         t.title = ba::i18n::traducir("mcp", "Buscar en todos los eventos");
         t.category = "historico";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Busca un texto en todo el histórico: la bitácora de cada evento (escenas, MCP, botonera, avisos…), las "
             "transcripciones, la asamblea (orden del día, votaciones), las actas, los discursos y los guiones. Lo "
@@ -639,6 +641,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "historico_restaurar";
         t.title = ba::i18n::traducir("mcp", "Volver a la configuración de un evento");
         t.category = "historico";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Prepara volver a la configuración que tenía un evento (toda, o solo algunos archivos de Config/), "
             "para aplicarla al reiniciar la app. Con `cancelar`: descarta lo preparado. Sin argumentos: dice si hay "
@@ -687,6 +690,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "historico_traer_del_dia";
         t.title = ba::i18n::traducir("mcp", "Traer las grabaciones viejas de un día a un evento");
         t.category = "historico";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Le asigna a un evento las grabaciones (Recordings/, con entradas/ y limpia/) y las transcripciones que "
             "terminaron en su día (el de su inicio, su fecha o el de la jornada), o entre `desde` y `hasta`. De "
@@ -716,6 +720,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "historico_retencion";
         t.title = ba::i18n::traducir("mcp", "Retención de grabaciones y disco");
         t.category = "historico";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Cuánto disco queda para los eventos y qué grabaciones borra la retención (las de eventos terminados "
             "hace más de `grabaciones_dias`; la bitácora, la configuración, la asamblea, las transcripciones y los "
@@ -739,6 +744,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "historico_exportar";
         t.title = ba::i18n::traducir("mcp", "Exportar un evento");
         t.category = "historico";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Copia un evento entero a otra carpeta (de fábrica, Exportados/ al lado de Eventos/), con o sin las "
             "grabaciones, junto con los contenidos de sus fotos de configuración: la copia se entiende sola en "
@@ -772,6 +778,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "historico_ajustes";
         t.title = ba::i18n::traducir("mcp", "Qué se registra en el histórico");
         t.category = "historico";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Qué entra en la bitácora de cada evento y la jornada automática. Sin argumentos: cómo está. "
             "`registrar`: {bus, mcp, botonera, guion, aviso, evento, config} en true/false; `bus_excluir`: "
@@ -800,6 +807,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_iniciar";
         t.title = ba::i18n::traducir("mcp", "Poner un evento en curso");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Pone un evento en curso (el que estaba se termina): desde ahora todo lo que pasa es de ese evento.");
         t.details =
             ba::i18n::traducir("mcp", "`carpeta` es la ruta que da guion_listar. Si el evento ya había empezado antes, conserva cuándo "
@@ -821,6 +829,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.destructive = true;
         t.title = ba::i18n::traducir("mcp", "Terminar el evento en curso");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Termina el evento en curso (queda en el histórico como terminado).");
         t.details =
             ba::i18n::traducir("mcp", "Con el automático prendido, enseguida queda en curso la jornada del día: lo que pase después no se "
@@ -854,6 +863,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.antes = {"evento_carpeta"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = ba::i18n::traducir("mcp", "Ordenar los guiones en carpetas");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Crea una carpeta para agrupar guiones (dentro del evento abierto), o mueve un guion a otra carpeta.");
         t.details =
             ba::i18n::traducir("mcp", "Las carpetas son carpetas de verdad, anidadas con «/» (\"2026/Octubre\", "
@@ -885,6 +895,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_ficha";
         t.title = ba::i18n::traducir("mcp", "La ficha de un evento");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Lee o cambia la ficha del histórico de un evento: estado, cuándo empezó y terminó, lugar, etiquetas y notas.");
         t.details =
             ba::i18n::traducir("mcp", "Sin campos, la lee. Con `lugar`, `notas` o `etiquetas` (lista) los cambia; el estado y las horas "
@@ -934,6 +945,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.antes = {"evento_bloque"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un bloque");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Agrega un bloque al final del guion, lo renombra, lo mueve o lo saca.");
         t.details =
             ba::i18n::traducir("mcp", "Un bloque es un tramo con nombre propio: «Apertura», «Palabras del intendente», «Cierre». "
@@ -969,6 +981,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.antes = {"evento_cue"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un cue");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Agrega un cue a un bloque, le cambia los datos, lo mueve de lugar o lo saca.");
         t.details =
             ba::i18n::traducir("mcp", "Un cue es una cosa concreta que pasa. Los tipos y lo que necesita cada uno en `datos`:\n\n"
@@ -1141,6 +1154,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.antes = {"evento_guardar"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = ba::i18n::traducir("mcp", "Guardar el guion");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Escribe el guion en la carpeta del evento, respaldando antes el que estaba.");
         t.details =
             ba::i18n::traducir("mcp", "Guarda en Eventos/<carpeta>/evento.json. El guion anterior queda en Respaldos/ con la fecha, "
@@ -1208,6 +1222,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_revisar";
         t.title = ba::i18n::traducir("mcp", "Revision previa");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Busca lo que impide correr el guion: cues incompletos, escenas que no existen, bloques "
             "vacios, cadenas largas de cues automaticos.");
@@ -1257,6 +1272,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_chequeo";
         t.title = ba::i18n::traducir("mcp", "Marcar la lista de chequeo del evento");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Marca un ítem de la lista de chequeo manual del evento abierto (`item`: ptz, casteo, caida, "
             "glosario, respaldo, auriculares, sonido, o uno nuevo con ese nombre), `hecho` y una `nota`. Es lo "
@@ -1282,7 +1298,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_chequeo_ver";
         t.title = ba::i18n::traducir("mcp", "Ver la lista de chequeo del evento");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "La lista de chequeo manual del evento abierto: cada ítem con si está hecho, la nota y cuándo.");
         t.run = [&ev](const json&, Done done) {
             json out = json::array();
@@ -1313,7 +1329,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "No sale al aire nunca, ni siquiera con el ensayo apagado. Es lo que conviene correr despues "
             "de armar un guion largo, antes de probarlo en tiempo real.\n\n"
             "El resultado queda en la bitacora, que se devuelve entera.");
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.run = [&ev](const json&, Done done) {
             ev.ensayoAcelerado();
             json out = json::array();
@@ -1334,7 +1350,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_informe";
         t.title = ba::i18n::traducir("mcp", "Informe del evento");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Lo que realmente paso: por bloque y por cue, cuanto estaba previsto y cuanto duro de verdad.");
         t.details =
@@ -1367,6 +1383,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_correr";
         t.title = ba::i18n::traducir("mcp", "Correr el guion");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Arranca el guion, avanza al cue siguiente, vuelve atras, salta a uno, pausa, "
                         "frena el avance automatico (HOLD) o para. Con `ensayo` recorre todo SIN salir al aire.");
         t.details =
@@ -1470,7 +1487,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_escenarios";
         t.title = ba::i18n::traducir("mcp", "Los tipos de evento y sus guías");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los escenarios para los que hay guía de preparación (reunión chica, clase híbrida, sesión de un "
                         "cuerpo deliberativo, asamblea con votación, streaming de juegos, acto, audiencia pública…): id, "
                         "título y para qué sirve. ANTES de preparar un evento nuevo, elegí el que corresponde y leelo con "
@@ -1487,7 +1504,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_escenario";
         t.title = ba::i18n::traducir("mcp", "La guía para preparar un tipo de evento");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "El protocolo para preparar CUALQUIER evento (entrevistar antes de armar, el orden de armado, qué "
                         "verificar antes de invitar, el ensayo y qué entregar al final) más la guía del escenario `id` "
                         "(evento_escenarios): sus preguntas propias, qué armar, qué verificar. Seguilo paso a paso.");
@@ -1513,6 +1530,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_armar";
         t.title = ba::i18n::traducir("mcp", "Armar un evento entero de una vez");
         t.category = "evento";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Crea el evento con su fecha, sus bloques con tiempos y su lista de gente, todo en una "
             "llamada.");
@@ -1681,7 +1699,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_capitulos";
         t.title = ba::i18n::traducir("mcp", "Los capitulos de la grabacion");
         t.category = "evento";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Las marcas de tiempo de cada bloque del evento, listas para pegar en la descripcion del "
             "video.");
@@ -1808,7 +1826,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.name = "padron_ver";
         t.title = ba::i18n::traducir("mcp", "La gente del evento, y quienes estan");
         t.category = "padron";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "La lista de quien viene al evento abierto, con su papel y su estado, mas el recuento de "
             "cuantos llegaron.");
@@ -1864,6 +1882,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.name = "padron_anotar";
         t.title = ba::i18n::traducir("mcp", "Anotar a alguien en el evento");
         t.category = "padron";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Suma a una persona a la lista del evento abierto, con su papel y por donde asiste.");
         t.details =
             ba::i18n::traducir("mcp", "Es como se arma la lista ANTES del evento, y tambien como se agrega al que aparece sin "
@@ -1914,6 +1933,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.name = "padron_cambiar";
         t.title = ba::i18n::traducir("mcp", "Cambiarle los datos a alguien del padron");
         t.category = "padron";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Cambia el papel, el canal, el estado o los datos de una persona ya anotada.");
         t.details =
             ba::i18n::traducir("mcp", "Cambia SOLO lo que se le manda y deja el resto. Mandar `nota` en vacio la borra; no "
@@ -1956,6 +1976,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.name = "padron_acreditar";
         t.title = ba::i18n::traducir("mcp", "Marcar que alguien llego (o que se fue)");
         t.category = "padron";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Deja constancia de que una persona esta en el evento, con la hora y por donde entro.");
         t.details =
@@ -2011,7 +2032,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.name = "invitacion";
         t.title = ba::i18n::traducir("mcp", "La invitacion de una persona, con su QR");
         t.category = "padron";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El texto de la invitacion de alguien del padron y el enlace con QR que le sirve para "
             "acreditarse, preguntar y votar.");
@@ -2078,6 +2099,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.destructive = true;
         t.title = ba::i18n::traducir("mcp", "Sacar a alguien del padron");
         t.category = "padron";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Borra a una persona de la lista del evento abierto.");
         t.details =
             ba::i18n::traducir("mcp", "Es para el que se anoto dos veces o el que no venia a este evento. Para el que aviso que "

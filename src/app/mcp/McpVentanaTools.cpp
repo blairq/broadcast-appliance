@@ -278,7 +278,8 @@ void McpService::registerVentanaTools() {
         t.name = "ventana_listar";
         t.title = ba::i18n::traducir("mcp", "Que ventanas hay abiertas y donde");
         t.category = "ventanas";
-        t.readOnly = true;
+        t.hilo = Hilo::Interfaz;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El inventario de ventanas abiertas, con su id, "
             "que tienen adentro, su tamaño y posicion, en que "
@@ -336,6 +337,7 @@ void McpService::registerVentanaTools() {
         t.name = "ventana_mover";
         t.title = ba::i18n::traducir("mcp", "Mover, redimensionar o mandar a otro monitor");
         t.category = "ventanas";
+        t.clase = Clase::Ui;
         t.description = ba::i18n::traducir("mcp", "Manda una ventana de la app a otro MONITOR de esta computadora, o a una zona de la "
                         "pantalla. Es para acomodar el puesto de trabajo. Acomoda una ventana: a otro "
                         "monitor, a una zona de ese monitor, a un tamaño y posicion "
@@ -543,6 +545,7 @@ void McpService::registerVentanaTools() {
         t.name = "ventanas_ordenar";
         t.title = ba::i18n::traducir("mcp", "Acomodar todas las ventanas en los monitores");
         t.category = "ventanas";
+        t.clase = Clase::Ui;
         t.description =
             ba::i18n::traducir("mcp", "Reparte las ventanas abiertas entre los monitores para que no queden una encima de otra. "
             "La principal se queda donde esta; las sueltas se distribuyen.");
@@ -675,6 +678,7 @@ void McpService::registerVentanaTools() {
         t.name = "monitor_identificar";
         t.title = ba::i18n::traducir("mcp", "Mostrar en cada monitor cual es");
         t.category = "ventanas";
+        t.clase = Clase::Ui;
         t.description =
             ba::i18n::traducir("mcp", "Pone unos segundos un cartel grande en CADA monitor (o solo en `monitor`) con su numero y su "
             "nombre, los mismos de la pagina Pantallas. Para saber cual es \"DP-1\" sin mandar una ventana a "
@@ -701,7 +705,8 @@ void McpService::registerVentanaTools() {
         t.name = "ventana_captura";
         t.title = ba::i18n::traducir("mcp", "Ver la interfaz");
         t.category = "interfaz";
-        t.readOnly = true;
+        t.hilo = Hilo::Interfaz;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Una foto de la INTERFAZ del aparato, no de lo que sale al aire (eso es "
             "`foto_programa`). Es la unica forma de mirar una pagina: si algo se ve mal —una "
@@ -780,7 +785,7 @@ void McpService::registerVentanaTools() {
         t.name = "web_captura";
         t.title = ba::i18n::traducir("mcp", "Ver una página web del aparato");
         t.category = "interfaz";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Una foto de una PÁGINA WEB del aparato tal como la ve quien la abre: la web del evento, la de "
                         "los invitados, el público, el teleprompter, los rótulos, la botonera, la sesión remota, la consola de la "
                         "presidencia, el tablero… (los enlaces salen de `enlaces_listar`: `local` o `remoto`). Con un Chrome sin "
@@ -844,6 +849,7 @@ void McpService::registerVentanaTools() {
         t.name = "ventana_cerrar";
         t.title = ba::i18n::traducir("mcp", "Cerrar una ventana");
         t.category = "ventanas";
+        t.clase = Clase::Ui;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Cierra una ventana suelta (una pestaña sacada o una salida de video).");
         t.details = ba::i18n::traducir("mcp", "La ventana PRINCIPAL no se cierra por aca: cerrarla es cerrar la app, y eso se pide "

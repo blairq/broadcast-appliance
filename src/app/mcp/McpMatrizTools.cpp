@@ -34,7 +34,7 @@ void McpService::registerMatrizTools() {
         t.name = "mezclador_estado";
         t.title = ba::i18n::traducir("mcp", "El Mezclador: niveles de cada entrada y salida, y adónde va cada una");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Lo mismo que muestra la ventana del Mezclador: por entrada (lo que SALE de ella, después de su "
             "rack, vaya a donde vaya) su pico, RMS y retención (2 s) por canal en dB, el fader, mute, escucha "
@@ -55,6 +55,7 @@ void McpService::registerMatrizTools() {
         t.name = "mezclador_analisis_lsp";
         t.title = ba::i18n::traducir("mcp", "Abrir un analizador de LSP sobre una entrada");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Abre, sobre lo que sale de la `entrada`, el analizador de LSP `cual` con su interfaz (una ventana "
             "aparte para el operador): espectro (Spectrum Analyzer), fase (Phase Detector: L contra R), "
@@ -81,7 +82,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_matriz";
         t.title = ba::i18n::traducir("mcp", "La matriz de mezcla");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Fuentes con audio (a la salida de sus filtros) y a qué buses van: las 6 pistas del motor "
             "(la 1 es el programa; nativas, sin retardo) y los buses virtuales (salidas a un "
@@ -101,6 +102,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_matriz_cruce";
         t.title = ba::i18n::traducir("mcp", "Prender, apagar o ajustar un cruce");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
             ba::i18n::traducir("mcp", "`fuente` → `bus` (pista1..pista6, `escucha` = los auriculares del operador, o el id de un bus "
@@ -149,6 +151,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_bus_agregar";
         t.title = ba::i18n::traducir("mcp", "Agregar una entrada o salida virtual");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "`tipo` \"salida\": un bus que sale por un dispositivo (`dispositivo`: id de "
                         "audio_dispositivos). `tipo` \"entrada\": un bus cuya mezcla vuelve como una fuente "
                         "nueva (aparece en Audio con su menú de filtros). `nombre` opcional.");
@@ -175,6 +178,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_bus_quitar";
         t.title = ba::i18n::traducir("mcp", "Quitar un bus virtual");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Quita una entrada o salida virtual (y sus envíos). Las pistas no se quitan.");
         t.inputSchema = {
@@ -191,6 +195,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_bus_renombrar";
         t.title = ba::i18n::traducir("mcp", "Renombrar un bus o una pista");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
             ba::i18n::traducir("mcp", "Cambia el nombre de una pista (pista1..pista6) o de un bus virtual. Una entrada virtual "
@@ -211,6 +216,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_bus_dispositivo";
         t.title = ba::i18n::traducir("mcp", "A qué dispositivo sale una salida virtual");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
             ba::i18n::traducir("mcp", "Cambia el dispositivo de una salida virtual (`dispositivo`: id de audio_dispositivos).");
@@ -232,7 +238,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_dispositivos";
         t.title = ba::i18n::traducir("mcp", "Dispositivos de salida del equipo");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Las salidas de audio del equipo (placas, auriculares, cables virtuales): id y nombre, "
             "para las salidas virtuales de la matriz.");
@@ -250,6 +256,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_matriz_equipo";
         t.title = ba::i18n::traducir("mcp", "Entradas y salidas del equipo en la matriz");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna "
             "por par de canales (id fis:...); las entradas, una fila por canal. Sin argumentos lo lista. "
@@ -287,7 +294,7 @@ void McpService::registerMatrizTools() {
         t.name = "audio_filtros_catalogo";
         t.title = ba::i18n::traducir("mcp", "Catalogo de filtros de audio (LSP)");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Las familias de filtros LSP (compresor, compuerta, EQ...) en castellano: que hacen, para "
             "que sirven en vivo, si se recomiendan para vivo y sus variantes (id del plugin, mono/"

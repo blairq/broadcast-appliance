@@ -20,6 +20,7 @@ void registerTemaTools(McpCore& core, TemaEventoViewModel& tema) {
     t.name = "evento_tema";
     t.title = ba::i18n::traducir("mcp", "El tema del evento en todas las páginas web");
     t.category = "evento";
+    t.clase = Clase::Escritura;
     t.description = ba::i18n::traducir(
         "mcp",
         "La cara del evento abierto en TODAS las páginas web: la del evento, invitados, la sesión remota (votar), "

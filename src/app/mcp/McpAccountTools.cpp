@@ -109,7 +109,7 @@ void McpService::registerAccountTools() {
         t.name = "accounts_status";
         t.title = ba::i18n::traducir("mcp", "Estado de las cuentas");
         t.category = "cuentas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Para YouTube, Twitch y Facebook: si hay credencial, si hay cuenta conectada (cual) y el "
             "PASO SIGUIENTE (`next`). Nunca devuelve secretos.");
@@ -125,7 +125,7 @@ void McpService::registerAccountTools() {
         t.name = "account_setup_guide";
         t.title = ba::i18n::traducir("mcp", "Pasos para conectar una plataforma");
         t.category = "cuentas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Los pasos (con enlaces) para crear la app/credencial en Google Cloud, Twitch o Meta, los "
             "VALORES "
@@ -146,6 +146,7 @@ void McpService::registerAccountTools() {
         t.name = "account_open";
         t.title = ba::i18n::traducir("mcp", "Abrir la pagina de un paso");
         t.category = "cuentas";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Abre en el navegador de esta maquina el enlace del paso `step` (1, 2...) de la guia de "
@@ -178,6 +179,7 @@ void McpService::registerAccountTools() {
         t.name = "account_credentials_request";
         t.title = ba::i18n::traducir("mcp", "Pedir la credencial (formulario seguro)");
         t.category = "cuentas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Muestra en la barra del operador un formulario para pegar el ID y el secreto de la plataforma "
             "(YouTube: tambien importar el JSON de Google, solo o desde Descargas). Se guarda cifrado "
@@ -230,7 +232,7 @@ void McpService::registerAccountTools() {
         t.name = "account_check";
         t.title = ba::i18n::traducir("mcp", "Probar la conexion");
         t.category = "cuentas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Prueba la conexion de verdad contra la API y explica lo que falte: YouTube (canal, vivo "

@@ -65,7 +65,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_status";
         t.title = ba::i18n::traducir("mcp", "Estado de Facebook");
         t.category = "facebook";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Si la app de Meta esta configurada (y su URI de redireccion), que cuenta esta conectada, la "
             "Pagina elegida, el vivo al que transmite la app, de cual se leen comentarios y la subida en "
@@ -90,6 +90,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_setup";
         t.title = ba::i18n::traducir("mcp", "Configurar la app de Meta");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Guarda el ID y la clave secreta de la app de developers.facebook.com, y el puerto de la "
             "redireccion (por defecto 8791: la app de Meta tiene que tener http://localhost:<puerto>/ "
@@ -121,6 +122,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_login";
         t.title = ba::i18n::traducir("mcp", "Conectar una cuenta de Facebook");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Abre el navegador de esta maquina en Facebook para que la PERSONA elija la cuenta, marque "
@@ -156,6 +158,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_logout";
         t.title = ba::i18n::traducir("mcp", "Desconectar la cuenta");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Quita el permiso de la app en Facebook y borra los tokens guardados.");
         t.run = [fb](const json&, Done done) {
@@ -169,6 +172,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_pages";
         t.title = ba::i18n::traducir("mcp", "Paginas de la cuenta");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Lista las Paginas que administra la cuenta conectada (id, nombre, categoria) y cual esta "
             "elegida. `select` elige otra (vivos, videos y comentarios van a esa Pagina).");
@@ -200,7 +204,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_live_list";
         t.title = ba::i18n::traducir("mcp", "Vivos de la Pagina");
         t.category = "facebook";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Vivos de la Pagina: id, titulo, estado (LIVE, UNPUBLISHED = prueba, LIVE_STOPPED, VOD, "
             "SCHEDULED_UNPUBLISHED), enlace y vistas. Con `id`, el estado de uno solo.");
@@ -218,6 +222,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_live_create";
         t.title = ba::i18n::traducir("mcp", "Crear un vivo y transmitir");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Crea un vivo en la Pagina y empieza a transmitir desde la app (servidor RTMPS y clave solo "
@@ -247,6 +252,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_live_publish";
         t.title = ba::i18n::traducir("mcp", "Publicar un vivo en prueba");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Pasa un vivo sin publicar (UNPUBLISHED) a publico en la Pagina, sin cortar la transmision.");
@@ -267,6 +273,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_live_end";
         t.title = ba::i18n::traducir("mcp", "Terminar un vivo");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Termina el vivo en Facebook (queda como video) y corta la transmision de la app si "
                         "iba a ese vivo.");
@@ -286,7 +293,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_videos";
         t.title = ba::i18n::traducir("mcp", "Videos de la Pagina");
         t.category = "facebook";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Videos de la Pagina (mas nuevos primero): id, titulo, descripcion, enlace, "
                         "miniatura, fecha y duracion.");
         t.inputSchema = {
@@ -304,6 +311,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_video_update";
         t.title = ba::i18n::traducir("mcp", "Editar o borrar un video");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Cambia titulo y/o descripcion de un video (o de un vivo) de la Pagina. delete=true lo borra "
             "(no se puede deshacer).");
@@ -338,6 +346,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_video_upload";
         t.title = ba::i18n::traducir("mcp", "Subir un video a la Pagina");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Sube un archivo de video a la Pagina (por partes, reanudable). Sin `path`, la grabacion mas "
             "reciente de la app. Espera a que termine y devuelve el id.");
@@ -370,6 +379,7 @@ void McpService::registerFacebookTools() {
         t.name = "facebook_chat";
         t.title = ba::i18n::traducir("mcp", "Comentarios del vivo");
         t.category = "facebook";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Comentarios de un vivo de la Pagina: `live` elige de cual leer (lo usa tambien la fuente "
             "\"Chat en vivo\"; al transmitir se elige solo), `send` comenta como la Pagina, y devuelve "

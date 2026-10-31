@@ -34,7 +34,7 @@ void McpService::registerAtencionTools() {
         t.name = "atencion_estado";
         t.title = ba::i18n::traducir("mcp", "Cómo se atiende a quien se conecta");
         t.category = "sala";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Si el asistente atiende a los que llegan (conferencia y asamblea), si lo hace hablando, quién "
                         "atiende (recepción o automatización), a quién está atendiendo y de qué forma, el alta "
                         "automática en Personas y la voz del atendedor.");
@@ -56,6 +56,7 @@ void McpService::registerAtencionTools() {
         t.name = "atencion_configurar";
         t.title = ba::i18n::traducir("mcp", "Prender o apagar la atención a quien se conecta");
         t.category = "sala";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Cambia lo que venga: `salaAtiende` («Los atiende el asistente» en la conferencia), "
                         "`salaHablando` (lo que dice se pasa a texto y se le contesta con voz), `asambleaAtiende` "
@@ -98,7 +99,7 @@ void McpService::registerAtencionTools() {
         t.name = "atencion_voz_probar";
         t.title = ba::i18n::traducir("mcp", "Probar la voz del atendedor sin que suene");
         t.category = "sala";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Genera `texto` (o una frase de ejemplo) con la voz del atendedor SIN reproducirlo: devuelve "
                         "cuánto dura, su forma de onda (picos de 0 a 1) y dónde quedó el .wav para escucharlo "
                         "aparte.");

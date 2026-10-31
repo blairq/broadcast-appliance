@@ -78,7 +78,7 @@ void McpService::registerSalidasTools() {
         t.name = "salidas_listar";
         t.title = ba::i18n::traducir("mcp", "Las salidas del aparato");
         t.category = "salidas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.idempotent = true;
         t.description = ba::i18n::traducir(
             "mcp",
@@ -97,6 +97,7 @@ void McpService::registerSalidasTools() {
         t.name = "salida_crear";
         t.title = ba::i18n::traducir("mcp", "Crear una salida");
         t.category = "salidas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir(
             "mcp",
             "Una salida nueva, andando en el acto (con su programa, su preview y su mezcla), hasta el tope. Usa las "
@@ -139,6 +140,7 @@ void McpService::registerSalidasTools() {
         t.name = "salida_editar";
         t.title = ba::i18n::traducir("mcp", "Cambiar el nombre o el color de una salida (o el tope)");
         t.category = "salidas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir(
             "mcp",
             "`id` con `nombre` y/o `color` (#RRGGBB). `tope` (1 a 16) cambia cuántas salidas puede tener el aparato "
@@ -174,6 +176,8 @@ void McpService::registerSalidasTools() {
         t.name = "salida_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar una salida");
         t.category = "salidas";
+        t.clase = Clase::Aire;
+        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "borra una salida (corta lo que sale de ella)");
         t.destructive = true;
         t.description = ba::i18n::traducir(
             "mcp",

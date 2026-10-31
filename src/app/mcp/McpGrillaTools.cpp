@@ -33,7 +33,7 @@ void McpService::registerGrillaTools() {
         t.name = "grilla_personas_estado";
         t.title = ba::i18n::traducir("mcp", "Qué muestra cada grilla de personas");
         t.category = "fuentes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.untrustedOutput = true; // los nombres los escribieron los invitados
         t.description = ba::i18n::traducir("mcp", "Las fuentes «Grilla de personas» (ba_grilla): a quién muestra cada una ahora, cuántos quedaron en el "
                         "«+N», su canal y sus ajustes principales; y la gente que puede aparecer (conferencia y asamblea) con "
@@ -60,6 +60,7 @@ void McpService::registerGrillaTools() {
         t.name = "grilla_personas_ajustar";
         t.title = ba::i18n::traducir("mcp", "Cambiar los ajustes de una grilla de personas");
         t.category = "fuentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::llenar(ba::i18n::traducir("mcp", "Cambia los ajustes de una fuente «Grilla de personas» (los mismos de la ventana Propiedades). Solo "
                         "los que vienen; se validan todos antes de tocar nada. %1"), {ajustesAyuda});
@@ -92,6 +93,7 @@ void McpService::registerGrillaTools() {
         t.name = nombre;
         t.title = titulo;
         t.category = "fuentes";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = descripcion;
         t.details = ba::i18n::traducir("mcp", "Lo decidido a mano vive mientras la app está abierta (las claves son de la conexión de cada uno) y "

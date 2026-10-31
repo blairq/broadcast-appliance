@@ -87,7 +87,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_estudio";
         t.title = ba::i18n::traducir("mcp", "Vista general del audio");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "TODO el audio de una vez, como la vista Estudio de la página Audio: cada fuente con su cadena "
             "entera de izquierda a derecha — origen (micrófono, invitado, red…) → los módulos de su rack → los filtros de su cadena de GStreamer (automixer…) → la mezcla "
@@ -124,6 +124,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_mezclador_grupos";
         t.title = ba::i18n::traducir("mcp", "Grupos del mezclador");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Los grupos de tiras del mezclador (tiras seguidas del mismo tipo: «Invitado 1…N (audio)», los "
                         "remotos) y cuáles están compactados. Con `grupo` y `compacto`, compacta uno (sin faders: un "
                         "bloque con una casilla por tira) o lo despliega, como el botón de su primera tira; con `grupo` "
@@ -158,7 +159,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_sources";
         t.title = ba::i18n::traducir("mcp", "Fuentes con audio");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El inventario de fuentes con SONIDO. "
             "Todas las fuentes con audio (microfonos, placas, videos con sonido, invitados...), si tienen "
@@ -177,6 +178,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_plantillas";
         t.title = ba::i18n::traducir("mcp", "Plantillas de rack");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Guarda el rack de una fuente con nombre, se lo aplica a otra, lo borra, o lo marca como "
             "predeterminado de un tipo de fuente. Sin argumentos, lista las que hay.");
@@ -227,7 +229,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_rack";
         t.title = ba::i18n::traducir("mcp", "Rack de una fuente");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El grafo del rack: nodos (in, out, modulos, analizadores, generadores) con sus puertos y "
             "medidores (entradaDb, salidaDb, cambioDb = lo que el modulo sube o baja) y los cables.");
@@ -245,7 +247,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_modules";
         t.title = ba::i18n::traducir("mcp", "Modulos con interfaz propia");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Los seis modulos que el aparato maneja con nombre propio —compuerta, compresor, "
             "deesser, ecualizador, multibanda, limitador— con sus parametros explicados, sus rangos "
@@ -287,7 +289,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_plugin_buscar";
         t.title = ba::i18n::traducir("mcp", "Buscar entre los ~200 plugins de audio instalados");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Busca EN CASTELLANO entre todos los plugins de audio instalados (~200) y devuelve los "
             "que sirven para lo que pediste, con para que sirve cada uno y cuantos canales maneja. "
@@ -414,6 +416,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_module_add";
         t.title = ba::i18n::traducir("mcp", "Agregar un modulo");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Agrega un modulo al rack de la fuente (lo crea si no tiene): del catalogo (gate, "
             "compresor, deesser, "
@@ -491,6 +494,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_module_remove";
         t.title = ba::i18n::traducir("mcp", "Quitar un modulo");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Quita un nodo del rack; lo que entraba se conecta a donde salia (la cadena sigue). "
                         "`node: \"*\"` quita el rack entero (el audio vuelve a pasar directo).");
@@ -517,6 +521,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_entrada_fuente";
         t.title = ba::i18n::traducir("mcp", "Cambiar de dónde trae el audio una tarjeta Entrada");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "La tarjeta Entrada `node` del rack de `source` pasa a traer el audio de `fuente` (otra entrada "
                         "con audio), sin perder sus cables. No acepta lazos entre racks.");
@@ -535,6 +540,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_patch";
         t.title = ba::i18n::traducir("mcp", "Conectar cables");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Conecta y/o desconecta cables como en JACK: {desde, salida (\"out\"), hacia, entrada "
             "(\"in\" o \"sc\" para sidechain)}. Varios cables a una entrada se suman (ramas en "
@@ -595,6 +601,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_ordenar";
         t.title = ba::i18n::traducir("mcp", "Acomodar las tarjetas del rack");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Acomoda las tarjetas del rack de `source` en la grilla siguiendo el orden de la "
                         "cadena (el botón "
                         "«Ordenar» de la página Audio). No cambia ningún cable.");
@@ -614,6 +621,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_rack_vigia";
         t.title = ba::i18n::traducir("mcp", "Vigia de los modulos de audio");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Cada modulo CLAP se mide en cada bloque. Si tarda mas del `umbral_pct` % de lo que dura el "
                         "bloque (de fabrica 50) durante `bloques` seguidos (20), queda en bypass automatico (no se lo "
                         "llama mas; el audio pasa sin procesar) hasta audio_module_rearmar. Un modulo que no vuelve en "
@@ -634,6 +642,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_module_rearmar";
         t.title = ba::i18n::traducir("mcp", "Rearmar un modulo saltado por lento");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Saca un modulo del bypass automatico (el vigia lo salto por lento) y saca al rack de "
                         "«colgado». Si sigue lento, el vigia lo vuelve a saltar.");
         t.inputSchema = {{"type", "object"},
@@ -653,6 +662,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_bypass";
         t.title = ba::i18n::traducir("mcp", "Anular / activar un modulo");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "bypass=true: el modulo deja pasar el audio sin procesarlo (para comparar antes/despues).");
         t.inputSchema = {
@@ -675,7 +685,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_module_get";
         t.title = ba::i18n::traducir("mcp", "Parametros de un modulo");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Parametros del modulo con sus valores (en unidades) y medidores. Los del catalogo con sus "
             "claves; `todos: true` lista todos los parametros LSP (con opciones o rango).");
@@ -706,6 +716,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_module_set";
         t.title = ba::i18n::traducir("mcp", "Cambiar parametros de un modulo");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Cambia parametros: claves del catalogo (umbral_db, ratio...) o nombres LSP (audio_module_get "
             "todos). Valores en unidades reales: numeros (-30, 20, 4000) o texto (\"20 ms\", \"Bell\", "
@@ -754,6 +765,7 @@ void McpService::registerAudioTools() {
         t.name = f.tool;
         t.title = ba::i18n::traducir("mcp", f.title);
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         json props{{"source", kSource},
                    {"node", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nodo (vacio = el primero de este tipo)")}}},
                    {"crear", {{"type", "boolean"}, {"default", true}, {"description", ba::i18n::traducir("mcp", "Crearlo si no esta")}}},
@@ -823,7 +835,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_analyze";
         t.title = ba::i18n::traducir("mcp", "Analizar el audio");
         t.category = "audio";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Numeros crudos del espectro en un punto del rack, para verificar un ajuste. "
             "Analiza el audio en un punto del rack (\"in\" = la fuente cruda, \"out\" = lo que sale, o un "
@@ -883,7 +895,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_measure";
         t.title = ba::i18n::traducir("mcp", "Medir un modulo o la cadena (fuera de linea)");
         t.category = "audio";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Que esta pasando con el audio AHORA: es lo primero ante un acople, un pitido, saturacion, un "
             "zumbido, o cuando alguien no se escucha o no se escucha nada al aire. Mide copias de los "
@@ -916,6 +928,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_generator";
         t.title = ba::i18n::traducir("mcp", "Generador de señal de prueba");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Crea o ajusta un generador en el rack: `senal` seno | rosa | blanco | barrido | "
                         "silencio, `frecuencia`, "
                         "`nivel_db` (dBFS; ruidos en RMS). Queda SUELTO: para oirlo o medirlo, `conectar_a` "
@@ -970,7 +983,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_outputs";
         t.title = ba::i18n::traducir("mcp", "Salidas de audio del equipo");
         t.category = "audio_rack";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "QUE ES: las salidas fisicas de esta maquina (auriculares, parlantes, HDMI), agrupadas por "
             "placa. PARA QUE: escuchar aparte lo que pasa por cualquier punto del rack de una fuente, sin "
@@ -988,6 +1001,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_output_set";
         t.title = ba::i18n::traducir("mcp", "Mandar el rack a una salida del equipo");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo "
             "de esa fuente una tarjeta con el nombre de la salida; el audio recien se oye cuando se le "
@@ -1021,6 +1035,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_show";
         t.title = ba::i18n::traducir("mcp", "Mostrar el rack en la pantalla");
         t.category = "audio_rack";
+        t.clase = Clase::Ui;
         t.description =
             ba::i18n::traducir("mcp", "Abre la pestaña Audio en la fuente y (opcional) el nodo: para mostrarle al operador lo que "
             "estas ajustando (parametros, medidores, espectro).");
@@ -1050,6 +1065,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_lsp_restablecer_interfaz";
         t.title = ba::i18n::traducir("mcp", "Restablecer la interfaz LSP");
         t.category = "audio_rack";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Cierra las ventanas de los modulos LSP y vuelve la configuracion de pantalla de LSP "
                         "(zoom, escala "
                         "del host, letra, zoom por plugin) a la de fabrica, con copia del archivo. Para "
@@ -1067,6 +1083,7 @@ void McpService::registerAudioTools() {
         t.name = "audio_editor";
         t.title = ba::i18n::traducir("mcp", "Abrir la interfaz del modulo");
         t.category = "audio_rack";
+        t.clase = Clase::Ui;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Abre (o cierra con abrir=false) la interfaz grafica completa de LSP del modulo en una "

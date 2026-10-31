@@ -29,11 +29,144 @@ Se activa y desactiva en Configuración → **Asistente (MCP)**.
 
 ## Qué puede hacer
 
-Unas 750 herramientas (el número cambia con cada versión: no se escribe acá
-para que no quede viejo). El inventario completo, con lo que dice cada una, sus etiquetas de búsqueda y
-en qué archivo vive: [`docs/mcp.json`](../mcp.json) (se regenera con
-`tools/docs/mcp-inventario.py --desde-codigo`, sin la app andando). Lo de abajo
-es un resumen por categoría.
+El número y la tabla que siguen salen del **registro** (F3-02): cada
+herramienta declara al registrarse su nombre, esquema, categoría (de ahí, los
+roles que la ven), **clase**, si es idempotente y en qué hilo corre;
+`tools/docs/mcp-inventario.py --desde-codigo` lo lee del código y escribe el
+inventario completo, [`docs/mcp.json`](../mcp.json) (lo que dice cada una, sus
+etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
+(en `make probar`) falla si no coinciden con el código.
+
+<!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
+
+**806 herramientas** en 55 categorías: 267 de lectura, 477 de escritura, 47 de aire y 15 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+
+| Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
+|---|---:|---:|---:|---:|---:|
+| Agentes automáticos (`agentes`) | 41 | 13 | 28 | 0 | 0 |
+| Disparadores (alertas) (`alertas`) | 13 | 5 | 8 | 0 | 0 |
+| Asamblea (preparar la sesión) (`asamblea`) | 3 | 1 | 2 | 0 | 0 |
+| Pestaña Asistente (`asistente`) | 7 | 2 | 5 | 0 | 0 |
+| Audio (`audio`) | 13 | 4 | 8 | 1 | 0 |
+| Rack de audio (LSP) (`audio_rack`) | 50 | 13 | 35 | 0 | 2 |
+| Ayuda (`ayuda`) | 3 | 3 | 0 | 0 | 0 |
+| Botonera y eventos (`botonera`) | 38 | 17 | 21 | 0 | 0 |
+| Cámaras PTZ (`camaras`) | 22 | 5 | 10 | 7 | 0 |
+| Central de conferencia (micrófonos de banca) (`conferencia`) | 33 | 9 | 19 | 5 | 0 |
+| Configuración (`config`) | 5 | 1 | 3 | 1 | 0 |
+| Configuraciones (cada una con lo suyo) (`configuraciones`) | 4 | 1 | 2 | 1 | 0 |
+| Control web (`control_web`) | 7 | 1 | 6 | 0 | 0 |
+| Cuentas (YouTube, Twitch, Facebook) (`cuentas`) | 5 | 3 | 2 | 0 | 0 |
+| Documentación del evento (`documentos`) | 10 | 3 | 7 | 0 | 0 |
+| Capas (DSK) (`dsk`) | 3 | 1 | 1 | 1 | 0 |
+| Entradas de video (`entradas`) | 11 | 5 | 6 | 0 | 0 |
+| El equipo (`equipo`) | 10 | 7 | 3 | 0 | 0 |
+| Dispositivos y equipos (`equipos`) | 10 | 4 | 6 | 0 | 0 |
+| Escenas (`escenas`) | 21 | 3 | 10 | 8 | 0 |
+| Estado (`estado`) | 5 | 3 | 2 | 0 | 0 |
+| Guion del evento (`evento`) | 40 | 16 | 24 | 0 | 0 |
+| Eventos (cada uno con todo lo suyo) (`eventos`) | 8 | 2 | 5 | 1 | 0 |
+| Facebook (`facebook`) | 13 | 3 | 10 | 0 | 0 |
+| Fuentes (`fuentes`) | 15 | 5 | 9 | 1 | 0 |
+| Gráficos animados (`graficos`) | 13 | 6 | 7 | 0 | 0 |
+| Histórico (`historico`) | 6 | 1 | 5 | 0 | 0 |
+| Documentos de identidad (`identidad`) | 2 | 2 | 0 | 0 | 0 |
+| Imágenes y video (visión) (`imagenes`) | 11 | 10 | 1 | 0 | 0 |
+| Interfaz de la app (`interfaz`) | 13 | 3 | 2 | 0 | 8 |
+| Carruseles de láminas (`laminas`) | 10 | 4 | 6 | 0 | 0 |
+| Línea de tiempo del evento (`linea`) | 18 | 5 | 7 | 6 | 0 |
+| Medios (imágenes, videos, música) (`medios`) | 8 | 4 | 4 | 0 | 0 |
+| Hablar con el operador (`operador`) | 5 | 2 | 3 | 0 | 0 |
+| Modo oradores (`oradores`) | 29 | 6 | 21 | 2 | 0 |
+| La gente del evento (`padron`) | 7 | 2 | 5 | 0 | 0 |
+| Pantallas externas (`pantallas`) | 16 | 6 | 10 | 0 | 0 |
+| Plugins de Python (`plugins`) | 18 | 7 | 10 | 0 | 1 |
+| Preguntas del público (`preguntas`) | 12 | 3 | 9 | 0 | 0 |
+| Teleprompter (`prompter`) | 8 | 3 | 5 | 0 | 0 |
+| Códigos QR (`qr`) | 9 | 5 | 4 | 0 | 0 |
+| Recetas (`recetas`) | 4 | 1 | 3 | 0 | 0 |
+| Registro (`registro`) | 5 | 2 | 3 | 0 | 0 |
+| Personas y rostros (`rostros`) | 10 | 5 | 5 | 0 | 0 |
+| Conferencia (videollamada con invitados) (`sala`) | 42 | 15 | 23 | 4 | 0 |
+| Salidas (`salidas`) | 22 | 5 | 12 | 5 | 0 |
+| Banca virtual (sesión remota) (`sesion`) | 13 | 2 | 11 | 0 | 0 |
+| Sistema (`sistema`) | 8 | 3 | 4 | 1 | 0 |
+| Tiempos del pipeline (`tiempos`) | 10 | 6 | 4 | 0 | 0 |
+| Registro de personas (tótems) (`totems`) | 12 | 3 | 9 | 0 | 0 |
+| Traducción en vivo (`traduccion`) | 21 | 7 | 14 | 0 | 0 |
+| Twitch (`twitch`) | 11 | 3 | 8 | 0 | 0 |
+| Ventanas y monitores (`ventanas`) | 5 | 1 | 0 | 0 | 4 |
+| Grafo de video (`video`) | 49 | 10 | 38 | 1 | 0 |
+| YouTube (`youtube`) | 19 | 5 | 12 | 2 | 0 |
+
+Las de **aire** (con la transmisión o la grabación andando, si las pide algo automático las confirma una persona; `cuando`: con qué argumentos cuentan):
+
+| Herramienta | Cuándo | Por qué |
+|---|---|---|
+| `aire_ftb` | al activar | manda la salida a negro |
+| `aire_placa` | al activar | tapa la salida con una placa |
+| `app_quit` | siempre | cierra el programa |
+| `audio_set` | master o programa | cambia el audio (mute del máster corta el sonido) |
+| `banca_al_aire` | banca directo | pone a un orador al aire (en directo corta la escena) |
+| `chat_destacar` | siempre | pone al aire un mensaje del público |
+| `chat_overlay_add` | chat en flujo | pone el chat del público en pantalla (en modo flujo, sin elegir) |
+| `configuracion_cambiar` | siempre | cambia de configuración (reinicia el programa: corta todo lo que sale) |
+| `dcn_cerrar_todos` | siempre | cierra los micrófonos de la sala |
+| `dcn_microfono` | siempre | abre o cierra el micrófono de una banca en la central de conferencia |
+| `dcn_modo` | siempre | cambia cómo se abren los micrófonos de la sala |
+| `dcn_orador_quitar` | siempre | saca a un orador de la lista (su micrófono se cierra) |
+| `dcn_siguiente` | siempre | le da la palabra (y el micrófono) al primero de la lista |
+| `dsk_mostrar` | siempre | sube o baja una capa (DSK) encima del programa |
+| `enfocar` | camara forzada | lleva una cámara a una banca, persona o posición (si está al aire, se ve) |
+| `evento_cambiar` | siempre | abre otro evento (reinicia el programa: corta todo lo que sale) |
+| `gateway_restart` | siempre | reinicia el gateway (corta a los invitados) |
+| `linea_adlib` | siempre | dispara una pieza de la línea (escena, gráfico, música) |
+| `linea_go` | siempre | entra el próximo paso de la línea de tiempo |
+| `linea_insertar` | siempre | mete un paso del estante en la línea (al aire, si se pide) |
+| `linea_ir` | siempre | entra otro paso de la línea de tiempo |
+| `linea_repetir` | siempre | vuelve a entrar el paso al aire |
+| `linea_soltar` | siempre | suelta el HOLD tras un corte: lo que se pasó de hora entra solo |
+| `participant_kick` | siempre | saca a un invitado de la conferencia |
+| `participant_talk` | siempre | abre o cierra el micrófono de un invitado |
+| `preview_al_aire` | siempre | pasa el preview al aire |
+| `proxy_configurar` | siempre | reinicia la conferencia (corta a los invitados) con el proxy nuevo |
+| `ptz_apuntar` | camara forzada | apunta una cámara (si está al aire, se ve) |
+| `ptz_encuadre` | camara forzada | reencuadra una cámara (si está al aire, se ve) |
+| `ptz_ir_posicion` | camara forzada | lleva una cámara a una posición (si está al aire, se ve) |
+| `ptz_mover` | camara forzada | mueve una cámara (si está al aire, se ve) |
+| `ptz_preset` | camara forzada | lleva una cámara a un preset (si está al aire, se ve) |
+| `ptz_seguir` | camara forzada | una cámara sigue a alguien (si está al aire, se ve) |
+| `record_stop` | siempre | corta la grabación |
+| `salida_borrar` | siempre | borra una salida (corta lo que sale de ella) |
+| `scene_cut` | siempre | corta la armada al aire |
+| `scene_delete` | siempre | borra una escena |
+| `scene_switch` | siempre | cambia la escena al aire |
+| `settings_set` | ajustes que cortan | cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan) |
+| `source_remove` | siempre | borra una fuente (puede estar al aire) |
+| `speaker_on_air` | sacar del aire | pone o saca oradores del aire |
+| `stream_destino_borrar` | siempre | borra un destino (si transmite, lo corta) |
+| `stream_start` | siempre | arranca o cambia la transmisión |
+| `stream_stop` | siempre | corta la transmisión |
+| `transicion_manual` | siempre | lleva la transición a mano (T-bar) |
+| `transition_set` | siempre | cambia la transición |
+| `video_reloj` | reloj nuevo | cambia el reloj del estudio (reinicia el motor: corta lo que sale) |
+
+<!-- /registro -->
+
+### Clases
+
+| Clase | Qué es | Qué hace el servidor |
+|---|---|---|
+| `lectura` | Solo mira: no cambia el estado | Sin aprobación ni en una sesión contaminada; no refresca las vistas |
+| `escritura` | Cambia el estado de la app, no lo que sale | Al terminar persiste y avisa a la interfaz; en una sesión contaminada (o con política «siempre») la aprueba una persona |
+| `aire` | Puede cambiar lo que sale (`porQueAire`; `aireSi`: con qué argumentos cuenta) | Además, con la transmisión o la grabación andando, si la pide algo automático la confirma **siempre** una persona (ver «Seguridad → Guardas de aire») |
+| `ui` | Mueve la interfaz del operador (páginas, ventanas, avisos) | Como escritura; F3-03 la corre en el hilo de la interfaz |
+
+El hilo (`foto`, `control`, `interfaz`) sale de la clase salvo que la
+herramienta lo declare (las capturas de la vista: `interfaz`). Hoy todas
+corren en el hilo de la app; F3-03 las despacha por esto.
+
+Lo de abajo es un resumen por categoría, con las herramientas principales.
 
 | Categoría | Herramientas |
 |---|---|
@@ -63,7 +196,7 @@ es un resumen por categoría.
 | Medios | `media_list`, `media_find` (sin importar tildes ni mayúsculas), `media_view` (ver la imagen), `medio_poner` (a una escena) |
 | Operador | `operator_message` (barra de abajo, color por prioridad), `operator_ask` (pregunta con botones/texto), `operator_messages`, `guest_chat_pending`, `guest_reply_suggest` (respuestas sugeridas, un click) |
 | Salvaguarda | `security_status` (si esta sesión necesita aprobación) |
-| Línea de tiempo del evento | Ver: `linea_ver` (pronóstico compacto por bloques, pasos o piezas, con ventana de horas), `linea_estado` (al aire, próximo, HOLD, over/under, próximo hard start, retoma), `linea_recorrido` (lo emitido), `linea_revisar`. Editar: `linea_editar` (lote atómico con `probar`: diff y pronóstico; aplicado deja `Respaldos/linea-<n>.json`), `linea_deshacer`, `linea_ajustar` (llegar a una hora: recortes y salteos propuestos, nunca aplica). Vivo: `linea_go`, `linea_hold`, `linea_siguiente` / `_anterior` (mover el próximo), `linea_saltar`, `linea_ir` (con reposición de estado), `linea_repetir`, `linea_insertar` (del estante), `linea_adlib`. Tras un corte: `linea_retomar` (la descripción; `simular` para probar) y `linea_soltar`. Las que cambian el aire (go, ir, repetir, insertar, adlib, soltar) están en la lista de aire |
+| Línea de tiempo del evento | Ver: `linea_ver` (pronóstico compacto por bloques, pasos o piezas, con ventana de horas), `linea_estado` (al aire, próximo, HOLD, over/under, próximo hard start, retoma), `linea_recorrido` (lo emitido), `linea_revisar`. Editar: `linea_editar` (lote atómico con `probar`: diff y pronóstico; aplicado deja `Respaldos/linea-<n>.json`), `linea_deshacer`, `linea_ajustar` (llegar a una hora: recortes y salteos propuestos, nunca aplica). Vivo: `linea_go`, `linea_hold`, `linea_siguiente` / `_anterior` (mover el próximo), `linea_saltar`, `linea_ir` (con reposición de estado), `linea_repetir`, `linea_insertar` (del estante), `linea_adlib`. Tras un corte: `linea_retomar` (la descripción; `simular` para probar) y `linea_soltar`. Las que cambian el aire (go, ir, repetir, insertar, adlib, soltar) son de clase `aire` |
 
 ## Varias salidas (`salida`)
 
@@ -263,6 +396,23 @@ invitados pide aprobación con la acción exacta; rechazada, no se ejecuta;
 aprobada, sí; otra sesión no se contamina; lectura y preguntas no piden
 aprobación; políticas siempre/nunca; sin nadie a quien preguntar, bloqueado.
 
+### Guardas de aire
+
+Con la transmisión o la grabación andando, una herramienta de clase `aire`
+pedida por algo automático (el asistente, un plugin, una receta, un
+disparador, la voz) espera **siempre** la confirmación de una persona, sin
+importar la política, el rol ni la contaminación. Lo decide el despachador
+(`McpCore::callTool`) mirando la clase **declarada** de la herramienta, no una
+lista de nombres: la que cambia lo que sale lo dice al registrarse
+(`t.clase = Clase::Aire`, con su `porQueAire` y, si cuenta solo con ciertos
+argumentos, `aireSi`: el mute del máster, sacar a un orador, los ajustes que
+rearman el motor, una cámara PTZ forzada sobre la que está al aire…). La tabla
+de arriba es esa lista. `Config/mcp-aire.json` (o `mcp_aire_ajustar`) suma
+otras; las declaradas no se pueden bajar. En vivo, la voz y los disparadores
+solo leen o hacen lo reversible sin preguntar (`Tool::reversible`: el volumen,
+el prompter, parar una cámara). Una herramienta de salida (`porSalida`) es de
+aire si sale **su** salida.
+
 - Solo `127.0.0.1`; token obligatorio (comparación en tiempo constante);
   se rechaza un `Origin` que no sea localhost (defensa contra DNS rebinding).
 - Quien tenga el token maneja casi todo (con las guardas de aire: lo que
@@ -281,7 +431,17 @@ aprobación; políticas siempre/nunca; sin nadie a quien preguntar, bloqueado.
 
 `test_mcp`: protocolo (negociación, herramientas, validación, ayuda,
 recursos, prompts, lotes), transporte HTTP (token, Origin, 202/405/404/400,
-sesión) y el puente `ba-mcp` de punta a punta.
+sesión) y el puente `ba-mcp` de punta a punta. Y **cada herramienta del
+registro** (`docs/mcp.json`) por el despachador de verdad: esquema bien
+formado, sin un obligatorio o con un tipo equivocado no corre, un argumento
+que no existe se avisa, y las de `lectura` no refrescan ni persisten nada ni
+piden aprobación (la clase declarada manda); las de `aire` piden confirmación
+al aire y las demás no.
+
+`test_mcp_registro` (`tools/docs/mcp-inventario.py --verificar`): `docs/mcp.json`
+y la tabla de arriba son lo que sale del código, toda herramienta declara su
+clase con un literal, las de aire dicen por qué, ninguna sin categoría ni
+etiquetas.
 
 `test_mcp_busqueda`: el buscador. Toda herramienta con etiquetas, las preguntas
 del corpus compartido entre las 8 primeras, y la batería de intención de STE-ES

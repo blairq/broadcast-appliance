@@ -68,7 +68,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "preguntas_ver";
         t.title = ba::i18n::traducir("mcp", "La cola de preguntas del publico");
         t.category = "preguntas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Todas las preguntas que mando el publico, en el orden en que conviene mirarlas, con el "
             "recuento y cual es la proxima.");
@@ -95,6 +95,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "pregunta_moderar";
         t.title = ba::i18n::traducir("mcp", "Elegir, sacar al aire o descartar una pregunta");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Mueve una pregunta por la cola: elegirla para preguntarla, ponerla al aire, darla por "
             "respondida o descartarla.");
@@ -133,6 +134,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "pregunta_sumar";
         t.title = ba::i18n::traducir("mcp", "Meter en la cola una pregunta que llego por otro lado");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Agrega a la cola una pregunta que no vino de la pagina del publico: del chat de la conferencia, "
             "del de YouTube, o dicha a viva voz en el salon.");
@@ -166,6 +168,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "quorum_regla";
         t.title = ba::i18n::traducir("mcp", "Reglas de quorum y mayoria");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Las reglas del cuerpo: `miembros` (cuantos lo integran; 0 = los del padron con voto), `minimo` para sesionar "
                         "(\"mitad_mas_uno\" o un numero) y la `mayoria` de fabrica para aprobar (simple, absoluta, "
                         "dos_tercios_presentes, dos_tercios_miembros). Sin argumentos, las muestra.");
@@ -186,7 +189,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "quorum_presentes";
         t.title = ba::i18n::traducir("mcp", "Hay quorum?");
         t.category = "preguntas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Si hay QUÓRUM ahora: cuántos presentes con voto hay y cuántos hacen falta; no es una votación.");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.quorum().estado())); };
         core.addTool(std::move(t));
@@ -196,6 +199,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "votacion_resultado_oficial";
         t.title = ba::i18n::traducir("mcp", "Cargar el resultado oficial de una votacion");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "El resultado OFICIAL (el del tablero del recinto o el que lee Secretaria), que es el que va al "
                         "acta: `asunto`, `afirmativos`, `negativos`, `abstenciones` (o `csv` nominal «nombre;voto» por "
                         "linea), `mayoria` (si no, la de quorum_regla) y `punto` del orden del dia. Calcula si se aprobo "
@@ -227,6 +231,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "chat_a_preguntas";
         t.title = ba::i18n::traducir("mcp", "Sumar un mensaje del chat a las preguntas");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Pasa un mensaje del chat del público a la cola de preguntas, por su key.");
         t.inputSchema = {{"type", "object"}, {"required", {"mensaje_id"}}, {"properties", {{"mensaje_id", {{"type", "string"}}}}}};
         t.run = [&vm, contestarSala](const json& a, Done done) {
@@ -243,6 +248,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "votacion_abrir";
         t.title = ba::i18n::traducir("mcp", "Abrir una votacion o una encuesta");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Pone una pregunta a votar en la pagina del publico, con sus opciones.");
         t.details = ba::i18n::traducir("mcp", "SON DOS COSAS DISTINTAS Y NO SE MEZCLAN:\n\n"
                     "- `modo: encuesta` — vota cualquiera que tenga el enlace, una vez por telefono. Es "
@@ -300,6 +306,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "votacion_recuento";
         t.title = ba::i18n::traducir("mcp", "Como va la votacion, y cerrarla");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description =
              ba::i18n::traducir("mcp", "El recuento de la VOTACIÓN o encuesta: cuántos sí y cuántos no, quiénes votaron y quiénes faltan; no "
             "es el quórum. Con `cerrar` la da por terminada.");
@@ -312,7 +319,6 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     "con la decision equivocada.\n\n"
                     "Con `historial` vienen ademas TODAS las que se cerraron en este evento, que es lo que "
                     "va al acta: una asamblea vota varios puntos y el acta los lleva a todos, no al ultimo.");
-        t.readOnly = false;
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -344,7 +350,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "invitado_chequeo";
         t.title = ba::i18n::traducir("mcp", "Si los que esperan estan listos para salir al aire");
         t.category = "preguntas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Para cada persona que espera en el lobby: si su camara y su microfono sirven, y que "
                         "decirle cuando no.");
         t.details = ba::i18n::traducir("mcp", "LA CAUSA NUMERO UNO DE QUE UN EVENTO HIBRIDO SE CAIGA es el orador que prueba el "
@@ -429,6 +435,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "evento_acta";
         t.title = ba::i18n::traducir("mcp", "El acta del evento: quienes estuvieron y que se decidio");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Arma el acta con el padron de presentes, el quorum y todas las votaciones que se "
                         "cerraron, y la guarda en la carpeta del evento.");
         t.details =
@@ -487,6 +494,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.name = "publico_pagina";
         t.title = ba::i18n::traducir("mcp", "La pagina del publico: enlace, QR y como se ve");
         t.category = "preguntas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "El enlace con QR de la pagina donde el publico pregunta y vota, y el titulo y el fondo "
             "que esa pagina muestra.");

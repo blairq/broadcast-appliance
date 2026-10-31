@@ -64,7 +64,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_listar";
         t.title = ba::i18n::traducir("mcp", "Gráficos que hay");
         t.category = "graficos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los gráficos disponibles, con los parámetros que acepta cada uno.");
         t.details =
             ba::i18n::traducir("mcp", "Un gráfico es una carpeta con `grafico.json` (qué parámetros acepta) y, o bien una "
@@ -92,7 +92,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_probar";
         t.title = ba::i18n::traducir("mcp", "Ver cómo queda un gráfico");
         t.category = "graficos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Dibuja el gráfico en varios instantes de su animación y devuelve las imágenes. "
                         "No sale al aire.");
         t.details =
@@ -147,6 +147,7 @@ void McpService::registerGraficoTools() {
         t.porSalida = true; // `armar`: en el preview de esa salida
         t.title = ba::i18n::traducir("mcp", "Poner un gráfico al aire");
         t.category = "graficos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Dibuja el gráfico y lo reproduce en una fuente «Gráfico animado» de una escena. "
                         "ESTO SE VE AL AIRE si esa escena está en el programa.");
         t.details =
@@ -266,6 +267,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_ocultar";
         t.title = ba::i18n::traducir("mcp", "Sacar un gráfico");
         t.category = "graficos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Deja la fuente transparente.");
         t.details = ba::i18n::traducir("mcp", "No borra la fuente de la escena: la deja vacía. Volver a mostrarla es "
                     "grafico_mostrar de nuevo.");
@@ -286,7 +288,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_en_escena";
         t.title = ba::i18n::traducir("mcp", "Fuentes de gráfico que hay");
         t.category = "graficos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las fuentes «Gráfico animado» puestas en escenas, con su id y su tamaño.");
         t.details = ba::i18n::traducir("mcp", "El `id` es lo que piden grafico_mostrar y grafico_ocultar. Si está vacío, hay "
                     "que agregar una fuente de tipo ba_grafico a alguna escena primero.");
@@ -309,6 +311,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_actualizar";
         t.title = ba::i18n::traducir("mcp", "Cambiar los valores de un gráfico al aire");
         t.category = "graficos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Le cambia los valores al gráfico que ya está en pantalla en una fuente SIN hacerlo entrar de "
                         "nuevo. Con tortas y barras, los valores se mueven de los de antes a los nuevos (una votación "
                         "en vivo).");
@@ -355,7 +358,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_medios";
         t.title = ba::i18n::traducir("mcp", "Medios de un gráfico");
         t.category = "graficos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los GIF, imágenes y videos (ya pasados a cuadros) que tiene un gráfico en su carpeta medios/.");
         t.details = ba::i18n::traducir("mcp", "`archivo` es lo que va en la capa `medio` del declarativo (o en `Medio { source }` de un QML). "
                     "`alfa: false` en un video: salió opaco (va a tapar lo de atrás).");
@@ -377,6 +380,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_medio_agregar";
         t.title = ba::i18n::traducir("mcp", "Agregar un GIF o un video con alfa a un gráfico");
         t.category = "graficos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Copia un GIF, una imagen o una carpeta de PNG al gráfico, o convierte un video (WebM VP9 con "
                         "alfa, ProRes 4444, MP4…) a cuadros con su transparencia. Después va en una capa `medio`.");
         t.details =
@@ -418,6 +422,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_medio_quitar";
         t.title = ba::i18n::traducir("mcp", "Sacar un medio de un gráfico");
         t.category = "graficos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Saca un GIF o un video de la carpeta medios/ del gráfico (va a su papelera, medios/.papelera).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -448,7 +453,7 @@ void McpService::registerGraficoTools() {
         t.name = "rotulo_vinculos";
         t.title = ba::i18n::traducir("mcp", "Rotulos que se escriben solos");
         t.category = "graficos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los vinculos que hay y, sobre todo, los ORIGENES que se pueden usar.");
         t.details = ba::i18n::traducir("mcp", "Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se "
                     "mantiene solo: cuando lo que resuelve cambia (cambio el orador, cambio la escena), el "
@@ -471,6 +476,7 @@ void McpService::registerGraficoTools() {
         t.name = "rotulo_vincular";
         t.title = ba::i18n::traducir("mcp", "Que un rotulo se escriba solo");
         t.category = "graficos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Pone el nombre y el cargo de quien habla en pantalla, y lo mantiene al dia solo. "
                         "Ata los campos de un grafico a origenes que cambian solos.");
         t.details =
@@ -526,6 +532,7 @@ void McpService::registerGraficoTools() {
         t.name = "rotulo_desvincular";
         t.title = ba::i18n::traducir("mcp", "Sacar o apagar un vinculo");
         t.category = "graficos";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Quita un vinculo, o lo apaga sin borrarlo.");
         t.details = ba::i18n::traducir("mcp", "En vivo, APAGARLO es mas seguro que borrarlo: se vuelve a prender con una sola "
                     "cosa y no hay que acordarse de como estaba escrito. Al prenderlo otra vez sale "
@@ -557,7 +564,7 @@ void McpService::registerGraficoTools() {
         t.name = "grafico_repertorio";
         t.title = ba::i18n::traducir("mcp", "Qué se puede usar en un gráfico declarativo");
         t.category = "graficos";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las capas, las formas de ubicarlas y los efectos de entrada y salida.");
         t.details = ba::i18n::traducir("mcp", "Lo declara el propio motor, así que esto no se desincroniza del código.\n\n"
                     "Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene hacer "

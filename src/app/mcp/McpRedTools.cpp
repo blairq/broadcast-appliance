@@ -37,7 +37,7 @@ void McpService::registerRedTools() {
         t.name = "red_escanear";
         t.title = ba::i18n::traducir("mcp", "Buscar cámaras y equipos de video en la red");
         t.category = "entradas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description = ba::i18n::traducir("mcp", "Escanea la red local (unos 10 s): ONVIF, los puertos de video de toda la subred "
                         "(RTSP, web, RTMP, NDI, los "
@@ -67,6 +67,7 @@ void McpService::registerRedTools() {
         t.name = "camara_credenciales";
         t.title = ba::i18n::traducir("mcp", "Usuario y clave de cámaras de la red");
         t.category = "entradas";
+        t.clase = Clase::Escritura;
         t.description =
             //: no traducir [OPERADOR]
             ba::i18n::traducir("mcp", "Con `pedir: true` (lo correcto): muestra al operador UN formulario seguro en la barra con "
@@ -203,7 +204,7 @@ void McpService::registerRedTools() {
         t.name = "camara_ficha";
         t.title = ba::i18n::traducir("mcp", "Todo sobre una cámara de la red y cómo conectarla");
         t.category = "entradas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description = ba::i18n::traducir("mcp", "Con la clave guardada: ONVIF completo —el equipo (marca, modelo, firmware), los "
                         "perfiles de video (códec, "
@@ -232,6 +233,7 @@ void McpService::registerRedTools() {
         t.name = "camara_agregar";
         t.title = ba::i18n::traducir("mcp", "Conectar una cámara de la red al estudio");
         t.category = "entradas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Conecta la cámara `ip` como entrada de video sincronizada (con su clave guardada): "
                         "la URL del `perfil` "
                         "ONVIF (o `url`, o la del plan de camara_ficha), con la `normalizar` y `latencia_ms` "
@@ -289,7 +291,7 @@ void McpService::registerRedTools() {
         t.name = "camara_urls";
         t.title = ba::i18n::traducir("mcp", "Volver a probar las URLs de una cámara");
         t.category = "entradas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Vuelve a probar las URLs RTSP típicas de la cámara `ip` (con la clave guardada, si hay): útil "

@@ -53,7 +53,7 @@ void McpService::registerPantallaTools() {
         t.name = "pantalla_listar";
         t.title = ba::i18n::traducir("mcp", "Que pantallas hay");
         t.category = "pantallas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Que televisores conoce el sistema y como esta cada uno: libre, ocupado por nosotros, "
             "tomado por otra aplicacion, o sin responder.");
@@ -97,7 +97,7 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "pantalla_buscar";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.title = ba::i18n::traducir("mcp", "Buscar televisores en la red");
         t.category = "pantallas";
         t.description = ba::i18n::traducir("mcp", "Busca Chromecast en la red local (tarda unos segundos). Las que aparezcan quedan "
@@ -113,6 +113,7 @@ void McpService::registerPantallaTools() {
         t.name = "pantalla_mostrar";
         t.title = ba::i18n::traducir("mcp", "Mostrar algo en una pantalla");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un "
             "contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
@@ -218,6 +219,7 @@ void McpService::registerPantallaTools() {
         t.name = "pantalla_fijar";
         t.title = ba::i18n::traducir("mcp", "Que una pantalla muestre siempre lo mismo");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Deja fijo lo que esa pantalla tiene que mostrar: se lo manda ahora y CADA VEZ que el aparato "
             "vuelva a aparecer (se apago de noche, se reinicio, le cambio la direccion). Con `quitar` en "
@@ -271,6 +273,7 @@ void McpService::registerPantallaTools() {
         t.name = "pantalla_olvidar";
         t.title = ba::i18n::traducir("mcp", "Olvidar una pantalla");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Saca la pantalla de la lista de conocidas (con su nombre y lo fijado). Si vuelve a aparecer en "
                         "la red, se la ve como nueva.");
@@ -288,6 +291,7 @@ void McpService::registerPantallaTools() {
         t.name = "pantalla_renombrar";
         t.title = ba::i18n::traducir("mcp", "Cambiarle el nombre a una pantalla");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice mas "
                         "que «Percee TV», y es como la vas a nombrar despues.");
@@ -312,6 +316,7 @@ void McpService::registerPantallaTools() {
         t.name = "pantalla_agregar";
         t.title = ba::i18n::traducir("mcp", "Agregar una pantalla a mano");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Para cuando la busqueda en la red no llega (otra VLAN, el firewall): se agrega con "
                         "su direccion IP. Tiene que ser un aparato que hable Google Cast.");
         t.inputSchema = {{"type", "object"},
@@ -332,7 +337,7 @@ void McpService::registerPantallaTools() {
         t.name = "carrusel_listar";
         t.title = ba::i18n::traducir("mcp", "Los carruseles que hay");
         t.category = "pantallas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Un carrusel es una lista de cosas que rotan en una pantalla, cada una con sus "
                         "segundos. Devuelve los que hay con sus pasos y cuanto dura la vuelta entera.");
         t.run = [p](const json&, Done done) {
@@ -361,6 +366,7 @@ void McpService::registerPantallaTools() {
         t.name = "carrusel_armar";
         t.title = ba::i18n::traducir("mcp", "Armar o cambiar un carrusel");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Crea un carrusel con sus pasos, o le cambia los pasos a uno que ya existe (`id`). Cada paso "
             "es un `tipo` de contenido (los mismos de pantalla_mostrar) con sus datos y sus `segundos`. "
@@ -450,6 +456,7 @@ void McpService::registerPantallaTools() {
         t.name = "pantalla_parar";
         t.title = ba::i18n::traducir("mcp", "Dejar de mostrar");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "La pantalla vuelve a lo que tenia antes (su fondo de pantalla).");
         t.inputSchema = {{"type", "object"},
@@ -480,7 +487,7 @@ void McpService::registerPantallaTools() {
         t.name = "superficie_listar";
         t.title = ba::i18n::traducir("mcp", "Que paginas del aparato estan vivas");
         t.category = "pantallas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, "
             "un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.");
@@ -515,6 +522,7 @@ void McpService::registerPantallaTools() {
         t.name = "superficie_mostrar";
         t.title = ba::i18n::traducir("mcp", "Cambiarle la pagina a una superficie viva");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Le cambia a una superficie lo que muestra SIN volver a castearla: viaja por el canal de "
             "control que la propia pagina tiene abierto, asi que el cambio es inmediato y sin parpadeo. "
@@ -573,7 +581,7 @@ void McpService::registerPantallaTools() {
         t.name = "catalogo_listar";
         t.title = ba::i18n::traducir("mcp", "Que se puede mostrar");
         t.category = "pantallas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Todo lo que se puede poner en un monitor de la maquina, en una ventana suelta o en una TV de "
             "la red: el programa, el preview, cada escena, cada multiview, los paneles (padron, preguntas, "
@@ -612,7 +620,7 @@ void McpService::registerPantallaTools() {
         t.name = "monitor_listar";
         t.title = ba::i18n::traducir("mcp", "Que monitores hay y que muestra cada uno");
         t.category = "pantallas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), "
             "con su id estable, resolucion, si es el principal, y que muestra cada uno (Salidas, "
@@ -653,6 +661,7 @@ void McpService::registerPantallaTools() {
         t.name = "monitor_asignar";
         t.title = ba::i18n::traducir("mcp", "Poner algo en un monitor");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
             ba::i18n::traducir("mcp", "Deja FIJO en un monitor de esta maquina una cosa del catalogo (el programa, una escena, una "
@@ -698,6 +707,7 @@ void McpService::registerPantallaTools() {
         t.name = "monitor_quitar";
         t.title = ba::i18n::traducir("mcp", "Sacar lo que muestra un monitor");
         t.category = "pantallas";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Deja un monitor de esta maquina sin nada (se cierra su ventana). Con un monitor "
                         "recordado que no esta conectado, ademas deja de esperarlo.");

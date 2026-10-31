@@ -76,7 +76,7 @@ void McpService::registerVideoTools() {
         t.name = "video_grafo";
         t.title = ba::i18n::traducir("mcp", "El grafo de video");
         t.category = "video";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Sin `entrada`: todo el estudio (cada entrada con su sub-grafo, los nodos del "
                         "estudio y los cables "
                         "entre ellos) y las tarjetas propias. Con `entrada`: su sub-grafo, con los nodos de "
@@ -120,7 +120,7 @@ void McpService::registerVideoTools() {
         t.name = "video_filtros";
         t.title = ba::i18n::traducir("mcp", "Los controles de una tarjeta");
         t.category = "video";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Con `id` de una tarjeta (un módulo de GStreamer, o una Mezcla de GStreamer): sus controles (nombre, "
             "tipo, valor, rango, opciones). Con `puerto` (una Mezcla de GStreamer): los de esa entrada (xpos, ypos, "
@@ -144,7 +144,7 @@ void McpService::registerVideoTools() {
         t.name = "video_modulos";
         t.title = ba::i18n::traducir("mcp", "Los módulos de video de GStreamer (catálogo documentado)");
         t.category = "video";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "El catálogo de módulos de video de GStreamer que trae el programa, con su "
                         "documentación en castellano "
                         "(para qué sirven y cómo se usan en vivo). Sin argumentos: un resumen por categoría. "
@@ -230,6 +230,7 @@ void McpService::registerVideoTools() {
         t.name = "video_entrada_virtual";
         t.title = ba::i18n::traducir("mcp", "Crear una entrada virtual (barras, negro, un pipeline de GStreamer)");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Sin `nombre`: las entradas virtuales que hay (barras HD, barras 75 %, barras con la hora, "
             "negro, "
@@ -272,6 +273,7 @@ void McpService::registerVideoTools() {
         t.name = "video_tarjeta_agregar";
         t.title = ba::i18n::traducir("mcp", "Agregar una tarjeta de video");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la "
             "`entrada` "
@@ -392,7 +394,7 @@ void McpService::registerVideoTools() {
         t.name = "video_tarjeta_ayuda";
         t.title = ba::i18n::traducir("mcp", "Ayuda de un tipo de tarjeta");
         t.category = "video";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Qué hace un tipo de tarjeta de video, cada parámetro (tipo, rango, opciones, de fábrica) y qué "
             "eventos de GStreamer manda y escucha. Con Rostros, además, cómo se arma el texto del overlay. Sin "
@@ -417,6 +419,7 @@ void McpService::registerVideoTools() {
         t.name = "video_tarjeta_mover";
         t.title = ba::i18n::traducir("mcp", "Mover una tarjeta en la cadena");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Lleva la tarjeta `id` a otro lugar de la cadena de su entrada: después de `despues` (el id de otra "
             "tarjeta, o de la entrada para ponerla primera; vacío = justo antes de la escena), o un lugar antes "
@@ -451,6 +454,7 @@ void McpService::registerVideoTools() {
         t.destructive = true;
         t.title = ba::i18n::traducir("mcp", "Quitar una tarjeta de video");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Quita la tarjeta `id`: un filtro se puentea (lo de antes queda unido con lo de después).");
         t.inputSchema = {{"type", "object"},
@@ -472,6 +476,7 @@ void McpService::registerVideoTools() {
         t.name = "video_tarjeta_ajustar";
         t.title = ba::i18n::traducir("mcp", "Ajustar una tarjeta de video");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su "
                         "`etiqueta`. Un módulo de GStreamer: `{\"propiedades\": {…}}` (se "
@@ -504,6 +509,7 @@ void McpService::registerVideoTools() {
         t.name = "video_cable";
         t.title = ba::i18n::traducir("mcp", "Conectar o desconectar en el grafo de video");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Un cable de `desde` a `hacia` (cualquier par de tarjetas del estudio, aunque sean de entradas "
             "distintas). `entrada`: el puerto de `hacia` (vacío = el primero; en un compositor, uno nuevo). "
@@ -544,6 +550,7 @@ void McpService::registerVideoTools() {
         t.name = "video_controlador";
         t.title = ba::i18n::traducir("mcp", "Manejar tarjetas de varias entradas con un controlador");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Un controlador es un nodo del estudio con el molde de una tarjeta: las tarjetas conectadas a su "
             "salida "
@@ -598,6 +605,7 @@ void McpService::registerVideoTools() {
         t.name = "video_salida_a_escena";
         t.title = ba::i18n::traducir("mcp", "Poner una salida, un compositor o una mezcla del grafo en una escena");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Pone la tarjeta salida `id` (o un compositor, una panorámica o una mezcla) como fuente en `escena` (obligatoria: nunca la "
             "del aire sin "
@@ -623,6 +631,7 @@ void McpService::registerVideoTools() {
         t.destructive = true;
         t.title = ba::i18n::traducir("mcp", "Volver el video de una entrada a como vino");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Deja la `entrada` en «entrada -> escena»: saca sus tarjetas y lo que llegaba a su "
                         "escena desde afuera.");
         t.inputSchema = {
@@ -646,6 +655,7 @@ void McpService::registerVideoTools() {
         t.name = "video_pipeline";
         t.title = ba::i18n::traducir("mcp", "Armar la cadena de tarjetas de una entrada (en una llamada)");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Arma, en orden, las tarjetas de la `entrada` (de la cámara hacia la escena) en UNA llamada y "
             "valida "
@@ -797,6 +807,7 @@ void McpService::registerVideoTools() {
         t.name = "video_mosaico";
         t.title = ba::i18n::traducir("mcp", "Mosaico, imagen en imagen o lado a lado de varias entradas (en una llamada)");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Junta `entradas` en una `escena` (si no existe, la crea) en UNA llamada: crea el compositor (o "
             "rearma el que se llame `nombre`), "
@@ -859,6 +870,7 @@ void McpService::registerVideoTools() {
         t.name = "video_panoramica";
         t.title = ba::i18n::traducir("mcp", "Unir varias cámaras en una imagen (panorámica o 360), en una llamada");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Une `camaras` (de 1 a 8 entradas, un stream cada una, en orden: la primera es la lente 1) en una "
             "sola imagen, todo en la placa: la tarjeta Panorámica del estudio (o rearma la que se llame "
@@ -907,6 +919,7 @@ void McpService::registerVideoTools() {
         t.name = "video_ordenar";
         t.title = ba::i18n::traducir("mcp", "Acomodar las tarjetas del grafo de video");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Acomoda las tarjetas del grafo (una franja por entrada, en columnas según la cadena; el botón "
             "«Ordenar» de la página Video). No cambia ninguna conexión.");
@@ -923,7 +936,7 @@ void McpService::registerVideoTools() {
         t.name = "motor_mapa";
         t.title = ba::i18n::traducir("mcp", "Dónde pasa el video (y el audio) de la GPU a la CPU, pipeline por pipeline");
         t.category = "video";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
             "salidas): cada enlace con la memoria negociada de verdad (GLMemory, D3D11Memory, VAMemory, "
@@ -967,7 +980,7 @@ void McpService::registerVideoTools() {
         t.name = "video_estado";
         t.title = ba::i18n::traducir("mcp", "Las entradas de video y cómo está cada una (y qué le pasa)");
         t.category = "video";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Sin `entrada`: LISTA todas las entradas de video (cámaras, red, virtuales) con su diagnóstico "
             "resumido. Con `entrada`: tamaño, cuadros por segundo "
@@ -1051,6 +1064,7 @@ void McpService::registerVideoTools() {
         t.name = "video_entrada_red";
         t.title = ba::i18n::traducir("mcp", "Recibir un stream de red (SRT, RTMP, RTSP, UDP, HTTP) sincronizado");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Crea una entrada de video (y audio) desde `uri`: srt://host:puerto (o "
                         "srt://:puerto?mode=listener para "
                         "recibir), rtmp://servidor/app/clave, rtsp://camara/stream, udp://@:5000, "
@@ -1126,6 +1140,7 @@ void McpService::registerVideoTools() {
         t.name = "entrada_control";
         t.title = ba::i18n::traducir("mcp", "Mandar un evento de control a la cadena de GStreamer de una entrada");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "El canal de control de las entradas de GStreamer: `control` (un objeto plano: texto, números, sí/no) "
             "viaja por la cadena de la entrada como evento estándar de GStreamer «ba/control» (personalizado, hacia "
@@ -1150,6 +1165,7 @@ void McpService::registerVideoTools() {
         t.name = "superres_programador";
         t.title = ba::i18n::traducir("mcp", "Programador de superresolución: qué cámaras usan la red según programa y preview");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven "
             "grandes: el programador mira el programa y el preview (la escena armada) y pone cada cámara en activo "
@@ -1194,6 +1210,7 @@ void McpService::registerVideoTools() {
         t.name = "entrada_filtros_audio";
         t.title = ba::i18n::traducir("mcp", "Filtros de audio de una entrada (en su cadena de GStreamer)");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Pone (o saca, con una lista vacía) los filtros de AUDIO de una entrada de GStreamer (red, pipeline, "
             "plugin): elementos de GStreamer en la cadena de su audio, en orden. Para un plugin de Python de "
@@ -1228,6 +1245,7 @@ void McpService::registerVideoTools() {
         t.name = "estudio_latencia";
         t.title = ba::i18n::traducir("mcp", "Sincronía del estudio: la latencia, quién la marca y cada entrada");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "El estado de la sincronía. Todas las entradas SINCRONIZADAS (clase «sala»: cámaras, capturadoras, "
             "micrófonos de la sala) salen alineadas entre sí y con el audio: el estudio espera a la más lenta. Devuelve:\n"
@@ -1278,6 +1296,7 @@ void McpService::registerVideoTools() {
         t.name = "sincronia_clase";
         t.title = ba::i18n::traducir("mcp", "Si una entrada se sincroniza con la sala o va con su propia demora");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "La clase de sincronía de una `entrada`:\n"
             "- `sala`: sincronizada. Marca la latencia del estudio (el estudio espera a la más lenta de estas) y "
@@ -1310,6 +1329,7 @@ void McpService::registerVideoTools() {
         t.name = "automixer";
         t.title = ba::i18n::traducir("mcp", "Automixer de mesa redonda (micrófonos de las bancas)");
         t.category = "audio";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Automixer estilo Dugan para una mesa de micrófonos: el que habla pasa al frente, los demás bajan y "
             "la suma queda acotada (no se suman ruido ni retorno al abrir muchos). Corre en GStreamer, en la "
@@ -1354,7 +1374,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_estado";
             t.title = ba::i18n::traducir("mcp", "Superresolución: motores, modelos y el trabajo en curso");
             t.category = "video";
-            t.readOnly = true;
+            t.clase = Clase::Lectura;
             t.description = ba::i18n::traducir("mcp", "Qué motores de superresolución hay en este sistema (apple: VideoToolbox macOS "
                             "26, ~3 ms; fsr: FSR 1 de AMD, "
                             "cualquier GPU, sin red; onnx: una red ONNX), los modelos ONNX que hay (red "
@@ -1386,6 +1406,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_tarjeta";
             t.title = ba::i18n::traducir("mcp", "Poner una tarjeta de superresolución (con un plugin) en una entrada");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Una TARJETA del grafo de video de `entrada` (cámara, red o virtual) que agranda x2; lo que la "
                 "sigue trabaja al doble y la escena la recibe grande. Lo de fábrica: `plugin`, el id de un plugin "
@@ -1441,7 +1462,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_plugins";
             t.title = ba::i18n::traducir("mcp", "Plugins de superresolución: cuáles hay, cuáles están instalados y cuáles sirven acá");
             t.category = "video";
-            t.readOnly = true;
+            t.clase = Clase::Lectura;
             t.description =
                 ba::i18n::traducir("mcp", "Los plugins de superresolución: los del catálogo (redes como Real-ESRGAN, LSDIR, NomosUni, "
                 "SPAN; shaders como FSRCNNX y Anime4K; los integrados apple y fsr) y los instalados que no están en "
@@ -1460,6 +1481,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_plugin_elemento";
             t.title = ba::i18n::traducir("mcp", "Crear un plugin de superresolución propio con cualquier elemento de GStreamer");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/funciones/SUPERRESOLUCION.md): cualquier "
                 "elemento de GStreamer —de GStreamer o propio, con su biblioteca en Datos/Modelos/superres/<id>/gst/— "
@@ -1494,6 +1516,7 @@ void McpService::registerVideoTools() {
             t.destructive = true;
             t.title = ba::i18n::traducir("mcp", "Borrar un plugin de superresolución instalado");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description = ba::i18n::traducir("mcp", "Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un "
                             "shader o un plugin propio. Los del catálogo se pueden volver a instalar.");
             t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
@@ -1508,7 +1531,7 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_variantes";
-            t.readOnly = true;
+            t.clase = Clase::Lectura;
             t.title = ba::i18n::traducir("mcp", "Ver las variantes de las redes (compiladas para un tamaño fijo)");
             t.category = "video";
             t.description =
@@ -1534,6 +1557,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_variante_crear";
             t.title = ba::i18n::traducir("mcp", "Compilar una red de superresolución para un tamaño de entrada");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Compila la red de `plugin` para un tamaño de entrada fijo (`ancho` x `alto`, el de la cámara tal "
                 "como llega a la tarjeta), o para varios (`tamanos`: [\"1024x576\", …]), o para todas las cámaras "
@@ -1597,6 +1621,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_variante_editar";
             t.title = ba::i18n::traducir("mcp", "Cambiar para qué es una variante");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description = ba::i18n::traducir("mcp", "Cambia `para`, `descripcion` o `nombre` del variante.json de una variante (`plugin`, `id`). "
                             "Lo demás (tamaños, archivos, lo medido) lo escribe la herramienta.");
             t.inputSchema = {{"type", "object"},
@@ -1621,6 +1646,7 @@ void McpService::registerVideoTools() {
             t.destructive = true;
             t.title = ba::i18n::traducir("mcp", "Borrar una variante de una red");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description = ba::i18n::traducir("mcp", "Borra una variante (`plugin`, `id`): las tarjetas vuelven a la red general para ese tamaño.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"plugin", "id"}},
@@ -1638,6 +1664,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_destilar";
             t.title = ba::i18n::traducir("mcp", "Destilar una red grande en una propia chica, a medida de una cámara");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del "
                 "catálogo (`maestro`: realesr-general-x4v3 de fábrica, lsdir-compact-x4…) en lo que ve la entrada "
@@ -1668,7 +1695,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_runtime_gpu";
             t.title = ba::i18n::traducir("mcp", "El ONNX Runtime de GPU de esta máquina (NVIDIA, AMD, Intel)");
             t.category = "video";
-            t.readOnly = true;
+            t.clase = Clase::Lectura;
             t.description =
                 ba::i18n::traducir("mcp", "Qué placa de video hay, si está bajado el ONNX Runtime de GPU (NVIDIA: CUDA + TensorRT, que "
                 "compila la red para esa placa; AMD en Linux: ROCm/MIGraphX; Intel: OpenVINO) y qué conviene. "
@@ -1686,6 +1713,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_banco";
             t.title = ba::i18n::traducir("mcp", "Medir qué superresolución puede usar esta máquina");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "El banco de pruebas: mide cada superresolución disponible (FSR, Apple, los shaders y cada red "
                 "instalada con cada acelerador: Neural Engine y GPU en la Mac; DirectML, CUDA/TensorRT, ROCm, "
@@ -1736,6 +1764,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_runtime_gpu_instalar";
             t.title = ba::i18n::traducir("mcp", "Bajar el ONNX Runtime de GPU (NVIDIA / AMD Linux / Intel)");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Baja a Datos (portable) el ONNX Runtime de GPU para `tipo` (nvidia, amd o intel; vacío = el que "
                 "conviene para esta placa), con versiones fijas de PyPI verificadas por sha256. NVIDIA: varios GB "
@@ -1758,6 +1787,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_instalar";
             t.title = ba::i18n::traducir("mcp", "Instalar un plugin de superresolución del catálogo");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Baja el plugin `id` (verificado por sha256) y lo prepara para esta máquina: una red se exporta a "
                 "ONNX y, en la Mac, a CoreML para el Neural Engine (y se mide cuánto tarda); un shader se guarda. "
@@ -1776,6 +1806,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_aplicar";
             t.title = ba::i18n::traducir("mcp", "Superresolución EN LA FUENTE de una entrada de red (alternativa a la tarjeta)");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description = ba::i18n::traducir("mcp", "(Forma vieja, en los ajustes de la fuente: para redes CoreML, shaders, plugins y la "
                             "elección de placa usá superres_tarjeta {plugin}.) "
                             "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la "
@@ -1807,6 +1838,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_modelo";
             t.title = ba::i18n::traducir("mcp", "Bajar y convertir un modelo de superresolución (SPAN o Real-ESRGAN)");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Baja y convierte a ONNX `cual`: span (SPAN x2, Apache-2.0: liviano y fiel) o esrgan "
                 "(Real-ESRGAN compacto x4, "
@@ -1829,6 +1861,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_laboratorio";
             t.title = ba::i18n::traducir("mcp", "El laboratorio de superresolución (las bibliotecas de Python)");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; "
                 "~800 MB, una vez). `accion`: estado (si está, si usa DirectML —AMD/Intel en Windows: entrena en "
@@ -1862,6 +1895,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_modelo_borrar";
             t.title = ba::i18n::traducir("mcp", "Borrar un modelo de superresolución");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.destructive = true;
             t.description = ba::i18n::traducir("mcp", "Borra un modelo de la carpeta de modelos (su .onnx y sus datos). `modelo`: el archivo o "
                             "el nombre, como los lista superres_estado.");
@@ -1888,6 +1922,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_trabajo";
             t.title = ba::i18n::traducir("mcp", "El trabajo del laboratorio: ver, cancelar o esperar");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description =
                 ba::i18n::traducir("mcp", "Lo que está haciendo el laboratorio (bajar bibliotecas o un modelo, convertir, entrenar, "
                 "destilar, instalar un plugin, variantes, runtime de GPU). `accion`: estado (de fábrica), cancelar, "
@@ -1935,6 +1970,7 @@ void McpService::registerVideoTools() {
             t.name = "superres_entrenar";
             t.title = ba::i18n::traducir("mcp", "Entrenar la red chica mirando una cámara (un botón)");
             t.category = "video";
+            t.clase = Clase::Escritura;
             t.description = ba::i18n::traducir("mcp", "Graba ~1 minuto de la entrada `entrada` sin tocar la imagen al aire: una de red, de su "
                             "dirección; una cámara local, cuadros de lo que sale de su grafo (4 por segundo). Arma pares «la "
                             "imagen achicada y comprimida -> la original» y entrena una red chica (solo "
@@ -1971,6 +2007,9 @@ void McpService::registerVideoTools() {
         t.name = "video_reloj";
         t.title = ba::i18n::traducir("mcp", "El reloj del estudio (sincronía de las entradas de red)");
         t.category = "video";
+        t.clase = Clase::Aire;
+        t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia el reloj del estudio (reinicia el motor: corta lo que sale)");
+        t.aireSi = AireSi::RelojNuevo;
         t.description = ba::i18n::traducir("mcp", "Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. "
                         "Cambiarlo: `tipo` "
                         "sistema (el de esta máquina; de fábrica) | ntp (`servidor`, `puerto` 123: todos los "
@@ -2041,6 +2080,7 @@ void McpService::registerVideoTools() {
         t.name = "video_sincronia";
         t.title = ba::i18n::traducir("mcp", "Medir (y corregir) cuánto atrasa una entrada respecto de otra");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Mide durante `segundos` (de fábrica 8) cuánto atrasa `b` respecto de `a`, comparando cuadro a "
             "cuadro "
@@ -2077,6 +2117,7 @@ void McpService::registerVideoTools() {
         t.name = "video_desfase";
         t.title = ba::i18n::traducir("mcp", "Correr una entrada en el tiempo a mano");
         t.category = "video";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Atrasa (o adelanta) una entrada `ms` milisegundos: una entrada de red, con el "
                         "desfase de su colchón "
                         "(para los dos lados, en vivo); una cámara local, solo para atrás (una tarjeta "

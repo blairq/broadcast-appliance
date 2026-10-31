@@ -168,7 +168,7 @@ void McpService::registerImageTools() {
         t.name = "foto_programa";
         t.title = ba::i18n::traducir("mcp", "Ver el programa");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Una foto de lo que sale AL AIRE ahora, para ver si está negro, congelado o mal encuadrado. Imagen de "
             "lo que esta saliendo al aire ahora (la escena del programa, render completo del motor). Por defecto "
             "1280 px de ancho, JPEG.");
@@ -192,7 +192,7 @@ void McpService::registerImageTools() {
         t.name = "video_scope";
         t.title = ba::i18n::traducir("mcp", "Instrumentos de video (forma de onda, vectorscopio…)");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Forma de onda (`onda`), RGB parade (`parade`), vectorscopio (`vector`) o histograma "
             "(`histograma`) del programa o de una `fuente`, más cuánto de la imagen está fuera de rango: "
@@ -231,6 +231,7 @@ void McpService::registerImageTools() {
         t.name = "video_legalizar";
         t.title = ba::i18n::traducir("mcp", "Legalizar para TV");
         t.category = "imagenes";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Pasa cada entrada por el legalizador broadcast-safe (balegal, en la cadena de GStreamer de la "
             "entrada): `modo` no | pal (luma/croma en rango y gama compuesta +133 %) | ntsc (más estricto, "
@@ -255,7 +256,7 @@ void McpService::registerImageTools() {
         t.name = "foto_fuente";
         t.title = ba::i18n::traducir("mcp", "Ver una fuente o escena");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
              ba::i18n::traducir("mcp", "La foto de UNA fuente (cámara, imagen, texto, invitado) o de una escena entera, esté o no al aire. "
             "Ideal para revisar una escena antes de cambiarla, o verificar lo que armaste con scene_define.");
@@ -302,7 +303,7 @@ void McpService::registerImageTools() {
         t.name = "foto_todas_escenas";
         t.title = ba::i18n::traducir("mcp", "Vista multiple de escenas");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
              ba::i18n::traducir("mcp", "Una sola foto con TODAS las escenas en grilla, cada una con su nombre; la del aire, marcada en rojo. "
             "Como el multiview de un switcher.");
@@ -344,7 +345,7 @@ void McpService::registerImageTools() {
         t.name = "capture_feed";
         t.title = ba::i18n::traducir("mcp", "Ver un video de entrada");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Ultimo cuadro de un video que llega a la app: program, guest:N (camara del invitado del "
             "lugar N), share:N (su pantalla), lobby:K (preview del lobby), backstage:K (fila de "
@@ -390,7 +391,7 @@ void McpService::registerImageTools() {
         t.name = "foto_invitado";
         t.title = ba::i18n::traducir("mcp", "Ver a una persona");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
              ba::i18n::traducir("mcp", "La foto de UNA persona de la conferencia, por nombre o id: su cámara en vivo o su última imagen. Con "
             "includeScreen tambien su pantalla compartida.");
@@ -428,7 +429,7 @@ void McpService::registerImageTools() {
         t.name = "foto_todos_invitados";
         t.title = ba::i18n::traducir("mcp", "Ver a todas las personas");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
              ba::i18n::traducir("mcp", "Una foto de CADA persona de la conferencia (lobby, adentro y fila de oradores), con su nombre y estado. "
             "Default 480 px.");
@@ -477,7 +478,7 @@ void McpService::registerImageTools() {
         t.name = "capture_sequence";
         t.title = ba::i18n::traducir("mcp", "Secuencia de cuadros (video)");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Toma `frames` imagenes separadas `intervalMs` de: el programa, una fuente/escena, un video "
             "(clave de feeds_list) o una persona. Para analizar movimiento, si alguien habla o hace "
@@ -561,7 +562,7 @@ void McpService::registerImageTools() {
         t.name = "imagen_preguntar";
         t.title = ba::i18n::traducir("mcp", "Que se ve: se lo pregunta a un agente que mira");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
              ba::i18n::traducir("mcp", "Contesta una PREGUNTA concreta sobre lo que se ve en una cámara, el programa, una escena o la app; "
             "no devuelve la foto. Solo video, nada de audio. Devuelve TEXTO.");
@@ -691,7 +692,8 @@ void McpService::registerImageTools() {
         t.name = "capture_ui";
         t.title = ba::i18n::traducir("mcp", "Captura de la app");
         t.category = "imagenes";
-        t.readOnly = true;
+        t.hilo = Hilo::Interfaz;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Captura de pantalla de la propia aplicacion: la ventana principal (lo que ve el operador) "
             "y, con window=all, tambien las demas ventanas abiertas: las de salida de video y las "

@@ -77,7 +77,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_listar";
         t.title = ba::i18n::traducir("mcp", "Los tótems de registro");
         t.category = "totems";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los tótems de registro del evento abierto, con su configuración (qué pregunta y cómo), su url "
                         "y cuántas conexiones tiene ahora.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
@@ -92,6 +92,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_crear";
         t.title = ba::i18n::traducir("mcp", "Crear un tótem de registro");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Crea un tótem de registro en el evento abierto. De fábrica pide nombre (obligatorio) y correo; "
                         "se puede pasar todo lo demás de una (campos, saludo…).");
         t.details = ba::i18n::traducir("mcp", "Tipos de campo: `nombre` (con mayúsculas), `correo` (dicho: «juan punto perez arroba gmail punto "
@@ -121,6 +122,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_cambiar";
         t.title = ba::i18n::traducir("mcp", "Cambiar un tótem de registro");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = ba::i18n::traducir("mcp", "Cambia lo que venga de un tótem (textos, opciones, campos: la lista entera). Si algo no valida "
                         "no cambia nada y dice qué.");
@@ -144,6 +146,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar un tótem de registro");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Borra un tótem: su url deja de andar y se corta a los que estaban conectados. Los registrados "
                         "siguen en el padrón.");
@@ -161,6 +164,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_enlace";
         t.title = ba::i18n::traducir("mcp", "La url y el QR de un tótem");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "La url del tótem (se abre en la TV o la tablet, o se escanea su QR) y la de la pantalla "
                         "(?pantalla=1: solo muestra el QR, para un televisor sin cámara). Con `mostrar` le muestra el "
                         "QR al operador; con `renovar` la url vieja deja de andar.");
@@ -193,6 +197,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_proyectar";
         t.title = ba::i18n::traducir("mcp", "Mandar un tótem a una TV");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Manda a un televisor de la red (pantalla_listar) la página del tótem con su QR grande: «Escaneá "
                         "para registrarte».");
         t.inputSchema = {{"type", "object"},
@@ -215,7 +220,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_estado";
         t.title = ba::i18n::traducir("mcp", "Quién se está registrando ahora");
         t.category = "totems";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las conexiones en vivo de los tótems: en qué paso va cada una, qué se le oyó, qué le dijo el "
                         "asistente y qué lleva anotado; si falta algo para hablar (voz a texto, voz); con qué entiende "
                         "(`agente`; y por conexión `modo`: agente = el modelo del rol «registro», guion = el guion solo, "
@@ -232,6 +237,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_cortar";
         t.title = ba::i18n::traducir("mcp", "Cortar una conexión de un tótem");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Corta la conexión `conn` (de totem_estado): lo que se estaba conversando se pierde sin "
                         "guardar y su canal queda libre. La página del tótem vuelve a conectarse sola (es lo mismo "
                         "que la ✕ de la pestaña Registro).");
@@ -255,7 +261,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_registrados";
         t.title = ba::i18n::traducir("mcp", "Los registrados por tótem");
         t.category = "totems";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los que se registraron por un tótem en el evento abierto, con lo que contestaron (`datos`), el "
                         "tótem y la hora. Lo último primero.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
@@ -279,7 +285,7 @@ void McpService::registerTotemTools() {
         t.name = "documento_tipos";
         t.title = ba::i18n::traducir("mcp", "Qué documentos de identidad entiende");
         t.category = "identidad";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los tipos de documento de identidad que se pueden leer por su código de barras: los de fábrica "
                         "(el DNI argentino, `dni-ar`, y cualquier cédula con zona MRZ, `mrz-td1`) y los de los plugins "
                         "que corren (`plugin:<plugin>/<tipo>`). Son los que se eligen en un campo `documento` de un "
@@ -316,7 +322,7 @@ void McpService::registerTotemTools() {
         t.name = "documento_leer";
         t.title = ba::i18n::traducir("mcp", "Leer un documento de identidad");
         t.category = "identidad";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Busca códigos de barras (PDF417, QR, DataMatrix…) en el cuadro de una cámara (`video`: una "
                         "clave de video, p. ej. «registro:1», la cámara del tótem del canal 1), en una imagen "
                         "(`archivo` o `imagen_base64`) o en un texto ya leído (`texto`), y dice si es un documento "
@@ -451,6 +457,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_atencion_enlace";
         t.title = ba::i18n::traducir("mcp", "El link de atención remota del registro");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "El link de la página de atención del evento (…/registro-atiende/): quien lo abre (gente del "
                         "equipo, desde un celular o una compu) ve todas las conversaciones de los tótems, mira y escucha "
                         "una en vivo, la atiende ella (el asistente se calla y su voz le llega solo a ese tótem) y "
@@ -480,6 +487,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_atender";
         t.title = ba::i18n::traducir("mcp", "Atender una conversación de registro");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Interviene en una conversación de un tótem (el `conn` de totem_estado). `atender`: el guion se "
                         "pausa (el asistente se calla y deja de preguntar; la pantalla del tótem dice «Te atiende…»). "
                         "Después: `guardar` (lo guarda ya, como si hubiera terminado: padrón y, si la cara no se "
@@ -514,6 +522,7 @@ void McpService::registerTotemTools() {
         t.name = "totem_dato";
         t.title = ba::i18n::traducir("mcp", "Completar o corregir un dato del registro");
         t.category = "totems";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Pone un dato en una conversación de un tótem (atendida o no), como si la persona lo hubiera "
                         "tipeado: sin confirmarlo en voz alta, y se ve en la pantalla del tótem. Vacío lo borra. Si no "
                         "está atendida y es el dato que se le estaba pidiendo, el asistente sigue con el próximo.");

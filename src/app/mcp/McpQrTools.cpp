@@ -77,7 +77,7 @@ void McpService::registerQrTools() {
         t.name = "qr_listar";
         t.title = ba::i18n::traducir("mcp", "Los codigos guardados, y que se puede generar");
         t.category = "qr";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los codigos de la biblioteca (del aparato y del evento), los TIPOS que se pueden "
                         "generar con sus campos, y los iconos que pueden ir al centro.");
         t.details = ba::i18n::traducir("mcp", "Los tipos con `delAparato: true` (sala, prompter, rotulos) NO llevan datos: el "
@@ -126,7 +126,7 @@ void McpService::registerQrTools() {
         t.name = "qr_mostrar";
         t.title = ba::i18n::traducir("mcp", "Mostrarle al operador un QR (y para copiar)");
         t.category = "qr";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Abre en la pantalla del operador una ventana con el código QR de `texto` (una URL, un enlace de la conferencia, "
             "un PIN…), una `descripcion` grande, el texto seleccionable y los botones «Copiar al portapapeles» y "
@@ -166,7 +166,7 @@ void McpService::registerQrTools() {
         t.name = "qr_generar";
         t.title = ba::i18n::traducir("mcp", "Generar un codigo (sin guardarlo)");
         t.category = "qr";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Arma el codigo y devuelve QUE DICE y su SVG, sin tocar la biblioteca ni lo que el "
                         "operador este diseñando. Para guardarlo: qr_guardar. Para dejarlo en un archivo: "
                         "qr_exportar.");
@@ -209,6 +209,7 @@ void McpService::registerQrTools() {
         t.name = "qr_guardar";
         t.title = ba::i18n::traducir("mcp", "Guardar un codigo en la biblioteca");
         t.category = "qr";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Lo deja guardado para usarlo despues. `ambito`: \"global\" (del aparato, sirve "
                         "para todos los eventos) o \"evento\" (viaja con este). Con `id` de uno que ya "
                         "existe, lo reemplaza.");
@@ -254,6 +255,7 @@ void McpService::registerQrTools() {
         t.name = "qr_borrar";
         t.title = ba::i18n::traducir("mcp", "Borrar un codigo guardado");
         t.category = "qr";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Lo saca de la biblioteca. No toca lo que ya se haya exportado ni lo que este en "
                         "una pantalla.");
@@ -274,6 +276,7 @@ void McpService::registerQrTools() {
         t.name = "qr_exportar";
         t.title = ba::i18n::traducir("mcp", "Dejar un codigo en un archivo");
         t.category = "qr";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Escribe el codigo en Exportado/, como PNG (para pegar en algo) o SVG (para "
                         "imprimir a cualquier tamaño sin que se vea borroso). Con `id` exporta uno "
                         "guardado; si no, se arma con `tipo`/`datos`/`estilo` como en qr_generar.");
@@ -326,7 +329,7 @@ void McpService::registerQrTools() {
         t.name = "enlaces_listar";
         t.title = ba::i18n::traducir("mcp", "Todos los enlaces del aparato, con su estado");
         t.category = "qr";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Cada servicio web del aparato en una lista: invitados, tablero, público, teleprompter, rótulos, "
             "corrección, botonera, Companion, sesión remota, presidencia, web del evento, televisores, túnel y "
@@ -354,7 +357,7 @@ void McpService::registerQrTools() {
         t.name = "direcciones";
         t.title = ba::i18n::traducir("mcp", "Las direcciones de los servicios (red local y afuera)");
         t.category = "qr";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "De dónde sale TODO enlace: lo calcula la conferencia con lo que sabe (dónde escucha, la IP de la máquina, si el "
             "túnel está listo). `local`: la IP de la red y el puerto de la conferencia; `remoto`: el túnel (o null). Por "
@@ -372,6 +375,7 @@ void McpService::registerQrTools() {
         t.name = "enlace_activar";
         t.title = ba::i18n::traducir("mcp", "Prender o apagar un servicio web");
         t.category = "qr";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la "
             "conferencia con llave), `companion` (la API HTTP de la botonera), `satellite` "

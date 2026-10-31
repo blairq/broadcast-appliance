@@ -62,7 +62,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_status";
         t.title = ba::i18n::traducir("mcp", "Estado de Twitch");
         t.category = "twitch";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Si la app de Twitch esta configurada, que cuenta esta conectada, si hay un login en curso (con "
             "su codigo), datos del canal, si esta en vivo y si la app transmite a Twitch.");
@@ -87,6 +87,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_setup";
         t.title = ba::i18n::traducir("mcp", "Configurar la app de Twitch");
         t.category = "twitch";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Guarda el ID de cliente de la app registrada en dev.twitch.tv (tipo Publico; `clientSecret` "
             "solo si es Confidencial). clear=true la borra.");
@@ -112,6 +113,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_login";
         t.title = ba::i18n::traducir("mcp", "Conectar una cuenta de Twitch");
         t.category = "twitch";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Pide un codigo a Twitch y abre twitch.tv/activate en el navegador de esta maquina: la PERSONA "
@@ -161,6 +163,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_logout";
         t.title = ba::i18n::traducir("mcp", "Desconectar la cuenta");
         t.category = "twitch";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Revoca el token en Twitch y lo borra de la carpeta portable.");
         t.run = [tw](const json&, Done done) {
@@ -174,6 +177,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_channel";
         t.title = ba::i18n::traducir("mcp", "Canal: titulo, categoria, etiquetas");
         t.category = "twitch";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Sin cambios devuelve el canal (titulo, categoria, etiquetas, idioma). Con `title`, `game` "
             "(nombre de la categoria: se busca), `tags` y/o `language` los cambia. `search` busca "
@@ -207,6 +211,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_live_start";
         t.title = ba::i18n::traducir("mcp", "Transmitir a Twitch");
         t.category = "twitch";
+        t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
             ba::i18n::traducir("mcp", "Toma la clave del canal (solo en memoria) y empieza a transmitir desde la app a Twitch. "
@@ -229,6 +234,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_live_stop";
         t.title = ba::i18n::traducir("mcp", "Cortar la transmision a Twitch");
         t.category = "twitch";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description =
             ba::i18n::traducir("mcp", "Corta la transmision de la app si iba a Twitch (Twitch termina el vivo al dejar de recibir).");
@@ -240,7 +246,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_stream_status";
         t.title = ba::i18n::traducir("mcp", "Estado del vivo en Twitch");
         t.category = "twitch";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Lo que ve Twitch: si el canal esta en vivo, espectadores, desde cuando, titulo y categoria.");
         t.run = [tw, needLogin](const json&, Done done) {
@@ -254,7 +260,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_videos";
         t.title = ba::i18n::traducir("mcp", "VODs del canal");
         t.category = "twitch";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Videos del canal (vivos guardados, destacados, subidos): id, titulo, enlace, vistas, fecha, "
             "duracion y tipo.");
@@ -273,6 +279,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_video_delete";
         t.title = ba::i18n::traducir("mcp", "Borrar VODs");
         t.category = "twitch";
+        t.clase = Clase::Escritura;
         t.destructive = true;
         t.description = ba::i18n::traducir("mcp", "Borra uno o mas videos del canal (no se puede deshacer).");
         t.inputSchema = {
@@ -298,6 +305,7 @@ void McpService::registerTwitchTools() {
         t.name = "twitch_chat";
         t.title = ba::i18n::traducir("mcp", "Chat del canal");
         t.category = "twitch";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Chat de Twitch: `on` lo prende/apaga (lo usa tambien la fuente \"Chat en vivo\"), `send` "
             "escribe como el canal, y devuelve los ultimos `limit` mensajes (autor, color, texto, "

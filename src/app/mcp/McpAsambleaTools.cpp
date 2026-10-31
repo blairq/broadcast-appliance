@@ -263,7 +263,7 @@ void McpService::registerAsambleaTools() {
         t.name = "asamblea_revisar";
         t.title = ba::i18n::traducir("mcp", "¿Está todo para sesionar?");
         t.category = "asamblea";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Revisa lo que necesita una sesión de asamblea y dice qué falta y cómo se arregla: integrantes con "
                         "banca, la grilla del recinto, el preset de cámara de cada banca, ESCENAS que muestren esas "
                         "cámaras y al remoto con la palabra, las escenas del debate, la central (unidades por banca), la "
@@ -277,6 +277,7 @@ void McpService::registerAsambleaTools() {
         t.name = "asamblea_escenas_base";
         t.title = ba::i18n::traducir("mcp", "Escenas de una asamblea");
         t.category = "asamblea";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Propone las escenas que necesita una asamblea, armadas con las cámaras y entradas que hay: «Asamblea · "
             "Plano general» (la cámara `general`), «Asamblea · Orador» (la fuente «Banca con la palabra»: la toma de la "

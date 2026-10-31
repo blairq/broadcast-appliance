@@ -1567,6 +1567,9 @@ const Fila kPropias[] = {
     {"ventana_captura", QT_TRANSLATE_NOOP("mcp-etiquetas", "ver la interfaz mirar la pantalla del aparato como se ve la pagina "
                         "captura de la ventana revisar el gui algo se ve mal encimado cortado")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"web_captura", QT_TRANSLATE_NOOP("mcp-etiquetas", "ver la pagina web como la ve el publico en el celular captura de la web "
+                    "del evento como se ve en la tablet la pagina de los invitados")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"pantalla_fijar", QT_TRANSLATE_NOOP("mcp-etiquetas", "dejar fijo que siempre muestre lo mismo permanente")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"pantalla_renombrar", QT_TRANSLATE_NOOP("mcp-etiquetas", "ponerle nombre a un televisor renombrar")},
@@ -1727,6 +1730,17 @@ const Fila kPropias[] = {
     // decisiones (para el que organizo).
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"evento_informe", QT_TRANSLATE_NOOP("mcp-etiquetas", "informe del evento tiempos reales cuanto duro desvios de cada bloque")},
+    // El del RESULTADO de la sesión (quién estuvo, qué se votó): es el que se manda
+    // después, no el de los tiempos de arriba.
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"informe_generar", QT_TRANSLATE_NOOP("mcp-etiquetas", "informe del resultado de la sesion pdf resumen de lo que se voto "
+                        "quienes estuvieron presentes armar el informe para mandar")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"informe_plantillas", QT_TRANSLATE_NOOP("mcp-etiquetas", "plantillas del informe modelos de informe que campos se pueden poner "
+                           "como queda el informe")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"informe_plantilla_guardar", QT_TRANSLATE_NOOP("mcp-etiquetas", "escribir una plantilla del informe cambiar el modelo de informe "
+                                  "formato del informe encabezado")},
     // Sin «quorum» a secas: preguntar si HAY quorum es algo que se pregunta
     // ANTES de votar y lo contesta el padron. El acta lo lleva adentro, pero
     // nadie pide un acta para saber si puede empezar.

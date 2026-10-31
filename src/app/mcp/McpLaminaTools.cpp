@@ -46,7 +46,7 @@ void McpService::registerLaminaTools() {
         t.name = "carruseles_listar";
         t.title = ba::i18n::traducir("mcp", "Que carruseles de laminas hay");
         t.category = "laminas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Los carruseles de la biblioteca (no sus láminas), con cuántas láminas tiene cada uno y cuál está "
             "abierto. Es por donde se empieza: el resto pide el nombre.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
@@ -78,7 +78,7 @@ void McpService::registerLaminaTools() {
         t.name = "carrusel_laminas_ver";
         t.title = ba::i18n::traducir("mcp", "Las laminas de un carrusel");
         t.category = "laminas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description = ba::i18n::traducir("mcp", "Las láminas DE UN carrusel, en orden, con su número, su título y cuál está puesta. El numero es lo "
             "que pide `laminas_ir`.");
         t.inputSchema = {{"type", "object"},
@@ -119,6 +119,7 @@ void McpService::registerLaminaTools() {
         t.name = "laminas_ir";
         t.title = ba::i18n::traducir("mcp", "Saltar a una lamina");
         t.category = "laminas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Pone la lamina numero N del carrusel. Es la razon de que el carrusel exista: "
                         "«volve a la del grafico» no son veinte clics de siguiente. Sale al aire si "
                         "la escena que la muestra esta al aire.\n\n"
@@ -182,7 +183,7 @@ void McpService::registerLaminaTools() {
         t.name = "laminas_buscar";
         t.title = ba::i18n::traducir("mcp", "Buscar una lamina por lo que dice");
         t.category = "laminas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Las laminas de un carrusel que coinciden con un texto, por su titulo y por las "
             "etiquetas que se le sacaron mirandolas. Es lo que hace el cuadro de busqueda de la "
@@ -230,6 +231,7 @@ void McpService::registerLaminaTools() {
         t.name = "laminas_desarmar";
         t.title = ba::i18n::traducir("mcp", "Desarmar un PDF o un PowerPoint");
         t.category = "laminas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Convierte cada pagina de un PDF o de una presentacion en una lamina y arma "
                         "un carrusel con ellas. Tarda (segundos por pagina) y avisa cuando termina; "
                         "el operador ve la barra de trabajo. Un .pptx pasa por DeckCraft (viaja en el "
@@ -269,6 +271,7 @@ void McpService::registerLaminaTools() {
         t.name = "laminas_armar";
         t.title = ba::i18n::traducir("mcp", "Armar un carrusel a mano");
         t.category = "laminas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Crea un carrusel y le pone las imagenes que se le digan, en ese orden. Para armar uno "
             "con placas sueltas —logos, fondos, placas institucionales— en vez de desarmar una "
@@ -334,6 +337,7 @@ void McpService::registerLaminaTools() {
         t.name = "laminas_editar";
         t.title = ba::i18n::traducir("mcp", "Cambiar un carrusel ya armado");
         t.category = "laminas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Quitar una lamina, moverla de lugar, renombrar el carrusel, borrarlo, o soltarlo de la "
             "escena.\n\n"
@@ -389,6 +393,7 @@ void McpService::registerLaminaTools() {
         t.name = "laminas_aplicar";
         t.title = ba::i18n::traducir("mcp", "Poner un carrusel en una escena");
         t.category = "laminas";
+        t.clase = Clase::Escritura;
         t.description =
             ba::i18n::traducir("mcp", "Pone la tira en una ESCENA: crea ahi una fuente de imagen llamada «Carrusel · <nombre>» "
             "y deja anotado que ese carrusel la maneja. Recien a partir de aca `laminas_ir` cambia "
@@ -429,7 +434,7 @@ void McpService::registerLaminaTools() {
         t.name = "laminas_sin_analizar";
         t.title = ba::i18n::traducir("mcp", "La proxima lamina sin etiquetas");
         t.category = "laminas";
-        t.readOnly = true;
+        t.clase = Clase::Lectura;
         t.description =
             ba::i18n::traducir("mcp", "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
             "etiquetas. Es por donde entra el que mira imagenes: pedir esta, mirarla con "
@@ -467,6 +472,7 @@ void McpService::registerLaminaTools() {
         t.name = "laminas_etiquetar";
         t.title = ba::i18n::traducir("mcp", "Guardar lo que se ve en una lamina");
         t.category = "laminas";
+        t.clase = Clase::Escritura;
         t.description = ba::i18n::traducir("mcp", "Guarda las palabras con las que despues se va a buscar esa lamina: lo que "
                         "se ve, lo que dice, de que trata. El operador escribe «barras» en el cuadro "
                         "y le queda esa. Se guarda UNA vez por lamina; si salio vacio igual queda "

@@ -38,7 +38,7 @@ void McpService::registerTraduccionTools() {
         x.name = "traducciones";
         x.title = ba::i18n::traducir("mcp", "Traducciones en vivo: cuáles hay y cómo andan");
         x.category = "traduccion";
-        x.readOnly = true;
+        x.clase = Clase::Lectura;
         x.description = ba::i18n::traducir("mcp", "Las traducciones configuradas (de qué salida de texto, a qué idioma, en qué salida "
                         "publican, la última frase y su "
                         "demora), si falta bajar algún paquete, el estado del motor y los idiomas: `origen` "
@@ -66,7 +66,7 @@ void McpService::registerTraduccionTools() {
         x.name = "traducir";
         x.title = ba::i18n::traducir("mcp", "Traducir una frase ahora");
         x.category = "traduccion";
-        x.readOnly = true;
+        x.clase = Clase::Lectura;
         x.description = ba::i18n::traducir("mcp", "Traduce `texto` (en `de`, el idioma del evento si no se dice) a `a`, con el glosario. Para "
                         "probar cómo sale "
                         "un término antes del evento.");
@@ -89,6 +89,7 @@ void McpService::registerTraduccionTools() {
         x.name = "traduccion_agregar";
         x.title = ba::i18n::traducir("mcp", "Traducir en vivo una salida de texto");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description =
             ba::i18n::traducir("mcp", "Cada frase de la salida `desde` (p. ej. «Orador», la de una tarjeta «Voz a texto»: "
             "texto_flujos) se traduce a `a` y "
@@ -134,6 +135,7 @@ void McpService::registerTraduccionTools() {
         x.name = "traduccion_ajustar";
         x.title = ba::i18n::traducir("mcp", "Pausar o cambiar una traducción");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description = ba::i18n::traducir("mcp", "Cambia una traducción (`id` de `traducciones`, «<fuente>#<nodo>» de su tarjeta): "
                         "`activa` (pausarla), "
                         "`desde`, `idioma_desde`, `a`, `nombre`, `rotulo`, `archivo`, `espera_ms`, "
@@ -166,6 +168,7 @@ void McpService::registerTraduccionTools() {
         x.name = "traduccion_bajar";
         x.title = ba::i18n::traducir("mcp", "Bajar los paquetes de un idioma");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description = ba::i18n::traducir("mcp", "Baja los paquetes que hacen falta para traducir de `de` (el idioma del evento si no se "
                         "dice) a `a` (uno o dos: "
                         "sin paquete directo, pasa por otro idioma, casi siempre el inglés). "
@@ -188,6 +191,7 @@ void McpService::registerTraduccionTools() {
         x.name = "voz_cortes";
         x.title = ba::i18n::traducir("mcp", "Cuándo corta una frase la transcripción continua");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description = ba::i18n::traducir("mcp", "Sin argumentos: los cortes de la transcripción continua (la que alimenta subtítulos "
                         "y traducción) y lo que oye cada "
                         "una ahora. Con `pausa` (silencio que corta, 0,1-3 s; 0,35 típico), `maximo` (largo "
@@ -231,6 +235,7 @@ void McpService::registerTraduccionTools() {
         x.name = "subtitulos_limpiar";
         x.title = ba::i18n::traducir("mcp", "Borrar ya los subtítulos de pantalla");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description =
             ba::i18n::traducir("mcp", "Vacía los cuadros «Subtítulos» (ba_subtitulos) de las escenas: el de nombre `nombre`, o todos "
             "los que muestran la salida `flujo`, o todos. Lo que llegue después se muestra normal.");
@@ -250,7 +255,7 @@ void McpService::registerTraduccionTools() {
         x.name = "glosario_ver";
         x.title = ba::i18n::traducir("mcp", "El glosario de la traducción");
         x.category = "traduccion";
-        x.readOnly = true;
+        x.clase = Clase::Lectura;
         x.description = ba::i18n::traducir("mcp", "Los términos que la traducción respeta (castellano -> en, pt, fr, de, ru, zh), por "
                         "grupo («general», "
                         "«asamblea», «operador»), cuáles están activos, y `archivo`: el JSON del "
@@ -278,7 +283,7 @@ void McpService::registerTraduccionTools() {
         x.name = "glosario_exportar";
         x.title = ba::i18n::traducir("mcp", "Exportar el glosario para revisión");
         x.category = "traduccion";
-        x.readOnly = true;
+        x.clase = Clase::Lectura;
         x.description = ba::i18n::traducir("mcp", "El glosario en CSV («es;en;pt;fr;de;ru;zh;grupo;revisado_por», las formas en castellano "
                         "separadas por «|») para que lo revise la institución. Con `archivo`, lo escribe ahí.");
         x.inputSchema = {{"type", "object"}, {"properties", {{"archivo", {{"type", "string"}}}}}};
@@ -301,6 +306,7 @@ void McpService::registerTraduccionTools() {
         x.name = "glosario_importar";
         x.title = ba::i18n::traducir("mcp", "Importar el glosario revisado");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description = ba::i18n::traducir("mcp", "Vuelve el CSV revisado (`csv`, o `archivo`): cada fila suma o pisa un término con la marca "
                         "`revisado_por` (quién lo revisó: obligatorio).");
         x.inputSchema = {{"type", "object"},
@@ -327,6 +333,7 @@ void McpService::registerTraduccionTools() {
         x.name = "traduccion_rotulo";
         x.title = ba::i18n::traducir("mcp", "Rotular la traducción automática");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description = ba::i18n::traducir("mcp", "Mientras salga una traducción en un cuadro de subtítulos o en los subtítulos ocultos, una "
                         "capa DSK muestra «Traducción automática» (prendido de fábrica; se va 15 s despues de la ultima "
                         "frase). `activo` lo prende o apaga; sin argumentos, el estado.");
@@ -342,6 +349,7 @@ void McpService::registerTraduccionTools() {
         x.name = "glosario_agregar";
         x.title = ba::i18n::traducir("mcp", "Sumar o corregir un término del glosario");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description =
             ba::i18n::traducir("mcp", "Un término del evento y cómo se dice en cada idioma: `es` (la forma en castellano, o una lista "
             "de formas: "
@@ -375,6 +383,7 @@ void McpService::registerTraduccionTools() {
         x.destructive = true;
         x.title = ba::i18n::traducir("mcp", "Sacar un término del glosario (o apagar un grupo)");
         x.category = "traduccion";
+        x.clase = Clase::Escritura;
         x.description =
             ba::i18n::traducir("mcp", "Saca el término `es` (uno de fábrica queda apagado, no se borra). Con `grupo` y `activo`, "
             "prende o "
