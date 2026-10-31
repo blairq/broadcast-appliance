@@ -3650,8 +3650,9 @@ void McpService::registerTools() {
         t.description = ba::i18n::traducir("mcp", "Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se "
                         "guarda cifrada; mejor que la cargue el operador en Salidas > + Destino…, donde no la ves; en "
                         "SRT es la passphrase, en RTMP la stream key), `respaldo`. SRT: `modo` (caller, listener, "
-                        "rendezvous) y `latencia_ms` (120 en LAN, 4× el ping por internet). Con `id` de uno existente, "
-                        "lo cambia (stream_destino_editar es lo mismo).");
+                        "rendezvous) y `latencia_ms` (120 en LAN, 4× el ping por internet). `url_respaldo`: el punto "
+                        "de ingest de respaldo de la plataforma (la misma clave; sale a los dos a la vez con el mismo "
+                        "codificador; \"\" lo saca). Con `id` de uno existente, lo cambia (stream_destino_editar es lo mismo).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", {{"type", "string"}}},
@@ -3659,6 +3660,7 @@ void McpService::registerTools() {
                            {"url", {{"type", "string"}}},
                            {"clave", {{"type", "string"}}},
                            {"respaldo", {{"type", "boolean"}}},
+                           {"url_respaldo", {{"type", "string"}}},
                            {"modo", {{"type", "string"}, {"enum", {"caller", "listener", "rendezvous"}}}},
                            {"latencia_ms", {{"type", "integer"}, {"minimum", 20}, {"maximum", 8000}}}}}};
         t.run = [this, &rt](const json& a, Done done) {
@@ -3678,7 +3680,8 @@ void McpService::registerTools() {
         t.porSalida = true;
         t.title = ba::i18n::traducir("mcp", "Cambiar un destino de transmision");
         t.category = "salidas";
-        t.description = ba::i18n::traducir("mcp", "Cambia `nombre`, `url`, `clave` o `respaldo` del destino `id`; con `salida`, "
+        t.description = ba::i18n::traducir("mcp", "Cambia `nombre`, `url`, `url_respaldo` (el ingest de respaldo, misma clave; "
+                                                  "\"\" lo saca), `clave` o `respaldo` del destino `id`; con `salida`, "
                                                   "lo pasa a tomar el programa de esa salida.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
@@ -3687,7 +3690,8 @@ void McpService::registerTools() {
                            {"nombre", {{"type", "string"}}},
                            {"url", {{"type", "string"}}},
                            {"clave", {{"type", "string"}}},
-                           {"respaldo", {{"type", "boolean"}}}}}};
+                           {"respaldo", {{"type", "boolean"}}},
+                           {"url_respaldo", {{"type", "string"}}}}}};
         t.run = [this, &rt](const json& a, Done done) {
             json d = a;
             if (a.contains("salida")) d["salida"] = core_.salidaDe(a); // por nombre o id → id

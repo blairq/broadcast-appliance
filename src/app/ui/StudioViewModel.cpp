@@ -850,8 +850,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         in.status = [this]() {
             const EngineStatus s = rt_.engine().status();
-            return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames,
-                                              s.reconnecting, !rt_.recordStopWanted()};
+            agent::AlertInputs::Status a{s.streaming, s.recording, s.droppedFrames, s.totalFrames, s.reconnecting, !rt_.recordStopWanted(), {}};
+            for (const auto& x : s.salidas)
+                if (x.recordingDown) a.grabacionesCaidas.push_back(x.id);
+            return a;
         };
         in.recursos = [this]() { return recursos_ ? recursos_->muestreador().niveles() : nlohmann::json::object(); };
         in.programaVideo = [this]() {

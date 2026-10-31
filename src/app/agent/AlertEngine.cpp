@@ -724,7 +724,9 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
     } else if (type == "record_down" && in_.status) {
         const auto s = in_.status();
         const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 5.0) * 1000);
-        if (s.grabacionPedida && !s.recording) {
+        // La de la por omisión (pedida y sin grabar) o la de cualquier salida que se cortó y
+        // se está rearmando: hasta que vuelva.
+        if ((s.grabacionPedida && !s.recording) || !s.grabacionesCaidas.empty()) {
             if (!st.since.count("r0")) st.since["r0"] = now;
             if (now - st.since["r0"] >= forMs && st.seen["r0"] != "1" && cooled("rec")) {
                 st.seen["r0"] = "1";

@@ -324,6 +324,19 @@ int main(int argc, char** argv) {
     CHECK(fired.size() == 1 && fired[0]["type"] == "record_down", "la grabación se cortó: avisa");
     eng.clear();
     fired.clear();
+    // La de otra salida, cortada y rearmándose (la por omisión no graba): avisa igual.
+    eng.create(json{{"type", "record_down"}, {"params", {{"forSec", 5}}}});
+    w.status = {};
+    w.status.grabacionesCaidas = {"sala2"};
+    step(250);
+    step(5500);
+    CHECK(fired.size() == 1 && fired[0]["type"] == "record_down", "la grabación de otra salida se cortó: avisa");
+    w.status.grabacionesCaidas.clear(); // volvió
+    step(250);
+    step(6000);
+    CHECK(fired.size() == 1, "volvió: no avisa más");
+    eng.clear();
+    fired.clear();
 
     // --- recursos (la máquina al límite) --------------------------------------------------------
     eng.create(json{{"type", "recursos"}, {"params", {{"recurso", "*"}, {"nivel", "aviso"}}}});

@@ -779,8 +779,8 @@ void AppRuntime::tick() {
     if (started_) {
         const EngineStatus st = engine_.status();
         latido_.uiTick(st.streaming || st.recording);
-        // Un codificador que se cayó en el aire se reemplaza y se rearranca lo que corría.
-        engine_.atenderEncoderCaido(!streamStopWanted_, !recordStopWanted_);
+        // (Un codificador que se cae en el aire, una grabación o una transmisión que se
+        // cortan: las atiende el hilo de salidas del motor, ver BroadcastEngine::ticSalidas.)
         // La escena al aire de cada salida, para volver a ella tras un corte (P0.10).
         if (firmaDelAire() != escenaEscrita_) writeOnAirState();
     }
@@ -1138,6 +1138,8 @@ nlohmann::json AppRuntime::destinos() const {
         d["perdidos"] = e.value("perdidos", 0);
         d["cuadros"] = e.value("cuadros", 0);
         d["bytes"] = e.value("bytes", 0);
+        if (!d.value("url_respaldo", std::string()).empty())
+            d["respaldo_conectado"] = e.value("ingest_respaldo", nlohmann::json::object()).value("conectada", false);
         out.push_back(d);
     }
     return out;
@@ -1145,6 +1147,10 @@ nlohmann::json AppRuntime::destinos() const {
 
 std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idOut) {
     const std::string url = d.value("url", std::string());
+    // El punto de ingest de respaldo (la misma clave): RTMP o SRT, como el principal; "" lo saca.
+    const std::string urlRespaldo = d.value("url_respaldo", std::string());
+    if (!urlRespaldo.empty() && urlRespaldo.rfind("rtmp://", 0) != 0 && urlRespaldo.rfind("rtmps://", 0) != 0 && urlRespaldo.rfind("srt://", 0) != 0)
+        return ba::i18n::traducir("salidas", "`url_respaldo`: rtmp://, rtmps:// o srt://");
     nlohmann::json lista = leerDestinos(root_);
     std::string id = d.value("id", std::string());
     // La salida de la que toma el programa (sin campo = la por omisión): tiene que existir.
@@ -1170,9 +1176,14 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
         lista.push_back({{"id", id}, {"nombre", d.value("nombre", id)}, {"url", url}, {"respaldo", d.value("respaldo", false)}});
         existente = &lista.back();
         if (d.contains("salida")) (*existente)["salida"] = d["salida"];
+        if (!urlRespaldo.empty()) (*existente)["url_respaldo"] = urlRespaldo;
     } else {
         for (const char* k : {"nombre", "url", "respaldo", "salida"})
             if (d.contains(k)) (*existente)[k] = d[k];
+        if (d.contains("url_respaldo")) {
+            if (urlRespaldo.empty()) existente->erase("url_respaldo");
+            else (*existente)["url_respaldo"] = urlRespaldo;
+        }
     }
     // SRT: el modo (caller/listener/rendezvous) y la latencia van en la URL, que es
     // como los lee el muxer (ffmpeg: latency en microsegundos). La passphrase es la clave.
@@ -1288,7 +1299,7 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
         alguno = true;
         std::string clave;
         ba::security::CredentialStore::bundle().read("stream-" + did, clave);
-        if (!engine_.startExtra(did, d.value("url", std::string()), clave, cfg_.encoder, salidas::salidaDeDestino(d)))
+        if (!engine_.startExtra(did, d.value("url", std::string()), clave, cfg_.encoder, salidas::salidaDeDestino(d), d.value("url_respaldo", std::string())))
             errores += (errores.empty() ? "" : "; ") + did + ": " + engine_.lastError();
     }
     if (!alguno) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1» (stream_destinos los lista)"), {id});

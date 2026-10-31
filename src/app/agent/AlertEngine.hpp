@@ -78,6 +78,8 @@ struct AlertInputs {
         /// lograrlo, que es justo el momento en el que hay que hacer algo.
         bool reconnecting = false;
         bool grabacionPedida = false; ///< alguien la puso a grabar (y no la paró): si no graba, se cortó sola
+        /// Las salidas (ids) con la grabación pedida y cortada: el motor la está rearmando en otra parte.
+        std::vector<std::string> grabacionesCaidas;
     };
     std::function<std::vector<Audio>()> audio;
     std::function<std::vector<Media>()> media;

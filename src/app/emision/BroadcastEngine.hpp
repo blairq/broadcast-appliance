@@ -191,7 +191,9 @@ struct RecordConfig {
     /// Pistas de audio EXTRA, numeradas como en la Matriz (2..6): cada una con lo que
     /// la Matriz le cruce. La 1 (el programa) va siempre.
     std::vector<int> pistas;
-    /// Segunda copia simultánea en otro disco ("" = sin copia). Mismos codificadores.
+    /// Segunda copia simultánea en otro disco ("" = sin copia). Mismos codificadores (el
+    /// mismo encode; uno propio solo con «record.copiaCodificadorPropio»). Si el disco de la
+    /// grabación falla, la parte que sigue va acá.
     std::string copiaDir;
     /// Segundos de grabación que se juntan en memoria si el disco se traba
     /// (Configuración → Grabación: «Colchón si el disco se traba»).
@@ -235,6 +237,7 @@ struct EngineStatus {
         bool streaming = false;  ///< su transmisión principal
         bool reconnecting = false;
         bool recording = false;
+        bool recordingDown = false; ///< pedida pero cortada: el motor la está rearmando (alarma record_down)
         int destinos = 0;        ///< transmisiones extra andando
         bool limpia = false, repeticion = false;
     };
@@ -664,8 +667,9 @@ class BroadcastEngine {
 
     // --- Destinos adicionales (respaldo, otras plataformas) --------------------
     /// Un destino extra (su id es único entre todas las salidas) con el programa de `salida`.
+    /// `serverRespaldo`: el punto de ingest de respaldo (misma clave); sale a los dos a la vez.
     bool startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc,
-                    const std::string& salida = "");
+                    const std::string& salida = "", const std::string& serverRespaldo = "");
     void stopExtra(const std::string& id); ///< esté en la salida que esté
     void stopExtras();                     ///< los de todas las salidas
     /// {id: {activo, reconectando, perdidos, cuadros, bytes, destino, salida}}, de todas las salidas.
@@ -714,9 +718,9 @@ class BroadcastEngine {
     /// Para probar (modo --test): la grabación del programa, como con el disco trabado `ms`.
     void simularDiscoTrabado(int ms);
 
-    /// Compatibilidad: las salidas del motor se rearman solas. No hace nada.
-    void atenderEncoderCaido(bool stream, bool record);
-    bool encoderRespaldoActivo() const { return false; }
+    /// Alguna salida perdió un codificador en el aire y sigue con otro (la lista negra
+    /// del motor; las salidas se rearman solas en el hilo de salidas).
+    bool encoderRespaldoActivo() const;
 
     // --- Medir la sincronía labios/voz con un aplauso -----------------------------
     bool empezarMedicionSincro();
@@ -913,7 +917,7 @@ class BroadcastEngine {
     std::set<std::string> individualesPedidas_;
     Inicio ultimoInicio_ = Inicio::Iniciado;
     struct Extra {
-        std::string server, key;
+        std::string server, key, serverRespaldo;
         std::unique_ptr<motor::Transmision> tx;
     };
     struct EstadoRemux;
@@ -964,6 +968,7 @@ class BroadcastEngine {
         std::map<std::string, Extra> extras;
         std::unique_ptr<motor::Grabacion> rec, recCopia;
         std::string recordPath, recordCopyPath;
+        std::string fuenteVideo; ///< el productor del video de su programa: la lista negra de codificadores es suya
         int kbpsRec = 0; ///< lo que escriben la grabación y (otro tanto) la copia (kbpsGrabacion)
         std::string remuxSal; ///< a qué pasar la grabación al pararla
         bool remuxAlTerminarSal = true;
@@ -1016,7 +1021,7 @@ class BroadcastEngine {
     nlohmann::json fotoDe(const Salida& s) const;
     std::string startStreamingYa(Salida& s, const StreamConfig& stream, const EncoderConfig& enc);
     std::string startExtraYa(Salida& s, const std::string& id, const std::string& server, const std::string& key,
-                             const EncoderConfig& enc);
+                             const EncoderConfig& enc, const std::string& serverRespaldo);
     std::string startRecordingYa(Salida& s, const RecordConfig& rec, const EncoderConfig& enc,
                                  const std::vector<int>& pistas, const std::string& nombre);
     void stopRecordingYa(Salida& s);

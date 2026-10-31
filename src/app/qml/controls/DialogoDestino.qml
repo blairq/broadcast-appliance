@@ -1,5 +1,6 @@
 // Un destino adicional de la transmisión (respaldo, otra plataforma, otra cuenta):
-// nombre, URL (RTMP, SRT o RIST), clave (se guarda cifrada) y si es de respaldo.
+// nombre, URL (RTMP, SRT o RIST), clave (se guarda cifrada), si es de respaldo y el
+// punto de ingest de respaldo de la plataforma (la misma clave: sale a los dos a la vez).
 // Lo usan la tarjeta «Salidas» (los de la por omisión) y la página Salidas (los de
 // cada salida: `salida`, su id; vacío = la por omisión). Guarda por
 // Studio.guardarDestinoUi: el modelo valida y avisa.
@@ -18,7 +19,7 @@ Popup {
     padding: 16
     width: 460
     background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-    onOpened: { dNombre.text = ""; dUrl.text = ""; dClave.text = ""; dResp.checked = false; dModo.currentIndex = 0; dLat.value = 120 }
+    onOpened: { dNombre.text = ""; dUrl.text = ""; dUrlResp.text = ""; dClave.text = ""; dResp.checked = false; dModo.currentIndex = 0; dLat.value = 120 }
     ColumnLayout {
         anchors.fill: parent
         spacing: 8
@@ -26,6 +27,9 @@ Popup {
         TextField { id: dNombre; Layout.fillWidth: true; placeholderText: qsTr("Nombre (p. ej. YouTube respaldo)") }
         TextField { id: dUrl; Layout.fillWidth: true; placeholderText: qsTr("rtmp://servidor/app · srt://servidor:9000 · rist://servidor:8000") }
         readonly property bool esSrt: dUrl.text.startsWith("srt://")
+        // El ingest de respaldo de la plataforma (YouTube: «b.rtmp…?backup=1»): la misma clave.
+        TextField { id: dUrlResp; Layout.fillWidth: true; visible: !dUrl.text.startsWith("rist://")
+                    placeholderText: qsTr("URL de respaldo del ingest (opcional, la misma clave)") }
         TextField { id: dClave; Layout.fillWidth: true; echoMode: TextInput.Password
                     placeholderText: parent.esSrt ? qsTr("Passphrase SRT (10 a 79 caracteres; se guarda cifrada)") : qsTr("Clave (se guarda cifrada; el asistente no la ve)") }
         RowLayout {
@@ -44,6 +48,7 @@ Popup {
                 compact: true; active: true; text: qsTr("Guardar")
                 onClicked: {
                     const d = { nombre: dNombre.text, url: dUrl.text, clave: dClave.text, respaldo: dResp.checked }
+                    if (dUrlResp.visible && dUrlResp.text !== "") d.url_respaldo = dUrlResp.text
                     if (dUrl.text.startsWith("srt://")) { d.modo = dModo.currentText; d.latencia_ms = dLat.value }
                     if (dlg.salida !== "") d.salida = dlg.salida
                     const e = Studio.guardarDestinoUi(d)
