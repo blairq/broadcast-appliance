@@ -156,6 +156,7 @@ int Supervisor::run() {
     // Lo que la verificación rápida no leyó (archivos nuevos o cambiados, o todo la
     // primera vez), con la app ya andando y a prioridad de fondo.
     fondo_ = std::thread([this]() { verificarEnElFondo(); });
+    if (cfg_.perroS > 0) perro_.abrir(cfg_.perroDispositivo, cfg_.perroS); // F4-08: si no se puede, sigue sin él
     watchdogLoop();
     pararFondo_ = true;
     if (fondo_.joinable()) fondo_.join();
@@ -621,6 +622,8 @@ void Supervisor::watchdogLoop() {
         }
 
         if (std::any_of(vistos.begin(), vistos.end(), [](const Visto& v) { return v.caido || v.colgado; })) {
+            if (a.caido || a.colgado) MetricasLauncher::falla(true, a.colgado);
+            if (b.caido || b.colgado) MetricasLauncher::falla(false, b.colgado);
             const std::uint64_t failAt = nowMs();
             if (failAt - lastFailureMs_ > cfg_.ventanaCaidasMs) {
                 recentFailures_ = 0;
@@ -664,6 +667,9 @@ void Supervisor::watchdogLoop() {
             }
         }
         relanzarAgendados();
+        // Mientras el supervisor da vueltas, la máquina no está colgada (F4-08).
+        perro_.latir(ahora);
+        metricas_.vuelta(runtimeDir(), ahora, perro_.latidos());
         sleepInterruptible(kPollMs, stopRequested_);
     }
 }
@@ -703,6 +709,7 @@ void Supervisor::orderedShutdown() {
         health_.setIdentity(h->slot, 0, ba::ipc::kVersionProceso);
     }
     Integrity::guardarCache(cacheIntegridad());
+    perro_.desarmar(); // salir en orden no reinicia la máquina
     BA_LOG_INFO("sup", 0, traducir("sup", "clean_shutdown marcado"));
 }
 

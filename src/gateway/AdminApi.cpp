@@ -14,6 +14,7 @@
 //   el dashboard /control/, que habla con la app (no con esta API).
 //
 // Rutas (JSON; errores {ok:false, error}):
+//   GET    /metrics                        las métricas de B (texto de Prometheus, F4-01)
 //   GET    /api/v1/room                    estado completo (snapshot)
 //   GET    /api/v1/events                  SSE: "room" (snapshot) y "chat"
 //   GET    /api/v1/network                 HTTPS, tunel WireGuard, IPs y enlaces
@@ -73,6 +74,8 @@
 #include <system_error>
 
 #include "HttpIo.hpp"
+#include "diag/Correlacion.hpp"
+#include "diag/Metricas.hpp"
 #include "proxy/GestorProxy.hpp"
 #include "Log.hpp"
 #include "qrcodegen.hpp"
@@ -199,6 +202,8 @@ void SignalingServer::guardarPinDeHoy(const std::string& pin) {
 void SignalingServer::handleAdmin(long long fd, const std::string& method, const std::string& path,
                                   const std::string& query, const std::string& headers,
                                   const std::string& body) {
+    // La orden de la app que trae esto (F4-02): todo lo que se registre al atenderla lleva su id.
+    const ba::diag::correlacion::Ambito orden(http::getHeader(headers, ba::diag::correlacion::kCabecera));
     // --- Sin autenticacion: la salud ------------------------------------------
     if (path == "/healthz") {
         http::sendResponse(fd, 200, "text/plain", "ok\n");
@@ -212,6 +217,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     // --- Todo lo demas pide credenciales ------------------------------------
     if (!adminAuthorized(headers, method)) {
         sendErr(fd, 401, "auth");
+        return;
+    }
+    if (!ba::diag::correlacion::actual().empty() && method != "GET") log_.info(method + " " + path); // la orden llegó (F4-02)
+    // Las métricas de B en el formato de Prometheus (F4-01).
+    if (path == "/metrics" && method == "GET") {
+        http::sendResponse(fd, 200, "text/plain; version=0.0.4; charset=utf-8", ba::diag::Metricas::proceso().texto());
         return;
     }
     // La botonera (superficie de control): la app le pasa credenciales y estado.

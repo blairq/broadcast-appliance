@@ -44,6 +44,7 @@
 
 #include "ipc/AtomicRef.hpp"
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -51,6 +52,7 @@
 
 #include "HealthBlock.hpp"
 #include "MedidaTransporte.hpp"
+#include "Mirada.hpp"
 #include "SharedMemoryRegion.hpp"
 
 namespace ba::ipc {
@@ -89,7 +91,12 @@ struct alignas(audio_ring::kCacheLine) RingHeader {
     uint64_t lastWriteQpc = 0;
     uint64_t underrunCount = 0;
     uint64_t overrunCount = 0;
+    /// Cuándo escribió el escritor el último bloque (steady_clock en ns; lastWriteQpc es el
+    /// sello del bloque, que puede ser la hora del medio): el lector duerme hasta el próximo
+    /// (proximaMirada, F2-14). Cabe en la última línea de caché: el tamaño no cambia.
+    uint64_t escritoNs = 0;
 };
+static_assert(sizeof(RingHeader) == 3 * audio_ring::kCacheLine, "la cabecera del anillo no cambia de tamaño");
 
 // Los indices se acceden con std::atomic_ref<uint64_t>; debe ser lock-free
 // para que el camino de datos no tome locks (spec 4.3).
@@ -179,6 +186,17 @@ class SharedAudioRing {
     /// Bloques que el escritor descarto porque el lector no llegaba (overrunCount).
     uint64_t descartados() const;
 
+    /// Lado LECTOR, sin bloque nuevo: cuándo volver a mirar (F2-14). Justo después del
+    /// próximo bloque que el escritor debería escribir (el último más 10 ms, ipc/Mirada.hpp);
+    /// `pasoQuieto` si no escribe hace más de 1 s.
+    std::chrono::steady_clock::time_point proximaMirada(std::chrono::steady_clock::duration pasoQuieto) const;
+    /// Cuánto después de su sello escribió el escritor el último bloque (ns; -1 si todavía
+    /// no escribió). Con un escritor que sella con la hora del medio (baanillosink: el
+    /// programa) es lo que tarda su audio en llegar: la latencia de la mezcla. El gateway
+    /// demora con eso el video del programa para quien mira (F2-11). Se puede mirar sin leer
+    /// (un lector que nunca saca bloques no le roba nada al que lee).
+    int64_t retrasoDelEscritorNs() const;
+
     /// Tamano de un bloque en floats (kBlockFrames * channels).
     size_t blockFloats() const;
 
@@ -220,6 +238,7 @@ class SharedAudioRing {
     std::wstring name_;
     uint64_t lastDataNs_ = 0;
     uint64_t lastCheckNs_ = 0;
+    mirada::Temblor temblor_; // cuánto tiembla el escritor (proximaMirada)
 };
 
 /// Lee TODO lo que el escritor dejo en el anillo, bloque por bloque, y se lo pasa a

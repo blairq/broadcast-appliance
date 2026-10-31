@@ -7,13 +7,16 @@
 // o el remoto con la palabra (`BA.Remoto.1`), y lo entrega como una fuente EN
 // VIVO de GStreamer en BGRA.
 //
-//   - El tamaño sale del canal (lo fija el gateway); si el gateway lo rehace con
-//     otro, se renegocian las caps.
+//   - El tamaño: el real de cada cuadro si lo trae (el gateway ya no agranda al
+//     del canal a un invitado chico: F2-13, V3; lo escala la composición, en la
+//     GPU), si no el del canal. Si cambia, se renegocian las caps.
 //   - Si el canal todavía no existe o el gateway se reinició, se resuscribe
 //     solo; mientras tanto no sale nada.
-//   - Se mira seguido (cada 4 ms; 15 ms si no llegó nada en el último segundo:
-//     ver pausa()): sondear al ritmo del que publica hace batir las cadencias y
-//     perder cuadros. Nadie avisa que hay cuadro nuevo: es sondeo.
+//   - Sin cuadro nuevo se duerme hasta justo después del próximo que el gateway
+//     debería publicar (su último envío más su período, de la cabecera del canal:
+//     ipc/Mirada.hpp, F2-14), no cada 4 ms fijos; quieto hace más de 1 s, de a
+//     15 ms. Nadie avisa que hay cuadro nuevo: es sondeo, pero a la hora del que
+//     publica (mirar a un ritmo propio hace batir las cadencias y perder cuadros).
 //   - La hora de cada cuadro: la que le puso el gateway al publicarlo, pasada
 //     al reloj del pipeline (hora.hpp); así el audio del invitado (baanillo,
 //     otra cadena) queda alineado por la misma hora. Cuadros por segundo
@@ -21,6 +24,7 @@
 //   - Declara 1 cuadro de latencia (a 30 cps).
 // ============================================================================
 
+#include "espera.hpp"
 #include "hora.hpp"
 #include "ipc/SpoutTransport.hpp"
 
@@ -33,7 +37,6 @@
 #include <chrono>
 #include <mutex>
 #include <string>
-#include <thread>
 
 G_BEGIN_DECLS
 #define BA_TYPE_VIDEO_ANILLO (ba_video_anillo_get_type())
@@ -50,7 +53,6 @@ struct _BaVideoAnillo {
     bool suscripto;
     std::string* suscriptoCanal;
     int ancho, alto; ///< el de las caps negociadas (0 = sin negociar)
-    gint64 ultimoDatoUs; ///< cuándo salió el último cuadro (monotónico; 0 = nunca)
 };
 
 G_DEFINE_TYPE(BaVideoAnillo, ba_video_anillo, GST_TYPE_PUSH_SRC)
@@ -60,16 +62,6 @@ enum { PROP_0, PROP_CANAL };
 static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE(
     "src", GST_PAD_SRC, GST_PAD_ALWAYS,
     GST_STATIC_CAPS("video/x-raw, format=(string)BGRA, width=(int)[1, MAX], height=(int)[1, MAX], framerate=(fraction)0/1"));
-
-static bool esperar(BaVideoAnillo* v, int ms) {
-    // En pasos de hasta 16 ms: una espera de un bloque es UNA despertada (parar puede
-    // tardar hasta 16 ms en notarse, al apagar o rearmar).
-    for (int i = 0; i < ms; i += 16) {
-        if (v->parar.load()) return false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(std::min(16, ms - i)));
-    }
-    return !v->parar.load();
-}
 
 static GstCaps* capsDe(int w, int h) {
     return gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, w, "height",
@@ -92,10 +84,8 @@ static gboolean negociar(GstBaseSrc* bs) {
     return ok;
 }
 
-/// Cuánto esperar sin cuadro nuevo: 4 ms mientras llegan (un cuadro dura 33); quieto hace
-/// más de 1 s (un lugar vacío, una pantalla que no se comparte), medio cuadro. Eran 250
-/// despertadas por segundo por canal aunque no hubiera nadie (10 canales).
-static int pausa(const BaVideoAnillo* v) { return g_get_monotonic_time() - v->ultimoDatoUs > 1'000'000 ? 15 : 4; }
+/// Quieto (un lugar vacío, una pantalla que no se comparte): de a medio cuadro.
+constexpr auto kPasoQuieto = std::chrono::milliseconds(15);
 
 static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
     auto* v = BA_VIDEO_ANILLO(ps);
@@ -115,30 +105,22 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             const std::wstring w(canal.begin(), canal.end());
             if (canal.empty() || !v->rx->subscribe(w.c_str())) {
                 *v->rx = ba::ipc::SpoutReceiver{};
-                if (!esperar(v, 250)) return GST_FLOW_FLUSHING;
+                if (!ba::ipc_gst::esperar(v->parar, 250)) return GST_FLOW_FLUSHING;
                 continue;
             }
             v->suscripto = true;
             *v->suscriptoCanal = canal;
         }
-        // Sin cuadro nuevo: se vuelve a mirar en 4 ms (un cuadro dura 33). A 2 ms eran 500
-        // despertadas por segundo por invitado.
+        // Sin cuadro nuevo: hasta el próximo que el gateway debería publicar (A 4 ms fijos
+        // eran 250 despertadas por segundo por invitado; a 2 ms, 500).
         if (!v->rx->hasData()) {
-            if (!esperar(v, pausa(v))) return GST_FLOW_FLUSHING;
+            if (!ba::ipc_gst::esperarHasta(v->parar, v->rx->proximaMirada(kPasoQuieto))) return GST_FLOW_FLUSHING;
             continue;
         }
         const int w = v->rx->width(), h = v->rx->height();
         if (w <= 0 || h <= 0) {
-            if (!esperar(v, 4)) return GST_FLOW_FLUSHING;
+            if (!ba::ipc_gst::esperar(v->parar, 4)) return GST_FLOW_FLUSHING;
             continue;
-        }
-        if (w != v->ancho || h != v->alto) {
-            GstCaps* caps = capsDe(w, h);
-            const bool ok = gst_base_src_set_caps(GST_BASE_SRC(v), caps);
-            gst_caps_unref(caps);
-            if (!ok) return GST_FLOW_NOT_NEGOTIATED;
-            v->ancho = w;
-            v->alto = h;
         }
         const gsize bytes = static_cast<gsize>(w) * static_cast<gsize>(h) * 4;
         GstBuffer* b = gst_buffer_new_allocate(nullptr, bytes, nullptr);
@@ -151,13 +133,27 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             // Sin esto, un cuadro que no se pudo leer era una vuelta sin pausa (y un buffer
             // del tamaño del cuadro por vuelta).
             gst_buffer_unref(b);
-            if (!esperar(v, 4)) return GST_FLOW_FLUSHING;
+            if (!ba::ipc_gst::esperar(v->parar, 4)) return GST_FLOW_FLUSHING;
             continue;
+        }
+        // Su tamaño real (más chico que el canal): solo esos bytes, con las filas juntas.
+        const int cw = meta.ancho != 0 ? static_cast<int>(meta.ancho) : w;
+        const int ch = meta.alto != 0 ? static_cast<int>(meta.alto) : h;
+        if (cw != w || ch != h) gst_buffer_resize(b, 0, static_cast<gssize>(cw) * ch * 4);
+        if (cw != v->ancho || ch != v->alto) {
+            GstCaps* caps = capsDe(cw, ch);
+            const bool ok = gst_base_src_set_caps(GST_BASE_SRC(v), caps);
+            gst_caps_unref(caps);
+            if (!ok) {
+                gst_buffer_unref(b);
+                return GST_FLOW_NOT_NEGOTIATED;
+            }
+            v->ancho = cw;
+            v->alto = ch;
         }
         // La hora: la que le puso el gateway, en el reloj del pipeline.
         GST_BUFFER_PTS(b) = ba::ipc_gst::horaDeQpc(GST_ELEMENT(v), meta.qpc);
         GST_BUFFER_DURATION(b) = GST_CLOCK_TIME_NONE;
-        v->ultimoDatoUs = g_get_monotonic_time();
         *out = b;
         return GST_FLOW_OK;
     }

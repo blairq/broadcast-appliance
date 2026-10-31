@@ -12,6 +12,8 @@
 #include <chrono>
 
 #include "diag/Registro.hpp"
+#include "diag/Correlacion.hpp"
+#include "diag/Metricas.hpp"
 #include "diag/VigiaBucle.hpp"
 
 #include <chrono>
@@ -867,6 +869,13 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         // dejaba pasar ninguna, ni siquiera al rol que mira. Un campo que solo
         // se limpia es un campo que no existe.
         enCurso_ = ctx;
+        // La orden (F4-02): lo que se registre al atenderla —acá, en la sala vía
+        // ConferenceClient y en el launcher— lleva este id.
+        const std::string orden = ba::diag::correlacion::valido(ctx.correlacion) ? ctx.correlacion
+                                  : ba::diag::correlacion::nueva(ctx.origen.rfind("botonera", 0) == 0      ? 'b'
+                                                                 : ctx.origen.rfind("control-web", 0) == 0 ? 'w'
+                                                                                                           : 'm');
+        const ba::diag::correlacion::Ambito enOrden(orden);
         // Para el vigía del bucle de la interfaz: si esta herramienta lo demora, se sabe cuál.
         ba::diag::VigiaBucle::interfaz().anotar("mcp " + name);
         auto called = std::make_shared<bool>(false);
@@ -892,12 +901,18 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         const std::string resumenArgs = Traza::resumir(args, 220);
         try {
             tool->run(args, [this, finish, called, session, untrustedOut, name, modifica, arranque, quien,
-                             resumenArgs](ToolResult r) {
+                             resumenArgs, orden](ToolResult r) {
                 if (*called) return; // una sola respuesta por pedido
                 *called = true;
+                const ba::diag::correlacion::Ambito enOrden(orden); // la respuesta puede llegar después
                 const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                     std::chrono::steady_clock::now() - arranque)
                                     .count();
+                // La latencia por herramienta (F4-01): gancho mínimo, el registro declarativo la absorbe.
+                ba::diag::Metricas::proceso()
+                    .histograma("ba_mcp_herramienta_ms", QT_TRANSLATE_NOOP("metricas", "Lo que tardó cada herramienta MCP, ms"),
+                                {{"herramienta", name}})
+                    .observar(static_cast<double>(ms));
                 ba::diag::registro().linea(
                     r.isError  ? ba::diag::Nivel::Aviso
                     : modifica ? ba::diag::Nivel::Info

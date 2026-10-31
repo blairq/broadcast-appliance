@@ -9,8 +9,13 @@
 //
 // con el reloj del estudio y la latencia de lo que mira (así se ve junto con
 // lo que suena). Se arma cuando alguien la pide (`pedir`) y se desarma cuando
-// la sueltan todos (`soltar`). `ultimo` copia el último cuadro si es más nuevo
+// la sueltan todos (`soltar`). `ultimo` da el último cuadro si es más nuevo
 // que el que ya tiene quien pregunta (número de serie).
+//
+// Un cuadro NO se copia (F2-13): lleva el buffer de GStreamer mismo, mapeado y
+// con su referencia (Pixeles); la vista guarda el último y quien recibe el aviso
+// o pregunta por él comparte esos bytes hasta que lo suelta. Lo convierte y lo
+// escala la GPU (aSistemaEscalado): a la CPU baja una vez, ya chico y en BGRA.
 //
 // Claves: "programa", "preview", "limpio" (las composiciones de la salida por
 // omisión), "programa:<salida>", "preview:<salida>", "limpio:<salida>" (las de
@@ -18,7 +23,10 @@
 // puede llevar «@<nombre>» para tener otra vista de lo mismo (otro tamaño): lo
 // que va después de la @ no se mira para resolver.
 // `avisar` registra una función que recibe CADA cuadro de esa clave (en el hilo
-// de GStreamer): para mandar el programa al gateway o medir algo.
+// de GStreamer, fuera del candado de las vistas): para mandar el programa al
+// gateway o medir algo. Cada cuadro trae además la hora de lo que muestra en el
+// reloj de los sellos entre procesos (contenidoQpc: el gateway alinea con eso el
+// video del programa con su audio, F2-11).
 // ============================================================================
 #pragma once
 
@@ -26,9 +34,11 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <mutex>
 #include <string>
@@ -38,10 +48,31 @@ namespace ba::motor {
 
 class Reloj;
 
+/// Los bytes de un cuadro: el buffer de GStreamer mismo, mapeado para leer y con su
+/// referencia (copiar un Pixeles es contar una referencia más, no copiar bytes). El buffer
+/// se desmapea y se suelta con el último que lo tiene.
+class Pixeles {
+   public:
+    Pixeles() = default;
+    /// Una referencia a `b`, mapeado; `desde`/`bytes`: la parte que es el cuadro (0 = todo).
+    Pixeles(GstBuffer* b, std::size_t desde, std::size_t bytes);
+    const std::uint8_t* data() const { return datos_; }
+    std::size_t size() const { return bytes_; }
+    bool empty() const { return bytes_ == 0; }
+
+   private:
+    struct Mapa;
+    std::shared_ptr<const Mapa> mapa_;
+    const std::uint8_t* datos_ = nullptr;
+    std::size_t bytes_ = 0;
+};
+
 struct Cuadro {
-    std::vector<std::uint8_t> bgra;
+    Pixeles bgra; ///< BGRA, filas de `stride` bytes
     int ancho = 0, alto = 0, stride = 0;
     std::uint64_t serie = 0;
+    /// La hora de lo que muestra, en el reloj de los sellos (HealthBlock::nowQpc); 0 = no se sabe.
+    std::uint64_t contenidoQpc = 0;
 };
 
 class Vistas {
@@ -60,7 +91,8 @@ class Vistas {
     /// Alguien quiere ver `clave` a ese tamaño (cuenta pedidos). "" o el error.
     std::string pedir(const std::string& clave, int ancho, int alto);
     void soltar(const std::string& clave);
-    /// El último cuadro de `clave` si su serie es mayor que `serie` (y la actualiza).
+    /// El último cuadro de `clave` si su serie es mayor que `serie` (y la actualiza). Comparte
+    /// los bytes con la vista (no los copia).
     bool ultimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const;
     /// Cada cuadro de `clave` a `fn` (en el hilo de datos). fn vacía = sacar.
     void avisar(const std::string& clave, std::function<void(const Cuadro&)> fn);

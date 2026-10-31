@@ -1855,7 +1855,16 @@ json Motor::estado() const {
             {"lienzo",
              {{"ancho", cfg_.lienzo.ancho},
               {"alto", cfg_.lienzo.alto},
-              {"fps", static_cast<double>(cfg_.lienzo.fpsN) / std::max(1, cfg_.lienzo.fpsD)}}},
+              {"fps", static_cast<double>(cfg_.lienzo.fpsN) / std::max(1, cfg_.lienzo.fpsD)},
+              // F2-17: la red eléctrica del país del sistema, si el lienzo parpadea con ella y
+              // las cadencias que le van (no se cambia nada solo).
+              {"red_hz", redElectricaDelSistema()},
+              {"avisos", avisosDeLaRed(cfg_.lienzo, redElectricaDelSistema())},
+              {"cadencias_de_la_red", [] {
+                   json c = json::array();
+                   for (const auto& [n, d] : cadenciasDeLaRed(redElectricaDelSistema())) c.push_back(std::to_string(n) + "/" + std::to_string(d));
+                   return c;
+               }()}}},
             {"programa", po["programa"]},
             {"video",
              {{"al_aire", po["al_aire"]},

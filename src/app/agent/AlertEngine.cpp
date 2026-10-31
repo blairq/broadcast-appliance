@@ -4,6 +4,7 @@
 
 #include "agent/AlertEngine.hpp"
 
+#include "diag/Metricas.hpp"
 #include "i18n/I18n.hpp"
 
 #include <QDateTime>
@@ -186,6 +187,16 @@ json AlertEngine::types() {
          {"params",
           {{"recurso", QT_TRANSLATE_NOOP("alertas", "\"*\" (todos, por defecto) o uno: cpu, gpu, ram, vram, red, motor")},
            {"nivel", QT_TRANSLATE_NOOP("alertas", "aviso (por defecto: desde el 80 %) o critico (desde el 92 %)")}}},
+         {"cooldownSec", 120}},
+        {{"type", "metrica"},
+         {"summary", QT_TRANSLATE_NOOP("alertas", "Una métrica del aparato (las de GET /metrics y sistema_recursos.metricas) pasa un umbral unos "
+                     "segundos seguidos: latencia de una herramienta, espera del candado del motor, reconexiones…")},
+         {"params",
+          {{"nombre", QT_TRANSLATE_NOOP("alertas", "la métrica (p. ej. ba_ui_bucle_p99_ms; de un histograma, con :p50, :p90, :p99, :cuenta o :suma, "
+                                                   "p. ej. ba_mcp_herramienta_ms:p99); cada serie se mira por su lado")},
+           {"mayor", QT_TRANSLATE_NOOP("alertas", "avisar si pasa de este valor")},
+           {"menor", QT_TRANSLATE_NOOP("alertas", "o si baja de este")},
+           {"forSec", QT_TRANSLATE_NOOP("alertas", "segundos seguidos así (por defecto 10)")}}},
          {"cooldownSec", 120}},
         {{"type", "persistencia"},
          {"summary", QT_TRANSLATE_NOOP("alertas", "El estado guardado volvió dañado tras un corte (qué había al aire, la línea de "
@@ -733,6 +744,34 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
     } else if (type == "persistencia" && in_.persistencia) {
         for (const std::string& texto : in_.persistencia())
             if (st.seen.emplace("p:" + texto, "1").second) fire(rule, st, texto, json::object(), now);
+    } else if (type == "metrica") {
+        // Cualquier métrica del proceso (diag::Metricas, F4-01) contra un umbral, sostenida:
+        // lo que antes había que ir a buscar al registro («¿cuántas veces reconectó?»). Con
+        // «*» en las etiquetas (sin `etiquetas`), cada serie del nombre por su lado.
+        const std::string nombre = p.value("nombre", std::string());
+        const bool hayMayor = p.contains("mayor"), hayMenor = p.contains("menor");
+        if (nombre.empty() || (!hayMayor && !hayMenor)) return;
+        const double mayor = p.value("mayor", 0.0), menor = p.value("menor", 0.0);
+        const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 10.0) * 1000);
+        ba::diag::Metricas::proceso().refrescar();
+        for (const auto& [etiquetas, v] : ba::diag::Metricas::proceso().valores(nombre)) {
+            const std::string k = "m:" + ba::diag::Metricas::etiquetasATexto(etiquetas);
+            const bool fuera = (hayMayor && v > mayor) || (hayMenor && v < menor);
+            if (!fuera) {
+                st.since.erase(k);
+                st.seen.erase(k);
+                continue;
+            }
+            if (!st.since.count(k)) st.since[k] = now;
+            if (now - st.since[k] < forMs || st.seen[k] == "1" || !cooled(k)) continue;
+            st.seen[k] = "1";
+            mark(k);
+            const std::string cual = etiquetas.empty() ? nombre : nombre + "{" + ba::diag::Metricas::etiquetasATexto(etiquetas) + "}";
+            fire(rule, st,
+                 ba::i18n::llenar(ba::i18n::traducir("alertas", "La métrica %1 vale %2 hace %3 s (umbral: %4)."),
+                                  {cual, fmt1(v), fmt1((now - st.since[k]) / 1000.0), fmt1(hayMayor ? mayor : menor)}),
+                 {{"metrica", nombre}, {"valor", v}}, now);
+        }
     } else if (type == "record_down" && in_.status) {
         const auto s = in_.status();
         const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 5.0) * 1000);

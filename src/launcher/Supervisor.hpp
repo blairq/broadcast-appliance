@@ -44,6 +44,8 @@
 #include "ChildProcess.hpp"
 #include "ControlChannel.hpp"
 #include "Integrity.hpp"
+#include "MetricasLauncher.hpp"
+#include "PerroGuardian.hpp"
 #include "Politica.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "platform/SingleInstance.hpp"
@@ -78,6 +80,9 @@ class Supervisor {
         int maxCaidas = 5;                       // más caídas que esto en la ventana: modo seguro
         std::uint64_t ventanaCaidasMs = 120000;  // la ventana del cortacircuito
         int reiniciosSinPreguntar = 2;           // fallas seguidas que se reinician sin preguntar
+        // Watchdog de hardware (F4-08, solo Linux): apagado de fábrica (perroS = 0).
+        std::string perroDispositivo = "/dev/watchdog";
+        int perroS = 0;                          // plazo de la placa; 0 = no se usa
         std::uint32_t slotA = ba::ipc::kSlotSaludApp;     // slot de A en BA.Health
         std::uint32_t slotB = ba::ipc::kSlotSaludGateway; // slot de B en BA.Health
         // El emisor aparte (F3-01): las salidas que codifica un `ba-emisor` propio
@@ -182,6 +187,8 @@ class Supervisor {
     static std::atomic<bool> stopRequested_;
 
     std::unique_ptr<Volcados> volcados_; ///< los volcados de los hijos, con su .json (Volcados.hpp)
+    PerroGuardian perro_;         ///< el watchdog de hardware (PerroGuardian.hpp), si se pidió
+    MetricasLauncher metricas_;   ///< Runtime/metricas-launcher.prom (MetricasLauncher.hpp)
     bool inStartupGrace(const Hijo& h) const;
 
     std::uint64_t ultimaMiradaAire_ = 0; // ms monotonicos: al-aire.json se mira cada tanto, no cada vuelta

@@ -8,6 +8,8 @@
 // texturas compartidas ni Spout2: todo pasa por la CPU (ver SpoutTransport.hpp).
 //
 // Los sellos (frameIndex y QPC) van en la cabecera de cada buffer, con el cuadro.
+// La cabecera del slot lleva además cuándo publicó el productor el último y cada cuánto
+// publica: con eso el lector duerme hasta el próximo (ipc/Mirada.hpp, F2-14).
 //
 // Ninguna funcion publica lanza: publish()/subscribe() y send()/receive()
 // devuelven bool; los fallos de create/open del meta se expresan con Status.
@@ -15,6 +17,7 @@
 #include "SpoutTransport.hpp"
 
 #include "ipc/AtomicRef.hpp"
+#include "ipc/Mirada.hpp"
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -59,18 +62,27 @@ struct alignas(kSpoutCacheLine) VideoBufferHeader {
     std::uint64_t seq = 0; // impar = escribiendose (atomic_ref)
     std::uint64_t frameIndex = 0;
     std::uint64_t qpc = 0;
+    std::uint64_t contenidoQpc = 0; // la hora de lo que muestra (FrameMeta)
+    std::uint32_t ancho = 0;        // el tamaño real del cuadro; 0 = el del slot
+    std::uint32_t alto = 0;
 };
 
+// Versión 2: el período y la hora del último envío (en el hueco antes de pubCount: el
+// tamaño de la cabecera no cambia) y, por buffer, la hora del contenido y el tamaño real.
 struct VideoSlotHeader {
     std::uint32_t magic = 0;
-    std::uint32_t version = 1;
+    std::uint32_t version = 2;
     std::uint32_t width = 0;
     std::uint32_t height = 0;
     std::uint64_t frameBytes = 0;
     std::uint64_t instanceId = 0;
+    std::uint64_t periodoNs = 0; // cada cuánto publica el productor (atomic_ref; 0 = no se sabe)
+    std::uint64_t envioNs = 0;   // cuándo publicó el último (steady_clock en ns; atomic_ref)
     alignas(kSpoutCacheLine) std::uint64_t pubCount = 0; // frames publicados (atomic_ref)
     VideoBufferHeader buffers[kVideoBuffers];
 };
+static_assert(offsetof(VideoSlotHeader, pubCount) == kSpoutCacheLine, "el período y el envío caben antes de pubCount");
+static_assert(sizeof(VideoBufferHeader) == kSpoutCacheLine, "la cabecera de un buffer es una línea de caché");
 
 namespace {
 
@@ -223,7 +235,8 @@ bool SpoutMetaBlock::valid() const { return region_.valid() && layout_ != nullpt
 SpoutSender::~SpoutSender() = default;
 
 SpoutSender::SpoutSender(SpoutSender&& other) noexcept
-    : region_(std::move(other.region_)), header_(other.header_), published_(other.published_) {
+    : region_(std::move(other.region_)), header_(other.header_), published_(other.published_),
+      periodoDicho_(other.periodoDicho_), anteriorNs_(other.anteriorNs_) {
     other.header_ = nullptr;
     other.published_ = false;
 }
@@ -233,6 +246,8 @@ SpoutSender& SpoutSender::operator=(SpoutSender&& other) noexcept {
         region_ = std::move(other.region_);
         header_ = other.header_;
         published_ = other.published_;
+        periodoDicho_ = other.periodoDicho_;
+        anteriorNs_ = other.anteriorNs_;
         other.header_ = nullptr;
         other.published_ = false;
     }
@@ -257,11 +272,13 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     }
     // Cabecera completa ANTES del magic (release): un lector que vea el magic
     // ve el resto de los campos.
-    h->version = 1;
+    h->version = 2;
     h->width = static_cast<std::uint32_t>(cfg.width);
     h->height = static_cast<std::uint32_t>(cfg.height);
     h->frameBytes = frame;
     h->instanceId = newInstanceId();
+    h->periodoNs = cfg.periodoNs;
+    h->envioNs = 0;
     h->pubCount = 0;
     for (auto& b : h->buffers) {
         b = VideoBufferHeader{};
@@ -271,11 +288,19 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     region_ = std::move(region);
     header_ = h;
     published_ = true;
+    periodoDicho_ = cfg.periodoNs != 0;
+    anteriorNs_ = 0;
     return true;
 }
 
 bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& meta) {
     if (!published_ || header_ == nullptr || pixels == nullptr || bytes > header_->frameBytes) {
+        return false;
+    }
+    // Un tamaño real tiene que caber en el slot y venir entero.
+    const bool real = meta.ancho != 0 || meta.alto != 0;
+    if (real && (meta.ancho == 0 || meta.alto == 0 || meta.ancho > header_->width || meta.alto > header_->height ||
+                 bytes < static_cast<std::size_t>(meta.ancho) * meta.alto * 4u)) {
         return false;
     }
     AtomicRef<std::uint64_t> pub(header_->pubCount);
@@ -291,10 +316,22 @@ bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& m
     std::memcpy(bufferAt(header_, idx), pixels, bytes);
     bh.frameIndex = meta.frameIndex;
     bh.qpc = meta.qpc;
+    bh.contenidoQpc = meta.contenidoQpc;
+    bh.ancho = real ? meta.ancho : 0;
+    bh.alto = real ? meta.alto : 0;
     seq.store(s0 + 2, std::memory_order_release);
 
     // Recien ahora se anuncia el frame.
     pub.store(next, std::memory_order_release);
+    // Cuándo y cada cuánto (para que el lector duerma hasta el próximo: ipc/Mirada.hpp).
+    const std::uint64_t ahora = mirada::ahoraNs();
+    if (!periodoDicho_)
+        AtomicRef<std::uint64_t>(header_->periodoNs)
+            .store(mirada::periodoMedido(AtomicRef<std::uint64_t>(header_->periodoNs).load(std::memory_order_relaxed),
+                                         anteriorNs_, ahora),
+                   std::memory_order_relaxed);
+    anteriorNs_ = ahora;
+    AtomicRef<std::uint64_t>(header_->envioNs).store(ahora, std::memory_order_relaxed);
     return true;
 }
 
@@ -307,7 +344,7 @@ SpoutReceiver::~SpoutReceiver() = default;
 SpoutReceiver::SpoutReceiver(SpoutReceiver&& other) noexcept
     : region_(std::move(other.region_)), header_(other.header_), name_(std::move(other.name_)),
       instanceId_(other.instanceId_), lastSeenPub_(other.lastSeenPub_), lastFrameNs_(other.lastFrameNs_),
-      lastCheckNs_(other.lastCheckNs_), subscribed_(other.subscribed_) {
+      lastCheckNs_(other.lastCheckNs_), subscribed_(other.subscribed_), temblor_(other.temblor_) {
     other.header_ = nullptr;
     other.subscribed_ = false;
 }
@@ -322,6 +359,7 @@ SpoutReceiver& SpoutReceiver::operator=(SpoutReceiver&& other) noexcept {
         lastFrameNs_ = other.lastFrameNs_;
         lastCheckNs_ = other.lastCheckNs_;
         subscribed_ = other.subscribed_;
+        temblor_ = other.temblor_;
         other.header_ = nullptr;
         other.subscribed_ = false;
     }
@@ -375,8 +413,15 @@ bool SpoutReceiver::receive(void* dst, std::size_t cap, FrameMeta& metaOut) {
         if ((s1 & 1u) != 0) {
             continue; // se esta escribiendo: probar con el siguiente anuncio
         }
-        std::memcpy(dst, bufferAt(header_, idx), bytes);
-        const FrameMeta m{bh.frameIndex, bh.qpc};
+        // Un cuadro más chico que el slot (su tamaño real): solo sus bytes. Si el tamaño no
+        // es creíble (el escritor lo está cambiando), el seqlock lo descarta abajo.
+        FrameMeta m{bh.frameIndex, bh.qpc, bh.contenidoQpc, bh.ancho, bh.alto};
+        std::size_t usados = bytes;
+        if (m.ancho != 0 && m.alto != 0 && m.ancho <= header_->width && m.alto <= header_->height)
+            usados = static_cast<std::size_t>(m.ancho) * m.alto * 4u;
+        else
+            m.ancho = m.alto = 0;
+        std::memcpy(dst, bufferAt(header_, idx), usados);
         std::atomic_thread_fence(std::memory_order_acquire);
         if (seq.load(std::memory_order_relaxed) != s1) {
             continue; // el escritor piso el buffer durante la copia
@@ -384,6 +429,7 @@ bool SpoutReceiver::receive(void* dst, std::size_t cap, FrameMeta& metaOut) {
         metaOut = m;
         lastSeenPub_ = p;
         lastFrameNs_ = monoNs();
+        temblor_.publicado(AtomicRef<std::uint64_t>(header_->envioNs).load(std::memory_order_relaxed), periodoNs());
         return true;
     }
     return false;
@@ -402,6 +448,18 @@ int SpoutReceiver::height() const { return header_ != nullptr ? static_cast<int>
 
 std::size_t SpoutReceiver::frameBytes() const {
     return header_ != nullptr ? static_cast<std::size_t>(header_->frameBytes) : 0;
+}
+
+std::uint64_t SpoutReceiver::periodoNs() const {
+    return header_ != nullptr ? AtomicRef<std::uint64_t>(header_->periodoNs).load(std::memory_order_relaxed) : 0;
+}
+
+std::chrono::steady_clock::time_point SpoutReceiver::proximaMirada(std::chrono::steady_clock::duration pasoQuieto) const {
+    const auto ahora = std::chrono::steady_clock::now();
+    if (header_ == nullptr) return ahora + pasoQuieto;
+    const std::uint64_t periodo = periodoNs();
+    return mirada::proxima(ahora, AtomicRef<std::uint64_t>(header_->envioNs).load(std::memory_order_relaxed), periodo,
+                           pasoQuieto, temblor_.adelanto(periodo));
 }
 
 bool SpoutReceiver::stale() {
