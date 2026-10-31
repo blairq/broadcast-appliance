@@ -36,6 +36,7 @@ namespace ba::app {
 class AppRuntime;
 class Configuraciones;
 class SystemViewModel;
+class VentanillaMotor;
 } // namespace ba::app
 namespace ba::app::agent {
 class AgentViewModel;
@@ -63,6 +64,8 @@ class AppViewModel : public QObject {
    public:
     struct Partes {
         AppRuntime& rt;
+        /// La foto del motor (F3-03): si sale algo (el modo en vivo) y lo del equipo.
+        VentanillaMotor& ventanilla;
         /// Lo que sale ahora (las pastillas de la raíz) y quiénes están conectados (la
         /// sala y la sesión remota): lo que se corta al cerrar.
         std::function<bool()> transmitiendo;

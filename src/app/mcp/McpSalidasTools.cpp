@@ -18,6 +18,7 @@
 // ============================================================================
 
 #include "arranque/AppRuntime.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "diag/Recursos.hpp"
 #include "escenas/Conmutador.hpp"
 #include "i18n/I18n.hpp"
@@ -39,29 +40,18 @@ escenas::Conmutador& conmutadorDe(const McpCore& core, StudioViewModel& vm, cons
     return conmutadorDe(vm, core.salidaDe(args));
 }
 
-json resumenSalidas(AppRuntime& rt, StudioViewModel& vm) {
-    const EngineStatus st = rt.engine().status();
-    const json guardadas = rt.salidas();
+json resumenSalidas(const FotoMotor& f) {
+    // Lo del motor (parte Equipo) y, de cada salida, lo guardado, la armada y la placa (Salidas).
     json out = json::array();
-    for (const auto& s : st.salidas) {
-        json g = json::object();
-        for (const auto& x : guardadas.value("salidas", json::array()))
-            if (x.value("id", std::string()) == s.id) g = x;
-        escenas::Conmutador* c = vm.conmutadores().de(s.porOmision ? std::string() : s.id);
-        out.push_back({{"id", s.id},
-                       {"nombre", s.nombre},
-                       {"color", g.value("color", std::string())},
-                       {"por_omision", s.porOmision},
-                       {"escena", s.escena},
-                       {"armada", c != nullptr ? c->armada() : std::string()},
-                       {"streaming", s.streaming},
-                       {"reconectando", s.reconnecting},
-                       {"recording", s.recording},
-                       {"destinos", s.destinos},
-                       {"limpia", s.limpia},
-                       {"repeticion", s.repeticion},
-                       {"codificador", g.value("codificador", std::string())},
-                       {"placa", rt.engine().estadoPlaca(s.porOmision ? std::string() : s.id)}});
+    for (const json& s : f.equipo.motor.value("salidas", json::array())) {
+        const bool porOmision = s.value("por_omision", false);
+        const FotoMotor::Salida* x = f.salida(porOmision ? std::string() : s.value("id", std::string()));
+        json o = s;
+        o["color"] = x != nullptr ? x->color : std::string();
+        o["armada"] = x != nullptr ? x->armada : std::string();
+        o["codificador"] = x != nullptr ? x->codificador : std::string();
+        o["placa"] = x != nullptr ? x->placa : json::object();
+        out.push_back(std::move(o));
     }
     return out;
 }
@@ -96,26 +86,32 @@ void McpService::registerSalidasTools() {
                            {"color", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "#RRGGBB (tally, multiview).")}}}}}};
         t.examples = {R"({"id": "youtube2", "nombre": "YouTube 2", "color": "#2E86DE"})"};
         RecursosViewModel* rec = vm_.recursos();
+        // Crearla se le pide al dueño del motor; lo demás, cuando contesta (con la foto al día).
         t.run = [&rt, &vm, rec](const json& a, Done done) {
             const std::string id = a.value("id", std::string());
-            if (const std::string e = rt.crearSalida(id, a.value("nombre", id), a.value("color", std::string()));
-                !e.empty())
-                return done(ToolResult::error(e));
-            json out{{"salidas", resumenSalidas(rt, vm)}};
-            // El margen de la máquina: el tope lo pone el operador; si aguanta, lo dice esto.
-            if (rec != nullptr) {
-                const json inf = rec->muestreador().informe(0, 1);
-                const json mg = inf.value("margen", json::object());
-                out["recursos"] = {{"estado", inf.value("estado", std::string("desconocido"))}, {"margen", mg}};
-                const std::string estado = inf.value("estado", std::string());
-                const double pct = mg.value("pct", json()).is_number() ? mg["pct"].get<double>() : -1.0;
-                if (estado == "aviso" || estado == "critico" || (pct >= 0 && pct < 20))
-                    out["aviso"] = ba::i18n::llenar(
-                        ba::i18n::traducir("mcp", "La máquina ya está cerca del límite (%1, margen %2 %): transmitir o "
-                                                  "grabar con esta salida puede no dar abasto. Mirá sistema_recursos."),
-                        {mg.value("limita", std::string("?")), pct >= 0 ? std::to_string(static_cast<int>(pct)) : "?"});
-            }
-            done(ToolResult().data(out));
+            vm.ventanilla().pedir(
+                &vm, "salida_crear",
+                [&rt, id, nombre = a.value("nombre", id), color = a.value("color", std::string())]() {
+                    return rt.crearSalida(id, nombre, color);
+                },
+                [&vm, rec, done](const std::string& e) {
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    json out{{"salidas", resumenSalidas(vm.ventanilla().foto())}};
+                    // El margen de la máquina: el tope lo pone el operador; si aguanta, lo dice esto.
+                    if (rec != nullptr) {
+                        const json inf = rec->muestreador().informe(0, 1);
+                        const json mg = inf.value("margen", json::object());
+                        out["recursos"] = {{"estado", inf.value("estado", std::string("desconocido"))}, {"margen", mg}};
+                        const std::string estado = inf.value("estado", std::string());
+                        const double pct = mg.value("pct", json()).is_number() ? mg["pct"].get<double>() : -1.0;
+                        if (estado == "aviso" || estado == "critico" || (pct >= 0 && pct < 20))
+                            out["aviso"] = ba::i18n::llenar(
+                                ba::i18n::traducir("mcp", "La máquina ya está cerca del límite (%1, margen %2 %): transmitir o "
+                                                          "grabar con esta salida puede no dar abasto. Mirá sistema_recursos."),
+                                {mg.value("limita", std::string("?")), pct >= 0 ? std::to_string(static_cast<int>(pct)) : "?"});
+                    }
+                    done(ToolResult().data(out));
+                });
         };
         core_.addTool(std::move(t));
     }
@@ -143,18 +139,22 @@ void McpService::registerSalidasTools() {
             if (!cambia && !a.contains("tope"))
                 return done(ToolResult::error(
                     ba::i18n::traducir("mcp", "Falta qué cambiar: `nombre`, `color`, `codificador` o `tope`.")));
-            if (a.contains("tope"))
-                if (const std::string e = rt.setTopeSalidas(a.value("tope", 0)); !e.empty())
-                    return done(ToolResult::error(e));
-            if (cambia) {
-                json cambios = json::object();
-                for (const char* k : {"nombre", "color", "codificador"})
-                    if (a.contains(k)) cambios[k] = a[k];
-                if (const std::string e = rt.editarSalida(a.value("id", std::string()), cambios); !e.empty())
-                    return done(ToolResult::error(e));
-            }
-            done(ToolResult().data(
-                json{{"tope", rt.salidas().value("tope", 0)}, {"salidas", resumenSalidas(rt, vm)}}));
+            json cambios = json::object();
+            for (const char* k : {"nombre", "color", "codificador"})
+                if (a.contains(k)) cambios[k] = a[k];
+            // En el dueño del motor; la respuesta, con la foto al día.
+            vm.ventanilla().pedir(
+                &vm, "salida_editar",
+                [&rt, cambia, cambios, id = a.value("id", std::string()), tope = a.contains("tope") ? a.value("tope", 0) : -1]() {
+                    if (tope >= 0)
+                        if (std::string e = rt.setTopeSalidas(tope); !e.empty()) return e;
+                    return cambia ? rt.editarSalida(id, cambios) : std::string();
+                },
+                [&vm, done](const std::string& e) {
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    const FotoMotor& f = vm.ventanilla().foto();
+                    done(ToolResult().data(json{{"tope", f.tope}, {"salidas", resumenSalidas(f)}}));
+                });
         };
         core_.addTool(std::move(t));
     }
@@ -178,10 +178,15 @@ void McpService::registerSalidasTools() {
                             {{"type", "string"},
                              {"description", QT_TRANSLATE_NOOP("mcp", "Sus destinos guardados: el id de otra salida o «borrar».")}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
-            if (const std::string e = rt.borrarSalida(a.value("id", std::string()), a.value("destinos", std::string()));
-                !e.empty())
-                return done(ToolResult::error(e));
-            done(ToolResult().data(json{{"salidas", resumenSalidas(rt, vm)}}));
+            vm.ventanilla().pedir(
+                &vm, "salida_borrar",
+                [&rt, id = a.value("id", std::string()), destinos = a.value("destinos", std::string())]() {
+                    return rt.borrarSalida(id, destinos);
+                },
+                [&vm, done](const std::string& e) {
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    done(ToolResult().data(json{{"salidas", resumenSalidas(vm.ventanilla().foto())}}));
+                });
         };
         core_.addTool(std::move(t));
     }

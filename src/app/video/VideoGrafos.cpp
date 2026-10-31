@@ -2513,7 +2513,7 @@ bool hayElemento(const char* elemento) {
 }
 } // namespace
 
-QStringList VideoGrafos::motoresSuperres() const {
+QStringList VideoGrafos::motoresSuperres() {
     QStringList l;
     for (const auto& [motor, elemento] :
          {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}, {"coreml", "bacoremlsr"}, {"glsl", "baglsl"}})

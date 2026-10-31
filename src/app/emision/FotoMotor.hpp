@@ -26,10 +26,20 @@
 //   Ajustes  el lienzo, la transición global, el tema, los invitados, el servidor y la clave.
 //   Medidas  lo que se mueve siempre (los medios que suenan y cuánto les queda, la salud de
 //            cada destino, el loudness de cada salida): se lee cuando se lo necesita.
+//   Configuracion  la configuración guardada entera (app.json, gateway.json, launcher.json),
+//            una copia que no cambia: la leen los formularios de Configuración, la voz, el
+//            asistente. Se rearma cuando se aplica (AppRuntime::Cambio::Ajustes) o alguien la
+//            ensucia (cambiar el micrófono del operador).
+//   Equipo   lo que vigilan los chequeos del equipo (F4-07), los recursos y las alarmas:
+//            el reloj del estudio, la foto de las salidas del motor (sesiones de
+//            codificador, el colchón del disco, cada salida), el pico de cada entrada de
+//            audio y lo del motor que lee el MCP (el último error, el codificador de
+//            respaldo, cada salida como la ve status()); dos veces por segundo.
 // ============================================================================
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -37,6 +47,10 @@
 #include <nlohmann/json.hpp>
 
 namespace ba::app {
+
+struct AppConfig;
+struct GatewaySettings;
+struct LauncherSettings;
 
 struct FotoMotor {
     /// Las partes (bits): lo que avisa la ventanilla.
@@ -47,7 +61,10 @@ struct FotoMotor {
         Emision = 1u << 3,
         Ajustes = 1u << 4,
         Medidas = 1u << 5,
-        Todas = (1u << 6) - 1,
+        // El bit 8 es de AppRuntime (kFotoRelerArchivos); del 9 en adelante, las de cada área.
+        Configuracion = 1u << 13,
+        Equipo = 1u << 14,
+        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Configuracion | Equipo,
     };
 
     // --- Escenas ---------------------------------------------------------------------
@@ -143,6 +160,29 @@ struct FotoMotor {
     nlohmann::json medios = nlohmann::json::array();   ///< [{fuente, estado, duracion_ms, tiempo_ms}]
     nlohmann::json salud = nlohmann::json::object();   ///< BroadcastEngine::saludSalidas
     nlohmann::json loudness = nlohmann::json::object(); ///< {salida: LoudnessPrograma::json}
+
+    // --- Configuracion -------------------------------------------------------------------
+    /// Copias que nadie cambia (el dueño arma otras cuando cambia la configuración): se
+    /// comparan por puntero. Nunca nulas después de la primera foto.
+    struct Guardada {
+        std::shared_ptr<const AppConfig> app;
+        std::shared_ptr<const GatewaySettings> gateway;
+        std::shared_ptr<const LauncherSettings> launcher;
+        bool operator==(const Guardada&) const = default;
+    };
+    Guardada configuracion;
+
+    // --- Equipo ----------------------------------------------------------------------
+    struct DelEquipo {
+        std::string relojTipo, relojError; ///< BroadcastEngine::relojEstado
+        nlohmann::json salidas = nlohmann::json::object(); ///< BroadcastEngine::fotoSalidas
+        nlohmann::json audio = nlohmann::json::array();    ///< [{fuente, pico_db, mudo}] (audioSources)
+        /// {ultimo_error, respaldo_codificador, salidas: [{id, nombre, por_omision, escena,
+        /// streaming, reconectando, recording, destinos, limpia, repeticion}]} (EngineStatus).
+        nlohmann::json motor = nlohmann::json::object();
+        bool operator==(const DelEquipo&) const = default;
+    };
+    DelEquipo equipo;
 
     // --- Para leerla -----------------------------------------------------------------
     const Escena* escena(const std::string& nombre) const {

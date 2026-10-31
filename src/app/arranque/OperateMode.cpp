@@ -261,7 +261,8 @@ unsigned AppRuntime::partesDe(Cambio c) {
         case Cambio::Capa: return FotoMotor::Escenas;
         case Cambio::Audio: return FotoMotor::Medidas;
         case Cambio::Ajustes:
-            return FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Emision | FotoMotor::Salidas | kFotoRelerArchivos;
+            return FotoMotor::Ajustes | FotoMotor::Escenas | FotoMotor::Emision | FotoMotor::Salidas |
+                   FotoMotor::Configuracion | kFotoRelerArchivos;
     }
     return FotoMotor::Todas | kFotoRelerArchivos;
 }
@@ -902,9 +903,10 @@ void AppRuntime::ticMotor() {
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
     // La foto que lee la interfaz: lo que se mueve solo (lo que sale, las medidas) en cada
-    // vuelta; lo de la emisión (grabación, ISO, limpia, disco) dos veces por segundo.
+    // vuelta; lo de la emisión (grabación, ISO, limpia, disco) y del equipo (el reloj, las
+    // sesiones de codificador) dos veces por segundo.
     fotoSucia_.fetch_or(FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Medidas |
-                        (ticsMotor_ % 5 == 0 ? static_cast<unsigned>(FotoMotor::Emision) : 0u));
+                        (ticsMotor_ % 5 == 0 ? static_cast<unsigned>(FotoMotor::Emision | FotoMotor::Equipo) : 0u));
     publicarFoto();
 }
 
@@ -928,6 +930,7 @@ bool AppRuntime::setOperatorFeed(const std::string& videoSource, const std::stri
     const bool ok = operator_.configure(engine_, videoSource, audioSource);
     cfg_.operatorVideo = videoSource;
     cfg_.operatorAudio = audioSource;
+    fotoSucia(FotoMotor::Configuracion); // el micrófono del operador (la voz lo lee de la foto)
     if (!ok) errorDelHilo() = ba::i18n::traducir("arranque", "no existe la fuente elegida para el operador");
     return ok;
 }
@@ -983,8 +986,10 @@ std::string AppRuntime::carpetaGrabacion() const {
 }
 
 std::vector<std::string> AppRuntime::carpetasDeGrabaciones() const {
+    // De la copia de los ajustes de aire (como carpetaGrabacion): se lee desde la interfaz.
     std::vector<std::string> out{carpetaGrabacion()};
-    if (out.front() != cfg_.rec.directory) out.push_back(cfg_.rec.directory);
+    const std::string general = ajustesAire().rec.directory;
+    if (out.front() != general) out.push_back(general);
     return out;
 }
 

@@ -588,8 +588,10 @@ void McpService::registerRoomTools() {
                     ++n;
                 }
                 if (n == 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "no mandaste nada para cambiar")));
-                const QString summary = settings->apply(); // la vista se recarga sola (aviso «Ajustes»)
-                done(settings->fallo() ? ToolResult::error(summary.toStdString()) : ToolResult::ok(summary.toStdString()));
+                // En el dueño del motor; la vista se recarga sola (la foto trae la configuración).
+                settings->aplicar([done](const QString& summary, bool fallo) {
+                    done(fallo ? ToolResult::error(summary.toStdString()) : ToolResult::ok(summary.toStdString()));
+                });
             };
             core_.addTool(std::move(t));
         }

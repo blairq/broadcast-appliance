@@ -20,6 +20,7 @@
 #include <algorithm>
 
 #include "arranque/AppRuntime.hpp"
+#include "ui/AireDeCuentas.hpp"
 #include "arranque/AppSettings.hpp"
 #include "net/HttpsClient.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
@@ -40,8 +41,8 @@ QJsonArray withUid(const QJsonArray& in, const QString& key = "id") {
 
 } // namespace
 
-YouTubeViewModel::YouTubeViewModel(AppRuntime& rt, QObject* parent)
-    : QObject(parent), rt_(rt), client_(std::make_unique<YouTubeClient>(
+YouTubeViewModel::YouTubeViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<YouTubeClient>(
                                     QString::fromStdString((ba::platform::credentialsDir()).string()))),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "privacy", "publishedAt", "thumb", "views", "likes",
@@ -285,7 +286,7 @@ void YouTubeViewModel::goLive(const QString& broadcastId) {
 }
 
 void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done done) {
-    if (rt_.engine().status().streaming) {
+    if (cuentas::transmitiendo(ventanilla_)) {
         return done(false, {},
                     broadcastId == liveBroadcastId_
                         ? tr("Ya se esta transmitiendo a este evento.")
@@ -302,10 +303,21 @@ void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done do
         const QString key = ing.value("key").toString();
         if (url.isEmpty() || key.isEmpty())
             return done(false, {}, tr("YouTube no entrego servidor o clave de ingesta."));
-        // Servidor y clave SOLO en memoria (la politica del appliance).
-        if (!self->rt_.startStreaming(url.toStdString(), key.toStdString()))
-            return done(false, {},
-                        tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(self->rt_.lastError())));
+        // Servidor y clave SOLO en memoria (la politica del appliance). Lo sigue cuando el
+        // motor contesta.
+        cuentas::transmitir(self->ventanilla_, self->rt_, self, url.toStdString(), key.toStdString(),
+                            [self, broadcastId, url, done](const std::string& error) {
+                                if (self) self->alSalir(broadcastId, url, error, done);
+                            });
+    });
+}
+
+void YouTubeViewModel::alSalir(const QString& broadcastId, const QString& url, const std::string& error,
+                               const YouTubeClient::Done& done) {
+    if (!error.empty())
+        return done(false, {}, tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(error)));
+    {
+        QPointer<YouTubeViewModel> self(this); // lo siguen pidiendo después (la espera del «en vivo»)
         self->liveBroadcastId_ = broadcastId;
         self->setChatBroadcast(broadcastId);
         emit self->stateChanged();
@@ -365,7 +377,7 @@ void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done do
         QTimer::singleShot(5000, self, [check]() {
             if (*check) (*check)();
         });
-    });
+    }
 }
 
 void YouTubeViewModel::endBroadcast(const QString& broadcastId) {
@@ -377,7 +389,7 @@ void YouTubeViewModel::endBroadcast(const QString& broadcastId) {
 
 void YouTubeViewModel::endBroadcast(const QString& broadcastId, YouTubeClient::Done done) {
     if (broadcastId == liveBroadcastId_) {
-        rt_.stopStreaming();
+        cuentas::cortar(ventanilla_, rt_);
         liveBroadcastId_.clear();
         emit stateChanged();
     }

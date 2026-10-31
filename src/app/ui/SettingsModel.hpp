@@ -12,20 +12,36 @@
 //
 // Edicion transaccional: `setValue` escribe en un BORRADOR; `apply` aplica y
 // guarda; `revert` descarta. `dirty` indica cambios sin aplicar.
+//
+// EL MOTOR ES DEL PLANO DE CONTROL (F3-03, docs/arquitectura/05-motor-del-plano.md): con
+// la ventanilla, lo guardado se lee de la foto (parte Configuracion) y aplicar se le PIDE
+// al dueño (`aplicar`): lo que toca la configuración, el motor y la sala corre allá, en
+// una sola orden; el resumen vuelve con `applied` (y a quien lo pidió). Lo que es de la
+// interfaz (el modo en vivo, el cupo en caliente, la sala en caliente) se decide acá,
+// antes y después. Sin ventanilla (un modelo aparte del hilo dueño, la consola), lee y
+// aplica en el acto.
 // ============================================================================
 
 #pragma once
 
 #include <QAbstractListModel>
+#include <QPointer>
 #include <QStringList>
 #include <QVariantMap>
 
 #include <functional>
+#include <string>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 namespace ba::app {
 
 class AppRuntime;
+struct AppConfig;
+struct GatewaySettings;
+struct LauncherSettings;
+class VentanillaMotor;
 namespace sala {
 class ConfigSala;
 }
@@ -59,7 +75,8 @@ class SettingsModel : public QAbstractListModel {
         AvanzadoRole ///< de los «avanzados» (ajustes/Registro): se ven con «Mostrar ajustes avanzados»
     };
 
-    explicit SettingsModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// `ventanilla`: el motor y la configuración, por la foto y los pedidos (nullptr: directo).
+    explicit SettingsModel(AppRuntime& rt, VentanillaMotor* ventanilla = nullptr, QObject* parent = nullptr);
     ~SettingsModel() override;
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -75,8 +92,13 @@ class SettingsModel : public QAbstractListModel {
     Q_INVOKABLE QVariant value(const QString& key) const;
     /// El valor guardado (el que rige), sin lo que está a medio editar.
     QVariant savedValue(const QString& key) const { return saved_.value(key); }
-    /// Aplica y guarda. :returns: resumen legible de lo que paso.
+    /// Aplica y guarda (aplicar sin respuesta). :returns: el resumen si ya terminó (sin
+    /// ventanilla, o si en vivo no se aplicó); con la ventanilla, "" y el resumen llega
+    /// con `applied`.
     Q_INVOKABLE QString apply();
+    /// Aplica y guarda: lo de la configuración y el motor, en el dueño. `listo(resumen,
+    /// fallo)` en la interfaz cuando terminó (también sale `applied`).
+    void aplicar(std::function<void(const QString& resumen, bool fallo)> listo);
     Q_INVOKABLE void revert() override;
     /// Vuelve a los valores por defecto la seccion (en el borrador).
     Q_INVOKABLE void resetSection(const QString& section);
@@ -134,6 +156,36 @@ class SettingsModel : public QAbstractListModel {
         bool avanzado = false;
         int destino = 0; ///< avanzados: 0 app.json, 1 gateway.json, 2 launcher.json ("ajustes")
     };
+    /// Lo guardado: de la foto (con la ventanilla) o de la configuración (sin ella).
+    struct Guardada {
+        const AppConfig& app;
+        const GatewaySettings& gateway;
+        const LauncherSettings& launcher;
+        std::string modoDisco; ///< BroadcastEngine::modoDisco
+    };
+    Guardada guardada() const;
+    /// Lo que se le pide al dueño al aplicar: el borrador y lo decidido en la interfaz.
+    struct Pedido {
+        QVariantMap draft, saved;
+        std::vector<Field> fields;
+        bool cupoEnVivo = false;
+        QString notaCupo;  ///< lo que dijo el cupo en caliente ("" si nada)
+        bool haySala = false; ///< hay a quién mandarle lo de la sala en caliente
+    };
+    /// Lo que vuelve del dueño.
+    struct Aplicado {
+        QStringList notas;
+        bool fallo = false;
+        bool reiniciaSala = false;
+        QStringList porQue; ///< lo que reinicia la sala
+        bool salaEnCaliente = false, ajustesSalaEnCaliente = false;
+        nlohmann::json ajSalaEnCaliente, sala; ///< los avanzados «live» y lo de la sala (lobby, pin…)
+        bool idiomaCambio = false;
+    };
+    /// La orden: aplica `p` a la configuración, el motor y la sala, y guarda. En el dueño.
+    static Aplicado aplicarEn(AppRuntime& rt, const Pedido& p, QPointer<SettingsModel> yo);
+    /// De vuelta en la interfaz: la sala en caliente, el resumen, recargar.
+    void alAplicar(Aplicado a, int conectados, const std::function<void(const QString&, bool)>& listo);
     void load(); // configuracion actual -> borrador
     /// Otro aplicó: lo guardado se relee y los campos que no se estaban editando lo toman.
     void traerDeAfuera();
@@ -142,6 +194,8 @@ class SettingsModel : public QAbstractListModel {
     int rowOfKey(const QString& key) const;
 
     AppRuntime& rt_;
+    VentanillaMotor* v_ = nullptr;
+    bool aplicandoEnDueno_ = false; ///< un aplicar() esperando al dueño: la foto no recarga
     std::function<bool()> enVivo_;
     std::string idiomaAlArrancar_; ///< el guardado al abrir el programa (idiomaPendiente)
     std::vector<Field> fields_;

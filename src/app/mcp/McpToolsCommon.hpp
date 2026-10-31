@@ -13,6 +13,7 @@
 namespace ba::app {
 class AppRuntime;
 class StudioViewModel;
+struct FotoMotor;
 namespace escenas {
 class Conmutador;
 }
@@ -48,7 +49,8 @@ escenas::Conmutador& conmutadorDe(const McpCore& core, StudioViewModel& vm, cons
 /// El de una salida ya resuelta ("" = la por omisión).
 escenas::Conmutador& conmutadorDe(StudioViewModel& vm, const std::string& salida);
 /// [{id, nombre, color, por_omision, escena, armada, streaming, reconectando,
-/// recording, destinos, limpia, repeticion, placa}], la por omisión primera.
-json resumenSalidas(AppRuntime& rt, StudioViewModel& vm);
+/// recording, destinos, limpia, repeticion, placa}], la por omisión primera. De la foto
+/// del motor (en la interfaz: StudioViewModel::ventanilla().foto()).
+json resumenSalidas(const FotoMotor& f);
 
 } // namespace ba::app::mcp

@@ -10,6 +10,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "i18n/I18n.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/FacebookViewModel.hpp"
@@ -36,7 +37,6 @@ void McpService::registerFacebookTools() {
                       ba::i18n::traducir("mcp", "Páginas de Facebook: vivos (crear, transmitir, publicar, terminar), videos, subidas y "
                       "comentarios. Solo Páginas (la API no transmite a perfiles). Primero facebook_status."));
     auto* fb = static_cast<FacebookViewModel*>(vm_.facebook());
-    AppRuntime& rt = rt_;
     const auto needPage = [fb](Done& done) {
         if (!fb->configured()) {
             done(ToolResult::error(
@@ -70,7 +70,8 @@ void McpService::registerFacebookTools() {
             QT_TRANSLATE_NOOP("mcp", "Si la app de Meta esta configurada (y su URI de redireccion), que cuenta esta conectada, la "
             "Pagina elegida, el vivo al que transmite la app, de cual se leen comentarios y la subida en "
             "curso.");
-        t.run = [fb, &rt](const json&, Done done) {
+        // Si la app transmite, de la foto del motor (la interfaz no entra al motor).
+        t.run = [fb, &vm = vm_](const json&, Done done) {
             done(ToolResult().data(json{{"configured", fb->configured()},
                                         {"loggedIn", fb->loggedIn()},
                                         {"loginPending", fb->loginPending()},
@@ -79,7 +80,7 @@ void McpService::registerFacebookTools() {
                                         {"user", qvToJson(fb->user())},
                                         {"page", qvToJson(fb->page())},
                                         {"liveId", fb->liveId().toStdString()},
-                                        {"appStreaming", rt.engine().status().streaming},
+                                        {"appStreaming", vm.ventanilla().foto().estado.transmite},
                                         {"chatLiveId", fb->chatLiveId().toStdString()},
                                         {"upload", qvToJson(fb->upload())}}));
         };

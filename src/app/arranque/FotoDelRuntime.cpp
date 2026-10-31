@@ -9,6 +9,8 @@
 #include "emision/SalidasConfig.hpp"
 
 #include <cstdlib>
+#include <memory>
+#include <tuple>
 
 namespace ba::app {
 
@@ -72,6 +74,8 @@ void AppRuntime::publicarFoto() {
             cambiaron |= FotoMotor::Emision;
         if (n.ajustes != a.ajustes) cambiaron |= FotoMotor::Ajustes;
         if (n.medios != a.medios || n.salud != a.salud || n.loudness != a.loudness) cambiaron |= FotoMotor::Medidas;
+        if (n.configuracion != a.configuracion) cambiaron |= FotoMotor::Configuracion;
+        if (n.equipo != a.equipo) cambiaron |= FotoMotor::Equipo;
     }
     if (cambiaron == 0) return;
     foto_ = f;
@@ -235,6 +239,38 @@ void AppRuntime::armarFoto(FotoMotor& f, unsigned p) {
         f.loudness = nlohmann::json::object();
         for (const std::string& id : engine_.salidaIds())
             if (const audio::LoudnessPrograma* l = engine_.loudnessDe(id)) f.loudness[id] = l->json();
+    }
+
+    // --- La configuración guardada: copias nuevas (las viejas siguen en las fotos que se leen)
+    if ((p & FotoMotor::Configuracion) != 0) {
+        f.configuracion.app = std::make_shared<const AppConfig>(cfg_);
+        f.configuracion.gateway = std::make_shared<const GatewaySettings>(gateway_);
+        f.configuracion.launcher = std::make_shared<const LauncherSettings>(launcher_);
+    }
+
+    // --- Lo del equipo (los chequeos de la preparación) ------------------------------------
+    if ((p & FotoMotor::Equipo) != 0) {
+        std::tie(f.equipo.relojTipo, f.equipo.relojError) = engine_.relojEstado();
+        f.equipo.salidas = engine_.fotoSalidas();
+        const EngineStatus est = salidasYa ? st : engine_.status();
+        nlohmann::json porSalida = nlohmann::json::array();
+        for (const auto& s : est.salidas)
+            porSalida.push_back({{"id", s.id},
+                                 {"nombre", s.nombre},
+                                 {"por_omision", s.porOmision},
+                                 {"escena", s.escena},
+                                 {"streaming", s.streaming},
+                                 {"reconectando", s.reconnecting},
+                                 {"recording", s.recording},
+                                 {"destinos", s.destinos},
+                                 {"limpia", s.limpia},
+                                 {"repeticion", s.repeticion}});
+        f.equipo.motor = {{"ultimo_error", est.lastError},
+                          {"respaldo_codificador", engine_.encoderRespaldoActivo()},
+                          {"salidas", std::move(porSalida)}};
+        f.equipo.audio = nlohmann::json::array();
+        for (const std::string& n : engine_.audioSources())
+            f.equipo.audio.push_back({{"fuente", n}, {"pico_db", engine_.sourcePeakDb(n)}, {"mudo", engine_.sourceMuted(n)}});
     }
 }
 

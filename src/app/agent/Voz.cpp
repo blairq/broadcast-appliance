@@ -29,6 +29,8 @@
 #include "agent/VozIdioma.hpp"
 #include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "audio/MonitorVoz.hpp"
 #if defined(BA_HAVE_CLAP)
 #include "audio/RackManager.hpp"
@@ -55,8 +57,8 @@ std::string idiomaNemotron(const std::string& clave) {
 }
 } // namespace
 
-Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
-    : QObject(parent), rt_(rt), modelos_(modelos) {
+Voz::Voz(AppRuntime& rt, VentanillaMotor& ventanilla, ModelosLocales& modelos, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), modelos_(modelos) {
 #if defined(BA_HAVE_VOZ)
     escucha_ = std::make_unique<audio::Escucha>();
     streaming_ = std::make_unique<audio::EscuchaStreaming>();
@@ -710,7 +712,7 @@ void Voz::revisarCorrientes() {
 #endif
 }
 
-QString Voz::microfono() const { return QString::fromStdString(rt_.config().operatorAudio); }
+QString Voz::microfono() const { return QString::fromStdString(ventanilla_.foto().configuracion.app->operatorAudio); }
 
 bool Voz::dictadoConMicrofono() const {
     if (!microfono().isEmpty() || rt_.operatorFeed().hayMicrofono()) return true;
@@ -721,9 +723,15 @@ bool Voz::dictadoConMicrofono() const {
 }
 
 QString Voz::setMicrofono(const QString& fuente) {
-    if (!rt_.setOperatorFeed(rt_.config().operatorVideo, fuente.toStdString()))
+    // Se le pide al dueño del motor; el error vuelve como aviso y el micrófono nuevo, en la
+    // foto (parte Configuracion), que llega antes que la respuesta.
+    const std::string f = fuente.toStdString();
+    const auto& todas = ventanilla_.foto().fuentes;
+    if (!f.empty() && std::none_of(todas.begin(), todas.end(), [&f](const auto& x) { return x.first == f; }))
         return tr("No existe la fuente «%1».").arg(fuente);
-    emit cambio();
+    ventanilla_.pedir(
+        this, "voz_microfono", [&rt = rt_, f]() { return rt.setOperatorFeed(rt.config().operatorVideo, f); },
+        [this](bool) { emit cambio(); });
     return {};
 }
 

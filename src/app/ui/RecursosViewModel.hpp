@@ -46,6 +46,7 @@
 namespace ba::app {
 
 class AppRuntime;
+class VentanillaMotor;
 
 class RecursosViewModel : public QObject {
     Q_OBJECT
@@ -66,7 +67,8 @@ class RecursosViewModel : public QObject {
     /// Cuántos segundos de historia muestra la línea de cada fila.
     Q_PROPERTY(int segundosHistoria READ segundosHistoria CONSTANT)
    public:
-    explicit RecursosViewModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// `ventanilla`: lo del motor (cuadros, lo que sale, el disco), de su foto (F3-03).
+    RecursosViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~RecursosViewModel() override;
 
     QVariantList filas() const { return filas_; }
@@ -103,6 +105,7 @@ class RecursosViewModel : public QObject {
     QString titulo(const QString& clave) const;
 
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     std::unique_ptr<diag::Recursos> recursos_;
     QVariantList filas_;
     QString estado_ = QStringLiteral("desconocido");

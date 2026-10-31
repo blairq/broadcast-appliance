@@ -21,6 +21,7 @@
 namespace ba::app {
 
 class AppRuntime;
+class VentanillaMotor;
 class JsonListModel;
 
 class FacebookViewModel : public QObject {
@@ -45,7 +46,8 @@ class FacebookViewModel : public QObject {
     Q_PROPERTY(QString chatLiveId READ chatLiveId NOTIFY chatChanged)
     Q_PROPERTY(QVariantMap upload READ upload NOTIFY uploadChanged)
    public:
-    FacebookViewModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// `ventanilla`: transmitir y cortar se le piden al motor; si transmite, de su foto (F3-03).
+    FacebookViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~FacebookViewModel() override;
 
     bool configured() const { return client_->hasClient(); }
@@ -108,11 +110,14 @@ class FacebookViewModel : public QObject {
     void vivo(const QVariantMap& datos);
 
    private:
+    /// El motor contestó si salió al aire (`error` vacío = sí): sigue goLive.
+    void alSalir(const QJsonObject& d, const QJsonObject& ing, const std::string& error, const FacebookClient::Done& done);
     void setError(const QString& e);
     void track(bool start);
     void pollChat();
 
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     std::unique_ptr<FacebookClient> client_;
     std::unique_ptr<JsonListModel> lives_;
     std::unique_ptr<JsonListModel> videos_;

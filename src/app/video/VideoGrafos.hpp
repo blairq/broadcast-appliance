@@ -254,7 +254,8 @@ class VideoGrafos : public QObject {
                               const std::string& modelo);
     Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
     /// Qué motores hay en este sistema: [apple?, fsr?, onnx?].
-    Q_INVOKABLE QStringList motoresSuperres() const;
+    /// De las fábricas de GStreamer, no del grafo: desde cualquier hilo.
+    Q_INVOKABLE static QStringList motoresSuperres();
     /// Los tamaños (ancho, alto) de las entradas de video que hay (para el banco).
     std::vector<std::pair<int, int>> tamanosDeEntradas() const;
     /// Lo que va a tardar `plugin` con entradas de ancho×alto según el banco de

@@ -38,11 +38,11 @@ CuentasViewModel::CuentasViewModel(Partes p, QObject* parent) : QObject(parent),
         {(ba::platform::bundleRoot() / "data" / "cacert.pem").string(),
          (p_.rt.dataRoot() / "data" / "cacert.pem").string(),
          (QCoreApplication::applicationDirPath() + "/../../data/cacert.pem").toStdString()});
-    youtube_ = std::make_unique<YouTubeViewModel>(p_.rt);
+    youtube_ = std::make_unique<YouTubeViewModel>(p_.rt, p_.ventanilla);
     connect(youtube_.get(), &YouTubeViewModel::notify, this, &CuentasViewModel::notify);
-    twitch_ = std::make_unique<TwitchViewModel>(p_.rt);
+    twitch_ = std::make_unique<TwitchViewModel>(p_.rt, p_.ventanilla);
     connect(twitch_.get(), &TwitchViewModel::notify, this, &CuentasViewModel::notify);
-    facebook_ = std::make_unique<FacebookViewModel>(p_.rt);
+    facebook_ = std::make_unique<FacebookViewModel>(p_.rt, p_.ventanilla);
     connect(facebook_.get(), &FacebookViewModel::notify, this, &CuentasViewModel::notify);
     // La página web del evento muestra dónde verlo en vivo.
     connect(youtube_.get(), &YouTubeViewModel::stateChanged, this, &CuentasViewModel::webCambio);

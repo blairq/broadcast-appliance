@@ -50,6 +50,16 @@ Patrones que salieron al migrar:
 - Los avisos del runtime (`AppRuntime::observar`) llegan en el dueño: quien escucha y
   es de la interfaz se los encarga a su bucle.
 
+- La configuración guardada entera (app.json, gateway.json, launcher.json) está en la parte
+  `Configuracion` como copias que no cambian (`FotoMotor::Guardada`, se comparan por
+  puntero): un formulario la lee sin turno (`SettingsModel`, la voz, el asistente) y
+  aplicar es UNA orden (`SettingsModel::aplicarEn`); lo de la interfaz (el modo en vivo, el
+  cupo y la sala en caliente) se decide antes y después, y el resumen vuelve con `applied`.
+- Lo que no depende del estado del motor (los codificadores, los motores de
+  superresolución, con qué dibuja) es estático y se lee desde cualquier hilo; lo seguro
+  entre hilos que ya existía (`haySalida`, el turno) tiene su acceso en `AppRuntime` sin
+  contar como entrada.
+
 Para sumar algo a la foto: un campo en `FotoMotor` (con su parte), lo arma
 `AppRuntime::armarFoto` (o un modelo del dueño con `aportarALaFoto`), y quien lo cambia
 ensucia la parte (`fotoSucia`) o avisa (`AppRuntime::avisar`).

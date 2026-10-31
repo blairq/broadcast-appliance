@@ -22,6 +22,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "control/Dsk.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -73,9 +74,9 @@ AsistenteViewModel::~AsistenteViewModel() = default;
 
 void AsistenteViewModel::armarAsistentes() {
     agent::AlertEngine& vigia = p_.alarmas.motor();
-    agent_ = std::make_unique<agent::AgentViewModel>(p_.rt, vigia, "evento");
+    agent_ = std::make_unique<agent::AgentViewModel>(p_.rt, p_.ventanilla, vigia, "evento");
     // El de automatización: el que recibe las alertas (siempre levantado).
-    agenteAuto_ = std::make_unique<agent::AgentViewModel>(p_.rt, vigia, "automatizacion");
+    agenteAuto_ = std::make_unique<agent::AgentViewModel>(p_.rt, p_.ventanilla, vigia, "automatizacion");
     connect(agent_.get(), &agent::AgentViewModel::notify, this, &AsistenteViewModel::notify);
     connect(agenteAuto_.get(), &agent::AgentViewModel::notify, this, &AsistenteViewModel::notify);
     // Reiniciada con una conversación para retomar (--reanudar-asistente=<id>|<proveedor>|<modelo>,
@@ -119,7 +120,7 @@ void AsistenteViewModel::armarAsistentes() {
     modelos_ = std::make_unique<agent::ModelosLocales>(p_.rt.dataRoot(), QCoreApplication::applicationDirPath());
     connect(modelos_.get(), &agent::ModelosLocales::notify, this, &AsistenteViewModel::notify);
     QTimer::singleShot(0, modelos_.get(), [m = modelos_.get()]() { m->arrancarSiCorresponde(); });
-    voz_ = std::make_unique<agent::Voz>(p_.rt, *modelos_);
+    voz_ = std::make_unique<agent::Voz>(p_.rt, p_.ventanilla, *modelos_);
     modelos_->setProbadorTc([v = voz_.get()](const QString& frase, agent::ModelosLocales::Respuesta r) {
         v->probarTc(frase, std::move(r));
     });
@@ -220,8 +221,11 @@ void AsistenteViewModel::armarTextos() {
     // Los cuadros «Subtítulos» de las escenas muestran una salida de texto.
     subtitulos_ = std::make_unique<agent::Subtitulos>(*flujos_);
     // Subtítulos ocultos (CC) en la transmisión: 608 o la API de YouTube.
+    // El 608 se le pide al motor y no se espera: a cuántas salidas llegó es lo que contesta
+    // hoy el motor (M7: todavía no los mete, ninguna).
     cc_ = std::make_unique<agent::SubtitulosCC>(*flujos_, p_.rt.dataRoot(), [this](const QString& t, double s) {
-        return p_.rt.engine().enviarCaption(t.toStdString(), s);
+        p_.ventanilla.pedir("cc_608", [&rt = p_.rt, t = t.toStdString(), s]() { rt.engine().enviarCaption(t, s); });
+        return 0;
     });
     // «Traducción automática» rotulada mientras sale una traducción (pantalla o CC).
     rotuloApagar_.setSingleShot(true);
@@ -326,15 +330,22 @@ int AsistenteViewModel::vocabularioDelCuerpoUi() {
 void AsistenteViewModel::rotularTraduccion(const QString& flujo, const QString& origen) {
     control::Dsk* dskp = p_.dsk ? p_.dsk() : nullptr;
     if (!rotulo_->activo() || dskp == nullptr || !origen.startsWith("Traducción")) return;
-    control::Dsk& dsk = *dskp;
-    const int capa = rotulo_->capa();
     // ¿Se está mostrando? En un cuadro «Subtítulos» o en los subtítulos ocultos.
     const bool enPantalla = subtitulos_ && subtitulos_->cuadrosDe(flujo) > 0;
     const QVariantMap cc = cc_ ? cc_->estado() : QVariantMap{};
     const bool enCc = cc.value("activo").toBool() && cc.value("flujo").toString() == flujo;
     if (!enPantalla && !enCc) return;
+    // El rótulo se le pide al motor; la capa se arma cuando contesta que está.
     const std::string nombre = "Traducción automática (rótulo)";
-    if (!p_.rt.engine().textoGlobal(nombre, "Traducción automática")) return;
+    p_.ventanilla.pedir(
+        this, "rotulo_traduccion", [&rt = p_.rt, nombre]() { return rt.engine().textoGlobal(nombre, "Traducción automática"); },
+        [this, nombre](bool esta) {
+            if (control::Dsk* d = p_.dsk ? p_.dsk() : nullptr; esta && d != nullptr) mostrarRotulo(*d, nombre);
+        });
+}
+
+void AsistenteViewModel::mostrarRotulo(control::Dsk& dsk, const std::string& nombre) {
+    const int capa = rotulo_->capa();
     // La capa se arma una vez con el rótulo arriba a la izquierda.
     const nlohmann::json capas = dsk.capas();
     bool armada = false;

@@ -8,6 +8,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "arranque/EnergiaAire.hpp"
 #include "emision/AvisoFueraDeUi.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "i18n/I18n.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -52,17 +53,19 @@ AlarmasViewModel::~AlarmasViewModel() = default;
 
 agent::AlertInputs AlarmasViewModel::deLaInterfaz(const Fuentes& f) {
     agent::AlertInputs in;
-    AppRuntime& rt = f.rt;
-    in.audio = [&rt]() {
+    // El audio y los medios, de la foto del motor (la interfaz no entra al motor).
+    VentanillaMotor& v = f.ventanilla;
+    in.audio = [&v]() {
         std::vector<agent::AlertInputs::Audio> out;
-        for (const std::string& n : rt.engine().audioSources())
-            out.push_back({n, rt.engine().sourcePeakDb(n), rt.engine().sourceMuted(n)});
+        for (const json& a : v.foto().equipo.audio)
+            out.push_back({a.value("fuente", std::string()), a.value("pico_db", -100.0), a.value("mudo", false)});
         return out; // la mezcla del programa va directa (abajo)
     };
-    in.media = [&rt]() {
+    in.media = [&v]() {
         std::vector<agent::AlertInputs::Media> out;
-        for (const auto& m : rt.engine().mediaSources())
-            out.push_back({m.name, m.state, m.durationMs, m.timeMs});
+        for (const json& m : v.foto().medios)
+            out.push_back({m.value("fuente", std::string()), m.value("estado", std::string()),
+                           m.value("duracion_ms", std::int64_t{0}), m.value("tiempo_ms", std::int64_t{0})});
         return out;
     };
     in.room = [s = &f.sala]() {
@@ -221,9 +224,9 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
     // motor), queda el de la vez anterior y se prueba en la próxima vuelta.
     directas.disco = [&rt, cache = std::make_shared<std::pair<qint64, json>>()]() {
         const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        if ((cache->first == 0 || ahora - cache->first >= 5000) && rt.engine().turno().tomarHasta(50)) {
+        if ((cache->first == 0 || ahora - cache->first >= 5000) && rt.turno().tomarHasta(50)) {
             *cache = {ahora, rt.discoGrabacion()};
-            rt.engine().turno().soltar();
+            rt.turno().soltar();
         }
         return cache->second;
     };

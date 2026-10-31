@@ -73,6 +73,7 @@
 
 namespace ba::app {
 class AppRuntime;
+class VentanillaMotor;
 namespace audio {
 class Escucha;
 class EscuchaStreaming;
@@ -146,7 +147,9 @@ class Voz : public QObject {
     Q_PROPERTY(QVariantMap reconocedores READ reconocedores NOTIFY reconocedoresCambio)
 
    public:
-    Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent = nullptr);
+    /// `ventanilla`: el micrófono del operador se lee de la foto del motor y se cambia
+    /// pidiéndoselo (F3-03).
+    Voz(AppRuntime& rt, VentanillaMotor& ventanilla, ModelosLocales& modelos, QObject* parent = nullptr);
     ~Voz() override;
 
     bool disponible() const;
@@ -389,6 +392,7 @@ class Voz : public QObject {
     void bitacora(int id, const std::string& evento, nlohmann::json datos) const;
 
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     ModelosLocales& modelos_;
     Ficha ficha_;
     Ejecutor ejecutor_;

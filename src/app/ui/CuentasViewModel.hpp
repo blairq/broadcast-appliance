@@ -23,6 +23,7 @@
 
 namespace ba::app {
 class AppRuntime;
+class VentanillaMotor;
 class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
@@ -45,6 +46,7 @@ class CuentasViewModel : public QObject {
     /// Lo que se arma después de las cuentas se pide cada vez.
     struct Partes {
         AppRuntime& rt;
+        VentanillaMotor& ventanilla; ///< salir al aire con cada plataforma (F3-03)
         std::function<control::BusEventos*()> bus;  ///< cada vivo, al bus
         std::function<red::Red*()> red;             ///< las credenciales de las cámaras de la red
         std::function<plugins::Plugins*()> plugins; ///< las claves de los plugins

@@ -30,6 +30,7 @@
 #include "diag/VigiaBucle.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "arranque/InicioConElSistema.hpp"
 #include "video/ElementosGst.hpp"
 #include "audio/EntradasAudio.hpp"
@@ -261,9 +262,8 @@ void McpService::registerSystemTools() {
         dispositivos::Dispositivos* reg = vm_.equipos();
         MonitoresModel* mon = vm_.monitoresModelo();
         t.run = [&rt, reg, mon](const json&, Done done) {
-            BroadcastEngine& e = rt.engine();
             json encoders = json::array();
-            for (const auto& enc : e.videoEncoders())
+            for (const auto& enc : BroadcastEngine::videoEncoders())
                 encoders.push_back(
                     {{"id", enc.id}, {"name", enc.name}, {"codec", enc.codec}, {"hardware", enc.hardware}});
             const QStorageInfo disk(QString::fromStdWString((rt.dataRoot() / "Recordings").wstring()));
@@ -278,10 +278,10 @@ void McpService::registerSystemTools() {
                        {"filesystem", disk.fileSystemType().toStdString()}}},
                      {"monitors", screensJson(mon)},
                      // Del registro (con el nombre del operador), como audio_devices y video_devices.
-                     {"audioInputs", reg ? delRegistro(*reg, "microfono") : listToJson(ba::app::audio::entradasDeAudio(e))},
+                     {"audioInputs", reg ? delRegistro(*reg, "microfono") : listToJson(ba::app::audio::entradasDeAudio(rt.engine()))},
                      {"audioOutputs", reg ? delRegistro(*reg, "salida_audio") : json::array()},
-                     {"videoDevices", reg ? delRegistro(*reg, "camara_local") : listToJson(ba::app::video::camarasDelEquipo(e))},
-                     {"gpu", {{"renderer", e.graphicsDeviceName()}, {"cards", gpusJson()}}},
+                     {"videoDevices", reg ? delRegistro(*reg, "camara_local") : listToJson(ba::app::video::camarasDelEquipo(rt.engine()))},
+                     {"gpu", {{"renderer", BroadcastEngine::graphicsDeviceName()}, {"cards", gpusJson()}}},
                      {"videoEncoders", encoders}}));
         };
         core_.addTool(std::move(t));
@@ -432,14 +432,16 @@ void McpService::registerSystemTools() {
             "propiedades, caps crudas): dispositivos_video. Para agregarla: video_input_add (`modo` = un `valor`).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}}}};
         dispositivos::Dispositivos* reg = vm_.equipos();
-        t.run = [&rt, reg](const json& a, Done done) {
+        t.run = [&rt, &vm = vm_, reg](const json& a, Done done) {
             // La lista, del registro de la máquina (nombre del operador y técnico al
-            // lado); los modos, por GStreamer, del dispositivo pedido.
-            auto contestar = [&rt, reg, a, done]() {
-                BroadcastEngine& e = rt.engine();
-                json out{{"available", e.sourceTypeExists(ba::app::inputs::kMicType)},
+            // lado); los modos, por GStreamer, del dispositivo pedido. Si el tipo existe,
+            // de la foto del motor (sin el registro, la consola: del motor).
+            auto contestar = [&rt, &vm, reg, a, done]() {
+                bool hay = false;
+                for (const FotoMotor::Tipo& ti : vm.ventanilla().foto().tipos) hay = hay || ti.id == ba::app::inputs::kMicType;
+                json out{{"available", hay},
                          {"devices", reg ? delRegistro(*reg, "camara_local")
-                                         : listToJson(ba::app::video::camarasDelEquipo(e))}};
+                                         : listToJson(ba::app::video::camarasDelEquipo(rt.engine()))}};
                 if (a.contains("device")) {
                     const std::string dev = valorDeVideo(reg, a.value("device", std::string()));
                     out["device"] = dev;

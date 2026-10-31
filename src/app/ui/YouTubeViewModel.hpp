@@ -28,6 +28,7 @@
 namespace ba::app {
 
 class AppRuntime;
+class VentanillaMotor;
 class JsonListModel;
 
 class YouTubeViewModel : public QObject {
@@ -51,7 +52,8 @@ class YouTubeViewModel : public QObject {
     Q_PROPERTY(QString chatBroadcastId READ chatBroadcastId NOTIFY chatChanged)
     Q_PROPERTY(QString liveBroadcastId READ liveBroadcastId NOTIFY stateChanged)
    public:
-    YouTubeViewModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// `ventanilla`: transmitir y cortar se le piden al motor; si transmite, de su foto (F3-03).
+    YouTubeViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~YouTubeViewModel() override;
 
     bool configured() const { return client_->hasClient(); }
@@ -123,12 +125,15 @@ class YouTubeViewModel : public QObject {
     void vivo(const QVariantMap& datos);
 
    private:
+    /// El motor contestó si salió al aire (`error` vacío = sí): sigue goLive.
+    void alSalir(const QString& broadcastId, const QString& url, const std::string& error, const YouTubeClient::Done& done);
     void setError(const QString& e);
     void track(bool start);
     void fetchThumbs(const QJsonArray& items, JsonListModel* model);
     void pollChat();
 
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     std::unique_ptr<YouTubeClient> client_;
     std::unique_ptr<JsonListModel> videos_;
     std::unique_ptr<JsonListModel> broadcasts_;

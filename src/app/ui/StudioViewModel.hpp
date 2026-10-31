@@ -473,6 +473,8 @@ class StudioViewModel : public QObject {
    public:
     /// `ventanilla`: cómo se le pide al motor (que es del plano de control) y su foto (F3-03).
     StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
+    /// La ventanilla del motor (para los modelos que arman otros: el MCP).
+    VentanillaMotor& ventanilla() { return ventanilla_; }
     ~StudioViewModel() override;
 
     bool recording() const { return recording_; }

@@ -53,6 +53,8 @@
 
 #include "agent/AlertEngine.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "carrusel/Conversion.hpp"
 #include "i18n/I18n.hpp"
 #include "net/Credentials.hpp"
@@ -251,8 +253,9 @@ QString findFile(const QString& root, const QString& name) {
 
 } // namespace
 
-AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, const QString& instancia, QObject* parent)
-    : QObject(parent), rt_(rt), alerts_(alerts), session_(std::make_unique<term::TerminalSession>()),
+AgentViewModel::AgentViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, AlertEngine& alerts, const QString& instancia,
+                               QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), alerts_(alerts), session_(std::make_unique<term::TerminalSession>()),
       instancia_(instancia) {
     g_raiz = rt.dataRoot(); // ver g_raiz: `modelosDe` es estatica
     loadConfig();
@@ -1598,7 +1601,7 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
                                // no repita la misma llamada en un bucle (pasaba con tool_search).
                                {"models", json::array({{{"id", "local"},
                                                         {"name", "Modelo local"},
-                                                        {"contextWindow", rt_.config().modeloContexto},
+                                                        {"contextWindow", ventanilla_.foto().configuracion.app->modeloContexto},
                                                         {"maxTokens", ba::ajustes::entero("modelo.maxTokens", 4096)},
                                                         {"samplingParams",
                                                          {{"temperature", ba::ajustes::numero("modelo.temperatura", 0.7)}, {"top_p", 0.8}, {"top_k", 20},
@@ -1912,8 +1915,9 @@ void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
     ServidorModeloLocal::Pedido pedido;
     pedido.ejecutable = rutaServidorLocal();
     pedido.gguf = gguf;
-    pedido.capasGpu = rt_.config().modeloCapasGpu;
-    pedido.contexto = rt_.config().modeloContexto; // Configuración → Modelos locales
+    const AppConfig& cfg = *ventanilla_.foto().configuracion.app; // Configuración → Modelos locales
+    pedido.capasGpu = cfg.modeloCapasGpu;
+    pedido.contexto = cfg.modeloContexto;
     pedido.logs = QString::fromStdWString((ba::platform::dataRoot() / "Logs").wstring());
     pedido.cargaS = ba::ajustes::entero("modelo.cargaS", 180);
     QPointer<AgentViewModel> yo(this);
