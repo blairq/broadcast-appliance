@@ -26516,7 +26516,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 192
+        "linea": 183
       },
       "roles": [
         "asistente"
@@ -26552,7 +26552,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 216
+        "linea": 207
       },
       "roles": [
         "asistente"
@@ -26600,7 +26600,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 118
+        "linea": 109
       },
       "roles": [
         "asistente"
@@ -26626,7 +26626,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpRecetaTools.cpp",
-        "linea": 105
+        "linea": 96
       },
       "roles": [
         "asistente"

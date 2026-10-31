@@ -220,6 +220,7 @@ void biblioteca() {
     }
     {
         // Otra instancia: lo que se guardo tiene que estar en el disco.
+        CHECK(ba::persist::cola().vaciar(), "lo encolado llega al disco");
         Store s(archivo);
         CHECK(s.todos().size() == 1, "sobrevive a cerrar y abrir");
         CHECK(s.porNombre("Presentacion")->tamano() == 3, "con sus laminas");
