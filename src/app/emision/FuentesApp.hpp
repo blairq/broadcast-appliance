@@ -61,9 +61,9 @@ struct Tipo {
     /// Botones: nombre de la propiedad → qué hace con la fuente (nombre).
     std::map<std::string, std::function<void(const std::string& fuente)>> botones;
     /// Un tipo que el motor arma con una entrada propia (no «app»): sus ajustes (con los
-    /// de fábrica) → los de la entrada del motor (p. ej. la grilla de personas, un canal
-    /// bavideoanillo). Vacío = no es de estos.
-    std::function<nlohmann::json(const nlohmann::json& ajustes)> motor;
+    /// de fábrica) y el tamaño que ocupa en el lienzo (en píxeles) → los de la entrada
+    /// del motor (p. ej. un color, un texto, la grilla de personas). Vacío = no es de estos.
+    std::function<nlohmann::json(const nlohmann::json& ajustes, int anchoPx, int altoPx)> motor;
 };
 
 void registrar(Tipo t);
@@ -141,5 +141,14 @@ nlohmann::json propiedadesElemento(const std::string& entrada, const std::string
 bool crearGlobal(const std::string& nombre, const std::string& tipo, const nlohmann::json& ajustes, bool monitor,
                  const std::vector<int>& pistas);
 void quitarGlobal(const std::string& nombre);
+
+/// Una ruta de archivo de una fuente (imagen, video) RELATIVA es relativa a la carpeta del
+/// evento: así una plantilla trae sus archivos (Media/bandera.gif) y un evento sigue
+/// andando en un pendrive aunque cambie la letra de la unidad o la carpeta.
+std::string rutaDelEvento(const std::string& ruta);
+
+/// Color guardado como entero 0xAABBGGRR (el de OBS) → "#AARRGGBB" (el del motor);
+/// `def` si no es un número.
+std::string colorDelMotor(const nlohmann::json& v, const char* def);
 
 } // namespace ba::app::fuentes

@@ -2,8 +2,9 @@
 // src/app/emision/TiposBasicos.cpp — las propiedades de los tipos de fuente de siempre
 //
 // Color, texto, imagen y medio: lo que muestra la ventana Propiedades (con los
-// nombres de ajustes que ya tienen los app.json, que vienen de OBS). Los demás
-// tipos se editan igual con sus ajustes tal cual (PropertiesModel).
+// nombres de ajustes que ya tienen los app.json, que vienen de OBS) y cómo los
+// arma el motor (`motor`: tipo=color / texto / imagen). Los demás tipos se
+// editan igual con sus ajustes tal cual (PropertiesModel).
 // ============================================================================
 #include "emision/BroadcastEngine.hpp"
 #include "i18n/I18n.hpp"
@@ -21,13 +22,17 @@ void registrarTiposBasicos() {
         t.id = "color_source_v3";
         t.nombre = ba::i18n::traducir("fuentes", "Color");
         t.defectos = {{"color", 0xFFD1D1D1}, {"width", 1920}, {"height", 1080}};
+        t.motor = [](const json& a, int, int) {
+            return json{{"tipo", "color"},
+                        {"color", fuentes::colorDelMotor(a.value("color", json()), "#FFD1D1D1")},
+                        {"ancho", a.value("width", 1920)},
+                        {"alto", a.value("height", 1080)}};
+        };
         t.props = [](const json&) {
             return std::vector<Prop>{{"color", ba::i18n::traducir("fuentes", "Color"), "color"},
                                      {"width", ba::i18n::traducir("fuentes", "Ancho"), "int", 1, 7680, 1},
                                      {"height", ba::i18n::traducir("fuentes", "Alto"), "int", 1, 4320, 1}};
         };
-        fuentes::registrar(t);
-        t.id = "color_source";
         fuentes::registrar(t);
     }
     {
@@ -35,16 +40,30 @@ void registrarTiposBasicos() {
         t.id = "text_ft2_source_v2";
         t.nombre = ba::i18n::traducir("fuentes", "Texto");
         t.defectos = {{"text", ""}, {"font", {{"face", "Helvetica"}, {"size", 48}}}, {"color1", 0xFFFFFFFF}, {"outline", false}};
+        // Se arma al tamaño que ocupa en el lienzo (si no, el texto se estira).
+        t.motor = [](const json& a, int ancho, int alto) {
+            const json f = a.value("font", json::object());
+            const int px = std::max(8, f.value("size", 48));
+            return json{{"tipo", "texto"},
+                        {"texto", a.value("text", std::string())},
+                        {"fuente", f.value("face", std::string("Sans"))},
+                        {"tamano", std::max(6, px * 3 / 4)}, // la letra en píxeles; pango, en puntos
+                        {"negrita", (f.value("flags", 0) & 1) != 0}, // flags: 1 negrita, 2 cursiva
+                        {"color", fuentes::colorDelMotor(a.value("color1", json()), "#FFFFFFFF")},
+                        {"contorno", a.value("outline", false)},
+                        {"color_contorno", "#FF000000"},
+                        {"alineacion", "centro"},
+                        {"vertical", "centro"},
+                        {"ancho", ancho},
+                        {"alto", alto}};
+        };
         t.props = [](const json&) {
             return std::vector<Prop>{{"text", ba::i18n::traducir("fuentes", "Texto"), "textarea"},
                                      {"font", ba::i18n::traducir("fuentes", "Letra"), "font"},
                                      {"color1", ba::i18n::traducir("fuentes", "Color"), "color"},
                                      {"outline", ba::i18n::traducir("fuentes", "Contorno"), "bool"}};
         };
-        for (const char* id : {"text_ft2_source_v2", "text_ft2_source", "text_gdiplus", "text_gdiplus_v2", "ba_texto"}) {
-            t.id = id;
-            fuentes::registrar(t);
-        }
+        fuentes::registrar(t);
     }
     {
         Tipo t;
@@ -54,6 +73,9 @@ void registrarTiposBasicos() {
             Prop p{"file", ba::i18n::traducir("fuentes", "Archivo"), "path"};
             p.ayuda = ba::i18n::traducir("fuentes", "PNG, JPEG, WebP… (con su transparencia)");
             return std::vector<Prop>{p};
+        };
+        t.motor = [](const json& a, int, int) {
+            return json{{"tipo", "imagen"}, {"archivo", fuentes::rutaDelEvento(a.value("file", std::string()))}};
         };
         fuentes::registrar(t);
     }

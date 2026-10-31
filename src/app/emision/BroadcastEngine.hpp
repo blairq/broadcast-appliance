@@ -8,9 +8,9 @@
 //
 // Por dentro es el motor de GStreamer (`src/motor`, ba::motor::Motor): ya no
 // hay libobs. La API quedó la misma para que la interfaz, el MCP y la
-// automatización no cambien; los tipos de fuente que guarda app.json (los
-// nombres de siempre: «ffmpeg_source», «color_source_v3», «ba_gst_fuente»…)
-// son tipos LÓGICOS que esta clase traduce a los ajustes del motor.
+// automatización no cambien. Los tipos de fuente: los del motor (ba_gst_fuente,
+// ba_gst_medio) y los registrados (FuentesApp: color, texto, imagen…); lo que
+// llega con un tipo de antes lo pasa inputs::alMotor (InputSpecs.hpp).
 //
 // LAS SALIDAS (docs/planes/PLAN-SALIDAS.md, etapa 2). El aparato tiene N salidas
 // y cada una es un operador completo (ver ba::motor::Motor, LAS SALIDAS): acá,
@@ -106,11 +106,10 @@ struct EncoderConfig {
     std::string preset = "veryfast"; ///< preset de x264
     std::string rateControl = "CBR"; ///< CBR es lo que esperan los CDN
     bool preferHardware = true;      ///< con "auto": probar hardware antes que x264
-    /// Codificador de video: un alias o un id de libobs.
+    /// Codificador de video: un alias.
     ///   "auto"         -> hardware de la plataforma en orden (Windows: NVENC,
     ///                     QSV, AMF; Linux: NVENC, VAAPI; macOS: VideoToolbox)
     ///   "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "x264"
-    ///   cualquier otro -> id literal de libobs (p. ej. "ffmpeg_vaapi_tex")
     /// Siempre termina en x264 como red de seguridad: si el elegido no esta o
     /// no arranca (driver roto, GPU ocupada), se cae al siguiente.
     std::string videoEncoder = "auto";
@@ -124,8 +123,6 @@ struct CanvasRect {
     float h = 1.0f;
 };
 
-/// Fuente generica de libobs para la escena (camara, captura, imagen, texto,
-/// media...). Es lo que hace a la escena configurable sin recompilar.
 /// Efectos de un elemento EN LA ESCENA: transparencia, borde difuso y sombra (o
 /// resplandor: distancia 0 y un color claro). Medidas en píxeles del lienzo; el
 /// ángulo, hacia dónde cae la sombra (0 = derecha, 90 = abajo, 45 = abajo a la derecha).
@@ -150,9 +147,9 @@ struct EfectosCapa {
 };
 
 struct SourceSpec {
-    std::string id;                  ///< id de libobs: "v4l2_input", "image_source", ...
+    std::string id;                  ///< tipo: "ba_gst_fuente", "ba_gst_medio", "image_source"...
     std::string name;                ///< nombre unico en la escena
-    std::string settingsJson = "{}"; ///< settings de la fuente, tal cual los usa OBS
+    std::string settingsJson = "{}"; ///< ajustes de la fuente (los de su tipo)
     CanvasRect rect;                 ///< ubicacion (ignorado en fuentes solo-audio)
     bool visible = true;
     float volume = 1.0f; ///< ganancia lineal (1 = 0 dB)
@@ -162,9 +159,9 @@ struct SourceSpec {
     EfectosCapa efectos; ///< en la escena
 };
 
-/// Tipo de fuente disponible en esta libobs (para "Agregar fuente").
+/// Tipo de fuente disponible (para "Agregar fuente").
 struct SourceType {
-    std::string id;          ///< id de libobs ("v4l2_input", "image_source"...)
+    std::string id;          ///< tipo ("ba_gst_fuente", "image_source"...)
     std::string displayName; ///< nombre legible que da el plugin
     bool video = false;
     bool audio = false;
@@ -202,10 +199,7 @@ struct RecordConfig {
 
 /// Rutas del layout portable que el motor necesita (spec §5.1/§5.3).
 struct EnginePaths {
-    std::string moduleBinDir;  ///< obs-plugins/64bit
-    std::string moduleDataDir; ///< data/obs-plugins (cada modulo en <dir>/<nombre>)
-    std::string obsDataDir;    ///< data/libobs (shaders .effect)
-    std::string configDir;     ///< Config/
+    std::string configDir; ///< Config/
 };
 
 /// Estado observable del motor, para la UI y el bloque de salud.
@@ -218,11 +212,11 @@ struct EngineStatus {
     int totalFrames = 0;
     double fps = 0.0;
     std::uint64_t bytesSent = 0;
-    std::string videoEncoder; ///< id de libobs del codificador en uso ("" si ninguno)
+    std::string videoEncoder; ///< el codificador en uso ("" si ninguno)
     std::string lastError;
-    /// Se corto la transmision y libobs esta reintentando. Mientras esto es
-    /// true, `streaming` puede seguir en true: para libobs la salida sigue
-    /// activa, pero no esta llegando nada.
+    /// Se corto la transmision y se esta reintentando. Mientras esto es
+    /// true, `streaming` puede seguir en true: la salida sigue activa, pero
+    /// no esta llegando nada.
     bool reconnecting = false;
     /// En castellano y con la CAUSA: "Se cortó la conexión con el servidor",
     /// "El servidor rechazó la clave"... Vacio si no hubo ningun problema.
@@ -598,9 +592,6 @@ class BroadcastEngine {
     };
     /// true si el tipo de fuente es uno que el motor sabe armar.
     bool sourceTypeExists(const std::string& typeId) const;
-    /// Opciones de una lista de un tipo (dispositivos): micrófonos, cámaras, salidas de audio.
-    std::vector<ListItem> sourceTypeListItems(const std::string& typeId, const std::string& prop,
-                                              const std::string& settingsJson = {}) const;
     /// Nombre de la placa de video (para el diagnóstico).
     std::string graphicsDeviceName() const;
     struct EncoderInfo {

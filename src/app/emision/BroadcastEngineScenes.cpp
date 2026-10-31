@@ -6,15 +6,13 @@
 // cada escena ya traducida a capas en píxeles del lienzo y cada fuente ya
 // traducida a los ajustes de su entrada.
 //
-// LOS TIPOS: app.json guarda los nombres de siempre (los de OBS y los propios).
-// `ajustesMotor` los traduce:
+// LOS TIPOS: lo que llega con un tipo de antes (de la época de OBS) pasa primero
+// por inputs::alMotor (InputSpecs.hpp), una sola vez y en un solo lugar. Después
+// `ajustesMotor` arma los ajustes de la entrada:
 //   ba_gst_fuente / ba_gst_medio        tal cual (el motor lee los mismos ajustes)
-//   ffmpeg_source (archivo)              un medio; (red) una entrada por URL
-//   color_source_v3, text_ft2_source_v2,
-//   image_source                         tipo=color / texto / imagen del motor
-//   cámaras, micrófonos, invitados, NDI  por las funciones de InputSpecs (ya eran GStreamer)
 //   capturas de pantalla                 tipo=pantalla
 //   lo que pinta la app (gráficos, chat, subtítulos)   tipo=app
+//   los tipos registrados con `motor` (color, texto, imagen, grilla…: FuentesApp)
 // ============================================================================
 
 #include "emision/BroadcastEngine.hpp"
@@ -55,16 +53,6 @@ const json& seccion(const json& j, const char* k) {
     return it != j.end() && it->is_object() ? *it : vacio;
 }
 
-
-/// Color de OBS (entero ABGR: 0xAABBGGRR) → "#AARRGGBB".
-std::string colorObs(const json& v, const char* def) {
-    if (!v.is_number()) return def;
-    const auto c = static_cast<std::uint32_t>(v.get<std::int64_t>());
-    const unsigned a = (c >> 24) & 0xFF, b = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, r = c & 0xFF;
-    char out[16];
-    std::snprintf(out, sizeof out, "#%02X%02X%02X%02X", a, r, g, b);
-    return out;
-}
 
 bool termina(const std::string& s, const std::string& fin) {
     return s.size() >= fin.size() && s.compare(s.size() - fin.size(), fin.size(), fin) == 0;
@@ -540,19 +528,6 @@ bool BroadcastEngine::ajustesMotor(const SourceSpec& spec, json& a) const {
     return true;
 }
 
-namespace {
-/// Una ruta de archivo de una fuente (imagen, video) RELATIVA es relativa a la carpeta del
-/// evento: así una plantilla trae sus archivos (Media/bandera.gif) y un evento sigue
-/// andando en un pendrive aunque cambie la letra de la unidad o la carpeta. Antes quedaba
-/// relativa a la carpeta de trabajo del proceso, que la app no fija.
-std::string rutaDelEvento(const std::string& r) {
-    if (r.empty()) return r;
-    const std::filesystem::path p(std::u8string(r.begin(), r.end()));
-    if (p.is_absolute()) return r;
-    const std::u8string u = (ba::platform::configRoot() / p).lexically_normal().u8string();
-    return std::string(u.begin(), u.end());
-}
-} // namespace
 
 bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
     const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
@@ -567,51 +542,7 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         a = in;
         a["medio"] = true;
         a["nombre"] = spec.name;
-        if (a.contains("local_file") && a["local_file"].is_string()) a["local_file"] = rutaDelEvento(a["local_file"]);
-        return true;
-    }
-    if (id == "ffmpeg_source") {
-        // Los archivos llegan acá ya como ba_gst_medio (migrarMedio); queda la red.
-        if (in.value("is_local_file", true)) {
-            a = in;
-            a["medio"] = true;
-            if (a.contains("local_file") && a["local_file"].is_string()) a["local_file"] = rutaDelEvento(a["local_file"]);
-            return true;
-        }
-        a = {{"uri", in.value("input", std::string())}, {"nombre", spec.name}, {"audio", true}};
-        if (in.contains("buffering_mb") || in.value("low_latency", false)) a["latencia"] = in.value("low_latency", false) ? 50 : 200;
-        return true;
-    }
-    if (id == "color_source_v3" || id == "color_source") {
-        a = {{"tipo", "color"},
-             {"color", colorObs(in.value("color", json()), "#FFD1D1D1")},
-             {"ancho", in.value("width", video_.baseWidth)},
-             {"alto", in.value("height", video_.baseHeight)}};
-        return true;
-    }
-    if (id == "text_ft2_source_v2" || id == "text_ft2_source" || id == "text_gdiplus" || id == "text_gdiplus_v2" ||
-        id == "ba_texto") {
-        const json f = in.value("font", json::object());
-        const int px = std::max(8, f.value("size", 48));
-        const int flags = f.value("flags", 0); // OBS: 1 negrita, 2 cursiva
-        const int w = std::max(16, static_cast<int>(std::lround(spec.rect.w * video_.baseWidth)));
-        const int h = std::max(16, static_cast<int>(std::lround(spec.rect.h * video_.baseHeight)));
-        a = {{"tipo", "texto"},
-             {"texto", in.value("text", std::string())},
-             {"fuente", f.value("face", std::string("Sans"))},
-             {"tamano", std::max(6, px * 3 / 4)}, // OBS da píxeles; pango, puntos
-             {"negrita", (flags & 1) != 0 || id == "ba_texto"},
-             {"color", colorObs(in.value("color1", in.value("color", json())), "#FFFFFFFF")},
-             {"contorno", in.value("outline", false)},
-             {"color_contorno", "#FF000000"},
-             {"alineacion", "centro"},
-             {"vertical", "centro"},
-             {"ancho", w},
-             {"alto", h}};
-        return true;
-    }
-    if (id == "image_source") {
-        a = {{"tipo", "imagen"}, {"archivo", rutaDelEvento(in.value("file", std::string()))}};
+        if (a.contains("local_file") && a["local_file"].is_string()) a["local_file"] = fuentes::rutaDelEvento(a["local_file"]);
         return true;
     }
     if (esPantalla(id)) {
@@ -628,7 +559,9 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
     }
     // Los tipos registrados que traen su entrada del motor (FuentesApp: Tipo::motor).
     if (fuentes::Tipo t; fuentes::tipo(id, t) && t.motor) {
-        a = t.motor(fuentes::conDefectos(id, in));
+        // Con el tamaño que ocupa en el lienzo (un texto se arma a ese tamaño).
+        a = t.motor(fuentes::conDefectos(id, in), std::max(16, static_cast<int>(std::lround(spec.rect.w * video_.baseWidth))),
+                    std::max(16, static_cast<int>(std::lround(spec.rect.h * video_.baseHeight))));
         a["nombre"] = spec.name;
         return true;
     }
@@ -647,18 +580,10 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
         setError(ba::i18n::llenar(ba::i18n::traducir("emision", "el nombre de una fuente no puede tener «:» («%1»): usá «—» o «-»"), {pedida.name}));
         return false;
     }
-    // Lo viejo de OBS que ya tiene versión GStreamer (InputSpecs).
+    // Lo que llegue con un tipo de antes (el MCP lo acepta), al del motor; lo que no
+    // tiene equivalente se avisa (InputSpecs: alMotor).
     SourceSpec spec = pedida;
-    inputs::migrarMedio(spec);
-    inputs::migrarVideoInvitado(spec);
-    inputs::migrarNdi(spec);
-    inputs::migrarCamara(spec);
-    inputs::migrarMicrofono(spec);
-    if (spec.id == "ba_guest_audio") {
-        const json s = json::parse(spec.settingsJson, nullptr, false);
-        spec.id = inputs::kMicType;
-        spec.settingsJson = inputs::ajustesAudioAnillo("guest", s.is_object() ? s.value("slot", 1) : 1);
-    }
+    inputs::alMotor(spec);
     if (spec.id == kTipoBanca) {
         // «Banca con la palabra»: no hay entrada en el motor; la escena la resuelve al publicarse.
         Fuente f;
@@ -1058,19 +983,12 @@ std::vector<SourceType> BroadcastEngine::inputTypes() const {
 
 bool BroadcastEngine::sourceTypeExists(const std::string& typeId) const {
     if (typeId.empty()) return false;
+    // Un tipo de antes vale si su versión del motor vale (lo pasa crearFuente).
     SourceSpec s;
     s.id = typeId;
+    inputs::alMotor(s);
     json a;
-    return typeId == kTipoBanca || typeId == inputs::kMicType || typeId == inputs::kMedioType || typeId == "ba_guest_audio" ||
-           typeId == "ba_guest_video" || typeId == "ba_ndi_input" || typeId == inputs::kVideoType ||
-           typeId == inputs::kAudioInLibobs || ajustesMotor(s, a);
-}
-
-std::vector<BroadcastEngine::ListItem> BroadcastEngine::sourceTypeListItems(const std::string&, const std::string&,
-                                                                           const std::string&) const {
-    // Los dispositivos los listan video/Camaras y audio/EntradasAudio con el monitor de
-    // dispositivos de GStreamer (este era el respaldo de libobs): no hay más que esto.
-    return {};
+    return s.id == kTipoBanca || s.id == inputs::kMicType || s.id == inputs::kMedioType || ajustesMotor(s, a);
 }
 
 // ============================================================================
@@ -1112,10 +1030,7 @@ bool BroadcastEngine::removeGlobalAudio(const std::string& name) {
 bool BroadcastEngine::addGuestVideo(int slot) { return addGuestVideo(slot, CanvasRect{0.5f, 0.5f, 0.5f, 0.5f}); }
 
 bool BroadcastEngine::addGuestVideo(int slot, const CanvasRect& rect) {
-    SourceSpec spec;
-    spec.id = "ba_guest_video";
-    spec.name = "Invitado " + std::to_string(slot);
-    spec.settingsJson = "{\"slot\":" + std::to_string(slot) + "}";
+    SourceSpec spec = inputs::videoInvitadoSpec(slot, "guest", "Invitado " + std::to_string(slot));
     spec.rect = rect;
     return addSource(spec);
 }
@@ -1359,7 +1274,7 @@ bool BroadcastEngine::playMedia(const std::string& name, const std::string& file
         setError(ba::i18n::traducir("emision", "no se dijo que archivo reproducir"));
         return false;
     }
-    const json s{{"local_file", file}, {"is_local_file", true}, {"looping", loop}, {"clear_on_media_end", true}};
+    const json s{{"local_file", file}, {"looping", loop}, {"clear_on_media_end", true}};
     if (sources_.count(name) > 0) {
         // Ya existe: se le cambia el archivo y arranca de nuevo (otra fuente dejaría la anterior sonando).
         updateSourceSettings(name, s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));

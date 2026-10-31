@@ -316,7 +316,7 @@ void AppRuntime::addAudioInputs() {
 
 bool AppRuntime::addAudioInput(const SourceSpec& pedida) {
     SourceSpec spec = pedida;
-    if (engine_.sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
+    inputs::alMotor(spec); // se guarda con el tipo del motor (esquema 2 de app.json)
     if (!engine_.addGlobalAudio(spec)) {
         lastError_ = engine_.lastError();
         return false;
@@ -357,13 +357,9 @@ void AppRuntime::ajustarInvitados(int n) {
         };
         for (int slot = antes + 1; slot <= n; ++slot)
             for (const bool share : {false, true}) {
-                SourceSpec spec;
-                spec.id = "ba_guest_video";
-                spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
+                SourceSpec spec = inputs::videoInvitadoSpec(slot, share ? "share" : "guest",
+                                                            "Invitado " + std::to_string(slot) + (share ? " — pantalla" : ""));
                 if (existe(spec.name)) continue;
-                spec.settingsJson =
-                    "{\"slot\":" + std::to_string(slot) + ",\"channel\":\"" + (share ? "share" : "guest") + "\"}";
-                spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
                 spec.visible = false;
                 if (!addSource(cfg_.scenes.front().name, spec))
                     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "«%1» omitido: %2"),
@@ -403,10 +399,7 @@ void AppRuntime::addGuests() {
     }
     if (!any && cfg_.guestVideo && !cfg_.scenes.empty()) {
         for (int slot = 1; slot <= cfg_.guests; ++slot) {
-            SourceSpec spec;
-            spec.id = "ba_guest_video";
-            spec.name = "Invitado " + std::to_string(slot);
-            spec.settingsJson = "{\"slot\":" + std::to_string(slot) + "}";
+            SourceSpec spec = inputs::videoInvitadoSpec(slot, "guest", "Invitado " + std::to_string(slot));
             spec.rect = guestRect(slot, cfg_.guests);
             cfg_.scenes.front().sources.push_back(spec);
         }
@@ -421,13 +414,8 @@ void AppRuntime::addGuests() {
         const std::string slot = std::to_string(k);
         SourceSpec a;
         a.name = "Remoto con la palabra" + sufijo + " (audio)";
-        if (engine_.sourceTypeExists(inputs::kMicType)) {
-            a.id = inputs::kMicType; // por GStreamer (baanillo): su rack corre en la cadena
-            a.settingsJson = inputs::ajustesAudioAnillo("remoto", k);
-        } else {
-            a.id = "ba_guest_audio";
-            a.settingsJson = "{\"slot\":" + slot + ",\"channel\":\"remoto\"}";
-        }
+        a.id = inputs::kMicType; // por GStreamer (baanillo): su rack corre en la cadena
+        a.settingsJson = inputs::ajustesAudioAnillo("remoto", k);
         if (!engine_.addGlobalAudio(a))
             std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "el audio de «%1» no entró: %2"),
                                                          {a.name, engine_.lastError()})
@@ -441,21 +429,13 @@ void AppRuntime::addGuests() {
                 hayContenido = hayContenido || s.settingsJson.find("\"remoto_contenido\"") != std::string::npos;
             }
         if (!hayVideo && !cfg_.scenes.empty()) {
-            SourceSpec v;
-            v.id = "ba_guest_video";
-            v.name = "Remoto con la palabra" + sufijo;
-            v.settingsJson = "{\"slot\":" + slot + ",\"channel\":\"remoto\"}";
-            v.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+            SourceSpec v = inputs::videoInvitadoSpec(k, "remoto", "Remoto con la palabra" + sufijo);
             v.visible = false;
             cfg_.scenes.front().sources.push_back(v);
         }
         // Lo que comparte (su pantalla o la otra cámara del celular), oculto como la pantalla de un invitado.
         if (!hayContenido && !cfg_.scenes.empty()) {
-            SourceSpec v;
-            v.id = "ba_guest_video";
-            v.name = "Remoto con la palabra" + sufijo + " — contenido";
-            v.settingsJson = "{\"slot\":" + slot + ",\"channel\":\"remoto_contenido\"}";
-            v.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+            SourceSpec v = inputs::videoInvitadoSpec(k, "remoto_contenido", "Remoto con la palabra" + sufijo + " — contenido");
             v.visible = false;
             cfg_.scenes.front().sources.push_back(v);
         }
@@ -471,11 +451,7 @@ void AppRuntime::addGuests() {
     }
     if (!anyShare && cfg_.guestVideo && !cfg_.scenes.empty()) {
         for (int slot = 1; slot <= cfg_.guests; ++slot) {
-            SourceSpec spec;
-            spec.id = "ba_guest_video";
-            spec.name = "Invitado " + std::to_string(slot) + " — pantalla";
-            spec.settingsJson = "{\"slot\":" + std::to_string(slot) + ",\"channel\":\"share\"}";
-            spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+            SourceSpec spec = inputs::videoInvitadoSpec(slot, "share", "Invitado " + std::to_string(slot) + " — pantalla");
             spec.visible = false;
             cfg_.scenes.front().sources.push_back(spec);
         }
@@ -496,12 +472,8 @@ void AppRuntime::addGuests() {
         for (int slot = 1; slot <= cfg_.guests; ++slot)
             for (const bool share : {false, true}) {
                 if (hay(slot, share ? "share" : "guest")) continue;
-                SourceSpec spec;
-                spec.id = "ba_guest_video";
-                spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
-                spec.settingsJson =
-                    "{\"slot\":" + std::to_string(slot) + ",\"channel\":\"" + (share ? "share" : "guest") + "\"}";
-                spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+                SourceSpec spec = inputs::videoInvitadoSpec(slot, share ? "share" : "guest",
+                                                            "Invitado " + std::to_string(slot) + (share ? " — pantalla" : ""));
                 spec.visible = false;
                 cfg_.scenes.front().sources.push_back(spec);
             }
@@ -594,9 +566,6 @@ int AppRuntime::start() {
         });
 
     EnginePaths paths;
-    paths.moduleBinDir = (bin_ / "obs-plugins" / "64bit").string();
-    paths.moduleDataDir = (bin_ / "data" / "obs-plugins").string();
-    paths.obsDataDir = (bin_ / "data" / "libobs").string();
     paths.configDir = (root_ / "Config" / "plugin_config").string();
 
     std::printf("ba-app: %s\n",
@@ -859,10 +828,10 @@ void AppRuntime::stop() {
     // queda sin cerrar (o sea, sin indice y a veces sin poder abrirse).
     engine_.stopAllSourceRecordings();
     engine_.stopCleanFeed();
-    latido_.detener(); // antes de apagar libobs (lee sus cuadros)
+    latido_.detener(); // antes de apagar el motor (lee sus cuadros)
     std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "cerrando (salidas, escena, motor)").c_str());
     control_.stop();
-    operator_.shutdown(); // antes de apagar libobs: suelta vista y fuentes
+    operator_.shutdown(); // antes de apagar el motor: suelta vista y fuentes
     engine_.shutdown();
     if (health_.valid()) {
         health_.setState(kHealthSlot, ba::ipc::ProcessState::Terminated);
@@ -1547,10 +1516,10 @@ bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
         lastError_ = engine_.lastError();
         return false;
     }
-    // Se copia la CONFIGURACION, no las fuentes del motor: una fuente de
-    // libobs pertenece a su escena, y compartirlas haria que mover algo en la
-    // copia moviera el original. Recrearlas desde la especificacion da dos
-    // escenas de verdad independientes, que es lo que uno espera al copiar.
+    // Se copia la CONFIGURACION, no las fuentes del motor: compartirlas haria que
+    // mover algo en la copia moviera el original. Recrearlas desde la
+    // especificacion da dos escenas de verdad independientes, que es lo que uno
+    // espera al copiar.
     SceneConfig copia = *origen;
     copia.name = to;
     copia.protegida = false; // la copia se puede tocar: para eso se copio
@@ -1792,11 +1761,7 @@ bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
     // Una ruta relativa a los datos («Media/x.png», también en el location= de un
     // pipeline) es de la configuración en uso: el motor la necesita entera.
     spec.settingsJson = conRutasDeAhora(spec.settingsJson);
-    if (engine_.sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
-    if (engine_.sourceTypeExists(inputs::kMicType)) {
-        inputs::migrarVideoInvitado(spec);
-        inputs::migrarNdi(spec);
-    }
+    inputs::alMotor(spec); // se guarda con el tipo del motor (esquema 2 de app.json)
     if (!engine_.addSource(scene, spec)) {
         lastError_ = engine_.lastError();
         return false;

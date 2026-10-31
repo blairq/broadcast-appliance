@@ -491,6 +491,10 @@ void Entrada::leer(const json& a) {
     // «auto» (la de su tipo) se guarda como null: value() con un null tira; se mira el tipo.
     estudio_ = a.contains("estudio") && a["estudio"].is_boolean() ? a["estudio"].get<bool>() : true;
     ntpSync_ = a.value("ntp_sync", true);
+    transporteRtsp_ = a.value("rtsp_transporte", std::string());
+    if (transporteRtsp_ != "tcp" && transporteRtsp_ != "udp") transporteRtsp_.clear();
+    tlsCa_ = a.value("tls_ca", std::string());
+    reconectarMs_ = static_cast<int>(std::clamp<std::int64_t>(entero(a, "reconectar_s", 1), 0, 60)) * 1000;
     latenciaMs_ = entero(a, "latencia", 0);
     desfaseMs_ = entero(a, "desfase", 0);
     desfaseAudioMs_ = entero(a, "desfase_audio", 0);
@@ -634,6 +638,7 @@ void Entrada::actualizarYa(const json& ajustes) {
                               camaraModo_ + "|" + microfono_ + "|" + rack_ + "|" + (normalizar_ ? "n" : "") +
                               colorReal_ + "/" + desentrelazar_ + "/" + campo_ + "|" +
                               (conAudio_ ? "a" : "") + (medio_ ? "m" : "") + "|" + std::to_string(latenciaMs_) + "|" +
+                              transporteRtsp_ + "/" + tlsCa_ + "/" + std::to_string(reconectarMs_) + "|" +
                               superresMotor_ + superresModelo_ + (superres_ ? "s" : "") + "|" +
                               firmaDe(filtrosV_, filtrosA_, alfa_);
     if (firma == firmaAntes && pipeline_ != nullptr) {
@@ -936,7 +941,13 @@ void Entrada::armar() {
     if (!uri_.empty() && !medio_ && origen_red::esDeRed(uri_)) {
         // Una cámara de red: la conexión es compartida con las otras entradas de la
         // misma dirección (ver OrigenRed.hpp); acá se toma lo ya decodificado.
-        origenRed_ = origen_red::usar(reloj_, uri_, static_cast<int>(latenciaMs_), ntpSync_ && !ntpApagadoSolo_);
+        origen_red::Opciones op;
+        op.latenciaMs = static_cast<int>(latenciaMs_);
+        op.ntp = ntpSync_ && !ntpApagadoSolo_;
+        op.transporteRtsp = transporteRtsp_;
+        op.ca = tlsCa_;
+        op.reconectarMs = reconectarMs_;
+        origenRed_ = origen_red::usar(reloj_, uri_, op);
         completo = "intersrc producer-name=" + entreComillas(origenRed_ + ":video") + " ! identity name=ba_origen ! " + antes +
                    capsVideo + " ! " + salida("v");
         if (conAudio_)

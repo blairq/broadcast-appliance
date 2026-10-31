@@ -3,9 +3,8 @@
 //
 // Proposito:
 //   Transporte real del canal de control (spec §4.1) entre el launcher, A y B.
-//   Hasta ahora no existia en ninguna plataforma: `OperatorEngine` usaba un
-//   loopback en memoria. `LocalStream` implementa `ba::ipc::DuplexStream`, asi
-//   que `ControlEndpoint` lo usa sin cambios.
+//   `LocalStream` implementa `ba::ipc::DuplexStream`, asi que `ControlEndpoint`
+//   lo usa sin cambios.
 //
 // Implementaciones:
 //   - Windows: named pipe `\\.\pipe\BroadcastAppliance.<sesion>.<nombre>`, en

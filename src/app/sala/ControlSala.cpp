@@ -4,6 +4,7 @@
 #include "i18n/I18n.hpp"
 
 #include "arranque/AppRuntime.hpp"
+#include "emision/InputSpecs.hpp"
 #include "arranque/AppSettings.hpp"
 #include "sala/ReglasSala.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -155,11 +156,9 @@ ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
         spec.id = "image_source";
         settings.insert("file", file);
     } else {
-        spec.id = "ffmpeg_source";
+        spec.id = inputs::kMedioType;
         settings.insert("local_file", file);
-        settings.insert("is_local_file", true);
         settings.insert("looping", kind == "video");
-        settings.insert("restart_on_activate", true);
     }
     spec.settingsJson = QJsonDocument(settings).toJson(QJsonDocument::Compact).toStdString();
     t.escena = rt_.engine().currentScene();

@@ -4,7 +4,6 @@
 // Un solo despacho para todas las plataformas (solo el ENTRY POINT difiere:
 // wWinMain en Windows, main en el resto):
 //
-//   --headless-selftest  autotest de OperatorEngine (sin el motor)
 //   --engine-selftest    autotest del motor de emision (GStreamer)
 //   --no-ui              modo consola aunque haya pantalla
 //   --sonda-drivers      prueba drivers en un proceso aparte (lo lanza la app)
@@ -18,7 +17,6 @@
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 #include "diag/SalidaAsincrona.hpp"
-#include "emision/OperatorEngine.hpp"
 #include "platform/Herramientas.hpp"
 #include "platform/Paths.hpp"
 #include "arranque/Registrar.hpp"
@@ -27,7 +25,6 @@
 #include "security/CredentialStore.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <exception>
 #include <typeinfo>
 #include <cstdio>
@@ -86,59 +83,6 @@ void instalarFinPorExcepcion() {
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
 #endif
-}
-
-int runHeadlessSelfTest(bool restore = false) {
-    ba::app::OperatorEngine engine;
-    // Config en un subdir local (los snapshots van a cfg/Config/session).
-    const std::string cfg = "ba-app-headless";
-    if (!engine.init(cfg, restore)) {
-        std::printf("ba-app headless: init falló (code=%d)\n", engine.lastError());
-        return 1;
-    }
-
-    // 1) DSP: aplicar los tres presets de fábrica a cada canal (en caliente).
-    for (int ch = 0; ch < engine.numChannels(); ++ch) {
-        engine.applyPreset(ch, ba::app::ChannelPreset::kPodium);
-        engine.applyPreset(ch, ba::app::ChannelPreset::kLavalier);
-        engine.applyPreset(ch, ba::app::ChannelPreset::kHandheld);
-    }
-
-    // 2) Audio: tono 440 Hz (480 frames = 10 ms) a través de cada canal.
-    const int frames = 480;
-    std::vector<float> buf(static_cast<std::size_t>(frames) * 2, 0.0f);
-    for (int i = 0; i < frames; ++i) {
-        const float s = 0.3f * std::sin(2.0f * 3.14159265f * 440.0f * i / 48000.0f);
-        buf[static_cast<std::size_t>(i) * 2] = s;
-        buf[static_cast<std::size_t>(i) * 2 + 1] = s;
-    }
-    for (int ch = 0; ch < engine.numChannels(); ++ch) {
-        engine.processAudio(buf.data(), frames, ch);
-    }
-
-    // 3) IPC: lector de invitados (pop -> silencio esperado, sin B).
-    float guest[ba::ipc::audio_ring::kBlockFrames * ba::ipc::audio_ring::kDefaultChannels];
-    bool sil = false;
-    bool fade = false;
-    engine.processGuestBlock(guest, sil, fade);
-
-    // 4) IPC: control + health (ticks: heartbeat + poll del endpoint).
-    for (int i = 0; i < 3; ++i) {
-        engine.tick();
-    }
-
-    // 5) Persistencia: StateDoc (fuente de verdad, spec §11.1).
-    const ba::persist::StateDoc doc = engine.buildStateDoc();
-    std::printf("ba-app headless: seq=%llu dsp=%zu ipc=%zu\n", static_cast<unsigned long long>(doc.sequence),
-                doc.sections.count("dsp") ? doc.sections.at("dsp").size() : 0,
-                doc.sections.count("ipc") ? doc.sections.at("ipc").size() : 0);
-
-    // 6) Cierre ordenado: scheduleWrite(immediate) + flushNow (spec §11.2).
-    const bool ok = engine.shutdown();
-    std::printf("ba-app headless: OK (ring=%d control=%d stale=%d shutdown=%d)\n",
-                engine.guestRingOpen() ? 1 : 0, engine.controlConnected() ? 1 : 0,
-                engine.watchedIsStale() ? 1 : 0, ok ? 1 : 0);
-    return ok ? 0 : 1;
 }
 
 bool hasFlag(int argc, char** argv, const char* flag) {
@@ -217,11 +161,6 @@ int dispatch(int argc, char** argv) {
     ba::diag::abrirDiario(ba::platform::dataRoot() / "Runtime" / "arranque.json");
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
     ba::security::CredentialStore::bundle().importLegacy(ba::platform::configRoot()); // lee Config/ (las viejas en claro)
-    // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
-    const bool restore = hasFlag(argc, argv, "--restore");
-    if (hasFlag(argc, argv, "--headless-selftest")) {
-        return runHeadlessSelfTest(restore);
-    }
 #if BA_HAVE_MOTOR
     if (hasFlag(argc, argv, "--engine-selftest")) {
         return ba::app::runEngineSelfTest(argc, argv);
@@ -233,11 +172,9 @@ int dispatch(int argc, char** argv) {
 #endif
     return ba::app::runOperate(argc, argv);
 #else
-    if (hasFlag(argc, argv, "--engine-selftest")) {
-        std::printf("ba-app: compilado sin libobs; no hay motor de emision que probar\n");
-        return 77; // 77 = saltado, igual que en la suite de CTest
-    }
-    return runHeadlessSelfTest(restore);
+    // Sin GStreamer no hay programa: una validación cruzada que solo compila.
+    std::printf("ba-app: %s\n", ba::i18n::traducir("app", "compilado sin GStreamer: no hay motor de emisión").c_str());
+    return 77; // 77 = saltado, igual que en la suite de CTest
 #endif
 }
 

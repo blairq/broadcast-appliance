@@ -331,15 +331,7 @@ jobs:
           "BA_DIR=$d" >> $env:GITHUB_ENV
           Get-ChildItem $d | Select-Object Name
 
-      # 1) Nucleo sin motor de video: no necesita GPU.
-      - name: "Humo: nucleo (--headless-selftest)"
-        run: |
-          $log = "$env:RUNNER_TEMP\headless.log"
-          & "$env:BA_DIR\bin\64bit\ba-app.exe" --headless-selftest *>&1 | Tee-Object $log
-          if ($LASTEXITCODE -ne 0) { throw "--headless-selftest salio con $LASTEXITCODE" }
-          if (-not (Select-String -Path $log -SimpleMatch "ba-app headless: OK")) { throw "sin el OK del nucleo" }
-
-      # 2) El camino que crasheaba: runOperate (el mismo arranque que la GUI,
+      # 1) El camino que crasheaba: runOperate (el mismo arranque que la GUI,
       #    setvbuf incluido), con --duration para que termine solo. Ojo: los
       #    flags con valor son --clave=valor (argValue en OperateMode.cpp solo
       #    matchea el prefijo "--clave="); con un espacio el valor se ignora y
@@ -357,7 +349,7 @@ jobs:
           }
           if (-not (Select-String -Path $log -SimpleMatch "cierre ordenado")) { throw "no cerro ordenado" }
 
-      # 3) Motor completo: GStreamer, x264, AAC y una grabacion real.
+      # 2) Motor completo: GStreamer, x264, AAC y una grabacion real.
       - name: "Humo: motor (--engine-selftest)"
         run: |
           $log = "$env:RUNNER_TEMP\engine.log"

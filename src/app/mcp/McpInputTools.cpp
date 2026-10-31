@@ -131,7 +131,6 @@ void McpService::registerInputTools() {
               {"layout", {{"description", ba::i18n::traducir("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}},
               {"latency", {{"type", "string"}, {"enum", {"low", "normal"}}, {"default", "low"}}},
               {"rtspTransport", {{"type", "string"}, {"enum", {"tcp", "udp"}}, {"default", "tcp"}}},
-              {"hwDecode", {{"type", "boolean"}, {"default", true}}},
               {"reconnectSec", {{"type", "integer"}, {"minimum", 1}, {"maximum", 60}, {"default", 5}}},
               {"audio",
                {{"type", "boolean"},
@@ -146,6 +145,10 @@ void McpService::registerInputTools() {
             if (inputs::networkScheme(url).empty())
                 return done(ToolResult::error(
                     ba::i18n::traducir("mcp", "URL no soportada: rtsp, rtsps, rtmp, rtmps, srt, http(s), udp, rtp o tcp.")));
+            // GStreamer elige el decodificador (por hardware si hay): no se puede forzar por software.
+            if (!a.value("hwDecode", true))
+                return done(ToolResult::error(ba::i18n::traducir(
+                    "mcp", "hwDecode: el motor elige el decodificador (por hardware si hay); no se puede forzar por software.")));
             const std::string ca = (ba::platform::bundleRoot() / "data" / "cacert.pem").string();
             SourceSpec spec = inputs::networkSpec(
                 url, a.value("name", ba::i18n::llenar(ba::i18n::traducir("mcp", "Red %1"), {inputs::redactUrl(url).substr(0, 40)})), a, ca);
@@ -287,8 +290,8 @@ void McpService::registerInputTools() {
                 const bool isNdi = inputs::tipoLogico(type, json::parse(e.sourceSettingsJson(n), nullptr, false)) == "ba_ndi_input";
                 const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
                 const bool cam = inputs::esCamara(type, s);
-                if (!cam && type != "ffmpeg_source" && !isNdi) continue;
-                if (type == "ffmpeg_source" && s.value("is_local_file", true)) continue;
+                if (!cam && !isNdi && !(inputs::isNetworkInput(type, s) && s.is_object() && !s.value("uri", std::string()).empty()))
+                    continue;
                 int w = 0, h = 0;
                 e.sourceSize(n, w, h);
                 json it{{"name", n},
@@ -305,7 +308,7 @@ void McpService::registerInputTools() {
                     it["device"] = inputs::camaraDe(type, s);
                     it["modo"] = s.value("camara_modo", "");
                 } else {
-                    it["url"] = inputs::redactUrl(s.value("input", "")); // sin credenciales
+                    it["url"] = inputs::redactUrl(s.value("uri", "")); // sin credenciales
                     it["state"] = media.count(n) ? media[n] : "";
                 }
                 out.push_back(it);

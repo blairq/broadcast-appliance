@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include "ui/CarruselViewModel.hpp"
+#include "emision/InputSpecs.hpp"
 #include "ui/EjecutorLinea.hpp"
 #include "ui/EventoViewModel.hpp"
 
@@ -2497,10 +2498,10 @@ bool EventoViewModel::prepararEscenaDeVideo() {
     const auto fuentes = rt_.engine().sceneSources(kEscenaVideo);
     if (std::find(fuentes.begin(), fuentes.end(), kVideo) == fuentes.end()) {
         SourceSpec spec;
-        spec.id = "ffmpeg_source";
+        spec.id = inputs::kMedioType;
         spec.name = kVideo;
         spec.rect = CanvasRect{0.0, 0.0, 1.0, 1.0};
-        spec.settingsJson = R"({"is_local_file":true,"clear_on_media_end":true})";
+        spec.settingsJson = R"({"clear_on_media_end":true})";
         if (!rt_.addSource(kEscenaVideo, spec)) {
             anotar(tr("No se pudo crear la fuente de video: %1").arg(QString::fromStdString(rt_.lastError())),
                    "error");
@@ -2910,7 +2911,7 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
             if (accion == "parar") {
                 // Sin archivo, la fuente queda en negro. No se la saca de la
                 // escena: recrearla en cada video costaria mas y se veria.
-                rt_.updateSourceSettings(kVideo, R"({"local_file":"","is_local_file":true})");
+                rt_.updateSourceSettings(kVideo, R"({"local_file":""})");
                 anotar(tr("Video: para"), "ok");
                 return;
             }
@@ -2926,13 +2927,7 @@ void EventoViewModel::ejecutarCue(const evento::Cue& cue, const std::string& pas
             // Se le cambia el ARCHIVO a la fuente que ya esta en la escena, no
             // se crea una nueva: `playMedia` sirve para la musica, que va por
             // un canal global de audio y no se ve.
-            const QJsonObject ajustes{{"local_file", ruta},
-                                      {"is_local_file", true},
-                                      {"looping", repetir},
-                                      {"restart_on_activate", false},
-                                      {"close_when_inactive", false},
-                                      {"clear_on_media_end", true},
-                                      {"hw_decode", true}};
+            const QJsonObject ajustes{{"local_file", ruta}, {"looping", repetir}, {"clear_on_media_end", true}};
             if (!rt_.updateSourceSettings(
                     kVideo, QJsonDocument(ajustes).toJson(QJsonDocument::Compact).toStdString())) {
                 anotar(tr("No se pudo cargar %1: %2").arg(rel, QString::fromStdString(rt_.lastError())), "error");

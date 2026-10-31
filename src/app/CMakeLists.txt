@@ -12,9 +12,8 @@
 # Dos rutas de compilación, elegidas en el configure:
 #   1. Con Qt 6 vendoreado -> app COMPLETA (interfaz QML + motor). Se define
 #      `BA_APP_HAVE_GUI=1`.
-#   2. Sin Qt (una validación cruzada) -> modo HEADLESS: solo `ba_core`, que
-#      ejercita la misma integración dsp/ipc/persist (ver main.cpp,
-#      runHeadlessSelfTest). Así el target compila en cualquier plataforma.
+#   2. Sin Qt (una validación cruzada) -> modo consola (runOperate); sin
+#      GStreamer, el target compila igual pero no hay motor (main.cpp lo dice).
 #
 # /MD (CRT dinámica) — hereda del root.
 # ============================================================================
@@ -750,6 +749,13 @@ endif()
     target_include_directories(test_grafo_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_grafo_video PRIVATE ba_core)
     add_test(NAME test_grafo_video COMMAND test_grafo_video)
+
+    # F3-12: los tipos de antes al motor (inputs::alMotor): toda opción llega o se avisa.
+    add_executable(test_al_motor tests/test_al_motor.cpp emision/InputSpecs.cpp)
+    target_include_directories(test_al_motor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_al_motor PRIVATE ba_core Qt6::Core)
+    target_compile_definitions(test_al_motor PRIVATE BA_TEST_SRC="${CMAKE_SOURCE_DIR}")
+    add_test(NAME test_al_motor COMMAND test_al_motor)
 
     # La medición de desfase entre dos entradas (datos sintéticos).
     add_executable(test_sincronia tests/test_sincronia.cpp video/Sincronia.cpp)

@@ -9,6 +9,7 @@
 #include "arranque/RutasPortables.hpp"
 #include "emision/InputSpecs.hpp"
 #include "persist/ColaEscritura.hpp"
+#include "persist/Esquema.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -140,6 +141,30 @@ json sourceToJson(const SourceSpec& s) {
     return j;
 }
 
+/// El esquema de app.json (persist/Esquema.hpp):
+///   1  lo de antes de versionar: fuentes con los tipos de la época de OBS;
+///   2  todas las fuentes con el tipo del motor (inputs::alMotor).
+constexpr int kEsquemaApp = 2;
+/// gateway.json y launcher.json: el 1 (todavía sin pasos).
+constexpr int kEsquemaGateway = 1;
+constexpr int kEsquemaLauncher = 1;
+
+/// 1 → 2: cada fuente guardada con un tipo de antes, al del motor (una vez).
+void fuentesAlMotor(json& j) {
+    const auto pasar = [](json& lista) {
+        if (!lista.is_array()) return;
+        for (auto& s : lista) {
+            SourceSpec spec = sourceFromJson(s);
+            if (inputs::alMotor(spec).cambio) s = sourceToJson(spec);
+        }
+    };
+    if (j.contains("scenes") && j["scenes"].is_array())
+        for (auto& sc : j["scenes"])
+            if (sc.is_object() && sc.contains("sources")) pasar(sc["sources"]);
+    if (j.contains("sources")) pasar(j["sources"]); // formato viejo: sin escenas
+    if (j.contains("audioInputs")) pasar(j["audioInputs"]);
+}
+
 std::string relativeToRoot(const fs::path& p, const fs::path& root) {
     const fs::path rel = p.lexically_relative(root);
     return (!rel.empty() && *rel.begin() != "..") ? rel.generic_string() : p.string();
@@ -179,7 +204,8 @@ AppConfig defaultAppConfig(const fs::path& dataRoot) {
 
 AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     bool exists = false;
-    const json j = readJson(path, exists);
+    json j = readJson(path, exists);
+    if (exists) ba::persist::migrar(j, kEsquemaApp, {fuentesAlMotor}, path.filename().string());
     AppConfig c = defaultAppConfig(dataRoot);
     c.configPath = path;
     if (!exists) {
@@ -296,19 +322,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
             scene.name = get<std::string>(sc, "name", "Escena");
             scene.folder = get<std::string>(sc, "folder", "");
             scene.protegida = get<bool>(sc, "protegida", false);
-            for (const auto& s : sc.value("sources", json::array())) {
-                SourceSpec spec = sourceFromJson(s);
-                // Las cámaras de libobs de antes pasan a GStreamer (mismo nombre,
-                // lugar y recorte: las tarjetas, el PTZ y los vínculos siguen).
-                if (inputs::migrarCamara(spec))
-                    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "cámara '%1' pasada a GStreamer"), {spec.name}).c_str());
-                if (inputs::migrarMedio(spec))
-                    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "medio '%1' pasado a GStreamer"), {spec.name}).c_str());
-                if (inputs::migrarVideoInvitado(spec))
-                    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "video de invitado '%1' pasado a GStreamer"), {spec.name}).c_str());
-                if (inputs::migrarNdi(spec)) std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "NDI '%1' pasado a GStreamer"), {spec.name}).c_str());
-                scene.sources.push_back(spec);
-            }
+            for (const auto& s : sc.value("sources", json::array())) scene.sources.push_back(sourceFromJson(s));
             c.scenes.push_back(scene);
         }
     } else if (j.contains("sources") && j["sources"].is_array()) {
@@ -323,15 +337,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     }
     if (j.contains("audioInputs") && j["audioInputs"].is_array()) {
         c.audioInputs.clear();
-        for (const auto& s : j["audioInputs"]) {
-            SourceSpec spec = sourceFromJson(s);
-            // Los micrófonos de libobs de antes pasan a GStreamer (mismo nombre,
-            // volumen y silencio: los racks y los vínculos siguen andando).
-            if (inputs::migrarMicrofono(spec))
-                std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "micrófono '%1' pasado a GStreamer"), {spec.name}).c_str());
-            if (inputs::migrarMedio(spec)) std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("config", "medio '%1' pasado a GStreamer"), {spec.name}).c_str());
-            c.audioInputs.push_back(spec);
-        }
+        for (const auto& s : j["audioInputs"]) c.audioInputs.push_back(sourceFromJson(s));
     }
     if (j.contains("gruposAudio") && j["gruposAudio"].is_object())
         for (const auto& [g, v] : j["gruposAudio"].items())
@@ -363,6 +369,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         scenes.push_back(std::move(j));
     }
     const json j{
+        {ba::persist::kClaveEsquema, kEsquemaApp},
         {"video",
          {{"width", c.video.baseWidth},
           {"height", c.video.baseHeight},
@@ -429,7 +436,8 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
 
 GatewaySettings loadGatewaySettings(const fs::path& path) {
     bool exists = false;
-    const json j = readJson(path, exists);
+    json j = readJson(path, exists);
+    if (exists) ba::persist::migrar(j, kEsquemaGateway, {}, path.filename().string());
     GatewaySettings s;
     s.guests = get(j, "guests", s.guests);
     s.guestsReserva = get(j, "guestsReserva", s.guestsReserva);
@@ -560,12 +568,14 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
         nuevo["pinggy"] = pgPrevio;
     }
     previo.update(nuevo);
+    previo[ba::persist::kClaveEsquema] = kEsquemaGateway;
     return writeJson(path, previo, err);
 }
 
 LauncherSettings loadLauncherSettings(const fs::path& path) {
     bool exists = false;
-    const json j = readJson(path, exists);
+    json j = readJson(path, exists);
+    if (exists) ba::persist::migrar(j, kEsquemaLauncher, {}, path.filename().string());
     LauncherSettings s;
     s.shadowCopy = get(j, "shadowCopy", s.shadowCopy);
     s.recoveryUi = get(j, "recoveryUi", s.recoveryUi);
@@ -592,6 +602,7 @@ bool saveLauncherSettings(const fs::path& path, const LauncherSettings& s, std::
     j["reiniciosSinPreguntar"] = s.reiniciosSinPreguntar;
     j["idioma"] = s.idioma;
     j["ajustes"] = s.ajustes;
+    j[ba::persist::kClaveEsquema] = kEsquemaLauncher;
     return writeJson(path, j, err);
 }
 

@@ -59,11 +59,9 @@ Architecture rules (spec §14, §3, §9):
 The processes are **implemented** and run on Linux (native) and on Windows
 (cross-built from Linux with clang-cl, MSVC ABI):
 
-- **`ba-app`** (Process A): `MainWindow` (the operator's QMainWindow) +
-  `OperatorEngine` (integrates `ba_core::dsp` ChannelStrip/Automixer + presets,
-  IPC SharedAudioRing/HealthBlock/ControlEndpoint and SnapshotStore
-  persistence). Without GStreamer, `ba-app` is built without the engine (tools
-  only).
+- **`ba-app`** (Process A): the operator's QML interface + `BroadcastEngine`
+  on the GStreamer engine (`src/motor`). Without GStreamer, `ba-app` is built
+  without the engine (tools only).
 - **`ba-gateway`** (Process B): the Conference (videoconference with guests). `Room` (lobby,
   participants, chat, files, media routes), `SignalingServer` (HTTP +
   guest WebSocket) and `AdminApi` (REST + SSE control API, only on

@@ -2091,11 +2091,9 @@ void McpService::registerTools() {
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Hay %1 lugares de invitado (ajuste guests.count)."),
                                                                {std::to_string(rt.config().guests)})));
             const bool share = a.value("kind", std::string("camera")) == "screen";
-            SourceSpec spec;
-            spec.id = "ba_guest_video";
-            spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
-            spec.settingsJson = json{{"slot", slot}, {"channel", share ? "share" : "guest"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-            spec.rect = share ? CanvasRect{0, 0, 1, 1} : CanvasRect{0.5f, 0.5f, 0.5f, 0.5f};
+            SourceSpec spec = inputs::videoInvitadoSpec(slot, share ? "share" : "guest",
+                                                        "Invitado " + std::to_string(slot) + (share ? " — pantalla" : ""));
+            if (!share) spec.rect = CanvasRect{0.5f, 0.5f, 0.5f, 0.5f};
             std::string err;
             if (a.contains("layout") &&
                 !parseLayout(a["layout"], spec.rect.x, spec.rect.y, spec.rect.w, spec.rect.h, err))

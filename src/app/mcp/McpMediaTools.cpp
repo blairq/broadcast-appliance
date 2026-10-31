@@ -21,6 +21,7 @@
 #include <algorithm>
 
 #include "arranque/AppRuntime.hpp"
+#include "emision/InputSpecs.hpp"
 #include "mcp/McpService.hpp"
 #include "medios/Playlist.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -347,13 +348,9 @@ void McpService::registerMediaTools() {
                 spec.id = "image_source";
                 spec.settingsJson = json{{"file", abs.toStdString()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             } else {
-                spec.id = "ffmpeg_source";
-                spec.settingsJson = json{
-                    {"is_local_file", true},
-                    {"local_file", abs.toStdString()},
-                    {"looping", a.value("loop", false)},
-                    {"restart_on_activate",
-                     true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+                spec.id = inputs::kMedioType;
+                spec.settingsJson = json{{"local_file", abs.toStdString()}, {"looping", a.value("loop", false)}}.dump(
+                    -1, ' ', false, nlohmann::json::error_handler_t::replace);
             }
             spec.visible = a.value("visible", true);
             spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};

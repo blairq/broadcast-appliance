@@ -2,9 +2,8 @@
 //
 // Proposito:
 //   Channel strip nativo de audio (spec 7.2): una cadena de procesamiento por
-//   entrada de microfono, RT-safe. Hoy solo la usan OperatorEngine (el autotest
-//   --headless-selftest) y su test: los micrófonos del programa se procesan en
-//   los racks (audio/AudioRack, barack). Cadena fija:
+//   entrada de microfono, RT-safe. Hoy el programa no la usa (solo su test): los
+//   micrófonos se procesan en los racks (audio/AudioRack, barack). Cadena fija:
 //
 //     HPF (12/18/24 dB/oct, cascada de high-pass)
 //       -> EQ parametrico de 4 bandas (biquads RBJ)

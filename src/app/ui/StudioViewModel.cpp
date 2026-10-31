@@ -4,6 +4,7 @@
 
 #include "ui/StudioViewModel.hpp"
 #include "sala/CupoSala.hpp"
+#include "emision/InputSpecs.hpp"
 #include "sala/VotacionSala.hpp"
 #include "sala/PreguntasSala.hpp"
 #include "sala/SeguridadSala.hpp"
@@ -4649,13 +4650,12 @@ QString StudioViewModel::armarRepeticion(const QString& archivo, const std::stri
     if (std::find(escenas.begin(), escenas.end(), kEscena) == escenas.end() && !rt_.addScene(kEscena))
         return qs(rt_.lastError());
     const std::string ajustes =
-        nlohmann::json{{"is_local_file", true}, {"local_file", archivo.toStdString()}, {"looping", false},
-                       {"restart_on_activate", true}, {"close_when_inactive", true}}
+        nlohmann::json{{"local_file", archivo.toStdString()}, {"looping", false}}
             .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const auto fuentes = e.sceneSources(kEscena);
     if (std::find(fuentes.begin(), fuentes.end(), kFuente) == fuentes.end()) {
         SourceSpec spec;
-        spec.id = "ffmpeg_source";
+        spec.id = inputs::kMedioType;
         spec.name = kFuente;
         spec.settingsJson = ajustes;
         if (!rt_.addSource(kEscena, spec)) return qs(rt_.lastError());
