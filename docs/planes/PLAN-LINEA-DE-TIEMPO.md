@@ -365,7 +365,7 @@ Va una fila por salida o con filtro de salida. Las filas al aire y próxima se m
 - **Tras un corte de luz** (la regla T47: todo vuelve solo como estaba):
   - se reconstruye el estado con el resolvedor y se reponen las piezas de vida larga (música, gráficos fijos, DSK);
   - las piezas puntuales que se perdieron siguen su `siSePerdio` (por defecto `saltar` para las automáticas y `preguntar` para las de `asistente`);
-  - **el avance automático vuelve en HOLD** durante 10 s visibles, para que nada salga solo en un sistema recién levantado sin que nadie lo vea. Esto contradice en parte "vuelve todo solo": hay que validarlo con vos.
+  - **Decidido (2026-10-31): la línea vuelve en HOLD y pide una descripción de qué está pasando.** El aire, las escenas, la música y los gráficos vuelven solos como estaban (T47), pero el avance automático queda frenado. La conducción muestra «¿Qué está pasando?» (texto o dictado: «el orador sigue hablando», «ya terminó la votación, saltamos al cierre», «vamos 10 minutos atrasados»). El asistente lee esa descripción con el estado de la línea (`linea_estado`, `linea_recorrido`) y **propone** cómo adecuar todo: dónde reenganchar, qué saltear, qué reponer y qué recortar (`linea_editar`/`linea_ajustar` con `probar:true`). La persona confirma y recién ahí se suelta el HOLD. Sin respuesta, la línea sigue en HOLD; con GO se suelta tal cual estaba. La descripción y lo que se decidió quedan en el recorrido.
 - Las plantillas de paso y de bloque se guardan por evento. Las de la biblioteca van en `assets/demo` y en las guías, con "Evento es todo": nada compartido.
 
 ### 3.9 Cuando el vivo se desvía
