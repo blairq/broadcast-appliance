@@ -409,6 +409,11 @@ class EventoViewModel : public QObject {
     std::string lineaRetomar(const std::string& descripcion, bool simular);
     /// linea_soltar: suelta el HOLD del corte con lo que se decidió. "" o por qué no.
     std::string lineaSoltar(const std::string& decision);
+    /// Para la vista de la línea (LineaViewModel, L4/L5): la corrida (la que corre o la
+    /// última; nullptr si no corrió) y el arranque previsto, la medianoche y el fin
+    /// planeado (del día del evento o, con `hoy`, de hoy).
+    const evento::linea::Corrida* corridaLinea() const { return corrida_.get(); }
+    evento::linea::Entrada entradaLinea(bool hoy) const { return entradaBase(hoy); }
 
     /// Ensayo acelerado: recorre el guion ENTERO de una, sin esperar las
     /// duraciones y sin tocar nada, y dice de cada cue si se podria ejecutar.

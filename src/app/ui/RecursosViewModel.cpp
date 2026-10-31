@@ -217,9 +217,12 @@ void RecursosViewModel::medirServicio(const diag::Recursos::Muestra& m, const nl
         if (!con && conectadaAntes_[id]) reconexiones.sumar();
         conectadaAntes_[id] = con;
     };
-    for (const auto& [id, fs] : sal.value("salidas", nlohmann::json::object()).items()) {
+    // Con nombre: recorrer .items() de un temporal (value(...) devuelve una copia) es UB.
+    const nlohmann::json salidas = sal.value("salidas", nlohmann::json::object());
+    for (const auto& [id, fs] : salidas.items()) {
         mirar(id, fs.value("principal", nlohmann::json::object()));
-        for (const auto& [eid, x] : fs.value("extras", nlohmann::json::object()).items()) mirar(eid, x);
+        const nlohmann::json extras = fs.value("extras", nlohmann::json::object());
+        for (const auto& [eid, x] : extras.items()) mirar(eid, x);
     }
     static auto& reconectandoAhora = met.medidor("ba_transmision_reconectando", QT_TRANSLATE_NOOP("metricas", "Transmisiones reconectando ahora"));
     reconectandoAhora.poner(reconectando);

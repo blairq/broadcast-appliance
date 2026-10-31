@@ -876,6 +876,13 @@ endif()
     target_include_directories(test_linea PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_linea PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_linea COMMAND test_linea)
+    # La línea lista para dibujar (escaleta, conducción, multipista, regla, estante y
+    # el presupuesto de miniaturas): lo que ordena LineaViewModel, sin Qt ni motor.
+    add_executable(test_linea_vista tests/test_linea_vista.cpp evento/LineaVista.cpp evento/Linea.cpp evento/LineaEdicion.cpp
+                   evento/Corrida.cpp evento/Evento.cpp)
+    target_include_directories(test_linea_vista PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_linea_vista PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_linea_vista COMMAND test_linea_vista)
 
     # El puente con el renderizador de graficos: que un grafico colgado NO
     # cuelgue la app es la razon de ser del proceso aparte, asi que se prueba.
@@ -1150,6 +1157,10 @@ endif()
         endif()
         add_test(NAME test_matrix_mixer COMMAND test_matrix_mixer)
         set_tests_properties(test_matrix_mixer PROPERTIES SKIP_RETURN_CODE 77)
+        # El anillo estéreo sin candado de la Matriz y los racks (F3-08): dos hilos y deriva sintética.
+        add_executable(test_ring_estereo tests/test_ring_estereo.cpp)
+        target_include_directories(test_ring_estereo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_test(NAME test_ring_estereo COMMAND test_ring_estereo)
         add_executable(test_audio_rack tests/test_audio_rack.cpp audio/AudioRack.cpp audio/Analyzer.cpp
                                        audio/ClapHost.cpp audio/ClapEditor.cpp)
         target_include_directories(test_audio_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")

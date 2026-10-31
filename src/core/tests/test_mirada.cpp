@@ -13,6 +13,9 @@
 //      De cada uno: despertadas por segundo (cambios de contexto voluntarios del proceso
 //      menos los del escritor solo), cuadros perdidos y la demora desde que se publicó
 //      hasta que se leyó. Lo mismo con un anillo de audio (bloques de 10 ms).
+//   4. El timbre (F3-13, ipc/Timbre.hpp): el mismo lector durmiendo hasta que el escritor
+//      toca (esperarNuevo): menos despertadas que con Mirada y la demora de un salto en
+//      decenas de µs (sin margen ni temblor); y en reposo (nadie publica), casi ninguna.
 // BA_MIRADA_S=10 alarga cada fase (de fábrica 2 s).
 
 #include "ipc/Mirada.hpp"
@@ -148,7 +151,7 @@ void testCanal() {
 }
 
 /// Cómo se mira: cada 4 ms (antes), al ritmo del productor (el batido) o con proximaMirada.
-enum class Modo { Cada4, AlRitmo, Mirada };
+enum class Modo { Cada4, AlRitmo, Mirada, Timbre };
 
 struct Resultado {
     double despertadasS = 0; ///< cambios de contexto voluntarios por segundo del lector (despertadas de verdad)
@@ -199,6 +202,7 @@ Resultado faseVideo(int temblorUs, Modo modo, bool conLector) {
             while (!fin.load()) {
                 vueltas.fetch_add(1);
                 FrameMeta m{};
+                const std::uint32_t visto = rx.timbre();
                 if (rx.hasData() && rx.receive(dst.data(), dst.size(), m)) {
                     const std::uint64_t d = mirada::ahoraNs() - m.qpc;
                     leidos.fetch_add(1);
@@ -207,7 +211,9 @@ Resultado faseVideo(int temblorUs, Modo modo, bool conLector) {
                 }
                 if (modo == Modo::Mirada)
                     ba::platform::dormirHasta(rx.proximaMirada(15ms));
-                else
+                else if (modo == Modo::Timbre) {
+                    if (!rx.hasData()) rx.esperarNuevo(visto, 15ms);
+                } else
                     ritmo.esperar();
             }
         });
@@ -256,6 +262,7 @@ Resultado faseAudio(Modo modo, bool conLector) {
             ba::platform::Ritmo ritmo{4ms};
             while (!fin.load()) {
                 vueltas.fetch_add(1);
+                const std::uint32_t visto = r.timbre();
                 leerPendientes(r, buf, [&](const PoppedBlock& b, std::size_t) {
                     const std::uint64_t d = mirada::ahoraNs() - b.qpc;
                     leidos.fetch_add(1);
@@ -264,7 +271,9 @@ Resultado faseAudio(Modo modo, bool conLector) {
                 });
                 if (modo == Modo::Mirada)
                     ba::platform::dormirHasta(r.proximaMirada(10ms));
-                else
+                else if (modo == Modo::Timbre) {
+                    if (r.pendientes() == 0) r.esperarNuevo(visto, 10ms);
+                } else
                     ritmo.esperar();
             }
         });
@@ -314,9 +323,17 @@ void testAntesDespues() {
         const Resultado antes = faseVideo(temblorUs, Modo::Cada4, true);
         const Resultado batido = faseVideo(temblorUs, Modo::AlRitmo, true);
         const Resultado ahora = faseVideo(temblorUs, Modo::Mirada, true);
+        const Resultado timbre = faseVideo(temblorUs, Modo::Timbre, true);
         mostrar("cada 4 ms (antes)", antes, base);
         mostrar("cada 33 ms (al ritmo: bate)", batido, base);
-        mostrar("proximaMirada (ahora)", ahora, base);
+        mostrar("proximaMirada (F2-14)", ahora, base);
+        mostrar("timbre (F3-13)", timbre, base);
+        if (Timbre::hayPrimitiva()) {
+            CHECK(timbre.leidos + 1 >= timbre.publicados, "con el timbre no se pierden cuadros");
+            CHECK(timbre.vueltasS < 1.3 * 30, "con el timbre, una vuelta por cuadro");
+            CHECK(timbre.demoraMediaMs < ahora.demoraMediaMs, "con el timbre, menos demora por salto que con Mirada");
+            CHECK(timbre.demoraMediaMs < 0.3, "con el timbre, la demora de un salto en décimas de ms");
+        }
         CHECK(ahora.leidos + 1 >= ahora.publicados, "con proximaMirada no se pierden cuadros");
         // (Sin cuenta de despertadas del sistema —Windows—, las vueltas del bucle.)
         if (antes.despertadasS > 0)
@@ -329,12 +346,67 @@ void testAntesDespues() {
     std::printf("audio, bloques de 10 ms (escritor solo: %.1f despertadas/s)\n", base);
     const Resultado antes = faseAudio(Modo::Cada4, true);
     const Resultado ahora = faseAudio(Modo::Mirada, true);
+    const Resultado timbre = faseAudio(Modo::Timbre, true);
     mostrar("cada 4 ms (antes)", antes, base);
-    mostrar("proximaMirada (ahora)", ahora, base);
+    mostrar("proximaMirada (F2-14)", ahora, base);
+    mostrar("timbre (F3-13)", timbre, base);
+    if (Timbre::hayPrimitiva()) {
+        CHECK(timbre.leidos + 1 >= timbre.publicados, "con el timbre no se pierde audio");
+        CHECK(timbre.vueltasS < 1.3 * 100, "con el timbre, una vuelta por bloque");
+        CHECK(timbre.demoraMediaMs < 0.3, "con el timbre, la demora de un salto en décimas de ms");
+    }
     CHECK(ahora.leidos + 1 >= ahora.publicados, "no se pierde audio");
     CHECK(antes.despertadasS > 0 ? ahora.despertadasS < antes.despertadasS : ahora.vueltasS < antes.vueltasS,
           "menos despertadas que a 4 ms");
     CHECK(ahora.demoraMediaMs <= antes.demoraMediaMs + 1.0, "la demora media no crece");
+}
+
+/// En reposo (el canal existe y nadie publica): con Mirada el lector mira de a `pasoQuieto`;
+/// con el timbre, solo por el vigía (kVigia). Y despertar() (unlock de una fuente) lo saca
+/// del sueño en seguida.
+void testReposo() {
+    if (!Timbre::hayPrimitiva()) {
+        std::printf("reposo: sin primitiva de timbre en este sistema (se sigue con Mirada)\n");
+        return;
+    }
+    const std::wstring nombre = L"BA.Test.Mirada.Reposo." + std::to_wstring(ba_getpid());
+    SpoutSender tx;
+    CHECK(tx.publish(nombre.c_str(), SlotConfig{16, 16, 33 * kMs}), "publicar (sin cuadros)");
+    SpoutReceiver rx;
+    CHECK(rx.subscribe(nombre.c_str()), "suscribirse");
+    CHECK(rx.tocaTimbre(), "el productor toca el timbre");
+    std::atomic<bool> fin{false};
+    std::atomic<int> vueltasMirada{0}, vueltasTimbre{0};
+    auto lector = [&](bool conTimbre, std::atomic<int>& vueltas) {
+        while (!fin.load()) {
+            vueltas.fetch_add(1);
+            const std::uint32_t visto = rx.timbre();
+            if (rx.hasData()) continue;
+            if (conTimbre)
+                rx.esperarNuevo(visto, 15ms);
+            else
+                ba::platform::dormirHasta(rx.proximaMirada(15ms));
+        }
+    };
+    const double seg = segundosDePrueba();
+    {
+        std::thread t(lector, false, std::ref(vueltasMirada));
+        std::this_thread::sleep_for(std::chrono::duration<double>(seg));
+        fin.store(true);
+        t.join();
+    }
+    fin.store(false);
+    std::thread t(lector, true, std::ref(vueltasTimbre));
+    std::this_thread::sleep_for(std::chrono::duration<double>(seg));
+    fin.store(true);
+    const auto antes = Reloj::now();
+    rx.despertar();
+    t.join();
+    const double despertarMs = std::chrono::duration<double, std::milli>(Reloj::now() - antes).count();
+    std::printf("reposo (nadie publica): Mirada %.1f vueltas/s, timbre %.1f vueltas/s; despertar() en %.2f ms\n",
+                vueltasMirada.load() / seg, vueltasTimbre.load() / seg, despertarMs);
+    CHECK(vueltasTimbre.load() / seg <= 2.0, "con el timbre, en reposo, casi ninguna vuelta");
+    CHECK(despertarMs < 20.0, "despertar() saca al lector del sueño en seguida");
 }
 
 } // namespace
@@ -346,6 +418,7 @@ int main() {
     testCuenta();
     testCanal();
     testAntesDespues();
+    testReposo();
     if (g_fallos == 0) std::printf("test_mirada: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

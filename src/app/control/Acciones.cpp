@@ -31,7 +31,8 @@ json herr(const std::string& id, const std::string& nombre, const std::string& g
 
 /// Las acciones de aire que se listan también para cada salida («take@cam2»).
 const std::set<std::string>& dePorSalida() {
-    static const std::set<std::string> s{"take", "ftb", "ftb_sacar", "placa", "placa_sacar", "grabar"};
+    static const std::set<std::string> s{"take",     "ftb",        "ftb_sacar",       "placa",          "placa_sacar", "grabar",
+                                         "linea_go", "linea_hold", "linea_siguiente", "linea_anterior", "linea_saltar"};
     return s;
 }
 
@@ -78,6 +79,25 @@ json Acciones::catalogo() const {
         herr("alarmas_reconocer", traducir("acciones", "Reconocer las alarmas"), traducir("acciones", "Seguridad"),
              "alert_reconocer", {{"todas", true}}),
     });
+    {
+        // La línea de tiempo del evento: lo de vivo y el estante (un adlib por ítem).
+        const std::string linea = traducir("acciones", "Línea de tiempo");
+        c.push_back(herr("linea_go", traducir("acciones", "Línea: GO (entra el próximo)"), linea, "linea_go"));
+        c.push_back(herr("linea_hold", traducir("acciones", "Línea: HOLD"), linea, "linea_hold"));
+        c.push_back(herr("linea_siguiente", traducir("acciones", "Línea: el próximo, uno adelante"), linea, "linea_siguiente"));
+        c.push_back(herr("linea_anterior", traducir("acciones", "Línea: el próximo, uno atrás"), linea, "linea_anterior"));
+        c.push_back(herr("linea_saltar", traducir("acciones", "Línea: saltear el próximo"), linea, "linea_saltar"));
+        if (g_.estante)
+            for (const auto& it : g_.estante()) {
+                const std::string id = it.value("id", std::string()), texto = it.value("texto", id);
+                if (it.value("esPaso", false))
+                    c.push_back(herr("linea_adlib:" + id, llenar(traducir("acciones", "Línea: insertar «%1»"), {texto}), linea,
+                                     "linea_insertar", {{"item", id}}));
+                else
+                    c.push_back(herr("linea_adlib:" + id, llenar(traducir("acciones", "Línea: disparar «%1»"), {texto}), linea,
+                                     "linea_adlib", {{"pieza", id}}));
+            }
+    }
     for (int capa = 1; capa <= 4; ++capa)
         c.push_back({{"id", "dsk:" + std::to_string(capa)},
                      {"nombre", llenar(traducir("acciones", "Subir/bajar la capa DSK %1"), {std::to_string(capa)})},
@@ -172,6 +192,9 @@ json Acciones::resolver(const std::string& pedido) const {
     json r = resolverSinSalida(id, salida);
     if (!r.contains("error") && !r.contains("elegir_salida")) {
         r["salida"] = salida;
+        // Las de la línea llevan la salida en los argumentos (linea_*: `salida`).
+        if (!salida.empty() && r.value("herramienta", std::string()).rfind("linea_", 0) == 0 && r["args"].is_object())
+            r["args"]["salida"] = salida;
         r["salida_pedida"] = pedida; // la dice la acción («@<salida>»), no los atajos
     }
     return r;

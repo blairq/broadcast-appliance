@@ -18,7 +18,9 @@
 // con el atraso, hasta 4 ms (nunca peor que antes); quieto hace más de 1 s (un lugar
 // vacío, un invitado callado), de a `pasoQuieto`.
 //
-// Es la mitad de C8 (el paso S). La otra mitad, el timbre entre procesos, es F3-13.
+// Es la mitad de C8 (el paso S). La otra mitad, el timbre entre procesos, es F3-13
+// (ipc/Timbre.hpp): con un productor que toca, el lector duerme hasta el toque y esto
+// queda para los que no tocan (uno viejo, o un macOS anterior a 14.4).
 // ============================================================================
 #pragma once
 
@@ -40,6 +42,10 @@ inline constexpr Reloj::duration kPasoMin = std::chrono::milliseconds(1);
 inline constexpr Reloj::duration kPasoMax = std::chrono::milliseconds(4);
 /// Tanto sin publicar = quieto.
 inline constexpr Reloj::duration kQuieto = std::chrono::seconds(1);
+/// Con un productor que toca el timbre (ipc/Timbre.hpp, F3-13) el lector no mira: duerme
+/// hasta el toque. Este es el plazo por si el productor se murió sin tocar (el lector mira
+/// entonces si el canal quedó viejo: stale(), que mira de a 1 s).
+inline constexpr Reloj::duration kVigia = std::chrono::seconds(1);
 
 /// La hora monotónica en ns, la que el productor deja en la cabecera (steady_clock: el
 /// mismo reloj para los dos procesos: QPC en Windows, CLOCK_MONOTONIC en los demás).

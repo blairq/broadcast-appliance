@@ -247,7 +247,7 @@ int main() {
         // Audio agendado a futuro (la voz del sistema dice la frase entera de
         // una vez, para dentro de 1 s): suena a su hora y entero.
         {
-            anillo::Ring futuro;
+            anillo::Ring futuro(anillo::kCapacidadAgendado);
             std::vector<float> frase(9600, 0.5f); // 200 ms
             const std::uint64_t ahora = 1'000'000'000'000ULL;
             futuro.pushEn(frase.data(), frase.data(), 9600, ahora + 1'000'000'000ULL, ahora, 48000);

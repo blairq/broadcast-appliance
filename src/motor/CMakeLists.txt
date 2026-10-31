@@ -155,7 +155,7 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_salidas gstbaaudio gstbaipc)
     add_test(NAME test_motor_salidas COMMAND test_motor_salidas)
-    set_tests_properties(test_motor_salidas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    set_tests_properties(test_motor_salidas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # tiempo real con GPU: solo
 
     # La interfaz nunca espera al motor (docs/planes/PLAN-MOTOR-SIN-ESPERAS.md).
     add_executable(test_motor_sin_esperas tests/test_motor_sin_esperas.cpp)
@@ -166,6 +166,14 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_motor_sin_esperas gstbaaudio gstbaipc)
     add_test(NAME test_motor_sin_esperas COMMAND test_motor_sin_esperas)
     set_tests_properties(test_motor_sin_esperas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+
+    # F3-08: los buses de la Matriz en el motor (niveles, pan, mute, placa, entrada virtual).
+    add_executable(test_motor_matriz tests/test_motor_matriz.cpp)
+    target_link_libraries(test_motor_matriz PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_matriz "")
+    target_compile_definitions(test_motor_matriz PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    add_test(NAME test_motor_matriz COMMAND test_motor_matriz)
+    set_tests_properties(test_motor_matriz PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
     # Los convertidores de D3D12 de a uno (la caída del heap de las placas). Solo Windows.
     add_executable(test_d3d12_de_a_uno tests/test_d3d12_de_a_uno.cpp)

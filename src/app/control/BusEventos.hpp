@@ -18,6 +18,11 @@
 //   entrada/senal                                 entradas sin señal
 //   oradores/al_aire                              la banca o el orador al aire
 //   sala/participantes                            la sala de invitados
+//   linea/<salida>/estado                         la línea de tiempo de esa salida: {estado, hold,
+//                                                  alAire{paso, nombre}, proximo{paso, nombre,
+//                                                  automatico, entraSoloEnSeg}, overUnderSeg,
+//                                                  proximoHardStart?} (LineaViewModel)
+//   linea/<salida>/proximo                        solo el próximo (o null)
 //
 // Cada tema guarda su último valor (para que el que se conecta tarde se ponga
 // al día). Publicar el mismo valor no avisa a nadie.

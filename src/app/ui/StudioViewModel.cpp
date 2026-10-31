@@ -148,6 +148,7 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/TemaEventoViewModel.hpp"
+#include "ui/LineaViewModel.hpp"
 #include "net/AccesoRemoto.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/EventoViewModel.hpp"
@@ -1968,6 +1969,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 return false;
             };
         }
+        linea_ = std::make_unique<LineaViewModel>(*evento_, rt_.engine(), frames_.get(), acciones_.get(), bus_.get());
         dsk_->setAlCambiar([this](const nlohmann::json& c) {
             bus_->publicar("aire/dsk", c);
             publicarTally(); // lo que muestra una capa también está al aire
@@ -2797,6 +2799,7 @@ QObject* StudioViewModel::pantallasConectadasQml() const { return monitores_.get
 QObject* StudioViewModel::ventanasQml() const { return ventanas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::temaEvento() const { return temaEvento_.get(); }
+QObject* StudioViewModel::lineaQml() const { return linea_.get(); }
 QObject* StudioViewModel::enlacesQml() const { return enlaces_.get(); }
 
 void StudioViewModel::actualizarRanurasBanca(bool forzar) {

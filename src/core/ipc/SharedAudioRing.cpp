@@ -80,6 +80,12 @@ uint64_t periodoBloqueNs(const RingHeader* h) {
 }
 } // namespace
 
+bool SharedAudioRing::esperarNuevo(uint32_t visto, std::chrono::steady_clock::duration pasoQuieto,
+                                   std::chrono::steady_clock::time_point aMasTardar) {
+    const auto plazo = timbre_.vivo() ? std::chrono::steady_clock::now() + mirada::kVigia : proximaMirada(pasoQuieto);
+    return timbre_.esperar(visto, std::min(plazo, aMasTardar));
+}
+
 std::chrono::steady_clock::time_point SharedAudioRing::proximaMirada(std::chrono::steady_clock::duration pasoQuieto) const {
     const auto ahora = std::chrono::steady_clock::now();
     if (region_.data() == nullptr) return ahora + pasoQuieto;
@@ -160,11 +166,14 @@ Status SharedAudioRing::init(const wchar_t* name, uint32_t channels, uint64_t ca
     h->underrunCount = 0;
     h->overrunCount = 0;
     h->escritoNs = 0;
+    h->timbre = TimbreCompartido{};
 
     // Cero el area de datos (silencio inicial).
     std::memset(static_cast<uint8_t*>(region.data()) + dataOffset(), 0, dataBytes);
 
+    out.timbre_.soltar();
     out.region_ = std::move(region);
+    out.timbre_.enganchar(&h->timbre, name, true);
     out.isWriter_ = true;
     out.hasCached_ = false;
     return Status::success();
@@ -184,7 +193,9 @@ Status SharedAudioRing::openReader(const wchar_t* name, SharedAudioRing& out) {
         region.close();
         return Status::fail(static_cast<int>(ErrorCode::kNotFound));
     }
+    out.timbre_.soltar();
     out.region_ = std::move(region);
+    out.timbre_.enganchar(&h->timbre, name, false);
     out.isWriter_ = false;
     out.hasCached_ = false;
     out.name_ = name;
@@ -231,7 +242,9 @@ Status SharedAudioRing::openWriter(const wchar_t* name, uint32_t writerPid, uint
     // Publica la nueva identidad del escritor.
     h->writerPid = writerPid;
     h->generation = generation;
+    out.timbre_.soltar();
     out.region_ = std::move(region);
+    out.timbre_.enganchar(&h->timbre, name, true);
     out.isWriter_ = true;
     out.hasCached_ = false;
     return Status::success();
@@ -259,6 +272,7 @@ bool SharedAudioRing::push(const float* samples, uint64_t qpc) {
     AtomicRef<uint64_t>(h->lastWriteQpc).store(qpc, std::memory_order_relaxed);
     AtomicRef<uint64_t>(h->writeIndex).store(write + 1, std::memory_order_release);
     AtomicRef<uint64_t>(h->escritoNs).store(mirada::ahoraNs(), std::memory_order_relaxed);
+    timbre_.tocar(); // el lector que duerme en esperarNuevo se despierta ya
     return true;
 }
 
