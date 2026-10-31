@@ -420,7 +420,7 @@ int runGui(int argc, char** argv) {
         qmlRegisterSingletonType(QUrl("qrc:/qml/Theme.qml"), "BA", 1, 0, "Theme");
 
         QQmlApplicationEngine engine;
-        engine.addImageProvider("inputs", new InputThumbProvider(rt)); // miniaturas de la pagina Entradas
+        engine.addImageProvider("inputs", new InputThumbProvider(rt, ventanilla)); // miniaturas de la pagina Entradas
         // La vista previa del generador de QR: rasteriza el MISMO SVG que se
         // exporta, asi lo que se ve es exactamente lo que sale.
         engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));

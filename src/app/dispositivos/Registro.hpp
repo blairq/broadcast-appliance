@@ -5,14 +5,12 @@ namespace ba::app {
 class AppRuntime;
 class InputsViewModel;
 class OperatorMessages;
+class VideoViewModel;
 namespace red {
 class Red;
 }
 namespace plugins {
 class Plugins;
-}
-namespace video {
-class VideoGrafos;
 }
 namespace ptz {
 class ControlCamaras;
@@ -26,7 +24,7 @@ class Dispositivos;
 struct Dependencias {
     red::Red* red = nullptr;
     plugins::Plugins* plugins = nullptr;
-    video::VideoGrafos* video = nullptr;
+    VideoViewModel* video = nullptr; ///< el grafo de video, visto desde la interfaz
     ptz::ControlCamaras* camaras = nullptr;
     OperatorMessages* mensajes = nullptr;
     /// Para listar las cámaras, micrófonos y placas de la máquina (con el motor).

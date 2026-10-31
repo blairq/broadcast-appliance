@@ -5,6 +5,13 @@
 // respaldo (para el TAKE) o CORTAR a ella, después de `ms` sin señal. Una sola
 // vez por caída: cuando la entrada vuelve, se rearma. Corta y arma por el
 // conmutador (con sus reglas). Avisa con señales: la interfaz muestra.
+//
+// Es del dueño del motor (F3-03): mira la señal de las entradas en el grafo de video y
+// corta por el conmutador, los dos del dueño; vive en su hilo (lo adopta la ventanilla) y
+// revisa cada segundo con su reloj, con el turno. Así una cámara al aire que se cae se
+// cubre aunque la interfaz esté trabada. La interfaz se entera por las señales (la lista
+// sin señal viaja en sinSenalCambio); respaldo y setRespaldo leen y escriben el archivo
+// y se pueden llamar desde la interfaz.
 // ============================================================================
 #pragma once
 
@@ -13,6 +20,7 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QTimer>
 
 #include <nlohmann/json.hpp>
 
@@ -38,9 +46,9 @@ class RespaldoEntradas : public QObject {
     std::string setRespaldo(const std::string& entrada, const std::string& escena, const std::string& alPerderAire,
                             int ms);
 
-    /// Una vuelta: mira qué entradas no tienen señal y aplica los respaldos.
+    /// Una vuelta: mira qué entradas no tienen señal y aplica los respaldos (en el dueño,
+    /// con el turno; la corre su reloj, cada segundo).
     void revisar();
-    QStringList sinSenal() const { return sinSenal_; }
 
    signals:
     /// Cambió la lista de entradas sin señal.
@@ -51,6 +59,7 @@ class RespaldoEntradas : public QObject {
    private:
     nlohmann::json leer() const;
 
+    QTimer reloj_{this}; ///< se muda con el objeto al hilo del dueño
     AppRuntime& rt_;
     video::VideoGrafos& video_;
     Conmutador& conmutador_;

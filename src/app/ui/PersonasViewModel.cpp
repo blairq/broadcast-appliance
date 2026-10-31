@@ -36,6 +36,7 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/Reconocedor.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "video/VideoGrafos.hpp"
 
 #include <gst/video/video.h>
@@ -490,7 +491,7 @@ bool PersonasViewModel::persistir() {
 void PersonasViewModel::sincronizarRostros() {
     // Las cámaras del estudio que Personas usa llevan su tarjeta «Rostros» en
     // el grafo de video: se pone al elegirlas y se saca al dejar de usarlas.
-    auto* vg = d_->vm.videoGrafos();
+    auto* vg = d_->vm.videoVista();
     if (vg == nullptr) return;
     std::map<std::string, std::string> quiero;
     const auto cam = [](const QString& f) {
@@ -502,8 +503,11 @@ void PersonasViewModel::sincronizarRostros() {
     if (d_->puertaAuto && !cam(d_->feedPuerta).empty()) quiero[cam(d_->feedPuerta)] = "puerta";
     for (const QString& e : d_->seguidas)
         quiero[e.toStdString()] = "seguir";
-    const std::string e = vg->configurarRostros(quiero);
-    if (!e.empty()) emit notify(QString::fromStdString(e), "error");
+    // Las pone el grafo, en el dueño del motor; si no se puede, avisa.
+    vg->pedir("personas_rostros", [quiero](video::VideoGrafos& g) { return g.configurarRostros(quiero); },
+              [yo = QPointer<PersonasViewModel>(this)](const std::string& e) {
+                  if (yo && !e.empty()) emit yo->notify(QString::fromStdString(e), "error");
+              });
 }
 
 void PersonasViewModel::usarCamara(const QString& entrada, bool usar) {
@@ -1210,7 +1214,7 @@ QVariantList PersonasViewModel::fuentes() const {
     for (const QString& k : frames->keys())
         out.append(QVariantMap{{"clave", k}, {"etiqueta", frames->label(k)}});
     // Las cámaras del estudio (las entradas del grafo de video).
-    if (auto* vg = d_->vm.videoGrafos())
+    if (auto* vg = d_->vm.videoVista())
         for (const QString& e : vg->entradas())
             out.append(QVariantMap{{"clave", "entrada:" + e}, {"etiqueta", tr("Cámara · %1").arg(e)}});
     return out;

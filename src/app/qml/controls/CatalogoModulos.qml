@@ -7,7 +7,7 @@
 // (de la introspección de GStreamer). Los de varias entradas (compositor,
 // smpte, glmosaic…) van como «Mezcla de GStreamer» del estudio. Los que no van
 // (fuentes, salidas, los internos) se ven igual, con por qué no.
-// Datos: VideoGrafos.modulosGst().
+// Datos: Studio.video.modulosGst (el catálogo de GStreamer).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -41,8 +41,8 @@ Popup {
 
     onOpened: {
         if (modulos.length === 0 && vg) {
-            modulos = vg.modulosGst().map(m => Object.assign({ tipo: "gst" }, m))
-            version = vg.versionGst()
+            modulos = vg.modulosGst.map(m => Object.assign({ tipo: "gst" }, m))
+            version = vg.versionGst
         }
         busqueda.forceActiveFocus()
     }

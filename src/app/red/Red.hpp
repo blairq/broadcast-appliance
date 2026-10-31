@@ -21,7 +21,9 @@
 // ahí sale el PLAN (red/Plan).
 //
 // AGREGAR: la entrada de red sincronizada (video/VideoGrafos), con la
-// normalización que haga falta, y el PTZ ONVIF configurado.
+// normalización que haga falta, y el PTZ ONVIF configurado. El grafo es del dueño del
+// motor (F3-03): se le pide por ui/VideoViewModel y lo que ya hay sale de la foto; por
+// eso agregar responde en `listo` (y la interfaz, con agregarListo).
 #pragma once
 
 #include <nlohmann/json.hpp>
@@ -42,6 +44,7 @@
 class QNetworkAccessManager;
 
 namespace ba::app {
+class VideoViewModel;
 namespace video {
 class VideoGrafos;
 }
@@ -62,7 +65,7 @@ class Red : public QObject {
    public:
     using Listo = std::function<void(nlohmann::json)>;
 
-    Red(const std::filesystem::path& datos, const QString& dirCredenciales, video::VideoGrafos* video,
+    Red(const std::filesystem::path& datos, const QString& dirCredenciales, VideoViewModel* video,
         ptz::ControlCamaras* camaras, QObject* parent = nullptr);
     ~Red() override;
 
@@ -97,14 +100,16 @@ class Red : public QObject {
     /// entrelazado, colorimetría, audio. En otro hilo.
     void analizar(const QString& uri, Listo listo);
     /// Agrega la cámara al estudio según `opciones` ({nombre, escena, url |
-    /// perfil, normalizar, latencia_ms, ptz}). `hecho` dice qué se hizo.
-    std::string agregar(const std::string& ip, const nlohmann::json& opciones, nlohmann::json* hecho);
+    /// perfil, normalizar, latencia_ms, ptz}). `listo` recibe "" o el error, y qué se hizo.
+    using Agregado = std::function<void(const std::string& error, const nlohmann::json& hecho)>;
+    void agregar(const std::string& ip, const nlohmann::json& opciones, Agregado listo);
+    /// Para la interfaz: "" (lo que pasó llega por agregarListo, con `que`: agregar).
     Q_INVOKABLE QString agregarDesdeUi(const QString& ip, const QString& nombre, const QString& escena);
     /// Las entradas que ya toman video de esta cámara: [{entrada, url}].
     Q_INVOKABLE QVariantList entradasDe(const QString& ip) const;
-    /// Solo el PTZ de una entrada que ya existe (la clave llegó después). "" o el error.
+    /// Solo el PTZ de una entrada que ya existe (la clave llegó después): agregarListo «ptz».
     Q_INVOKABLE QString ptzDesdeUi(const QString& ip, const QString& entrada);
-    /// La misma entrada (sin otro stream) en otra escena. "" o el error.
+    /// La misma entrada (sin otro stream) en otra escena: agregarListo «reusar».
     Q_INVOKABLE QString reusarDesdeUi(const QString& ip, const QString& escena);
     /// Si la entrada es una cámara de red: {ip, marca, modelo, onvif, ptz (true/false/null = no se sabe),
     /// tieneClave, usuario, notas}. Vacío si no lo es. Para la página PTZ.
@@ -122,6 +127,8 @@ class Red : public QObject {
    signals:
     void cambio();
     void ptzListo(const QString& entrada, bool ok, const QString& texto);
+    /// Terminó un agregarDesdeUi / ptzDesdeUi / reusarDesdeUi: `error` vacío si salió.
+    void agregarListo(const QString& que, const QString& error);
 
    private:
     struct Escaneo;
@@ -132,7 +139,7 @@ class Red : public QObject {
     void cerrarEscaneo();
     nlohmann::json siguientePaso(const nlohmann::json& e) const;
 
-    video::VideoGrafos* video_;
+    VideoViewModel* video_;
     QPointer<ptz::ControlCamaras> camaras_;
     QString dirCred_;
     Biblioteca biblioteca_;

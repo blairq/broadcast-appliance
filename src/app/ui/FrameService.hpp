@@ -77,6 +77,9 @@ class FrameService : public QObject {
     using Encargar = std::function<void(std::function<void(BroadcastEngine&)>)>;
     FrameService(BroadcastEngine& engine, Encargar encargar, int guests, QObject* parent = nullptr);
     ~FrameService() override;
+    /// El motor, para lo que publica «desde cualquier hilo» (las vistas, la instantánea, la
+    /// foto de las salidas): lo usan otras vistas que solo leen eso (los tiempos).
+    BroadcastEngine& motorEntreHilos() const { return engine_; }
 
     /// Claves de video disponibles ("program", "guest:1"...).
     QStringList keys() const;

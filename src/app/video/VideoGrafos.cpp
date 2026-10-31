@@ -16,6 +16,8 @@
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "emision/FotoMotor.hpp"
+#include "emision/TurnoMotor.hpp"
 #include "Piezas.hpp" // motor::redElectricaDelSistema, cadenciasDeLaRed
 #include "emision/InputSpecs.hpp"
 
@@ -69,9 +71,11 @@ json deVariant(const QVariant& v) {
 QString q(const std::string& s) { return QString::fromStdString(s); }
 QString q(const char* s) { return QString::fromUtf8(s != nullptr ? s : ""); }
 
+} // namespace
+
 /// Las propiedades de un módulo de GStreamer (CatalogoGst) como controles de
 /// PropertiesModel.
-QVariantList controlesGst(const json& props) {
+QVariantList VideoGrafos::controlesGst(const json& props) {
     QVariantList out;
     for (const auto& p : props) {
         const std::string tipo = p.value("tipo", "");
@@ -118,11 +122,13 @@ QVariantList controlesGst(const json& props) {
 }
 
 /// GStreamer lee los valores como texto: un entero que vino de la interfaz como 3.0 va como 3.
-json paraGst(json v) {
+json VideoGrafos::paraGst(json v) {
     if (v.is_number_float() && v.get<double>() == static_cast<double>(static_cast<long long>(v.get<double>())))
         v = static_cast<long long>(v.get<double>());
     return v;
 }
+
+namespace {
 
 /// Las entradas virtuales: patrones de videotestsrc al tamaño del lienzo.
 struct Virtual {
@@ -176,27 +182,33 @@ VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject
     : QObject(parent), rt_(rt), archivo_(dataRoot / "Config" / "video-grafo.json"),
       archivoViejo_(dataRoot / "Config" / "video-grafos.json") {
     cargar();
-    // Mejorar imagen o el PTZ digital cambiaron en una entrada: se rearma su cadena ya.
+    // Mejorar imagen o el PTZ digital cambiaron en una entrada (lo pide Cámaras PTZ, desde
+    // la interfaz): se rearma su cadena ya, en el dueño y con el turno (la agenda).
     QPointer<VideoGrafos> self = this;
-    fuentes::ponerAvisoExtras([self](const std::string& entrada) {
-        QMetaObject::invokeMethod(
-            qApp,
-            [self, entrada]() {
-                if (self && self->entradas_.contains(QString::fromStdString(entrada))) self->aplicar(entrada);
-            },
-            Qt::QueuedConnection);
+    fuentes::ponerAvisoExtras([self, &rt](const std::string& entrada) {
+        rt.despuesEnDueno([self, entrada]() {
+            if (self && self->entradas_.contains(QString::fromStdString(entrada))) self->aplicar(entrada);
+        });
     });
+    // Los relojes son hijos (se mudan con el objeto al hilo del dueño) y corren con el
+    // turno: si la interfaz lo tiene, esa vuelta se saltea (la próxima la alcanza).
     revision_.setInterval(1500);
-    connect(&revision_, &QTimer::timeout, this, &VideoGrafos::sincronizar);
+    connect(&revision_, &QTimer::timeout, this, [this]() { conTurno([this]() { sincronizar(); }); });
     revision_.start();
-    QTimer::singleShot(0, this, &VideoGrafos::sincronizar);
+    QTimer::singleShot(0, this, &VideoGrafos::revisar);
     // El programador de superresolución (programa / preview): rápido, para que
     // la red se prenda apenas una cámara pasa a preview.
     programadorTimer_.setInterval(250);
-    connect(&programadorTimer_, &QTimer::timeout, this, &VideoGrafos::evaluarSuperres);
+    connect(&programadorTimer_, &QTimer::timeout, this, [this]() {
+        conTurno([this]() {
+            evaluarSuperres();
+            refrescarAutomixer();
+        });
+    });
     programadorTimer_.start();
     // El catálogo de GStreamer, en un hilo: iniciarlo revisa sus plugins (la
-    // primera vez, segundos) y no puede trabar la interfaz.
+    // primera vez, segundos) y no puede trabar a nadie. Se arma entero allá (después
+    // se lee desde varios hilos) y llega al hilo de este objeto.
     QFile f(QStringLiteral(":/video/gst-modulos.json"));
     json docs = json::object();
     if (f.open(QIODevice::ReadOnly)) docs = json::parse(f.readAll().toStdString(), nullptr, false);
@@ -205,15 +217,44 @@ VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject
         ba::platform::nombrarHilo("grafos-catalogo");
         auto c = std::make_shared<CatalogoGst>(docs);
         (void)c->modulos(); // se arma acá, no en el primer pedido
+        (void)c->modulosAudio();
         QMetaObject::invokeMethod(
-            qApp,
+            yo.data(),
             [yo, c]() {
                 if (!yo) return;
-                yo->gst_ = c;
+                {
+                    const std::lock_guard<std::mutex> l(yo->gstMu_);
+                    yo->gst_ = c;
+                }
                 emit yo->gstListo();
             },
             Qt::QueuedConnection);
     }).detach();
+    // La vista va en la foto del motor (parte Video), con lo del motor que miran las
+    // cámaras y las entradas. El aporte corre en el dueño, con el turno, al publicar.
+    aporte_ = rt_.aportarALaFoto([this](FotoMotor& foto, unsigned partes) { aportar(foto, partes); });
+}
+
+VideoGrafos::~VideoGrafos() {
+    if (aporte_ >= 0) rt_.dejarDeAportar(aporte_);
+    fuentes::ponerAvisoExtras({});
+}
+
+bool VideoGrafos::conTurno(const std::function<void()>& f) {
+    const TurnoMotor& t = rt_.engine().turno();
+    if (!t.tomarHasta(0)) return false;
+    f();
+    t.soltar();
+    return true;
+}
+
+void VideoGrafos::revisar() { conTurno([this]() { sincronizar(); }); }
+
+void VideoGrafos::enLaAgenda(std::function<void()> fn) const { rt_.despuesEnDueno(std::move(fn)); }
+
+std::shared_ptr<const CatalogoGst> VideoGrafos::catalogoGst() const {
+    const std::lock_guard<std::mutex> l(gstMu_);
+    return gst_;
 }
 
 bool VideoGrafos::tieneSenal(const json& st) {
@@ -242,8 +283,8 @@ bool VideoGrafos::esEntrada(const std::string& n) const {
 
 QStringList VideoGrafos::entradas() const { return entradas_; }
 
-QVariantList VideoGrafos::entradasInfo() const {
-    QVariantList out;
+json VideoGrafos::entradasInfo() const {
+    json out = json::array();
     for (const QString& e : entradas_) {
         const std::string n = e.toStdString();
         const json ajustes = json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false);
@@ -259,7 +300,7 @@ QVariantList VideoGrafos::entradasInfo() const {
         int tarjetas = 0;
         for (const auto& nd : grafo_.nodos())
             if (nd.grupo == n && nd.tipo != "entrada" && nd.tipo != "escena") ++tarjetas;
-        out << QVariantMap{{"nombre", e}, {"grupo", grupo}, {"tarjetas", tarjetas}};
+        out.push_back({{"nombre", n}, {"grupo", grupo.toStdString()}, {"tarjetas", tarjetas}});
     }
     return out;
 }
@@ -327,46 +368,9 @@ json VideoGrafos::describir(const std::string& entrada) const {
     return d;
 }
 
-QVariantMap VideoGrafos::grafo() const {
-    if (entrada_.isEmpty()) return {};
-    return aVariant(describir(entrada_.toStdString())).toMap();
-}
-
-QVariantMap VideoGrafos::estudio() const { return aVariant(describir(std::string())).toMap(); }
-
 QVariantList VideoGrafos::catalogo() { return aVariant(GrafoVideo::catalogo()).toList(); }
 
 std::string VideoGrafos::nombreFiltro(const std::string& filtroId) { return filtroId; }
-
-QVariantList VideoGrafos::filtrosObs() const {
-    // Los filtros de OBS se fueron con libobs: las tarjetas de imagen son
-    // elementos de GStreamer (modulosGst).
-    return {};
-}
-
-QVariantList VideoGrafos::propiedades(const QString& idNodo) const {
-    QVariantList out;
-    const GrafoVideo::Nodo* n = grafo_.nodo(idNodo.toStdString());
-    if (n == nullptr) return out;
-    // Un controlador muestra los de su molde; una tarjeta, con los que corre.
-    const bool ctl = n->tipo == "control";
-    const std::string tipo = ctl ? n->params.value("tarjeta", std::string()) : n->tipo;
-    const json params = ctl ? n->params.value("params", json::object()) : grafo_.efectivos(*n);
-    // Un módulo de GStreamer (una tarjeta o una Mezcla de GStreamer): las de su elemento.
-    if (tipo == "gst" || tipo == "mezcla")
-        return controlesGst(gst().propiedades(params.value("elemento", std::string()),
-                                              params.value("propiedades", json::object())));
-    return out; // las tarjetas «obs» ya no corren (no hay libobs)
-}
-
-QVariantList VideoGrafos::propiedadesPad(const QString& idNodo, const QString& puerto) const {
-    const GrafoVideo::Nodo* n = grafo_.nodo(idNodo.toStdString());
-    if (n == nullptr || n->tipo != "mezcla") return {};
-    const std::string pu = puerto.toStdString();
-    const json pads = n->params.value("pads", json::object());
-    return controlesGst(gst().propiedadesPad(n->params.value("elemento", std::string()), GrafoVideo::plantillaDePuerto(*n, pu),
-                                             pads.is_object() ? pads.value(pu, json::object()) : json::object()));
-}
 
 QString VideoGrafos::ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor) {
     const json v = paraGst(deVariant(valor));
@@ -380,35 +384,6 @@ QString VideoGrafos::ajustarPad(const QString& id, const QString& puerto, const 
 }
 
 const CatalogoGst& VideoGrafos::gst() const { return *gst_; }
-
-QVariantList VideoGrafos::modulosGst() const { return aVariant(gst().modulos()).toList(); }
-
-QVariantList VideoGrafos::propiedadesModulo(const QString& elemento) const {
-    return controlesGst(gst().propiedades(elemento.toStdString(), json::object()));
-}
-
-QVariantList VideoGrafos::propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const {
-    // Los valores guardados vienen como texto (así van a GStreamer): se pasan al tipo de cada propiedad.
-    json act = json::object();
-    for (auto it = valores.begin(); it != valores.end(); ++it) {
-        const QString t = it.value().toString();
-        bool okN = false;
-        const double n = t.toDouble(&okN);
-        if (t == "true" || t == "false")
-            act[it.key().toStdString()] = t == "true";
-        else if (okN)
-            act[it.key().toStdString()] = n;
-        else
-            act[it.key().toStdString()] = t.toStdString();
-    }
-    return controlesGst(gst().propiedades(elemento.toStdString(), act));
-}
-
-QVariantList VideoGrafos::modulosAudio() const { return aVariant(gst().modulosAudio()).toList(); }
-
-QString VideoGrafos::versionGst() const {
-    return gst().disponible() ? q(gst().version()) : tr("Sin GStreamer: %1").arg(q(gst().error()));
-}
 
 QVariantList VideoGrafos::virtuales() {
     QVariantList out;
@@ -646,6 +621,7 @@ std::string VideoGrafos::editar(const std::function<std::string(GrafoVideo&)>& f
             aplicar(e.toStdString());
         actualizarEstudio();
         emit cambio();
+        publicarVista();
     }
     return {};
 }
@@ -766,10 +742,8 @@ QString VideoGrafos::correr(const QString& id, int paso) {
     }));
 }
 
-QVariantMap VideoGrafos::eventosDeEntrada() const {
-    QVariantMap out;
-    const std::string entrada = entrada_.toStdString();
-    if (entrada.empty()) return out;
+json VideoGrafos::eventosDe(const std::string& entrada) const {
+    json out = json::object();
     for (const auto& f : filtrosDeEntrada(entrada)) {
         if (!f.contains("eventos") || !f["eventos"].is_object()) continue;
         std::string id = f.value("id", std::string());
@@ -777,15 +751,15 @@ QVariantMap VideoGrafos::eventosDeEntrada() const {
         if (id == "ptz")
             for (const auto& n : grafo_.nodos())
                 if (n.grupo == entrada && n.tipo == "ptz") id = n.id;
-        QVariantList l;
+        json l = json::array();
         for (const auto& [k, v] : f["eventos"].items()) {
             const auto dos = k.find(':');
-            l << QVariantMap{{"direccion", QString::fromStdString(k.substr(0, dos))},
-                             {"evento", QString::fromStdString(dos == std::string::npos ? k : k.substr(dos + 1))},
-                             {"n", static_cast<double>(v.value("n", 0ULL))},
-                             {"hace_ms", static_cast<double>(v.value("hace_ms", 0LL))}};
+            l.push_back({{"direccion", k.substr(0, dos)},
+                         {"evento", dos == std::string::npos ? k : k.substr(dos + 1)},
+                         {"n", static_cast<double>(v.value("n", 0ULL))},
+                         {"hace_ms", static_cast<double>(v.value("hace_ms", 0LL))}});
         }
-        out[QString::fromStdString(id)] = l;
+        out[id] = l;
     }
     return out;
 }
@@ -1049,6 +1023,8 @@ std::string VideoGrafos::ponerEnEscena(const std::string& id, const std::string&
 
 void VideoGrafos::sincronizar() {
     if (rt_.engine().motor() == nullptr) return;
+    // El legalizador es de la configuración (lo cambia Configuración o el panel de scopes).
+    releerLegalizar();
     QStringList hay;
     for (const std::string& n : rt_.engine().sourceNames())
         if (esEntrada(n)) hay << q(n);
@@ -1096,6 +1072,14 @@ void VideoGrafos::sincronizar() {
         cambiaron = true;
     }
     if (cambiaron || nuevos) emit cambio();
+    publicarVista();
+}
+
+void VideoGrafos::releerLegalizar() {
+    const std::string m = rt_.config().legalizar;
+    const std::string modo = m == "pal" || m == "ntsc" || m == "rango" ? m : std::string("no");
+    // En la revisión las entradas se aplican igual: solo se anota.
+    legalizar_ = modo;
 }
 
 void VideoGrafos::reaplicarEntradas() {
@@ -1920,32 +1904,8 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
 
 // --- Sincronía y red, para la interfaz -------------------------------------------------
 
-QVariantMap VideoGrafos::relojUi() const { return aVariant(reloj()).toMap(); }
-
 QString VideoGrafos::configurarRelojUi(const QVariantMap& cambios) {
     return q(configurarReloj(deVariant(cambios)));
-}
-
-QVariantList VideoGrafos::estadoRed() const {
-    QVariantList out;
-    for (const QString& e : entradas_) {
-        if (rt_.engine().sourceTypeId(e.toStdString()) != kTipoVirtual) continue;
-        json st = estadoEntrada(e.toStdString());
-        st["diagnostico"] = diagnosticar(st);
-        out << aVariant(st);
-    }
-    return out;
-}
-
-QVariantList VideoGrafos::diagnosticoUi() const {
-    QVariantList out;
-    for (const QString& e : entradas_) {
-        json st = estadoEntrada(e.toStdString());
-        const json d = diagnosticar(st);
-        if (d.empty()) continue;
-        out << aVariant(json{{"entrada", e.toStdString()}, {"diagnostico", d}});
-    }
-    return out;
 }
 
 void VideoGrafos::medirUi(const QString& a, const QString& b, bool aplicar) {
@@ -2007,9 +1967,17 @@ void VideoGrafos::evaluarSuperres() {
     for (const auto& [entrada, ids] : enEntrada_)
         for (const auto& id : ids)
             if (const auto* n = grafo_.nodo(id); n != nullptr && n->tipo == "superres") conSr.insert(entrada);
+    // Lo que muestra la vista del programador, al día (sin rearmar la vista entera).
+    const auto alVista = [this]() {
+        json p = programador();
+        if (vista_.value("programador", json()) == p) return;
+        vista_["programador"] = std::move(p);
+        rt_.fotoSucia(FotoMotor::Video);
+    };
     if (conSr.empty()) {
         estadoProgramador_ = json::object();
         presupuesto_ = json::object();
+        if (vista_.contains("programador")) alVista();
         return;
     }
     const json& cfg = programador_;
@@ -2240,6 +2208,7 @@ void VideoGrafos::evaluarSuperres() {
     for (auto it = modoSr_.begin(); it != modoSr_.end();)
         it = conSr.count(it->first) ? std::next(it) : modoSr_.erase(it);
     estadoProgramador_ = estado;
+    alVista();
 }
 
 json VideoGrafos::programador() const {
@@ -2282,8 +2251,6 @@ std::string VideoGrafos::configurarProgramador(const json& cambios) {
     evaluarSuperres();
     return {};
 }
-
-QVariantMap VideoGrafos::programadorUi() const { return aVariant(programador()).toMap(); }
 
 QString VideoGrafos::configurarProgramadorUi(const QVariantMap& cambios) {
     const json j = json::parse(QJsonDocument::fromVariant(cambios).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
@@ -2349,7 +2316,6 @@ json VideoGrafos::estudioLatencia(int tope) {
     return out;
 }
 
-QVariantMap VideoGrafos::estudioLatenciaUi() { return aVariant(estudioLatencia()).toMap(); }
 void VideoGrafos::ponerTopeEstudioUi(int tope) { estudioLatencia(tope); }
 
 std::string VideoGrafos::claseSincronia(const std::string& entrada, const std::string& clase) {
@@ -2445,13 +2411,6 @@ json VideoGrafos::automixerEstado() const {
     return out;
 }
 
-QVariantMap VideoGrafos::automixerUi() const {
-    json mics = json::array();
-    for (const auto& m : rt_.config().audioInputs)
-        if (m.id == kTipoVirtual) mics.push_back(m.name);
-    return aVariant(json{{"mesas", automixerEstado()}, {"microfonos", mics}}).toMap();
-}
-
 QString VideoGrafos::automixerPonerUi(const QString& entrada, const QString& grupo) {
     return q(automixer(entrada.toStdString(), grupo.trimmed().toStdString()));
 }
@@ -2459,10 +2418,6 @@ QString VideoGrafos::automixerPonerUi(const QString& entrada, const QString& gru
 QString VideoGrafos::automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes) {
     const json j = json::parse(QJsonDocument::fromVariant(ajustes).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
     return q(automixerAjustes(grupo.toStdString(), j.is_object() ? j : json::object()));
-}
-
-QVariantList VideoGrafos::filtrosAudioUi(const QString& entrada) const {
-    return aVariant(filtrosAudioDe(entrada.toStdString())).toList();
 }
 
 QString VideoGrafos::agregarFiltroAudioUi(const QString& entrada, const QString& cual) {
@@ -2513,7 +2468,7 @@ bool hayElemento(const char* elemento) {
 }
 } // namespace
 
-QStringList VideoGrafos::motoresSuperres() const {
+QStringList VideoGrafos::motoresSuperres() {
     QStringList l;
     for (const auto& [motor, elemento] :
          {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}, {"coreml", "bacoremlsr"}, {"glsl", "baglsl"}})
@@ -2537,19 +2492,12 @@ std::string VideoGrafos::uriDe(const std::string& entrada) const {
     return s.is_object() ? s.value("uri", std::string()) : std::string();
 }
 
-bool VideoGrafos::haySuperres() const { return hayElemento("bavtsuperres"); }
+bool VideoGrafos::haySuperres() { return hayElemento("bavtsuperres"); }
 
 QString VideoGrafos::nuevaEntradaRed(const QString& nombre, const QString& uri, const QString& escena,
                                      int latenciaMs, bool normalizar) {
     return q(crearEntradaRed(nombre.trimmed().toStdString(), uri.trimmed().toStdString(), latenciaMs,
                              escena.trimmed().toStdString(), -1, normalizar ? 1 : 0, -1));
-}
-
-QStringList VideoGrafos::escenasUi() const {
-    QStringList out;
-    for (const auto& s : rt_.engine().sceneNames())
-        out << QString::fromStdString(s);
-    return out;
 }
 
 // --- Desfases --------------------------------------------------------------------------
@@ -2650,7 +2598,10 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
     }
     const int ms = std::clamp(segundos, 3, 30) * 1000;
     QPointer<VideoGrafos> yo = this;
-    QTimer::singleShot(ms, this, [this, yo, a, b, h, aplicar, listo, k0 = claves[0], k1 = claves[1]]() {
+    // Al terminar, en el dueño con el turno (la agenda): suelta las vistas y, si hay que
+    // corregir, toca el motor.
+    const auto alTerminar = [this, yo, a, b, h, aplicar, listo, k0 = claves[0], k1 = claves[1]]() {
+        if (!yo) return;
         if (motor::Motor* m2 = rt_.engine().motor()) {
             for (const auto& k : {k0, k1}) {
                 m2->verAvisar(k, nullptr);
@@ -2713,7 +2664,8 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
             r["no_aplicado"] = e;
         }
         listo(r);
-    });
+    };
+    QTimer::singleShot(ms, this, [this, alTerminar]() { rt_.despuesEnDueno(alTerminar); });
 }
 
 json VideoGrafos::entradasDeHost(const std::string& host) const {
@@ -3024,6 +2976,183 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
             {"nota",
              tr("las entradas ocultas siguen alimentando el mosaico (el compositor las mantiene activas)").toStdString()}};
     return {};
+}
+
+// --- La vista (lo que lee la interfaz, en la foto) ------------------------------------
+
+json VideoGrafos::formulario(const std::string& id) const {
+    const GrafoVideo::Nodo* n = grafo_.nodo(id);
+    if (n == nullptr) return nullptr;
+    // Un controlador muestra los de su molde; una tarjeta, con los que corre.
+    const bool ctl = n->tipo == "control";
+    const std::string tipo = ctl ? n->params.value("tarjeta", std::string()) : n->tipo;
+    if (tipo != "gst" && tipo != "mezcla") return nullptr; // las tarjetas «obs» ya no corren (no hay libobs)
+    const json params = ctl ? n->params.value("params", json::object()) : grafo_.efectivos(*n);
+    json f{{"elemento", params.value("elemento", std::string())}, {"valores", params.value("propiedades", json::object())}};
+    if (n->tipo == "mezcla") {
+        const json pads = n->params.value("pads", json::object());
+        json porPuerto = json::object();
+        for (const auto& p : grafo_.puertosEntrada(*n))
+            porPuerto[p.id] = {{"plantilla", GrafoVideo::plantillaDePuerto(*n, p.id)},
+                               {"valores", pads.is_object() ? pads.value(p.id, json::object()) : json::object()}};
+        f["pads"] = std::move(porPuerto);
+    }
+    return f;
+}
+
+QVariantList VideoGrafos::controlesDe(const CatalogoGst& c, const json& formulario, const std::string& puerto) {
+    if (!formulario.is_object()) return {};
+    const std::string elemento = formulario.value("elemento", std::string());
+    if (puerto.empty()) return controlesGst(c.propiedades(elemento, formulario.value("valores", json::object())));
+    const json p = formulario.value("pads", json::object()).value(puerto, json());
+    if (!p.is_object()) return {};
+    return controlesGst(c.propiedadesPad(elemento, p.value("plantilla", std::string()), p.value("valores", json::object())));
+}
+
+json VideoGrafos::armarVista() const {
+    json v = json::object();
+    json entradas = json::array(), grafos = json::object(), estados = json::object(), eventos = json::object();
+    json red = json::array(), diagnostico = json::array();
+    for (const QString& qe : entradas_) {
+        const std::string e = qe.toStdString();
+        entradas.push_back(e);
+        grafos[e] = describir(e);
+        json st = estadoEntrada(e);
+        const json d = diagnosticar(st);
+        if (!d.empty()) diagnostico.push_back({{"entrada", e}, {"diagnostico", d}});
+        if (rt_.engine().sourceTypeId(e) == kTipoVirtual) {
+            json conDiag = st;
+            conDiag["diagnostico"] = d;
+            red.push_back(std::move(conDiag));
+        }
+        if (const json ev = eventosDe(e); !ev.empty()) eventos[e] = ev;
+        estados[e] = std::move(st);
+    }
+    v["entradas"] = std::move(entradas);
+    v["info"] = entradasInfo();
+    v["grafos"] = std::move(grafos);
+    v["estudio"] = describir(std::string());
+    v["estados"] = std::move(estados);
+    v["red"] = std::move(red);
+    v["diagnostico"] = std::move(diagnostico);
+    v["eventos"] = std::move(eventos);
+    v["programador"] = programador();
+    v["reloj"] = reloj_;
+    v["latencia"] = rt_.engine().latenciaEstudio();
+    // Los filtros de audio y la mesa del automixer: de todas las de GStreamer (también los
+    // micrófonos, que no son entradas de video).
+    json filtrosAudio = json::object();
+    for (const std::string& n : rt_.engine().sourceNames())
+        if (rt_.engine().sourceTypeId(n) == kTipoVirtual) filtrosAudio[n] = filtrosAudioDe(n);
+    v["filtros_audio"] = std::move(filtrosAudio);
+    json mics = json::array();
+    for (const auto& m : rt_.config().audioInputs)
+        if (m.id == kTipoVirtual) mics.push_back(m.name);
+    v["automixer"] = {{"mesas", automixerEstado()}, {"microfonos", mics}};
+    json escenas = json::array();
+    for (const auto& sc : rt_.engine().sceneNames()) escenas.push_back(sc);
+    v["escenas"] = std::move(escenas);
+    // Los nodos (para el plan de resolución y los títulos de los tiempos) y lo que necesita
+    // el formulario de cada módulo de GStreamer (sus valores y, de una Mezcla, sus pads).
+    json nodos = json::array(), formularios = json::object();
+    for (const auto& n : grafo_.nodos()) {
+        nodos.push_back({{"id", n.id}, {"tipo", n.tipo}, {"etiqueta", n.etiqueta}, {"grupo", n.grupo}});
+        if (json f = formulario(n.id); !f.is_null()) formularios[n.id] = std::move(f);
+    }
+    v["nodos"] = std::move(nodos);
+    v["formularios"] = std::move(formularios);
+    json tamanos = json::array();
+    for (const auto& [w, h] : tamanosDeEntradas()) tamanos.push_back({w, h});
+    v["tamanos"] = std::move(tamanos);
+    v["legalizar"] = legalizar_;
+    json motores = json::array();
+    for (const QString& m : motoresSuperres()) motores.push_back(m.toStdString());
+    v["motores_superres"] = std::move(motores);
+    v["hay_superres"] = haySuperres();
+    v["entrada"] = entrada_.toStdString();
+    return v;
+}
+
+void VideoGrafos::refrescarAutomixer() {
+    // Lo que da el automixer a cada micrófono se mueve todo el tiempo (la barra de la mesa):
+    // a este ritmo, y solo si hay alguna mesa (sin mesas no hay nada que medir).
+    const json antes = vista_.value("automixer", json::object());
+    if (antes.value("mesas", json::array()).empty()) return;
+    json a = antes;
+    a["mesas"] = automixerEstado();
+    if (a == antes) return;
+    vista_["automixer"] = std::move(a);
+    rt_.fotoSucia(FotoMotor::Video);
+}
+
+void VideoGrafos::publicarVista() {
+    json v = armarVista();
+    if (v == vista_) return;
+    vista_ = std::move(v);
+    rt_.fotoSucia(FotoMotor::Video);
+}
+
+void VideoGrafos::aportar(FotoMotor& foto, unsigned partes) {
+    // Corre en el dueño, con el turno (AppRuntime::publicarFoto): lee el motor y cfg_.
+    if ((partes & FotoMotor::Video) != 0) foto.video = vista_;
+    BroadcastEngine& e = rt_.engine();
+    // Las fuentes que miran las cámaras y las entradas (con su tamaño, que llega cuando la
+    // cámara arranca: se rearma también con la revisión de cada 1,5 s).
+    if ((partes & (FotoMotor::Escenas | FotoMotor::Video)) != 0) {
+        json fuentes = json::object();
+        std::map<std::string, json> escenasDe;
+        for (const auto& sc : e.sceneNames())
+            for (const auto& src : e.sceneSources(sc)) escenasDe[src].push_back(sc);
+        const auto globales = e.globalAudioInputs();
+        std::map<std::string, std::string> medios;
+        for (const auto& m : e.mediaSources()) medios[m.name] = m.state;
+        int orden = 0;
+        for (const std::string& n : e.sourceNames()) {
+            json f{{"tipo", e.sourceTypeId(n)}, {"orden", orden++}};
+            f["ajustes"] = json::parse(e.sourceSettingsJson(n), nullptr, false);
+            int w = 0, h = 0;
+            e.sourceSize(n, w, h);
+            f["ancho"] = w;
+            f["alto"] = h;
+            f["escenas"] = escenasDe.count(n) ? escenasDe[n] : json::array();
+            const auto g = std::find(globales.begin(), globales.end(), n);
+            f["global"] = g != globales.end();
+            if (g != globales.end()) f["orden_global"] = g - globales.begin();
+            const json est = e.estadoEntrada(n);
+            if (est.is_object() && est.contains("modo_camara")) f["modo_camara"] = est["modo_camara"];
+            if (medios.count(n)) f["medio"] = medios[n];
+            fuentes[n] = std::move(f);
+        }
+        for (size_t i = 0; i < globales.size(); ++i)
+            if (!fuentes.contains(globales[i]))
+                fuentes[globales[i]] = {{"tipo", e.sourceTypeId(globales[i])},
+                                        {"ajustes", json::parse(e.sourceSettingsJson(globales[i]), nullptr, false)},
+                                        {"orden", -1},
+                                        {"ancho", 0},
+                                        {"alto", 0},
+                                        {"escenas", json::array()},
+                                        {"global", true},
+                                        {"orden_global", i}};
+        foto.fuentesVideo = std::move(fuentes);
+    }
+    // Lo que está al aire, con cada corte (el interlock del PTZ).
+    if ((partes & (FotoMotor::Salidas | FotoMotor::Escenas | FotoMotor::Video)) != 0) {
+        std::vector<std::string> aire;
+        for (const std::string& id : e.salidaIds()) {
+            if (!e.haySalidaEn(id)) continue;
+            for (const std::string& f : e.fuentesEnPrograma(id))
+                if (std::find(aire.begin(), aire.end(), f) == aire.end()) aire.push_back(f);
+        }
+        foto.alAire = std::move(aire);
+    }
+    if ((partes & (FotoMotor::Ajustes | FotoMotor::Video)) != 0) {
+        const AppConfig& c = rt_.config();
+        foto.configImagen = {{"mejora", {{"activa", c.mejora.activa}, {"ruido", c.mejora.ruido}, {"color", c.mejora.color},
+                                         {"nitidez", c.mejora.nitidez}}},
+                             {"legalizar", c.legalizar},
+                             {"video_kbps", c.encoder.videoBitrateKbps},
+                             {"captura", e.sourceTypeExists(inputs::kMicType) || e.sourceTypeExists(inputs::kVideoType)}};
+    }
 }
 
 void VideoGrafos::guardar() const {

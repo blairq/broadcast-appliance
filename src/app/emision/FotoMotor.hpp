@@ -26,6 +26,9 @@
 //   Ajustes  el lienzo, la transición global, el tema, los invitados, el servidor y la clave.
 //   Medidas  lo que se mueve siempre (los medios que suenan y cuánto les queda, la salud de
 //            cada destino, el loudness de cada salida): se lee cuando se lo necesita.
+//   Video    el área de la imagen: lo que muestra el grafo de video (lo arma video::VideoGrafos,
+//            que es del dueño: VideoGrafos::vista) y lo del motor que miran las cámaras y las
+//            entradas (cada fuente de video con su tamaño y sus ajustes, lo que está al aire).
 //   Sala     lo que leen la asamblea, la sala y la línea de tiempo: lo guardado de la sala
 //            (gateway.json: el puerto, el túnel, pinggy, el proxy, la atención automática),
 //            con qué aparece el operador ante el lobby, la carpeta de grabación, las
@@ -61,10 +64,11 @@ struct FotoMotor {
         Emision = 1u << 3,
         Ajustes = 1u << 4,
         Medidas = 1u << 5,
+        Video = 1u << 9, ///< (el 8 es AppRuntime::kFotoRelerArchivos)
         Mezcla = 1u << 10,
         Superficies = 1u << 11,
         Sala = 1u << 12, // (los bits de cada área: I 9, M 10, C 11, S 12, R 13; el 8 es de AppRuntime)
-        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Sala | Superficies | Mezcla,
+        Todas = Escenas | Salidas | Estado | Emision | Ajustes | Medidas | Video | Mezcla | Superficies | Sala,
     };
 
     // --- Escenas ---------------------------------------------------------------------
@@ -161,6 +165,21 @@ struct FotoMotor {
     nlohmann::json salud = nlohmann::json::object();   ///< BroadcastEngine::saludSalidas
     nlohmann::json loudness = nlohmann::json::object(); ///< {salida: LoudnessPrograma::json}
 
+    // --- Video -------------------------------------------------------------------------
+    /// VideoGrafos::vista: {entradas, info, grafos: {entrada: describir}, estudio, estados:
+    /// {entrada: estadoEntrada}, red, diagnostico, programador, reloj, latencia, automixer,
+    /// filtros_audio, eventos, escenas, nodos, legalizar, motores_superres}.
+    nlohmann::json video = nlohmann::json::object();
+    /// Las fuentes que miran las cámaras y las entradas: {nombre: {tipo, ajustes, ancho,
+    /// alto, escenas, global (una entrada de audio del equipo), modo_camara?, medio? (el
+    /// estado si es un medio)}}.
+    nlohmann::json fuentesVideo = nlohmann::json::object();
+    /// Las fuentes que se ven en el programa de alguna salida que sale (BroadcastEngine::
+    /// fuenteAlAire: el interlock del PTZ). Al día con cada corte (se rearma con Salidas).
+    std::vector<std::string> alAire;
+    /// Lo de la configuración que usa el área: {mejora: {activa, ruido, color, nitidez},
+    /// legalizar, video_kbps, captura (hay tipos de cámara/micrófono)}.
+    nlohmann::json configImagen = nlohmann::json::object();
     // --- Sala (la asamblea, la sala y la línea) ---------------------------------------
     struct SalaYEvento {
         // Lo guardado de la sala (gateway.json), lo que se lee de este lado.

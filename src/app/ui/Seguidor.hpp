@@ -31,11 +31,9 @@
 
 namespace ba::app {
 class PersonasViewModel;
+class VideoViewModel;
 namespace ptz {
 class ControlCamaras;
-}
-namespace video {
-class VideoGrafos;
 }
 
 class Seguidor : public QObject {
@@ -62,7 +60,8 @@ class Seguidor : public QObject {
     /// Un clic en la imagen de la entrada (u, v en 0..1 de lo que se VE, después
     /// del PTZ digital): sigue a la cara más cercana a ese punto.
     Q_INVOKABLE QString seguirPunto(const QString& entrada, double u, double v);
-    void setGrafos(video::VideoGrafos* g) { grafos_ = g; }
+    /// El grafo de video (la tarjeta Seguimiento se le pide: es del dueño del motor).
+    void setGrafos(VideoViewModel* g) { grafos_ = g; }
     Q_INVOKABLE void dejar(const QString& entrada);
 
    signals:
@@ -77,7 +76,7 @@ class Seguidor : public QObject {
 
     QPointer<PersonasViewModel> personas_;
     QPointer<ptz::ControlCamaras> camaras_;
-    video::VideoGrafos* grafos_ = nullptr;
+    VideoViewModel* grafos_ = nullptr;
     int escucha_ = 0; ///< motor::escucharElementos
     QVariantMap caras_;
     std::map<QString, std::unique_ptr<Estado>> seguidas_;

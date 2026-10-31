@@ -19,7 +19,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "platform/Paths.hpp"
 #include "mcp/McpService.hpp"
-#include "video/VideoGrafos.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "i18n/I18n.hpp"
 #include "pantallas/Catalogo.hpp"
@@ -151,7 +151,7 @@ void McpService::registerUiTools() {
                                            a.value("pantalla_completa", false));
             json disp = json::array();
             for (const QString& k : static_cast<FrameService*>(vm.frames())->keys()) disp.push_back(k.toStdString());
-            if (auto* vg = static_cast<video::VideoGrafos*>(vm.video()))
+            if (auto* vg = vm.videoVista()) // las entradas, de la foto del motor
                 for (const QString& e : vg->entradas()) disp.push_back("entrada:" + e.toStdString());
             // La ventana de cada multivista (para ventana_mover).
             json vistas = qvToJson(vm.multivistas().lista());

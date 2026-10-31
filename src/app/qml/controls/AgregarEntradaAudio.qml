@@ -22,6 +22,20 @@ ColumnLayout {
     property string error: ""
     /// Se agregó (con ese nombre): quien la usa puede elegirla o cerrarse.
     signal agregada(string nombre)
+    // La agrega el motor: la respuesta llega por el modelo (agregado «audio»).
+    property string pendiente: ""
+    Connections {
+        target: agregar.inp
+        function onAgregado(que, error) {
+            if (que !== "audio" || agregar.pendiente === "") return
+            agregar.error = error
+            const nombre = agregar.pendiente
+            agregar.pendiente = ""
+            if (error !== "") return
+            micName.text = ""
+            agregar.agregada(nombre)
+        }
+    }
 
     Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
            text: qsTr("Micrófonos, líneas e interfaces de audio de esta máquina. Se escuchan en todas las escenas; su procesamiento se arma en la página Audio.") }
@@ -54,9 +68,7 @@ ColumnLayout {
             onClicked: {
                 const nombre = micName.text.trim() !== "" ? micName.text.trim() : agregar.inp.audioInputName(micBox.currentValue)
                 agregar.error = agregar.inp.addAudioInput(micBox.currentValue, micName.text)
-                if (agregar.error !== "") return
-                micName.text = ""
-                agregar.agregada(nombre)
+                if (agregar.error === "") agregar.pendiente = nombre
             }
         }
     }

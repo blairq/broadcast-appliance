@@ -156,13 +156,9 @@ Rectangle {
     }
 
     // LOS EVENTOS ENTRE TARJETAS (ba/rostros, ba/ptz, ba/encuadre, ba/control…):
-    // lo que salió de cada una en los últimos 2 s, ↓ hacia abajo y ↑ hacia arriba.
-    property var eventosVivos: ({})
-    Timer {
-        interval: 1000; repeat: true; triggeredOnStart: true
-        running: page.visible && page.vista !== "estudio" && !!page.vg && page.vg.entrada !== ""
-        onTriggered: page.eventosVivos = page.vg.eventosDeEntrada()
-    }
+    // lo que salió de cada una en los últimos 2 s, ↓ hacia abajo y ↑ hacia arriba (de la
+    // entrada elegida: llegan con la vista del grafo).
+    readonly property var eventosVivos: page.vg ? page.vg.eventos : ({})
     function eventosTexto(id) {
         const l = (page.eventosVivos || {})[id] || []
         return l.filter(e => e.hace_ms < 2000).map(e => (e.direccion === "arriba" ? "↑ " : "↓ ") + e.evento).join("  ")
@@ -497,7 +493,7 @@ Rectangle {
                     ComboBox {
                         id: escResp
                         Layout.fillWidth: true
-                        model: page.vg ? page.vg.escenasUi() : []
+                        model: page.vg ? page.vg.escenas : []
                         currentIndex: Math.max(0, model.indexOf(respaldo.r.escena || ""))
                         onActivated: (i) => Studio.setRespaldoEntrada(page.vg.entrada, { escena: model[i], al_perder_aire: modoResp.model[modoResp.currentIndex].v, ms: 1000 })
                         ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La escena de respaldo si esta entrada se queda sin señal al aire")
@@ -993,12 +989,8 @@ Rectangle {
                                 Layout.fillWidth: true
                                 implicitHeight: srEstadoTxt.implicitHeight
                                 readonly property string entrada: page.nodo && page.nodo.grupo ? page.nodo.grupo : (page.vg ? String(page.vg.entrada || "") : "")
-                                property var e: ({})
-                                function leer() {
-                                    const p = page.vg ? page.vg.programadorUi() : ({})
-                                    e = (p.entradas || {})[entrada] || ({})
-                                }
-                                Timer { interval: 1000; running: srPanel.visible; repeat: true; triggeredOnStart: true; onTriggered: srEstado.leer() }
+                                // El programador (en el dueño del motor) llega con la vista del grafo.
+                                readonly property var e: ((page.vg ? page.vg.programador : ({})).entradas || {})[entrada] || ({})
                                 Text {
                                     id: srEstadoTxt
                                     width: parent.width; wrapMode: Text.WordWrap
@@ -1029,7 +1021,6 @@ Rectangle {
                                         const f = {}
                                         f[srEstado.entrada] = opciones[i].v
                                         page.avisar(page.vg.configurarProgramadorUi({ forzar: f }))
-                                        srEstado.leer()
                                     }
                                 }
                             }

@@ -363,11 +363,14 @@ void McpService::registerSystemTools() {
             const QString dev = QString::fromStdString(a.value("device", std::string()));
             QString name = QString::fromStdString(a.value("name", std::string())).trimmed();
             if (name.isEmpty()) name = entradas->audioInputName(dev);
-            const QString err = entradas->addAudioInput(dev, name);
-            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-            done(ToolResult().data(json{{"nombre", name.toStdString()},
-                                        {"dispositivo", dev.toStdString()},
-                                        {"nota", ba::i18n::traducir("mcp", "Suena en todas las escenas (canal global).")}}));
+            // La agrega el dueño del motor: la respuesta, cuando vuelve.
+            const auto alTerminar = [done, name, dev](const QString& err) {
+                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                done(ToolResult().data(json{{"nombre", name.toStdString()},
+                                            {"dispositivo", dev.toStdString()},
+                                            {"nota", ba::i18n::traducir("mcp", "Suena en todas las escenas (canal global).")}}));
+            };
+            if (const QString err = entradas->addAudioInput(dev, name, alTerminar); !err.isEmpty()) alTerminar(err);
         };
         core_.addTool(std::move(t));
     }

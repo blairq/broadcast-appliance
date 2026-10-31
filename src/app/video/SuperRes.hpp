@@ -12,6 +12,11 @@
 // (cada .onnx con su .json: qué es, de dónde, cuánto mejora). Un proceso a la
 // vez; su avance va a `trabajo`. Lo que BAJA algo (el laboratorio, los pesos, los
 // plugins, el runtime de GPU) va por la cola única de descargas (net/Descargas).
+//
+// Es de la interfaz: el grafo de video (VideoGrafos) es del dueño del motor, así que lo
+// lee de la foto y le pide por ui/VideoViewModel (F3-03). Poner un motor o una tarjeta en
+// una entrada es una orden: lo que se valida acá vuelve en el acto, y lo que dice el
+// grafo, en `listo` (o en el aviso al operador).
 #pragma once
 
 #include <QObject>
@@ -33,10 +38,11 @@
 namespace ba::app::plugins {
 class Hijo;
 }
+namespace ba::app {
+class VideoViewModel;
+}
 
 namespace ba::app::video {
-
-class VideoGrafos;
 
 class SuperRes : public QObject {
     Q_OBJECT
@@ -54,7 +60,7 @@ class SuperRes : public QObject {
    public:
     using json = nlohmann::json;
 
-    SuperRes(std::filesystem::path dataRoot, VideoGrafos* video, QObject* parent = nullptr);
+    SuperRes(std::filesystem::path dataRoot, VideoViewModel* video, QObject* parent = nullptr);
     ~SuperRes() override;
 
     json modelos() const;
@@ -82,8 +88,10 @@ class SuperRes : public QObject {
     std::string destilar(const std::string& entrada, const std::string& maestro, double minutos, bool aplicar,
                          bool cpu);
     void cancelar();
-    /// Pone un motor (y modelo, por nombre de archivo o ruta) en una entrada.
-    std::string aplicar(const std::string& entrada, const std::string& motor, const std::string& modelo);
+    /// Pone un motor (y modelo, por nombre de archivo o ruta) en una entrada. "" o el error
+    /// de lo que se valida acá; lo que diga el grafo llega a `listo` (sin `listo`, al aviso).
+    std::string aplicar(const std::string& entrada, const std::string& motor, const std::string& modelo,
+                        std::function<void(const std::string&)> listo = {});
 
     // --- Plugins (datos/superres-catalogo.json + Datos/Modelos/superres/<id>/) -----------
     /// Todos: los del catálogo (instalados o no) y los instalados que no están en
@@ -96,8 +104,9 @@ class SuperRes : public QObject {
     /// o vacío con `error`. Lo usa el grafo al mandar la tarjeta.
     json resolverPlugin(const std::string& id, std::string* error) const;
     /// Pone una tarjeta «Superresolución» con ese plugin en la entrada (o se lo cambia
-    /// a la que tiene). "" o el error.
-    std::string tarjetaConPlugin(const std::string& entrada, const std::string& id, const json& extra = json::object());
+    /// a la que tiene). "" o el error del plugin; lo que diga el grafo, en `listo` (como aplicar).
+    std::string tarjetaConPlugin(const std::string& entrada, const std::string& id, const json& extra = json::object(),
+                                 std::function<void(const std::string&)> listo = {});
 
     // --- ONNX Runtime de GPU (NVIDIA / AMD Linux / Intel), bajado a pedido ----------
     /// Qué placa hay (nvidia, amd, intel o ninguna), qué runtime está instalado
@@ -188,7 +197,7 @@ class SuperRes : public QObject {
 
     json catalogo_ = json::array(); ///< las recetas (del recurso)
     std::filesystem::path root_;
-    VideoGrafos* video_;
+    VideoViewModel* video_;
     QVariantMap trabajo_;
     std::unique_ptr<plugins::Hijo> hijo_;
     QByteArray pendiente_;

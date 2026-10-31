@@ -22,6 +22,18 @@ Popup {
     background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: Theme.glassBorder }
     onOpened: if (red && red.equipos.length === 0 && !red.escaneando) red.escanear()
     Connections { target: bus.red; function onCambio() { bus.tick++ } }
+    // Agregar, sumar a otra escena o configurar el PTZ: lo hace el motor y la respuesta llega acá.
+    property string reusarEn: ""
+    Connections {
+        target: bus.red
+        function onAgregarListo(que, error) {
+            if (error !== "") agregarMsg.text = error
+            else if (que === "ptz") agregarMsg.text = qsTr("PTZ configurado: se mueve desde Cámaras PTZ.")
+            else if (que === "reusar") agregarMsg.text = qsTr("Sumada a «%1» (el mismo stream, no otro).").arg(bus.reusarEn)
+            else agregarMsg.text = qsTr("Agregada: la conexión tarda unos segundos (Video → su grafo, y el PTZ si tiene).")
+            bus.tick++
+        }
+    }
 
     readonly property var equipos: { tick; return red ? red.equipos : [] }
     readonly property var actual: {
@@ -245,14 +257,14 @@ Popup {
                                 spacing: 6
                                 GlassButton {
                                     compact: true; text: qsTr("Configurar su PTZ")
-                                    onClicked: { const e = bus.red.ptzDesdeUi(bus.sel, modelData.entrada); agregarMsg.text = e === "" ? qsTr("PTZ configurado: se mueve desde Cámaras PTZ.") : e }
+                                    onClicked: { agregarMsg.text = qsTr("Configurando su PTZ…"); bus.red.ptzDesdeUi(bus.sel, modelData.entrada) }
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: qsTr("Con la clave ONVIF ya guardada (después de cargarla y de «Analizar»)")
                                 }
                                 ComboBox { id: otraEscena; width: 170; model: bus.escenas }
                                 GlassButton {
                                     compact: true; text: qsTr("Sumar a esa escena")
-                                    onClicked: { const e = bus.red.reusarDesdeUi(bus.sel, otraEscena.currentText); agregarMsg.text = e === "" ? qsTr("Sumada a «%1» (el mismo stream, no otro).").arg(otraEscena.currentText) : e }
+                                    onClicked: { bus.reusarEn = otraEscena.currentText; agregarMsg.text = qsTr("Sumando…"); bus.red.reusarDesdeUi(bus.sel, otraEscena.currentText) }
                                 }
                                 }
                             }
@@ -267,8 +279,8 @@ Popup {
                         GlassButton {
                             text: qsTr("Agregar"); active: true
                             onClicked: {
-                                const e = bus.red.agregarDesdeUi(bus.sel, nombreCam.text, escenaCam.currentText)
-                                agregarMsg.text = e === "" ? qsTr("Agregada: la conexión tarda unos segundos (Video → su grafo, y el PTZ si tiene).") : e
+                                agregarMsg.text = qsTr("Agregando…")
+                                bus.red.agregarDesdeUi(bus.sel, nombreCam.text, escenaCam.currentText)
                             }
                         }
                     }

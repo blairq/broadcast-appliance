@@ -6,6 +6,7 @@
 #include "Piezas.hpp" // motor::redElectricaDelSistema, cadenciasDeLaRed, avisosDeLaRed
 #include "arranque/AppRuntime.hpp"
 #include "control/BusEventos.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "platform/Paths.hpp"
 #include "ptz/ControlCamaras.hpp"
 #include "red/Red.hpp"
@@ -16,6 +17,7 @@
 #include "ui/InputsViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
 #include "ui/Seguidor.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "video/BancoSuperRes.hpp"
 #include "video/Camaras.hpp"
 #include "video/Scopes.hpp"
@@ -52,30 +54,31 @@ QObject* deCpp(QObject* o) {
 
 ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p_(std::move(p)) {
     AppRuntime& rt = p_.rt;
-    // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
-    // entradas nuevas y de lo que cambia en Configuración.
-    camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
+    // El PTZ de cada entrada (y Mejorar imagen): se entera de las entradas nuevas y de lo
+    // que cambia en Configuración por la foto del motor.
+    camaras_ = std::make_unique<ptz::ControlCamaras>(rt, p_.ventanilla, rt.dataRoot());
     armarTiempos();
     armarResolucion();
-    connect(&p_.entradas, &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
-    // El grafo de tarjetas de video de cada entrada (después del PTZ).
+    // El grafo de tarjetas de video de cada entrada (después del PTZ). Es del dueño del
+    // motor: al final se muda a su hilo (sus relojes corren allá, con el turno) y la
+    // interfaz lo ve por su vista.
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
-    video_->setLegalizar(rt.config().legalizar);
+    videoVm_ = std::make_unique<VideoViewModel>(p_.ventanilla, *video_);
+    connect(videoVm_.get(), &VideoViewModel::notify, this, &ImagenViewModel::notify);
+    connect(&p_.entradas, &InputsViewModel::changed, video_.get(), &video::VideoGrafos::revisar);
     // «Priorizar programa» por calor (F4-05): el primer paso es la superresolución, que
     // pasa a barato (sin turnos activos) y vuelve a lo que tenía al aliviarse (los demás
-    // pasos los atienden los modelos, las vistas del motor y la sala).
+    // pasos los atienden los modelos, las vistas del motor y la sala). Se lo pide al dueño.
     p_.recursos.alDegradar("superres", [this, antes = std::make_shared<nlohmann::json>()](bool apagar) {
-        if (!video_) return false;
-        if (apagar) {
-            *antes = video_->programador().value("max_activas", nlohmann::json(3));
-            video_->configurarProgramador({{"max_activas", 0}});
-        } else {
-            video_->configurarProgramador({{"max_activas", antes->is_number() ? *antes : nlohmann::json(3)}});
-        }
+        if (!videoVm_) return false;
+        if (apagar) *antes = videoVm_->programadorJson().value("max_activas", nlohmann::json(3));
+        const nlohmann::json tope = apagar ? nlohmann::json(0) : (antes->is_number() ? *antes : nlohmann::json(3));
+        videoVm_->pedir("superres_calor", [tope](video::VideoGrafos& g) { return g.configurarProgramador({{"max_activas", tope}}); });
         return true;
     });
-    // La superresolución que no llega: aviso al operador y evento en el bus (T40).
-    connect(video_.get(), &video::VideoGrafos::superresTarde, this, [this](const QString& e, double ms, double cuadroMs, bool bypass) {
+    // La superresolución que no llega: aviso al operador y evento en el bus (T40). La
+    // avisa VideoGrafos desde el dueño: llega encolada.
+    connect(videoVm_.get(), &VideoViewModel::superresTarde, this, [this](const QString& e, double ms, double cuadroMs, bool bypass) {
         emit notify((bypass ? tr("La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato")
                             : tr("La superresolución de «%1» no llega (%2 ms por cuadro de %3)"))
                         .arg(e)
@@ -85,23 +88,28 @@ ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p
         p_.bus.publicar("superres/tarde", {{"entrada", e.toStdString()}, {"ms", ms}, {"cuadro_ms", cuadroMs}, {"bypass", bypass}});
     });
     // La superresolución de las entradas de red (motores, modelos, laboratorio).
-    superres_ = std::make_unique<video::SuperRes>(rt.dataRoot(), video_.get());
+    superres_ = std::make_unique<video::SuperRes>(rt.dataRoot(), videoVm_.get());
     {
         video::BancoSuperRes::Entorno en;
-        en.alAire = [&rt]() { return rt.engine().haySalida(); };
-        en.fps = [&rt]() {
-            const auto& v = rt.engine().videoConfig();
-            return std::make_pair(v.fpsNum, v.fpsDen);
+        en.alAire = [this]() { return p_.ventanilla.foto().estado.haySalida; };
+        en.fps = [this]() {
+            const auto& a = p_.ventanilla.foto().ajustes;
+            return std::make_pair(a.fpsNum, a.fpsDen);
         };
-        en.tamanosCamaras = [this]() { return video_->tamanosDeEntradas(); };
+        en.tamanosCamaras = [this]() { return videoVm_->tamanosDeEntradas(); };
         bancoSr_ = std::make_unique<video::BancoSuperRes>(rt.dataRoot(), *superres_, en);
-        video_->setEstimadorSr([this](const std::string& pr, int w, int h) { return bancoSr_->estimarMs(pr, w, h); });
     }
-    connect(&p_.entradas, &InputsViewModel::changed, video_.get(), &video::VideoGrafos::sincronizar);
+    // Lo que VideoGrafos le pregunta a la superresolución y al banco desde el dueño: el
+    // plugin de una tarjeta (lee los archivos del plugin y el registro de GStreamer) y lo que
+    // tarda (el banco tiene su candado). Se ponen antes de mudarlo y se sacan al irse.
+    video_->setResolverPlugin([sr = superres_.get()](const std::string& id, std::string* error) {
+        return sr->resolverPlugin(id, error);
+    });
+    video_->setEstimadorSr([b = bancoSr_.get()](const std::string& pr, int w, int h) { return b->estimarMs(pr, w, h); });
     // Los equipos de video de la red: la biblioteca de marcas y la base OUI
     // vienen con el programa (data/red).
     red_ = std::make_unique<red::Red>(ba::platform::bundleRoot() / "data" / "red",
-                                      QString::fromStdWString((ba::platform::credentialsDir()).wstring()), video_.get(),
+                                      QString::fromStdWString((ba::platform::credentialsDir()).wstring()), videoVm_.get(),
                                       camaras_.get());
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(p_.personas, camaras_.get());
@@ -110,28 +118,35 @@ ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p
     camaras_->setDejarDeSeguir([this](const QString& e) {
         if (seguidor_) seguidor_->dejar(e);
     });
-    seguidor_->setGrafos(video_.get());
+    seguidor_->setGrafos(videoVm_.get());
+    // Armado y con todo puesto: al hilo del dueño.
+    p_.ventanilla.adoptar(video_.get());
 }
 
 ImagenViewModel::~ImagenViewModel() {
-    // El estimador apunta al banco, que se va antes que los grafos.
-    if (video_) video_->setEstimadorSr(nullptr);
+    // El estimador y el resolvedor apuntan al banco y a la superresolución, que se van
+    // antes que los grafos (que para entonces volvieron a este hilo: el plano paró).
+    if (video_) {
+        video_->setEstimadorSr(nullptr);
+        video_->setResolverPlugin({});
+    }
 }
 
 void ImagenViewModel::armarTiempos() {
     AppRuntime& rt = p_.rt;
-    // Los tiempos: solo fotos que ya se publican (el motor, las salidas, los grafos, los racks).
+    // Los tiempos: solo fotos que ya se publican (la instantánea del motor y la de las
+    // salidas, que son para cualquier hilo; la vista del grafo y las fuentes, de la foto del
+    // motor; los racks).
     tiempos_ = std::make_unique<tiempos::TiemposModel>([this]() {
         tiempos::Fotos f;
-        BroadcastEngine& e = p_.rt.engine();
+        BroadcastEngine& e = p_.motorEntreHilos;
         if (motor::Motor* m = e.motor())
             if (const auto foto = m->instantanea()) f.motor = *foto;
         f.salidas = e.salidasAhora();
-        if (video_)
-            for (const QVariant& v : video_->estudio().value("nodos").toList()) {
-                const QVariantMap n = v.toMap();
-                const QString t = n.value("etiqueta").toString();
-                f.titulos[n.value("id").toString().toStdString()] = (t.isEmpty() ? n.value("titulo").toString() : t).toStdString();
+        if (videoVm_)
+            for (const auto& n : videoVm_->estudioJson().value("nodos", nlohmann::json::array())) {
+                const std::string t = n.value("etiqueta", std::string());
+                f.titulos[n.value("id", std::string())] = t.empty() ? n.value("titulo", std::string()) : t;
             }
 #if defined(BA_HAVE_CLAP)
         if (audio::RackManager* racks = p_.racks ? p_.racks() : nullptr)
@@ -139,8 +154,8 @@ void ImagenViewModel::armarTiempos() {
                 if (audio::AudioRack* r = racks->rack(s, false)) f.racks[s] = r->describe();
 #endif
         // Los lugares de la sala sin nadie: su entrada recibe la placa del gateway, pero no es nadie.
-        for (const std::string& n : e.sourceNames()) {
-            const nlohmann::json a = nlohmann::json::parse(e.sourceSettingsJson(n), nullptr, false);
+        for (const auto& [n, fu] : p_.ventanilla.foto().fuentesVideo.items()) {
+            const nlohmann::json a = fu.is_object() ? fu.value("ajustes", nlohmann::json::object()) : nlohmann::json();
             if (!a.is_object() || !a.contains("slot")) continue;
             const std::string canal = a.value("channel", a.value("anillo", std::string("guest")));
             if (canal != "guest" && canal != "share") continue; // el remoto con la palabra: la sesión remota
@@ -150,50 +165,58 @@ void ImagenViewModel::armarTiempos() {
         }
         return f;
     }, rt.dataRoot() / "Config" / "tiempos-analisis.json");
-    // El análisis por elemento (las sondas del motor): lo llama el modelo en su hilo.
-    tiempos_->setSondas({[&rt](const std::string& e) -> std::string {
-                             motor::Motor* m = rt.engine().motor();
+    // El análisis por elemento (las sondas del motor): lo llama el modelo en su hilo (el
+    // motor de GStreamer lo hace con el candado de la entrada).
+    tiempos_->setSondas({[&me = p_.motorEntreHilos](const std::string& e) -> std::string {
+                             motor::Motor* m = me.motor();
                              return m != nullptr ? m->analizarEmpezar(e) : tr("el motor no está andando").toStdString();
                          },
-                         [&rt](const std::string& e) -> nlohmann::json {
-                             motor::Motor* m = rt.engine().motor();
+                         [&me = p_.motorEntreHilos](const std::string& e) -> nlohmann::json {
+                             motor::Motor* m = me.motor();
                              return m != nullptr ? m->analizarTerminar(e)
                                                  : nlohmann::json{{"error", tr("el motor no está andando").toStdString()}};
                          }});
 }
 
 void ImagenViewModel::armarResolucion() {
-    AppRuntime& rt = p_.rt;
-    // El plan de resolución (solo lectura): lo que publican el motor, las escenas y los dispositivos.
+    // El plan de resolución (solo lectura): lo que publican el motor (su instantánea), la
+    // foto del motor (las escenas, las fuentes, la vista del grafo) y los dispositivos.
     resolucion::ResolucionModel::Fuentes rf;
-    rf.motor = [&rt]() -> nlohmann::json {
-        if (motor::Motor* m = rt.engine().motor())
+    rf.motor = [&me = p_.motorEntreHilos]() -> nlohmann::json {
+        if (motor::Motor* m = me.motor())
             if (const auto foto = m->instantanea()) return *foto;
         return nlohmann::json::object();
     };
-    rf.escenas = [&rt]() {
+    rf.escenas = [this]() {
         std::vector<std::pair<std::string, std::vector<std::pair<std::string, resolucion::Tam>>>> out;
-        BroadcastEngine& e = rt.engine();
+        const FotoMotor& f = p_.ventanilla.foto();
         int lw = 0, lh = 0;
-        if (!lienzoActual(lw, lh)) lw = e.videoConfig().baseWidth, lh = e.videoConfig().baseHeight;
-        for (const std::string& esc : e.sceneNames()) {
+        if (!lienzoActual(lw, lh)) lw = f.ajustes.baseAncho, lh = f.ajustes.baseAlto;
+        for (const FotoMotor::Escena& esc : f.escenas) {
             std::vector<std::pair<std::string, resolucion::Tam>> items;
-            for (const auto& [fuente, r] : e.itemsVisibles(esc))
-                items.push_back({fuente, {static_cast<int>(std::lround(r.w * lw)), static_cast<int>(std::lround(r.h * lh))}});
-            out.push_back({esc, std::move(items)});
+            for (const FotoMotor::Fuente& fu : esc.fuentes)
+                if (fu.visible)
+                    items.push_back({fu.nombre,
+                                     {static_cast<int>(std::lround(fu.lugar.w * lw)), static_cast<int>(std::lround(fu.lugar.h * lh))}});
+            out.push_back({esc.nombre, std::move(items)});
         }
         return out;
     };
-    rf.camaraDe = [&rt](const std::string& entrada) {
-        const nlohmann::json a = nlohmann::json::parse(rt.engine().sourceSettingsJson(entrada), nullptr, false);
+    rf.camaraDe = [this](const std::string& entrada) {
+        const nlohmann::json fu = p_.ventanilla.foto().fuentesVideo.value(entrada, nlohmann::json::object());
+        const nlohmann::json a = fu.is_object() ? fu.value("ajustes", nlohmann::json::object()) : nlohmann::json();
         return a.is_object() ? a.value("camara", std::string()) : std::string();
     };
     rf.modosDe = [](const std::string& camara) { return video::modosDeCamara(camara); };
-    rf.interior = [this](const std::string& elemento) { return video_ ? video_->gst().interior(elemento) : nlohmann::json::object(); };
+    rf.interior = [this](const std::string& elemento) {
+        return videoVm_ ? videoVm_->gst()->interior(elemento) : nlohmann::json::object();
+    };
     rf.grafo = [this]() {
         std::vector<resolucion::ResolucionModel::NodoGrafo> out;
-        if (video_)
-            for (const auto& n : video_->grafoVideo().nodos()) out.push_back({n.id, n.tipo, n.etiqueta, n.grupo});
+        if (videoVm_)
+            for (const auto& n : videoVm_->nodos())
+                out.push_back({n.value("id", std::string()), n.value("tipo", std::string()), n.value("etiqueta", std::string()),
+                               n.value("grupo", std::string())});
         return out;
     };
     rf.lienzo = []() {
@@ -206,7 +229,7 @@ void ImagenViewModel::armarResolucion() {
 }
 
 QObject* ImagenViewModel::camarasQml() const { return deCpp(camaras_.get()); }
-QObject* ImagenViewModel::videoQml() const { return deCpp(video_.get()); }
+QObject* ImagenViewModel::videoQml() const { return deCpp(videoVm_.get()); }
 QObject* ImagenViewModel::tiemposQml() const { return deCpp(tiempos_.get()); }
 QObject* ImagenViewModel::resolucionQml() const { return deCpp(resolucion_.get()); }
 QObject* ImagenViewModel::superresQml() const { return deCpp(superres_.get()); }
@@ -215,14 +238,20 @@ QObject* ImagenViewModel::redQml() const { return deCpp(red_.get()); }
 QObject* ImagenViewModel::seguidorQml() const { return deCpp(seguidor_.get()); }
 
 void ImagenViewModel::ajustesAplicados() {
-    camaras_->sincronizar(); // Mejorar imagen general: rige ya
-    video_->setLegalizar(p_.rt.config().legalizar);
+    // Mejorar imagen general y el legalizador rigen ya: las cámaras releen la foto cuando
+    // llega con los ajustes nuevos, y el legalizador lo relee el dueño (y rearma).
+    videoVm_->pedir("video_legalizar", [](video::VideoGrafos& g) {
+        const std::string antes = g.legalizar();
+        g.releerLegalizar();
+        if (g.legalizar() != antes) g.reaplicarEntradas();
+        return std::string();
+    });
     emit redElectricaChanged(); // el lienzo pudo cambiar
 }
 
 QVariantMap ImagenViewModel::redElectrica() const {
     const int hz = motor::redElectricaDelSistema();
-    const VideoConfig& v = p_.rt.config().video;
+    const FotoMotor::AjustesVideo& v = p_.ventanilla.foto().ajustes;
     motor::Lienzo l;
     l.fpsN = v.fpsNum;
     l.fpsD = std::max(1, v.fpsDen);
@@ -238,7 +267,7 @@ QVariantList ImagenViewModel::chequeosDelAparato(bool hayDestino) const {
     const auto agregar = [&out](bool grave, const QString& t) { out << QVariantMap{{"grave", grave}, {"texto", t}}; };
     const QStorageInfo si(QString::fromStdWString((p_.rt.dataRoot() / "Recordings").wstring()));
     const double gb = si.isValid() ? static_cast<double>(si.bytesAvailable()) / 1e9 : -1;
-    const int kbps = p_.rt.config().encoder.videoBitrateKbps;
+    const int kbps = p_.ventanilla.foto().configImagen.value("video_kbps", 0);
     if (gb >= 0 && kbps > 0) {
         const double horas = gb / (kbps * 1.1 * 3600.0 / 8.0 / 1e6);
         if (horas < 1)
@@ -247,12 +276,12 @@ QVariantList ImagenViewModel::chequeosDelAparato(bool hayDestino) const {
             agregar(false, tr("Disco: alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1));
     }
     if (!hayDestino) agregar(false, tr("No hay destino de transmisión configurado (servidor y clave)"));
-    for (const QString& e : video_->entradas()) {
-        const nlohmann::json st = video_->estadoEntrada(e.toStdString());
+    for (const QString& e : videoVm_->entradas()) {
+        const nlohmann::json st = videoVm_->estadoEntrada(e.toStdString());
         if (!st.contains("gstreamer") || !st.value("activa", true)) continue;
         // Una entrada solo de audio (un tono, un micrófono por pipeline) no tiene
         // imagen nunca: no es «sin señal».
-        const nlohmann::json aj = nlohmann::json::parse(p_.rt.engine().sourceSettingsJson(e.toStdString()), nullptr, false);
+        const nlohmann::json aj = st.value("ajustes", nlohmann::json::object());
         if (aj.is_object() && aj.value("pipeline", std::string()).empty() && aj.value("uri", std::string()).empty() &&
             aj.value("camara", std::string()).empty() && !aj.value("pipeline_audio", std::string()).empty())
             continue;
@@ -274,22 +303,25 @@ QVariantMap ImagenViewModel::scopeUi(const QString& fuente, const QString& tipo,
         // La interfaz no espera el cuadro.
         if (!scopeCapturando_) {
             scopeCapturando_ = true;
+            // La captura la arranca el dueño del motor; el cuadro vuelve a este hilo.
             QPointer<const ImagenViewModel> yo(this);
-            p_.rt.engine().capturarAparte(
-                fuente.toStdString(), 640, [yo, fuente](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
-                    QImage llego;
-                    if (e.empty() && w > 0 && h > 0) llego = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-                    QMetaObject::invokeMethod(
-                        qApp,
-                        [yo, fuente, llego, e]() {
-                            if (!yo) return;
-                            yo->scopeCapturando_ = false;
-                            yo->scopeFuente_ = fuente;
-                            yo->scopeCuadro_ = llego;
-                            yo->scopeError_ = QString::fromStdString(e);
-                        },
-                        Qt::QueuedConnection);
-                });
+            p_.ventanilla.pedir("scope_cuadro", [&rt = p_.rt, yo, fuente]() {
+                rt.engine().capturarAparte(
+                    fuente.toStdString(), 640, [yo, fuente](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
+                        QImage llego;
+                        if (e.empty() && w > 0 && h > 0) llego = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+                        QMetaObject::invokeMethod(
+                            qApp,
+                            [yo, fuente, llego, e]() {
+                                if (!yo) return;
+                                yo->scopeCapturando_ = false;
+                                yo->scopeFuente_ = fuente;
+                                yo->scopeCuadro_ = llego;
+                                yo->scopeError_ = QString::fromStdString(e);
+                            },
+                            Qt::QueuedConnection);
+                    });
+            });
         }
         if (scopeFuente_ != fuente || scopeCuadro_.isNull())
             return scopeError_.isEmpty() || scopeFuente_ != fuente ? QVariantMap{{"esperando", true}}
@@ -306,15 +338,20 @@ QVariantMap ImagenViewModel::scopeUi(const QString& fuente, const QString& tipo,
             {"legalidad", QVariantMap{{"negros_aplastados_pct", std::round(l.lumaBajaPct * 10) / 10},
                                       {"blancos_quemados_pct", std::round(l.lumaAltaPct * 10) / 10},
                                       {"fuera_de_gama_pct", std::round(l.cromaPct * 10) / 10}}},
-            {"legalizador", qs(p_.rt.config().legalizar)}};
+            {"legalizador", qs(p_.ventanilla.foto().configImagen.value("legalizar", std::string("no")))}};
 }
 
 QString ImagenViewModel::legalizarUi(const QString& modo) {
     const std::string m = modo.toStdString();
     if (m != "no" && m != "pal" && m != "ntsc" && m != "rango") return tr("modo desconocido");
-    p_.rt.config().legalizar = m;
-    p_.rt.save();
-    video_->setLegalizar(m);
+    // La configuración y el motor son del dueño: allá se guarda y se rearma.
+    videoVm_->pedir("video_legalizar", [&rt = p_.rt, m](video::VideoGrafos& g) {
+        rt.config().legalizar = m;
+        rt.save();
+        rt.fotoSucia(FotoMotor::Ajustes);
+        g.setLegalizar(m);
+        return std::string();
+    });
     return {};
 }
 

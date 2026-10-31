@@ -737,7 +737,10 @@ void McpService::registerPtzTools() {
                            {"color", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}},
                            {"nitidez", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}}}}};
         t.examples = {R"({"activa": true})", R"({"nitidez": 70})"};
-        t.run = [c, &rt](const json& a, Done done) {
+        // La configuración es del dueño del motor: corre allá. Las cámaras se enteran por la
+        // foto (la configuración de la imagen) y rearman sus filtros solas.
+        t.hilo = Hilo::Control;
+        t.run = [&rt](const json& a, Done done) {
             MejoraConfig& m = rt.config().mejora;
             const bool cambia =
                 a.contains("activa") || a.contains("ruido") || a.contains("color") || a.contains("nitidez");
@@ -747,7 +750,7 @@ void McpService::registerPtzTools() {
             if (a.contains("nitidez")) m.nitidez = std::clamp(a.value("nitidez", m.nitidez), 0, 100);
             if (cambia) {
                 rt.save();
-                if (c) c->sincronizar();
+                rt.fotoSucia(FotoMotor::Ajustes);
             }
             done(ToolResult().data(
                 {{"activa", m.activa}, {"ruido", m.ruido}, {"color", m.color}, {"nitidez", m.nitidez}}));

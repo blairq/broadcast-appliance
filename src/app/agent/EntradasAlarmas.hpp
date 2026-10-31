@@ -6,9 +6,10 @@
 //
 //   - DIRECTAS: seguras entre hilos, se leen en el acto desde el control (el programa
 //     en imagen y su audio, la foto de las salidas del motor, el loudness, la
-//     persistencia, los recursos). Son las alarmas de lo que sale al aire: siguen con
-//     la interfaz trabada.
-//   - DE LA INTERFAZ: objetos de ella (la sala, los chats, las entradas de video). La
+//     persistencia, los recursos, la señal de las entradas de video y la superresolución,
+//     del grafo de video que es del dueño). Son las alarmas de lo que sale al aire:
+//     siguen con la interfaz trabada.
+//   - DE LA INTERFAZ: objetos de ella (la sala, los chats, las fuentes de audio). La
 //     interfaz las lee en su hilo con `refrescar` y las deja en una foto; el vigía lee
 //     la foto. Con la interfaz trabada se quedan quietas, y por eso nada de lo que sale
 //     al aire va por acá.

@@ -20,6 +20,7 @@
 #include "ptz/PtzPlugin.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "video/CatalogoGst.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "video/VideoGrafos.hpp"
 
 #include <QCoreApplication>
@@ -160,7 +161,7 @@ struct Plugins::Proceso {
     std::string sdkVersion;
 };
 
-Plugins::Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras* camaras,
+Plugins::Plugins(AppRuntime& rt, VideoViewModel* video, ptz::ControlCamaras* camaras,
                  OperatorMessages* mensajes, QObject* parent)
     : QObject(parent), rt_(rt), video_(video), camaras_(camaras), mensajes_(mensajes) {
     carpeta_ = rt.dataRoot() / "Plugins";
@@ -1353,13 +1354,21 @@ void Plugins::declararEntrada(const std::string& id, const json& d) {
     const int latencia = d.value("latencia_ms", propio ? 100 : 60);
     const json man = leerJson(carpetaDe(id) / "plugin.json");
     const std::string escena = d.value("escena", man.value("escena", std::string("Plugins")));
-    const std::string e =
-        video_->crearEntradaPipeline(nombre, pv, pa, escena, latencia, normalizar, extra);
-    if (!e.empty()) {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0, ba::i18n::llenar(ba::i18n::traducir("plugins", "%1: entrada «%2»: %3"), {id, nombre, e}));
-        auto it = procesos_.find(id);
-        if (it != procesos_.end()) it->second->error = ba::i18n::llenar(ba::i18n::traducir("plugins", "entrada «%1»: %2"), {nombre, e});
-    }
+    // La entrada la arma el grafo, en el dueño del motor; si no se pudo, queda anotado.
+    QPointer<Plugins> yo(this);
+    video_->pedir(
+        "plugin_entrada",
+        [nombre, pv, pa, escena, latencia, normalizar, extra](video::VideoGrafos& g) {
+            return g.crearEntradaPipeline(nombre, pv, pa, escena, latencia, normalizar, extra);
+        },
+        [yo, id, nombre](const std::string& e) {
+            if (e.empty() || !yo) return;
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("plugins", "%1: entrada «%2»: %3"), {id, nombre, e}));
+            auto it = yo->procesos_.find(id);
+            if (it != yo->procesos_.end())
+                it->second->error = ba::i18n::llenar(ba::i18n::traducir("plugins", "entrada «%1»: %2"), {nombre, e});
+        });
 }
 
 void Plugins::declararPtz(const std::string& id, const json& d) {
@@ -1474,9 +1483,10 @@ void Plugins::avisar(const std::string& texto, const std::string& prioridad) con
 
 // --- En el grafo y en el audio --------------------------------------------------------------------
 
-std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarjeta,
-                                  const std::string& entrada, const json& parametros, json* hecho) {
-    if (!video_) return ba::i18n::traducir("plugins", "el video no está disponible");
+void Plugins::ponerTarjeta(const std::string& id, const std::string& tarjeta, const std::string& entrada,
+                           const json& parametros, std::function<void(const std::string&, const json&)> listo) {
+    const auto fallar = [&listo](const std::string& e) { listo(e, json::object()); };
+    if (!video_) return fallar(ba::i18n::traducir("plugins", "el video no está disponible"));
     auto it = procesos_.find(id);
     bool existe = false;
     if (it != procesos_.end())
@@ -1484,10 +1494,10 @@ std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarj
             if (d.value("t", "") == "tarjeta" && d.value("nombre", "") == tarjeta) {
                 existe = true;
                 if (d.value("medio", "video") == "audio")
-                    return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» es de audio: va como filtro de una fuente (plugin_tarjeta con `fuente`)"), {tarjeta});
+                    return fallar(ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» es de audio: va como filtro de una fuente (plugin_tarjeta con `fuente`)"), {tarjeta}));
             }
     if (!existe)
-        return ba::i18n::llenar(ba::i18n::traducir("plugins", "el plugin «%1» no declaró la tarjeta «%2» (¿está corriendo? plugin_activar; plugin_ver dice lo que declara)"), {id, tarjeta});
+        return fallar(ba::i18n::llenar(ba::i18n::traducir("plugins", "el plugin «%1» no declaró la tarjeta «%2» (¿está corriendo? plugin_activar; plugin_ver dice lo que declara)"), {id, tarjeta}));
     // Con TODOS sus parámetros (los de fábrica que declara, con lo pedido encima):
     // así se ven y se ajustan desde el grafo.
     json todos = json::object();
@@ -1498,7 +1508,12 @@ std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarj
     if (parametros.is_object()) todos.update(parametros);
     json props{{"plugin", id}, {"tarjeta", tarjeta}};
     if (!todos.empty()) props["parametros"] = todos.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    return video_->agregarTarjetaGst(entrada, "baplugin", props, hecho);
+    // La tarjeta la pone el grafo, en el dueño del motor.
+    auto hecho = std::make_shared<json>(json::object());
+    video_->pedir(
+        "plugin_tarjeta",
+        [entrada, props, hecho](video::VideoGrafos& g) { return g.agregarTarjetaGst(entrada, "baplugin", props, hecho.get()); },
+        [listo, hecho](const std::string& e) { listo(e, *hecho); });
 }
 
 std::string Plugins::ponerFiltroAudio(const std::string& id, const std::string& tarjeta,
@@ -1876,10 +1891,15 @@ QString Plugins::panelUi(const QString& id, const QString& clave, const QVariant
 
 QString Plugins::tarjetaUi(const QString& id, const QString& tarjeta, const QString& destino, bool audio) {
     json hecho;
-    return q(audio ? ponerFiltroAudio(id.toStdString(), tarjeta.toStdString(), destino.toStdString(),
-                                      json::object(), &hecho)
-                   : ponerTarjeta(id.toStdString(), tarjeta.toStdString(), destino.toStdString(),
-                                  json::object(), &hecho));
+    if (audio)
+        return q(ponerFiltroAudio(id.toStdString(), tarjeta.toStdString(), destino.toStdString(), json::object(), &hecho));
+    // La de video la pone el grafo (en el dueño del motor): si no se pudo, llega como aviso.
+    QPointer<Plugins> yo(this);
+    ponerTarjeta(id.toStdString(), tarjeta.toStdString(), destino.toStdString(), json::object(),
+                 [yo](const std::string& e, const json&) {
+                     if (yo && !e.empty()) emit yo->aviso(QString::fromStdString(e), false);
+                 });
+    return {};
 }
 
 QStringList Plugins::entradasVideo() const { return video_ ? video_->entradas() : QStringList{}; }

@@ -462,7 +462,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
             .chat = *chatOverlay_,
             .recursos = [this]() { return recursos_.get(); },
             .flujos = [this]() { return asistente_ ? &asistente_->flujos() : nullptr; },
-            .video = [this]() { return imagen_ ? &imagen_->video() : nullptr; }});
+            // Lo lee el vigía (en el plano de control): se pone cuando está el grafo.
+            .video = [this]() { return videoParaVigia_.load(); }});
         connect(alarmas_.get(), &AlarmasViewModel::notify, this, &StudioViewModel::notify);
         marca("alerts");
         bus_ = std::make_unique<control::BusEventos>();
@@ -549,11 +550,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // Los PDF en las escenas: la lista para elegir es la documentación del evento.
     pdfEscena_ = std::make_unique<PdfEscena>(rt);
     connect(documentos_.get(), &DocumentosViewModel::cambio, pdfEscena_.get(), &PdfEscena::refrescarDocumentos);
-    inputs_ = std::make_unique<InputsViewModel>(rt, *this);
+    inputs_ = std::make_unique<InputsViewModel>(rt, ventanilla_, *this);
     marca("inputs");
     // Las cámaras (PTZ y Mejorar imagen), los grafos de video, la superresolución, los
     // tiempos, la resolución, los equipos de la red y seguir caras (ui/ImagenViewModel).
     imagen_ = std::make_unique<ImagenViewModel>(ImagenViewModel::Partes{.rt = rt,
+                                                                       .ventanilla = ventanilla_,
+                                                                       .motorEntreHilos = frames_->motorEntreHilos(),
                                                                        .bus = *bus_,
                                                                        .sala = *conference_,
                                                                        .entradas = *inputs_,
@@ -562,6 +565,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                                                                        .personas = personas_.get(),
                                                                        .racks = [this]() { return mezcla_ ? &mezcla_->racks() : nullptr; }});
     connect(imagen_.get(), &ImagenViewModel::notify, this, &StudioViewModel::notify);
+    videoParaVigia_.store(&imagen_->video());
     marca("imagen");
     // Dónde se muestra cada cosa en esta máquina: el catálogo, los monitores, las ventanas
     // sueltas y las multivistas (ui/EscritorioViewModel). Después de las cámaras, el
@@ -576,15 +580,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     connect(this, &StudioViewModel::escenasCambiaron, escritorio_.get(), &EscritorioViewModel::refrescarCatalogo);
     marca("ventanas");
     escritorio_->refrescarCatalogo();
-    // El respaldo de las entradas al aire que pierden señal (modelo): acá solo se muestra.
-    respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, imagen_->video(), salidas_->conmutador(), this);
-    connect(respaldo_.get(), &escenas::RespaldoEntradas::sinSenalCambio, this, &StudioViewModel::senalChanged);
+    // El respaldo de las entradas al aire que pierden señal (modelo): es del dueño del motor
+    // (corta por el conmutador con la interfaz trabada); acá solo se muestra.
+    respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, imagen_->video(), salidas_->conmutador());
+    connect(respaldo_.get(), &escenas::RespaldoEntradas::sinSenalCambio, this, [this](const QStringList& sin) {
+        sinSenal_ = sin;
+        emit senalChanged();
+    });
+    ventanilla_.adoptar(respaldo_.get());
     connect(respaldo_.get(), &escenas::RespaldoEntradas::aviso, this,
             [this](const QString& texto) { emit notify(texto, "error"); });
     // Lo que la revisión previa del evento mira del aparato.
     evento_->setChequeosAparato([this]() { return imagen_->chequeosDelAparato(streamKeyAvailable()); });
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
-    plugins_ = std::make_unique<plugins::Plugins>(rt, &imagen_->video(), &imagen_->camaras(), &asistente_->mensajes());
+    plugins_ = std::make_unique<plugins::Plugins>(rt, &imagen_->videoVm(), &imagen_->camaras(), &asistente_->mensajes());
     // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)
     // y los temas de la app les llegan a los que escuchan.
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
@@ -657,7 +666,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     dispositivos_ = std::make_unique<dispositivos::Dispositivos>(ba::platform::dataRoot() / "Config" /
                                                                  "dispositivos.json");
     marca("dispositivos");
-    dispositivos::registrarTodo(*dispositivos_, {&imagen_->red(), plugins_.get(), &imagen_->video(), &imagen_->camaras(),
+    dispositivos::registrarTodo(*dispositivos_, {&imagen_->red(), plugins_.get(), &imagen_->videoVm(), &imagen_->camaras(),
                                                  &asistente_->mensajes(), &rt, inputs_.get()});
     // El audio: los racks de cada fuente, la pestaña Audio, la matriz y el Mezclador
     // (ui/MezclaViewModel).
@@ -773,6 +782,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
 }
 
 StudioViewModel::~StudioViewModel() {
+    videoParaVigia_.store(nullptr); // el vigía sigue un rato; el grafo se va con la imagen
     rt_.engine().alFallarMotor(nullptr);
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
     // El runtime y los flujos de texto viven más que el evento: que no le
@@ -845,8 +855,6 @@ void StudioViewModel::onTick() {
     // Lo de la interfaz que mira el vigía de las alarmas (en el plano de control), como
     // foto: cada 200 ms (él evalúa cada 250).
     if (alarmas_ && vigiaTicks_ % 2 == 0) alarmas_->refrescarFoto();
-    // Señal de las entradas (multiview, escena de respaldo): una vez por segundo.
-    if (vigiaTicks_ % 10 == 5) revisarSenales();
     // El vigía de los módulos de audio: lo que saltó por lento o colgado.
     if (++vigiaTicks_ % 10 == 0) mezcla_->vigilarModulos();
     // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
@@ -1281,11 +1289,7 @@ QString StudioViewModel::setRespaldoEntrada(const QString& entrada, const QVaria
                                      r.value("ms", 1000).toInt()));
 }
 
-void StudioViewModel::revisarSenales() {
-    if (respaldo_) respaldo_->revisar();
-}
-
-QStringList StudioViewModel::sinSenal() const { return respaldo_ ? respaldo_->sinSenal() : QStringList(); }
+QStringList StudioViewModel::sinSenal() const { return sinSenal_; }
 
 QObject* StudioViewModel::ccQml() const { return asistente_->ccQml(); }
 

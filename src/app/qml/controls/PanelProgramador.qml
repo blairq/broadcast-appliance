@@ -1,6 +1,7 @@
-// El menú del programador de superresolución (VideoGrafos.programadorUi /
+// El menú del programador de superresolución (Studio.video.programador /
 // configurarProgramadorUi): qué cámaras usan la red según el programa y el
 // preview, cuánto aguanta cada acelerador (medido) y lo que se puede configurar.
+// El programador corre en el dueño del motor: lo que se ve llega con su foto.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -9,7 +10,7 @@ import BA
 Popup {
     id: pop
     property var vg: null
-    property var p: ({})
+    readonly property var p: vg ? vg.programador : ({})
     readonly property var entradas: {
         const e = p.entradas || {}
         return Object.keys(e).sort().map(k => Object.assign({ entrada: k }, e[k]))
@@ -33,17 +34,14 @@ Popup {
     padding: 18
     background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
 
-    function refrescar() { p = vg ? vg.programadorUi() : ({}) }
     function poner(cambios, ok) {
         const e = vg.configurarProgramadorUi(cambios)
         if (e !== "") Studio.notify(e, "error"); else if (ok) Studio.notify(ok, "info")
-        refrescar()
     }
     function nombreAcelerador(a) {
         return ({ "neural-engine": "Neural Engine", gpu: "GPU", cpu: qsTr("Procesador"), cuda: "NVIDIA (CUDA/TensorRT)", dml: "DirectML", vulkan: "Vulkan (ncnn)",
                   migraphx: "AMD (MIGraphX)", rocm: "AMD (ROCm)", openvino: "Intel (OpenVINO)", videotoolbox: "VideoToolbox" })[a] || a
     }
-    Timer { interval: 1000; running: pop.opened; repeat: true; triggeredOnStart: true; onTriggered: pop.refrescar() }
 
     ColumnLayout {
         anchors.fill: parent

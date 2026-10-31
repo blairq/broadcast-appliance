@@ -2695,7 +2695,7 @@ void McpService::registerTools() {
                 if (!err.empty()) return done(ToolResult::error(err));
             }
             json sin = json::array();
-            for (const QString& s : resp.sinSenal()) sin.push_back(s.toStdString());
+            for (const QString& s : vm.sinSenal()) sin.push_back(s.toStdString()); // lo último que avisó el respaldo
             done(ToolResult().data(json{{"sin_senal", sin}, {"respaldo", e.empty() ? json() : resp.respaldo(e)}}));
         };
         core_.addTool(std::move(t));

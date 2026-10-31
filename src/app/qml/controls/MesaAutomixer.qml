@@ -9,18 +9,15 @@ import BA
 Item {
     id: mesa
     readonly property var vg: Studio.video
-    property var datos: ({ mesas: [], microfonos: [] })
+    // La mesa en vivo: la arma el grafo de video (en el dueño del motor) y llega con su foto.
+    readonly property var datos: vg && vg.automixer.mesas ? vg.automixer : ({ mesas: [], microfonos: [] })
     property string msg: ""
-
-    function refrescar() { if (vg) datos = vg.automixerUi() }
     function mesaDe(nombre) {
         for (const m of datos.mesas)
             for (const x of m.microfonos) if (x.nombre === nombre) return { mesa: m, mic: x }
         return null
     }
-    function avisar(err, ok) { msg = err ? err : ok; refrescar() }
-
-    Timer { interval: 250; running: mesa.visible; repeat: true; triggeredOnStart: true; onTriggered: mesa.refrescar() }
+    function avisar(err, ok) { msg = err ? err : ok }
 
     ColumnLayout {
         anchors.fill: parent

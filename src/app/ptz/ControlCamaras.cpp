@@ -7,6 +7,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "emision/BroadcastEngine.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "net/Credentials.hpp"
 #include "ptz/Interlock.hpp"
@@ -46,8 +47,8 @@ using namespace camaras;
 
 
 
-ControlCamaras::ControlCamaras(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent)
-    : QObject(parent), rt_(rt), archivo_(dataRoot / "Config" / "camaras.json"),
+ControlCamaras::ControlCamaras(AppRuntime& rt, VentanillaMotor& ventanilla, std::filesystem::path dataRoot, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla), archivo_(dataRoot / "Config" / "camaras.json"),
       credenciales_(QString::fromStdString((ba::platform::credentialsDir()).string())),
       busqueda_(std::make_unique<OnvifBusqueda>()) {
     connect(busqueda_.get(), &OnvifBusqueda::cambio, this, &ControlCamaras::busquedaCambio);
@@ -57,9 +58,11 @@ ControlCamaras::ControlCamaras(AppRuntime& rt, std::filesystem::path dataRoot, Q
         interlockActivo_ = j.value("activo", true);
         seguirSuavePermitido_ = j.value("seguir_suave_permitido", true);
     }
-    revision_.setInterval(1500);
-    connect(&revision_, &QTimer::timeout, this, &ControlCamaras::sincronizar);
-    revision_.start();
+    // Las entradas, su tamaño y la configuración llegan con la foto del motor: se revisa
+    // cuando cambian (la parte Video se rearma con la revisión de las entradas).
+    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+        if ((partes & (FotoMotor::Video | FotoMotor::Escenas | FotoMotor::Ajustes)) != 0) sincronizar();
+    });
     guardado_.setSingleShot(true);
     guardado_.setInterval(1500);
     connect(&guardado_, &QTimer::timeout, this, &ControlCamaras::guardar);
@@ -120,11 +123,40 @@ QVariantList ControlCamaras::backends() {
 
 bool ControlCamaras::buscando() const { return busqueda_->buscando(); }
 QVariantList ControlCamaras::encontradas() const { return busqueda_->encontradas(); }
-bool ControlCamaras::mejoraGeneral() const { return rt_.config().mejora.activa; }
+bool ControlCamaras::mejoraGeneral() const { return mejoraActiva(); }
+
+bool ControlCamaras::mejoraActiva() const {
+    return ventanilla_.foto().configImagen.value("mejora", nlohmann::json::object()).value("activa", false);
+}
+
+void ControlCamaras::tamano(const std::string& entrada, int& w, int& h) const {
+    const nlohmann::json f = ventanilla_.foto().fuentesVideo.value(entrada, nlohmann::json::object());
+    w = f.is_object() ? f.value("ancho", 0) : 0;
+    h = f.is_object() ? f.value("alto", 0) : 0;
+}
+
+void ControlCamaras::capturar(const std::string& fuente, int ancho, std::function<void(QImage)> listo) {
+    // La captura la arranca el dueño del motor; el cuadro vuelve a este hilo.
+    QPointer<ControlCamaras> yo(this);
+    ventanilla_.pedir("ptz_cuadro", [&rt = rt_, fuente, ancho, yo, listo = std::move(listo)]() mutable {
+        rt.engine().capturarAparte(fuente, ancho, [yo, listo = std::move(listo)](const std::string& e, std::vector<std::uint8_t> rgba,
+                                                                                int w, int h) mutable {
+            QImage img;
+            if (e.empty() && w > 0 && h > 0)
+                img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+            QMetaObject::invokeMethod(
+                qApp,
+                [yo, listo = std::move(listo), img]() {
+                    if (yo) listo(img);
+                },
+                Qt::QueuedConnection);
+        });
+    });
+}
 
 QVariantMap ControlCamaras::fila(const Camara& c) const {
     const QString e = qs(c.entrada);
-    const bool general = rt_.config().mejora.activa;
+    const bool general = mejoraActiva();
     QJsonObject conf = c.conf;
     conf.remove("clave");
     return {{"entrada", e},
@@ -181,11 +213,11 @@ QJsonObject ControlCamaras::estadoJson(const QString& entrada) const {
 // ---------------------------------------------------------------------------
 
 void ControlCamaras::sincronizar() {
-    BroadcastEngine& e = rt_.engine();
     std::map<std::string, QString> presentes;
-    for (const std::string& n : e.sourceNames()) {
-        const std::string type = e.sourceTypeId(n);
-        const auto s = nlohmann::json::parse(e.sourceSettingsJson(n), nullptr, false);
+    for (const auto& [n, f] : ventanilla_.foto().fuentesVideo.items()) {
+        if (!f.is_object()) continue;
+        const std::string type = f.value("tipo", std::string());
+        const nlohmann::json s = f.value("ajustes", nlohmann::json::object());
         // Por lo que ES, no por su tipo: con GStreamer una cámara del equipo o una
         // NDI son `ba_gst_fuente` (con `camara` / `ndi`), y comparando contra el tipo
         // viejo de libobs la cámara web no aparecía en el PTZ.
@@ -197,7 +229,7 @@ void ControlCamaras::sincronizar() {
     }
     bool cambiaron = presentes != tipoEntrada_;
     tipoEntrada_ = presentes;
-    const bool general = rt_.config().mejora.activa;
+    const bool general = mejoraActiva();
     for (const auto& [nombre, tipo] : presentes) {
         Q_UNUSED(tipo);
         auto& c = camaras_[nombre];
@@ -219,7 +251,7 @@ void ControlCamaras::sincronizar() {
 }
 
 void ControlCamaras::aplicarFiltros(Camara& c, bool mejoraGeneral) {
-    const AppConfig& cfg = rt_.config();
+    const nlohmann::json mg = ventanilla_.foto().configImagen.value("mejora", nlohmann::json::object());
     // 1) Mejorar imagen: lo más cerca de la fuente (se limpia antes de ampliar).
     const bool quiereMejora = c.mejora == "si" || (c.mejora == "general" && mejoraGeneral);
     nlohmann::json mejora = nlohmann::json::array();
@@ -227,9 +259,9 @@ void ControlCamaras::aplicarFiltros(Camara& c, bool mejoraGeneral) {
         mejora.push_back({{"id", "mejora"},
                           {"elemento", "bamejora"},
                           {"propiedades",
-                           {{"ruido", std::to_string(cfg.mejora.ruido)},
-                            {"color", std::to_string(cfg.mejora.color)},
-                            {"nitidez", std::to_string(cfg.mejora.nitidez)}}}});
+                           {{"ruido", mg.value("ruido", nlohmann::json(0)).dump()},
+                            {"color", mg.value("color", nlohmann::json(0)).dump()},
+                            {"nitidez", mg.value("nitidez", nlohmann::json(0)).dump()}}}});
     fuentes::ponerFiltrosExtra(c.entrada, kOrdenMejora, mejora);
     // 2) PTZ digital.
     nlohmann::json ptz = nlohmann::json::array();
@@ -535,7 +567,7 @@ QString ControlCamaras::setDigital(const QString& entrada, bool prendido) {
     if (c == nullptr) return error;
     c->digital = prendido;
     if (!prendido) c->modo = QStringLiteral("optico");
-    aplicarFiltros(*c, rt_.config().mejora.activa);
+    aplicarFiltros(*c, mejoraActiva());
     guardarPronto();
     emit cambio();
     return {};
@@ -548,7 +580,7 @@ QString ControlCamaras::setMejora(const QString& entrada, const QString& modo) {
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
     c->mejora = modo;
-    aplicarFiltros(*c, rt_.config().mejora.activa);
+    aplicarFiltros(*c, mejoraActiva());
     guardarPronto();
     emit cambio();
     return {};
@@ -634,8 +666,10 @@ void ControlCamaras::guardar() {
 
 bool ControlCamaras::alAire(const QString& entrada) const {
     // Se ve en el programa (escena al aire o capa DSK, como el recuadro de LSA)
-    // Y el programa sale: sin transmisión ni grabación, moverla no lo ve nadie.
-    return rt_.engine().fuenteAlAire(entrada.toStdString());
+    // Y el programa sale: sin transmisión ni grabación, moverla no lo ve nadie. Lo dice
+    // la foto (BroadcastEngine::fuenteAlAire, al día con cada corte).
+    const auto& aire = ventanilla_.foto().alAire;
+    return std::find(aire.begin(), aire.end(), entrada.toStdString()) != aire.end();
 }
 
 QVariantMap ControlCamaras::interlock() const {

@@ -10,19 +10,18 @@ ColumnLayout {
     property var vg: null
     readonly property var sr: Studio.superres
     readonly property var tr: sr ? sr.trabajo : ({})
-    property var red: []
+    // Las entradas de red y el programador: del grafo de video (la foto del motor).
+    readonly property var red: vg ? vg.estadoRed.filter(e => e.gstreamer !== undefined) : []
     property var gpu: ({})
     property var propios: []
-    property var prog: ({})
+    readonly property var prog: vg ? vg.programador : ({})
     /// El plugin con el que abrir la sección «Destilar» (lo pone la tarjeta).
     property string maestroPedido: ""
     spacing: 14
 
     function refrescar() {
-        red = vg ? vg.estadoRed().filter(e => e.gstreamer !== undefined) : []
         gpu = sr ? sr.runtimeGpuUi() : ({})
         propios = sr ? sr.pluginsElementoUi() : []
-        prog = vg ? vg.programadorUi() : ({})
     }
     readonly property var progEntradas: {
         const e = prog.entradas || {}
@@ -594,7 +593,7 @@ ColumnLayout {
         property string descripcion: ""
         property var valores: ({})
         property string busca: ""
-        readonly property var modulos: panel.vg ? panel.vg.modulosGst() : []
+        readonly property var modulos: panel.vg ? panel.vg.modulosGst : []
         readonly property var visibles: modulos.filter(m => busca === "" || (m.elemento + " " + (m.nombre || "")).toLowerCase().indexOf(busca.toLowerCase()) >= 0)
         function abrir(p) {
             pid = p ? p.id : ""; nombre = p ? (p.nombre || "") : ""; elemento = p ? p.elemento : ""
