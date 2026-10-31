@@ -275,6 +275,10 @@ class Composicion {
     /// Antes de una escena nueva: las capas de la actual bajan a su orden (las nuevas van en 5000 + orden).
     void bajarViejas();
     void soltar(Rama& r);
+    /// Antes de soltar el último pad del mezclador de la escena, el ancla (ver ancla_).
+    void anclar();
+    /// Llegó una capa: el ancla sobra (el mezclador ya tiene otro pad).
+    void soltarAncla();
     void sacarGeneracion(int gen);
     /// La transición en curso en el punto `t` (0…1).
     void animar(double t);
@@ -308,6 +312,15 @@ class Composicion {
     static GstPadProbeReturn ponerHora(GstPad* pad, GstPadProbeInfo* info, gpointer d);
     GstElement* pipeline_ = nullptr;
     GstElement* mezclador_ = nullptr;
+    /// EL ANCLA: un pad del mezclador sin nada enchufado, mientras la escena no tiene capas.
+    /// Un agregador de video (compositor, glvideomixer, d3d12compositor) que se queda sin
+    /// pads se REINICIA (GstVideoAggregator: la posición a -1, la cuenta de cuadros a 0) y
+    /// vuelve a sacar cuadros desde su start-time, la hora en que arrancó: una ráfaga de
+    /// cuadros vencidos para ponerse al día y, abajo, el DSK no daba más nada (el programa
+    /// congelado al cortar a una escena vacía; también al cambiarle la fuente a la única capa).
+    /// Con el ancla nunca se queda sin pads; uno sin datos no lo frena (en vivo, a la hora
+    /// del cuadro sale lo que hay: el fondo, como sin pads).
+    GstPad* ancla_ = nullptr;
     GstElement* dskMx_ = nullptr;          ///< el compositor del DSK (nullptr sin DSK)
     std::map<std::string, Rama*> dsk_;     ///< las capas del DSK por nombre
     mutable std::mutex mu_;

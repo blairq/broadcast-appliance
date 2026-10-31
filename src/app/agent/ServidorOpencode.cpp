@@ -2,6 +2,7 @@
 // src/app/agent/ServidorOpencode.cpp — ver ServidorOpencode.hpp
 // ============================================================================
 #include "agent/ServidorOpencode.hpp"
+#include "agent/HijosDeLaApp.hpp"
 
 #include <QCoreApplication>
 #include <QHostAddress>
@@ -82,6 +83,7 @@ void ServidorOpencode::arrancar(const Pedido& p) {
     proc_->setWorkingDirectory(p.workDir);
     proc_->setProcessChannelMode(QProcess::MergedChannels);
     proc_->setStandardOutputFile(QProcess::nullDevice());
+    hijos::preparar(*proc_); // que no quede andando si la app muere sin pararlo
     proc_->start(p.ejecutable, {"serve", "--hostname", "127.0.0.1", "--port", QString::number(puerto)});
     if (!proc_->waitForStarted(10000)) {
         const QString e = tr("No arrancó el servidor de OpenCode: %1").arg(proc_->errorString());
@@ -89,6 +91,7 @@ void ServidorOpencode::arrancar(const Pedido& p) {
         avisar(e);
         return;
     }
+    hijos::anotar(*proc_, "opencode");
     // Listo cuando la API contesta (401 sin clave también es «está andando»).
     auto* red = new QNetworkAccessManager(proc_);
     auto* reloj = new QTimer(proc_);
@@ -125,11 +128,7 @@ void ServidorOpencode::parar() {
     QProcess* p = proc_;
     proc_ = nullptr;
     p->disconnect(this);
-    if (p->state() != QProcess::NotRunning) {
-        p->terminate();
-        if (!p->waitForFinished(3000)) p->kill();
-        p->waitForFinished(2000);
-    }
+    hijos::parar(*p, "opencode"); // con sus hijos (los MCP de cada sesión)
     p->deleteLater();
 }
 

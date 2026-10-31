@@ -385,6 +385,7 @@ Composicion::~Composicion() {
         }
         m->clear();
     }
+    soltarAncla();
     if (dskMx_ != nullptr) gst_object_unref(dskMx_);
     gst_object_unref(mezclador_);
     gst_object_unref(pipeline_);
@@ -452,6 +453,12 @@ Composicion::Rama* Composicion::crearRamaLibre(const Capa& c, int gen) {
     if (pad == nullptr) {
         pad = gst_element_request_pad_simple(mezclador_, c.pad.empty() ? "sink_%u" : c.pad.c_str());
         pedido = pad != nullptr;
+    }
+    if (pad != nullptr && pad == ancla_) {
+        // La capa pide justo el pad del ancla (por su nombre): pasa a ser suyo, a pedido.
+        gst_object_unref(ancla_);
+        ancla_ = nullptr;
+        pedido = true;
     }
     const auto fallar = [&](const std::string& e) -> Rama* {
         error_ = e;
@@ -539,6 +546,7 @@ Composicion::Rama* Composicion::crearRamaLibre(const Capa& c, int gen) {
     gst_element_sync_state_with_parent(r->puente);
     gst_element_sync_state_with_parent(r->src);
     ramas_[std::to_string(gen) + "/" + c.claveCapa()] = r;
+    soltarAncla(); // ya tiene otro pad
     return r;
 }
 
@@ -661,7 +669,10 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
                          {nombre_, c.entrada, std::to_string((t2 - t0) / 1000), std::to_string((tCreados - t0) / 1000),
                           std::to_string((tPropiedades - tCreados) / 1000), std::to_string((tEnlazados - tPropiedades) / 1000),
                           std::to_string((t1 - tEnlazados) / 1000), std::to_string((t2 - t1) / 1000)}));
-    if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.claveCapa()] = r;
+    if (mx == mezclador_) {
+        ramas_[std::to_string(gen) + "/" + c.claveCapa()] = r;
+        soltarAncla(); // ya tiene otro pad
+    }
     return r;
 }
 
@@ -861,8 +872,11 @@ void Composicion::soltar(Rama& r) {
     for (GstElement* e : {r.src, r.recorte, r.subir, r.conv, r.fijar, r.aRgba, r.sombra, r.puente})
         if (e != nullptr) gst_element_set_state(e, GST_STATE_NULL);
     if (r.pad != nullptr) {
+        GstElement* mx = r.mx != nullptr ? r.mx : mezclador_;
+        // El último pad del mezclador de la escena: antes, el ancla (ver ancla_).
+        if (r.padPedido && mx == mezclador_) anclar();
         // Un pad fijo (smpte, shapewipe) queda en el mezclador: sacar la rama lo desenlaza.
-        if (r.padPedido) gst_element_release_request_pad(r.mx != nullptr ? r.mx : mezclador_, r.pad);
+        if (r.padPedido) gst_element_release_request_pad(mx, r.pad);
         gst_object_unref(r.pad);
         r.pad = nullptr;
     }
@@ -874,6 +888,23 @@ void Composicion::soltar(Rama& r) {
     if (r.fijar != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.fijar);
     if (r.aRgba != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.aRgba);
     if (r.sombra != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.sombra);
+}
+
+void Composicion::anclar() {
+    if (ancla_ != nullptr || mezclador_ == nullptr) return;
+    GST_OBJECT_LOCK(mezclador_);
+    const guint pads = GST_ELEMENT(mezclador_)->numsinkpads;
+    GST_OBJECT_UNLOCK(mezclador_);
+    if (pads > 1) return; // le quedan otros
+    // Uno de su plantilla de siempre (un módulo sin ella tiene solo pads fijos: nunca se queda sin).
+    ancla_ = gst_element_request_pad_simple(mezclador_, "sink_%u");
+}
+
+void Composicion::soltarAncla() {
+    if (ancla_ == nullptr) return;
+    gst_element_release_request_pad(mezclador_, ancla_);
+    gst_object_unref(ancla_);
+    ancla_ = nullptr;
 }
 
 void Composicion::bajarViejas() {

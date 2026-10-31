@@ -633,6 +633,13 @@ endif()
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
     add_test(NAME test_mcp COMMAND test_mcp)
+    # Los servidores que lanza la app (OpenCode, llama-server) mueren con ella.
+    add_executable(test_hijos_app tests/test_hijos_app.cpp agent/HijosDeLaApp.cpp agent/HijosDeLaApp.hpp)
+    target_include_directories(test_hijos_app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_hijos_app PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_hijos_app PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_hijos_app COMMAND test_hijos_app)
+    set_tests_properties(test_hijos_app PROPERTIES SKIP_RETURN_CODE 77)
 
     # El registro de herramientas (F3-02): docs/mcp.json y la tabla de MCP.md son lo que
     # sale del código, y toda herramienta declara su clase. Agregar una sin regenerar

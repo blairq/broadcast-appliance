@@ -2,6 +2,7 @@
 // src/app/agent/ServidorModeloLocal.cpp — ver ServidorModeloLocal.hpp
 // ============================================================================
 #include "agent/ServidorModeloLocal.hpp"
+#include "agent/HijosDeLaApp.hpp"
 #include "fault/ModoSeguro.hpp"
 
 #include <QCoreApplication>
@@ -165,6 +166,7 @@ void ServidorModeloLocal::arrancar(const Pedido& p) {
                      QString::number(p.contexto), "--alias", "local", "--no-webui", "--reasoning", "off"};
     // La visión (el proyector del modelo base): las imágenes en /v1/chat/completions.
     if (!p.mmproj.isEmpty()) args << "--mmproj" << QDir::toNativeSeparators(p.mmproj);
+    hijos::preparar(*proc_); // que no quede andando si la app muere sin pararlo
     proc_->start(p.ejecutable, args);
     if (!proc_->waitForStarted(10000)) {
         const QString e = tr("No arrancó llama-server: %1").arg(proc_->errorString());
@@ -172,6 +174,7 @@ void ServidorModeloLocal::arrancar(const Pedido& p) {
         avisarListo(0, e);
         return;
     }
+    hijos::anotar(*proc_, "llama-server");
     for (auto& [quien, f] : esperan_)
         if (f.second) f.second(tr("Cargando el modelo local…"));
     // Listo cuando /health contesta 200 (el modelo cargado).
@@ -212,11 +215,7 @@ void ServidorModeloLocal::parar() {
     QProcess* p = proc_;
     proc_ = nullptr;
     p->disconnect(this);
-    if (p->state() != QProcess::NotRunning) {
-        p->terminate();
-        if (!p->waitForFinished(3000)) p->kill();
-        p->waitForFinished(2000);
-    }
+    hijos::parar(*p, "llama-server");
     p->deleteLater();
 }
 
