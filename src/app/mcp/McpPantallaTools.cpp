@@ -233,11 +233,15 @@ void McpService::registerPantallaTools() {
             {"properties",
              {{"pantalla", {{"type", "string"}}},
               {"tipo",
-               {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa", "escena"}}}},
+               {{"type", "string"},
+                {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "escena", "tally",
+                          "votacion"}}}},
+              {"carrusel", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "su id, con tipo=carrusel")}}},
               {"texto", {{"type", "string"}}},
               {"pie", {{"type", "string"}}},
               {"url", {{"type", "string"}}},
               {"escena", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con tipo=escena: su nombre")}}},
+              {"fuente", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con tipo=tally: la camara o escena de esa pantalla")}}},
               {"quitar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "deja de tener algo fijo")}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
@@ -256,11 +260,19 @@ void McpService::registerPantallaTools() {
                 done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `tipo` (o `quitar`: true).")));
                 return;
             }
+            QString tipo = QString::fromStdString(a["tipo"].get<std::string>());
+            // Un carrusel fijo es «carrusel:<id>» (PantallasViewModel::fijar).
+            if (tipo == "carrusel") {
+                if (!a.contains("carrusel") || !a["carrusel"].is_string())
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "Con tipo=carrusel hace falta `carrusel` (su id). "
+                                                                            "carrusel_listar los da.")));
+                tipo += ":" + QString::fromStdString(a["carrusel"].get<std::string>());
+            }
             QVariantMap datos;
             for (const char* k : {"texto", "pie", "url", "fuente", "escena"})
                 if (a.contains(k) && a[k].is_string())
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
-            const QString err = p->fijar(id, QString::fromStdString(a["tipo"].get<std::string>()), datos);
+            const QString err = p->fijar(id, tipo, datos);
             done(err.isEmpty()
                      ? ToolResult::ok(ba::i18n::traducir("mcp", "Fijado, y mandado ahora. Va a volver solo cada vez que el aparato "
                                       "aparezca."))
@@ -364,12 +376,14 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "carrusel_armar";
+        t.destructivaSi = "borrar"; // borrar=true borra
         t.title = ba::i18n::traducir("mcp", "Armar o cambiar un carrusel");
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.description =
             QT_TRANSLATE_NOOP("mcp", "Crea un carrusel con sus pasos, o le cambia los pasos a uno que ya existe (`id`). Cada paso "
-            "es un `tipo` de contenido (los mismos de pantalla_mostrar) con sus datos y sus `segundos`. "
+            "es un `tipo` de contenido (los de pantalla_mostrar menos lo en vivo: programa y escena van directo a la "
+            "pantalla) con sus datos y sus `segundos`. "
             "Con `borrar: true` y un `id`, lo saca.");
         t.details = QT_TRANSLATE_NOOP("mcp", "Si la pantalla ya lo esta mostrando, NO hace falta volver a mandarselo: la lista vive "
                     "en el servidor y el televisor la toma sola en la proxima vuelta. Por eso cambiar un "
@@ -391,10 +405,12 @@ void McpService::registerPantallaTools() {
                   {"properties",
                    {{"tipo",
                      {{"type", "string"},
-                      {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa", "escena"}}}},
+                      // Lo en vivo (programa, escena) no entra en un carrusel (PantallasViewModel::pasoAgregar).
+                      {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "tally", "votacion"}}}},
                     {"texto", {{"type", "string"}}},
                     {"pie", {{"type", "string"}}},
                     {"url", {{"type", "string"}}},
+                    {"fuente", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con tipo=tally: la camara o escena")}}},
                     {"segundos",
                      {{"type", "integer"}, {"minimum", 3}, {"maximum", 3600}, {"default", 15}}}}}}}}}}}};
         t.examples = {
@@ -512,7 +528,7 @@ void McpService::registerPantallaTools() {
                     }
                     ss.push_back(o);
                 }
-                done(ToolResult::ok(json{{"superficies", ss}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+                done(ToolResult().data(json{{"superficies", ss}})); // el mismo texto, y además estructurado
             });
         };
         core_.addTool(std::move(t));

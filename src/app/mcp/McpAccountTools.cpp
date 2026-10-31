@@ -144,6 +144,7 @@ void McpService::registerAccountTools() {
     {
         Tool t;
         t.name = "account_open";
+        t.mediated = true; // lo decide una persona con un click
         t.title = ba::i18n::traducir("mcp", "Abrir la pagina de un paso");
         t.category = "cuentas";
         t.clase = Clase::Escritura;
@@ -177,6 +178,7 @@ void McpService::registerAccountTools() {
     {
         Tool t;
         t.name = "account_credentials_request";
+        t.mediated = true; // lo decide una persona con un click
         t.title = ba::i18n::traducir("mcp", "Pedir la credencial (formulario seguro)");
         t.category = "cuentas";
         t.clase = Clase::Escritura;

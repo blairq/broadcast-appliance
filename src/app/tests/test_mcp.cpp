@@ -459,6 +459,39 @@ int main(int argc, char** argv) {
         CHECK(r2["result"].value("isError", false) && runs == 4,
               "sin aprobador: bloqueado, nunca se ejecuta");
 
+        // Con gente en la sala (M-1): la herramienta lo DECLARA (untrustedConGente) y el
+        // núcleo lo decide con setHayGente, desde el hilo que sea; sin gente, no contamina.
+        {
+            Tool t;
+            t.name = "foto_con_gente";
+            t.readOnly = true;
+            t.untrustedConGente = true;
+            t.run = [](const json&, Done done) { done(ToolResult::ok("imagen")); };
+            sec.addTool(std::move(t));
+            std::atomic<bool> gente{false};
+            sec.setHayGente([&gente]() { return gente.load(); });
+            callT("foto_con_gente", json::object(), "G");
+            CHECK(!sec.tainted("G"), "untrustedConGente sin nadie en la sala: limpia");
+            gente = true;
+            callT("foto_con_gente", json::object(), "G");
+            CHECK(sec.tainted("G") && sec.taintInfo("G").value("source", "") == "foto_con_gente",
+                  "untrustedConGente con gente: contamina");
+        }
+        // Destructiva solo con su argumento (M-5): la anotación dice «puede borrar» y la
+        // llamada lo es solo con el booleano en true.
+        {
+            Tool t;
+            t.name = "video_editar";
+            t.destructivaSi = "delete";
+            t.run = [](const json&, Done done) { done(ToolResult::ok("ok")); };
+            sec.addTool(std::move(t));
+            const Tool* v = sec.findTool("video_editar");
+            CHECK(v != nullptr && v->destructive, "destructivaSi: la anotación dice que puede borrar");
+            CHECK(!McpCore::esDestructiva(*v, json{{"title", "x"}}) && McpCore::esDestructiva(*v, json{{"delete", true}}) &&
+                      !McpCore::esDestructiva(*v, json{{"delete", false}}),
+                  "esDestructiva: solo con delete=true");
+        }
+
         // --- Guardas de aire: con aire, una herramienta de aire pedida por algo
         // automático espera SIEMPRE a una persona (aunque la política sea "nunca").
         {

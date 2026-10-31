@@ -46,7 +46,6 @@ DEUDA = {
     "app/graficos/Catalogo.cpp": 1,
     "app/graficos/Medios.cpp": 1,
     "app/medios/Playlist.cpp": 1,
-    "app/mcp/McpTraduccionTools.cpp": 1,
     "app/mcp/McpTraza.cpp": 1,
     "app/net/Descargas.cpp": 1,
     "app/plugins/Plugins.cpp": 1,

@@ -272,6 +272,56 @@ class DibujoAire {
     std::thread hilo_;
 };
 
+/// LAS PRUEBAS, EN OTRO HILO Y CON OTRO RENDERIZADOR. Probar un gráfico (la tira de
+/// grafico_probar, el repertorio) espera a `ba-grafico` hasta su límite (20 s si el gráfico
+/// se cuelga): en la interfaz la trababa. Tampoco va al hilo del aire: un gráfico roto que
+/// se está escribiendo no puede demorar al que sale. Un hilo propio, con su renderizador,
+/// que se crea con la primera prueba; cada tarea recibe ese renderizador.
+class TallerPruebas {
+   public:
+    using Tarea = std::function<void(GraficoProceso&)>;
+    explicit TallerPruebas(QString binario) : binario_(std::move(binario)) {
+        hilo_ = std::thread([this]() { ba::platform::nombrarHilo("grafico-pruebas"); trabajar(); });
+    }
+    ~TallerPruebas() {
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            fin_ = true;
+        }
+        cv_.notify_all();
+        hilo_.join();
+    }
+    void encargar(Tarea t) {
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            cola_.push_back(std::move(t));
+        }
+        cv_.notify_all();
+    }
+
+   private:
+    void trabajar() {
+        GraficoProceso proc(binario_); // se usa solo desde este hilo
+        for (;;) {
+            Tarea t;
+            {
+                std::unique_lock<std::mutex> l(mu_);
+                cv_.wait(l, [this]() { return fin_ || !cola_.empty(); });
+                if (fin_) return;
+                t = std::move(cola_.front());
+                cola_.pop_front();
+            }
+            t(proc);
+        }
+    }
+    QString binario_;
+    std::mutex mu_;
+    std::condition_variable cv_;
+    std::deque<Tarea> cola_;
+    bool fin_ = false;
+    std::thread hilo_;
+};
+
 struct Emisor::Impl {
     explicit Impl(const std::filesystem::path& raizDatos) : catalogo(raizDatos), medios(catalogo) {}
     GraficoProceso proc;
@@ -283,6 +333,7 @@ struct Emisor::Impl {
     /// volver a armar todo en cada uno. Se borra cuando un plugin se redeclara.
     std::map<QString, QJsonObject> dePlugins;
     std::unique_ptr<DibujoAire> aire; ///< se crea con el primer gráfico al aire
+    std::unique_ptr<TallerPruebas> pruebas; ///< se crea con la primera prueba
     std::map<std::uint64_t, int> generacion; ///< por fuente: el último pedido
     /// Lo último que se disparó en cada fuente, para poder cambiarle un texto
     /// sin tener que volver a escribir todos los valores.
@@ -363,6 +414,32 @@ void Emisor::encargar(std::uint64_t fuente, int generacion, QJsonObject pedido, 
 }
 
 Emisor::~Emisor() = default;
+
+void Emisor::probar(QJsonObject pedido, QVector<int> momentos,
+                    std::function<void(QVector<Cuadro> cuadros, QString error)> listo) {
+    if (!d_->pruebas) d_->pruebas = std::make_unique<TallerPruebas>(d_->proc.binario());
+    QPointer<Emisor> yo(this);
+    d_->pruebas->encargar([yo, pedido = std::move(pedido), momentos = std::move(momentos),
+                           listo = std::move(listo)](GraficoProceso& proc) mutable {
+        QString err;
+        QVector<Cuadro> cuadros = proc.tira(pedido, momentos, &err);
+        QMetaObject::invokeMethod(
+            qApp, [yo, listo = std::move(listo), cuadros = std::move(cuadros), err]() { if (yo) listo(cuadros, err); },
+            Qt::QueuedConnection);
+    });
+}
+
+void Emisor::repertorio(std::function<void(QJsonObject repertorio, QString error)> listo) {
+    if (!d_->pruebas) d_->pruebas = std::make_unique<TallerPruebas>(d_->proc.binario());
+    QPointer<Emisor> yo(this);
+    d_->pruebas->encargar([yo, listo = std::move(listo)](GraficoProceso& proc) mutable {
+        QString err;
+        QJsonObject rep = proc.repertorio(&err);
+        QMetaObject::invokeMethod(
+            qApp, [yo, listo = std::move(listo), rep = std::move(rep), err]() { if (yo) listo(rep, err); },
+            Qt::QueuedConnection);
+    });
+}
 
 bool Emisor::disponible() const { return d_->proc.disponible(); }
 GraficoProceso& Emisor::proceso() { return d_->proc; }

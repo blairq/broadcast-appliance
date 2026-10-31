@@ -23,10 +23,32 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/InputsViewModel.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "video/Camaras.hpp"
 
 namespace ba::app::mcp {
+
+namespace {
+/// Espera a que la entrada `nombre` dé imagen (cada 250 ms, hasta `intentos`) y llama
+/// `listo(ancho, alto)` (0×0 si no llegó). EN EL DUEÑO DEL MOTOR (la herramienta corre con
+/// Hilo::Control): el reloj es de ese hilo y cada vuelta toma el turno sin esperar; si lo
+/// tiene la interfaz, esa vuelta se saltea (no cuenta como intento).
+void esperarImagen(AppRuntime& rt, const std::string& nombre, int intentos, std::function<void(int w, int h)> listo) {
+    auto* reloj = new QTimer(); // del hilo que llama (el control); se borra solo al terminar
+    auto vueltas = std::make_shared<int>(0);
+    QObject::connect(reloj, &QTimer::timeout, reloj, [&rt, reloj, vueltas, nombre, intentos, listo]() {
+        if (!rt.turno().tomarHasta(0)) return;
+        int w = 0, h = 0;
+        rt.engine().sourceSize(nombre, w, h);
+        rt.turno().soltar();
+        if (w == 0 && ++*vueltas < intentos) return;
+        reloj->deleteLater();
+        listo(w, h);
+    });
+    reloj->start(250);
+}
+} // namespace
 
 
 void McpService::registerInputTools() {
@@ -53,9 +75,9 @@ void McpService::registerInputTools() {
                         "la app, con su grafo de video. Para sacarla de una sola escena, source_remove.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", {{"type", "string"}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&vm](const json& a, Done done) {
             const std::string n = a.value("nombre", std::string());
-            if (rt.engine().sourceTypeId(n).empty())
+            if (!vm.ventanilla().foto().hayFuente(n)) // de la foto: la interfaz no entra al motor
                 return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una entrada «%1»"), {n})));
             auto* inp = static_cast<InputsViewModel*>(vm.inputs());
             if (inp == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "las entradas no están disponibles")));
@@ -104,7 +126,6 @@ void McpService::registerInputTools() {
             if (!layoutOf(a, spec, err)) return done(ToolResult::error(err));
             const std::string scene = a.value("scene", e.currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
             done(ToolResult::ok(ba::i18n::llenar(
                 ba::i18n::traducir("mcp", "Agregada '%1' a '%2'. Verifica con foto_fuente (la camara tarda un "
                                           "instante en abrir)."),
@@ -145,7 +166,10 @@ void McpService::registerInputTools() {
         t.examples = {
             R"({"url": "rtsp://admin:clave@192.168.1.50:554/stream1", "name": "Camara IP escenario", "layout": "pip-br"})",
             R"({"url": "srt://192.168.1.20:9000?mode=caller&latency=120000", "name": "Movil SRT"})"};
-        t.run = [&rt, &vm, layoutOf](const json& a, Done done) {
+        // Solo el motor y la configuración: en el control, su dueño (desde la interfaz eran
+        // entradas directas, y un reloj de la interfaz leía el motor cada 250 ms).
+        t.hilo = Hilo::Control;
+        t.run = [&rt, layoutOf](const json& a, Done done) {
             const std::string url = a["url"];
             if (inputs::networkScheme(url).empty())
                 return done(ToolResult::error(
@@ -161,16 +185,9 @@ void McpService::registerInputTools() {
             if (!layoutOf(a, spec, err)) return done(ToolResult::error(err));
             const std::string scene = a.value("scene", rt.engine().currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
-            // Esperar un poco a que llegue imagen para contestar algo util.
+            // Esperar un poco a que llegue imagen para contestar algo util (hasta ~6 s).
             const std::string name = spec.name;
-            auto* timer = new QTimer(&vm);
-            auto tries = std::make_shared<int>(0);
-            QObject::connect(timer, &QTimer::timeout, &vm, [&rt, timer, tries, name, scene, done]() {
-                int w = 0, h = 0;
-                rt.engine().sourceSize(name, w, h);
-                if (w == 0 && ++*tries < 24) return; // hasta ~6 s
-                timer->deleteLater();
+            esperarImagen(rt, name, 24, [name, scene, done](int w, int h) {
                 if (w > 0)
                     done(ToolResult::ok(ba::i18n::llenar(
                         ba::i18n::traducir("mcp", "Agregada '%1' a '%2': llega imagen de %3x%4. Verifica con "
@@ -183,7 +200,6 @@ void McpService::registerInputTools() {
                                                   "este en la red; input_status muestra el estado."),
                         {name, scene})));
             });
-            timer->start(250);
         };
         core_.addTool(std::move(t));
     }
@@ -202,6 +218,8 @@ void McpService::registerInputTools() {
             {"type", "object"},
             {"properties",
              {{"seconds", {{"type", "integer"}, {"minimum", 1}, {"maximum", 15}, {"default", 4}}}}}};
+        // Busca en la red 4 a 15 s, sin tocar nada de la app: en el pool (en la interfaz la trababa).
+        t.hilo = Hilo::Foto;
         t.run = [](const json& a, Done done) {
             json out = json::array();
             for (const auto& f : ndi::discover(a.value("seconds", 4) * 1000))
@@ -232,7 +250,9 @@ void McpService::registerInputTools() {
               {"name", {{"type", "string"}}},
               {"scene", {{"type", "string"}}},
               {"layout", {{"description", QT_TRANSLATE_NOOP("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}}}}};
-        t.run = [&rt, &vm, layoutOf](const json& a, Done done) {
+        // Como network_input_add: en el control, su dueño.
+        t.hilo = Hilo::Control;
+        t.run = [&rt, layoutOf](const json& a, Done done) {
             if (!a.contains("ndiName") && !a.contains("host"))
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `ndiName` (ndi_sources) o `host` + `port`.")));
             SourceSpec spec;
@@ -246,15 +266,9 @@ void McpService::registerInputTools() {
             if (!layoutOf(a, spec, err)) return done(ToolResult::error(err));
             const std::string scene = a.value("scene", rt.engine().currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
             const std::string name = spec.name;
-            auto* timer = new QTimer(&vm);
-            auto tries = std::make_shared<int>(0);
-            QObject::connect(timer, &QTimer::timeout, &vm, [&rt, timer, tries, name, scene, done]() {
-                int w = 0, h = 0;
-                rt.engine().sourceSize(name, w, h);
-                if (w == 0 && ++*tries < 32) return; // hasta ~8 s (incluye buscarla en la red)
-                timer->deleteLater();
+            // Hasta ~8 s (incluye buscarla en la red).
+            esperarImagen(rt, name, 32, [name, scene, done](int w, int h) {
                 std::string why;
                 for (const auto& s : ndi::statuses())
                     if (!s.error.empty()) why = s.error;
@@ -271,7 +285,6 @@ void McpService::registerInputTools() {
                                                          "(%3). Sigue reintentando."),
                                {name, scene, why})));
             });
-            timer->start(250);
         };
         core_.addTool(std::move(t));
     }

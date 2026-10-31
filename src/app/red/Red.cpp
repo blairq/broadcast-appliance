@@ -31,6 +31,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QTcpSocket>
+#include <QThreadPool>
 #include <QTimer>
 #include <QUrl>
 #include <QXmlStreamReader>
@@ -339,8 +340,19 @@ void Red::terminarBarrido() {
     esc_->cerrando = true;
     progreso_ = tr("Reconociendo equipos…");
     emit cambio();
+    // La tabla ARP espera al `arp` del sistema (hasta 3 s): en otro hilo, y se sigue acá.
+    QPointer<Red> yo(this);
+    QThreadPool::globalInstance()->start([yo]() {
+        auto arp = tablaArp();
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(), [yo, arp = std::move(arp)]() { if (yo) yo->reconocerEquipos(arp); },
+            Qt::QueuedConnection);
+    });
+}
+
+void Red::reconocerEquipos(const std::map<std::string, std::string>& arp) {
+    if (!esc_) return;
     // Los equipos: lo que tiene algún puerto de video abierto o contestó ONVIF.
-    const auto arp = tablaArp();
     std::map<std::string, json> onvif;
     for (const QVariant& v : esc_->onvif->encontradas()) {
         const QVariantMap m = v.toMap();

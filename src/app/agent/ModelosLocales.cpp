@@ -1148,16 +1148,16 @@ std::pair<QVariantList, QVariantMap> ModelosLocales::calcularDisco(const std::se
     return {lista, QVariantMap{{"cuantas", restos}, {"bytes", static_cast<double>(bytesRestos)}}};
 }
 
-bool ModelosLocales::borrarCarpeta(const QString& carpeta) {
+fs::path ModelosLocales::carpetaParaBorrar(const QString& carpeta) {
     const std::string n = carpeta.toStdString();
     const bool resto = n.rfind(".bajando-", 0) == 0;
     if (n.empty() || n.find('/') != std::string::npos || n.find('\\') != std::string::npos || n == "." ||
         n == ".." || (!resto && (n[0] == '.' || n.find("__") == std::string::npos)))
-        return false;
-    if (resto && descargando_) return false; // podría ser la que está bajando
+        return {};
+    if (resto && descargando_) return {}; // podría ser la que está bajando
     std::error_code ec;
     const fs::path dir = carpetaModelos() / n;
-    if (!fs::is_directory(dir, ec)) return false;
+    if (!fs::is_directory(dir, ec)) return {};
     // Si es el activo, primero se apaga (el motor tiene los archivos abiertos).
     for (const QVariant& v : instalados_) {
         const QVariantMap m = v.toMap();
@@ -1168,10 +1168,97 @@ bool ModelosLocales::borrarCarpeta(const QString& carpeta) {
             emit cambio();
         }
     }
+    return dir;
+}
+
+bool ModelosLocales::borrarCarpeta(const QString& carpeta) {
+    const fs::path dir = carpetaParaBorrar(carpeta);
+    if (dir.empty()) return false;
+    std::error_code ec;
     fs::remove_all(dir, ec);
     emit cambio();
     revisarDisco();
     return !ec;
+}
+
+void ModelosLocales::borrarAparte(std::vector<fs::path> dirs, bool soloRestos,
+                                  std::function<void(double bytes, int borradas)> listo) {
+    QPointer<ModelosLocales> yo(this);
+    const fs::path modelos = carpetaModelos();
+    std::thread([yo, dirs = std::move(dirs), soloRestos, modelos, listo = std::move(listo)]() mutable {
+        ba::platform::nombrarHilo("modelos-borrar");
+        double bytes = 0;
+        int borradas = 0;
+        std::error_code ec;
+        if (soloRestos)
+            for (const fs::directory_entry& d : fs::directory_iterator(modelos, ec))
+                if (d.is_directory(ec) && d.path().filename().string().rfind(".bajando-", 0) == 0) dirs.push_back(d.path());
+        for (const fs::path& d : dirs) {
+            const double b = static_cast<double>(bytesDe(d));
+            std::error_code e2;
+            fs::remove_all(d, e2);
+            if (e2) continue;
+            bytes += b;
+            ++borradas;
+        }
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, bytes, borradas, listo = std::move(listo)]() {
+                if (yo) {
+                    emit yo->cambio();
+                    yo->revisarDisco();
+                }
+                if (listo) listo(bytes, borradas);
+            },
+            Qt::QueuedConnection);
+    }).detach();
+}
+
+void ModelosLocales::borrar(const QString& repo, std::function<void()> listo) {
+    if (repo == activo_) {
+        apagar();
+        activo_.clear();
+        guardarAjustes();
+    }
+    borrarAparte({carpetaDe(repo)}, false, [listo = std::move(listo)](double, int) {
+        if (listo) listo();
+    });
+}
+
+void ModelosLocales::borrarCarpeta(const QString& carpeta, std::function<void(bool)> listo) {
+    const fs::path dir = carpetaParaBorrar(carpeta);
+    if (dir.empty()) {
+        if (listo) listo(false);
+        return;
+    }
+    borrarAparte({dir}, false, [listo = std::move(listo)](double, int n) {
+        if (listo) listo(n == 1);
+    });
+}
+
+void ModelosLocales::limpiar(const QString& que, std::function<void(QVariantMap)> listo) {
+    if (que == "restos") {
+        if (descargando_) { // podría ser la que está bajando
+            if (listo) listo({{"borrados", 0}, {"bytes", 0.0}});
+            return;
+        }
+        borrarAparte({}, true, [listo = std::move(listo)](double bytes, int n) {
+            if (listo) listo({{"borrados", n}, {"bytes", bytes}});
+        });
+        return;
+    }
+    // Los viejos, con lo de la última revisión (como limpiarViejos).
+    std::vector<fs::path> dirs;
+    QStringList repos;
+    for (const QVariant& v : instalados_) {
+        const QVariantMap m = v.toMap();
+        if (!m["viejo"].toBool() || m["activo"].toBool()) continue;
+        dirs.push_back(carpetaModelos() / m["carpeta"].toString().toStdString());
+        repos << m["repo"].toString();
+    }
+    borrarAparte(std::move(dirs), false, [listo = std::move(listo), repos](double bytes, int) {
+        if (listo) listo({{"borrados", repos}, {"bytes", bytes}});
+    });
 }
 
 QVariantMap ModelosLocales::limpiarViejos() {

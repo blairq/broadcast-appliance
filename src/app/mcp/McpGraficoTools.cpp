@@ -112,8 +112,9 @@ void McpService::registerGraficoTools() {
             {"required", {"nombre"}}};
         t.examples = {
             R"({"nombre": "zocalo", "parametros": {"nombre": "Jorge Ortega", "cargo": "Intendente"}, "momentos": [0, 150, 300, 450, 900]})"};
-        t.run = [em, proc](const json& a, Done done) {
+        t.run = [em, proc, &core = core_, raiz = rt_.dataRoot()](const json& a, Done done) {
             if (em == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay motor de gráficos.")));
+            const DestinoImagen destino = destinoImagen(core, raiz); // contesta después: se lee ya
             if (!proc->disponible())
                 return done(ToolResult::error(ba::i18n::llenar(
                     ba::i18n::traducir("mcp", "El renderizador de gráficos no está en este bundle (%1)."),
@@ -125,17 +126,22 @@ void McpService::registerGraficoTools() {
             if (momentos.isEmpty()) momentos = {0, 150, 300, 450, 900};
             // El mismo pedido que sale al aire (Emisor::resolver): lo que se prueba es lo que
             // se ve, también si lo dibuja un plugin (que contesta después).
+            // La tira la dibuja el Emisor en su hilo de pruebas (un gráfico colgado espera ahí
+            // su límite, no en la interfaz); las imágenes, a quien mira o a archivos (addImage).
             em->resolver(QString::fromStdString(a.value("nombre", std::string())), par, {},
-                         [proc, momentos, a, done](QJsonObject pedido, QString err) {
+                         [em, momentos, a, done, destino](QJsonObject pedido, QString err) {
                              if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-                             const auto cuadros = proc->tira(pedido, momentos, &err);
-                             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-                             ToolResult r;
-                             for (const auto& c : cuadros) {
-                                 r.text(std::to_string(c.ms) + " ms");
-                                 addImage(r, c.imagen, a, 1200);
-                             }
-                             done(r);
+                             em->probar(pedido, momentos, [a, done, destino](QVector<graficos::Cuadro> cuadros, QString e) {
+                                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                                 enPool(qApp, [cuadros, a, destino]() {
+                                     ToolResult r;
+                                     for (const auto& c : cuadros) {
+                                         r.text(std::to_string(c.ms) + " ms");
+                                         addImage(r, c.imagen, a, 1200, destino);
+                                     }
+                                     return r;
+                                 }, done);
+                             });
                          });
         };
         core_.addTool(std::move(t));
@@ -290,6 +296,7 @@ void McpService::registerGraficoTools() {
     {
         Tool t;
         t.name = "grafico_en_escena";
+        t.hilo = Hilo::Foto; // graficos::instancias lee bajo su candado
         t.title = ba::i18n::traducir("mcp", "Fuentes de gráfico que hay");
         t.category = "graficos";
         t.clase = Clase::Lectura;
@@ -574,14 +581,14 @@ void McpService::registerGraficoTools() {
                     "Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene hacer "
                     "siempre que alcance. Escribir QML a mano solo cuando el repertorio de verdad no dé, "
                     "porque ahí reaparecen las trampas (ver `help {\"topic\": \"graficos\"}`).");
-        t.run = [proc](const json&, Done done) {
-            if (!proc->disponible())
+        t.run = [em, proc](const json&, Done done) {
+            if (em == nullptr || !proc->disponible())
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "El renderizador de gráficos no está en este bundle.")));
-            QString err;
-            const QJsonObject rep = proc->repertorio(&err);
-            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-            done(ToolResult().data(
-                json::parse(QString(QJsonDocument(rep).toJson()).toStdString(), nullptr, false)));
+            // Lo pregunta el hilo de pruebas del Emisor (arrancar el renderizador no traba la interfaz).
+            em->repertorio([done](const QJsonObject& rep, const QString& err) {
+                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                done(ToolResult().data(toJson(rep)));
+            });
         };
         core_.addTool(std::move(t));
     }

@@ -89,6 +89,7 @@ void McpService::registerFacebookTools() {
     {
         Tool t;
         t.name = "facebook_setup";
+        t.destructivaSi = "clear"; // clear=true borra
         t.title = ba::i18n::traducir("mcp", "Configurar la app de Meta");
         t.category = "facebook";
         t.clase = Clase::Escritura;
@@ -310,6 +311,7 @@ void McpService::registerFacebookTools() {
     {
         Tool t;
         t.name = "facebook_video_update";
+        t.destructivaSi = "delete"; // delete=true borra (no se deshace)
         t.title = ba::i18n::traducir("mcp", "Editar o borrar un video");
         t.category = "facebook";
         t.clase = Clase::Escritura;
@@ -378,6 +380,7 @@ void McpService::registerFacebookTools() {
     {
         Tool t;
         t.name = "facebook_chat";
+        t.untrustedOutput = true; // trae el chat del público: texto de afuera, no instrucciones
         t.title = ba::i18n::traducir("mcp", "Comentarios del vivo");
         t.category = "facebook";
         t.clase = Clase::Escritura;
