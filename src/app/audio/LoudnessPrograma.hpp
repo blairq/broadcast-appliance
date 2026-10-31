@@ -50,7 +50,8 @@ class LoudnessPrograma {
     /// Cambia el objetivo (perfil de fábrica o custom con lufs/tp). "" o el error.
     std::string ponerObjetivo(const nlohmann::json& o);
     void ponerGr(double db) { gr_ = db; }
-    /// {m, s, i, tp, lra, segundos, gr_db, objetivo{perfil, lufs, tp}, fuera_de_objetivo}.
+    /// {m, s, i, tp, lra, segundos, gr_db, objetivo{perfil, lufs, tp}, estado_integrado,
+    /// estado_corto, estado_tp ("ok" | "aviso" | "excedido" | "" sin dato), fuera_de_objetivo}.
     nlohmann::json json() const;
 
    private:

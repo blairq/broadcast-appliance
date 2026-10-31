@@ -109,7 +109,7 @@ QtObject {
         case "arrancando": case "dependencias": case "reiniciando": case "detenida": case "ocupada":
         case "aviso": case "proximo":
             return amber
-        case "error": case "caido": case "bloqueado": case "critico": case "mostrando": case "alAire":
+        case "error": case "caido": case "bloqueado": case "critico": case "mostrando": case "alAire": case "excedido":
         case "en_curso":
             return live
         case "en_cola":

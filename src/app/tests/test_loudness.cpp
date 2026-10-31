@@ -57,6 +57,22 @@ int main() {
         CHECK(std::abs(f.i - (-23)) < 0.3, "seno 1 kHz a -23 dBFS mide -23 LUFS integrado");
         CHECK(std::abs(f.tp - (-23)) < 0.5, "true peak del seno a -23 dBFS");
         CHECK(f.lra < 1.0, "un seno parejo no tiene rango (LRA ~0)");
+        // El estado contra el objetivo (R128: -23 / -1): una sola regla para todas las vistas.
+        const auto j = l.json();
+        CHECK(j.value("estado_integrado", "") == "ok" && j.value("estado_tp", "") == "ok" &&
+                  j.value("estado_corto", "") == "ok" && !j.value("fuera_de_objetivo", true),
+              "en el objetivo: todo ok");
+        LoudnessPrograma fuerte(48000);
+        seno(fuerte, -14, 20);
+        const auto k = fuerte.json();
+        CHECK(k.value("estado_integrado", "") == "aviso" && k.value("estado_corto", "") == "aviso" &&
+                  k.value("fuera_de_objetivo", false),
+              "9 LU arriba: integrado y corto en aviso");
+    }
+    {
+        LoudnessPrograma l(48000);
+        const auto j = l.json();
+        CHECK(j.value("estado_integrado", "x").empty() && j.value("estado_tp", "x").empty(), "sin medir: sin estado");
     }
     {
         LoudnessPrograma l(48000);
