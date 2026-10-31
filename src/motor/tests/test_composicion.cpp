@@ -4,6 +4,7 @@
 // píxel por píxel (como lo leería un consumidor: intersrc video:programa):
 //   - una escena con dos capas en su lugar y con su tamaño; el resto, negro;
 //   - corte a otra escena: la nueva enseguida y la vieja se va;
+//   - corte a una escena vacía (y de vuelta): el programa sigue saliendo, sin ráfaga;
 //   - la misma escena con una capa movida: se mueve andando (sin rearmar);
 //   - mezcla de 1 s: a mitad de camino los colores se mezclan; al final, la nueva;
 //   - recorte y alfa de una capa;
@@ -21,6 +22,7 @@
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -442,6 +444,70 @@ int main() {
         esperar(es, pd, 900);
         CHECK(igual(vp.en(570, 50), 0, 255, 0), "sin DSK, la escena");
         CHECK(pd.estado()["dsk"].empty(), "y se soltó la capa");
+    }
+    // Corte a una escena VACÍA (y de vuelta): el mezclador se quedaba sin pads, el agregador
+    // se reiniciaba y volvía a sacar cuadros desde la hora en que arrancó (una ráfaga para
+    // ponerse al día) y el DSK de abajo no daba más nada: el programa, congelado.
+    {
+        Composicion::Opciones op;
+        op.dsk = true;
+        Composicion pv(reloj, lz, "pv", op);
+        Escena r1;
+        r1.nombre = "R";
+        r1.capas.push_back({"rojo", 0, 0, 0, 0});
+        pv.mostrar(r1);
+        esperar(es, pv, 2500); // que la hora de lo que sale se aleje del arranque
+        // Lo que sale del mezclador de la escena: su hora nunca vuelve atrás.
+        struct Horas {
+            std::atomic<std::int64_t> ultima{-1};
+            std::atomic<int> atras{0}, cuadros{0};
+        } horas;
+        GstElement* pipe = pv.pipelineRef();
+        GstElement* mx = pipe != nullptr ? gst_bin_get_by_name(GST_BIN(pipe), "mx") : nullptr;
+        GstPad* sale = mx != nullptr ? gst_element_get_static_pad(mx, "src") : nullptr;
+        if (sale != nullptr)
+            gst_pad_add_probe(
+                sale, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo* info, gpointer d) -> GstPadProbeReturn {
+                    auto* h = static_cast<Horas*>(d);
+                    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+                    if (b == nullptr || !GST_BUFFER_PTS_IS_VALID(b)) return GST_PAD_PROBE_OK;
+                    const auto pts = static_cast<std::int64_t>(GST_BUFFER_PTS(b));
+                    if (pts < h->ultima.load()) ++h->atras;
+                    h->ultima = pts;
+                    ++h->cuadros;
+                    return GST_PAD_PROBE_OK;
+                },
+                &horas, nullptr);
+        Visor vv(reloj, pv.productor(), pv.latenciaSalidaNs(), lz.ancho, lz.alto);
+        esperar(es, pv, 600);
+        CHECK(igual(vv.en(100, 100), 255, 0, 0), "vacía: antes, la escena con el rojo");
+        Escena vacia;
+        vacia.nombre = "Vacia";
+        pv.mostrar(vacia, "corte");
+        esperar(es, pv, 1500);
+        const int antes = horas.cuadros.load();
+        Rgb negro[3];
+        for (Rgb& n : negro) {
+            esperar(es, pv, 300);
+            n = vv.en(100, 100);
+        }
+        std::printf("corte a una vacía: %s %s %s; cuadros del mezclador en 0,9 s: %d; horas para atrás: %d\n",
+                    txt(negro[0]).c_str(), txt(negro[1]).c_str(), txt(negro[2]).c_str(), horas.cuadros.load() - antes,
+                    horas.atras.load());
+        CHECK(igual(negro[0], 0, 0, 0) && igual(negro[1], 0, 0, 0) && igual(negro[2], 0, 0, 0),
+              "vacía: el programa sigue saliendo (negro), no se congela");
+        CHECK(horas.atras.load() == 0, "vacía: la hora de lo que sale del mezclador no vuelve atrás (sin ráfaga)");
+        CHECK(horas.cuadros.load() - antes < 60, "vacía: el mezclador sigue a su ritmo (sin ráfaga para ponerse al día)");
+        pv.mostrar(r1, "corte");
+        esperar(es, pv, 900);
+        const Rgb vuelta = vv.en(100, 100);
+        std::printf("de la vacía al rojo: %s\n", txt(vuelta).c_str());
+        CHECK(igual(vuelta, 255, 0, 0), "vacía: de vuelta a una con capas, se ve");
+        CHECK(horas.atras.load() == 0, "vacía: tampoco al volver");
+        if (sale != nullptr) gst_object_unref(sale);
+        if (mx != nullptr) gst_object_unref(mx);
+        if (pipe != nullptr) gst_object_unref(pipe);
     }
     // LA MEZCLA DE GSTREAMER (otro mezclador): un compositor como un módulo cualquiera, con
     // las propiedades de cada pad tal cual (el de la CPU y el de la placa de este sistema:
