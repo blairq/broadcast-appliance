@@ -60,6 +60,10 @@ El plan del evento es su **línea de tiempo**; el guion de cues es una manera de
 - **En vivo**: `linea_go`, `linea_hold`, `linea_siguiente`/`linea_anterior` (mueven el próximo sin tocar el aire), `linea_saltar`, `linea_ir {paso}` (entra con el estado que corresponde: repone música y gráficos de vida larga), `linea_repetir`, `linea_insertar {item}` (un paso del estante), `linea_adlib {pieza}`. Las que cambian el aire las confirma la persona.
 - **Lo que pasó**: `linea_recorrido` (también en `Eventos/<evento>/recorrido.jsonl`).
 - **Cámaras**: `linea_camaras` dice, para cada cámara, si está al aire y qué planos vienen con ella y cuándo (de todas las salidas), y qué PTZ le toca.
+- **Lo que pasa afuera**: `linea_pulso {clave}` manda un pulso («tecla:F5», «botonera:<id>», «web:<botón>») para los disparadores y los pasos «cuando» que lo esperan (`linea_ver` trae `pulsos`; las teclas, la botonera y la web los mandan solas). Si alguien cambió la escena a mano (`aMano` en `linea_estado`), `linea_reenganchar` vuelve a la del paso. Una PTZ que espera porque su cámara está al aire (`ptzPendientes`) se decide con `linea_ptz {pieza, decision: mover|esperar|saltar}`.
+- **Disparadores**: se agregan con `linea_editar` (`disparador_agregar`); `activo` + `en` dicen cuándo valen (todo el evento; mientras un paso o un bloque está al aire; desde que entró). Las plantillas del evento, con `plantilla_agregar`.
+- **Escaletas de afuera**: `linea_exportar {formato: csv|mos}` y `linea_importar {texto|archivo}` (CSV de una planilla o de Rundown Studio, o MOS de un sistema de redacción): lo importado entra como bloques al final, siempre probando primero.
+- **Grabar los tiempos**: `linea_grabar {accion: grabar}` deja el próximo ensayo con todo a GO; al terminar, `linea_grabar {accion: ver}` dice cuánto duró cada paso y, si la persona confirma, `aplicar` lo deja como duración prevista.
 
 ## La línea en otros aparatos
 Además de la conducción en la app, la línea se maneja y se mira desde la red local (aparatos del control web: se emparejan con el QR de **Servicios → Control** y una persona les pone un perfil):
