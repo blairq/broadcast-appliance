@@ -142,7 +142,7 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.clase = Clase::Lectura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Estado del appliance: escena al aire, transmision y grabacion (con tiempos), fps, cuadros "
+            QT_TRANSLATE_NOOP("mcp", "Estado del appliance: escena al aire, transmision y grabacion (con tiempos), fps, cuadros "
             "perdidos, codificador, CPU, niveles del programa, gateway, conferencia y oradores al aire. "
             "`en_vivo`: si sale algo de verdad (transmisión o grabación): es LO que dice si estás en vivo; "
             "el guion del evento corriendo sin transmitir no lo es. `salidas`: cada salida del aparato con su escena, "
@@ -185,9 +185,7 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.category = "salidas";
         t.clase = Clase::Lectura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir(
-            "mcp",
-            "Las salidas (cada una un operador completo: su escena al aire y su armada, su mezcla, sus destinos, su "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las salidas (cada una un operador completo: su escena al aire y su armada, su mezcla, sus destinos, su "
             "grabación, su repetición, su negro y su placa), la por omisión primera, con lo que hace cada una ahora; y "
             "el `tope` de salidas. Las herramientas que tocan el programa aceptan `salida` (id o nombre); sin ella, la "
             "por omisión.");
@@ -211,7 +209,7 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.clase = Clase::Lectura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Las herramientas que cambian el aire (cortar, cambiar de escena, sacar a alguien, parar la "
+            QT_TRANSLATE_NOOP("mcp", "Las herramientas que cambian el aire (cortar, cambiar de escena, sacar a alguien, parar la "
             "transmisión…). Con la transmisión o la grabación andando, si las pide algo automático (asistente, "
             "plugin, receta, disparador, voz) esperan SIEMPRE que una persona confirme. `clase`: aire (siempre) "
             "o aire_si (según los argumentos: settings de gateway/video/encoder, mute del máster, sacar un "
@@ -234,9 +232,7 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.title = ba::i18n::traducir("mcp", "Cuánto se usa de la máquina (CPU, GPU, RAM, red)");
         t.category = "equipo";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir(
-            "mcp",
-            "Lo que se está usando AHORA de la máquina, medido cada segundo: CPU de toda la máquina y de nuestros "
+        t.description = std::string(QT_TRANSLATE_NOOP("mcp", "Lo que se está usando AHORA de la máquina, medido cada segundo: CPU de toda la máquina y de nuestros "
             "procesos (app, gateway, launcher: % y núcleos, memoria residente), RAM usada y total, GPU (% de uso) y "
             "memoria de video, red (Mbps que entran y salen por cada interfaz física; % del enlace si se sabe su "
             "velocidad), escritura de disco y el motor (cuadros por segundo, % de cuadros perdidos, kbps que salen). "
@@ -253,24 +249,20 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
             "audio y canal de video que lee el gateway de la app, en la última ventana de 10 s: `ocupacion_max` "
             "(bloques de 10 ms sin leer; lo normal es 1 a 3), `descartados` (lo que se perdió porque el gateway no "
             "llegaba; en video, cuadros salteados), `faltantes` (bloques de audio que no llegaron), `edad_p50_ms` y "
-            "`edad_p99_ms` (cuánto hace que se selló lo leído), los totales y `anomalia`.") +
+            "`edad_p99_ms` (cuánto hace que se selló lo leído), los totales y `anomalia`.")) +
             " " +
-            ba::i18n::traducir(
-                "mcp",
-                "`deriva_placas`: cada placa de audio abierta (micrófonos, interfaces) contra el reloj del estudio: `ppm` "
+            std::string(QT_TRANSLATE_NOOP("mcp", "`deriva_placas`: cada placa de audio abierta (micrófonos, interfaces) contra el reloj del estudio: `ppm` "
                 "(cuánto se aparta: positivo, va rápida; una placa sana, menos de 100), `reanclajes_sin_corregir` (los "
                 "saltos de 50 ms que habría sin corrección), `corregida` (la sigue un remuestreador variable), "
                 "`enganchada`, `desfase_ms` y `reanclajes` (los cortes que llegaron al programa: tiene que ser 0). Dos "
-                "placas con word clock o PTP del mismo dominio tienen que dar la misma ppm.") +
+                "placas con word clock o PTP del mismo dominio tienen que dar la misma ppm.")) +
             " " +
-            ba::i18n::traducir(
-                "mcp",
-                "`termica`: el nivel térmico (normal, templado, serio, critico; desconocido si el sistema no lo dice), la "
+            std::string(QT_TRANSLATE_NOOP("mcp", "`termica`: el nivel térmico (normal, templado, serio, critico; desconocido si el sistema no lo dice), la "
                 "temperatura o el tope de frecuencia según el sistema, y `priorizar_programa`: los pasos que se apagaron "
                 "por calor, en orden (superres, modelos, vistas, invitados; nunca el programa ni la grabación) y los que "
                 "no tienen quien los atienda (`sin_gancho`). `metricas`: las métricas con nombre y tipo de la app "
                 "(contadores, medidores y histogramas con p50/p90/p99: latencia por herramienta MCP, espera del candado "
-                "del motor, bucle de la interfaz, colchón de grabación, reconexiones); las mismas que da GET /metrics.");
+                "del motor, bucle de la interfaz, colchón de grabación, reconexiones); las mismas que da GET /metrics."));
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -278,12 +270,12 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
                {{"type", "integer"},
                 {"minimum", 0},
                 {"maximum", 600},
-                {"description", ba::i18n::traducir("mcp", "segundos de historia a devolver (0 = sin historia; hasta 600)")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "segundos de historia a devolver (0 = sin historia; hasta 600)")}}},
               {"paso_s",
                {{"type", "integer"},
                 {"minimum", 1},
                 {"maximum", 60},
-                {"description", ba::i18n::traducir("mcp", "agrupar la historia de a N segundos (el máximo de cada grupo; por "
+                {"description", QT_TRANSLATE_NOOP("mcp", "agrupar la historia de a N segundos (el máximo de cada grupo; por "
                                                           "defecto 1, o 10 si se piden más de 120 s)")}}}}}};
         t.hilo = Hilo::Foto;
         t.run = [f](const json& a, Done done) {
@@ -314,7 +306,7 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.category = "equipo";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Si están los elementos de GStreamer que usa el aparato: los imprescindibles (sin ellos algo de hoy no anda: "
+            QT_TRANSLATE_NOOP("mcp", "Si están los elementos de GStreamer que usa el aparato: los imprescindibles (sin ellos algo de hoy no anda: "
             "invitados, racks, voces, NDI…) y los del motor que viene (mezcla, composición, robustez, subtítulos). "
             "Para diagnosticar silencio o negro en una plataforma: un plugin que falta aparece acá.");
         t.hilo = Hilo::Foto;
@@ -336,8 +328,8 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.title = ba::i18n::traducir("mcp", "Leer el registro");
         t.category = "registro";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las últimas líneas del registro, de los tres procesos, con filtros.");
-        t.details = ba::i18n::traducir("mcp", "Cada línea trae hora (UTC, en milisegundos desde la época), nivel, módulo, código y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las últimas líneas del registro, de los tres procesos, con filtros.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Cada línea trae hora (UTC, en milisegundos desde la época), nivel, módulo, código y "
                     "descripción.\n\n"
                     "Los NIVELES, de menos a más grave: traza, depuracion, info, aviso, error, fatal. "
                     "`minimo` filtra de ese para arriba; el que trae por defecto es `aviso`, que es lo que "
@@ -359,11 +351,11 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
              {{"minimo",
                {{"type", "string"},
                 {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
-                {"description", ba::i18n::traducir("mcp", "Desde qué nivel. Por defecto, aviso.")}}},
-              {"modulo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Uno solo. Vacío = todos.")}}},
-              {"busca", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Texto a buscar (sin distinguir mayúsculas).")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Desde qué nivel. Por defecto, aviso.")}}},
+              {"modulo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Uno solo. Vacío = todos.")}}},
+              {"busca", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Texto a buscar (sin distinguir mayúsculas).")}}},
               {"ultimosMin",
-               {{"type", "integer"}, {"minimum", 1}, {"description", ba::i18n::traducir("mcp", "Solo lo de los últimos N minutos.")}}},
+               {{"type", "integer"}, {"minimum", 1}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo lo de los últimos N minutos.")}}},
               {"cuantas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 500}}}}}};
         t.hilo = Hilo::Foto;
         t.run = [f](const json& a, Done done) {
@@ -412,8 +404,8 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.title = ba::i18n::traducir("mcp", "Registros");
         t.category = "sistema";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.");
-        t.details = ba::i18n::traducir("mcp", "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Ultimas lineas CRUDAS de un archivo de Logs/, tal como esta escrito.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Para diagnosticar, usa `log_leer`: lee los mismos archivos pero ya partidos en hora, "
                     "nivel, modulo y descripcion, entrelazando los tres procesos y con filtros. Esto sirve "
                     "cuando hace falta ver el archivo TAL CUAL, sin interpretar: por ejemplo "
                     "cloudflared.log, que lo escribe un programa de terceros con su propio formato.\n\n"
@@ -465,7 +457,7 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.title = ba::i18n::traducir("mcp", "Temas del bus de eventos");
         t.category = "botonera";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los temas que publica la app con su ultimo valor: aire/escena, aire/armada, aire/tally "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los temas que publica la app con su ultimo valor: aire/escena, aire/armada, aire/tally "
                         "{programa, preview, fuentes_programa, fuentes_preview, transmitiendo, grabando}, salida/stream, "
                         "salida/grabacion, audio/nivel/<fuente> {pico_db, volumen_db, mudo}, audio/loudness {m, s, i, "
                         "tp, lra, fuera_de_objetivo}, alarma/<regla>, entrada/senal, oradores/al_aire, "
@@ -488,7 +480,7 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.title = ba::i18n::traducir("mcp", "Ultimo valor de un tema");
         t.category = "botonera";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El ultimo valor publicado en `tema` (eventos_temas), con la hora.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "El ultimo valor publicado en `tema` (eventos_temas), con la hora.");
         t.inputSchema = {{"type", "object"}, {"required", {"tema"}}, {"properties", {{"tema", {{"type", "string"}}}}}};
         t.hilo = Hilo::Foto;
         t.run = [f](const json& a, Done done) {

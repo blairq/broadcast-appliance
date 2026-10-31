@@ -60,7 +60,7 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Notificadores");
         t.category = "alertas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los avisos fuera del programa (webhook, Telegram, mail SMTP) que puede usar un disparador "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los avisos fuera del programa (webhook, Telegram, mail SMTP) que puede usar un disparador "
                         "(`notificar` en alert_create): id, tipo, nombre y si ya tiene cargado su secreto.");
         t.run = [this](const json&, Done done) { done(ToolResult().data({{"notificadores", vm_.notificador().lista()}})); };
         core_.addTool(std::move(t));
@@ -71,7 +71,7 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar un notificador");
         t.category = "alertas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Crea (o cambia, con `id`) un notificador: `tipo` webhook, telegram (`chat_id`) o smtp "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea (o cambia, con `id`) un notificador: `tipo` webhook, telegram (`chat_id`) o smtp "
                         "(`servidor`, `puerto` 465 o 587, `usuario`, `de`, `para`). El SECRETO (URL del webhook, token del "
                         "bot, contraseña del mail) NO va por aca: lo carga una persona en la pagina Asistente, seccion "
                         "Notificaciones. No se lo pidas al operador por el chat.");
@@ -100,7 +100,7 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Probar un notificador");
         t.category = "alertas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Manda un aviso de prueba por el notificador `id` y dice si llego.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Manda un aviso de prueba por el notificador `id` y dice si llego.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [this](const json& a, Done done) {
             vm_.notificador().enviar(a.value("id", std::string()), ba::i18n::traducir("mcp", "Prueba de Broadcast Appliance"),
@@ -118,7 +118,7 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Borrar un notificador");
         t.category = "alertas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Borra el notificador `id` (y su secreto guardado).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra el notificador `id` (y su secreto guardado).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [this](const json& a, Done done) {
             if (!vm_.notificador().borrar(a.value("id", std::string()))) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese notificador")));
@@ -134,9 +134,9 @@ void McpService::registerAlertTools() {
         t.clase = Clase::Lectura;
         // Documentación fija: en el pool (F3-03), aunque la interfaz no ande.
         t.hilo = Hilo::Foto;
-        t.description = ba::i18n::traducir("mcp", "Referencia tecnica: que parametros admite cada tipo y con que valores vienen. "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Referencia tecnica: que parametros admite cada tipo y con que valores vienen. "
                         "Es documentacion, no hace nada.");
-        t.details = ba::i18n::traducir("mcp", "No crea ningun disparador: para eso es `alert_create`.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "No crea ningun disparador: para eso es `alert_create`.");
         t.run = [](const json&, Done done) { done(ToolResult().data(agent::AlertEngine::types())); };
         core_.addTool(std::move(t));
     }
@@ -147,7 +147,7 @@ void McpService::registerAlertTools() {
         t.category = "alertas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "AVISAME CUANDO: crea un disparador que avisa solo al pasar algo (entra alguien, hay silencio "
+            QT_TRANSLATE_NOOP("mcp", "AVISAME CUANDO: crea un disparador que avisa solo al pasar algo (entra alguien, hay silencio "
             "al aire, satura el audio, se cae un invitado). Crea un disparador que el servidor evalua solo "
             "(cada 250 ms) y dispara un aviso cuando pasa. "
             "`notify`: [\"llm\"] = te lo escribe en el chat (despierta al asistente), [\"ui\"] = aviso en "
@@ -169,7 +169,7 @@ void McpService::registerAlertTools() {
                  }()}}},
               {"name", {{"type", "string"}}},
               {"params", {{"type", "object"}}},
-              {"message", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Texto propio que acompaña al aviso.")}}},
+              {"message", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Texto propio que acompaña al aviso.")}}},
               {"notify", {{"type", "array"}, {"items", {{"type", "string"}, {"enum", {"llm", "ui"}}}}}},
               {"actions",
                {{"type", "array"},
@@ -179,16 +179,16 @@ void McpService::registerAlertTools() {
                   {"required", {"tool"}}}}}},
               {"once", {{"type", "boolean"}}},
               {"sonido", {{"type", "string"}, {"enum", {"ninguno", "aviso", "critico"}},
-                          {"description", ba::i18n::traducir("mcp", "suena para el operador (crítico: hasta que se reconoce)")}}},
-              {"reconocer", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "queda como alarma hasta que alguien la reconoce")}}},
+                          {"description", QT_TRANSLATE_NOOP("mcp", "suena para el operador (crítico: hasta que se reconoce)")}}},
+              {"reconocer", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "queda como alarma hasta que alguien la reconoce")}}},
               {"permitir_aire",
                {{"type", "array"}, {"items", {{"type", "string"}}},
-                {"description", ba::i18n::traducir("mcp", "herramientas que el disparador puede usar aunque el rol `disparador` no las tenga "
+                {"description", QT_TRANSLATE_NOOP("mcp", "herramientas que el disparador puede usar aunque el rol `disparador` no las tenga "
                                 "(stream_stop, record_stop, settings_set…); solo fuera del aire, y en vivo igual "
                                 "piden confirmación")}}},
               {"notificar",
                {{"type", "array"}, {"items", {{"type", "string"}}},
-                {"description", ba::i18n::traducir("mcp", "ids de notificadores (notificador_listar): aviso por Telegram, mail o webhook")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "ids de notificadores (notificador_listar): aviso por Telegram, mail o webhook")}}},
               {"cooldownSec", {{"type", "number"}, {"minimum", 0}}}}},
             {"required", {"type"}}};
         t.examples = {
@@ -211,7 +211,7 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Reconocer alarmas");
         t.category = "alertas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Reconoce una alarma (`id` del evento, de alert_events o alert_list) o todas (`todas`: true): "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Reconoce una alarma (`id` del evento, de alert_events o alert_list) o todas (`todas`: true): "
                         "deja de sonar la crítica y sale de la lista de la tarjeta Sistema. Sin argumentos, lista "
                         "las que esperan.");
         t.inputSchema = {{"type", "object"},
@@ -232,7 +232,7 @@ void McpService::registerAlertTools() {
         t.category = "alertas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Los disparadores que vienen prendidos: silencio al aire del programa (crítico), saturación del "
+            QT_TRANSLATE_NOOP("mcp", "Los disparadores que vienen prendidos: silencio al aire del programa (crítico), saturación del "
             "programa, la transmisión pierde cuadros o se cae (crítico), poco disco (menos de 30 min, también sin "
             "grabar), entrada sin señal (crítico) e invitado caído. `restablecer`: true los vuelve a poner como "
             "vinieron (los propios no se tocan).");
@@ -249,7 +249,7 @@ void McpService::registerAlertTools() {
         t.title = ba::i18n::traducir("mcp", "Disparadores activos");
         t.category = "alertas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los disparadores con su estado (activo, cuantas veces se disparo, la ultima vez) y "
                         "los plugins que "
                         "se declaran disparadores (`plugins`: se prenden y apagan con plugin_activar).");
         auto* pl = vm_.plugins();
@@ -273,7 +273,7 @@ void McpService::registerAlertTools() {
         t.category = "alertas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador. "
+            QT_TRANSLATE_NOOP("mcp", "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador. "
             "`silenciada`: true le saca el sonido (sus alarmas siguen apareciendo en la tarjeta Sistema).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -286,7 +286,7 @@ void McpService::registerAlertTools() {
                            {"once", {{"type", "boolean"}}},
                            {"sonido", {{"type", "string"}, {"enum", {"ninguno", "aviso", "critico"}}}},
                            {"silenciada", {{"type", "boolean"},
-                                           {"description", ba::i18n::traducir("mcp", "true: no suena (sus alarmas siguen apareciendo, con su color)")}}},
+                                           {"description", QT_TRANSLATE_NOOP("mcp", "true: no suena (sus alarmas siguen apareciendo, con su color)")}}},
                            {"reconocer", {{"type", "boolean"}}},
                            {"permitir_aire", {{"type", "array"}, {"items", {{"type", "string"}}}}},
                            {"notificar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
@@ -308,7 +308,7 @@ void McpService::registerAlertTools() {
         t.category = "alertas";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra un disparador (`id`) o todos (`all`: true).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un disparador (`id`) o todos (`all`: true).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"id", {{"type", "string"}}}, {"all", {{"type", "boolean"}}}}}};
         t.run = [&eng](const json& a, Done done) {
@@ -330,7 +330,7 @@ void McpService::registerAlertTools() {
         // El vigía es seguro entre hilos y corre en el plano de control: en el pool (F3-03).
         t.hilo = Hilo::Foto;
         t.description =
-            ba::i18n::traducir("mcp", "Los avisos disparados (los mas nuevos al final). `sinceId` para leer solo los nuevos.");
+            QT_TRANSLATE_NOOP("mcp", "Los avisos disparados (los mas nuevos al final). `sinceId` para leer solo los nuevos.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -355,7 +355,7 @@ void McpService::registerAlertTools() {
         // Espera en el vigía (plano de control), no en la interfaz: en el pool (F3-03).
         t.hilo = Hilo::Foto;
         t.description =
-            ba::i18n::traducir("mcp", "Vuelve apenas salta un disparador (o al vencer `timeoutSec`, max. 300) con los avisos "
+            QT_TRANSLATE_NOOP("mcp", "Vuelve apenas salta un disparador (o al vencer `timeoutSec`, max. 300) con los avisos "
             "nuevos "
             "desde `sinceId`. Para clientes que no reciben los avisos en su chat: una sola llamada en vez de "
             "consultar cada tanto.");

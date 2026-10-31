@@ -30,7 +30,7 @@ void McpService::registerSesionTools() {
                       ba::i18n::traducir("mcp", "Integrantes que sesionan desde el navegador (en la sala o afuera): link personal y PIN, "
                       "habilitarlos viéndolos por la cámara, presentes por la banca virtual, registro para el acta."));
 
-    const json quien = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La banca, el id o el nombre del integrante (como en el Cuerpo).")}};
+    const json quien = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La banca, el id o el nombre del integrante (como en el Cuerpo).")}};
     // El id del integrante a partir de banca, id o nombre.
     const auto idDe = [&cuerpo](const json& a, std::string& error) -> std::string {
         const std::string q = a.value("integrante", a.value("banca", std::string()));
@@ -53,7 +53,7 @@ void McpService::registerSesionTools() {
         t.title = ba::i18n::traducir("mcp", "Quién está en la banca virtual");
         t.category = "sesion";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los integrantes con link de la banca virtual: si están conectados, si esperan que los "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los integrantes con link de la banca virtual: si están conectados, si esperan que los "
                         "habiliten o ya están habilitados (cuentan como presentes), desde dónde (sala o afuera) y "
                         "quién los habilitó. `presentes` es cuántos cuentan para el quórum por acá.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
@@ -74,7 +74,7 @@ void McpService::registerSesionTools() {
         t.category = "sesion";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "El link personal y el PIN de la banca virtual de un integrante. Sin acceso fijo, genera "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El link personal y el PIN de la banca virtual de un integrante. Sin acceso fijo, genera "
                         "uno nuevo (el anterior deja de andar) y se muestra UNA sola vez. Con acceso fijo "
                         "(sesion_acceso_opciones), si ya tenía devuelve EL MISMO (`repetido`: true) y solo cambia con "
                         "`renovar`: true. Con el PIN en el QR viene también `link_con_pin` (entra sin tipear). Se le "
@@ -82,7 +82,7 @@ void McpService::registerSesionTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"banca", quien},
                                          {"renovar", {{"type", "boolean"},
-                                                      {"description", ba::i18n::traducir("mcp", "Link y PIN nuevos aunque el acceso sea fijo (el anterior deja de andar)")}}}}},
+                                                      {"description", QT_TRANSLATE_NOOP("mcp", "Link y PIN nuevos aunque el acceso sea fijo (el anterior deja de andar)")}}}}},
                          {"required", {"banca"}}};
         t.run = [s, idDe](const json& a, Done done) {
             std::string e;
@@ -100,7 +100,7 @@ void McpService::registerSesionTools() {
         t.title = ba::i18n::traducir("mcp", "Opciones del acceso de los integrantes");
         t.category = "sesion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cómo es el acceso de los integrantes de la asamblea por el navegador. `pin_en_qr`: el PIN va "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cómo es el acceso de los integrantes de la asamblea por el navegador. `pin_en_qr`: el PIN va "
                         "adentro del QR (escanea y entra sin tipear; el QR solo ya es la credencial entera). "
                         "`acceso_fijo`: el link y el PIN de cada uno quedan guardados (cifrados) y no cambian salvo que "
                         "se renueve (sesion_credencial con renovar); apagarlo borra los guardados (los links siguen "
@@ -123,7 +123,7 @@ void McpService::registerSesionTools() {
         t.category = "sesion";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Le da usuario y contraseña para entrar tipeando en …/sesion/ (sin el link). La contraseña "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Le da usuario y contraseña para entrar tipeando en …/sesion/ (sin el link). La contraseña "
                         "(12 caracteres fáciles de dictar) reemplaza a la anterior y se muestra UNA sola vez. Necesita "
                         "que ya tenga link (sesion_credencial). `usuario` opcional (de fábrica, banca<número>).");
         t.inputSchema = {{"type", "object"},
@@ -145,7 +145,7 @@ void McpService::registerSesionTools() {
         t.title = ba::i18n::traducir("mcp", "Datos de contacto de un conferencista");
         t.category = "sesion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Guarda su `email`, `telefono` y una `nota` (para la secretaría; no se publican).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Guarda su `email`, `telefono` y una `nota` (para la secretaría; no se publican).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"banca", quien}, {"email", {{"type", "string"}}}, {"telefono", {{"type", "string"}}},
@@ -168,7 +168,7 @@ void McpService::registerSesionTools() {
         t.category = "sesion";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Su link deja de andar (y si está conectado, se lo corta). Para volver a entrar necesita uno nuevo.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Su link deja de andar (y si está conectado, se lo corta). Para volver a entrar necesita uno nuevo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"banca", quien}}}, {"required", {"banca"}}};
         t.run = [s, idDe](const json& a, Done done) {
             std::string e;
@@ -185,7 +185,7 @@ void McpService::registerSesionTools() {
         t.title = ba::i18n::traducir("mcp", "Habilitar a un integrante de la banca virtual");
         t.category = "sesion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Con `habilitado: true` (de fábrica) cuenta como presente y, en las fases siguientes, puede "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Con `habilitado: true` (de fábrica) cuenta como presente y, en las fases siguientes, puede "
                         "pedir la palabra y votar; con false vuelve a esperar. Solo después de VERLO por la cámara "
                         "(la interfaz muestra su foto): nunca habilites a alguien sin que una persona lo haya visto.");
         t.inputSchema = {{"type", "object"},
@@ -208,7 +208,7 @@ void McpService::registerSesionTools() {
         t.category = "sesion";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Corta su conexión (su link sigue andando: si vuelve a entrar, hay que habilitarlo de nuevo). "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Corta su conexión (su link sigue andando: si vuelve a entrar, hay que habilitarlo de nuevo). "
                         "`motivo` es lo que ve en su pantalla.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"banca", quien}, {"motivo", {{"type", "string"}}}}},
@@ -229,7 +229,7 @@ void McpService::registerSesionTools() {
         t.title = ba::i18n::traducir("mcp", "Votación en los celulares");
         t.category = "sesion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Los integrantes habilitados votan desde el celular (cartel rojo con el tema, las opciones y la "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los integrantes habilitados votan desde el celular (cartel rojo con el tema, las opciones y la "
                         "cuenta regresiva). Si la central abre una votación, los celulares la siguen solos; esto es para "
                         "votar SIN la central (o ver cómo va): `accion` abrir {tema, menu: si_no | si_no_abstencion | "
                         "si_no_abstencion_nppv, segundos} | pausar | reanudar | cerrar | estado | a_quorum (carga el "
@@ -274,7 +274,7 @@ void McpService::registerSesionTools() {
         t.category = "sesion";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "La consola web de la presidencia (…/presidencia/): el recinto con las caras, habilitar, la fila de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "La consola web de la presidencia (…/presidencia/): el recinto con las caras, habilitar, la fila de "
                         "oradores y su tiempo, la votación, el programa en vivo y el integrante que habla, y «apretar para "
                         "hablar» con los que pidieron la palabra. `accion` crear {nombre} (devuelve link y PIN UNA vez) | "
                         "revocar {id} | listar.");
@@ -298,7 +298,7 @@ void McpService::registerSesionTools() {
         t.title = ba::i18n::traducir("mcp", "Lo que ven los remotos en su celular");
         t.category = "sesion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Además de su propia cámara (siempre, en un recuadro), el integrante remoto puede mirar en "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Además de su propia cámara (siempre, en un recuadro), el integrante remoto puede mirar en "
                         "su celular hasta dos canales por WebRTC y cambiar entre ellos: `canales` = [{nombre, fuente}] "
                         "con fuente «programa» (la salida principal) o el nombre de una escena. Sin argumentos dice "
                         "cuáles hay. Las escenas usan los canales de las pantallas de la sala (4 entre todos) y se "
@@ -337,7 +337,7 @@ void McpService::registerSesionTools() {
         t.title = ba::i18n::traducir("mcp", "Hablarle a un remoto (apretar para hablar)");
         t.category = "sesion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Con `activo: true` el integrante remoto (`banca`) oye tu voz (tu micrófono de la sala, el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Con `activo: true` el integrante remoto (`banca`) oye tu voz (tu micrófono de la sala, el "
                         "mismo con el que le hablás a los invitados) mezclada en el sonido de su celular y ve «Te están "
                         "hablando»; con false se corta. Es para hablarle un momento: no lo dejes prendido.");
         t.inputSchema = {{"type", "object"},
@@ -361,7 +361,7 @@ void McpService::registerSesionTools() {
         t.title = ba::i18n::traducir("mcp", "Registro de la banca virtual");
         t.category = "sesion";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Quién entró, desde dónde, quién lo habilitó, intentos fallidos y bloqueos: lo que va "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Quién entró, desde dónde, quién lo habilitó, intentos fallidos y bloqueos: lo que va "
                         "anexado al acta. `texto: true` lo da como en el acta.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"texto", {{"type", "boolean"}}}}}};
         t.run = [s](const json& a, Done done) {

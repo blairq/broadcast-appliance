@@ -38,7 +38,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "manda la salida a negro");
         t.aireSi = AireSi::AlActivar;
-        t.description = ba::i18n::traducir("mcp", "Fundido a negro de TODO lo que sale (encima del programa, sin tocar las escenas). `activar` "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Fundido a negro de TODO lo que sale (encima del programa, sin tocar las escenas). `activar` "
                         "true/false, `ms` de fundido (de fábrica 800), `audio`: bajar (de fábrica: el audio baja con "
                         "el negro) o mantener. Activarlo al aire es una acción de aire (pide confirmación si lo pide "
                         "algo automático); sacarlo, no. Cada salida tiene su negro (`salida`).");
@@ -68,7 +68,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "tapa la salida con una placa");
         t.aireSi = AireSi::AlActivar;
-        t.description = ba::i18n::traducir("mcp", "Una placa encima de todo lo que sale (\"Cuarto intermedio\", \"Volvemos enseguida\", \"Minuto "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Una placa encima de todo lo que sale (\"Cuarto intermedio\", \"Volvemos enseguida\", \"Minuto "
                         "de silencio\"…), con `texto`, una `imagen` opcional (ruta) y `ms` de fundido (600). No depende "
                         "de las escenas. Activarla al aire pide confirmación si la pide algo automático; sacarla, no. "
                         "Sobrevive a una caída de la app. Cada salida tiene su placa (`salida`).");
@@ -100,18 +100,18 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia la escena al aire");
-        t.description = ba::i18n::traducir("mcp", "Pone una escena al aire YA, sin pasar por el preview: es «corta a la camara 2», "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pone una escena al aire YA, sin pasar por el preview: es «corta a la camara 2», "
                         "«pone la apertura». Cambia la escena del programa (con la transicion configurada). "
                         "Lo que se ve y oye en la "
                         "transmision cambia EN EL ACTO, sin pasar por el bus de preview.");
         t.details =
-            ba::i18n::traducir("mcp", "Es el corte de urgencia: sale ya. Para lo demas, la forma de trabajar de una mesa es "
+            QT_TRANSLATE_NOOP("mcp", "Es el corte de urgencia: sale ya. Para lo demas, la forma de trabajar de una mesa es "
             "`scene_preview` (armar el proximo plano) -> mirarlo con `foto_fuente` -> `preview_al_aire`. "
             "Dos pasos parece mas lento y es al reves: lo que esta roto se ve ANTES de salir al aire, "
             "no despues.");
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de la escena.")}}}}},
+            {"properties", {{"name", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre de la escena.")}}}}},
             {"required", {"name"}}};
         t.examples = {R"({"name": "Entrevista"})"};
         t.run = [&core, m, existe, noExiste](const json& a, Done done) {
@@ -132,10 +132,10 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.category = "escenas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Pone una escena en el bus de PREVIEW: queda armada para el proximo `preview_al_aire`. NO cambia "
+            QT_TRANSLATE_NOOP("mcp", "Pone una escena en el bus de PREVIEW: queda armada para el proximo `preview_al_aire`. NO cambia "
             "lo que se ve en la transmision.");
         t.details =
-            ba::i18n::traducir("mcp", "Asi se opera una mesa de switcher: se arma el proximo plano, se MIRA (`foto_fuente` con "
+            QT_TRANSLATE_NOOP("mcp", "Asi se opera una mesa de switcher: se arma el proximo plano, se MIRA (`foto_fuente` con "
             "el mismo nombre da la foto de como va a salir), y recien ahi `preview_al_aire`.\n\n"
             "Armar la escena que YA esta al aire no tiene sentido (el take cortaria a lo mismo) y se "
             "rechaza.\n\n"
@@ -161,7 +161,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la armada al aire");
-        t.description = ba::i18n::traducir("mcp", "Pone al aire la escena armada con un CORTE (sin transicion), aunque la global sea un fundido. "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pone al aire la escena armada con un CORTE (sin transicion), aunque la global sea un fundido. "
                         "Deja armada la que salia.");
         t.run = [&core, m](const json& a, Done done) {
             const std::string salida = core.salidaDe(a);
@@ -182,7 +182,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "lleva la transición a mano (T-bar)");
-        t.description = ba::i18n::traducir("mcp", "Lleva la transicion hacia la escena armada a mano: `t` de 0 a 1 (la palanca). Con `soltar`, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lleva la transicion hacia la escena armada a mano: `t` de 0 a 1 (la palanca). Con `soltar`, "
                         "termina: pasada la mitad queda al aire, si no vuelve. Para un fader de la botonera: "
                         "{\"t\": \"{{valor}}\"} con el fader de 0 a 1.");
         t.inputSchema = {{"type", "object"},
@@ -205,15 +205,15 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "pasa el preview al aire");
-        t.description = ba::i18n::traducir("mcp", "Pasa al aire la escena que estaba ARMADA en preview, con la transición configurada. Deja armada la "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pasa al aire la escena que estaba ARMADA en preview, con la transición configurada. Deja armada la "
             "que salia, para poder volver de un golpe.");
-        t.details = ba::i18n::traducir("mcp", "Sin nada armado no hace nada y lo dice: armar primero con `scene_preview`.\n\n"
+        t.details = QT_TRANSLATE_NOOP("mcp", "Sin nada armado no hace nada y lo dice: armar primero con `scene_preview`.\n\n"
                     "Que el plano que SALE del aire quede armado es como funciona cualquier mesa: "
                     "despues de un take, volver a lo anterior es un solo take mas.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"transicion", {{"type", "string"}, {"enum", {"cut", "fade", "swipe", "slide", "fade_to_color"}},
-                                           {"description", ba::i18n::traducir("mcp", "otra transicion solo para este take (si no, la de entrada de la escena o la global)")}}},
+                                           {"description", QT_TRANSLATE_NOOP("mcp", "otra transicion solo para este take (si no, la de entrada de la escena o la global)")}}},
                            {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
         t.run = [&core, m](const json& a, Done done) {
             const std::string salida = core.salidaDe(a);
@@ -240,9 +240,9 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "arranca o cambia la transmisión");
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Empieza a transmitir por RTMP. Sin argumentos usa el servidor configurado y la clave de la "
+            QT_TRANSLATE_NOOP("mcp", "Empieza a transmitir por RTMP. Sin argumentos usa el servidor configurado y la clave de la "
             "variable de entorno. La clave NUNCA se guarda en disco.");
-        t.details = ba::i18n::traducir("mcp", "Si YA esta transmitiendo: al mismo destino no hace nada (lo dice); a OTRO destino da error "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Si YA esta transmitiendo: al mismo destino no hace nada (lo dice); a OTRO destino da error "
                     "con `activo_en` (no cambia nada), salvo `cambiar_en_caliente`: true, que corta y arranca al "
                     "nuevo. `destino`: el id de un destino adicional (stream_destinos) o \"todos\": arranca esos, "
                     "ademas del principal (cada destino sale con el programa de SU salida). Con `salida` (otra que la por "
@@ -250,10 +250,10 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"server", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "rtmp://... (opcional).")}}},
-              {"key", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Clave de transmision (solo en memoria).")}}},
-              {"cambiar_en_caliente", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "estando al aire, pasar a este destino")}}},
-              {"destino", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de un destino adicional o \"todos\"")}}}}}};
+             {{"server", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "rtmp://... (opcional).")}}},
+              {"key", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Clave de transmision (solo en memoria).")}}},
+              {"cambiar_en_caliente", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "estando al aire, pasar a este destino")}}},
+              {"destino", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id de un destino adicional o \"todos\"")}}}}}};
         t.run = [&core, m](const json& a, Done done) {
             const std::string salida = core.salidaDe(a);
             if (a.contains("destino")) {
@@ -293,7 +293,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la transmisión");
         t.destructive = true;
         t.description =
-            ba::i18n::traducir("mcp", "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo. Con "
+            QT_TRANSLATE_NOOP("mcp", "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo. Con "
             "`destino` (id o \"todos\"), corta solo ese destino adicional y el principal sigue. Con `salida`, la "
             "transmision principal de esa salida (las demás siguen).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"destino", {{"type", "string"}}}}}};
@@ -317,7 +317,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.title = ba::i18n::traducir("mcp", "Grabar");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "EMPEZAR a grabar el programa en disco, con la carpeta y el formato de la "
+        t.description = QT_TRANSLATE_NOOP("mcp", "EMPEZAR a grabar el programa en disco, con la carpeta y el formato de la "
                         "configuracion. Es para cuando todavia no se esta grabando.");
         t.run = [&core, m](const json& a, Done done) {
             const std::string salida = core.salidaDe(a);
@@ -369,7 +369,7 @@ void registrarHerramientasDeAire(McpCore& core, MandoDeAire mando) {
         t.category = "salidas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "corta la grabación");
-        t.description = ba::i18n::traducir("mcp", "PARA de grabar: cierra el archivo y deja de escribir en disco. Con `salida`, la grabación de esa salida.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "PARA de grabar: cierra el archivo y deja de escribir en disco. Con `salida`, la grabación de esa salida.");
         t.run = [&core, m](const json& a, Done done) {
             m->pararGrabacion(core.salidaDe(a));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Grabacion detenida.")));

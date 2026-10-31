@@ -72,7 +72,7 @@ void McpService::registerEquiposTools() {
     const json id = {
         {"type", "string"},
         {"description",
-         ba::i18n::traducir("mcp", "El id del equipo (de equipos_listar: «red:192.168.1.90», «local:video:<id de la cámara>», "
+         QT_TRANSLATE_NOOP("mcp", "El id del equipo (de equipos_listar: «red:192.168.1.90», «local:video:<id de la cámara>», "
          "«local:audio:<id del micrófono>», «local:salida:<id>», «ndi:<emisor>»…).")}};
     {
         Tool t;
@@ -82,7 +82,7 @@ void McpService::registerEquiposTools() {
         t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description = ba::i18n::llenar(
-            ba::i18n::traducir("mcp", "Busca con un `detector` (%1) o con todos. Devuelve cada equipo con su id, tipo y "
+            QT_TRANSLATE_NOOP("mcp", "Busca con un `detector` (%1) o con todos. Devuelve cada equipo con su id, tipo y "
                                       "las acciones que se le pueden hacer (equipo_accion)."),
             {d->resumenDetectores().toStdString()});
         t.inputSchema = {{"type", "object"}, {"properties", {{"detector", {{"type", "string"}}}}}};
@@ -105,7 +105,7 @@ void McpService::registerEquiposTools() {
         t.title = ba::i18n::traducir("mcp", "Los equipos encontrados");
         t.category = "equipos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Lo que ya encontraron los detectores (sin volver a buscar) y los dispositivos de audio y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo que ya encontraron los detectores (sin volver a buscar) y los dispositivos de audio y "
                         "video que la máquina ya vio aunque hoy no estén (`conectado` false, `estado` «ausente»; "
                         "«sin_buscar» si su detector todavía no buscó). Cada uno con el `nombre` que le puso el "
                         "operador (y el del sistema en `tecnico`) y su `valor` (lo que guarda una entrada). "
@@ -130,7 +130,7 @@ void McpService::registerEquiposTools() {
         t.title = ba::i18n::traducir("mcp", "Todo sobre un equipo");
         t.category = "equipos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Un equipo con todos sus datos y sus acciones (con los parámetros de cada una).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Un equipo con todos sus datos y sus acciones (con los parámetros de cada una).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}}}};
         t.run = [d](const json& a, Done done) {
             if (!d) return done(ToolResult::error(ba::i18n::traducir("mcp", "los equipos no están disponibles")));
@@ -147,7 +147,7 @@ void McpService::registerEquiposTools() {
         t.category = "equipos";
         t.clase = Clase::Escritura;
         t.description = ba::i18n::llenar(
-            ba::i18n::traducir("mcp", "Corre la `accion` del equipo `id` con sus `args`. Las que hay, por tipo: %1 "
+            QT_TRANSLATE_NOOP("mcp", "Corre la `accion` del equipo `id` con sus `args`. Las que hay, por tipo: %1 "
                                       "(? = opcional; equipo_ver da la descripción de cada una). Nunca pases una "
                                       "clave: usá «pedir_clave»."),
             {d->resumenAcciones().toStdString()});
@@ -180,7 +180,7 @@ void McpService::registerEquiposTools() {
         t.category = "equipos";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Le pone a un dispositivo de audio o video (cámara, capturadora, micrófono, placa de sonido, NDI, cámara "
+            QT_TRANSLATE_NOOP("mcp", "Le pone a un dispositivo de audio o video (cámara, capturadora, micrófono, placa de sonido, NDI, cámara "
             "de red) el nombre con que lo conoce el operador («Cámara del fondo», «Mic del atril»). Es de la "
             "MÁQUINA (vale para todos los eventos) y se guarda con el id estable del equipo, así que sigue aunque "
             "se lo reenchufe. Las entradas, el mezclador y las salidas lo muestran con ese nombre; una entrada "
@@ -206,7 +206,7 @@ void McpService::registerEquiposTools() {
         t.category = "equipos";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "La configuración de un dispositivo de audio o video de la máquina, que se mezcla con la que tiene "
+            QT_TRANSLATE_NOOP("mcp", "La configuración de un dispositivo de audio o video de la máquina, que se mezcla con la que tiene "
             "(una clave en null o \"\" se borra): `nota` (texto libre: dónde está, para qué es) y, en una "
             "cámara (camara_local), `modo` = el formato preferido (un `valor` de video_devices) que usa una "
             "entrada nueva de esa cámara si no se le pide otro.");
@@ -230,7 +230,7 @@ void McpService::registerEquiposTools() {
         t.category = "equipos";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra de la máquina un dispositivo AUSENTE (su nombre y su configuración): deja de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra de la máquina un dispositivo AUSENTE (su nombre y su configuración): deja de "
                         "aparecer en la lista. Uno conectado no se olvida (se lo volvería a ver al toque).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}}}};
         t.run = [d](const json& a, Done done) {
@@ -264,7 +264,7 @@ void McpService::registerDriversTools() {
         t.category = "equipos";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Los drivers y proveedores de dispositivos de ESTA máquina (GStreamer: WASAPI, Media Foundation, Core "
+            QT_TRANSLATE_NOOP("mcp", "Los drivers y proveedores de dispositivos de ESTA máquina (GStreamer: WASAPI, Media Foundation, Core "
             "Audio, AVFoundation, Pulse, V4L2, DeckLink, los de plugins; cada driver ASIO en Windows) con su "
             "`estado`: anda, falla (falló menos veces que el tope), cuarentena (falló `fallas_para_cuarentena` "
             "veces seguidas: no se vuelve a cargar solo), sin_probar, probando o ausente (no está instalado). Con "
@@ -286,13 +286,13 @@ void McpService::registerDriversTools() {
         t.category = "equipos";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "«Probar de nuevo»: saca de la cuarentena al driver `id` (de drivers_listar) para UNA prueba, en un "
+            QT_TRANSLATE_NOOP("mcp", "«Probar de nuevo»: saca de la cuarentena al driver `id` (de drivers_listar) para UNA prueba, en un "
             "proceso aparte con tiempo límite (si se cuelga o se cae, la app sigue). Si anda, sale de la "
             "cuarentena y se vuelve a usar; si no, se queda. Espera el resultado (hasta ~1 minuto). Sirve después "
             "de arreglar la causa (p. ej. arrancar el servidor de JACK, actualizar el driver).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
-                         {"properties", {{"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "«asio:{CLSID}», «gst:<proveedor>»")}}}}}};
+                         {"properties", {{"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "«asio:{CLSID}», «gst:<proveedor>»")}}}}}};
         t.examples = {R"({"id": "gst:decklinkdeviceprovider"})"};
         t.run = [dr](const json& a, Done done) {
             if (!dr) return done(ToolResult::error(ba::i18n::traducir("mcp", "los drivers no están disponibles")));
@@ -320,7 +320,7 @@ void McpService::registerDriversTools() {
         t.title = ba::i18n::traducir("mcp", "Revisar todos los drivers");
         t.category = "equipos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Vuelve a probar TODOS los drivers instalados (los que andan también; los de cuarentena no: "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Vuelve a probar TODOS los drivers instalados (los que andan también; los de cuarentena no: "
                         "esos, de a uno con driver_probar), en segundo plano y fuera de la app. El avance, en "
                         "drivers_listar (`revisando`, `resumen`).");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};

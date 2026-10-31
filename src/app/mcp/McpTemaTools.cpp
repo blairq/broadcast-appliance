@@ -21,16 +21,12 @@ void registerTemaTools(McpCore& core, TemaEventoViewModel& tema) {
     t.title = ba::i18n::traducir("mcp", "El tema del evento en todas las páginas web");
     t.category = "evento";
     t.clase = Clase::Escritura;
-    t.description = ba::i18n::traducir(
-        "mcp",
-        "La cara del evento abierto en TODAS las páginas web: la del evento, invitados, la sesión remota (votar), "
+    t.description = QT_TRANSLATE_NOOP("mcp", "La cara del evento abierto en TODAS las páginas web: la del evento, invitados, la sesión remota (votar), "
         "las consultas del público, el tótem de registro, las pantallas de la sala y, con el alcance que se elija, "
         "las consolas de los operadores. `accion`: ver | cambiar {modo, colores, tipografia, radio, marca, alcance} | "
         "logo {archivo, cual: logo|logoClaro|favicon} | fuente {archivo, familia, peso, estilo} | quitar {que: "
         "logo|logoClaro|favicon|fuentes} | restablecer | migrar_sitio.");
-    t.details = ba::i18n::traducir(
-        "mcp",
-        "Se guarda en Eventos/<evento>/tema.json; el logo y las fuentes, en Eventos/<evento>/Tema/ (los copia "
+    t.details = QT_TRANSLATE_NOOP("mcp", "Se guarda en Eventos/<evento>/tema.json; el logo y las fuentes, en Eventos/<evento>/Tema/ (los copia "
         "`logo` y `fuente`: SVG, PNG o WebP hasta 2 MB; WOFF2, WOFF, TTF u OTF hasta 4 MB; un SVG con scripts no "
         "entra). Sin tema.json, el acento y el fondo salen de los del sitio (evento_web sitio {color, fondo}).\n\n"
         "`colores`: {acento, acentoTexto, fondo, superficie, texto, textoSuave} en #rrggbb; vacío = se calcula "
@@ -74,10 +70,10 @@ void registerTemaTools(McpCore& core, TemaEventoViewModel& tema) {
             {"properties",
              {{"publico", {{"type", "string"}, {"enum", {"nada", "acento", "todo"}}}},
               {"control", {{"type", "string"}, {"enum", {"nada", "acento", "todo"}}}}}}}},
-          {"archivo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "ruta del archivo en esta máquina")}}},
+          {"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta del archivo en esta máquina")}}},
           {"cual", {{"type", "string"}, {"enum", {"logo", "logoClaro", "favicon"}}}},
           {"familia", {{"type", "string"}}},
-          {"peso", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "400, 700 o un rango variable: «100 900»")}}},
+          {"peso", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "400, 700 o un rango variable: «100 900»")}}},
           {"estilo", {{"type", "string"}, {"enum", {"normal", "italic"}}}},
           {"que", {{"type", "string"}, {"enum", {"logo", "logoClaro", "favicon", "fuentes"}}}}}}};
     t.examples = {R"({"accion": "cambiar", "colores": {"acento": "#00a86b"}, "marca": {"nombre": "Foro 2026"}})",

@@ -39,8 +39,8 @@ void McpService::registerRegistroTools() {
         t.title = ba::i18n::traducir("mcp", "Cuánto se registra");
         t.category = "registro";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Lee o cambia, en vivo, el nivel desde el que este proceso registra.");
-        t.details = ba::i18n::traducir("mcp", "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (GStreamer solo ya es muy "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lee o cambia, en vivo, el nivel desde el que este proceso registra.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (GStreamer solo ya es muy "
                     "hablador). Sirve para reproducir un problema con detalle, pero no para dejarlo así: "
                     "llena el disco y hace que lo importante se pierda entre miles de líneas.\n\n"
                     "El cambio queda anotado en el propio registro, con quién lo hizo, para que mañana "
@@ -53,7 +53,7 @@ void McpService::registerRegistroTools() {
              {{"nivel",
                {{"type", "string"},
                 {"enum", {"traza", "depuracion", "info", "aviso", "error", "fatal"}},
-                {"description", ba::i18n::traducir("mcp", "Ausente = solo informa el que hay.")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Ausente = solo informa el que hay.")}}},
               {"donde", {{"type", "string"}, {"enum", {"app", "gateway"}}, {"default", "app"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             // El gateway es otro proceso: se le pide por su API de control.
@@ -102,8 +102,8 @@ void McpService::registerRegistroTools() {
         t.title = ba::i18n::traducir("mcp", "Tarjetas de extension");
         t.category = "registro";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las tarjetas que viven en Extensiones/, con su estado.");
-        t.details = ba::i18n::traducir("mcp", "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las tarjetas que viven en Extensiones/, con su estado.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Una extension es una carpeta con `extension.json` (nombre, descripcion) y un QML que se "
                     "dibuja como una tarjeta mas del dashboard. Las escribis vos: la carpeta esta en el "
                     "campo `carpeta` de la respuesta.\n\n"
                     "Como se escribe una: mira `Extensiones/reloj-de-aire/tarjeta.qml`, que es el ejemplo de "
@@ -137,8 +137,8 @@ void McpService::registerRegistroTools() {
         t.title = ba::i18n::traducir("mcp", "Prender una extension apagada");
         t.category = "registro";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Vuelve a cargar una tarjeta que el arranque habia apagado.");
-        t.details = ba::i18n::traducir("mcp", "Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Vuelve a cargar una tarjeta que el arranque habia apagado.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Arregla el QML PRIMERO. Si sigue colgando el arranque, se vuelve a apagar sola "
                     "y vas a haber gastado dos reinicios del programa.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
@@ -157,8 +157,8 @@ void McpService::registerRegistroTools() {
         t.title = ba::i18n::traducir("mcp", "Dejar una marca");
         t.category = "registro";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe una línea propia en el registro.");
-        t.details = ba::i18n::traducir("mcp", "Se pone ANTES de probar algo («voy a probar la camara 2»): después se busca esa marca "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe una línea propia en el registro.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Se pone ANTES de probar algo («voy a probar la camara 2»): después se busca esa marca "
                     "y todo lo que sigue es lo que pasó por eso. Es la forma barata de separar lo que "
                     "provocaste de lo que ya estaba pasando.");
         t.inputSchema = {

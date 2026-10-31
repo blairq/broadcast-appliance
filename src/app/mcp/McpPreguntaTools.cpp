@@ -70,10 +70,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.category = "preguntas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Todas las preguntas que mando el publico, en el orden en que conviene mirarlas, con el "
+            QT_TRANSLATE_NOOP("mcp", "Todas las preguntas que mando el publico, en el orden en que conviene mirarlas, con el "
             "recuento y cual es la proxima.");
         t.details =
-            ba::i18n::traducir("mcp", "EL ORDEN ES EL DEL QUE MODERA: primero la que esta al aire, despues la cola en el orden "
+            QT_TRANSLATE_NOOP("mcp", "EL ORDEN ES EL DEL QUE MODERA: primero la que esta al aire, despues la cola en el orden "
             "en que se va a preguntar, despues las que todavia nadie miro con las mas votadas arriba, "
             "y al final las respondidas y las descartadas.\\n\\n"
             "El recorrido de una pregunta:\\n"
@@ -97,10 +97,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Mueve una pregunta por la cola: elegirla para preguntarla, ponerla al aire, darla por "
+            QT_TRANSLATE_NOOP("mcp", "Mueve una pregunta por la cola: elegirla para preguntarla, ponerla al aire, darla por "
             "respondida o descartarla.");
         t.details =
-            ba::i18n::traducir("mcp", "Las acciones:\\n"
+            QT_TRANSLATE_NOOP("mcp", "Las acciones:\\n"
             "- `elegir`: la manda AL FINAL de la cola de las que se van a preguntar. Es moderar.\\n"
             "- `des_elegir`: la saca de la cola y la devuelve a las nuevas.\\n"
             "- `al_aire`: es la que se esta preguntando AHORA. Hay una sola: poner otra da por "
@@ -121,7 +121,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                {{"type", "string"},
                 {"enum",
                  {"elegir", "des_elegir", "al_aire", "responder", "descartar", "limpiar", "vaciar"}}}},
-              {"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el id que da preguntas_ver")}}}}}};
+              {"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el id que da preguntas_ver")}}}}}};
         t.run = [&vm, contestarSala](const json& a, Done done) {
             const std::string e = vm.preguntas().moderar(a.value("accion", std::string()), a.value("id", std::string()),
                                                          contestarSala(done, ba::i18n::traducir("mcp", "Hecho.")));
@@ -136,10 +136,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Agrega a la cola una pregunta que no vino de la pagina del publico: del chat de la conferencia, "
+            QT_TRANSLATE_NOOP("mcp", "Agrega a la cola una pregunta que no vino de la pagina del publico: del chat de la conferencia, "
             "del de YouTube, o dicha a viva voz en el salon.");
         t.details =
-            ba::i18n::traducir("mcp", "Es lo que mantiene UNA SOLA COLA. El que pregunta por el chat de YouTube y el que levanta "
+            QT_TRANSLATE_NOOP("mcp", "Es lo que mantiene UNA SOLA COLA. El que pregunta por el chat de YouTube y el que levanta "
             "la mano en la sala tienen que terminar en la misma lista, moderada en el mismo lugar: si "
             "no, el publico remoto es publico de segunda.\\n\\n"
             "`deDonde` deja dicho por donde entro, para poder nombrarlo al aire («nos preguntan por "
@@ -153,7 +153,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                            {"deDonde",
                             {{"type", "string"},
                              {"enum", {"sala", "publico", "youtube", "twitch", "facebook"}},
-                             {"description", ba::i18n::traducir("mcp", "por donde llego")}}}}}};
+                             {"description", QT_TRANSLATE_NOOP("mcp", "por donde llego")}}}}}};
         t.run = [&vm, contestarSala](const json& a, Done done) {
             const std::string e = vm.preguntas().sumar(a.value("texto", std::string()), a.value("nombre", std::string()),
                                                        a.value("deDonde", std::string("sala")),
@@ -169,13 +169,13 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = ba::i18n::traducir("mcp", "Reglas de quorum y mayoria");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Las reglas del cuerpo: `miembros` (cuantos lo integran; 0 = los del padron con voto), `minimo` para sesionar "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las reglas del cuerpo: `miembros` (cuantos lo integran; 0 = los del padron con voto), `minimo` para sesionar "
                         "(\"mitad_mas_uno\" o un numero) y la `mayoria` de fabrica para aprobar (simple, absoluta, "
                         "dos_tercios_presentes, dos_tercios_miembros). Sin argumentos, las muestra.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"miembros", {{"type", "integer"}, {"minimum", 0}}},
-                           {"minimo", {{"description", ba::i18n::traducir("mcp", "\"mitad_mas_uno\" o un numero")}}},
+                           {"minimo", {{"description", QT_TRANSLATE_NOOP("mcp", "\"mitad_mas_uno\" o un numero")}}},
                            {"mayoria", {{"type", "string"}, {"enum", {"simple", "absoluta", "dos_tercios_presentes", "dos_tercios_miembros"}}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (!a.empty())
@@ -190,7 +190,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = ba::i18n::traducir("mcp", "Hay quorum?");
         t.category = "preguntas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Si hay QUÓRUM ahora: cuántos presentes con voto hay y cuántos hacen falta; no es una votación.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Si hay QUÓRUM ahora: cuántos presentes con voto hay y cuántos hacen falta; no es una votación.");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.quorum().estado())); };
         core.addTool(std::move(t));
     }
@@ -200,7 +200,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = ba::i18n::traducir("mcp", "Cargar el resultado oficial de una votacion");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "El resultado OFICIAL (el del tablero del recinto o el que lee Secretaria), que es el que va al "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El resultado OFICIAL (el del tablero del recinto o el que lee Secretaria), que es el que va al "
                         "acta: `asunto`, `afirmativos`, `negativos`, `abstenciones` (o `csv` nominal «nombre;voto» por "
                         "linea), `mayoria` (si no, la de quorum_regla) y `punto` del orden del dia. Calcula si se aprobo "
                         "y lo publica en el bus (sesion/votacion). La urna del publico es otra cosa (consulta).");
@@ -232,7 +232,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = ba::i18n::traducir("mcp", "Sumar un mensaje del chat a las preguntas");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pasa un mensaje del chat del público a la cola de preguntas, por su key.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pasa un mensaje del chat del público a la cola de preguntas, por su key.");
         t.inputSchema = {{"type", "object"}, {"required", {"mensaje_id"}}, {"properties", {{"mensaje_id", {{"type", "string"}}}}}};
         t.run = [&vm, contestarSala](const json& a, Done done) {
             // Por el modelo, esperando lo que diga la sala (antes contestaba «ok» antes de saberlo).
@@ -249,8 +249,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = ba::i18n::traducir("mcp", "Abrir una votacion o una encuesta");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pone una pregunta a votar en la pagina del publico, con sus opciones.");
-        t.details = ba::i18n::traducir("mcp", "SON DOS COSAS DISTINTAS Y NO SE MEZCLAN:\n\n"
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pone una pregunta a votar en la pagina del publico, con sus opciones.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "SON DOS COSAS DISTINTAS Y NO SE MEZCLAN:\n\n"
                     "- `modo: encuesta` — vota cualquiera que tenga el enlace, una vez por telefono. Es "
                     "enganche («de que tema quieren que hablemos») y sus numeros son INDICATIVOS. No sirve "
                     "para decidir nada.\n"
@@ -277,11 +277,11 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
               {"opciones",
                {{"type", "array"},
                 {"items", {{"type", "string"}}},
-                {"description", ba::i18n::traducir("mcp", "de dos a diez; con una sola no hay nada que decidir")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "de dos a diez; con una sola no hay nada que decidir")}}},
               {"modo", {{"type", "string"}, {"enum", {"encuesta", "formal"}}}},
-              {"secreta", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "no guardar que voto cada uno")}}},
+              {"secreta", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "no guardar que voto cada uno")}}},
               {"enVivo",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "mostrar el resultado mientras esta abierta")}}}}}};
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "mostrar el resultado mientras esta abierta")}}}}}};
         t.run = [&vm](const json& a, Done done) {
             // La operación es del modelo (reglas y padrón), la misma que usa la GUI.
             std::vector<std::string> opciones;
@@ -308,9 +308,9 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description =
-             ba::i18n::traducir("mcp", "El recuento de la VOTACIÓN o encuesta: cuántos sí y cuántos no, quiénes votaron y quiénes faltan; no "
+             QT_TRANSLATE_NOOP("mcp", "El recuento de la VOTACIÓN o encuesta: cuántos sí y cuántos no, quiénes votaron y quiénes faltan; no "
             "es el quórum. Con `cerrar` la da por terminada.");
-        t.details = ba::i18n::traducir("mcp", "`votaron` y `podian` juntos son el QUORUM: «votaron 12 de 40». En una formal viene "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`votaron` y `podian` juntos son el QUORUM: «votaron 12 de 40». En una formal viene "
                     "ademas `quienes` (con que voto cada uno, salvo que sea secreta) y `faltanVotar`, que es "
                     "con lo que se sale a buscar a los que faltan antes de cerrar.\n\n"
                     "`cerrar` deja el resultado firme y lo muestra a todos los telefonos. Los votos NO se "
@@ -324,8 +324,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             {"properties",
              {{"cerrar", {{"type", "boolean"}}},
               {"historial",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "ademas, TODAS las que se cerraron en este evento")}}},
-              {"enVivo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "mostrar el resultado en vivo")}}}}}};
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "ademas, TODAS las que se cerraron en este evento")}}},
+              {"enVivo", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "mostrar el resultado en vivo")}}}}}};
         t.run = [&vm](const json& a, Done done) {
             const auto contestar = [done](const std::string& texto) {
                 return [done, texto](const std::string& err, const json& r) {
@@ -351,9 +351,9 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = ba::i18n::traducir("mcp", "Si los que esperan estan listos para salir al aire");
         t.category = "preguntas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Para cada persona que espera en el lobby: si su camara y su microfono sirven, y que "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Para cada persona que espera en el lobby: si su camara y su microfono sirven, y que "
                         "decirle cuando no.");
-        t.details = ba::i18n::traducir("mcp", "LA CAUSA NUMERO UNO DE QUE UN EVENTO HIBRIDO SE CAIGA es el orador que prueba el "
+        t.details = QT_TRANSLATE_NOOP("mcp", "LA CAUSA NUMERO UNO DE QUE UN EVENTO HIBRIDO SE CAIGA es el orador que prueba el "
                     "microfono cuando le dan la palabra. Esto es para correrlo ANTES: el invitado entra al "
                     "lobby cuando quiere y se le dice que arreglar mientras hay tiempo.\n\n"
                     "Junta en una sola respuesta lo que hoy hay que ir a buscar a tres lados: la calidad de "
@@ -436,10 +436,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = ba::i18n::traducir("mcp", "El acta del evento: quienes estuvieron y que se decidio");
         t.category = "preguntas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Arma el acta con el padron de presentes, el quorum y todas las votaciones que se "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Arma el acta con el padron de presentes, el quorum y todas las votaciones que se "
                         "cerraron, y la guarda en la carpeta del evento.");
         t.details =
-            ba::i18n::traducir("mcp", "NO ES `evento_informe`, Y NO SE PARECEN. El informe dice que el bloque 3 se fue cuatro "
+            QT_TRANSLATE_NOOP("mcp", "NO ES `evento_informe`, Y NO SE PARECEN. El informe dice que el bloque 3 se fue cuatro "
             "minutos: es para el operador. El acta dice QUIENES ASISTIERON, QUE SE VOTO y COMO SALIO: "
             "es para el que organizo, y en una asamblea es el documento que vale.\n\n"
             "Sale de tres lados que ya existen: el padron (quienes llegaron, por donde y cuantos "
@@ -496,10 +496,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.category = "preguntas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "El enlace con QR de la pagina donde el publico pregunta y vota, y el titulo y el fondo "
+            QT_TRANSLATE_NOOP("mcp", "El enlace con QR de la pagina donde el publico pregunta y vota, y el titulo y el fondo "
             "que esa pagina muestra.");
         t.details =
-            ba::i18n::traducir("mcp", "LA PAGINA DEL PUBLICO NO ES LA CONFERENCIA. El que la abre no entra por WebRTC: no le pide "
+            QT_TRANSLATE_NOOP("mcp", "LA PAGINA DEL PUBLICO NO ES LA CONFERENCIA. El que la abre no entra por WebRTC: no le pide "
             "camara ni microfono y no ocupa un lugar de invitado. Es a proposito — doscientas personas "
             "en el mismo salon entrando con microfono es un acople garantizado y el ancho de banda "
             "tirado—. Para que alguien entre a la conferencia de verdad, `room_link`.\\n\\n"
@@ -514,12 +514,12 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"titulo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que se lee arriba de todo")}}},
-              {"cuando", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el renglon chico de abajo del titulo")}}},
-              {"fondo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "ruta de una imagen del disco; vacio la saca")}}},
+             {{"titulo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que se lee arriba de todo")}}},
+              {"cuando", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el renglon chico de abajo del titulo")}}},
+              {"fondo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta de una imagen del disco; vacio la saca")}}},
               {"remoto",
                {{"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "el enlace por internet en vez del de la red local")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "el enlace por internet en vez del de la red local")}}}}}};
         t.run = [salaDe](const json& a, Done done) {
             ConferenceViewModel* conf = salaDe();
             if (conf == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "El servidor no esta disponible en esta sesion.")));

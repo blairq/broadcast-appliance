@@ -106,7 +106,7 @@ McpCore::McpCore() {
     help.hilo = Hilo::Foto;
     help.idempotent = true;
     help.description =
-        ba::i18n::traducir("mcp", "Sistema de ayuda. Sin argumentos: guia general, flujos de trabajo y catalogo completo de "
+        QT_TRANSLATE_NOOP("mcp", "Sistema de ayuda. Sin argumentos: guia general, flujos de trabajo y catalogo completo de "
         "herramientas "
         "por categoria. Con `topic`: un tema (ej. 'escenas', 'imagenes', 'oradores'). Con `tool`: ficha "
         "completa "
@@ -114,8 +114,8 @@ McpCore::McpCore() {
     help.inputSchema =
         json{{"type", "object"},
              {"properties",
-              {{"topic", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Id del tema (ver la guia general).")}}},
-               {"tool", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de una herramienta.")}}}}}};
+              {{"topic", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Id del tema (ver la guia general).")}}},
+               {"tool", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre de una herramienta.")}}}}}};
     help.examples = {R"({})", R"({"topic": "imagenes"})", R"({"tool": "scene_define"})"};
     help.run = [this](const json& a, Done done) {
         if (a.contains("tool") && a["tool"].is_string()) {
@@ -147,7 +147,7 @@ McpCore::McpCore() {
     sec.clase = Clase::Lectura;
     sec.hilo = Hilo::Foto;
     sec.description =
-        ba::i18n::traducir("mcp", "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
+        QT_TRANSLATE_NOOP("mcp", "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
         "video). Si lo leyo, toda accion que modifica algo espera que el operador la apruebe con un "
         "click: es "
         "una regla del servidor, no depende de vos. Para volver a actuar directo hace falta una sesion nueva "
@@ -163,11 +163,11 @@ McpCore::McpCore() {
     search.hilo = Hilo::Foto;
     search.idempotent = true;
     search.description =
-        ba::i18n::traducir("mcp", "Busca por palabras en todas las herramientas y temas de ayuda (tolera tildes). Devuelve "
+        QT_TRANSLATE_NOOP("mcp", "Busca por palabras en todas las herramientas y temas de ayuda (tolera tildes). Devuelve "
         "las mejores coincidencias con su descripcion.");
     search.inputSchema =
         json{{"type", "object"},
-             {"properties", {{"query", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Que queres hacer o saber.")}}}}},
+             {"properties", {{"query", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Que queres hacer o saber.")}}}}},
              {"required", {"query"}}};
     search.examples = {R"({"query": "poner un texto en pantalla"})",
                        R"({"query": "ver la camara de un invitado"})"};
@@ -271,7 +271,7 @@ json McpCore::catalogo() const {
             }
         out[it->second]["herramientas"].push_back({{"nombre", t.name},
                                                    {"titulo", t.title.empty() ? t.name : t.title},
-                                                   {"descripcion", t.description},
+                                                   {"descripcion", traducirParaVer(t.description)},
                                                    {"etiquetas", etiquetas},
                                                    {"ejemplo", ejemplo},
                                                    {"solo_lectura", t.readOnly},
@@ -352,6 +352,26 @@ bool McpCore::permitida(const Tool& t, const std::string& rol) const {
     return it != roles_.end() && it->second.count(t.category) != 0;
 }
 
+std::string traducirParaVer(const std::string& original) {
+    // Por el texto entero: una descripción armada con pedazos (dos frases sumadas, un
+    // %1 ya lleno) no está en el catálogo y sale en el original.
+    return original.empty() ? original : ba::i18n::traducir("mcp", original.c_str());
+}
+
+json esquemaParaVer(json esquema) {
+    if (esquema.is_object()) {
+        for (auto it = esquema.begin(); it != esquema.end(); ++it) {
+            if (it.key() == "description" && it->is_string())
+                *it = traducirParaVer(it->get<std::string>());
+            else
+                *it = esquemaParaVer(std::move(*it));
+        }
+    } else if (esquema.is_array()) {
+        for (auto& v : esquema) v = esquemaParaVer(std::move(v));
+    }
+    return esquema;
+}
+
 const char* nombreClase(Clase c) {
     switch (c) {
         case Clase::Lectura: return "lectura";
@@ -396,7 +416,7 @@ void McpCore::addTool(Tool tool) {
         if (!tool.inputSchema["properties"].contains("salida"))
             tool.inputSchema["properties"]["salida"] = {
                 {"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "Salida (id o nombre; `salidas_listar`). Sin ella, la por "
+                {"description", QT_TRANSLATE_NOOP("mcp", "Salida (id o nombre; `salidas_listar`). Sin ella, la por "
                                                           "omisión (o la de quien llama).")}};
     }
     const std::lock_guard<std::recursive_mutex> registro(registroMu_);

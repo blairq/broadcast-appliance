@@ -32,7 +32,7 @@ void McpService::registerTiemposTools() {
         t.title = ba::i18n::traducir("mcp", "Los tiempos del pipeline");
         t.category = "tiempos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El grafo de demoras de ahora: `nodos` (entrada, tarjeta, modulo, escena, mezcla, transmision, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El grafo de demoras de ahora: `nodos` (entrada, tarjeta, modulo, escena, mezcla, transmision, "
                         "grabacion) con `ms` (lo que agrega ese nodo), `acumulado_ms` (desde la captura), `fuente` "
                         "(medido | declarado | sin_medir) y `estado` (bien | justo | tarde: contra la latencia del "
                         "estudio); `tramos` (de un nodo a otro, video o audio); `salidas` con su `total_ms` y el "
@@ -51,7 +51,7 @@ void McpService::registerTiemposTools() {
         t.title = ba::i18n::traducir("mcp", "Correr un análisis de tiempos");
         t.category = "tiempos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Mide `segundos` (de fábrica 10, de 2 a 120) y devuelve la mediana y el p95 de lo que agrega "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Mide `segundos` (de fábrica 10, de 2 a 120) y devuelve la mediana y el p95 de lo que agrega "
                         "cada nodo y del total de cada salida. Mientras mide, cada elemento del pipeline de las entradas "
                         "(todas, o las de `entradas`) lleva una sonda: `pipelines` trae por entrada cada elemento con "
                         "agrega_ms (lo que tarda Y lo que retiene), memoria_entrada/memoria_salida (gl, d3d12, cuda… o "
@@ -62,7 +62,7 @@ void McpService::registerTiemposTools() {
                          {"properties",
                           {{"segundos", {{"type", "integer"}, {"minimum", 2}, {"maximum", 120}}},
                            {"entradas", {{"type", "array"}, {"items", {{"type", "string"}}},
-                                         {"description", ba::i18n::traducir("mcp", "las entradas a analizar por elemento (vacío: todas)")}}}}}};
+                                         {"description", QT_TRANSLATE_NOOP("mcp", "las entradas a analizar por elemento (vacío: todas)")}}}}}};
         t.run = [tm](const json& a, Done done) {
             std::vector<std::string> entradas;
             for (const auto& x : a.value("entradas", json::array()))
@@ -81,7 +81,7 @@ void McpService::registerTiemposTools() {
         t.title = ba::i18n::traducir("mcp", "Los eventos de la línea de tiempo");
         t.category = "tiempos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Lo que pasó en los últimos `segundos` (de fábrica 600; hasta 1800): conexion / desconexion "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo que pasó en los últimos `segundos` (de fábrica 600; hasta 1800): conexion / desconexion "
                         "de entradas, escena (lo que salió al aire), salida (arrancó o paró), latencia (del estudio), "
                         "tarde (una entrada que llega tarde a la mezcla), rearme, y nota (las que puso el operador o el "
                         "asistente). Cada uno con `t` (ms de época). Para cruzar con las latencias: tiempos_evento_impacto.");
@@ -95,7 +95,7 @@ void McpService::registerTiemposTools() {
         t.title = ba::i18n::traducir("mcp", "Marcar un momento en la línea de tiempo");
         t.category = "tiempos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Agrega una nota con `texto` en la línea de tiempo de Latencias del pipeline: ahora, o hace "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Agrega una nota con `texto` en la línea de tiempo de Latencias del pipeline: ahora, o hace "
                         "`hace_s` segundos, o en `t_ms` (ms de época). Sirve para marcar algo que el sistema no ve solo "
                         "(«se movió el cable», «entró el presidente») y después ver con tiempos_evento_impacto qué "
                         "cambió.");
@@ -116,7 +116,7 @@ void McpService::registerTiemposTools() {
         t.title = ba::i18n::traducir("mcp", "Qué cambió alrededor de un momento");
         t.category = "tiempos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Para el momento `t_ms` (el `t` de un evento de tiempos_eventos) o hace `hace_s` segundos: la "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Para el momento `t_ms` (el `t` de un evento de tiempos_eventos) o hace `hace_s` segundos: la "
                         "mediana de lo que agrega cada nodo (y de lo acumulado desde la captura) en los `segundos` de "
                         "antes (de fábrica 10) contra los de después, ordenado por cuánto cambió. Así se ve si un cambio "
                         "de escena, una conexión o una nota coincide con un salto de latencia y dónde.");
@@ -138,7 +138,7 @@ void McpService::registerTiemposTools() {
         t.title = ba::i18n::traducir("mcp", "Qué tarjetas se ven en la línea de tiempo");
         t.category = "tiempos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Elige los `nodos` (ids de tiempos_mapa) que la página Latencias del pipeline muestra en su "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Elige los `nodos` (ids de tiempos_mapa) que la página Latencias del pipeline muestra en su "
                         "línea de tiempo, cada uno con su color (en ese orden). Sin `nodos`, dice cuáles están. "
                         "`agregar` / `sacar` cambian uno sin tocar los demás.");
         t.inputSchema = {{"type", "object"},
@@ -169,7 +169,7 @@ void McpService::registerTiemposTools() {
         t.title = ba::i18n::traducir("mcp", "Un nodo de los tiempos, con su historia");
         t.category = "tiempos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Un nodo de tiempos_mapa por su `id` (p. ej. «entrada:Cámara 1», «tarjeta:Cámara 1:superres», "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Un nodo de tiempos_mapa por su `id` (p. ej. «entrada:Cámara 1», «tarjeta:Cámara 1:superres», "
                         "«salida:transmision») con su detalle y su historia de los últimos `segundos` (de fábrica "
                         "60; hasta 1800: se junta siempre, una muestra por segundo).");
         t.inputSchema = {{"type", "object"},
@@ -190,7 +190,7 @@ void McpService::registerTiemposTools() {
         t.category = "tiempos";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Analiza el pipeline de UNA `entrada` (el nombre de tiempos_mapa / video_estado; o «programa» = la "
+            QT_TRANSLATE_NOOP("mcp", "Analiza el pipeline de UNA `entrada` (el nombre de tiempos_mapa / video_estado; o «programa» = la "
             "composición del programa, «programa:audio» = la mezcla: lo que pasa DESPUÉS de las entradas) durante "
             "`segundos` (de fábrica 5): pone una sonda en cada elemento y devuelve:\n"
             "- `hallazgos`, ya razonados y ordenados por gravedad, cada uno con la tarjeta culpable: ida_y_vuelta (el "
@@ -210,7 +210,7 @@ void McpService::registerTiemposTools() {
                          {"required", {"entrada"}},
                          {"properties",
                           {{"entrada", {{"type", "string"}}},
-                           {"medir", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "de fábrica, sí; false: el último análisis")}}},
+                           {"medir", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "de fábrica, sí; false: el último análisis")}}},
                            {"segundos", {{"type", "integer"}, {"minimum", 2}, {"maximum", 30}}}}}};
         t.examples = {R"({"entrada": "Cámara 1"})", R"({"entrada": "Cámara 1", "medir": false})"};
         t.run = [tm](const json& a, Done done) {
@@ -240,7 +240,7 @@ void McpService::registerTiemposTools() {
         t.category = "tiempos";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Cuánto hace falta de cada entrada y qué sobra o falta (solo lectura: dice qué haría y por qué). "
+            QT_TRANSLATE_NOOP("mcp", "Cuánto hace falta de cada entrada y qué sobra o falta (solo lectura: dice qué haría y por qué). "
             "`demanda`: el tamaño más grande con que se ve en las escenas. `pasos`: cada tarjeta en orden con lo que "
             "entra, sale, el detalle `real` (un zoom digital lo achica) y lo que `necesita` entregar. `fuente`: lo que "
             "necesita de la cámara, el modo actual y el `recomendado` con su porqué. `hallazgos` con `nivel` "
@@ -266,7 +266,7 @@ void McpService::registerTiemposTools() {
         t.category = "tiempos";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Cómo trabaja un plugin de video por dentro. Con `elemento` (la fábrica de GStreamer, p. ej. videobalance, "
+            QT_TRANSLATE_NOOP("mcp", "Cómo trabaja un plugin de video por dentro. Con `elemento` (la fábrica de GStreamer, p. ej. videobalance, "
             "bavtsuperres, glcolorbalance): su documentación, clase, plugin, las memorias que aceptan sus pads "
             "(`memorias.entrada` / `memorias.salida`: gl, d3d12, cuda… = sabe trabajar en la GPU; solo «sistema» = "
             "trabaja en RAM y obliga a bajar el video de la GPU) y sus propiedades. Con `entrada` + `tarjeta` (el id o "

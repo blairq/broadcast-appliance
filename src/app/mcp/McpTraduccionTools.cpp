@@ -39,7 +39,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Traducciones en vivo: cuáles hay y cómo andan");
         x.category = "traduccion";
         x.clase = Clase::Lectura;
-        x.description = ba::i18n::traducir("mcp", "Las traducciones configuradas (de qué salida de texto, a qué idioma, en qué salida "
+        x.description = QT_TRANSLATE_NOOP("mcp", "Las traducciones configuradas (de qué salida de texto, a qué idioma, en qué salida "
                         "publican, la última frase y su "
                         "demora), si falta bajar algún paquete, el estado del motor y los idiomas: `origen` "
                         "(el del evento, de donde se traduce si no se dice otro) y `destinos` (a cuáles hay "
@@ -67,7 +67,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Traducir una frase ahora");
         x.category = "traduccion";
         x.clase = Clase::Lectura;
-        x.description = ba::i18n::traducir("mcp", "Traduce `texto` (en `de`, el idioma del evento si no se dice) a `a`, con el glosario. Para "
+        x.description = QT_TRANSLATE_NOOP("mcp", "Traduce `texto` (en `de`, el idioma del evento si no se dice) a `a`, con el glosario. Para "
                         "probar cómo sale "
                         "un término antes del evento.");
         x.inputSchema = {{"type", "object"},
@@ -91,7 +91,7 @@ void McpService::registerTraduccionTools() {
         x.category = "traduccion";
         x.clase = Clase::Escritura;
         x.description =
-            ba::i18n::traducir("mcp", "Cada frase de la salida `desde` (p. ej. «Orador», la de una tarjeta «Voz a texto»: "
+            QT_TRANSLATE_NOOP("mcp", "Cada frase de la salida `desde` (p. ej. «Orador», la de una tarjeta «Voz a texto»: "
             "texto_flujos) se traduce a `a` y "
             "se publica en la salida `nombre` («<desde> · <a>» si no se dice). Esa salida se usa como "
             "cualquier otra: "
@@ -111,7 +111,7 @@ void McpService::registerTraduccionTools() {
               {"idioma_desde", idioma},
               {"nombre", {{"type", "string"}}},
               {"fuente",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la fuente de audio en cuyo rack va la tarjeta")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la fuente de audio en cuyo rack va la tarjeta")}}},
               {"rotulo", {{"type", "string"}}},
               {"archivo", {{"type", "boolean"}}},
               {"espera_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}},
@@ -136,7 +136,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Pausar o cambiar una traducción");
         x.category = "traduccion";
         x.clase = Clase::Escritura;
-        x.description = ba::i18n::traducir("mcp", "Cambia una traducción (`id` de `traducciones`, «<fuente>#<nodo>» de su tarjeta): "
+        x.description = QT_TRANSLATE_NOOP("mcp", "Cambia una traducción (`id` de `traducciones`, «<fuente>#<nodo>» de su tarjeta): "
                         "`activa` (pausarla), "
                         "`desde`, `idioma_desde`, `a`, `nombre`, `rotulo`, `archivo`, `espera_ms`, "
                         "`maximo_ms`. Con `quitar: true` saca la tarjeta.");
@@ -169,7 +169,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Bajar los paquetes de un idioma");
         x.category = "traduccion";
         x.clase = Clase::Escritura;
-        x.description = ba::i18n::traducir("mcp", "Baja los paquetes que hacen falta para traducir de `de` (el idioma del evento si no se "
+        x.description = QT_TRANSLATE_NOOP("mcp", "Baja los paquetes que hacen falta para traducir de `de` (el idioma del evento si no se "
                         "dice) a `a` (uno o dos: "
                         "sin paquete directo, pasa por otro idioma, casi siempre el inglés). "
                         "Entre 70 y 300 MB "
@@ -192,7 +192,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Cuándo corta una frase la transcripción continua");
         x.category = "traduccion";
         x.clase = Clase::Escritura;
-        x.description = ba::i18n::traducir("mcp", "Sin argumentos: los cortes de la transcripción continua (la que alimenta subtítulos "
+        x.description = QT_TRANSLATE_NOOP("mcp", "Sin argumentos: los cortes de la transcripción continua (la que alimenta subtítulos "
                         "y traducción) y lo que oye cada "
                         "una ahora. Con `pausa` (silencio que corta, 0,1-3 s; 0,35 típico), `maximo` (largo "
                         "máximo de frase, 2-30 s; al "
@@ -237,7 +237,7 @@ void McpService::registerTraduccionTools() {
         x.category = "traduccion";
         x.clase = Clase::Escritura;
         x.description =
-            ba::i18n::traducir("mcp", "Vacía los cuadros «Subtítulos» (ba_subtitulos) de las escenas: el de nombre `nombre`, o todos "
+            QT_TRANSLATE_NOOP("mcp", "Vacía los cuadros «Subtítulos» (ba_subtitulos) de las escenas: el de nombre `nombre`, o todos "
             "los que muestran la salida `flujo`, o todos. Lo que llegue después se muestra normal.");
         x.inputSchema = {{"type", "object"},
                          {"properties", {{"nombre", {{"type", "string"}}}, {"flujo", {{"type", "string"}}}}}};
@@ -256,7 +256,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "El glosario de la traducción");
         x.category = "traduccion";
         x.clase = Clase::Lectura;
-        x.description = ba::i18n::traducir("mcp", "Los términos que la traducción respeta (castellano -> en, pt, fr, de, ru, zh), por "
+        x.description = QT_TRANSLATE_NOOP("mcp", "Los términos que la traducción respeta (castellano -> en, pt, fr, de, ru, zh), por "
                         "grupo («general», "
                         "«asamblea», «operador»), cuáles están activos, y `archivo`: el JSON del "
                         "operador, que también se puede "
@@ -284,7 +284,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Exportar el glosario para revisión");
         x.category = "traduccion";
         x.clase = Clase::Lectura;
-        x.description = ba::i18n::traducir("mcp", "El glosario en CSV («es;en;pt;fr;de;ru;zh;grupo;revisado_por», las formas en castellano "
+        x.description = QT_TRANSLATE_NOOP("mcp", "El glosario en CSV («es;en;pt;fr;de;ru;zh;grupo;revisado_por», las formas en castellano "
                         "separadas por «|») para que lo revise la institución. Con `archivo`, lo escribe ahí.");
         x.inputSchema = {{"type", "object"}, {"properties", {{"archivo", {{"type", "string"}}}}}};
         x.run = [t](const json& a, Done done) {
@@ -307,7 +307,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Importar el glosario revisado");
         x.category = "traduccion";
         x.clase = Clase::Escritura;
-        x.description = ba::i18n::traducir("mcp", "Vuelve el CSV revisado (`csv`, o `archivo`): cada fila suma o pisa un término con la marca "
+        x.description = QT_TRANSLATE_NOOP("mcp", "Vuelve el CSV revisado (`csv`, o `archivo`): cada fila suma o pisa un término con la marca "
                         "`revisado_por` (quién lo revisó: obligatorio).");
         x.inputSchema = {{"type", "object"},
                          {"required", {"revisado_por"}},
@@ -334,7 +334,7 @@ void McpService::registerTraduccionTools() {
         x.title = ba::i18n::traducir("mcp", "Rotular la traducción automática");
         x.category = "traduccion";
         x.clase = Clase::Escritura;
-        x.description = ba::i18n::traducir("mcp", "Mientras salga una traducción en un cuadro de subtítulos o en los subtítulos ocultos, una "
+        x.description = QT_TRANSLATE_NOOP("mcp", "Mientras salga una traducción en un cuadro de subtítulos o en los subtítulos ocultos, una "
                         "capa DSK muestra «Traducción automática» (prendido de fábrica; se va 15 s despues de la ultima "
                         "frase). `activo` lo prende o apaga; sin argumentos, el estado.");
         x.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
@@ -351,7 +351,7 @@ void McpService::registerTraduccionTools() {
         x.category = "traduccion";
         x.clase = Clase::Escritura;
         x.description =
-            ba::i18n::traducir("mcp", "Un término del evento y cómo se dice en cada idioma: `es` (la forma en castellano, o una lista "
+            QT_TRANSLATE_NOOP("mcp", "Un término del evento y cómo se dice en cada idioma: `es` (la forma en castellano, o una lista "
             "de formas: "
             "singular, plural, femenino), y al menos una de en, pt, fr, de, ru, zh. Si ya existía (aunque "
             "sea de fábrica), lo "
@@ -385,7 +385,7 @@ void McpService::registerTraduccionTools() {
         x.category = "traduccion";
         x.clase = Clase::Escritura;
         x.description =
-            ba::i18n::traducir("mcp", "Saca el término `es` (uno de fábrica queda apagado, no se borra). Con `grupo` y `activo`, "
+            QT_TRANSLATE_NOOP("mcp", "Saca el término `es` (uno de fábrica queda apagado, no se borra). Con `grupo` y `activo`, "
             "prende o "
             "apaga un grupo entero (p. ej. «asamblea» fuera de una asamblea).");
         x.inputSchema = {{"type", "object"},

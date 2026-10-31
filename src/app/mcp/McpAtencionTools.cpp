@@ -35,10 +35,10 @@ void McpService::registerAtencionTools() {
         t.title = ba::i18n::traducir("mcp", "Cómo se atiende a quien se conecta");
         t.category = "sala";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Si el asistente atiende a los que llegan (conferencia y asamblea), si lo hace hablando, quién "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Si el asistente atiende a los que llegan (conferencia y asamblea), si lo hace hablando, quién "
                         "atiende (recepción o automatización), a quién está atendiendo y de qué forma, el alta "
                         "automática en Personas y la voz del atendedor.");
-        t.details = ba::i18n::traducir("mcp", "QUIÉN ATIENDE: el rol «recepcion» si está prendido; si no, el asistente de automatización; "
+        t.details = QT_TRANSLATE_NOOP("mcp", "QUIÉN ATIENDE: el rol «recepcion» si está prendido; si no, el asistente de automatización; "
                     "nunca el del evento. CUÁNDO TERMINA: al admitirla (o al irse): la atención es del lobby. "
                     "HABLANDO: de a uno (hay un solo canal de voz del que atiende, para el lobby y la sesión "
                     "remota); los demás, por chat (en la asamblea, sin voz: mirándole la cara). `conLaVoz` y "
@@ -58,7 +58,7 @@ void McpService::registerAtencionTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Cambia lo que venga: `salaAtiende` («Los atiende el asistente» en la conferencia), "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia lo que venga: `salaAtiende` («Los atiende el asistente» en la conferencia), "
                         "`salaHablando` (lo que dice se pasa a texto y se le contesta con voz), `asambleaAtiende` "
                         "(mira la cara de quien espera en la sesión remota y lo habilita si el padrón lo deja "
                         "entrar solo; si no, le pregunta al operador), `asambleaHablando` (además, mientras espera "
@@ -66,7 +66,7 @@ void McpService::registerAtencionTools() {
                         "él; termina al habilitarlo), `altaAutomatica` (anota en Personas a quien "
                         "dio su nombre y tiene cara reconocible) y `voz` {repo, hablante, velocidad} (la voz del "
                         "atendedor).");
-        t.details = ba::i18n::traducir("mcp", "Prender la atención sin quién atienda (ni recepción ni automatización) da error. Con la de "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Prender la atención sin quién atienda (ni recepción ni automatización) da error. Con la de "
                     "la conferencia prendida, el reconocimiento del lobby corre siempre. Quién entra solo si se lo "
                     "reconoce se cambia en el padrón del evento: padron_cambiar {id, dejarPasarSolo}.");
         t.inputSchema = {{"type", "object"},
@@ -79,7 +79,7 @@ void McpService::registerAtencionTools() {
                            {"voz",
                             {{"type", "object"},
                              {"properties",
-                              {{"repo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "una voz bajada (tipo tts)")}}},
+                              {{"repo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "una voz bajada (tipo tts)")}}},
                                {"hablante", {{"type", "integer"}, {"minimum", 0}}},
                                {"velocidad", {{"type", "number"}, {"minimum", 0.7}, {"maximum", 1.5}}}}}}}}}};
         t.examples = {R"({"salaAtiende": true, "salaHablando": true})",
@@ -100,7 +100,7 @@ void McpService::registerAtencionTools() {
         t.title = ba::i18n::traducir("mcp", "Probar la voz del atendedor sin que suene");
         t.category = "sala";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Genera `texto` (o una frase de ejemplo) con la voz del atendedor SIN reproducirlo: devuelve "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Genera `texto` (o una frase de ejemplo) con la voz del atendedor SIN reproducirlo: devuelve "
                         "cuánto dura, su forma de onda (picos de 0 a 1) y dónde quedó el .wav para escucharlo "
                         "aparte.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"texto", {{"type", "string"}}}}}};

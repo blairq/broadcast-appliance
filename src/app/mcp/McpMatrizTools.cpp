@@ -36,11 +36,11 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo mismo que muestra la ventana del Mezclador: por entrada (lo que SALE de ella, después de su "
+            QT_TRANSLATE_NOOP("mcp", "Lo mismo que muestra la ventana del Mezclador: por entrada (lo que SALE de ella, después de su "
             "rack, vaya a donde vaya) su pico, RMS y retención (2 s) por canal en dB, el fader, mute, escucha "
             "y a qué destinos va; por salida (Programa, pistas, buses, placa) su nivel; y el loudness del "
             "programa (EBU R128).");
-        t.details = ba::i18n::traducir("mcp", "Niveles en dBFS, [L, R]; -100 = nada. Una entrada «sin salida» (envios vacío) suena pero no "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Niveles en dBFS, [L, R]; -100 = nada. Una entrada «sin salida» (envios vacío) suena pero no "
                     "va a ningún lado: suele ser un error de la matriz (audio_matriz_cruce la conecta). La "
                     "ventana se abre con ui_panel_window {panel: mezclador}.");
         t.run = [mz](const json&, Done done) {
@@ -57,16 +57,16 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Abre, sobre lo que sale de la `entrada`, el analizador de LSP `cual` con su interfaz (una ventana "
+            QT_TRANSLATE_NOOP("mcp", "Abre, sobre lo que sale de la `entrada`, el analizador de LSP `cual` con su interfaz (una ventana "
             "aparte para el operador): espectro (Spectrum Analyzer), fase (Phase Detector: L contra R), "
             "osciloscopio, latencia (Latency Meter) o perfil (Profiler: barrido, respuesta impulsiva y RT60; "
             "SUENA). Si ya está en su rack lo reusa; si no, lo agrega al final (deja pasar el audio sin tocarlo).");
-        t.details = ba::i18n::traducir("mcp", "La interfaz de LSP es para el operador: sus gráficos no vuelven por acá (LSP no publica sus "
+        t.details = QT_TRANSLATE_NOOP("mcp", "La interfaz de LSP es para el operador: sus gráficos no vuelven por acá (LSP no publica sus "
                     "medidores por CLAP). Para leer números usá mezclador_estado o audio_analyze.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "cual"}},
                          {"properties",
-                          {{"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "una de mezclador_estado.entradas")}}},
+                          {{"entrada", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "una de mezclador_estado.entradas")}}},
                            {"cual", {{"type", "string"}, {"enum", {"espectro", "fase", "osciloscopio", "latencia", "perfil"}}}}}}};
         t.run = [mz](const json& a, Done done) {
             const QString e = mz->abrirAnalisisLsp(QString::fromStdString(a["entrada"].get<std::string>()),
@@ -84,7 +84,7 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Fuentes con audio (a la salida de sus filtros) y a qué buses van: las 6 pistas del motor "
+            QT_TRANSLATE_NOOP("mcp", "Fuentes con audio (a la salida de sus filtros) y a qué buses van: las 6 pistas del motor "
             "(la 1 es el programa; nativas, sin retardo) y los buses virtuales (salidas a un "
             "dispositivo, entradas que vuelven como fuente). Con los envíos y sus ajustes.");
         t.run = [m](const json&, Done done) {
@@ -105,12 +105,12 @@ void McpService::registerMatrizTools() {
         t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "`fuente` → `bus` (pista1..pista6, `escucha` = los auriculares del operador, o el id de un bus "
+            QT_TRANSLATE_NOOP("mcp", "`fuente` → `bus` (pista1..pista6, `escucha` = los auriculares del operador, o el id de un bus "
             "virtual): `activo` lo prende o apaga. "
             "En buses virtuales, además, `nivel_db` (-60 a +12), `pan` (-1 izq a 1 der) y `mute`; "
             "`ajustes: false` lo vuelve a 0 dB, centro.");
         t.details =
-            ba::i18n::traducir("mcp", "Las pistas son la asignacion nativa de la fuente: solo prender o apagar, sin retardo. "
+            QT_TRANSLATE_NOOP("mcp", "Las pistas son la asignacion nativa de la fuente: solo prender o apagar, sin retardo. "
             "La pista 1 es lo que sale al AIRE: apagarla saca esa fuente del programa. Los buses virtuales "
             "pasan por una mezcla propia (~25 ms). Una entrada virtual no puede mandarse a su propio bus.");
         t.inputSchema = {{"type", "object"},
@@ -152,7 +152,7 @@ void McpService::registerMatrizTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar una entrada o salida virtual");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`tipo` \"salida\": un bus que sale por un dispositivo (`dispositivo`: id de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`tipo` \"salida\": un bus que sale por un dispositivo (`dispositivo`: id de "
                         "audio_dispositivos). `tipo` \"entrada\": un bus cuya mezcla vuelve como una fuente "
                         "nueva (aparece en Audio con su menú de filtros). `nombre` opcional.");
         t.inputSchema = {{"type", "object"},
@@ -180,7 +180,7 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Quita una entrada o salida virtual (y sus envíos). Las pistas no se quitan.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Quita una entrada o salida virtual (y sus envíos). Las pistas no se quitan.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"bus"}}, {"properties", {{"bus", {{"type", "string"}}}}}};
         t.run = [m, err](const json& a, Done done) {
@@ -198,7 +198,7 @@ void McpService::registerMatrizTools() {
         t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia el nombre de una pista (pista1..pista6) o de un bus virtual. Una entrada virtual "
+            QT_TRANSLATE_NOOP("mcp", "Cambia el nombre de una pista (pista1..pista6) o de un bus virtual. Una entrada virtual "
             "cambia también el nombre de su fuente.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"bus", "nombre"}},
@@ -219,7 +219,7 @@ void McpService::registerMatrizTools() {
         t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia el dispositivo de una salida virtual (`dispositivo`: id de audio_dispositivos).");
+            QT_TRANSLATE_NOOP("mcp", "Cambia el dispositivo de una salida virtual (`dispositivo`: id de audio_dispositivos).");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"bus", "dispositivo"}},
@@ -240,7 +240,7 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las salidas de audio del equipo (placas, auriculares, cables virtuales): id y nombre, "
+            QT_TRANSLATE_NOOP("mcp", "Las salidas de audio del equipo (placas, auriculares, cables virtuales): id y nombre, "
             "para las salidas virtuales de la matriz.");
         t.run = [m](const json&, Done done) {
             json out = json::array();
@@ -258,7 +258,7 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna "
+            QT_TRANSLATE_NOOP("mcp", "Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna "
             "por par de canales (id fis:...); las entradas, una fila por canal. Sin argumentos lo lista. "
             "`mostrar` (true/false) muestra u oculta todo el equipo; `dispositivo` (id) con `visible` "
             "muestra u oculta uno (lo oculto no se abre).");
@@ -296,7 +296,7 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las familias de filtros LSP (compresor, compuerta, EQ...) en castellano: que hacen, para "
+            QT_TRANSLATE_NOOP("mcp", "Las familias de filtros LSP (compresor, compuerta, EQ...) en castellano: que hacen, para "
             "que sirven en vivo, si se recomiendan para vivo y sus variantes (id del plugin, mono/"
             "estereo, sidechain). `buscar` filtra por palabras (castellano o ingles), `categoria` y "
             "`solo_vivo`. El id de una variante es el que se agrega al rack de una fuente.");

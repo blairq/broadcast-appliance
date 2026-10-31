@@ -253,7 +253,7 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "El hardware y cuanto queda: espacio en DISCO, memoria, procesador, temperatura. Todo el "
+            QT_TRANSLATE_NOOP("mcp", "El hardware y cuanto queda: espacio en DISCO, memoria, procesador, temperatura. Todo el "
             "hardware de una vez: monitores (nombre, resolucion, posicion, escala, Hz, principal), "
             "placas de audio de entrada y de salida, camaras y capturadoras, GPU y con que dibuja la app, "
             "codificadores de video (los de hardware marcados), CPU, memoria, disco y sistema operativo. "
@@ -293,7 +293,7 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Monitores conectados en su ORDEN FISICO (de izquierda a derecha y de arriba abajo, el numero que "
+            QT_TRANSLATE_NOOP("mcp", "Monitores conectados en su ORDEN FISICO (de izquierda a derecha y de arriba abajo, el numero que "
             "se ve al identificarlos), con su `id` estable (fabricante|modelo|serie: no cambia con el cable ni "
             "con el orden en que prenden), resolucion en pixeles, posicion, escala, Hz y si es el principal. "
             "Es la misma lista de Salidas -> Pantallas y monitor_listar.");
@@ -314,7 +314,7 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Que placas y conectores de audio tiene la maquina: entradas (microfonos, lineas, interfaces) y "
+            QT_TRANSLATE_NOOP("mcp", "Que placas y conectores de audio tiene la maquina: entradas (microfonos, lineas, interfaces) y "
             "salidas (parlantes, auriculares, HDMI). Salen del registro de la maquina (Dispositivos y equipos): "
             "`name` es el nombre que les puso el operador (o el del sistema si no le puso), `tecnico` el del "
             "sistema, `conectado` si esta ahora (los que la maquina ya vio y no estan figuran ausentes). El "
@@ -343,7 +343,7 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "QUE ES: suma a la emision una entrada de audio de esta maquina (microfono, linea, interfaz). "
+            QT_TRANSLATE_NOOP("mcp", "QUE ES: suma a la emision una entrada de audio de esta maquina (microfono, linea, interfaz). "
             "PARA QUE: el audio del lugar, un microfono de mano, una consola. COMO SE USA: `device` es el "
             "`value` que informa `audio_devices` en `inputs` (\"default\" = la predeterminada del "
             "sistema). Va a un canal GLOBAL, como el audio de los invitados: suena en TODAS las escenas, "
@@ -352,7 +352,7 @@ void McpService::registerSystemTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"device", {{"type", "string"}}}, {"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "opcional")}}}}},
+             {{"device", {{"type", "string"}}}, {"name", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "opcional")}}}}},
             {"required", {"device"}}};
         // Por el mismo camino que la página Entradas de audio (InputsViewModel): el
         // mismo nombre por defecto (el del operador) y la misma validación.
@@ -377,7 +377,7 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Que el aparato vuelva solo después de un corte de luz. Sin argumentos: si arranca solo con el equipo y "
+            QT_TRANSLATE_NOOP("mcp", "Que el aparato vuelva solo después de un corte de luz. Sin argumentos: si arranca solo con el equipo y "
             "qué falta del sistema (que la máquina se encienda al volver la luz y que la sesión se inicie sola: eso "
             "lo hace una persona con permisos de administrador). Con `activo`: lo prende o lo apaga. Al volver, el "
             "programa retoma solo la transmisión y la grabación que estaban andando.");
@@ -399,7 +399,7 @@ void McpService::registerSystemTools() {
         t.clase = Clase::Escritura;
         t.destructive = true;
         t.description =
-            ba::i18n::traducir("mcp", "Saca de la emision una entrada de audio del equipo (las que agrega audio_input_add; mixer_list "
+            QT_TRANSLATE_NOOP("mcp", "Saca de la emision una entrada de audio del equipo (las que agrega audio_input_add; mixer_list "
             "las muestra). Deja de sonar en todas las escenas y no vuelve al arrancar.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
         t.run = [&rt](const json& a, Done done) {
@@ -421,7 +421,7 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Camaras USB, capturadoras y cualquier dispositivo de video (por GStreamer: V4L2 en Linux, Media "
+            QT_TRANSLATE_NOOP("mcp", "Camaras USB, capturadoras y cualquier dispositivo de video (por GStreamer: V4L2 en Linux, Media "
             "Foundation en Windows, AVFoundation en macOS), del registro de la maquina: `name` es el nombre que "
             "les puso el operador, `tecnico` el del sistema, `conectado` si esta ahora. Con `device` (el value, "
             "el id o el nombre): sus `modos` "
@@ -465,12 +465,12 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Como gst-device-monitor, pero de la app: cada dispositivo de video con su API (mediafoundation, "
+            QT_TRANSLATE_NOOP("mcp", "Como gst-device-monitor, pero de la app: cada dispositivo de video con su API (mediafoundation, "
             "ksvideo, avf, v4l2), propiedades, el elemento que lo abre, si la app lo usa (`usable`; en Windows la "
             "misma cámara aparece también por KS y se usa la de Media Foundation), las `caps` crudas tal cual las "
             "anuncia, los `modos` interpretados (formato real y decodificador) y el `automatico` para el lienzo con su "
             "porqué. `device` para uno solo. Sirve para entender por qué una cámara no da lo que se espera.");
-        t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}, {"sinCaps", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "sin las caps crudas (más corto)")}}}}}};
+        t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}, {"sinCaps", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "sin las caps crudas (más corto)")}}}}}};
         t.run = [](const json& a, Done done) {
             json f = ba::app::video::fichasDeVideo(a.value("device", std::string()));
             if (a.value("sinCaps", false))

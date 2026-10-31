@@ -281,11 +281,11 @@ void McpService::registerVentanaTools() {
         t.hilo = Hilo::Interfaz;
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "El inventario de ventanas abiertas, con su id, "
+            QT_TRANSLATE_NOOP("mcp", "El inventario de ventanas abiertas, con su id, "
             "que tienen adentro, su tamaño y posicion, en que "
             "monitor estan y como estan (normal, maximizada, pantalla completa). Tambien los monitores.");
         t.details =
-            ba::i18n::traducir("mcp", "Los `id` son los que piden `ventana_mover` y `ventana_cerrar`:\n"
+            QT_TRANSLATE_NOOP("mcp", "Los `id` son los que piden `ventana_mover` y `ventana_cerrar`:\n"
             "  - `principal`: la ventana grande, la que siempre esta.\n"
             "  - `pagina:<id>`: una pestaña sacada a su ventana (ver ui_page_window).\n"
             "  - `salida:<n>`: una ventana de video (ver output_window).\n"
@@ -338,12 +338,12 @@ void McpService::registerVentanaTools() {
         t.title = ba::i18n::traducir("mcp", "Mover, redimensionar o mandar a otro monitor");
         t.category = "ventanas";
         t.clase = Clase::Ui;
-        t.description = ba::i18n::traducir("mcp", "Manda una ventana de la app a otro MONITOR de esta computadora, o a una zona de la "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Manda una ventana de la app a otro MONITOR de esta computadora, o a una zona de la "
                         "pantalla. Es para acomodar el puesto de trabajo. Acomoda una ventana: a otro "
                         "monitor, a una zona de ese monitor, a un tamaño y posicion "
                         "exactos, o a pantalla completa. Los ids salen de ventana_listar.");
         t.details = ba::i18n::llenar(
-            ba::i18n::traducir("mcp", "USA `zona` SIEMPRE QUE PUEDAS, no x/y/ancho/alto. La zona se calcula contra el area util "
+            QT_TRANSLATE_NOOP("mcp", "USA `zona` SIEMPRE QUE PUEDAS, no x/y/ancho/alto. La zona se calcula contra el area util "
             "del monitor (sin la barra del sistema) y sale bien con monitores de distinto tamaño; "
             "calcular los pixeles a mano termina en ventanas a medio salir de la pantalla.\n\n"
             "Zonas: %1.\n\n"
@@ -360,16 +360,16 @@ void McpService::registerVentanaTools() {
             {"properties",
              {{"ventana",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "id de ventana_listar (p. ej. \"principal\", \"pagina:guion\")")}}},
-              {"monitor", {{"type", json::array({"string", "integer"})}, {"description", ba::i18n::traducir("mcp", "nombre o numero del monitor")}}},
-              {"zona", {{"type", "string"}, {"description", ba::i18n::llenar(ba::i18n::traducir("mcp", "una de: %1"), {kZonas})}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "id de ventana_listar (p. ej. \"principal\", \"pagina:guion\")")}}},
+              {"monitor", {{"type", json::array({"string", "integer"})}, {"description", QT_TRANSLATE_NOOP("mcp", "nombre o numero del monitor")}}},
+              {"zona", {{"type", "string"}, {"description", ba::i18n::llenar(QT_TRANSLATE_NOOP("mcp", "una de: %1"), {kZonas})}}},
               {"x", {{"type", "integer"}}},
               {"y", {{"type", "integer"}}},
               {"ancho", {{"type", "integer"}}},
               {"alto", {{"type", "integer"}}},
               {"estado",
                {{"type", "string"}, {"enum", {"normal", "maximizada", "pantalla-completa", "minimizada"}}}},
-              {"alFrente", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "traerla adelante de las demas")}}}}}};
+              {"alFrente", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "traerla adelante de las demas")}}}}}};
         t.examples = {R"({"ventana": "principal", "monitor": "DP-1", "zona": "completa"})",
                       R"({"ventana": "pagina:guion", "zona": "izquierda"})",
                       R"({"ventana": "salida:1", "monitor": 2, "estado": "pantalla-completa"})"};
@@ -547,10 +547,10 @@ void McpService::registerVentanaTools() {
         t.category = "ventanas";
         t.clase = Clase::Ui;
         t.description =
-            ba::i18n::traducir("mcp", "Reparte las ventanas abiertas entre los monitores para que no queden una encima de otra. "
+            QT_TRANSLATE_NOOP("mcp", "Reparte las ventanas abiertas entre los monitores para que no queden una encima de otra. "
             "La principal se queda donde esta; las sueltas se distribuyen.");
         t.details =
-            ba::i18n::traducir("mcp", "QUE HACE SEGUN EL ESCRITORIO, porque no todos dejan lo mismo:\n"
+            QT_TRANSLATE_NOOP("mcp", "QUE HACE SEGUN EL ESCRITORIO, porque no todos dejan lo mismo:\n"
             "  - Si se pueden ubicar ventanas: reparte por zonas (una sola ocupa el monitor entero, dos "
             "se parten por la mitad, tres en tercios, cuatro en cuadrantes).\n"
             "  - Si no (GNOME/Wayland): una a PANTALLA COMPLETA por monitor libre, que es lo unico que "
@@ -561,7 +561,7 @@ void McpService::registerVentanaTools() {
             {"properties",
              {{"dejarLibre",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "nombre de un monitor que no hay que usar (p. ej. el del operador)")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "nombre de un monitor que no hay que usar (p. ej. el del operador)")}}}}}};
         t.run = [](const json& a, Done done) {
             const QString libre = QString::fromStdString(a.value("dejarLibre", std::string()));
             // Los monitores con algo FIJO (Salidas → Pantallas, «monitor:<id>») no
@@ -680,17 +680,17 @@ void McpService::registerVentanaTools() {
         t.category = "ventanas";
         t.clase = Clase::Ui;
         t.description =
-            ba::i18n::traducir("mcp", "Pone unos segundos un cartel grande en CADA monitor (o solo en `monitor`) con su numero y su "
+            QT_TRANSLATE_NOOP("mcp", "Pone unos segundos un cartel grande en CADA monitor (o solo en `monitor`) con su numero y su "
             "nombre, los mismos de la pagina Pantallas. Para saber cual es \"DP-1\" sin mandar una ventana a "
             "ver adonde va.");
-        t.details = ba::i18n::traducir("mcp", "Usalo antes de acomodar el puesto: los nombres de los monitores no le dicen nada a "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Usalo antes de acomodar el puesto: los nombres de los monitores no le dicen nada a "
                     "nadie hasta que se los ve puestos.\n\n"
                     "Tambien sirve de prueba: aparece con PANTALLA COMPLETA en cada monitor, que es lo "
                     "unico que un escritorio como GNOME respeta. Si los carteles salen donde tienen que "
                     "salir, mandar una ventana a pantalla completa a un monitor tambien va a andar.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"monitor", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "solo este: su numero, su nombre o su id (vacio = todos)")}}}}}};
+                          {{"monitor", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "solo este: su numero, su nombre o su id (vacio = todos)")}}}}}};
         t.run = [this](const json& a, Done done) {
             const QString cual = QString::fromStdString(a.value("monitor", std::string()));
             const QString err = vm_.escritorio().identificarPantallas(cual);
@@ -708,7 +708,7 @@ void McpService::registerVentanaTools() {
         t.hilo = Hilo::Interfaz;
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Una foto de la INTERFAZ del aparato, no de lo que sale al aire (eso es "
+            QT_TRANSLATE_NOOP("mcp", "Una foto de la INTERFAZ del aparato, no de lo que sale al aire (eso es "
             "`foto_programa`). Es la unica forma de mirar una pagina: si algo se ve mal —una "
             "tarjeta encima de otra, un texto cortado, un boton que no aparece— esto lo muestra; "
             "describirlo de memoria no. Por defecto la ventana principal; `ventana_listar` da las "
@@ -723,15 +723,15 @@ void McpService::registerVentanaTools() {
                           {{"ventana",
                             {{"type", "string"},
                              {"default", "principal"},
-                             {"description", ba::i18n::traducir("mcp", "id de ventana_listar; `principal` si no se dice")}}},
+                             {"description", QT_TRANSLATE_NOOP("mcp", "id de ventana_listar; `principal` si no se dice")}}},
                            {"ancho",
                             {{"type", "integer"},
                              {"minimum", 320},
                              {"maximum", 3840},
-                             {"description", ba::i18n::traducir("mcp", "a cuanto achicarla. 1280 si no se dice")}}},
+                             {"description", QT_TRANSLATE_NOOP("mcp", "a cuanto achicarla. 1280 si no se dice")}}},
                            {"archivo",
                             {{"type", "string"},
-                             {"description", ba::i18n::traducir("mcp", "guardarla en Manuales/<archivo> (.jpg o .png)")}}},
+                             {"description", QT_TRANSLATE_NOOP("mcp", "guardarla en Manuales/<archivo> (.jpg o .png)")}}},
                            {"recuadros", esquemaRecuadros()}}}};
         t.examples = {R"({})", R"({"ventana": "panel:carrusel"})",
                       R"({"ancho": 1600, "archivo": "es/capturas/01-dashboard.jpg"})",
@@ -786,7 +786,7 @@ void McpService::registerVentanaTools() {
         t.title = ba::i18n::traducir("mcp", "Ver una página web del aparato");
         t.category = "interfaz";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Una foto de una PÁGINA WEB del aparato tal como la ve quien la abre: la web del evento, la de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Una foto de una PÁGINA WEB del aparato tal como la ve quien la abre: la web del evento, la de "
                         "los invitados, el público, el teleprompter, los rótulos, la botonera, la sesión remota, la consola de la "
                         "presidencia, el tablero… (los enlaces salen de `enlaces_listar`: `local` o `remoto`). Con un Chrome sin "
                         "ventana que viene en la instalación. `ancho` × `alto`: 430×900 para cómo se ve en un celular, 1440×900 en "
@@ -851,8 +851,8 @@ void McpService::registerVentanaTools() {
         t.category = "ventanas";
         t.clase = Clase::Ui;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Cierra una ventana suelta (una pestaña sacada o una salida de video).");
-        t.details = ba::i18n::traducir("mcp", "La ventana PRINCIPAL no se cierra por aca: cerrarla es cerrar la app, y eso se pide "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cierra una ventana suelta (una pestaña sacada o una salida de video).");
+        t.details = QT_TRANSLATE_NOOP("mcp", "La ventana PRINCIPAL no se cierra por aca: cerrarla es cerrar la app, y eso se pide "
                     "con `app_quit`, que avisa si hay algo al aire.\n\n"
                     "Cerrar una pestaña sacada no pierde nada: la pagina sigue en la ventana principal.");
         t.inputSchema = {{"type", "object"},

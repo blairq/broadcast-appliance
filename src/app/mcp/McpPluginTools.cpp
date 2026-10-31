@@ -30,14 +30,14 @@ void McpService::registerPluginTools() {
         "cámaras 360, datos de quién habla), tarjetas de video y audio, entradas generadas, y que pueden "
         "manejar todo el sistema. Los escribe el asistente."));
     const json id = {{"type", "string"},
-                     {"description", ba::i18n::traducir("mcp", "El id del plugin (su carpeta: minúsculas, números y guiones).")}};
+                     {"description", QT_TRANSLATE_NOOP("mcp", "El id del plugin (su carpeta: minúsculas, números y guiones).")}};
     {
         Tool t;
         t.name = "plugin_listar";
         t.title = ba::i18n::traducir("mcp", "Plugins instalados y ejemplos");
         t.category = "plugins";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los plugins (estado: corriendo, apagado, caído…, lo que declararon: entradas, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los plugins (estado: corriendo, apagado, caído…, lo que declararon: entradas, "
                         "tarjetas, PTZ, controles) y "
                         "los ejemplos para copiar (con su `categoria`: inicio, video, automatizacion, equipo, "
                         "superficie; `molde` = pensado como punto de partida). Para CREAR uno: help {\"topic\": "
@@ -58,7 +58,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Ver un plugin (o un ejemplo)");
         t.category = "plugins";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El manifiesto (plugin.json), la lista de archivos y el contenido de `archivo` (de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El manifiesto (plugin.json), la lista de archivos y el contenido de `archivo` (de "
                         "fábrica, el principal) "
                         "de un plugin o de un EJEMPLO (con su nombre: «ejemplo-basico», «ejemplo-video-gst», "
                         "«ejemplo-automatizacion», «ejemplo-equipo-red»…). "
@@ -69,7 +69,7 @@ void McpService::registerPluginTools() {
             {"required", {"id"}},
             {"properties",
              {{"id", id},
-              {"archivo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "ruta relativa (de fábrica, plugin.py)")}}}}}};
+              {"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta relativa (de fábrica, plugin.py)")}}}}}};
         t.run = [p](const json& a, Done done) {
             if (!p) return done(ToolResult::error(ba::i18n::traducir("mcp", "los plugins no están disponibles")));
             const json r = p->ver(a.value("id", std::string()), a.value("archivo", std::string()));
@@ -84,7 +84,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Crear o cambiar un plugin");
         t.category = "plugins";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe los `archivos` del plugin `id` ({\"plugin.py\": \"...código...\"}; pisa los "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe los `archivos` del plugin `id` ({\"plugin.py\": \"...código...\"}; pisa los "
                         "que nombres, deja los "
                         "demás) y mezcla `manifiesto` en su plugin.json (nombre, descripcion, version, "
                         "dependencias: [paquetes de "
@@ -98,7 +98,7 @@ void McpService::registerPluginTools() {
             {"required", {"id"}},
             {"properties",
              {{"id", id},
-              {"archivos", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "ruta relativa -> contenido (texto)")}}},
+              {"archivos", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta relativa -> contenido (texto)")}}},
               {"manifiesto", {{"type", "object"}}}}}};
         t.examples = {
             R"({"id": "ptz-rally", "manifiesto": {"nombre": "PTZ Logitech Rally", "dependencias": ["pyusb", "libusb-package"]}, "archivos": {"plugin.py": "import ba_plugin as ba\nplugin = ba.Plugin()\n...\nplugin.correr()\n"}})"};
@@ -120,7 +120,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Copiar un ejemplo como plugin nuevo");
         t.category = "plugins";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Copia el `ejemplo` (plugin_listar los lista) a un plugin nuevo `id`, para cambiarlo "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Copia el `ejemplo` (plugin_listar los lista) a un plugin nuevo `id`, para cambiarlo "
                         "con plugin_escribir. Los moldes: «ejemplo-video-gst» (un efecto, filtro o análisis de "
                         "video: tarjeta del grafo con GStreamer y un elemento propio en Python), "
                         "«ejemplo-automatizacion» (escuchar el estudio y actuar), «ejemplo-equipo-red» (un "
@@ -145,7 +145,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Probar un plugin sin tocar el sistema");
         t.category = "plugins";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Baja sus dependencias y lo corre APARTE (no toca lo que está al aire): junta lo que "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Baja sus dependencias y lo corre APARTE (no toca lo que está al aire): junta lo que "
                         "declara, le pasa "
                         "cuadros y audio de prueba a cada tarjeta (cuánto tarda, qué cambió), recibe "
                         "`segundos` de cada entrada "
@@ -162,7 +162,7 @@ void McpService::registerPluginTools() {
             {"properties",
              {{"id", id},
               {"segundos",
-               {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "cuánto escuchar cada entrada (3 de fábrica)")}}},
+               {{"type", "number"}, {"description", QT_TRANSLATE_NOOP("mcp", "cuánto escuchar cada entrada (3 de fábrica)")}}},
               {"controles",
                {{"type", "array"},
                 {"items",
@@ -184,7 +184,7 @@ void McpService::registerPluginTools() {
         t.category = "plugins";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Prende (`activo`, de fábrica true) o apaga el plugin, y queda así al reiniciar la app. Al "
+            QT_TRANSLATE_NOOP("mcp", "Prende (`activo`, de fábrica true) o apaga el plugin, y queda así al reiniciar la app. Al "
             "prenderse: sus "
             "entradas aparecen como entradas de video/audio (en la `escena` que declaren o en «Plugins»; "
             "nunca la "
@@ -213,7 +213,7 @@ void McpService::registerPluginTools() {
         t.category = "plugins";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Los plugins aprobados para el aire: con el modo en vivo solo arrancan (y se reinician) esos, y solo "
+            QT_TRANSLATE_NOOP("mcp", "Los plugins aprobados para el aire: con el modo en vivo solo arrancan (y se reinician) esos, y solo "
             "si su código no cambió desde la aprobación (`vigente`; si no, `cambiaron` dice qué archivos). "
             "APROBAR lo hace una persona en Plugins → «Aprobar para el aire»: el asistente escribe plugins y no "
             "puede aprobarse a sí mismo. Con `quitar: <id>` se le saca la aprobación.");
@@ -234,7 +234,7 @@ void McpService::registerPluginTools() {
         t.category = "plugins";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo cierra y lo vuelve a arrancar (después de cambiar su código con plugin_escribir).");
+            QT_TRANSLATE_NOOP("mcp", "Lo cierra y lo vuelve a arrancar (después de cambiar su código con plugin_escribir).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}}}};
         t.run = [p](const json& a, Done done) {
             if (!p) return done(ToolResult::error(ba::i18n::traducir("mcp", "los plugins no están disponibles")));
@@ -252,7 +252,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "El registro de un plugin");
         t.category = "plugins";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las últimas `lineas` de lo que escribió (print, errores de Python, pip).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las últimas `lineas` de lo que escribió (print, errores de Python, pip).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties", {{"id", id}, {"lineas", {{"type", "integer"}}}}}};
@@ -268,7 +268,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Pedirle algo a un plugin");
         t.category = "plugins";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Llama el control `control` del plugin (los que declaró con @plugin.control; "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Llama el control `control` del plugin (los que declaró con @plugin.control; "
                         "plugin_listar los muestra) con "
                         "`args`, y devuelve lo que conteste. Sin `control`: le pide `info` (lo que declaró y "
                         "cómo andan sus medios).");
@@ -298,7 +298,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "El panel de un plugin (lo mismo que ve el operador)");
         t.category = "plugins";
         t.clase = Clase::Ui;
-        t.description = ba::i18n::traducir("mcp", "Sin `clave`: el panel del plugin (sus controles: deslizador, interruptor, opcion, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Sin `clave`: el panel del plugin (sus controles: deslizador, interruptor, opcion, "
                         "texto, numero, boton, "
                         "indicador, medidor) con los valores de ahora. Con `clave` y `valor`: mueve ese "
                         "control (o toca el botón, "
@@ -331,7 +331,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Lo que publican los plugins (canales de datos)");
         t.category = "plugins";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El último evento de cada canal (p. ej. «kandao-1/hablando») y los más recientes, de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El último evento de cada canal (p. ej. «kandao-1/hablando») y los más recientes, de "
                         "un plugin (`id`) o de "
                         "todos, de un `canal` o de todos.");
         t.inputSchema = {{"type", "object"},
@@ -350,7 +350,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Poner una tarjeta de un plugin");
         t.category = "plugins";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Una tarjeta de VIDEO del plugin al final del sub-grafo de la `entrada` (como "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Una tarjeta de VIDEO del plugin al final del sub-grafo de la `entrada` (como "
                         "cualquier tarjeta: se mueve, "
                         "se ajusta y se saca con las herramientas de video; también va en video_pipeline con "
                         "`tipo: \"plugin\"`), "
@@ -363,8 +363,8 @@ void McpService::registerPluginTools() {
             {"properties",
              {{"id", id},
               {"tarjeta", {{"type", "string"}}},
-              {"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para una de video: la entrada")}}},
-              {"fuente", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para una de audio: la fuente")}}},
+              {"entrada", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "para una de video: la entrada")}}},
+              {"fuente", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "para una de audio: la fuente")}}},
               {"parametros", {{"type", "object"}}}}}};
         t.run = [p](const json& a, Done done) {
             if (!p) return done(ToolResult::error(ba::i18n::traducir("mcp", "los plugins no están disponibles")));
@@ -389,7 +389,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Pedir las claves de un plugin");
         t.category = "plugins";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Muestra al operador UN formulario seguro en la barra con las claves que declara el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Muestra al operador UN formulario seguro en la barra con las claves que declara el "
                         "plugin (\"secretos\" en "
                         "plugin.json: [{\"clave\": \"clave\", \"etiqueta\": \"Clave de la cámara\"}]) y "
                         "vuelve enseguida. Se guardan "
@@ -441,7 +441,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Exportar un plugin (para otro aparato)");
         t.category = "plugins";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Arma un .zip con el plugin (código, plugin.json y sus archivos; sin las bibliotecas "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Arma un .zip con el plugin (código, plugin.json y sus archivos; sin las bibliotecas "
                         "ni sus datos) en Datos/Exportado. "
                         "En el otro aparato: plugin_importar.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}}}};
@@ -460,13 +460,13 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Instalar un plugin desde un .zip");
         t.category = "plugins";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Instala el plugin de un .zip exportado (plugin_exportar). Si ya existe, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Instala el plugin de un .zip exportado (plugin_exportar). Si ya existe, "
                         "`reemplazar: true` pisa su código (conserva "
                         "_libs y datos). Queda apagado: después plugin_probar y plugin_activar.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"archivo"}},
                          {"properties",
-                          {{"archivo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "ruta del .zip")}}},
+                          {{"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta del .zip")}}},
                            {"reemplazar", {{"type", "boolean"}}}}}};
         t.run = [p](const json& a, Done done) {
             if (!p) return done(ToolResult::error(ba::i18n::traducir("mcp", "los plugins no están disponibles")));
@@ -484,7 +484,7 @@ void McpService::registerPluginTools() {
         t.category = "plugins";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Lo apaga y mueve su carpeta a Plugins/.papelera (no se pierde el código). Sus "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo apaga y mueve su carpeta a Plugins/.papelera (no se pierde el código). Sus "
                         "entradas quedan sin señal.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", id}}}};
         t.run = [p](const json& a, Done done) {
@@ -501,7 +501,7 @@ void McpService::registerPluginTools() {
         t.title = ba::i18n::traducir("mcp", "Qué equipos hay conectados (cámaras, micrófonos, USB, HID, serie)");
         t.category = "plugins";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las cámaras y micrófonos que ve GStreamer, cada uno con el `gst` listo para el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las cámaras y micrófonos que ve GStreamer, cada uno con el `gst` listo para el "
                         "pipeline de una entrada "
                         "(p. ej. «avfvideosrc device-index=1») y sus formatos; y los equipos USB (vid:pid, "
                         "marca, si es UVC), HID "

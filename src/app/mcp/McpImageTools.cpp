@@ -75,7 +75,7 @@ bool feedImage(StudioViewModel& vm, const std::string& key, QImage& out) {
 
 const json kImageProps = {
     {"maxWidth",
-     {{"type", "integer"}, {"minimum", 64}, {"maximum", 3840}, {"description", ba::i18n::traducir("mcp", "Ancho maximo en px.")}}},
+     {{"type", "integer"}, {"minimum", 64}, {"maximum", 3840}, {"description", QT_TRANSLATE_NOOP("mcp", "Ancho maximo en px.")}}},
     {"format", {{"type", "string"}, {"enum", {"jpeg", "png"}}, {"default", "jpeg"}}},
     {"quality", {{"type", "integer"}, {"minimum", 10}, {"maximum", 100}, {"default", 85}}}};
 
@@ -169,7 +169,7 @@ void McpService::registerImageTools() {
         t.title = ba::i18n::traducir("mcp", "Ver el programa");
         t.category = "imagenes";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Una foto de lo que sale AL AIRE ahora, para ver si está negro, congelado o mal encuadrado. Imagen de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Una foto de lo que sale AL AIRE ahora, para ver si está negro, congelado o mal encuadrado. Imagen de "
             "lo que esta saliendo al aire ahora (la escena del programa, render completo del motor). Por defecto "
             "1280 px de ancho, JPEG.");
         t.inputSchema = withImageProps(json::object());
@@ -194,12 +194,12 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Forma de onda (`onda`), RGB parade (`parade`), vectorscopio (`vector`) o histograma "
+            QT_TRANSLATE_NOOP("mcp", "Forma de onda (`onda`), RGB parade (`parade`), vectorscopio (`vector`) o histograma "
             "(`histograma`) del programa o de una `fuente`, más cuánto de la imagen está fuera de rango: "
             "`legalidad` = % de negros aplastados, blancos quemados y puntos fuera de la gama compuesta PAL "
             "(lo que balegal corrige). La imagen se guarda en disco (no viaja en la conversación).");
         t.inputSchema = withImageProps(json{
-            {"fuente", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Fuente o escena; sin esto, el programa.")}}},
+            {"fuente", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Fuente o escena; sin esto, el programa.")}}},
             {"tipo", {{"type", "string"}, {"enum", {"onda", "parade", "vector", "histograma"}}, {"default", "onda"}}}});
         t.run = [&rt, &vm, &core](const json& a, Done done) {
             video::TipoScope tipo = video::TipoScope::Onda;
@@ -233,7 +233,7 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Pasa cada entrada por el legalizador broadcast-safe (balegal, en la cadena de GStreamer de la "
+            QT_TRANSLATE_NOOP("mcp", "Pasa cada entrada por el legalizador broadcast-safe (balegal, en la cadena de GStreamer de la "
             "entrada): `modo` no | pal (luma/croma en rango y gama compuesta +133 %) | ntsc (más estricto, "
             "+120 %) | rango (solo luma y croma). Para entregar a un canal. Sin argumentos informa.");
         t.inputSchema = {{"type", "object"},
@@ -258,10 +258,10 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =
-             ba::i18n::traducir("mcp", "La foto de UNA fuente (cámara, imagen, texto, invitado) o de una escena entera, esté o no al aire. "
+             QT_TRANSLATE_NOOP("mcp", "La foto de UNA fuente (cámara, imagen, texto, invitado) o de una escena entera, esté o no al aire. "
             "Ideal para revisar una escena antes de cambiarla, o verificar lo que armaste con scene_define.");
         t.inputSchema =
-            withImageProps(json{{"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Fuente o escena.")}}}});
+            withImageProps(json{{"name", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Fuente o escena.")}}}});
         t.inputSchema["required"] = {"name"};
         t.run = [&rt, &core](const json& a, Done done) {
             // Una fuente recién creada (una cámara de red que todavía conecta)
@@ -305,7 +305,7 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =
-             ba::i18n::traducir("mcp", "Una sola foto con TODAS las escenas en grilla, cada una con su nombre; la del aire, marcada en rojo. "
+             QT_TRANSLATE_NOOP("mcp", "Una sola foto con TODAS las escenas en grilla, cada una con su nombre; la del aire, marcada en rojo. "
             "Como el multiview de un switcher.");
         t.inputSchema = withImageProps(
             json{{"cellWidth", {{"type", "integer"}, {"minimum", 160}, {"maximum", 960}, {"default", 400}}}});
@@ -347,7 +347,7 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Ultimo cuadro de un video que llega a la app: program, guest:N (camara del invitado del "
+            QT_TRANSLATE_NOOP("mcp", "Ultimo cuadro de un video que llega a la app: program, guest:N (camara del invitado del "
             "lugar N), share:N (su pantalla), lobby:K (preview del lobby), backstage:K (fila de "
             "oradores), operator (con lo que te ve el lobby). feeds_list muestra cuales hay.");
         t.inputSchema = withImageProps(json{{"key", {{"type", "string"}}}});
@@ -393,10 +393,10 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =
-             ba::i18n::traducir("mcp", "La foto de UNA persona de la conferencia, por nombre o id: su cámara en vivo o su última imagen. Con "
+             QT_TRANSLATE_NOOP("mcp", "La foto de UNA persona de la conferencia, por nombre o id: su cámara en vivo o su última imagen. Con "
             "includeScreen tambien su pantalla compartida.");
         t.inputSchema =
-            withImageProps(json{{"participant", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre o id.")}}},
+            withImageProps(json{{"participant", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre o id.")}}},
                                 {"includeScreen", {{"type", "boolean"}, {"default", false}}}});
         t.inputSchema["required"] = {"participant"};
         t.run = [&vm, &rt, &core, personImage](const json& a, Done done) {
@@ -431,7 +431,7 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =
-             ba::i18n::traducir("mcp", "Una foto de CADA persona de la conferencia (lobby, adentro y fila de oradores), con su nombre y estado. "
+             QT_TRANSLATE_NOOP("mcp", "Una foto de CADA persona de la conferencia (lobby, adentro y fila de oradores), con su nombre y estado. "
             "Default 480 px.");
         t.inputSchema = withImageProps(json{
             {"state", {{"type", "string"}, {"enum", {"all", "waiting", "admitted"}}, {"default", "all"}}}});
@@ -480,14 +480,14 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Toma `frames` imagenes separadas `intervalMs` de: el programa, una fuente/escena, un video "
+            QT_TRANSLATE_NOOP("mcp", "Toma `frames` imagenes separadas `intervalMs` de: el programa, una fuente/escena, un video "
             "(clave de feeds_list) o una persona. Para analizar movimiento, si alguien habla o hace "
             "gestos, si un video avanza, transiciones, congelamientos.");
         t.inputSchema = withImageProps(json{
             {"target",
              {{"type", "string"},
-              {"description", ba::i18n::traducir("mcp", "'program', nombre de fuente/escena, o clave de video (guest:1...).")}}},
-            {"participant", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "En vez de target: una persona.")}}},
+              {"description", QT_TRANSLATE_NOOP("mcp", "'program', nombre de fuente/escena, o clave de video (guest:1...).")}}},
+            {"participant", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "En vez de target: una persona.")}}},
             {"frames", {{"type", "integer"}, {"minimum", 2}, {"maximum", 16}, {"default", 4}}},
             {"intervalMs", {{"type", "integer"}, {"minimum", 50}, {"maximum", 10000}, {"default", 500}}}});
         t.run = [&rt, &vm, self, &core](const json& a, Done done) {
@@ -564,9 +564,9 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.clase = Clase::Lectura;
         t.description =
-             ba::i18n::traducir("mcp", "Contesta una PREGUNTA concreta sobre lo que se ve en una cámara, el programa, una escena o la app; "
+             QT_TRANSLATE_NOOP("mcp", "Contesta una PREGUNTA concreta sobre lo que se ve en una cámara, el programa, una escena o la app; "
             "no devuelve la foto. Solo video, nada de audio. Devuelve TEXTO.");
-        t.details = ba::i18n::traducir("mcp", "ESTA ES LA UNICA FORMA DE MIRAR, y no es un rodeo: tu conversacion aguanta muy pocas "
+        t.details = QT_TRANSLATE_NOOP("mcp", "ESTA ES LA UNICA FORMA DE MIRAR, y no es un rodeo: tu conversacion aguanta muy pocas "
                     "imagenes y, pasadas esas, se cuelga —no da error, se cuelga, en el medio de una "
                     "transmision en vivo—. Por eso las herramientas `capture_*` te devuelven un archivo y "
                     "no la imagen. Aca la mira un agente aparte, con esa imagen y nada mas, y te contesta "
@@ -586,11 +586,11 @@ void McpService::registerImageTools() {
             {"properties",
              {{"que",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "la pregunta concreta que tiene que contestar mirando la imagen")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "la pregunta concreta que tiene que contestar mirando la imagen")}}},
               {"fuente",
                {{"type", "string"},
                 {"description",
-                 ba::i18n::traducir("mcp", "que mirar: 'programa' (lo que sale al aire, por defecto), 'interfaz' (la "
+                 QT_TRANSLATE_NOOP("mcp", "que mirar: 'programa' (lo que sale al aire, por defecto), 'interfaz' (la "
                  "pantalla de la app), el NOMBRE de una escena o fuente (cualquiera, este o no al aire: no "
                  "hace falta armarla), o una clave de feeds_list (guest:1, lobby:2, armada...)")}}}}}};
         t.examples = {R"({"que": "Se ve a alguien o esta el cuadro en negro?"})",
@@ -695,7 +695,7 @@ void McpService::registerImageTools() {
         t.hilo = Hilo::Interfaz;
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Captura de pantalla de la propia aplicacion: la ventana principal (lo que ve el operador) "
+            QT_TRANSLATE_NOOP("mcp", "Captura de pantalla de la propia aplicacion: la ventana principal (lo que ve el operador) "
             "y, con window=all, tambien las demas ventanas abiertas: las de salida de video y las "
             "pestañas que el operador saco a su propio monitor (ver ui_page_window).");
         t.inputSchema = withImageProps(

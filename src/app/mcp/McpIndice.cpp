@@ -170,6 +170,33 @@ Reglas reglasDe(const nlohmann::json& b) {
     return r;
 }
 
+/// El campo «buscador» de un perfil o, si no lo tiene, el del primero de sus respaldos.
+nlohmann::json buscadorDe(const ba::i18n::Perfil& p) {
+    nlohmann::json b = p.datos.is_object() ? p.datos.value("buscador", nlohmann::json()) : nlohmann::json();
+    for (std::size_t i = 0; !b.is_object() && i < p.respaldo.size(); ++i) {
+        const ba::i18n::Perfil r = ba::i18n::perfil(p.respaldo[i]);
+        if (r.datos.is_object()) b = r.datos.value("buscador", nlohmann::json());
+    }
+    return b;
+}
+
+/// DOS LENGUAS EN EL MISMO INDICE. Con un operador en otro idioma, el índice tiene
+/// las dos: la descripción y unas etiquetas en el original (castellano: es lo que lee
+/// el modelo, ver traducirParaVer) y el título y las otras etiquetas traducidos. Con
+/// las reglas de un solo idioma, el ruso separaba «cámara» en «c» y «mara» (la «á» no
+/// es una letra suya) y el inglés indexaba «de» y «la». Por eso se le SUMAN las letras,
+/// las tildes y las palabras vacías del original. Lo que cambia la palabra (el
+/// imperativo, el infinitivo, los pronombres pegados) queda solo del idioma del
+/// operador: el voseo aplicado al inglés volvía «mobile» un «mobir».
+void sumarDelOriginal(Reglas& r, const Reglas& o) {
+    if (!r.letras.empty())
+        for (const auto& [k, v] : o.letras) r.letras.emplace(k, v);
+    for (const auto& par : o.sinTildes)
+        if (std::none_of(r.sinTildes.begin(), r.sinTildes.end(), [&](const auto& x) { return x.first == par.first; }))
+            r.sinTildes.push_back(par);
+    r.vacias.insert(o.vacias.begin(), o.vacias.end());
+}
+
 /// Las del idioma del operador (o las de sus respaldos), leídas una vez por idioma.
 std::shared_ptr<const Reglas> reglas() {
     static std::mutex mu;
@@ -179,12 +206,11 @@ std::shared_ptr<const Reglas> reglas() {
     std::lock_guard<std::mutex> l(mu);
     if (hay && de == codigo) return hay;
     const ba::i18n::Perfil p = ba::i18n::perfil(codigo);
-    nlohmann::json b = p.datos.is_object() ? p.datos.value("buscador", nlohmann::json()) : nlohmann::json();
-    for (std::size_t i = 0; !b.is_object() && i < p.respaldo.size(); ++i) {
-        const ba::i18n::Perfil r = ba::i18n::perfil(p.respaldo[i]);
-        if (r.datos.is_object()) b = r.datos.value("buscador", nlohmann::json());
-    }
-    hay = std::make_shared<const Reglas>(reglasDe(b));
+    Reglas r = reglasDe(buscadorDe(p));
+    if (!p.fuente && !p.pseudo)
+        for (const ba::i18n::Perfil& o : ba::i18n::idiomas())
+            if (o.fuente) sumarDelOriginal(r, reglasDe(buscadorDe(o)));
+    hay = std::make_shared<const Reglas>(std::move(r));
     de = p.codigo;
     return hay;
 }

@@ -61,11 +61,9 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.category = "linea";
         t.clase = Clase::Lectura;
         t.porSalida = true;
-        t.description = traducir("mcp", "El pronóstico compacto de una salida: bloques, pasos (y sus piezas con `nivel` piezas) "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El pronóstico compacto de una salida: bloques, pasos (y sus piezas con `nivel` piezas) "
                                         "con su hora de entrada y salida, back time, estado y cómo entran.");
-        t.details = traducir(
-            "mcp",
-            "Es lo que hay que mirar antes de tocar la línea: no hace falta leer el JSON entero.\n\n"
+        t.details = QT_TRANSLATE_NOOP("mcp", "Es lo que hay que mirar antes de tocar la línea: no hace falta leer el JSON entero.\n\n"
             "Cada paso trae `estado` (pasado, alAire, proximo, futuro, salteado), `entra` (go = espera el GO; auto = "
             "solo; hora; cuando; ancla), `frente`/`fin` (hora prevista de entrada y de salida, o la real si ya pasó), "
             "`back` (lo último que puede arrancar para llegar al próximo hard start o al fin), `tarde`, `estimado` (depende "
@@ -78,8 +76,8 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             "Las horas van en el huso del evento. Sin correr, es el plan desde la hora prevista (o desde ahora).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"desde", {{"description", traducir("mcp", "\"HH:MM\" o ms de época")}}},
-                           {"hasta", {{"description", traducir("mcp", "\"HH:MM\" o ms de época")}}},
+                          {{"desde", {{"description", QT_TRANSLATE_NOOP("mcp", "\"HH:MM\" o ms de época")}}},
+                           {"hasta", {{"description", QT_TRANSLATE_NOOP("mcp", "\"HH:MM\" o ms de época")}}},
                            {"nivel", {{"type", "string"}, {"enum", {"bloques", "pasos", "piezas"}}}}}}};
         t.examples = {R"({})", R"({"nivel": "piezas", "desde": "19:30", "hasta": "20:15"})", R"({"nivel": "bloques"})"};
         t.run = [&ev, &core](const json& a, Done done) {
@@ -98,11 +96,9 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Estado de la línea");
         t.category = "linea";
         t.clase = Clase::Lectura;
-        t.description = traducir("mcp", "Por salida: qué está al aire y cuánto lleva, el próximo y si entra solo, HOLD, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Por salida: qué está al aire y cuánto lleva, el próximo y si entra solo, HOLD, "
                                         "over/under, el próximo hard start; la pausa y la retoma tras un corte.");
-        t.details = traducir(
-            "mcp",
-            "`estado`: parada, corriendo, pausada, terminada. Por salida: `alAire` {paso, nombre, bloque, desde, llevaSeg, "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`estado`: parada, corriendo, pausada, terminada. Por salida: `alAire` {paso, nombre, bloque, desde, llevaSeg, "
             "previstoSeg, restanteSeg (negativo: se pasó)}, `proximo` {paso, entra, automatico, frente, entraSoloEnSeg}, "
             "`hold`, `holdCorte`, `overUnderSeg` (positivo: vamos pasados), `proximoHardStart` {paso, hora, enSeg, gapSeg, "
             "politica} y `activas` (las piezas vivas).\n\n"
@@ -122,11 +118,9 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Lo que pasó en la línea");
         t.category = "linea";
         t.clase = Clase::Lectura;
-        t.description = traducir("mcp", "Lo emitido (Eventos/<evento>/recorrido.jsonl): qué paso entró, cuándo y cómo, las "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo emitido (Eventos/<evento>/recorrido.jsonl): qué paso entró, cuándo y cómo, las "
                                         "piezas, los HOLD, los saltos, lo insertado, los cortes, lo que se contó y lo que se decidió.");
-        t.details = traducir(
-            "mcp",
-            "Un renglón por cosa que pasó, en orden: `que` (arranca, entra, sale, pieza, repone, saca, perdida, hold, "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Un renglón por cosa que pasó, en orden: `que` (arranca, entra, sale, pieza, repone, saca, perdida, hold, "
             "suelta, proximo, salta, ir, repite, inserta, pausa, sigue, corte, descripcion, decision, termina, fin), `ms` y "
             "`hora`, y `salida`, `paso`, `pieza`, `como` o `texto` según el caso. Es la materia prima del informe, los "
             "capítulos y el acta. Lo del ensayo no se anota. `ultimos`: solo los últimos N.");
@@ -143,10 +137,10 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Revisar la línea");
         t.category = "linea";
         t.clase = Clase::Lectura;
-        t.description = traducir("mcp", "Los reparos propios de la línea: ids repetidos, pistas o salidas que no existen, piezas "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los reparos propios de la línea: ids repetidos, pistas o salidas que no existen, piezas "
                                         "incompletas, escenas que faltan, anclas rotas, hard starts imposibles, cadenas "
                                         "automáticas largas y conflictos entre salidas (PTZ, gráficos).");
-        t.details = traducir("mcp", "Cada reparo dice dónde (`bloque`, `paso`, `pieza`) y si es `grave`. Complementa a "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Cada reparo dice dónde (`bloque`, `paso`, `pieza`) y si es `grave`. Complementa a "
                                     "evento_revisar, que mira además los archivos y el aparato.");
         t.run = [&ev](const json&, Done done) {
             if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
@@ -162,12 +156,10 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Editar la línea en lote");
         t.category = "linea";
         t.clase = Clase::Escritura;
-        t.description = traducir("mcp", "Un lote de operaciones (agregar, mover, quitar, cambiar pasos, piezas, bloques, pistas y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Un lote de operaciones (agregar, mover, quitar, cambiar pasos, piezas, bloques, pistas y "
                                         "el estante) que se aplica entero o nada. Con `probar` devuelve el diff y el "
                                         "pronóstico resultante SIN aplicar.");
-        t.details = traducir(
-            "mcp",
-            "Probá SIEMPRE primero con `probar`: true y mostrá el diff y el pronóstico; aplicalo (sin `probar`) cuando la "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Probá SIEMPRE primero con `probar`: true y mostrá el diff y el pronóstico; aplicalo (sin `probar`) cuando la "
             "persona lo confirme. Aplicado, la línea de antes queda en Respaldos/linea-<n>.json y se vuelve con "
             "linea_deshacer.\n\n"
             "Operaciones (`ops`, en orden):\n"
@@ -212,7 +204,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                          {"required", {"ops"}},
                          {"properties",
                           {{"ops", {{"type", "array"}, {"items", {{"type", "object"}}}}},
-                           {"probar", {{"type", "boolean"}, {"description", traducir("mcp", "mostrar el resultado sin aplicar")}}}}}};
+                           {"probar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "mostrar el resultado sin aplicar")}}}}}};
         t.examples = {
             R"({"probar": true, "ops": [{"op": "paso_agregar", "bloque": "b2", "despuesDe": "c8", "paso": {"id": "video-inst", "nombre": "Video institucional", "fin": {"alTerminar": "medio"}, "piezas": [{"id": "v1", "pista": "medios-principal", "tipo": "video", "datos": {"archivo": "institucional.mp4"}}]}}]})",
             R"({"probar": true, "ops": [{"op": "cambiar", "id": "c8", "campos": {"inicio": {"modo": "hora", "hora": "20:30", "politica": "esperar"}}}]})",
@@ -230,7 +222,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Deshacer el último cambio de la línea");
         t.category = "linea";
         t.clase = Clase::Escritura;
-        t.description = traducir("mcp", "Vuelve la línea a como estaba antes del último linea_editar aplicado (la última "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Vuelve la línea a como estaba antes del último linea_editar aplicado (la última "
                                         "revisión de Respaldos/).");
         t.run = [&ev](const json&, Done done) {
             const json r = ev.lineaDeshacer();
@@ -246,12 +238,10 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.category = "linea";
         t.clase = Clase::Lectura;
         t.porSalida = true;
-        t.description = traducir("mcp", "El solucionador del back-timing: para terminar a una hora (o al fin planeado) y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El solucionador del back-timing: para terminar a una hora (o al fin planeado) y "
                                         "llegar a cada hard start, propone opciones (recortar por prioridad, que un paso "
                                         "absorba, saltear lo opcional, mover una hora, relleno) ya probadas. Nunca aplica.");
-        t.details = traducir(
-            "mcp",
-            "Devuelve {overSeg, recortaSeg, faltaSeg, ops, saltear, texto, opciones, hardStarts}. `opciones`: "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Devuelve {overSeg, recortaSeg, faltaSeg, ops, saltear, texto, opciones, hardStarts}. `opciones`: "
             "[{id, tipo, texto, ganaSeg, ops, resultado}] contra el fin; `hardStarts`: [{paso, gapSeg (negativo: no se "
             "llega; positivo: sobra), texto, opciones}] para cada hard start que viene desfasado. `tipo`: recortar | "
             "absorber | saltear | mover_hora | relleno | estirar. Cada opción viene PROBADA: `resultado` {fin, "
@@ -265,7 +255,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
             "`hasta`: la hora a la que hay que terminar (\"HH:MM\" o ms); sin eso, el fin planeado del evento.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"hasta", {{"description", traducir("mcp", "la hora a la que hay que terminar: \"HH:MM\" o ms "
+                          {{"hasta", {{"description", QT_TRANSLATE_NOOP("mcp", "la hora a la que hay que terminar: \"HH:MM\" o ms "
                                                                       "(sin esto, el fin planeado)")}}}}}};
         t.examples = {R"({"hasta": "21:00"})", R"({})"};
         t.run = [&ev, &core](const json& a, Done done) {
@@ -283,12 +273,10 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.category = "linea";
         t.clase = Clase::Escritura;
         t.porSalida = true;
-        t.description = traducir("mcp", "Arma pasos de la línea desde una plantilla (orador, punto, votación o las del "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Arma pasos de la línea desde una plantilla (orador, punto, votación o las del "
                                         "evento) repetida con datos (una lista de oradores, el orden del día), o la línea "
                                         "entera desde la guía de un escenario. Por defecto SOLO prueba.");
-        t.details = traducir(
-            "mcp",
-            "Sin `plantilla` ni `escenario`: la lista de plantillas (las del evento y las de fábrica) con sus pasos y "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Sin `plantilla` ni `escenario`: la lista de plantillas (las del evento y las de fábrica) con sus pasos y "
             "los campos que usan.\n\n"
             "`plantilla` + `datos`: una copia de los pasos de la plantilla por fila de `datos`, con cada {campo} "
             "reemplazado ({campo|defecto} si puede faltar). La de fábrica «orador» usa nombre, cargo, escena, "
@@ -315,7 +303,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
               {"nombreBloque", {{"type", "string"}}},
               {"despuesDe", {{"type", "string"}}},
               {"prefijo", {{"type", "string"}}},
-              {"probar", {{"type", "boolean"}, {"description", traducir("mcp", "mostrar el resultado sin aplicar (por defecto)")}}}}}};
+              {"probar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "mostrar el resultado sin aplicar (por defecto)")}}}}}};
         t.examples = {
             R"({})",
             R"({"plantilla": "orador", "nombreBloque": "Oradores", "datos": [{"nombre": "Ana Pérez", "cargo": "Presidenta", "escena": "Atril", "participante": "ana", "tiempoSeg": 300}, {"nombre": "Luis Gómez", "escena": "Atril", "tiempoSeg": 180}]})",
@@ -378,10 +366,10 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Los próximos planos de cada cámara");
         t.category = "linea";
         t.clase = Clase::Lectura;
-        t.description = traducir("mcp", "Para cada cámara (cada fuente que se ve en las escenas de la línea), los planos "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Para cada cámara (cada fuente que se ve en las escenas de la línea), los planos "
                                         "que la usan: el que está al aire y los que vienen, con cuánto falta, en todas las "
                                         "salidas. Es la pantalla del camarógrafo y del que maneja el PTZ.");
-        t.details = traducir("mcp", "{camaras: {<fuente>: [{salida, paso, nombre, estado, frente, enSeg, escena, ptz?}]}}: "
+        t.details = QT_TRANSLATE_NOOP("mcp", "{camaras: {<fuente>: [{salida, paso, nombre, estado, frente, enSeg, escena, ptz?}]}}: "
                                     "lo que está al aire primero y después por lo que falta. `ptz` es la pieza del paso que "
                                     "mueve esa cámara. Con `camara`, solo esa.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"camara", {{"type", "string"}}}}}};
@@ -503,11 +491,9 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Exportar la escaleta");
         t.category = "linea";
         t.clase = Clase::Lectura;
-        t.description = traducir("mcp", "La escaleta en CSV (un renglón por paso, para una planilla o Rundown Studio) o en MOS "
+        t.description = QT_TRANSLATE_NOOP("mcp", "La escaleta en CSV (un renglón por paso, para una planilla o Rundown Studio) o en MOS "
                                         "(roCreate, para un sistema de redacción). Con `archivo`, además la escribe ahí.");
-        t.details = traducir(
-            "mcp",
-            "CSV: bloque, id, nombre, entra (go | tras | con | hora 19:30 [esperar|cortar] | cuando <condición> | ancla "
+        t.details = QT_TRANSLATE_NOOP("mcp", "CSV: bloque, id, nombre, entra (go | tras | con | hora 19:30 [esperar|cortar] | cuando <condición> | ancla "
             "<salida>/<paso>), hora (la prevista), duracion (m:ss), fin (vacío | abierto | medio | mientras <condición>), "
             "continuar, escena, guion, nota.\n\n"
             "MOS: un story por paso y un item por pieza; lo propio de la línea va en mosExternalMetadata, así vuelve igual "
@@ -515,7 +501,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"formato", {{"type", "string"}, {"enum", {"csv", "mos"}}}},
-                           {"archivo", {{"type", "string"}, {"description", traducir("mcp", "ruta donde escribirla (opcional)")}}}}}};
+                           {"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta donde escribirla (opcional)")}}}}}};
         t.examples = {R"({"formato": "csv"})", R"({"formato": "mos", "archivo": "/tmp/escaleta.xml"})"};
         t.run = [&ev](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return done(ToolResult::error(traducir("mcp", "No hay un evento abierto (guion_abrir).")));
@@ -535,11 +521,9 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Importar una escaleta");
         t.category = "linea";
         t.clase = Clase::Escritura;
-        t.description = traducir("mcp", "Trae una escaleta de afuera (CSV de una planilla o de Rundown Studio, o MOS de un "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Trae una escaleta de afuera (CSV de una planilla o de Rundown Studio, o MOS de un "
                                         "sistema de redacción) como bloques nuevos al final de la línea. Por defecto SOLO prueba.");
-        t.details = traducir(
-            "mcp",
-            "`texto` (el CSV o el XML) o `archivo` (.csv; .xml o .mos es MOS). `formato` se adivina si no se dice. Del CSV "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`texto` (el CSV o el XML) o `archivo` (.csv; .xml o .mos es MOS). `formato` se adivina si no se dice. Del CSV "
             "se leen las columnas de linea_exportar (también en inglés: segment, title, duration, script, notes); de MOS, "
             "roCreate o roStoryAppend/Insert/Replace (lo de otro sistema entra como pasos con notas).\n\n"
             "Devuelve el lote (`ops`), el diff, el pronóstico y los `avisos` (renglones que no se entendieron, ids "
@@ -551,7 +535,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
                            {"archivo", {{"type", "string"}}},
                            {"formato", {{"type", "string"}, {"enum", {"csv", "mos"}}}},
                            {"nombreBloque", {{"type", "string"}}},
-                           {"probar", {{"type", "boolean"}, {"description", traducir("mcp", "mostrar el resultado sin aplicar (por defecto)")}}}}}};
+                           {"probar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "mostrar el resultado sin aplicar (por defecto)")}}}}}};
         t.examples = {R"({"texto": "bloque,nombre,duracion,escena\nApertura,Bienvenida,1:30,Cam 1\n"})",
                       R"({"archivo": "/Users/ana/Escaleta.csv", "probar": false})"};
         t.run = [&ev](const json& a, Done done) {
@@ -576,11 +560,9 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Grabar los tiempos en un ensayo");
         t.category = "linea";
         t.clase = Clase::Escritura;
-        t.description = traducir("mcp", "Grabar la línea (como ProPresenter): se corre un ensayo dando GO a mano y lo que dura "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Grabar la línea (como ProPresenter): se corre un ensayo dando GO a mano y lo que dura "
                                         "cada paso queda como su duración prevista, cuando una persona lo confirma.");
-        t.details = traducir(
-            "mcp",
-            "`accion`: grabar (prepara el próximo ensayo para grabar: todo entra con GO y nada se va solo; arrancalo con "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`accion`: grabar (prepara el próximo ensayo para grabar: todo entra con GO y nada se va solo; arrancalo con "
             "evento_correr) | no_grabar | ver (lo grabado: {pasos: [{paso, nombre, antesSeg, grabadoSeg}], totalAntesSeg, "
             "totalGrabadoSeg, ops}) | aplicar (lo grabado pasa a la línea, con su revisión para deshacer) | descartar.\n\n"
             "PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si confirma.");
@@ -615,11 +597,9 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.title = traducir("mcp", "Contar qué está pasando tras un corte");
         t.category = "linea";
         t.clase = Clase::Escritura;
-        t.description = traducir("mcp", "Tras un corte la línea vuelve en HOLD y pregunta «¿Qué está pasando?». Esto deja la "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Tras un corte la línea vuelve en HOLD y pregunta «¿Qué está pasando?». Esto deja la "
                                         "descripción (la que la persona dictó o escribió) en el recorrido. No suelta nada.");
-        t.details = traducir(
-            "mcp",
-            "El flujo: (1) linea_estado → `retoma` (activa, resumen); (2) la persona cuenta qué pasa («el orador sigue "
+        t.details = QT_TRANSLATE_NOOP("mcp", "El flujo: (1) linea_estado → `retoma` (activa, resumen); (2) la persona cuenta qué pasa («el orador sigue "
             "hablando», «ya votaron, vamos al cierre», «vamos diez minutos atrasados»): pasalo con linea_retomar "
             "{descripcion}; (3) PROPONÉ cómo adecuar la línea con linea_editar o linea_ajustar con probar:true "
             "(dónde reenganchar, qué saltear, qué reponer, qué recortar) y mostráselo; (4) cuando la persona confirme, "
@@ -630,7 +610,7 @@ void registerLineaTools(McpCore& core, EventoViewModel& ev, LineaFuentes fuentes
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"descripcion", {{"type", "string"}}},
-                           {"simular", {{"type", "boolean"}, {"description", traducir("mcp", "simular un corte ahora (para probar)")}}}}}};
+                           {"simular", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "simular un corte ahora (para probar)")}}}}}};
         t.examples = {R"({"descripcion": "El orador sigue hablando, vamos 5 minutos atrasados"})", R"({"simular": true})"};
         t.run = [&ev](const json& a, Done done) {
             responderVivo(ev, ev.lineaRetomar(a.value("descripcion", std::string()), a.value("simular", false)), done);

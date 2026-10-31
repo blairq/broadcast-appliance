@@ -122,12 +122,23 @@ const char* nombreClase(Clase c);
 /// "interfaz" | "control" | "foto".
 const char* nombreHilo(Hilo h);
 
+/// LA DESCRIPCION VA EN EL ORIGINAL. `description`, `details` y las `description` de
+/// los argumentos se registran en castellano, marcadas con QT_TRANSLATE_NOOP("mcp", …):
+/// las lee el modelo (tools/list, help, help_search) y están medidas en castellano para
+/// no pisarse entre 800 herramientas (tools/dev/medir-busqueda.py); una traducción no se
+/// mide. El título sí va traducido: lo ve una persona en cada aprobación. La traducción de
+/// la descripción está igual en los .ts, para la vista que mira una persona (el selector
+/// de la Botonera, el control web): la pide con estas dos, por el texto original.
+std::string traducirParaVer(const std::string& original);
+/// El esquema con la `description` de cada argumento traducida (ver traducirParaVer).
+json esquemaParaVer(json esquema);
+
 struct Tool {
     std::string name;
     std::string title;
     std::string category; ///< id de categoria (ver addCategory)
-    std::string description;
-    std::string details; ///< explicacion larga para `help tool=...`
+    std::string description; ///< en el original (ver traducirParaVer)
+    std::string details;     ///< explicacion larga para `help tool=...` (en el original)
     json inputSchema = json{{"type", "object"}, {"properties", json::object()}};
     std::vector<std::string> examples; ///< argumentos de ejemplo (JSON) con comentario
     /// La clase declarada (ver Clase). Toda herramienta registrada en src/app/mcp la

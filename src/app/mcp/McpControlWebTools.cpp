@@ -48,7 +48,7 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Aparatos del control web");
         t.category = "control_web";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los aparatos emparejados del dashboard /control/ (id, nombre, perfil, IP, último uso, si están "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los aparatos emparejados del dashboard /control/ (id, nombre, perfil, IP, último uso, si están "
                         "conectados), las solicitudes que esperan a una persona, si el acceso desde afuera está "
                         "habilitado y lo que dice el gateway (conexiones vivas).");
         t.run = [&vm, &cw](const json&, Done done) {
@@ -69,7 +69,7 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Emparejar un aparato al control web");
         t.category = "control_web";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Genera un código de un uso (vence en unos minutos) y la URL /control/#p=… para abrir en el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Genera un código de un uso (vence en unos minutos) y la URL /control/#p=… para abrir en el "
                         "navegador del aparato (o el QR de Servicios → Control web). `perfil`: las categorías que se le "
                         "proponen a quien aprueba (\"*\" = todas, de fábrica). Cuando el aparato la abre, una PERSONA "
                         "lo aprueba en la app.");
@@ -100,7 +100,7 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Aprobar o rechazar un aparato del control web");
         t.category = "control_web";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Resuelve la `solicitud` (control_web_aparatos). `aprobar`: false la rechaza; true la aprueba con "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Resuelve la `solicitud` (control_web_aparatos). `aprobar`: false la rechaza; true la aprueba con "
                         "el `perfil` (categorías; \"*\" = todas; sin perfil, el que propuso el código). Aprobar lo "
                         "confirma una persona: aparece la tarjeta de aprobación.");
         t.inputSchema = {{"type", "object"},
@@ -138,7 +138,7 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Perfil de un aparato del control web");
         t.category = "control_web";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cambia las `categorias` de herramientas que puede usar el `aparato` (\"*\" = todas; nunca "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia las `categorias` de herramientas que puede usar el `aparato` (\"*\" = todas; nunca "
                         "control_web). Achicar es directo; ampliar lo confirma una persona (tarjeta de aprobación).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"aparato", "categorias"}},
@@ -173,7 +173,7 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
         t.category = "control_web";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "El token del `aparato` deja de valer y se cortan sus conexiones. Para volver, se empareja de nuevo.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "El token del `aparato` deja de valer y se cortan sus conexiones. Para volver, se empareja de nuevo.");
         t.inputSchema = {{"type", "object"}, {"required", {"aparato"}}, {"properties", {{"aparato", {{"type", "string"}}}}}};
         t.run = [&cw](const json& a, Done done) {
             if (!cw.quitar(a.value("aparato", std::string()))) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese aparato")));
@@ -187,7 +187,7 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Control web desde afuera (túnel, con PIN)");
         t.category = "control_web";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "De fábrica el control web anda solo en la red local. `habilitar` true con un `pin` (4 a 12 "
+        t.description = QT_TRANSLATE_NOOP("mcp", "De fábrica el control web anda solo en la red local. `habilitar` true con un `pin` (4 a 12 "
                         "cifras) lo deja entrar también por el túnel, pidiendo el PIN además del token del aparato: lo "
                         "confirma una persona. false lo apaga (directo) y corta lo que esté conectado desde afuera.");
         t.inputSchema = {{"type", "object"},
@@ -218,7 +218,7 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
         t.title = ba::i18n::traducir("mcp", "Tema de las interfaces web");
         t.category = "control_web";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "El tema de todas las páginas de control (dashboard, botonera, presidencia, rótulos, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El tema de todas las páginas de control (dashboard, botonera, presidencia, rótulos, "
                         "corrección): sin `tema`, el actual y los que hay; con `tema` (un id), lo cambia en todos los "
                         "aparatos sin recargar (como Servicios → Templates o Configuración).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"tema", {{"type", "string"}}}}}};

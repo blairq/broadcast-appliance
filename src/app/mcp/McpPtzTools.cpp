@@ -55,7 +55,7 @@ void McpService::registerPtzTools() {
         if (t.inputSchema.contains("properties"))
             t.inputSchema["properties"]["forzar"] = {
                 {"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "mover aunque la camara este al aire (igual pide confirmacion en vivo)")}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "mover aunque la camara este al aire (igual pide confirmacion en vivo)")}};
         auto run = t.run;
         const std::string nombre = t.name;
         t.run = [c, run, nombre](const json& a, Done done) {
@@ -81,7 +81,7 @@ void McpService::registerPtzTools() {
         return error.isEmpty() ? ToolResult::ok(ok) : ToolResult::error(error.toStdString());
     };
     const json entrada = {{"type", "string"},
-                          {"description", ba::i18n::traducir("mcp", "Nombre de la entrada de video (como en ptz_camaras).")}};
+                          {"description", QT_TRANSLATE_NOOP("mcp", "Nombre de la entrada de video (como en ptz_camaras).")}};
 
     {
         Tool t;
@@ -90,7 +90,7 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Cada entrada de video con su PTZ: backend (ninguno = solo digital, visca, onvif, panasonic), si "
+            QT_TRANSLATE_NOOP("mcp", "Cada entrada de video con su PTZ: backend (ninguno = solo digital, visca, onvif, panasonic), si "
             "contesta, qué puede (capacidades: panTilt, zoom, foco, presets…), qué mueve el joystick (modo "
             "optico|digital), el encuadre digital (x, y, zoom) y si tiene Mejorar imagen.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
@@ -116,7 +116,7 @@ void McpService::registerPtzTools() {
         t.title = ba::i18n::traducir("mcp", "Interlock de PTZ (no mover la camara al aire)");
         t.category = "camaras";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Con `activo` (de fabrica true), lo automatico (asistente, plugins, disparadores) no mueve una "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Con `activo` (de fabrica true), lo automatico (asistente, plugins, disparadores) no mueve una "
                         "camara que esta en la escena al aire: error camara_al_aire, salvo `forzar` (que pide "
                         "confirmacion). `seguir_suave_permitido`: el seguimiento en modo suave sigue igual. Sin "
                         "argumentos, muestra el ajuste.");
@@ -143,13 +143,13 @@ void McpService::registerPtzTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "mueve una cámara (si está al aire, se ve)");
         t.aireSi = AireSi::CamaraForzada;
-        t.description = ba::i18n::traducir("mcp", "Mueve la cámara `entrada` durante `duracion_ms` y la para: `pan` (+ derecha), "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Mueve la cámara `entrada` durante `duracion_ms` y la para: `pan` (+ derecha), "
                         "`tilt` (+ arriba), "
                         "`zoom` (+ acercar), velocidades de -1 a 1 (0,2 es lento, 1 a fondo). Mueve lo que "
                         "diga su modo: la "
                         "cabeza (óptico) o el recorte (digital).");
         t.details =
-            ba::i18n::traducir("mcp", "Para un encuadre digital exacto usá ptz_encuadre; para volver a un lugar guardado, ptz_preset. "
+            QT_TRANSLATE_NOOP("mcp", "Para un encuadre digital exacto usá ptz_encuadre; para volver a un lugar guardado, ptz_preset. "
             "Devuelve el encuadre digital después de moverse (si el modo es digital).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada"}},
@@ -192,7 +192,7 @@ void McpService::registerPtzTools() {
         t.title = ba::i18n::traducir("mcp", "Foco de una cámara");
         t.category = "camaras";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Foco de la cámara `entrada`: `auto` true/false prende o apaga el autofoco; `velocidad` (-1 cerca … "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Foco de la cámara `entrada`: `auto` true/false prende o apaga el autofoco; `velocidad` (-1 cerca … "
                         "1 lejos) lo mueve a mano durante `duracion_ms` y lo para.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada"}},
@@ -225,7 +225,7 @@ void McpService::registerPtzTools() {
         t.title = ba::i18n::traducir("mcp", "Llevar una cámara a su posición de inicio");
         t.category = "camaras";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "La cámara `entrada` vuelve a su inicio de fábrica (home): centrada y sin zoom; no es una posición "
+        t.description = QT_TRANSLATE_NOOP("mcp", "La cámara `entrada` vuelve a su inicio de fábrica (home): centrada y sin zoom; no es una posición "
             "guardada.");
         t.inputSchema = {{"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
         t.run = [c](const json& a, Done done) {
@@ -244,7 +244,7 @@ void McpService::registerPtzTools() {
             t.title = ba::i18n::traducir("mcp", "Las caras que ve una cámara");
             t.category = "camaras";
             t.clase = Clase::Lectura;
-            t.description = ba::i18n::traducir("mcp", "Dónde están las caras en el cuadro de la cámara PTZ `entrada` (x, y, tamaño), para encuadrar o "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Dónde están las caras en el cuadro de la cámara PTZ `entrada` (x, y, tamaño), para encuadrar o "
             "seguir a alguien. Para seguir a una: ptz_seguir.");
             t.inputSchema = {
                 {"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
@@ -277,12 +277,12 @@ void McpService::registerPtzTools() {
             t.porQueAire = QT_TRANSLATE_NOOP("mcp", "una cámara sigue a alguien (si está al aire, se ve)");
             t.aireSi = AireSi::CamaraForzada;
             t.description =
-                ba::i18n::traducir("mcp", "La cámara `entrada` sigue a una cara y la mantiene encuadrada. A quién: `persona` (el id de alguien "
+                QT_TRANSLATE_NOOP("mcp", "La cámara `entrada` sigue a una cara y la mantiene encuadrada. A quién: `persona` (el id de alguien "
                 "reconocido, de ptz_caras_ubicar o Personas: la vuelve a encontrar si se cruza con otro), `cara` (el número "
                 "que le puso la tarjeta Rostros), `regla` (\"mayor\": la más grande; \"centro\": la más cercana al "
                 "centro) o `x`, `y` (0..1 de la toma entera: la cara más cercana a ese punto). `parar: true` deja de seguir.");
             t.details =
-                ba::i18n::traducir("mcp", "Corre en el pipeline de la entrada, con tarjetas que se pueden ver y mover en Video › Racks: Rostros "
+                QT_TRANSLATE_NOOP("mcp", "Corre en el pipeline de la entrada, con tarjetas que se pueden ver y mover en Video › Racks: Rostros "
                 "(barostros) ve las caras, Seguimiento (baseguir) elige y decide el encuadre, y el PTZ digital (baptz) va "
                 "hacia ahí. Se hablan con eventos de GStreamer (ba/rostros, ba/encuadre, ba/ptz) en las dos direcciones, "
                 "así que anda en cualquier orden. Si faltan, las tarjetas Rostros y Seguimiento se ponen solas. Con una "
@@ -295,7 +295,7 @@ void McpService::registerPtzTools() {
                               {{"entrada", entrada},
                                {"persona", {{"type", "string"}}},
                                {"nombre", {{"type", "string"}}},
-                               {"cara", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "el número de la cara (tarjeta Rostros)")}}},
+                               {"cara", {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "el número de la cara (tarjeta Rostros)")}}},
                                {"regla", {{"type", "string"}, {"enum", {"mayor", "centro"}}}},
                                {"x", {{"type", "number"}}},
                                {"y", {{"type", "number"}}},
@@ -329,7 +329,7 @@ void McpService::registerPtzTools() {
         t.clase = Clase::Escritura;
         t.reversible = true;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Para todo movimiento de la cámara `entrada` (cabeza y recorte).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Para todo movimiento de la cámara `entrada` (cabeza y recorte).");
         t.inputSchema = {
             {"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
         t.run = [c, resultado](const json& a, Done done) {
@@ -346,7 +346,7 @@ void McpService::registerPtzTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "lleva una cámara a un preset (si está al aire, se ve)");
         t.aireSi = AireSi::CamaraForzada;
-        t.description = ba::i18n::traducir("mcp", "`accion` ir (de fábrica) o guardar el preset `numero` (desde 1) de la cámara "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`accion` ir (de fábrica) o guardar el preset `numero` (desde 1) de la cámara "
                         "`entrada`. El preset N es la POSICIÓN número N (ptz_posiciones): guardar la regraba "
                         "donde está ahora (o crea «Preset N»), en la cámara y/o en el recorte, igual en una "
                         "digital que en una ONVIF/VISCA. Para pedirlas por nombre, ptz_ir_posicion.");
@@ -379,7 +379,7 @@ void McpService::registerPtzTools() {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "reencuadra una cámara (si está al aire, se ve)");
         t.aireSi = AireSi::CamaraForzada;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Recorte digital de la entrada: centro `x`, `y` (0 a 1 del cuadro; 0,5 = centro) y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Recorte digital de la entrada: centro `x`, `y` (0 a 1 del cuadro; 0,5 = centro) y "
                         "`zoom` (1 = todo el "
                         "cuadro, hasta 8), llegando en `segundos` (0 = corte). Sirve en cualquier cámara, "
                         "aunque sea fija.");
@@ -411,7 +411,7 @@ void McpService::registerPtzTools() {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "apunta una cámara (si está al aire, se ve)");
         t.aireSi = AireSi::CamaraForzada;
         t.description =
-            ba::i18n::traducir("mcp", "Lo de la tarjeta PTZ con el mouse, sobre la imagen que se ve (ya recortada): `u`, `v` (0 a 1) "
+            QT_TRANSLATE_NOOP("mcp", "Lo de la tarjeta PTZ con el mouse, sobre la imagen que se ve (ya recortada): `u`, `v` (0 a 1) "
             "es el "
             "punto que va al centro; con `ancho` y `alto` (0 a 1 de la imagen) se acerca hasta que ese "
             "cuadro la "
@@ -441,13 +441,13 @@ void McpService::registerPtzTools() {
         t.title = ba::i18n::traducir("mcp", "Configurar el PTZ de una entrada");
         t.category = "camaras";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Elige el `backend` de la cámara `entrada` (ninguno = solo digital, visca, onvif, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Elige el `backend` de la cámara `entrada` (ninguno = solo digital, visca, onvif, "
                         "panasonic) con su "
                         "`host` y lo que haga falta; y/o `digital` (prender el PTZ digital), `modo` (qué "
                         "mueve el joystick: "
                         "optico|digital) y `mejora` (Mejorar imagen en esta entrada: general|si|no).");
         t.details =
-            ba::i18n::traducir("mcp", "VISCA: `transporte` sony (UDP 52381, con encabezado), tcp (5678) o udp (1259); `direccion` 1-7. "
+            QT_TRANSLATE_NOOP("mcp", "VISCA: `transporte` sony (UDP 52381, con encabezado), tcp (5678) o udp (1259); `direccion` 1-7. "
             "ONVIF: `usuario`, `clave`, `perfil` (vacío = el que tenga PTZ); ptz_buscar las encuentra. "
             "Panasonic: "
             "`usuario` y `clave` si la cámara los pide. La clave se guarda cifrada (Credenciales/), nunca en "
@@ -495,7 +495,7 @@ void McpService::registerPtzTools() {
     // --- Posiciones con nombre -------------------------------------------------
     const json posicion = {
         {"type", "string"},
-        {"description", ba::i18n::traducir("mcp", "La posición: su id o su nombre (sin importar mayúsculas ni tildes).")}};
+        {"description", QT_TRANSLATE_NOOP("mcp", "La posición: su id o su nombre (sin importar mayúsculas ni tildes).")}};
     const auto mapaAJson = [](const QVariantMap& m) {
         return json::parse(
             QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact).toStdString(),
@@ -508,7 +508,7 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las posiciones guardadas de una cámara (o de todas): id, `numero` (su número de preset: "
+            QT_TRANSLATE_NOOP("mcp", "Las posiciones guardadas de una cámara (o de todas): id, `numero` (su número de preset: "
             "ptz_preset y los controles por número van a la posición de ese número), nombre, comentario "
             "(sirven para pedirlas de palabra: «la cámara 2 al atril»), la definición en que se registró, el encuadre digital (x, y, zoom), la memoria de la cámara donde quedó grabada, la "
             "velocidad y los segundos con que se va, y `miniatura_ruta` (la foto JPEG; se puede mirar con "
@@ -539,7 +539,7 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Registra DONDE ESTÁ AHORA la cámara `entrada` como una posición con `nombre` (único en la "
+            QT_TRANSLATE_NOOP("mcp", "Registra DONDE ESTÁ AHORA la cámara `entrada` como una posición con `nombre` (único en la "
             "cámara) y un "
             "`comentario`: el encuadre digital y, si la cámara es motorizada, la graba en una memoria de la "
             "cámara. "
@@ -549,18 +549,18 @@ void McpService::registerPtzTools() {
         const json velocidad = {{"type", "number"},
                                 {"minimum", 0},
                                 {"maximum", 1},
-                                {"description", ba::i18n::traducir("mcp", "Velocidad de la cabeza al ir (0 = la de la cámara).")}};
+                                {"description", QT_TRANSLATE_NOOP("mcp", "Velocidad de la cabeza al ir (0 = la de la cámara).")}};
         const json segundos = {{"type", "number"},
                                {"minimum", -1},
                                {"maximum", 10},
-                               {"description", ba::i18n::traducir("mcp", "Segundos del recorte digital al ir (-1 = sin fijar).")}};
+                               {"description", QT_TRANSLATE_NOOP("mcp", "Segundos del recorte digital al ir (-1 = sin fijar).")}};
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "nombre"}},
                          {"properties",
                           {{"entrada", entrada},
                            {"nombre", {{"type", "string"}}},
                            {"comentario", {{"type", "string"}}},
-                           {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", ba::i18n::traducir("mcp", "su número de preset (si no, el primero libre)")}}},
+                           {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", QT_TRANSLATE_NOOP("mcp", "su número de preset (si no, el primero libre)")}}},
                            {"velocidad", velocidad},
                            {"segundos", segundos}}}};
         t.examples = {
@@ -582,7 +582,7 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Cambia el `nombre`, el `comentario`, el `numero` de preset, la `velocidad` (0..1) o los `segundos` de una "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el `nombre`, el `comentario`, el `numero` de preset, la `velocidad` (0..1) o los `segundos` de una "
                         "posición; con `regrabar: true` la vuelve a registrar donde está ahora la cámara "
                         "(encuadre, memoria, definición y foto); con `miniatura: true` solo saca la foto de nuevo.");
         t.inputSchema = {{"type", "object"},
@@ -620,7 +620,7 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra una posición de la cámara `entrada` (y libera su memoria en la cámara).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra una posición de la cámara `entrada` (y libera su memoria en la cámara).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "posicion"}},
                          {"properties", {{"entrada", entrada}, {"posicion", posicion}}}};
@@ -639,7 +639,7 @@ void McpService::registerPtzTools() {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "lleva una cámara a una posición (si está al aire, se ve)");
         t.aireSi = AireSi::CamaraForzada;
         t.description =
-            ba::i18n::traducir("mcp", "Lleva la cámara `entrada` a la posición (id o nombre): la cabeza a su memoria y el recorte a su "
+            QT_TRANSLATE_NOOP("mcp", "Lleva la cámara `entrada` a la posición (id o nombre): la cabeza a su memoria y el recorte a su "
             "encuadre, en `segundos` (0 = corte; si no se dice, los de la posición o 1). La cabeza va con la "
             "velocidad de la posición. Avisa si la definición cambió desde que se "
             "registró.");
@@ -667,7 +667,7 @@ void McpService::registerPtzTools() {
         t.title = ba::i18n::traducir("mcp", "La foto de una posición");
         t.category = "camaras";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "La miniatura de una posición (cómo se veía cuando se registró), como imagen. Si no "
+        t.description = QT_TRANSLATE_NOOP("mcp", "La miniatura de una posición (cómo se veía cuando se registró), como imagen. Si no "
                         "tiene, sacala con ptz_posicion_editar {miniatura: true} (la cámara tiene que estar ahí).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "posicion"}},
@@ -698,7 +698,7 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.clase = Clase::Lectura;
         t.openWorld = true;
-        t.description = ba::i18n::traducir("mcp", "Busca cámaras ONVIF en la red local (3 s) y devuelve su dirección, nombre y modelo.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Busca cámaras ONVIF en la red local (3 s) y devuelve su dirección, nombre y modelo.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [c](const json&, Done done) {
             if (!c) return done(ToolResult::error(ba::i18n::traducir("mcp", "el PTZ no está disponible")));
@@ -726,7 +726,7 @@ void McpService::registerPtzTools() {
         t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Mejorar imagen en las cámaras que siguen lo general (Configuración → Cámaras y entradas): `activa`, y la "
+            QT_TRANSLATE_NOOP("mcp", "Mejorar imagen en las cámaras que siguen lo general (Configuración → Cámaras y entradas): `activa`, y la "
             "intensidad "
             "de `ruido`, `color` (color pegado al brillo: el LED, la corbata) y `nitidez`, de 0 a 100. Sin "
             "argumentos, dice cómo está. Por entrada: ptz_configurar `mejora`.");

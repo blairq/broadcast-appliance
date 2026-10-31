@@ -24,7 +24,7 @@ void McpService::registerDcnTools() {
                       ba::i18n::traducir("mcp", "La central Bosch DCN del recinto: abrir y cerrar micrófonos de banca, pedidos de palabra, "
                       "siguiente orador, modo de operación, unidades de cada banca."));
 
-    const json banca = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La banca (como en el Cuerpo).")}};
+    const json banca = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La banca (como en el Cuerpo).")}};
     struct Def {
         const char* nombre;
         const char* control;
@@ -190,7 +190,7 @@ void McpService::registerDcnTools() {
         t.clase = d.clase;
         t.porQueAire = d.porQueAire;
         t.destructive = d.destructiva;
-        t.description = ba::i18n::traducir("mcp", d.descripcion);
+        t.description = d.descripcion; // el original: lo traduce la vista (ver traducirParaVer)
         t.inputSchema = {{"type", "object"}, {"properties", d.props.is_object() ? d.props : json::object()}};
         const std::string control = d.control;
         t.run = [&dcn, control](const json& a, Done done) {
@@ -209,7 +209,7 @@ void McpService::registerDcnTools() {
         t.title = ba::i18n::traducir("mcp", "Llevar la votación de la central a Quórum");
         t.category = "conferencia";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Carga la última votación CERRADA de la central como resultado oficial en Quórum (totales, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Carga la última votación CERRADA de la central como resultado oficial en Quórum (totales, "
                         "presentes y el voto de cada integrante), para el acta, el CSV nominal y el gráfico de votación. "
                         "`asunto` reemplaza el tema que tenía en la central.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"asunto", {{"type", "string"}}}}}};
@@ -226,7 +226,7 @@ void McpService::registerDcnTools() {
         t.title = ba::i18n::traducir("mcp", "Presentes de Quórum desde la central");
         t.category = "conferencia";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Con `activo: true`, Quórum cuenta los presentes que dice la asistencia de la central (en vez "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Con `activo: true`, Quórum cuenta los presentes que dice la asistencia de la central (en vez "
                         "del padrón del evento). Sin argumentos, dice cómo está y los dos números.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
         t.run = [&dcn](const json& a, Done done) {
@@ -242,7 +242,7 @@ void McpService::registerDcnTools() {
         t.category = "conferencia";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Conecta con la central Bosch DCN (instala y prende el plugin bosch-dcn si hace falta). Lo que se pasa "
+            QT_TRANSLATE_NOOP("mcp", "Conecta con la central Bosch DCN (instala y prende el plugin bosch-dcn si hace falta). Lo que se pasa "
             "queda guardado: `transporte` serie (RS-232 por adaptador USB; `puerto` de dcn_puertos; de fábrica el "
             "puerto 1 de la CCU es `protocolo` full a `velocidad` 115200 con `rtscts`; «simple» es el otro protocolo "
             "serie), tcp (CCU2: `host`, `puerto_tcp` 9451) o simulador (para probar sin el equipo). `votacion` y "
@@ -261,12 +261,12 @@ void McpService::registerDcnTools() {
                            {"host", {{"type", "string"}}},
                            {"puerto_tcp", {{"type", "integer"}}},
                            {"solo_escuchar", {{"type", "boolean"}}},
-                           {"escape", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Avanzado: el byte de escape (0xC8 o 0x1B).")}}},
+                           {"escape", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Avanzado: el byte de escape (0xC8 o 0x1B).")}}},
                            {"traza", {{"type", "boolean"}}},
                            {"simulador_actividad_s", {{"type", "number"}}},
                            {"simulador_unidades",
                             {{"type", "integer"},
-                             {"description", ba::i18n::traducir("mcp", "Simulador: cuántas unidades (de fábrica, una por banca del Cuerpo más la "
+                             {"description", QT_TRANSLATE_NOOP("mcp", "Simulador: cuántas unidades (de fábrica, una por banca del Cuerpo más la "
                                              "presidencia; crece solo si el Cuerpo crece).")}}}}}};
         t.examples = {R"({"transporte": "simulador", "solo_escuchar": false})",
                       R"({"transporte": "serie", "puerto": "/dev/cu.usbserial-1410", "velocidad": 115200, "protocolo": "full"})",

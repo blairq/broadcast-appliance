@@ -40,8 +40,8 @@ namespace bactl {
 
 json herramientasUia() {
     json t = json::array();
-    const json ventana = {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "id de la ventana (system_ventanas); sin esto, la que tiene el foco")}};
-    const json titulo = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "o parte del título de la ventana")}};
+    const json ventana = {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "id de la ventana (system_ventanas); sin esto, la que tiene el foco")}};
+    const json titulo = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "o parte del título de la ventana")}};
     t.push_back(herramienta(
         "system_ui_leer",
         ba::i18n::traducir("mcp", "LEE lo que hay en una ventana, como un lector de pantalla (UI Automation): los elementos que se pueden "

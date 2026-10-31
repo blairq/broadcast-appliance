@@ -27,25 +27,25 @@ void McpService::registerDocumentosTools() {
                       ba::i18n::traducir("mcp", "Los documentos de cada evento (PDF con su carátula), relacionados con puntos del orden del día "
                       "y secciones del guion, que la página web del evento muestra y deja bajar."));
     const json relaciones = {
-        {"puntos", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"description", ba::i18n::traducir("mcp", "números de punto del orden del día")}}},
+        {"puntos", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"description", QT_TRANSLATE_NOOP("mcp", "números de punto del orden del día")}}},
         {"secciones", {{"type", "array"}, {"items", {{"type", "string"}}},
-                       {"description", ba::i18n::traducir("mcp", "secciones del guion: el id del bloque (guion_ver) o su número")}}},
-        {"publico", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "si la web del evento lo muestra y deja bajar (por defecto sí)")}}},
-        {"pagina_tapa", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "la página del PDF que hace de carátula (1 = la primera); se rehace la miniatura")}}}};
+                       {"description", QT_TRANSLATE_NOOP("mcp", "secciones del guion: el id del bloque (guion_ver) o su número")}}},
+        {"publico", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "si la web del evento lo muestra y deja bajar (por defecto sí)")}}},
+        {"pagina_tapa", {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "la página del PDF que hace de carátula (1 = la primera); se rehace la miniatura")}}}};
     {
         Tool t;
         t.name = "documentos_listar";
         t.title = ba::i18n::traducir("mcp", "Los documentos del evento");
         t.category = "documentos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los documentos del evento abierto: id, título, descripción, páginas, tamaño, si es público, a qué "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los documentos del evento abierto: id, título, descripción, páginas, tamaño, si es público, a qué "
                         "puntos del orden del día y secciones del guion está relacionado y si tiene carátula. Sin relaciones "
                         "es documentación del evento en general. Con `punto` o `seccion`, solo los de ese punto del orden "
                         "del día o esa sección del guion (lo mismo que muestra la web y la fila del punto).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"punto", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "número de punto del orden del día")}}},
-                           {"seccion", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id del bloque del guion o su número")}}}}}};
+                          {{"punto", {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "número de punto del orden del día")}}},
+                           {"seccion", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id del bloque del guion o su número")}}}}}};
         t.run = [dv](const json& a, Done done) {
             json l = dv->lista();
             const auto tiene = [](const json& arr, const json& v) { return arr.is_array() && std::find(arr.begin(), arr.end(), v) != arr.end(); };
@@ -72,7 +72,7 @@ void McpService::registerDocumentosTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar un documento al evento");
         t.category = "documentos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Agrega un documento a la documentación del evento: un PDF o una imagen tal cual, y un Word, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Agrega un documento a la documentación del evento: un PDF o una imagen tal cual, y un Word, "
                         "planilla, presentación, HTML, Markdown o texto pasado a PDF antes (WordCraft, DeckCraft, GridCraft o Qt, del bundle). "
                         "Lo copia a la carpeta docs/ del evento y "
                         "guarda su carátula (la primera página) para la web. `archivo`: la ruta. `titulo` y `descripcion` "
@@ -101,20 +101,20 @@ void McpService::registerDocumentosTools() {
         t.category = "documentos";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Convierte a PDF con lo que viaja en el sistema (sin Chrome ni nada instalado): `archivo` (Word, Excel, "
+            QT_TRANSLATE_NOOP("mcp", "Convierte a PDF con lo que viaja en el sistema (sin Chrome ni nada instalado): `archivo` (Word, Excel, "
             "PowerPoint, OpenDocument, RTF, CSV, HTML, Markdown, texto o imagen) o `texto` que escribas vos, con "
             "`formato` markdown (de fábrica), html o texto; cualquier idioma. `destino`: la ruta del .pdf (si no, al lado "
             "del archivo, o en <datos>/Runtime/pdf/ para un texto). Con `agregar_al_evento`, en vez de eso lo suma a la "
             "documentación del evento (con `titulo`, `descripcion`, `puntos`, `secciones`, `publico`) y la web lo "
             "publica. Para un PDF desde HTML usá esto y no Chrome sin pantalla (en macOS pide el llavero).");
         json props = relaciones;
-        props["archivo"] = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que se convierte (o `texto`)")}};
-        props["texto"] = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el contenido, si no hay archivo")}};
+        props["archivo"] = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que se convierte (o `texto`)")}};
+        props["texto"] = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el contenido, si no hay archivo")}};
         props["formato"] = {{"type", "string"}, {"enum", {"markdown", "html", "texto"}}};
         props["titulo"] = {{"type", "string"}};
         props["descripcion"] = {{"type", "string"}};
-        props["destino"] = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la ruta del .pdf")}};
-        props["agregar_al_evento"] = {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "sumarlo a la documentación del evento")}};
+        props["destino"] = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la ruta del .pdf")}};
+        props["agregar_al_evento"] = {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "sumarlo a la documentación del evento")}};
         t.inputSchema = {{"type", "object"}, {"properties", props}};
         t.run = [dv](const json& a, Done done) {
             namespace fs = std::filesystem;
@@ -166,7 +166,7 @@ void McpService::registerDocumentosTools() {
         t.title = ba::i18n::traducir("mcp", "Describir o relacionar un documento");
         t.category = "documentos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cambia lo que se pase: `titulo`, `descripcion`, `publico`, `puntos` (del orden del día) y `secciones` "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia lo que se pase: `titulo`, `descripcion`, `publico`, `puntos` (del orden del día) y `secciones` "
                         "(del guion; las listas reemplazan a las de antes), y `pagina_tapa` (otra página del PDF como "
                         "carátula: rehace la miniatura). La web del evento se actualiza sola.");
         json props = relaciones;
@@ -189,7 +189,7 @@ void McpService::registerDocumentosTools() {
         t.category = "documentos";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Lo saca de la documentación del evento (el archivo va a la papelera del evento, se puede recuperar).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo saca de la documentación del evento (el archivo va a la papelera del evento, se puede recuperar).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [dv](const json& a, Done done) {
             if (const std::string e = dv->quitar(a.value("id", std::string())); !e.empty()) return done(ToolResult::error(e));
@@ -203,7 +203,7 @@ void McpService::registerDocumentosTools() {
         t.title = ba::i18n::traducir("mcp", "Abrir un documento en pantalla");
         t.category = "documentos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Abre el documento con el visor del sistema (el visor de PDF), en esta máquina: lo mismo que el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Abre el documento con el visor del sistema (el visor de PDF), en esta máquina: lo mismo que el "
                         "doble clic en la pestaña Documentos o el botón 📄 de un punto del orden del día.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [dv](const json& a, Done done) {
@@ -220,7 +220,7 @@ void McpService::registerDocumentosTools() {
         t.title = ba::i18n::traducir("mcp", "Leer el texto de un documento");
         t.category = "documentos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El texto de un PDF del evento, de la página `desde` a `hasta` (por defecto todo): para resumirlo, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El texto de un PDF del evento, de la página `desde` a `hasta` (por defecto todo): para resumirlo, "
                         "describirlo o saber a qué punto del orden del día corresponde.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
@@ -241,7 +241,7 @@ void McpService::registerDocumentosTools() {
         t.title = ba::i18n::traducir("mcp", "Los PDF en las escenas");
         t.category = "documentos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las fuentes PDF de las escenas (ba_pdf: un PDF a pantalla, una página por vez): qué documento y qué "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las fuentes PDF de las escenas (ba_pdf: un PDF a pantalla, una página por vez): qué documento y qué "
                         "página muestra cada una (de cuántas), y los PDF de la documentación del evento que se pueden elegir. "
                         "Para mostrar un PDF en vivo sin desarmarlo en láminas.");
         t.run = [pe](const json&, Done done) { done(ToolResult().data(pe->estado())); };
@@ -253,7 +253,7 @@ void McpService::registerDocumentosTools() {
         t.title = ba::i18n::traducir("mcp", "Elegir el PDF o la página de una fuente PDF");
         t.category = "documentos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "En la fuente PDF `fuente` (sin ella, la primera): `documento` (el id de uno de la documentación del "
+        t.description = QT_TRANSLATE_NOOP("mcp", "En la fuente PDF `fuente` (sin ella, la primera): `documento` (el id de uno de la documentación del "
                         "evento: pdf_escena_ver / documentos_listar) o `archivo` (la ruta de otro PDF), y/o `pagina` (1 = la "
                         "primera) o `paso` (+1 la siguiente, -1 la anterior); y el encuadre: `zoom` (1 = la página entera, "
                         "hasta 8) y `x`, `y` (el centro de lo que se ve, 0 a 1 sobre la página: 0.5, 0.2 = arriba al medio). "
@@ -288,7 +288,7 @@ void McpService::registerDocumentosTools() {
         t.title = ba::i18n::traducir("mcp", "Armar una escena para mostrar PDF");
         t.category = "documentos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Crea la escena `nombre` (de fábrica «PDF») con una fuente PDF a pantalla completa (si ya existe, le "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea la escena `nombre` (de fábrica «PDF») con una fuente PDF a pantalla completa (si ya existe, le "
                         "agrega la fuente si no la tiene). Después: pdf_escena_poner para elegir el documento y pasar páginas, "
                         "y la tarjeta «PDF» del tablero hace lo mismo a mano.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"nombre", {{"type", "string"}}}}}};

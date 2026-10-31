@@ -61,10 +61,10 @@ void McpService::registerVideoTools() {
         return json::parse(QJsonDocument::fromVariant(x).toJson(QJsonDocument::Compact).toStdString(),
                            nullptr, false);
     };
-    const json entrada = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La entrada de video (como en video_grafo).")}};
+    const json entrada = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La entrada de video (como en video_grafo).")}};
     const json idTarjeta = {
         {"type", "string"},
-        {"description", ba::i18n::traducir("mcp", "El id de la tarjeta (como en video_grafo), p. ej. «camara-1.croma».")}};
+        {"description", QT_TRANSLATE_NOOP("mcp", "El id de la tarjeta (como en video_grafo), p. ej. «camara-1.croma».")}};
     // Lo que cambió, visto desde la entrada que corresponde (o todo el estudio).
     const auto hecho = [v](const std::string& verEntrada, const std::string& error, Done done) {
         if (!error.empty()) return done(ToolResult::error(error));
@@ -77,7 +77,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "El grafo de video");
         t.category = "video";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Sin `entrada`: todo el estudio (cada entrada con su sub-grafo, los nodos del "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Sin `entrada`: todo el estudio (cada entrada con su sub-grafo, los nodos del "
                         "estudio y los cables "
                         "entre ellos) y las tarjetas propias. Con `entrada`: su sub-grafo, con los nodos de "
                         "afuera que se "
@@ -93,7 +93,7 @@ void McpService::registerVideoTools() {
               {"mostrar",
                {{"type", "string"},
                 {"enum", {"racks", "estudio"}},
-                {"description", ba::i18n::traducir("mcp", "Además, que la página Video muestre esa vista (y esa entrada).")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "Además, que la página Video muestre esa vista (y esa entrada).")}}}}}};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             v->sincronizar();
@@ -122,14 +122,14 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Con `id` de una tarjeta (un módulo de GStreamer, o una Mezcla de GStreamer): sus controles (nombre, "
+            QT_TRANSLATE_NOOP("mcp", "Con `id` de una tarjeta (un módulo de GStreamer, o una Mezcla de GStreamer): sus controles (nombre, "
             "tipo, valor, rango, opciones). Con `puerto` (una Mezcla de GStreamer): los de esa entrada (xpos, ypos, "
             "width, height, alpha, zorder…; vacío si el módulo no tiene, como smpte). Sin `id`, vacío: los "
             "filtros de OBS se fueron con libobs; el catálogo de módulos está en video_modulos.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", idTarjeta},
-                           {"puerto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con una mezcla: la entrada (sink_0, sink1…)")}}}}}};
+                           {"puerto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con una mezcla: la entrada (sink_0, sink1…)")}}}}}};
         t.run = [v, deQt](const json& a, Done done) {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const QString id = QString::fromStdString(a.value("id", std::string()));
@@ -145,7 +145,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Los módulos de video de GStreamer (catálogo documentado)");
         t.category = "video";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El catálogo de módulos de video de GStreamer que trae el programa, con su "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El catálogo de módulos de video de GStreamer que trae el programa, con su "
                         "documentación en castellano "
                         "(para qué sirven y cómo se usan en vivo). Sin argumentos: un resumen por categoría. "
                         "`buscar`: por "
@@ -163,8 +163,8 @@ void McpService::registerVideoTools() {
              {{"buscar", {{"type", "string"}}},
               {"categoria", {{"type", "string"}}},
               {"elemento", {{"type", "string"}}},
-              {"soloTarjetas", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "solo los que van como tarjeta")}}},
-              {"soloMezclas", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "solo los de varias entradas (van como mezcla)")}}}}}};
+              {"soloTarjetas", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "solo los que van como tarjeta")}}},
+              {"soloMezclas", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "solo los de varias entradas (van como mezcla)")}}}}}};
         t.examples = {R"({"buscar": "croma"})", R"({"elemento": "deinterlace"})",
                       R"({"categoria": "Color"})", R"({"soloMezclas": true})"};
         t.run = [v](const json& a, Done done) {
@@ -232,7 +232,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Sin `nombre`: las entradas virtuales que hay (barras HD, barras 75 %, barras con la hora, "
+            QT_TRANSLATE_NOOP("mcp", "Sin `nombre`: las entradas virtuales que hay (barras HD, barras 75 %, barras con la hora, "
             "negro, "
             "blanco, verde, placa de zonas, damero, pelota, ruido). Con `nombre` y `preset` (o `pipeline`, "
             "la parte "
@@ -275,7 +275,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la "
+            QT_TRANSLATE_NOOP("mcp", "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la "
             "`entrada` "
             "(después de `despues`; vacío = justo antes de su escena): `color`, "
             "`croma`, `recorte` y `gst` (un "
@@ -293,7 +293,7 @@ void McpService::registerVideoTools() {
             "son los del módulo (sink_0, sink_1… a pedido; sink1/sink2 en smpte; video_sink/mask_sink en "
             "shapewipe) y se usa igual que el compositor.");
         t.details =
-            ba::i18n::traducir("mcp", "`params` con los de fábrica que quieras cambiar (video_tarjeta_ayuda explica cada uno, con "
+            QT_TRANSLATE_NOOP("mcp", "`params` con los de fábrica que quieras cambiar (video_tarjeta_ayuda explica cada uno, con "
             "rangos y opciones; el texto del overlay de Rostros también). Croma: `clave` "
             "0xRRGGBB (verde "
             "0x00B140), `similitud`, `suavidad`, `derrame`. Color: `brillo`, `contraste`, `saturacion`, "
@@ -323,13 +323,13 @@ void McpService::registerVideoTools() {
                   "seguir", "salida", "compositor", "mezcla", "superres", "vista360", "panoramica"}}}},
               {"plugin",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "con tipo plugin: el id del plugin de Python (plugin_listar)")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "con tipo plugin: el id del plugin de Python (plugin_listar)")}}},
               {"tarjeta",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con tipo plugin: la tarjeta de video que declaró")}}},
-              {"parametros", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "con tipo plugin: sus ajustes")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con tipo plugin: la tarjeta de video que declaró")}}},
+              {"parametros", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "con tipo plugin: sus ajustes")}}},
               {"elemento",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "con tipo gst: el módulo de GStreamer (p. ej. videobalance); con tipo mezcla, uno de "
+                {"description", QT_TRANSLATE_NOOP("mcp", "con tipo gst: el módulo de GStreamer (p. ej. videobalance); con tipo mezcla, uno de "
                                 "varias entradas (p. ej. smpte, glvideomixer)")}}},
               {"despues", idTarjeta},
               {"params", {{"type", "object"}}}}}};
@@ -396,11 +396,11 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Qué hace un tipo de tarjeta de video, cada parámetro (tipo, rango, opciones, de fábrica) y qué "
+            QT_TRANSLATE_NOOP("mcp", "Qué hace un tipo de tarjeta de video, cada parámetro (tipo, rango, opciones, de fábrica) y qué "
             "eventos de GStreamer manda y escucha. Con Rostros, además, cómo se arma el texto del overlay. Sin "
             "`tipo`: todos.");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"tipo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "rostros, seguir, ptz, color…")}}}}}};
+                         {"properties", {{"tipo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "rostros, seguir, ptz, color…")}}}}}};
         t.examples = {R"({"tipo": "rostros"})", R"({"tipo": "seguir"})"};
         t.run = [](const json& a, Done done) {
             const std::string tipo = a.value("tipo", std::string());
@@ -421,11 +421,11 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Lleva la tarjeta `id` a otro lugar de la cadena de su entrada: después de `despues` (el id de otra "
+            QT_TRANSLATE_NOOP("mcp", "Lleva la tarjeta `id` a otro lugar de la cadena de su entrada: después de `despues` (el id de otra "
             "tarjeta, o de la entrada para ponerla primera; vacío = justo antes de la escena), o un lugar antes "
             "(`paso`: -1) o después (`paso`: 1).");
         t.details =
-            ba::i18n::traducir("mcp", "El orden importa: el PTZ antes de la superresolución le da detalle a lo que se amplía; Rostros antes "
+            QT_TRANSLATE_NOOP("mcp", "El orden importa: el PTZ antes de la superresolución le da detalle a lo que se amplía; Rostros antes "
             "del PTZ ve la toma entera (y el seguimiento puede llevar al PTZ fuera de lo que se ve); después, ve "
             "lo que sale del encuadre. Todas las tarjetas dejan pasar los eventos de las otras (ba/rostros, "
             "ba/ptz, ba/encuadre, ba/control), así que cualquier orden funciona.");
@@ -434,7 +434,7 @@ void McpService::registerVideoTools() {
                          {"properties",
                           {{"id", idTarjeta},
                            {"entrada", entrada},
-                           {"despues", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "después de esta tarjeta")}}},
+                           {"despues", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "después de esta tarjeta")}}},
                            {"paso", {{"type", "integer"}, {"enum", {-1, 1}}}}}}};
         t.run = [v, hecho](const json& a, Done done) {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
@@ -456,7 +456,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Quita la tarjeta `id`: un filtro se puentea (lo de antes queda unido con lo de después).");
+            QT_TRANSLATE_NOOP("mcp", "Quita la tarjeta `id`: un filtro se puentea (lo de antes queda unido con lo de después).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties", {{"id", idTarjeta}, {"entrada", entrada}}}};
@@ -478,7 +478,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su "
                         "`etiqueta`. Un módulo de GStreamer: `{\"propiedades\": {…}}` (se "
                         "mezclan). Una tarjeta "
                         "manejada por un controlador: el ajuste va al controlador (cambia en todas); lo "
@@ -511,7 +511,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Un cable de `desde` a `hacia` (cualquier par de tarjetas del estudio, aunque sean de entradas "
+            QT_TRANSLATE_NOOP("mcp", "Un cable de `desde` a `hacia` (cualquier par de tarjetas del estudio, aunque sean de entradas "
             "distintas). `entrada`: el puerto de `hacia` (vacío = el primero; en un compositor, uno nuevo). "
             "A cada "
             "puerto le llega UNO (el nuevo reemplaza al que había); de una salida pueden salir varios. Sin "
@@ -524,7 +524,7 @@ void McpService::registerVideoTools() {
              {{"desde", idTarjeta},
               {"hacia", idTarjeta},
               {"salida", {{"type", "string"}}},
-              {"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "puerto de `hacia` (in, in_0…)")}}},
+              {"entrada", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "puerto de `hacia` (in, in_0…)")}}},
               {"quitar", {{"type", "boolean"}}}}}};
         t.run = [v, hecho](const json& a, Done done) {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
@@ -552,7 +552,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Un controlador es un nodo del estudio con el molde de una tarjeta: las tarjetas conectadas a su "
+            QT_TRANSLATE_NOOP("mcp", "Un controlador es un nodo del estudio con el molde de una tarjeta: las tarjetas conectadas a su "
             "salida "
             "de control (`ctl`) corren con SUS parámetros (la misma corrección de color para las cámaras de "
             "tres "
@@ -607,7 +607,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Pone la tarjeta salida `id` (o un compositor, una panorámica o una mezcla) como fuente en `escena` (obligatoria: nunca la "
+            QT_TRANSLATE_NOOP("mcp", "Pone la tarjeta salida `id` (o un compositor, una panorámica o una mezcla) como fuente en `escena` (obligatoria: nunca la "
             "del aire sin "
             "pedirlo). La fuente se llama como el nombre de la tarjeta (se cambia con video_tarjeta_ajustar "
             "{\"params\": {\"nombre\": …}} antes de ponerla). Queda guardada como cualquier fuente de la "
@@ -632,7 +632,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Volver el video de una entrada a como vino");
         t.category = "video";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Deja la `entrada` en «entrada -> escena»: saca sus tarjetas y lo que llegaba a su "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Deja la `entrada` en «entrada -> escena»: saca sus tarjetas y lo que llegaba a su "
                         "escena desde afuera.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
@@ -657,7 +657,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Arma, en orden, las tarjetas de la `entrada` (de la cámara hacia la escena) en UNA llamada y "
+            QT_TRANSLATE_NOOP("mcp", "Arma, en orden, las tarjetas de la `entrada` (de la cámara hacia la escena) en UNA llamada y "
             "valida "
             "cada una. `modo`: «reemplazar» (de fábrica: saca las que había) o «agregar» (al final). Cada "
             "tarjeta: "
@@ -687,11 +687,11 @@ void McpService::registerVideoTools() {
                            {"entradas",
                             {{"type", "array"},
                              {"items", {{"type", "string"}}},
-                             {"description", ba::i18n::traducir("mcp", "la MISMA cadena en varias entradas a la vez (las `compartida` "
+                             {"description", QT_TRANSLATE_NOOP("mcp", "la MISMA cadena en varias entradas a la vez (las `compartida` "
                                              "quedan manejadas por un solo controlador)")}}},
                            {"local_por_entrada",
                             {{"type", "object"},
-                             {"description", ba::i18n::traducir("mcp", "lo propio de cada entrada sobre lo compartido: {\"Pelco\": "
+                             {"description", QT_TRANSLATE_NOOP("mcp", "lo propio de cada entrada sobre lo compartido: {\"Pelco\": "
                                              "{\"propiedades\": {\"hue\": 0.04}}}")}}},
                            {"modo", {{"type", "string"}, {"enum", {"reemplazar", "agregar"}}}},
                            {"tarjetas",
@@ -701,7 +701,7 @@ void McpService::registerVideoTools() {
                                {"properties",
                                 {{"tipo",
                                   {{"type", "string"},
-                                   {"description", ba::i18n::traducir("mcp", "color, croma, recorte, obs, gst, plugin (+ `plugin`, "
+                                   {"description", QT_TRANSLATE_NOOP("mcp", "color, croma, recorte, obs, gst, plugin (+ `plugin`, "
                                                    "`tarjeta`, `parametros`), retardo, normalizar…")}}},
                                  {"plugin", {{"type", "string"}}},
                                  {"tarjeta", {{"type", "string"}}},
@@ -712,7 +712,7 @@ void McpService::registerVideoTools() {
                                  {"ajustes", {{"type", "object"}}},
                                  {"params",
                                   {{"type", "object"},
-                                   {"description", ba::i18n::traducir("mcp", "los de una tarjeta propia (color, croma, retardo…)")}}},
+                                   {"description", QT_TRANSLATE_NOOP("mcp", "los de una tarjeta propia (color, croma, retardo…)")}}},
                                  {"compartida", {{"type", "string"}}},
                                  {"local", {{"type", "object"}}},
                                  {"etiqueta", {{"type", "string"}}}}},
@@ -809,7 +809,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Junta `entradas` en una `escena` (si no existe, la crea) en UNA llamada: crea el compositor (o "
+            QT_TRANSLATE_NOOP("mcp", "Junta `entradas` en una `escena` (si no existe, la crea) en UNA llamada: crea el compositor (o "
             "rearma el que se llame `nombre`), "
             "conecta lo que llega a la escena de cada entrada (o sea, con sus tarjetas de color, etc.), lo "
             "pone en la "
@@ -829,11 +829,11 @@ void McpService::registerVideoTools() {
               {"disposicion", {{"type", "string"}, {"enum", {"mosaico", "pip", "lado"}}}},
               {"nombre",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "el de la fuente del mosaico (de fábrica, «Estudio · compositor»)")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "el de la fuente del mosaico (de fábrica, «Estudio · compositor»)")}}},
               {"ocultar_sueltas", {{"type", "boolean"}}},
               {"compositor",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "id de un compositor que ya está: sin `entradas`, solo lo rearma en la `disposicion`")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "id de un compositor que ya está: sin `entradas`, solo lo rearma en la `disposicion`")}}}}}};
         t.examples = {
             R"({"escena": "Exterior", "entradas": ["Cámara 1", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})",
             R"({"compositor": "estudio.compositor", "disposicion": "lado"})"};
@@ -872,7 +872,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Une `camaras` (de 1 a 8 entradas, un stream cada una, en orden: la primera es la lente 1) en una "
+            QT_TRANSLATE_NOOP("mcp", "Une `camaras` (de 1 a 8 entradas, un stream cada una, en orden: la primera es la lente 1) en una "
             "sola imagen, todo en la placa: la tarjeta Panorámica del estudio (o rearma la que se llame "
             "`nombre`), un cable de cada cámara (lo que llega a la escena de cada una) y, con `escena`, la "
             "fuente ahí (las cámaras sueltas se ocultan en esa escena). Las pone lado a lado en su lienzo "
@@ -890,10 +890,10 @@ void McpService::registerVideoTools() {
             {"type", "object"},
             {"required", {"camaras"}},
             {"properties",
-             {{"camaras", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "las entradas, en orden")}}},
+             {{"camaras", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", QT_TRANSLATE_NOOP("mcp", "las entradas, en orden")}}},
               {"preset", {{"type", "string"}, {"enum", {"fila", "360"}}}},
-              {"campo", {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "con preset: el campo de cada lente (grados)")}}},
-              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el de la fuente (de fábrica, «Panorámica»)")}}},
+              {"campo", {{"type", "number"}, {"description", QT_TRANSLATE_NOOP("mcp", "con preset: el campo de cada lente (grados)")}}},
+              {"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el de la fuente (de fábrica, «Panorámica»)")}}},
               {"escena", {{"type", "string"}}},
               {"params", {{"type", "object"}}}}}};
         t.examples = {
@@ -921,7 +921,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Acomoda las tarjetas del grafo (una franja por entrada, en columnas según la cadena; el botón "
+            QT_TRANSLATE_NOOP("mcp", "Acomoda las tarjetas del grafo (una franja por entrada, en columnas según la cadena; el botón "
             "«Ordenar» de la página Video). No cambia ninguna conexión.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [vg](const json&, Done done) {
@@ -938,7 +938,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
+            QT_TRANSLATE_NOOP("mcp", "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
             "salidas): cada enlace con la memoria negociada de verdad (GLMemory, D3D11Memory, VAMemory, "
             "CUDAMemory… o «sistema» = CPU), las TRANSICIONES (dónde se baja de la GPU a la CPU o se sube) y "
             "el TRABAJO EN CPU (convertir, escalar, componer, filtrar video en memoria de sistema; "
@@ -946,8 +946,8 @@ void McpService::registerVideoTools() {
             "trabajos en CPU y sus transiciones. Con `detalle`: también cada elemento y cada enlace.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"detalle", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "cada elemento y cada enlace")}}},
-                           {"filtro", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "solo los pipelines cuya etiqueta lo contiene")}}}}}};
+                          {{"detalle", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "cada elemento y cada enlace")}}},
+                           {"filtro", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "solo los pipelines cuya etiqueta lo contiene")}}}}}};
         t.run = [](const json& a, Done done) {
             json m = motor::mapa();
             const bool detalle = a.value("detalle", false);
@@ -982,7 +982,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Sin `entrada`: LISTA todas las entradas de video (cámaras, red, virtuales) con su diagnóstico "
+            QT_TRANSLATE_NOOP("mcp", "Sin `entrada`: LISTA todas las entradas de video (cámaras, red, virtuales) con su diagnóstico "
             "resumido. Con `entrada`: tamaño, cuadros por segundo "
             "(declarados y medidos), formato, colorimetría (BT.601/709, rango), si llega entrelazada y su "
             "desentrelazado, el reloj y si está sincronizado, el colchón de red (latencia, cuadros que "
@@ -1065,7 +1065,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Recibir un stream de red (SRT, RTMP, RTSP, UDP, HTTP) sincronizado");
         t.category = "video";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Crea una entrada de video (y audio) desde `uri`: srt://host:puerto (o "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea una entrada de video (y audio) desde `uri`: srt://host:puerto (o "
                         "srt://:puerto?mode=listener para "
                         "recibir), rtmp://servidor/app/clave, rtsp://camara/stream, udp://@:5000, "
                         "http(s)://…/x.m3u8 o un "
@@ -1084,37 +1084,37 @@ void McpService::registerVideoTools() {
             {"properties",
              {{"nombre", {{"type", "string"}}},
               {"uri", {{"type", "string"}}},
-              {"escena", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "dónde ponerla (obligatoria al crear)")}}},
+              {"escena", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "dónde ponerla (obligatoria al crear)")}}},
               {"latencia_ms",
-               {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "el colchón (de fábrica, el del estudio)")}}},
-              {"audio", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "con su audio (de fábrica, sí)")}}},
+               {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "el colchón (de fábrica, el del estudio)")}}},
+              {"audio", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "con su audio (de fábrica, sí)")}}},
               {"normalizar",
                {{"type", "boolean"},
                 {"description",
-                 ba::i18n::traducir("mcp", "de fábrica, sí: GStreamer la desentrelaza si hace falta, la lleva a los cuadros "
+                 QT_TRANSLATE_NOOP("mcp", "de fábrica, sí: GStreamer la desentrelaza si hace falta, la lleva a los cuadros "
                  "del estudio, a píxel cuadrado y a color BT.709 antes de entrar")}}},
               {"superres",
                {{"type", "boolean"},
                 {"description",
-                 ba::i18n::traducir("mcp", "superresolución x2 (macOS 26, cámaras chicas: hasta el tamaño máximo que acepte el sistema, "
+                 QT_TRANSLATE_NOOP("mcp", "superresolución x2 (macOS 26, cámaras chicas: hasta el tamaño máximo que acepte el sistema, "
                  "hoy 960x960; sale al doble de lo que entra). Para cámaras viejas o de baja definición")}}},
               {"ntp_sync",
                {{"type", "boolean"},
                 {"description",
-                 ba::i18n::traducir("mcp", "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
+                 QT_TRANSLATE_NOOP("mcp", "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
                  "está corrido (video_estado lo avisa), false")}}},
               {"sincronia",
                {{"type", "string"},
                 {"enum", {"colchon", "gstreamer"}},
                 {"description",
-                 ba::i18n::traducir("mcp", "cómo sale a horario (de fábrica, colchon): colchon = cola propia con la hora de "
+                 QT_TRANSLATE_NOOP("mcp", "cómo sale a horario (de fábrica, colchon): colchon = cola propia con la hora de "
                  "captura, el colchón y la compensación del estudio; gstreamer = appsink sincronizado "
                  "al reloj con la latencia del estudio (gst_pipeline_set_latency: lo que declaran los "
                  "elementos o lo medido al llegar, lo mayor). Audio y video siguen juntos en los dos")}}},
               {"esperar_seg",
                {{"type", "integer"},
                 {"description",
-                 ba::i18n::traducir("mcp", "cuánto esperar a que conecte antes de devolver el estado con su diagnóstico (4 de "
+                 QT_TRANSLATE_NOOP("mcp", "cuánto esperar a que conecte antes de devolver el estado con su diagnóstico (4 de "
                  "fábrica; 0: no esperar)")}}}}}};
         t.examples = {
             R"({"nombre": "Móvil SRT", "uri": "srt://:9000?mode=listener", "escena": "Móvil", "latencia_ms": 300})",
@@ -1142,7 +1142,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "El canal de control de las entradas de GStreamer: `control` (un objeto plano: texto, números, sí/no) "
+            QT_TRANSLATE_NOOP("mcp", "El canal de control de las entradas de GStreamer: `control` (un objeto plano: texto, números, sí/no) "
             "viaja por la cadena de la entrada como evento estándar de GStreamer «ba/control» (personalizado, hacia "
             "abajo, fuera de banda): cada elemento que lo entiende lo usa y todos lo dejan pasar; la entrada lo "
             "recuerda y lo reenvía si la cadena se rearma. Hoy lo entiende la superresolución: {\"superres\": "
@@ -1167,7 +1167,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven "
+            QT_TRANSLATE_NOOP("mcp", "Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven "
             "grandes: el programador mira el programa y el preview (la escena armada) y pone cada cámara en activo "
             "(hasta `max_activas`, por prioridad: programa, preview, más grande), barato (se ve grande pero no tiene "
             "turno: agrandado afilado) o reposo (no se ve o se ve chica). Se prende al pasar a preview, con una mezcla "
@@ -1212,7 +1212,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Pone (o saca, con una lista vacía) los filtros de AUDIO de una entrada de GStreamer (red, pipeline, "
+            QT_TRANSLATE_NOOP("mcp", "Pone (o saca, con una lista vacía) los filtros de AUDIO de una entrada de GStreamer (red, pipeline, "
             "plugin): elementos de GStreamer en la cadena de su audio, en orden. Para un plugin de Python de "
             "audio: {\"elemento\": \"baplugin\", \"propiedades\": {\"plugin\": id, \"tarjeta\": nombre, "
             "\"parametros\": \"{...}\"}}; también cualquier elemento de audio (audiodynamic, audioecho, "
@@ -1247,7 +1247,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "El estado de la sincronía. Todas las entradas SINCRONIZADAS (clase «sala»: cámaras, capturadoras, "
+            QT_TRANSLATE_NOOP("mcp", "El estado de la sincronía. Todas las entradas SINCRONIZADAS (clase «sala»: cámaras, capturadoras, "
             "micrófonos de la sala) salen alineadas entre sí y con el audio: el estudio espera a la más lenta. Devuelve:\n"
             "- `latencia_ms`: la FIJADA, la que usan todas las salidas. En vivo solo sube (si lo piden sostenido 2 s); "
             "baja sola sin nada al aire o con `bajar: true` (bajarla al aire mueve la línea de tiempo de las salidas: "
@@ -1273,8 +1273,8 @@ void McpService::registerVideoTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"tope_ms", {{"type", "integer"}, {"minimum", -1}, {"maximum", 5000}}},
-                           {"baja_latencia", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "true: el modo baja latencia del evento (el tope en baja_latencia_ms); false: el tope automático")}}},
-                           {"bajar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "bajar la latencia ahora a lo que piden (si hay algo al aire, hay un salto)")}}}}}};
+                           {"baja_latencia", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "true: el modo baja latencia del evento (el tope en baja_latencia_ms); false: el tope automático")}}},
+                           {"bajar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "bajar la latencia ahora a lo que piden (si hay algo al aire, hay un salto)")}}}}}};
         t.examples = {R"({})", R"({"bajar": true})", R"({"tope_ms": 200})", R"({"baja_latencia": true})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
@@ -1298,7 +1298,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "La clase de sincronía de una `entrada`:\n"
+            QT_TRANSLATE_NOOP("mcp", "La clase de sincronía de una `entrada`:\n"
             "- `sala`: sincronizada. Marca la latencia del estudio (el estudio espera a la más lenta de estas) y "
             "sale alineada con las demás y con el audio. Para todo lo que está en el lugar: dos cámaras que toman a "
             "la misma persona no pueden tener desfase entre sí.\n"
@@ -1331,7 +1331,7 @@ void McpService::registerVideoTools() {
         t.category = "audio";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Automixer estilo Dugan para una mesa de micrófonos: el que habla pasa al frente, los demás bajan y "
+            QT_TRANSLATE_NOOP("mcp", "Automixer estilo Dugan para una mesa de micrófonos: el que habla pasa al frente, los demás bajan y "
             "la suma queda acotada (no se suman ruido ni retorno al abrir muchos). Corre en GStreamer, en la "
             "cadena de cada micrófono (`baautomixer`). Sin argumentos: las mesas, sus ajustes y, por "
             "micrófono, la ganancia que aplica ahora y el nivel que entra. Con `microfono` y `grupo`: lo pone "
@@ -1340,9 +1340,9 @@ void McpService::registerVideoTools() {
             "acaba de hablar; max_abiertos; ataque_ms; liberacion_ms).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"microfono", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "nombre de la entrada de audio")}}},
-                           {"microfonos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "varios a la vez")}}},
-                           {"grupo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la mesa (p. ej. bancas)")}}},
+                          {{"microfono", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "nombre de la entrada de audio")}}},
+                           {"microfonos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", QT_TRANSLATE_NOOP("mcp", "varios a la vez")}}},
+                           {"grupo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la mesa (p. ej. bancas)")}}},
                            {"ajustes", {{"type", "object"}}}}}};
         t.examples = {R"({"microfonos": ["Banca 1", "Banca 2", "Banca 3"], "grupo": "bancas"})",
                       R"({"grupo": "bancas", "ajustes": {"umbral_db": -45, "max_abiertos": 3}})", R"({})"};
@@ -1375,7 +1375,7 @@ void McpService::registerVideoTools() {
             t.title = ba::i18n::traducir("mcp", "Superresolución: motores, modelos y el trabajo en curso");
             t.category = "video";
             t.clase = Clase::Lectura;
-            t.description = ba::i18n::traducir("mcp", "Qué motores de superresolución hay en este sistema (apple: VideoToolbox macOS "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Qué motores de superresolución hay en este sistema (apple: VideoToolbox macOS "
                             "26, ~3 ms; fsr: FSR 1 de AMD, "
                             "cualquier GPU, sin red; onnx: una red ONNX), los modelos ONNX que hay (red "
                             "chica entrenada con una cámara, "
@@ -1408,7 +1408,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Una TARJETA del grafo de video de `entrada` (cámara, red o virtual) que agranda x2; lo que la "
+                QT_TRANSLATE_NOOP("mcp", "Una TARJETA del grafo de video de `entrada` (cámara, red o virtual) que agranda x2; lo que la "
                 "sigue trabaja al doble y la escena la recibe grande. Lo de fábrica: `plugin`, el id de un plugin "
                 "de superresolución instalado (superres_plugins: apple, fsr, realesr-general-x4v3, la red propia…): "
                 "la app lo corre con lo mejor de ESTA máquina (CoreML en la Mac, ONNX con DirectML o TensorRT en "
@@ -1422,7 +1422,7 @@ void McpService::registerVideoTools() {
                              {"required", {"entrada"}},
                              {"properties",
                               {{"entrada", {{"type", "string"}}},
-                               {"plugin", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de superres_plugins")}}},
+                               {"plugin", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id de superres_plugins")}}},
                                {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx", "coreml"}}}},
                                {"modelo", {{"type", "string"}}},
                                {"unidades", {{"type", "string"}, {"enum", {"auto", "ane", "gpu", "cpu"}}}},
@@ -1464,7 +1464,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Lectura;
             t.description =
-                ba::i18n::traducir("mcp", "Los plugins de superresolución: los del catálogo (redes como Real-ESRGAN, LSDIR, NomosUni, "
+                QT_TRANSLATE_NOOP("mcp", "Los plugins de superresolución: los del catálogo (redes como Real-ESRGAN, LSDIR, NomosUni, "
                 "SPAN; shaders como FSRCNNX y Anime4K; los integrados apple y fsr) y los instalados que no están en "
                 "él (la red propia entrenada con una cámara). Cada uno: qué hace, escala, plataformas, `instalado`, "
                 "`aca` (si corre en esta máquina) y `ms_coreml` (lo que tarda medido). Se instalan con "
@@ -1483,7 +1483,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/funciones/SUPERRESOLUCION.md): cualquier "
+                QT_TRANSLATE_NOOP("mcp", "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/funciones/SUPERRESOLUCION.md): cualquier "
                 "elemento de GStreamer —de GStreamer o propio, con su biblioteca en Datos/Modelos/superres/<id>/gst/— "
                 "que después se elige como cualquier plugin (superres_tarjeta {plugin: id}). `memoria`: vacía "
                 "(sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory: la cadena de la entrada sube a esa memoria "
@@ -1517,7 +1517,7 @@ void McpService::registerVideoTools() {
             t.title = ba::i18n::traducir("mcp", "Borrar un plugin de superresolución instalado");
             t.category = "video";
             t.clase = Clase::Escritura;
-            t.description = ba::i18n::traducir("mcp", "Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un "
                             "shader o un plugin propio. Los del catálogo se pueden volver a instalar.");
             t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
             t.run = [srp](const json& a, Done done) {
@@ -1535,14 +1535,14 @@ void McpService::registerVideoTools() {
             t.title = ba::i18n::traducir("mcp", "Ver las variantes de las redes (compiladas para un tamaño fijo)");
             t.category = "video";
             t.description =
-                ba::i18n::traducir("mcp", "Las variantes de una red de superresolución: la misma red compilada para un tamaño de entrada fijo "
+                QT_TRANSLATE_NOOP("mcp", "Las variantes de una red de superresolución: la misma red compilada para un tamaño de entrada fijo "
                 "(CoreML para el Neural Engine; ONNX fijo para TensorRT/DirectML). Cada una con su variante.json: "
                 "qué es, `para` qué cámara, `entrada`/`red`/`salida` (tamaños), `archivos`, `medido` (ms y "
                 "acelerador), cuándo y con qué se hizo. El motor usa sola la del tamaño que le llega; si no hay, la "
                 "general. `faltan`: los tamaños de las cámaras del estudio sin variante de ese plugin.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
-                              {{"plugin", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id del plugin (vacío: todos)")}}}}}};
+                              {{"plugin", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id del plugin (vacío: todos)")}}}}}};
             t.run = [srp](const json& a, Done done) {
                 if (!srp) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string p = a.value("plugin", std::string());
@@ -1559,7 +1559,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Compila la red de `plugin` para un tamaño de entrada fijo (`ancho` x `alto`, el de la cámara tal "
+                QT_TRANSLATE_NOOP("mcp", "Compila la red de `plugin` para un tamaño de entrada fijo (`ancho` x `alto`, el de la cámara tal "
                 "como llega a la tarjeta), o para varios (`tamanos`: [\"1024x576\", …]), o para todas las cámaras "
                 "del estudio que todavía no tienen la suya (`faltantes`: true). Sin PyTorch (coremltools y onnx "
                 "vienen en el programa): en la Mac CoreML (el Neural Engine solo corre tamaños compilados) y en "
@@ -1567,7 +1567,7 @@ void McpService::registerVideoTools() {
                 "tarjetas que usan ese plugin toman la variante del tamaño que les llega. Un shader GLSL no lleva "
                 "variantes: la placa lo compila para cualquier tamaño.");
             t.details =
-                ba::i18n::traducir("mcp", "`para` y `descripcion` quedan en variante.json (para qué cámara o uso es). `motores`: \"auto\" (todo "
+                QT_TRANSLATE_NOOP("mcp", "`para` y `descripcion` quedan en variante.json (para qué cámara o uso es). `motores`: \"auto\" (todo "
                 "lo que tenga el plugin), o \"coreml\", \"onnx\", \"onnx_nv12\" separados por coma. Un plugin "
                 "instalado antes de esta versión no guardó el paquete CoreML: avisa, y hay que reinstalarlo "
                 "(superres_instalar) para hacer variantes CoreML; las ONNX salen igual. `reemplazar`: rehacer una "
@@ -1580,9 +1580,9 @@ void McpService::registerVideoTools() {
                   {"ancho", {{"type", "integer"}}},
                   {"alto", {{"type", "integer"}}},
                   {"tamanos", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-                  {"faltantes", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "las cámaras del estudio sin variante")}}},
-                  {"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el tamaño de esta entrada (como llega)")}}},
-                  {"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "de fábrica, «<ancho>x<alto>»")}}},
+                  {"faltantes", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "las cámaras del estudio sin variante")}}},
+                  {"entrada", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el tamaño de esta entrada (como llega)")}}},
+                  {"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "de fábrica, «<ancho>x<alto>»")}}},
                   {"motores", {{"type", "string"}}},
                   {"para", {{"type", "string"}}},
                   {"descripcion", {{"type", "string"}}},
@@ -1622,7 +1622,7 @@ void McpService::registerVideoTools() {
             t.title = ba::i18n::traducir("mcp", "Cambiar para qué es una variante");
             t.category = "video";
             t.clase = Clase::Escritura;
-            t.description = ba::i18n::traducir("mcp", "Cambia `para`, `descripcion` o `nombre` del variante.json de una variante (`plugin`, `id`). "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Cambia `para`, `descripcion` o `nombre` del variante.json de una variante (`plugin`, `id`). "
                             "Lo demás (tamaños, archivos, lo medido) lo escribe la herramienta.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"plugin", "id"}},
@@ -1647,7 +1647,7 @@ void McpService::registerVideoTools() {
             t.title = ba::i18n::traducir("mcp", "Borrar una variante de una red");
             t.category = "video";
             t.clase = Clase::Escritura;
-            t.description = ba::i18n::traducir("mcp", "Borra una variante (`plugin`, `id`): las tarjetas vuelven a la red general para ese tamaño.");
+            t.description = QT_TRANSLATE_NOOP("mcp", "Borra una variante (`plugin`, `id`): las tarjetas vuelven a la red general para ese tamaño.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"plugin", "id"}},
                              {"properties", {{"plugin", {{"type", "string"}}}, {"id", {{"type", "string"}}}}}};
@@ -1666,7 +1666,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del "
+                QT_TRANSLATE_NOOP("mcp", "Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del "
                 "catálogo (`maestro`: realesr-general-x4v3 de fábrica, lsdir-compact-x4…) en lo que ve la entrada "
                 "`entrada` (de red o cámara local): graba 60 s, el maestro procesa cada cuadro y la chica aprende a llegar a eso. Para "
                 "máquinas donde el maestro no da en vivo. `minutos` de entrenamiento; `cpu` true para no usar la GPU "
@@ -1697,7 +1697,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Lectura;
             t.description =
-                ba::i18n::traducir("mcp", "Qué placa de video hay, si está bajado el ONNX Runtime de GPU (NVIDIA: CUDA + TensorRT, que "
+                QT_TRANSLATE_NOOP("mcp", "Qué placa de video hay, si está bajado el ONNX Runtime de GPU (NVIDIA: CUDA + TensorRT, que "
                 "compila la red para esa placa; AMD en Linux: ROCm/MIGraphX; Intel: OpenVINO) y qué conviene. "
                 "En Windows con AMD (también las integradas Ryzen) y en la Mac no hace falta: DirectML y CoreML "
                 "vienen con el programa. Se baja con superres_runtime_gpu_instalar.");
@@ -1715,13 +1715,13 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "El banco de pruebas: mide cada superresolución disponible (FSR, Apple, los shaders y cada red "
+                QT_TRANSLATE_NOOP("mcp", "El banco de pruebas: mide cada superresolución disponible (FSR, Apple, los shaders y cada red "
                 "instalada con cada acelerador: Neural Engine y GPU en la Mac; DirectML, CUDA/TensorRT, ROCm, "
                 "OpenVINO, Vulkan y el procesador en Windows/Linux) a 540p, 720p, 1080p y al tamaño de cada cámara, y "
                 "dice cuál corre en vivo, cuál a menos cuadros y cuál solo sirve para lo grabado. `accion`: resultado "
                 "(lo último medido, de fábrica), correr, estado o cancelar.");
             t.details =
-                ba::i18n::traducir("mcp", "Mide lo que tarda de verdad la red por cuadro (lo que mide el propio elemento; FSR y shaders, con "
+                QT_TRANSLATE_NOOP("mcp", "Mide lo que tarda de verdad la red por cuadro (lo que mide el propio elemento; FSR y shaders, con "
                 "sondas). Veredicto con los cuadros del lienzo: en_vivo (entra en el 85 % del cuadro, con cuántas a la "
                 "vez), reducido (hasta 2,5 cuadros), diferido, no_corre. `recomendado`: lo mejor por tamaño (entre lo "
                 "que va en vivo, una red le gana a FSR). Queda en Config/superres-banco.json y el programador lo usa "
@@ -1766,7 +1766,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Baja a Datos (portable) el ONNX Runtime de GPU para `tipo` (nvidia, amd o intel; vacío = el que "
+                QT_TRANSLATE_NOOP("mcp", "Baja a Datos (portable) el ONNX Runtime de GPU para `tipo` (nvidia, amd o intel; vacío = el que "
                 "conviene para esta placa), con versiones fijas de PyPI verificadas por sha256. NVIDIA: varios GB "
                 "(CUDA 13, cuDNN, TensorRT; `tensorrt` false para bajar solo CUDA). Al terminar hay que "
                 "reiniciar el programa. El avance, en superres_estado (`trabajo`).");
@@ -1789,7 +1789,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Baja el plugin `id` (verificado por sha256) y lo prepara para esta máquina: una red se exporta a "
+                QT_TRANSLATE_NOOP("mcp", "Baja el plugin `id` (verificado por sha256) y lo prepara para esta máquina: una red se exporta a "
                 "ONNX y, en la Mac, a CoreML para el Neural Engine (y se mide cuánto tarda); un shader se guarda. "
                 "Corre en el laboratorio (la primera vez baja PyTorch): el avance, en superres_estado (`trabajo`).");
             t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
@@ -1807,7 +1807,7 @@ void McpService::registerVideoTools() {
             t.title = ba::i18n::traducir("mcp", "Superresolución EN LA FUENTE de una entrada de red (alternativa a la tarjeta)");
             t.category = "video";
             t.clase = Clase::Escritura;
-            t.description = ba::i18n::traducir("mcp", "(Forma vieja, en los ajustes de la fuente: para redes CoreML, shaders, plugins y la "
+            t.description = QT_TRANSLATE_NOOP("mcp", "(Forma vieja, en los ajustes de la fuente: para redes CoreML, shaders, plugins y la "
                             "elección de placa usá superres_tarjeta {plugin}.) "
                             "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la "
                             "de Apple, la mejor en una Mac con "
@@ -1840,7 +1840,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Baja y convierte a ONNX `cual`: span (SPAN x2, Apache-2.0: liviano y fiel) o esrgan "
+                QT_TRANSLATE_NOOP("mcp", "Baja y convierte a ONNX `cual`: span (SPAN x2, Apache-2.0: liviano y fiel) o esrgan "
                 "(Real-ESRGAN compacto x4, "
                 "BSD-3: limpia ruido y compresión, pesado: en una Mac ~290 ms por cuadro, no da en vivo). La "
                 "primera vez baja el "
@@ -1863,7 +1863,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; "
+                QT_TRANSLATE_NOOP("mcp", "Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; "
                 "~800 MB, una vez). `accion`: estado (si está, si usa DirectML —AMD/Intel en Windows: entrena en "
                 "la placa—, dónde y cuánto ocupa), instalar (las baja ya, sin esperar a bajar un modelo) o borrar "
                 "(libera el espacio; se vuelven a bajar cuando hagan falta). Instalar corre en segundo plano: "
@@ -1897,7 +1897,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.destructive = true;
-            t.description = ba::i18n::traducir("mcp", "Borra un modelo de la carpeta de modelos (su .onnx y sus datos). `modelo`: el archivo o "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Borra un modelo de la carpeta de modelos (su .onnx y sus datos). `modelo`: el archivo o "
                             "el nombre, como los lista superres_estado.");
             t.inputSchema = {{"type", "object"},
                              {"required", {"modelo"}},
@@ -1924,7 +1924,7 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Lo que está haciendo el laboratorio (bajar bibliotecas o un modelo, convertir, entrenar, "
+                QT_TRANSLATE_NOOP("mcp", "Lo que está haciendo el laboratorio (bajar bibliotecas o un modelo, convertir, entrenar, "
                 "destilar, instalar un plugin, variantes, runtime de GPU). `accion`: estado (de fábrica), cancelar, "
                 "o esperar (vuelve cuando termina, o a los `segundos`, de fábrica 600: para encadenar pasos sin "
                 "preguntar cada rato).");
@@ -1971,7 +1971,7 @@ void McpService::registerVideoTools() {
             t.title = ba::i18n::traducir("mcp", "Entrenar la red chica mirando una cámara (un botón)");
             t.category = "video";
             t.clase = Clase::Escritura;
-            t.description = ba::i18n::traducir("mcp", "Graba ~1 minuto de la entrada `entrada` sin tocar la imagen al aire: una de red, de su "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Graba ~1 minuto de la entrada `entrada` sin tocar la imagen al aire: una de red, de su "
                             "dirección; una cámara local, cuadros de lo que sale de su grafo (4 por segundo). Arma pares «la "
                             "imagen achicada y comprimida -> la original» y entrena una red chica (solo "
                             "luma, x2) `minutos` minutos (5 de "
@@ -2010,7 +2010,7 @@ void McpService::registerVideoTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia el reloj del estudio (reinicia el motor: corta lo que sale)");
         t.aireSi = AireSi::RelojNuevo;
-        t.description = ba::i18n::traducir("mcp", "Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. "
+        t.description = std::string(QT_TRANSLATE_NOOP("mcp", "Sin argumentos: el reloj del estudio y en qué estado está en cada entrada de red. "
                         "Cambiarlo: `tipo` "
                         "sistema (el de esta máquina; de fábrica) | ntp (`servidor`, `puerto` 123: todos los "
                         "equipos del lugar "
@@ -2022,7 +2022,7 @@ void McpService::registerVideoTools() {
                         "`publicar_puerto`: publica el "
                         "reloj de ESTE aparato en ese puerto para que otros usen `red` contra él (0 = dejar "
                         "de publicar). Se "
-                        "aplica a todas las entradas de GStreamer. Cambiar `tipo`, `servidor`, `puerto` o `dominio`:") +
+                        "aplica a todas las entradas de GStreamer. Cambiar `tipo`, `servidor`, `puerto` o `dominio`:")) +
                         " " + avisoReiniciaMotor();
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -2082,7 +2082,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Mide durante `segundos` (de fábrica 8) cuánto atrasa `b` respecto de `a`, comparando cuadro a "
+            QT_TRANSLATE_NOOP("mcp", "Mide durante `segundos` (de fábrica 8) cuánto atrasa `b` respecto de `a`, comparando cuadro a "
             "cuadro "
             "lo que se ve. Funciona si las dos ven algo EN COMÚN que cambie: la misma imagen por dos caminos "
             "(el "
@@ -2118,7 +2118,7 @@ void McpService::registerVideoTools() {
         t.title = ba::i18n::traducir("mcp", "Correr una entrada en el tiempo a mano");
         t.category = "video";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Atrasa (o adelanta) una entrada `ms` milisegundos: una entrada de red, con el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Atrasa (o adelanta) una entrada `ms` milisegundos: una entrada de red, con el "
                         "desfase de su colchón "
                         "(para los dos lados, en vivo); una cámara local, solo para atrás (una tarjeta "
                         "retardo). `relativo` "

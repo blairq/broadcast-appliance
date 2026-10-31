@@ -29,7 +29,7 @@ void McpService::registerControlTools() {
         t.title = ba::i18n::traducir("mcp", "Permisos del control del sistema");
         t.category = "agentes";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Si el asistente puede manejar el escritorio de esta máquina (servidor MCP `control`, las "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Si el asistente puede manejar el escritorio de esta máquina (servidor MCP `control`, las "
                         "mismas herramientas system_* en Windows, macOS y Linux: mouse, teclado, capturas, abrir "
                         "programas, buscar, ventanas, portapapeles, procesos, comandos, datos del equipo, los elementos "
                         "de las ventanas, Chrome, archivos, registro) y con qué permisos. `preguntar`: el asistente pide "
@@ -63,12 +63,12 @@ void McpService::registerControlTools() {
         t.category = "agentes";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Prende o apaga el control del sistema (el escritorio de esta máquina) y sus permisos. `habilitado`: el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Prende o apaga el control del sistema (el escritorio de esta máquina) y sus permisos. `habilitado`: el "
                         "interruptor general. `preguntar`: que el asistente pida permiso antes de cada acción. "
                         "`permisos`: {pantalla, mouse, teclado, ejecutar, ejecutar_admin, buscar, ventanas, "
                         "portapapeles, procesos, comandos, sistema, archivos, archivos_escribir, navegador, registro, "
                         "avisos} en true/false. Lo que no se manda queda como estaba.");
-        t.details = ba::i18n::traducir("mcp", "Los permisos valen en la llamada siguiente. Prender o apagar el control entero, o cambiar "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Los permisos valen en la llamada siguiente. Prender o apagar el control entero, o cambiar "
                     "`preguntar`, vale al relanzar el asistente (es cuando se le arma la lista de servidores).");
         t.inputSchema = {{"type", "object"},
                          {"properties",

@@ -13,6 +13,7 @@
 //
 // Por eso cada caso de acá es "esta consulta tiene que traer ESTA herramienta
 // entre las primeras", que es lo único que importa del otro lado.
+#include <algorithm>
 #include <chrono>
 #include <clocale>
 #include <cstdio>
@@ -20,10 +21,12 @@
 #include <string>
 #include <vector>
 
+#include <filesystem>
 #include <fstream>
 
 #include <nlohmann/json.hpp>
 
+#include "i18n/I18n.hpp"
 #include "mcp/McpEtiquetas.hpp"
 #include "mcp/McpIndice.hpp"
 
@@ -300,6 +303,52 @@ void velocidad(const Indice& i) {
     }
 }
 
+/// UN OPERADOR EN OTRO IDIOMA. La descripción que lee el modelo queda en castellano
+/// (ver traducirParaVer), así que el índice tiene las dos lenguas: las etiquetas del
+/// original MÁS las traducidas, con las reglas del idioma más las letras, tildes y
+/// vacías del original (McpIndice.cpp, sumarDelOriginal). Con un idioma de mentira
+/// cuyas letras son solo las cirílicas (como el ruso): ahí «cámara» se partía en «c»
+/// y «mara», y las etiquetas traducidas reemplazaban a las del original.
+void otroIdioma() {
+    namespace fs = std::filesystem;
+    using nlohmann::json;
+    const fs::path base = fs::temp_directory_path() / "ba-test-mcp-busqueda";
+    fs::remove_all(base);
+    const auto escribir = [](const fs::path& p, const json& j) {
+        fs::create_directories(p.parent_path());
+        std::ofstream(p) << j.dump(2);
+    };
+    escribir(base / "idiomas" / "es.json",
+             {{"codigo", "es"}, {"nombre", "Español"}, {"locale", "es_AR"}, {"fuente", true},
+              {"buscador", {{"letras", {{"á", "á"}, {"ñ", "ñ"}}}, {"sinTildes", {{"á", "a"}, {"ñ", "n"}}},
+                            {"vacias", {"a", "de", "la", "el"}}}}});
+    escribir(base / "idiomas" / "zz.json",
+             {{"codigo", "zz"}, {"nombre", "Zeta"}, {"locale", "zz_ZZ"},
+              {"buscador", {{"letras", {{"з", "з"}, {"в", "в"}, {"у", "у"}, {"к", "к"}}}, {"vacias", {"в"}}}}});
+    // La fila de la familia `audio_`, tal cual está en McpEtiquetas.cpp.
+    escribir(base / "i18n" / "zz.json",
+             {{"total", 1}, {"traducidos", 1},
+              {"mensajes", {{"mcp-etiquetas", {{"audio sonido volumen nivel ganancia db decibeles mezcla mixer canal "
+                                                "pista se escucha se oye suena",
+                                                "звук"}}}}}});
+    ba::i18n::carpetas(base / "idiomas", base / "i18n");
+    ba::i18n::usar("zz");
+
+    const std::vector<std::string> e = etiquetasDe("audio_set");
+    const auto tiene = [&e](const char* t) { return std::find(e.begin(), e.end(), t) != e.end(); };
+    CHECK(tiene("звук") && tiene("volumen") && tiene("silenciar"),
+          "otro idioma: las etiquetas traducidas SE SUMAN a las del original");
+    CHECK(Indice::terminos("la cámara в звук") == (std::vector<std::string>{"camara", "звук"}),
+          "otro idioma: sus letras y vacías más las del original");
+    const Indice z = armarIndice();
+    exigir(z, "звук", "audio_set", 8); // es de la familia: empata con las otras audio_*
+    exigir(z, "silenciar a alguien", "audio_set");
+
+    ba::i18n::carpetas({}, {});
+    ba::i18n::usar("es");
+    fs::remove_all(base);
+}
+
 // Los pisos de la bateria de intencion, en %: medidos el 17/10/2026, con margen.
 constexpr int PISO_INTENCION_8 = 85; // 518/595 = 87 % (antes de la revision: 494, 83 %)
 constexpr int PISO_INTENCION_1 = 55; // 345/595 = 58 % (antes: 321, 54 %)
@@ -509,6 +558,8 @@ int main() {
     // --- Una consulta sin sentido no inventa ---------------------------------
     CHECK(i.buscar("xyzzy plugh", 12).empty(), "lo que no existe no trae nada");
     CHECK(i.buscar("", 12).empty(), "una consulta vacia no trae nada");
+
+    otroIdioma();
 
     if (g_fallos == 0) {
         std::printf("test_mcp_busqueda: OK\n");

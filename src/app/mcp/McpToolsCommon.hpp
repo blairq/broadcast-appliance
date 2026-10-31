@@ -37,7 +37,8 @@ bool resolveParticipant(const json& snapshot, const std::string& query, json& ou
 std::string personFeedKey(const json& participant);
 
 /// La advertencia de las herramientas que rearman el motor (el lienzo, los cuadros
-/// por segundo, el reloj del estudio): una sola, para todas las que lo hacen.
+/// por segundo, el reloj del estudio): una sola, para todas las que lo hacen. Va en la
+/// descripción, así que en el original (ver traducirParaVer).
 std::string avisoReiniciaMotor();
 
 // --- Las salidas (PLAN-SALIDAS; ver McpSalidasTools.cpp) ---------------------

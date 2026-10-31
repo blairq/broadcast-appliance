@@ -47,7 +47,7 @@ void McpService::registerLaminaTools() {
         t.title = ba::i18n::traducir("mcp", "Que carruseles de laminas hay");
         t.category = "laminas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los carruseles de la biblioteca (no sus láminas), con cuántas láminas tiene cada uno y cuál está "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los carruseles de la biblioteca (no sus láminas), con cuántas láminas tiene cada uno y cuál está "
             "abierto. Es por donde se empieza: el resto pide el nombre.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [cc](const json&, Done done) {
@@ -79,10 +79,10 @@ void McpService::registerLaminaTools() {
         t.title = ba::i18n::traducir("mcp", "Las laminas de un carrusel");
         t.category = "laminas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las láminas DE UN carrusel, en orden, con su número, su título y cuál está puesta. El numero es lo "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las láminas DE UN carrusel, en orden, con su número, su título y cuál está puesta. El numero es lo "
             "que pide `laminas_ir`.");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"carrusel", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "su nombre")}}}}},
+                         {"properties", {{"carrusel", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "su nombre")}}}}},
                          {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
@@ -120,7 +120,7 @@ void McpService::registerLaminaTools() {
         t.title = ba::i18n::traducir("mcp", "Saltar a una lamina");
         t.category = "laminas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pone la lamina numero N del carrusel. Es la razon de que el carrusel exista: "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pone la lamina numero N del carrusel. Es la razon de que el carrusel exista: "
                         "«volve a la del grafico» no son veinte clics de siguiente. Sale al aire si "
                         "la escena que la muestra esta al aire.\n\n"
                         "OJO: si el carrusel todavia no esta en ninguna escena (`laminas_aplicar`), "
@@ -131,11 +131,11 @@ void McpService::registerLaminaTools() {
                            {"numero",
                             {{"type", "integer"},
                              {"minimum", 1},
-                             {"description", ba::i18n::traducir("mcp", "empezando en 1, como los da carrusel_laminas_ver")}}},
+                             {"description", QT_TRANSLATE_NOOP("mcp", "empezando en 1, como los da carrusel_laminas_ver")}}},
                            {"hacia",
                             {{"type", "string"},
                              {"enum", {"siguiente", "anterior"}},
-                             {"description", ba::i18n::traducir("mcp", "en vez de `numero`: la que sigue o la de antes. "
+                             {"description", QT_TRANSLATE_NOOP("mcp", "en vez de `numero`: la que sigue o la de antes. "
                                              "Da la vuelta al llegar al final.")}}}}},
                          {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
@@ -185,7 +185,7 @@ void McpService::registerLaminaTools() {
         t.category = "laminas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las laminas de un carrusel que coinciden con un texto, por su titulo y por las "
+            QT_TRANSLATE_NOOP("mcp", "Las laminas de un carrusel que coinciden con un texto, por su titulo y por las "
             "etiquetas que se le sacaron mirandolas. Es lo que hace el cuadro de busqueda de la "
             "pestaña Medios, con el MISMO criterio: sin tildes y todas las palabras tienen que "
             "estar.\n\n"
@@ -198,7 +198,7 @@ void McpService::registerLaminaTools() {
             {"type", "object"},
             {"properties",
              {{"carrusel", {{"type", "string"}}},
-              {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que dijo el operador: «grafico barras»")}}}}},
+              {"texto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que dijo el operador: «grafico barras»")}}}}},
             {"required", {"carrusel", "texto"}}};
         t.examples = {R"({"carrusel": "Apertura", "texto": "grafico de barras"})"};
         t.run = [cc](const json& a, Done done) {
@@ -232,7 +232,7 @@ void McpService::registerLaminaTools() {
         t.title = ba::i18n::traducir("mcp", "Desarmar un PDF o un PowerPoint");
         t.category = "laminas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Convierte cada pagina de un PDF o de una presentacion en una lamina y arma "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Convierte cada pagina de un PDF o de una presentacion en una lamina y arma "
                         "un carrusel con ellas. Tarda (segundos por pagina) y avisa cuando termina; "
                         "el operador ve la barra de trabajo. Un .pptx pasa por DeckCraft (viaja en el "
                         "programa); el .ppt viejo y el .odp no se leen: exportalos a .pptx o a PDF.");
@@ -240,10 +240,10 @@ void McpService::registerLaminaTools() {
             {"type", "object"},
             {"properties",
              {{"archivo",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "ruta del PDF o .pptx, como la da media_list")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta del PDF o .pptx, como la da media_list")}}},
               {"nombre",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "como llamar al carrusel. Vacio = el nombre del archivo")}}}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "como llamar al carrusel. Vacio = el nombre del archivo")}}}}},
             {"required", {"archivo"}}};
         t.run = [cc](const json& a, Done done) {
             const QString archivo = QString::fromStdString(a.value("archivo", std::string()));
@@ -273,7 +273,7 @@ void McpService::registerLaminaTools() {
         t.category = "laminas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Crea un carrusel y le pone las imagenes que se le digan, en ese orden. Para armar uno "
+            QT_TRANSLATE_NOOP("mcp", "Crea un carrusel y le pone las imagenes que se le digan, en ese orden. Para armar uno "
             "con placas sueltas —logos, fondos, placas institucionales— en vez de desarmar una "
             "presentacion (para eso esta `laminas_desarmar`).\n\n"
             "Si el carrusel ya existe, le AGREGA las imagenes al final en vez de pisarlo. Una imagen "
@@ -283,11 +283,11 @@ void McpService::registerLaminaTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"nombre"}},
                          {"properties",
-                          {{"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "como se llama el carrusel")}}},
+                          {{"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "como se llama el carrusel")}}},
                            {"imagenes",
                             {{"type", "array"},
                              {"items", {{"type", "string"}}},
-                             {"description", ba::i18n::traducir("mcp", "rutas, como las da media_list")}}}}}};
+                             {"description", QT_TRANSLATE_NOOP("mcp", "rutas, como las da media_list")}}}}}};
         t.examples = {R"({"nombre": "Sponsors", "imagenes": ["Media/logos/a.png", "Media/logos/b.png"]})"};
         t.run = [cc, root](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("nombre", std::string())).trimmed();
@@ -339,7 +339,7 @@ void McpService::registerLaminaTools() {
         t.category = "laminas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Quitar una lamina, moverla de lugar, renombrar el carrusel, borrarlo, o soltarlo de la "
+            QT_TRANSLATE_NOOP("mcp", "Quitar una lamina, moverla de lugar, renombrar el carrusel, borrarlo, o soltarlo de la "
             "escena.\n\n"
             "`borrar` se lleva el carrusel, NO las imagenes: pueden estar en una escena o ser del "
             "operador. `soltar` lo desvincula de la fuente y la imagen queda como estaba; la fuente "
@@ -352,9 +352,9 @@ void McpService::registerLaminaTools() {
              {{"carrusel", {{"type", "string"}}},
               {"accion",
                {{"type", "string"}, {"enum", {"quitar", "mover", "renombrar", "borrar", "soltar"}}}},
-              {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", ba::i18n::traducir("mcp", "con quitar y mover")}}},
-              {"hasta", {{"type", "integer"}, {"minimum", 1}, {"description", ba::i18n::traducir("mcp", "con mover: a que puesto va")}}},
-              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con renombrar: el nombre nuevo")}}}}}};
+              {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", QT_TRANSLATE_NOOP("mcp", "con quitar y mover")}}},
+              {"hasta", {{"type", "integer"}, {"minimum", 1}, {"description", QT_TRANSLATE_NOOP("mcp", "con mover: a que puesto va")}}},
+              {"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con renombrar: el nombre nuevo")}}}}}};
         t.examples = {R"({"carrusel": "Sponsors", "accion": "mover", "numero": 5, "hasta": 1})"};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
@@ -395,7 +395,7 @@ void McpService::registerLaminaTools() {
         t.category = "laminas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Pone la tira en una ESCENA: crea ahi una fuente de imagen llamada «Carrusel · <nombre>» "
+            QT_TRANSLATE_NOOP("mcp", "Pone la tira en una ESCENA: crea ahi una fuente de imagen llamada «Carrusel · <nombre>» "
             "y deja anotado que ese carrusel la maneja. Recien a partir de aca `laminas_ir` cambia "
             "algo que se VE: le cambia el archivo a esa fuente, y si la escena esta al aire, sale al "
             "aire.\n\n"
@@ -407,7 +407,7 @@ void McpService::registerLaminaTools() {
             {"type", "object"},
             {"properties",
              {{"carrusel", {{"type", "string"}}},
-              {"escena", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "por defecto, la que esta al aire")}}}}},
+              {"escena", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "por defecto, la que esta al aire")}}}}},
             {"required", {"carrusel"}}};
         t.examples = {R"({"carrusel": "Apertura"})"};
         t.run = [cc, &rt](const json& a, Done done) {
@@ -436,7 +436,7 @@ void McpService::registerLaminaTools() {
         t.category = "laminas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
+            QT_TRANSLATE_NOOP("mcp", "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
             "etiquetas. Es por donde entra el que mira imagenes: pedir esta, mirarla con "
             "imagen_preguntar —que es quien sabe mirar; este asistente NO recibe imagenes—, y guardar "
             "lo que vio con laminas_etiquetar. Vacio = no queda "
@@ -473,7 +473,7 @@ void McpService::registerLaminaTools() {
         t.title = ba::i18n::traducir("mcp", "Guardar lo que se ve en una lamina");
         t.category = "laminas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Guarda las palabras con las que despues se va a buscar esa lamina: lo que "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Guarda las palabras con las que despues se va a buscar esa lamina: lo que "
                         "se ve, lo que dice, de que trata. El operador escribe «barras» en el cuadro "
                         "y le queda esa. Se guarda UNA vez por lamina; si salio vacio igual queda "
                         "marcada, para no volver a mirarla para siempre.");
@@ -483,7 +483,7 @@ void McpService::registerLaminaTools() {
              {{"carrusel", {{"type", "string"}}},
               {"numero", {{"type", "integer"}, {"minimum", 1}}},
               {"etiquetas",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "palabras sueltas separadas por espacios o comas")}}}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "palabras sueltas separadas por espacios o comas")}}}}},
             {"required", {"carrusel", "numero", "etiquetas"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));

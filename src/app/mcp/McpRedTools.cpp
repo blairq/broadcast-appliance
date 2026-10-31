@@ -31,7 +31,7 @@ void McpService::registerRedTools() {
     const QPointer<red::Red> r = rd;
     auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
     video::VideoGrafos* vg = vm_.videoGrafos();
-    const json ip = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La IP del equipo (como en red_escanear).")}};
+    const json ip = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La IP del equipo (como en red_escanear).")}};
     {
         Tool t;
         t.name = "red_escanear";
@@ -39,7 +39,7 @@ void McpService::registerRedTools() {
         t.category = "entradas";
         t.clase = Clase::Lectura;
         t.openWorld = true;
-        t.description = ba::i18n::traducir("mcp", "Escanea la red local (unos 10 s): ONVIF, los puertos de video de toda la subred "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escanea la red local (unos 10 s): ONVIF, los puertos de video de toda la subred "
                         "(RTSP, web, RTMP, NDI, los "
                         "SDK de Hikvision y Dahua), el fabricante por la MAC, la marca (con el porqué) y "
                         "prueba sus URLs RTSP "
@@ -70,7 +70,7 @@ void McpService::registerRedTools() {
         t.clase = Clase::Escritura;
         t.description =
             //: no traducir [OPERADOR]
-            ba::i18n::traducir("mcp", "Con `pedir: true` (lo correcto): muestra al operador UN formulario seguro en la barra con "
+            QT_TRANSLATE_NOOP("mcp", "Con `pedir: true` (lo correcto): muestra al operador UN formulario seguro en la barra con "
             "usuario y clave de "
             "cada cámara de `ips` (vos nunca los ves; se guardan cifrados) y vuelve enseguida: cuando lo "
             "complete te "
@@ -88,7 +88,7 @@ void McpService::registerRedTools() {
               {"ip", ip},
               {"pedir", {{"type", "boolean"}}},
               {"texto",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que se le dice al operador en el formulario")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que se le dice al operador en el formulario")}}},
               {"esperar_seg", {{"type", "integer"}}},
               {"usuario", {{"type", "string"}}},
               {"clave", {{"type", "string"}}}}}};
@@ -206,7 +206,7 @@ void McpService::registerRedTools() {
         t.category = "entradas";
         t.clase = Clase::Lectura;
         t.openWorld = true;
-        t.description = ba::i18n::traducir("mcp", "Con la clave guardada: ONVIF completo —el equipo (marca, modelo, firmware), los "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Con la clave guardada: ONVIF completo —el equipo (marca, modelo, firmware), los "
                         "perfiles de video (códec, "
                         "tamaño, fps, bitrate y su URL exacta), el PTZ (si tiene, su perfil, presets, "
                         "posición de inicio, rangos), "
@@ -234,7 +234,7 @@ void McpService::registerRedTools() {
         t.title = ba::i18n::traducir("mcp", "Conectar una cámara de la red al estudio");
         t.category = "entradas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Conecta la cámara `ip` como entrada de video sincronizada (con su clave guardada): "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Conecta la cámara `ip` como entrada de video sincronizada (con su clave guardada): "
                         "la URL del `perfil` "
                         "ONVIF (o `url`, o la del plan de camara_ficha), con la `normalizar` y `latencia_ms` "
                         "del plan, y su PTZ por "
@@ -259,17 +259,17 @@ void McpService::registerRedTools() {
               {"duplicar", {{"type", "boolean"}}},
               {"solo_ptz", {{"type", "boolean"}}},
               {"entrada",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con solo_ptz: la entrada que ya muestra esta cámara")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con solo_ptz: la entrada que ya muestra esta cámara")}}},
               {"nombre", {{"type", "string"}}},
-              {"perfil", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "token del perfil ONVIF (de camara_ficha)")}}},
+              {"perfil", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "token del perfil ONVIF (de camara_ficha)")}}},
               {"url",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "una URL RTSP a mano (sin clave: se le pone la guardada)")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "una URL RTSP a mano (sin clave: se le pone la guardada)")}}},
               {"normalizar", {{"type", "boolean"}}},
               {"latencia_ms", {{"type", "integer"}}},
               {"ptz", {{"type", "boolean"}}},
               {"esperar_seg",
-               {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "cuánto esperar a que conecte (0: no esperar)")}}}}}};
+               {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "cuánto esperar a que conecte (0: no esperar)")}}}}}};
         t.run = [r, vg](const json& a, Done done) {
             if (!r) return done(ToolResult::error(ba::i18n::traducir("mcp", "el escáner no está disponible")));
             json hecho;
@@ -294,7 +294,7 @@ void McpService::registerRedTools() {
         t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Vuelve a probar las URLs RTSP típicas de la cámara `ip` (con la clave guardada, si hay): útil "
+            QT_TRANSLATE_NOOP("mcp", "Vuelve a probar las URLs RTSP típicas de la cámara `ip` (con la clave guardada, si hay): útil "
             "después de guardar la clave o de habilitar el RTSP en la cámara.");
         t.inputSchema = {{"type", "object"}, {"required", {"ip"}}, {"properties", {{"ip", ip}}}};
         t.run = [r](const json& a, Done done) {

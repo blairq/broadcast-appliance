@@ -11,7 +11,7 @@
 namespace ba::app::mcp {
 namespace {
 
-// Las etiquetas van en el idioma del operador, como las descripciones: son las
+// Las etiquetas van en castellano Y en el idioma del operador (ver partir): son las
 // palabras con las que ESA persona pediría la herramienta. Cada fila está marcada
 // con QT_TRANSLATE_NOOP("mcp-etiquetas", …) y se traduce al leerla (etiquetasDe):
 // el que traduce pone sinónimos y maneras de pedirlo en su idioma, no una
@@ -2092,9 +2092,7 @@ const Fila kPropias[] = {
     {"settings_set", QT_TRANSLATE_NOOP("mcp-etiquetas", "cambiar una configuracion ajustar opcion")},
 };
 
-/// Las palabras de una fila, ya en el idioma del operador.
-void partir(const char* terminos, std::vector<std::string>& out) {
-    const std::string s = ba::i18n::traducir("mcp-etiquetas", terminos);
+void partirTexto(const std::string& s, std::vector<std::string>& out) {
     std::string cur;
     for (const char c : s) {
         if (c == ' ') {
@@ -2105,6 +2103,17 @@ void partir(const char* terminos, std::vector<std::string>& out) {
         }
     }
     if (!cur.empty()) out.push_back(cur);
+}
+
+/// Las palabras de una fila: las del original (castellano) MÁS las del idioma del
+/// operador, si es otro. Sumadas y no en reemplazo: la descripción que lee el modelo
+/// está en castellano (ver traducirParaVer), así que quien busca puede pedirla con las
+/// palabras de cualquiera de los dos; y las del original son las medidas
+/// (tools/dev/medir-busqueda.py): una traducción a medias no le saca lo que ya encontraba.
+void partir(const char* terminos, std::vector<std::string>& out) {
+    partirTexto(terminos, out);
+    const std::string t = ba::i18n::traducir("mcp-etiquetas", terminos);
+    if (t != terminos) partirTexto(t, out);
 }
 
 /// Las filas propias de cada herramienta, sin traducir (se traducen al leerlas).

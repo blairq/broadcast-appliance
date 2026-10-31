@@ -82,7 +82,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Reemplaza la playlist: `items` = [{path (de las carpetas de medios), nombre?, in_s?, out_s?}] "
+            QT_TRANSLATE_NOOP("mcp", "Reemplaza la playlist: `items` = [{path (de las carpetas de medios), nombre?, in_s?, out_s?}] "
             "(in/out en segundos; 0 = desde el principio / hasta el final). Se pasan uno detrás del otro en "
             "la escena «Playlist». `auto_next` (pasa solo al siguiente) y `loop` (vuelve a empezar). Para "
             "reproducir: playlist_control.");
@@ -123,7 +123,7 @@ void McpService::registerMediaTools() {
         t.title = ba::i18n::traducir("mcp", "Playlist: play, siguiente, anterior, parar, armar");
         t.category = "medios";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`accion`: play (desde `indice`, base 0, o el actual), next, prev, stop o armar (deja la escena "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`accion`: play (desde `indice`, base 0, o el actual), next, prev, stop o armar (deja la escena "
                         "«Playlist» armada en PVW para el take). `auto_next` y `loop` cambian el modo. Sin acción, "
                         "informa (ítem actual y cuánto le queda).");
         t.inputSchema = {{"type", "object"},
@@ -183,7 +183,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Lista imagenes, videos y audios de las carpetas de medios (Media/ por defecto; Shares/, "
+            QT_TRANSLATE_NOOP("mcp", "Lista imagenes, videos y audios de las carpetas de medios (Media/ por defecto; Shares/, "
             "Recordings/ o all), los mas nuevos primero, con tamaño y dimensiones de las imagenes.");
         t.inputSchema = {
             {"type", "object"},
@@ -222,7 +222,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Encuentra la RUTA de un archivo por su nombre. "
+            QT_TRANSLATE_NOOP("mcp", "Encuentra la RUTA de un archivo por su nombre. "
             "Busca por nombre en todas las carpetas de medios (sin importar mayusculas, tildes ni guiones): "
             "\"logo sponsor\" encuentra \"Logo-Sponsor_2026.png\". Los mejores primero; confirma una imagen "
             "con media_view antes de usarla.");
@@ -281,7 +281,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Devuelve la imagen (achicada) para confirmar que es la que se busca, con su tamaño original.");
+            QT_TRANSLATE_NOOP("mcp", "Devuelve la imagen (achicada) para confirmar que es la que se busca, con su tamaño original.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -322,7 +322,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.clase = Clase::Escritura;
         t.description =
-             ba::i18n::traducir("mcp", "PONE en una escena un archivo de la biblioteca de medios (música, video, imagen), por su ruta. Pone "
+             QT_TRANSLATE_NOOP("mcp", "PONE en una escena un archivo de la biblioteca de medios (música, video, imagen), por su ruta. Pone "
             "una imagen (logo, placa, fondo), un video o un audio de las carpetas de medios en una escena, en la "
             "ubicacion pedida (preset como pip-tr = arriba a la derecha, o {x,y,w,h}). Las imagenes conservan su "
             "proporcion dentro del lugar. Verifica con foto_fuente.");
@@ -330,10 +330,10 @@ void McpService::registerMediaTools() {
             {"type", "object"},
             {"properties",
              {{"path", {{"type", "string"}}},
-              {"scene", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Por defecto la escena al aire.")}}},
+              {"scene", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Por defecto la escena al aire.")}}},
               {"name", {{"type", "string"}}},
-              {"layout", {{"description", ba::i18n::traducir("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}},
-              {"loop", {{"type", "boolean"}, {"default", false}, {"description", ba::i18n::traducir("mcp", "Videos/audios: repetir.")}}},
+              {"layout", {{"description", QT_TRANSLATE_NOOP("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}},
+              {"loop", {{"type", "boolean"}, {"default", false}, {"description", QT_TRANSLATE_NOOP("mcp", "Videos/audios: repetir.")}}},
               {"visible", {{"type", "boolean"}, {"default", true}}}}},
             {"required", {"path"}}};
         t.examples = {
@@ -382,7 +382,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "El arbol de carpetas de medios, con cuantos archivos tiene cada una (los propios y "
+            QT_TRANSLATE_NOOP("mcp", "El arbol de carpetas de medios, con cuantos archivos tiene cada una (los propios y "
             "los de sus subcarpetas). Es por donde se empieza para ordenar: `media_list` da los "
             "archivos, esto da DONDE estan. Las carpetas vacias aparecen igual, porque son a donde "
             "se mueven cosas.");
@@ -407,7 +407,7 @@ void McpService::registerMediaTools() {
         t.category = "medios";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Acomoda los archivos: `mover` (a otra carpeta), `renombrar`, `carpeta` (crear una) y "
+            QT_TRANSLATE_NOOP("mcp", "Acomoda los archivos: `mover` (a otra carpeta), `renombrar`, `carpeta` (crear una) y "
             "`borrar`.\n\n"
             "BORRAR NO BORRA: manda a `Papelera/`. Un archivo puede estar en una escena, o ser el "
             "unico que quedaba del evento pasado; deshacer tiene que ser sacarlo de una carpeta.\n\n"
@@ -420,15 +420,15 @@ void McpService::registerMediaTools() {
              {{"accion", {{"type", "string"}, {"enum", {"mover", "renombrar", "carpeta", "borrar"}}}},
               {"que",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "ruta relativa del archivo o carpeta, como la da media_list")}}},
-              {"destino", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con accion=mover: la carpeta a donde va")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "ruta relativa del archivo o carpeta, como la da media_list")}}},
+              {"destino", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con accion=mover: la carpeta a donde va")}}},
               {"nombre",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "con renombrar: el nombre nuevo. Con carpeta: como se llama")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "con renombrar: el nombre nuevo. Con carpeta: como se llama")}}},
               {"padre",
                {{"type", "string"},
                 {"default", "Media"},
-                {"description", ba::i18n::traducir("mcp", "con carpeta: adentro de cual se crea")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "con carpeta: adentro de cual se crea")}}}}}};
         t.examples = {R"({"accion": "mover", "que": "Media/logo.png", "destino": "Media/logos"})",
                       R"({"accion": "carpeta", "padre": "Media", "nombre": "Sponsors"})"};
         t.run = [root, &vm](const json& a, Done done) {

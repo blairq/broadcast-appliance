@@ -208,7 +208,7 @@ json catalogo() {
         tools.push_back({{"name", name}, {"description", desc}, {"inputSchema", schema}});
     };
     tool("system_pantalla",
-         ba::i18n::traducir("mcp", "Saca una captura de pantalla de ESTA máquina (PNG; Windows, macOS o Linux). Sin argumentos: todo el "
+         QT_TRANSLATE_NOOP("mcp", "Saca una captura de pantalla de ESTA máquina (PNG; Windows, macOS o Linux). Sin argumentos: todo el "
          "escritorio (todos los monitores). `monitor`: el índice de system_monitores. `x,y,ancho,alto`: una región. "
          "`ventana` (id de system_ventanas) o `titulo`: solo esa ventana, aunque esté tapada. `escala`: achicar "
          "(0.1..1, p. ej. 0.5 en un monitor 4K). Las coordenadas de la imagen son las del mouse (en macOS, puntos "
@@ -221,10 +221,10 @@ json catalogo() {
               {"y", {{"type", "integer"}}},
               {"ancho", {{"type", "integer"}}},
               {"alto", {{"type", "integer"}}}}));
-    tool("system_monitores", ba::i18n::traducir("mcp", "Lista los monitores: índice, posición, tamaño y cuál es el principal. Permiso: pantalla."),
+    tool("system_monitores", QT_TRANSLATE_NOOP("mcp", "Lista los monitores: índice, posición, tamaño y cuál es el principal. Permiso: pantalla."),
          obj({}));
     tool("system_mouse",
-         ba::i18n::traducir("mcp", "Mueve o acciona el mouse. `accion`: mover, click, doble, arrastrar, rueda. `x,y` el destino (en "
+         QT_TRANSLATE_NOOP("mcp", "Mueve o acciona el mouse. `accion`: mover, click, doble, arrastrar, rueda. `x,y` el destino (en "
          "píxeles del escritorio virtual); `hasta_x,hasta_y` para arrastrar; `boton`: izq, der, medio; "
          "`pasos` para la rueda (positivo arriba). Permiso: mouse."),
          obj({{"accion", {{"type", "string"}, {"enum", {"mover", "click", "doble", "arrastrar", "rueda"}}}},
@@ -236,13 +236,13 @@ json catalogo() {
               {"pasos", {{"type", "integer"}}}},
              {"accion"}));
     tool("system_teclado",
-         ba::i18n::traducir("mcp", "Escribe texto o manda una combinación de teclas. `texto`: lo escribe tal cual (Unicode). `teclas`: "
+         QT_TRANSLATE_NOOP("mcp", "Escribe texto o manda una combinación de teclas. `texto`: lo escribe tal cual (Unicode). `teclas`: "
          "una combinación como \"mod+c\", \"alt+tab\", \"enter\", \"f5\". `mod` es la tecla de los atajos de "
          "este sistema (Control en Windows y Linux, Comando en macOS): «mod+c» copia en los tres. `cmd`/`win`/"
          "`super` es Comando en macOS y la tecla Windows en Windows. Permiso: teclado."),
          obj({{"texto", {{"type", "string"}}}, {"teclas", {{"type", "string"}}}}));
     tool("system_ejecutar",
-         ba::i18n::traducir("mcp", "Abre un programa, un archivo o una URL (como lo haría doble clic). `programa`: la ruta del programa o "
+         QT_TRANSLATE_NOOP("mcp", "Abre un programa, un archivo o una URL (como lo haría doble clic). `programa`: la ruta del programa o "
          "de un archivo, una URL o (en macOS) el nombre de la aplicación («Safari») o su identificador. "
          "`argumentos`: opcional. `carpeta`: carpeta de trabajo. `admin`: true lo corre como administrador (pide "
          "UAC en Windows, la clave en macOS). `oculto`: sin ventana / sin traerlo al frente. Permiso: ejecutar (y "
@@ -254,17 +254,17 @@ json catalogo() {
               {"oculto", {{"type", "boolean"}}}},
              {"programa"}));
     tool("system_buscar",
-         ba::i18n::traducir("mcp", "Busca archivos por nombre. `patron`: parte del nombre (acepta * y ?). `carpeta`: dónde (por defecto "
+         QT_TRANSLATE_NOOP("mcp", "Busca archivos por nombre. `patron`: parte del nombre (acepta * y ?). `carpeta`: dónde (por defecto "
          "el perfil del usuario). `max`: cuántos como mucho (por defecto 100). Permiso: buscar."),
          obj({{"patron", {{"type", "string"}}},
               {"carpeta", {{"type", "string"}}},
               {"max", {{"type", "integer"}}}},
              {"patron"}));
-    tool("system_ventanas", ba::i18n::traducir("mcp", "Lista las ventanas visibles: título, id, aplicación, si es un navegador "
+    tool("system_ventanas", QT_TRANSLATE_NOOP("mcp", "Lista las ventanas visibles: título, id, aplicación, si es un navegador "
          "(Chrome, Edge…: ver system_chrome), proceso y posición. Permiso: ventanas."),
          obj({}));
     tool("system_ventana",
-         ba::i18n::traducir("mcp", "Acciona una ventana. `id` (de system_ventanas) o `titulo` (parte del título o de la aplicación). "
+         QT_TRANSLATE_NOOP("mcp", "Acciona una ventana. `id` (de system_ventanas) o `titulo` (parte del título o de la aplicación). "
          "`accion`: activar, minimizar, maximizar, restaurar, cerrar, mover (con `x,y` y/o `ancho,alto`), "
          "fijar_arriba (siempre visible; macOS no lo deja para otros programas) o soltar_arriba. Permiso: ventanas."),
          obj({{"id", {{"type", "integer"}}},
@@ -278,24 +278,24 @@ json catalogo() {
               {"alto", {{"type", "integer"}}}},
              {"accion"}));
     tool("system_portapapeles",
-         ba::i18n::traducir("mcp", "Lee o escribe el portapapeles de texto. Sin `texto`: lo lee. Con `texto`: lo pone. Permiso: portapapeles."),
+         QT_TRANSLATE_NOOP("mcp", "Lee o escribe el portapapeles de texto. Sin `texto`: lo lee. Con `texto`: lo pone. Permiso: portapapeles."),
          obj({{"texto", {{"type", "string"}}}}));
     tool("system_cursor",
-         ba::i18n::traducir("mcp", "Dónde está el mouse, qué ventana tiene abajo y cuál tiene el foco (la que recibe el teclado), y si la "
+         QT_TRANSLATE_NOOP("mcp", "Dónde está el mouse, qué ventana tiene abajo y cuál tiene el foco (la que recibe el teclado), y si la "
          "persona está usando la máquina (`inactivo_s`: hace cuánto tocó mouse o teclado; `usandola` si fue hace "
          "menos de 5 s: esperar antes de mover el mouse). Sin argumentos. Permiso: pantalla."),
          obj({}));
     tool("system_procesos",
-         ba::i18n::traducir("mcp", "Lista los procesos: pid, nombre, memoria (MB) y si tienen ventana. `nombre`: filtrar (parte del nombre "
+         QT_TRANSLATE_NOOP("mcp", "Lista los procesos: pid, nombre, memoria (MB) y si tienen ventana. `nombre`: filtrar (parte del nombre "
          "del ejecutable). `max`: cuántos (por defecto 200, los que más memoria usan primero). Permiso: procesos."),
          obj({{"nombre", {{"type", "string"}}}, {"max", {{"type", "integer"}}}}));
     tool("system_proceso_cerrar",
-         ba::i18n::traducir("mcp", "Cierra un proceso por su `pid` (de system_procesos): primero le pide que cierre sus ventanas; con "
+         QT_TRANSLATE_NOOP("mcp", "Cierra un proceso por su `pid` (de system_procesos): primero le pide que cierre sus ventanas; con "
          "`forzar`: true lo termina en seco (se pierde lo no guardado). Nunca por nombre: el pid es uno solo. "
          "Permiso: procesos."),
          obj({{"pid", {{"type", "integer"}}}, {"forzar", {{"type", "boolean"}}}}, {"pid"}));
     tool("system_comando",
-         ba::i18n::traducir("mcp", "Corre un comando y devuelve lo que contesta (salida, errores y código de salida). `comando`: la línea a "
+         QT_TRANSLATE_NOOP("mcp", "Corre un comando y devuelve lo que contesta (salida, errores y código de salida). `comando`: la línea a "
          "correr. `shell`: sistema (por defecto: cmd en Windows, zsh en macOS, sh en Linux), cmd, powershell, sh o "
          "bash. `carpeta`: dónde. `segundos`: lo más que espera (por defecto 30, hasta 300; si se pasa, lo termina). "
          "Sin ventana. Permiso: comandos."),
@@ -305,11 +305,11 @@ json catalogo() {
               {"segundos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 300}}}},
              {"comando"}));
     tool("system_sistema",
-         ba::i18n::traducir("mcp", "Los datos del equipo: el sistema (Windows, macOS o Linux, con su versión), nombre, usuario, procesadores, memoria total y libre, discos "
+         QT_TRANSLATE_NOOP("mcp", "Los datos del equipo: el sistema (Windows, macOS o Linux, con su versión), nombre, usuario, procesadores, memoria total y libre, discos "
          "con su espacio libre, hace cuánto que está prendido y la batería si tiene. Sin argumentos. Permiso: sistema."),
          obj({}));
     tool("system_esperar",
-         ba::i18n::traducir("mcp", "Espera `ms` milisegundos (hasta 30000), o hasta que aparezca una ventana cuyo título contenga "
+         QT_TRANSLATE_NOOP("mcp", "Espera `ms` milisegundos (hasta 30000), o hasta que aparezca una ventana cuyo título contenga "
          "`titulo` (con `ms` como límite). Para dar tiempo a que abra un programa antes de seguir."),
          obj({{"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 30000}}}, {"titulo", {{"type", "string"}}}}));
     // Las otras partes: UI Automation, Chrome, archivos y registro.

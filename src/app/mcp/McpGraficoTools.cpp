@@ -65,9 +65,9 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Gráficos que hay");
         t.category = "graficos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los gráficos disponibles, con los parámetros que acepta cada uno.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los gráficos disponibles, con los parámetros que acepta cada uno.");
         t.details =
-            ba::i18n::traducir("mcp", "Un gráfico es una carpeta con `grafico.json` (qué parámetros acepta) y, o bien una "
+            QT_TRANSLATE_NOOP("mcp", "Un gráfico es una carpeta con `grafico.json` (qué parámetros acepta) y, o bien una "
             "descripción declarativa adentro de ese mismo archivo, o bien un `grafico.qml` escrito a "
             "mano.\n\n"
             "Antes de inventar uno nuevo, mirá si alguno de estos sirve cambiándole los parámetros: "
@@ -93,10 +93,10 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Ver cómo queda un gráfico");
         t.category = "graficos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Dibuja el gráfico en varios instantes de su animación y devuelve las imágenes. "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Dibuja el gráfico en varios instantes de su animación y devuelve las imágenes. "
                         "No sale al aire.");
         t.details =
-            ba::i18n::traducir("mcp", "ESTA es la herramienta que hay que usar antes de dar un gráfico por bueno. Una animación "
+            QT_TRANSLATE_NOOP("mcp", "ESTA es la herramienta que hay que usar antes de dar un gráfico por bueno. Una animación "
             "NO se puede juzgar mirando un cuadro: hay que ver la entrada a medio camino, el momento "
             "en que se asienta y, si tiene salida, cómo se va.\n\n"
             "`momentos` en milisegundos desde que el gráfico aparece. Para una entrada de 450 ms, algo "
@@ -106,9 +106,9 @@ void McpService::registerGraficoTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Cuál gráfico (ver grafico_listar).")}}},
-              {"parametros", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "Los valores a probar.")}}},
-              {"momentos", {{"type", "array"}, {"items", {{"type", "integer"}, {"minimum", 0}}}, {"description", ba::i18n::traducir("mcp", "instantes de la animación, en milisegundos desde que entra")}}}}},
+             {{"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Cuál gráfico (ver grafico_listar).")}}},
+              {"parametros", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "Los valores a probar.")}}},
+              {"momentos", {{"type", "array"}, {"items", {{"type", "integer"}, {"minimum", 0}}}, {"description", QT_TRANSLATE_NOOP("mcp", "instantes de la animación, en milisegundos desde que entra")}}}}},
             {"required", {"nombre"}}};
         t.examples = {
             R"({"nombre": "zocalo", "parametros": {"nombre": "Jorge Ortega", "cargo": "Intendente"}, "momentos": [0, 150, 300, 450, 900]})"};
@@ -148,10 +148,10 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Poner un gráfico al aire");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Dibuja el gráfico y lo reproduce en una fuente «Gráfico animado» de una escena. "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Dibuja el gráfico y lo reproduce en una fuente «Gráfico animado» de una escena. "
                         "ESTO SE VE AL AIRE si esa escena está en el programa.");
         t.details =
-            ba::i18n::traducir("mcp", "Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, "
+            QT_TRANSLATE_NOOP("mcp", "Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, "
             "lo ve el público.\n\n"
             "La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo "
             "«Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.\n\n"
@@ -175,26 +175,26 @@ void McpService::registerGraficoTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"fuente", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "Id de la fuente (grafico_en_escena).")}}},
-              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Qué gráfico mostrar.")}}},
+             {{"fuente", {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "Id de la fuente (grafico_en_escena).")}}},
+              {"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Qué gráfico mostrar.")}}},
               {"parametros",
                {{"type", "object"},
-                {"description", ba::i18n::traducir("mcp", "Los campos del gráfico (grafico_listar los dice), incluido `salidaEn` (ms: cuándo se va; 0 = se queda).")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Los campos del gráfico (grafico_listar los dice), incluido `salidaEn` (ms: cuándo se va; 0 = se queda).")}}},
               {"duracionMs",
                {{"type", "integer"},
                 {"minimum", 100},
                 {"maximum", 15000},
-                {"description", ba::i18n::traducir("mcp", "Solo para un gráfico SIN `salidaEn`: cuánta animación dibujar (si no, lo de su ficha).")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Solo para un gráfico SIN `salidaEn`: cuánta animación dibujar (si no, lo de su ficha).")}}},
               {"fps", {{"type", "integer"}, {"minimum", 10}, {"maximum", 60}, {"default", 30}}},
               {"repetir", {{"type", "boolean"}, {"default", false}}},
               {"video",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "La fuente de video que va adentro del gráfico (como en scene_list): llena sus "
+                {"description", QT_TRANSLATE_NOOP("mcp", "La fuente de video que va adentro del gráfico (como en scene_list): llena sus "
                                 "parámetros de tipo «fuente». Solo para gráficos con video en vivo.")}}},
               {"armar",
                {{"type", "boolean"},
                 {"default", false},
-                {"description", ba::i18n::traducir("mcp", "Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al "
+                {"description", QT_TRANSLATE_NOOP("mcp", "Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al "
                                 "aire y la deja armada; sale con TAKE (preview_al_aire).")}}}}},
             {"required", {"fuente", "nombre"}}};
         t.run = [em, &rt, this](const json& a, Done done) {
@@ -268,8 +268,8 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Sacar un gráfico");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Deja la fuente transparente.");
-        t.details = ba::i18n::traducir("mcp", "No borra la fuente de la escena: la deja vacía. Volver a mostrarla es "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Deja la fuente transparente.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "No borra la fuente de la escena: la deja vacía. Volver a mostrarla es "
                     "grafico_mostrar de nuevo.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"fuente", {{"type", "integer"}}}}},
@@ -289,8 +289,8 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Fuentes de gráfico que hay");
         t.category = "graficos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las fuentes «Gráfico animado» puestas en escenas, con su id y su tamaño.");
-        t.details = ba::i18n::traducir("mcp", "El `id` es lo que piden grafico_mostrar y grafico_ocultar. Si está vacío, hay "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las fuentes «Gráfico animado» puestas en escenas, con su id y su tamaño.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "El `id` es lo que piden grafico_mostrar y grafico_ocultar. Si está vacío, hay "
                     "que agregar una fuente de tipo ba_grafico a alguna escena primero.");
         t.run = [](const json&, Done done) {
             json out = json::array();
@@ -312,11 +312,11 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Cambiar los valores de un gráfico al aire");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Le cambia los valores al gráfico que ya está en pantalla en una fuente SIN hacerlo entrar de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Le cambia los valores al gráfico que ya está en pantalla en una fuente SIN hacerlo entrar de "
                         "nuevo. Con tortas y barras, los valores se mueven de los de antes a los nuevos (una votación "
                         "en vivo).");
         t.details =
-            ba::i18n::traducir("mcp", "Para lo que cambia mientras el gráfico está puesto: un conteo que avanza, un resultado que se completa. "
+            QT_TRANSLATE_NOOP("mcp", "Para lo que cambia mientras el gráfico está puesto: un conteo que avanza, un resultado que se completa. "
             "Mandá solo lo que cambia en `parametros`: lo demás queda como estaba en esa fuente.\n\n"
             "Si el gráfico sabe animar un cambio (tiene una torta, unas barras, un parámetro de tipo `datos`, o "
             "`\"cambio\"` en su ficha), se dibuja la transición (`cambio.duracion` de la ficha, 700 ms de fábrica). Si "
@@ -325,9 +325,9 @@ void McpService::registerGraficoTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"fuente", {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "Id de la fuente (grafico_en_escena).")}}},
-              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Qué gráfico (si no, el que ya está en esa fuente).")}}},
-              {"parametros", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "Solo lo que cambia.")}}}}},
+             {{"fuente", {{"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "Id de la fuente (grafico_en_escena).")}}},
+              {"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Qué gráfico (si no, el que ya está en esa fuente).")}}},
+              {"parametros", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo lo que cambia.")}}}}},
             {"required", {"fuente", "parametros"}}};
         t.examples = {
             R"({"fuente": 12, "parametros": {"votos": [{"etiqueta": "Sí", "valor": 21}, {"etiqueta": "No", "valor": 9}]}})"};
@@ -359,11 +359,11 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Medios de un gráfico");
         t.category = "graficos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los GIF, imágenes y videos (ya pasados a cuadros) que tiene un gráfico en su carpeta medios/.");
-        t.details = ba::i18n::traducir("mcp", "`archivo` es lo que va en la capa `medio` del declarativo (o en `Medio { source }` de un QML). "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los GIF, imágenes y videos (ya pasados a cuadros) que tiene un gráfico en su carpeta medios/.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "`archivo` es lo que va en la capa `medio` del declarativo (o en `Medio { source }` de un QML). "
                     "`alfa: false` en un video: salió opaco (va a tapar lo de atrás).");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Qué gráfico.")}}}}},
+                         {"properties", {{"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Qué gráfico.")}}}}},
                          {"required", {"nombre"}}};
         t.run = [em](const json& a, Done done) {
             if (em == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay motor de gráficos.")));
@@ -381,10 +381,10 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar un GIF o un video con alfa a un gráfico");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Copia un GIF, una imagen o una carpeta de PNG al gráfico, o convierte un video (WebM VP9 con "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Copia un GIF, una imagen o una carpeta de PNG al gráfico, o convierte un video (WebM VP9 con "
                         "alfa, ProRes 4444, MP4…) a cuadros con su transparencia. Después va en una capa `medio`.");
         t.details =
-            ba::i18n::traducir("mcp", "Queda en la carpeta del gráfico (`medios/`), así que viaja con él. Un video se pasa UNA vez a cuadros PNG "
+            QT_TRANSLATE_NOOP("mcp", "Queda en la carpeta del gráfico (`medios/`), así que viaja con él. Un video se pasa UNA vez a cuadros PNG "
             "(con GStreamer) y en el gráfico se lee cuadro por cuadro con el reloj del gráfico: la vista previa, "
             "grafico_probar y el aire muestran el mismo cuadro en el mismo instante. Puede tardar (un clip de 10 s a "
             "1080p son varios segundos): la respuesta llega al terminar.\n\n"
@@ -396,10 +396,10 @@ void McpService::registerGraficoTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "A qué gráfico.")}}},
-              {"archivo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Ruta del GIF, imagen, carpeta de PNG o video.")}}},
-              {"como", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Cómo se llama adentro (si no, el del archivo).")}}},
-              {"ancho", {{"type", "integer"}, {"minimum", 16}, {"description", ba::i18n::traducir("mcp", "Achicar los cuadros de un video a este ancho.")}}},
+             {{"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "A qué gráfico.")}}},
+              {"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Ruta del GIF, imagen, carpeta de PNG o video.")}}},
+              {"como", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Cómo se llama adentro (si no, el del archivo).")}}},
+              {"ancho", {{"type", "integer"}, {"minimum", 16}, {"description", QT_TRANSLATE_NOOP("mcp", "Achicar los cuadros de un video a este ancho.")}}},
               {"maxSegundos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 120}}}}},
             {"required", {"nombre", "archivo"}}};
         t.run = [em](const json& a, Done done) {
@@ -423,11 +423,11 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Sacar un medio de un gráfico");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Saca un GIF o un video de la carpeta medios/ del gráfico (va a su papelera, medios/.papelera).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca un GIF o un video de la carpeta medios/ del gráfico (va a su papelera, medios/.papelera).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"nombre", {{"type", "string"}}},
-                           {"archivo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "El `archivo` de grafico_medios (medios/…).")}}}}},
+                           {"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "El `archivo` de grafico_medios (medios/…).")}}}}},
                          {"required", {"nombre", "archivo"}}};
         t.run = [em](const json& a, Done done) {
             if (em == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay motor de gráficos.")));
@@ -454,8 +454,8 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Rotulos que se escriben solos");
         t.category = "graficos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los vinculos que hay y, sobre todo, los ORIGENES que se pueden usar.");
-        t.details = ba::i18n::traducir("mcp", "Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los vinculos que hay y, sobre todo, los ORIGENES que se pueden usar.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se "
                     "mantiene solo: cuando lo que resuelve cambia (cambio el orador, cambio la escena), el "
                     "grafico vuelve a salir al aire con lo nuevo.\n\n"
                     "`origenes` es lo que se puede poner entre llaves, CON SU VALOR DE AHORA. Miralo antes "
@@ -477,10 +477,10 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Que un rotulo se escriba solo");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pone el nombre y el cargo de quien habla en pantalla, y lo mantiene al dia solo. "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pone el nombre y el cargo de quien habla en pantalla, y lo mantiene al dia solo. "
                         "Ata los campos de un grafico a origenes que cambian solos.");
         t.details =
-            ba::i18n::traducir("mcp", "Ejemplo, el caso tipico —el zocalo del que esta hablando—:\n\n"
+            QT_TRANSLATE_NOOP("mcp", "Ejemplo, el caso tipico —el zocalo del que esta hablando—:\n\n"
             "    { \"fuente\": \"Zocalo\", \"grafico\": \"zocalo\",\n"
             "      \"valores\": { \"nombre\": \"{orador.nombre}\", \"cargo\": \"{orador.cargo}\" } }\n\n"
             "Lo que hay que saber:\n\n"
@@ -504,17 +504,17 @@ void McpService::registerGraficoTools() {
             {"type", "object"},
             {"properties",
              {{"fuente",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de la fuente «Grafico animado» de la escena.")}}},
-              {"grafico", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Cual de los graficos guardados.")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre de la fuente «Grafico animado» de la escena.")}}},
+              {"grafico", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Cual de los graficos guardados.")}}},
               {"valores",
-               {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "clave del parametro -> texto con {origenes}.")}}},
-              {"dispara", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Si sale al aire solo. Por defecto si.")}}},
-              {"repetir", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "En bucle (para un ticker).")}}},
+               {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "clave del parametro -> texto con {origenes}.")}}},
+              {"dispara", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Si sale al aire solo. Por defecto si.")}}},
+              {"repetir", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "En bucle (para un ticker).")}}},
               {"vivo",
                {{"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "Campos que cambian cada segundo ({hora_s}, {orador.cronometro}, {orador.restante}): "
+                {"description", QT_TRANSLATE_NOOP("mcp", "Campos que cambian cada segundo ({hora_s}, {orador.cronometro}, {orador.restante}): "
                                 "con el gráfico al aire se actualiza sin volver a entrar.")}}},
-              {"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Para reemplazar uno que ya existe.")}}}}},
+              {"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Para reemplazar uno que ya existe.")}}}}},
             {"required", {"fuente", "grafico", "valores"}}};
         t.run = [vin, aQJson](const json& a, Done done) {
             if (vin == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay motor de graficos.")));
@@ -533,8 +533,8 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Sacar o apagar un vinculo");
         t.category = "graficos";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Quita un vinculo, o lo apaga sin borrarlo.");
-        t.details = ba::i18n::traducir("mcp", "En vivo, APAGARLO es mas seguro que borrarlo: se vuelve a prender con una sola "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Quita un vinculo, o lo apaga sin borrarlo.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "En vivo, APAGARLO es mas seguro que borrarlo: se vuelve a prender con una sola "
                     "cosa y no hay que acordarse de como estaba escrito. Al prenderlo otra vez sale "
                     "al aire con lo que haya en ese momento, aunque sea lo mismo de antes.");
         t.inputSchema = {
@@ -542,7 +542,7 @@ void McpService::registerGraficoTools() {
             {"properties",
              {{"id", {{"type", "string"}}},
               {"activo",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Presente = prende o apaga. Ausente = lo borra.")}}}}},
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Presente = prende o apaga. Ausente = lo borra.")}}}}},
             {"required", {"id"}}};
         t.run = [vin](const json& a, Done done) {
             if (vin == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay motor de graficos.")));
@@ -565,8 +565,8 @@ void McpService::registerGraficoTools() {
         t.title = ba::i18n::traducir("mcp", "Qué se puede usar en un gráfico declarativo");
         t.category = "graficos";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las capas, las formas de ubicarlas y los efectos de entrada y salida.");
-        t.details = ba::i18n::traducir("mcp", "Lo declara el propio motor, así que esto no se desincroniza del código.\n\n"
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las capas, las formas de ubicarlas y los efectos de entrada y salida.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Lo declara el propio motor, así que esto no se desincroniza del código.\n\n"
                     "Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene hacer "
                     "siempre que alcance. Escribir QML a mano solo cuando el repertorio de verdad no dé, "
                     "porque ahí reaparecen las trampas (ver `help {\"topic\": \"graficos\"}`).");

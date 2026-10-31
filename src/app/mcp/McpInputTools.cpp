@@ -48,7 +48,7 @@ void McpService::registerInputTools() {
         t.category = "entradas";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra la entrada `nombre` (cámara, capturadora, de red, de un plugin): la saca de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra la entrada `nombre` (cámara, capturadora, de red, de un plugin): la saca de "
                         "TODAS las escenas y de "
                         "la app, con su grafo de video. Para sacarla de una sola escena, source_remove.");
         t.inputSchema = {
@@ -71,7 +71,7 @@ void McpService::registerInputTools() {
         t.category = "entradas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Agrega a una escena una camara USB o capturadora (el `device` de video_devices). Entra por "
+            QT_TRANSLATE_NOOP("mcp", "Agrega a una escena una camara USB o capturadora (el `device` de video_devices). Entra por "
             "GStreamer (ba_gst_fuente: sus tarjetas y filtros corren en su cadena). `modo` opcional: tamaño y "
             "cuadros, uno de los `modos` de video_devices {device} (p. ej. \"1920x1080@30\"); sin modo, el de "
             "la camara (igual se normaliza al lienzo). Si la misma camara ya es una fuente en otra escena, "
@@ -81,11 +81,11 @@ void McpService::registerInputTools() {
             {"properties",
              {{"device", {{"type", "string"}}},
               {"name", {{"type", "string"}}},
-              {"scene", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Por defecto la escena al aire.")}}},
+              {"scene", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Por defecto la escena al aire.")}}},
               {"layout",
                {{"description",
-                 ba::i18n::traducir("mcp", "Preset (full, pip-br, left, ...) o {x,y,w,h}. Por defecto pantalla completa.")}}},
-              {"modo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "«ANCHOxALTO@cps», de video_devices {device}")}}}}},
+                 QT_TRANSLATE_NOOP("mcp", "Preset (full, pip-br, left, ...) o {x,y,w,h}. Por defecto pantalla completa.")}}},
+              {"modo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "«ANCHOxALTO@cps», de video_devices {device}")}}}}},
             {"required", {"device"}}};
         t.run = [&rt, layoutOf](const json& a, Done done) {
             BroadcastEngine& e = rt.engine();
@@ -118,7 +118,7 @@ void McpService::registerInputTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "SI HAY QUE SINCRONIZARLA con otras (varios streams, varias camaras de red), usá "
+            QT_TRANSLATE_NOOP("mcp", "SI HAY QUE SINCRONIZARLA con otras (varios streams, varias camaras de red), usá "
             "video_entrada_red: esa "
             "tiene colchon y reloj del estudio y se mide con video_sincronia; esta no. "
             "Agrega a una escena una señal por la red: camara IP (rtsp://usuario:clave@ip:554/ruta), RTMP, "
@@ -131,14 +131,14 @@ void McpService::registerInputTools() {
              {{"url", {{"type", "string"}}},
               {"name", {{"type", "string"}}},
               {"scene", {{"type", "string"}}},
-              {"layout", {{"description", ba::i18n::traducir("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}},
+              {"layout", {{"description", QT_TRANSLATE_NOOP("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}},
               {"latency", {{"type", "string"}, {"enum", {"low", "normal"}}, {"default", "low"}}},
               {"rtspTransport", {{"type", "string"}, {"enum", {"tcp", "udp"}}, {"default", "tcp"}}},
               {"reconnectSec", {{"type", "integer"}, {"minimum", 1}, {"maximum", 60}, {"default", 5}}},
               {"audio",
                {{"type", "boolean"},
                 {"default", true},
-                {"description", ba::i18n::traducir("mcp", "false = solo video (silencia la fuente).")}}}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "false = solo video (silencia la fuente).")}}}}},
             {"required", {"url"}}};
         t.examples = {
             R"({"url": "rtsp://admin:clave@192.168.1.50:554/stream1", "name": "Camara IP escenario", "layout": "pip-br"})",
@@ -194,7 +194,7 @@ void McpService::registerInputTools() {
         t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Busca emisores NDI(R) en la red local (mDNS) durante `seconds` y los lista con IP y puerto. "
+            QT_TRANSLATE_NOOP("mcp", "Busca emisores NDI(R) en la red local (mDNS) durante `seconds` y los lista con IP y puerto. "
             "Recepcion con libNoIDea (abierta, ALFA): NDI completo (SpeedHQ); NDI|HX (H.264) no.");
         t.inputSchema = {
             {"type", "object"},
@@ -219,7 +219,7 @@ void McpService::registerInputTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Agrega a una escena una señal NDI(R) por su `ndiName` (de ndi_sources) o por `host` + `port`. "
+            QT_TRANSLATE_NOOP("mcp", "Agrega a una escena una señal NDI(R) por su `ndiName` (de ndi_sources) o por `host` + `port`. "
             "Reconecta sola. Devuelve si llega imagen.");
         t.inputSchema = {
             {"type", "object"},
@@ -229,7 +229,7 @@ void McpService::registerInputTools() {
               {"port", {{"type", "integer"}, {"minimum", 1}, {"maximum", 65535}}},
               {"name", {{"type", "string"}}},
               {"scene", {{"type", "string"}}},
-              {"layout", {{"description", ba::i18n::traducir("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}}}}};
+              {"layout", {{"description", QT_TRANSLATE_NOOP("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}}}}};
         t.run = [&rt, &vm, layoutOf](const json& a, Done done) {
             if (!a.contains("ndiName") && !a.contains("host"))
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `ndiName` (ndi_sources) o `host` + `port`.")));
@@ -281,7 +281,7 @@ void McpService::registerInputTools() {
         t.category = "entradas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las fuentes de camara/capturadora y de red: tipo, dispositivo o URL (sin clave), si llega "
+            QT_TRANSLATE_NOOP("mcp", "Las fuentes de camara/capturadora y de red: tipo, dispositivo o URL (sin clave), si llega "
             "imagen y de que tamaño, y el estado de reproduccion de las de red.");
         t.run = [&rt](const json&, Done done) {
             BroadcastEngine& e = rt.engine();

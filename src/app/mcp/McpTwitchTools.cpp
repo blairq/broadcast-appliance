@@ -64,7 +64,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Si la app de Twitch esta configurada, que cuenta esta conectada, si hay un login en curso (con "
+            QT_TRANSLATE_NOOP("mcp", "Si la app de Twitch esta configurada, que cuenta esta conectada, si hay un login en curso (con "
             "su codigo), datos del canal, si esta en vivo y si la app transmite a Twitch.");
         t.run = [tw, &rt](const json&, Done done) {
             done(ToolResult().data(json{{"configured", tw->configured()},
@@ -89,7 +89,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Guarda el ID de cliente de la app registrada en dev.twitch.tv (tipo Publico; `clientSecret` "
+            QT_TRANSLATE_NOOP("mcp", "Guarda el ID de cliente de la app registrada en dev.twitch.tv (tipo Publico; `clientSecret` "
             "solo si es Confidencial). clear=true la borra.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -116,7 +116,7 @@ void McpService::registerTwitchTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Pide un codigo a Twitch y abre twitch.tv/activate en el navegador de esta maquina: la PERSONA "
+            QT_TRANSLATE_NOOP("mcp", "Pide un codigo a Twitch y abre twitch.tv/activate en el navegador de esta maquina: la PERSONA "
             "inicia sesion con la cuenta del canal y confirma. Devuelve el codigo (mostraselo). Con "
             "wait=true espera a que termine (max. 5 min); si no, twitch_status dice cuando quedo "
             "conectado. cancel=true cancela.");
@@ -165,7 +165,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Revoca el token en Twitch y lo borra de la carpeta portable.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Revoca el token en Twitch y lo borra de la carpeta portable.");
         t.run = [tw](const json&, Done done) {
             tw->logout();
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Cuenta de Twitch desconectada.")));
@@ -179,7 +179,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Sin cambios devuelve el canal (titulo, categoria, etiquetas, idioma). Con `title`, `game` "
+            QT_TRANSLATE_NOOP("mcp", "Sin cambios devuelve el canal (titulo, categoria, etiquetas, idioma). Con `title`, `game` "
             "(nombre de la categoria: se busca), `tags` y/o `language` los cambia. `search` busca "
             "categorias por nombre.");
         t.inputSchema = {{"type", "object"},
@@ -187,7 +187,7 @@ void McpService::registerTwitchTools() {
                           {{"title", {{"type", "string"}, {"maxLength", 140}}},
                            {"game", {{"type", "string"}}},
                            {"tags", {{"type", "array"}, {"items", {{"type", "string"}}}, {"maxItems", 10}}},
-                           {"language", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "ISO 639-1, p. ej. es")}}},
+                           {"language", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ISO 639-1, p. ej. es")}}},
                            {"search", {{"type", "string"}}}}}};
         t.examples = {R"({"title": "Charla en vivo", "game": "Just Chatting"})"};
         t.run = [tw, needLogin](const json& a, Done done) {
@@ -214,7 +214,7 @@ void McpService::registerTwitchTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Toma la clave del canal (solo en memoria) y empieza a transmitir desde la app a Twitch. "
+            QT_TRANSLATE_NOOP("mcp", "Toma la clave del canal (solo en memoria) y empieza a transmitir desde la app a Twitch. "
             "Opcional: `title`/`game` se aplican antes. Verifica con twitch_stream_status en ~15 s.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"title", {{"type", "string"}}}, {"game", {{"type", "string"}}}}}};
@@ -237,7 +237,7 @@ void McpService::registerTwitchTools() {
         t.clase = Clase::Escritura;
         t.destructive = true;
         t.description =
-            ba::i18n::traducir("mcp", "Corta la transmision de la app si iba a Twitch (Twitch termina el vivo al dejar de recibir).");
+            QT_TRANSLATE_NOOP("mcp", "Corta la transmision de la app si iba a Twitch (Twitch termina el vivo al dejar de recibir).");
         t.run = [tw](const json&, Done done) { tw->stopLive(reply(done, ba::i18n::traducir("mcp", "Transmision cortada."))); };
         core_.addTool(std::move(t));
     }
@@ -248,7 +248,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo que ve Twitch: si el canal esta en vivo, espectadores, desde cuando, titulo y categoria.");
+            QT_TRANSLATE_NOOP("mcp", "Lo que ve Twitch: si el canal esta en vivo, espectadores, desde cuando, titulo y categoria.");
         t.run = [tw, needLogin](const json&, Done done) {
             if (needLogin(done)) return;
             tw->client().streamStatus(reply(done));
@@ -262,7 +262,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Videos del canal (vivos guardados, destacados, subidos): id, titulo, enlace, vistas, fecha, "
+            QT_TRANSLATE_NOOP("mcp", "Videos del canal (vivos guardados, destacados, subidos): id, titulo, enlace, vistas, fecha, "
             "duracion y tipo.");
         t.inputSchema = {
             {"type", "object"},
@@ -281,7 +281,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra uno o mas videos del canal (no se puede deshacer).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra uno o mas videos del canal (no se puede deshacer).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -307,7 +307,7 @@ void McpService::registerTwitchTools() {
         t.category = "twitch";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Chat de Twitch: `on` lo prende/apaga (lo usa tambien la fuente \"Chat en vivo\"), `send` "
+            QT_TRANSLATE_NOOP("mcp", "Chat de Twitch: `on` lo prende/apaga (lo usa tambien la fuente \"Chat en vivo\"), `send` "
             "escribe como el canal, y devuelve los ultimos `limit` mensajes (autor, color, texto, "
             "insignias).");
         t.inputSchema = {

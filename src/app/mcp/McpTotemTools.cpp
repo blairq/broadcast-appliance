@@ -37,29 +37,29 @@ json propiedadesDeTotem() {
     const json campo{
         {"type", "object"},
         {"properties",
-         {{"clave", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "[a-z0-9_], única: la clave en `datos` del padrón")}}},
-          {"etiqueta", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "cómo se muestra en la pantalla")}}},
-          {"pregunta", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "cómo se pregunta en voz alta (vacía = la de fábrica del tipo)")}}},
+         {{"clave", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "[a-z0-9_], única: la clave en `datos` del padrón")}}},
+          {"etiqueta", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "cómo se muestra en la pantalla")}}},
+          {"pregunta", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "cómo se pregunta en voz alta (vacía = la de fábrica del tipo)")}}},
           {"tipo", {{"type", "string"}, {"enum", {"texto", "nombre", "correo", "telefono", "numero", "sino", "opcion", "documento"}}}},
-          {"obligatorio", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "si no, a los dos reintentos se saltea")}}},
-          {"opciones", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "solo tipo opcion (al menos dos)")}}},
-          {"ejemplo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "se dice si no se entiende")}}},
+          {"obligatorio", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "si no, a los dos reintentos se saltea")}}},
+          {"opciones", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", QT_TRANSLATE_NOOP("mcp", "solo tipo opcion (al menos dos)")}}},
+          {"ejemplo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "se dice si no se entiende")}}},
           {"documentos", {{"type", "array"}, {"items", {{"type", "string"}}},
-                          {"description", ba::i18n::traducir("mcp", "solo tipo documento: los tipos aceptados (documento_tipos; vacío = cualquiera)")}}}}},
+                          {"description", QT_TRANSLATE_NOOP("mcp", "solo tipo documento: los tipos aceptados (documento_tipos; vacío = cualquiera)")}}}}},
         {"required", {"clave", "tipo"}}};
-    return {{"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para el operador («Entrada principal»)")}}},
-            {"activo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "apagado: su url no entra")}}},
-            {"titulo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "encabezado de la pantalla; admite {evento}")}}},
+    return {{"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "para el operador («Entrada principal»)")}}},
+            {"activo", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "apagado: su url no entra")}}},
+            {"titulo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "encabezado de la pantalla; admite {evento}")}}},
             {"subtitulo", {{"type", "string"}}},
-            {"saludo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que dice al empezar; admite {hola}, {nombre}, {evento}")}}},
+            {"saludo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que dice al empezar; admite {hola}, {nombre}, {evento}")}}},
             {"despedida", {{"type", "string"}}},
-            {"yaRegistrado", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que le dice a quien ya se registró en este evento")}}},
-            {"confirmar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "repetir cada dato y preguntar «¿está bien?»")}}},
-            {"reconocer", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "saludar por el nombre a quien reconoce la cara")}}},
-            {"foto", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "al final, pedirle que mire a la cámara y esperar una foto de frente que sirva")}}},
-            {"ficha", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la ficha del evento: lo que el asistente puede contestar si le preguntan (horarios, lugar, salas), en texto libre, hasta 4000 letras")}}},
-            {"conModelo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "entender con el modelo del rol «registro» (respuestas de corrido, correcciones, preguntas); apagado, el guion solo")}}},
-            {"campos", {{"type", "array"}, {"items", campo}, {"description", ba::i18n::traducir("mcp", "reemplaza la lista entera, en orden")}}}};
+            {"yaRegistrado", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que le dice a quien ya se registró en este evento")}}},
+            {"confirmar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "repetir cada dato y preguntar «¿está bien?»")}}},
+            {"reconocer", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "saludar por el nombre a quien reconoce la cara")}}},
+            {"foto", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "al final, pedirle que mire a la cámara y esperar una foto de frente que sirva")}}},
+            {"ficha", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la ficha del evento: lo que el asistente puede contestar si le preguntan (horarios, lugar, salas), en texto libre, hasta 4000 letras")}}},
+            {"conModelo", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "entender con el modelo del rol «registro» (respuestas de corrido, correcciones, preguntas); apagado, el guion solo")}}},
+            {"campos", {{"type", "array"}, {"items", campo}, {"description", QT_TRANSLATE_NOOP("mcp", "reemplaza la lista entera, en orden")}}}};
 }
 
 } // namespace
@@ -78,7 +78,7 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Los tótems de registro");
         t.category = "totems";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los tótems de registro del evento abierto, con su configuración (qué pregunta y cómo), su url "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los tótems de registro del evento abierto, con su configuración (qué pregunta y cómo), su url "
                         "y cuántas conexiones tiene ahora.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [tv](const json&, Done done) {
@@ -93,9 +93,9 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Crear un tótem de registro");
         t.category = "totems";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Crea un tótem de registro en el evento abierto. De fábrica pide nombre (obligatorio) y correo; "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea un tótem de registro en el evento abierto. De fábrica pide nombre (obligatorio) y correo; "
                         "se puede pasar todo lo demás de una (campos, saludo…).");
-        t.details = ba::i18n::traducir("mcp", "Tipos de campo: `nombre` (con mayúsculas), `correo` (dicho: «juan punto perez arroba gmail punto "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Tipos de campo: `nombre` (con mayúsculas), `correo` (dicho: «juan punto perez arroba gmail punto "
                     "com»), `telefono` (dígitos o palabras), `numero`, `sino`, `opcion` (con `opciones`), `texto` y "
                     "`documento` (muestra su DNI a la cámara y se lee el código de barras —si no sale y hay un modelo con visión "
                     "(el local con su complemento de visión, o el propio), le pide el dorso y se leen los renglones de atrás—; `documentos`: los tipos "
@@ -105,7 +105,7 @@ void McpService::registerTotemTools() {
                     "{evento} es el nombre del evento; {hola} es «Hola» o «Hola Ana» si la reconoce.\n\n"
                     "Después: `totem_enlace` (la url y el QR) o `totem_proyectar` (a una TV).");
         json props = propiedadesDeTotem();
-        props["id"] = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "[a-z0-9-]{1,32}; vacío = sale del nombre")}};
+        props["id"] = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "[a-z0-9-]{1,32}; vacío = sale del nombre")}};
         t.inputSchema = {{"type", "object"}, {"properties", props}, {"required", {"nombre"}}};
         t.examples = {R"({"nombre": "Entrada principal"})",
                       R"({"nombre": "Hall", "campos": [{"clave": "nombre", "tipo": "nombre", "obligatorio": true}, {"clave": "empresa", "etiqueta": "Empresa", "tipo": "texto", "pregunta": "¿De qué empresa venís?"}]})"};
@@ -124,7 +124,7 @@ void McpService::registerTotemTools() {
         t.category = "totems";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Cambia lo que venga de un tótem (textos, opciones, campos: la lista entera). Si algo no valida "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia lo que venga de un tótem (textos, opciones, campos: la lista entera). Si algo no valida "
                         "no cambia nada y dice qué.");
         json props = propiedadesDeTotem();
         props["id"] = {{"type", "string"}};
@@ -148,7 +148,7 @@ void McpService::registerTotemTools() {
         t.category = "totems";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra un tótem: su url deja de andar y se corta a los que estaban conectados. Los registrados "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un tótem: su url deja de andar y se corta a los que estaban conectados. Los registrados "
                         "siguen en el padrón.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [tv](const json& a, Done done) {
@@ -165,14 +165,14 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "La url y el QR de un tótem");
         t.category = "totems";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "La url del tótem (se abre en la TV o la tablet, o se escanea su QR) y la de la pantalla "
+        t.description = QT_TRANSLATE_NOOP("mcp", "La url del tótem (se abre en la TV o la tablet, o se escanea su QR) y la de la pantalla "
                         "(?pantalla=1: solo muestra el QR, para un televisor sin cámara). Con `mostrar` le muestra el "
                         "QR al operador; con `renovar` la url vieja deja de andar.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", {{"type", "string"}}},
-                           {"mostrar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "mostrarle el QR al operador")}}},
-                           {"renovar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "token nuevo (la url vieja deja de andar)")}}}}},
+                           {"mostrar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "mostrarle el QR al operador")}}},
+                           {"renovar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "token nuevo (la url vieja deja de andar)")}}}}},
                          {"required", {"id"}}};
         t.run = [tv, &vm](const json& a, Done done) {
             if (tv() == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay registro por tótem en este proceso.")));
@@ -198,10 +198,10 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Mandar un tótem a una TV");
         t.category = "totems";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Manda a un televisor de la red (pantalla_listar) la página del tótem con su QR grande: «Escaneá "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Manda a un televisor de la red (pantalla_listar) la página del tótem con su QR grande: «Escaneá "
                         "para registrarte».");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"id", {{"type", "string"}}}, {"pantalla", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de pantalla_listar")}}}}},
+                         {"properties", {{"id", {{"type", "string"}}}, {"pantalla", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id de pantalla_listar")}}}}},
                          {"required", {"id", "pantalla"}}};
         t.run = [tv, &vm](const json& a, Done done) {
             if (tv() == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay registro por tótem en este proceso.")));
@@ -221,7 +221,7 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Quién se está registrando ahora");
         t.category = "totems";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las conexiones en vivo de los tótems: en qué paso va cada una, qué se le oyó, qué le dijo el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las conexiones en vivo de los tótems: en qué paso va cada una, qué se le oyó, qué le dijo el "
                         "asistente y qué lleva anotado; si falta algo para hablar (voz a texto, voz); con qué entiende "
                         "(`agente`; y por conexión `modo`: agente = el modelo del rol «registro», guion = el guion solo, "
                         "con `modoPorQue`). La cámara de una conexión con `canal` k se ve con capture_feed {key: \"registro:k\"}.");
@@ -238,11 +238,11 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Cortar una conexión de un tótem");
         t.category = "totems";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Corta la conexión `conn` (de totem_estado): lo que se estaba conversando se pierde sin "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Corta la conexión `conn` (de totem_estado): lo que se estaba conversando se pierde sin "
                         "guardar y su canal queda libre. La página del tótem vuelve a conectarse sola (es lo mismo "
                         "que la ✕ de la pestaña Registro).");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"conn", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la conexión, p. ej. \"c3\"")}}}}},
+                         {"properties", {{"conn", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la conexión, p. ej. \"c3\"")}}}}},
                          {"required", {"conn"}}};
         t.run = [tv](const json& a, Done done) {
             if (tv() == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay registro por tótem en este proceso.")));
@@ -262,7 +262,7 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Los registrados por tótem");
         t.category = "totems";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los que se registraron por un tótem en el evento abierto, con lo que contestaron (`datos`), el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los que se registraron por un tótem en el evento abierto, con lo que contestaron (`datos`), el "
                         "tótem y la hora. Lo último primero.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [tv](const json&, Done done) {
@@ -286,12 +286,12 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Qué documentos de identidad entiende");
         t.category = "identidad";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los tipos de documento de identidad que se pueden leer por su código de barras: los de fábrica "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los tipos de documento de identidad que se pueden leer por su código de barras: los de fábrica "
                         "(el DNI argentino, `dni-ar`, y cualquier cédula con zona MRZ, `mrz-td1`) y los de los plugins "
                         "que corren (`plugin:<plugin>/<tipo>`). Son los que se eligen en un campo `documento` de un "
                         "tótem. `dorso`: si se puede leer la parte de atrás y con qué (el modelo local con visión o el modelo "
                         "propio), o qué falta.");
-        t.details = ba::i18n::traducir("mcp", "Para sumar otro tipo (una licencia de conducir, el documento de otro país): un plugin con "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Para sumar otro tipo (una licencia de conducir, el documento de otro país): un plugin con "
                     "`@plugin.documento` (help {\"topic\": \"plugins\"}, ejemplo `documento-aamva`).\n\n"
                     "EL DORSO: los tipos con `dorso: true` (el DNI y `mrz-td1`) se leen también por la parte de "
                     "atrás, los tres renglones de la zona de lectura mecánica. Los transcribe un modelo de visión: "
@@ -323,13 +323,13 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Leer un documento de identidad");
         t.category = "identidad";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Busca códigos de barras (PDF417, QR, DataMatrix…) en el cuadro de una cámara (`video`: una "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Busca códigos de barras (PDF417, QR, DataMatrix…) en el cuadro de una cámara (`video`: una "
                         "clave de video, p. ej. «registro:1», la cámara del tótem del canal 1), en una imagen "
                         "(`archivo` o `imagen_base64`) o en un texto ya leído (`texto`), y dice si es un documento "
                         "de los tipos aceptados. Con `lado` lee también el DORSO (los renglones de la zona de lectura "
                         "mecánica, con el modelo propio). Devuelve un RESUMEN (tipo, nombre, últimos tres dígitos): los "
                         "datos completos no salen de la máquina.");
-        t.details = ba::i18n::traducir("mcp", "Sirve para probar la cámara de un tótem («¿lee el DNI?») o un tipo de documento de un plugin. "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Sirve para probar la cámara de un tótem («¿lee el DNI?») o un tipo de documento de un plugin. "
                     "`tipos`: los aceptados en orden (vacío = todos; `documento_tipos`). Si no lee: más cerca, más "
                     "quieto, sin reflejo, del lado del código de barras.\n\n"
                     "`lado`: «frente» (solo el código de barras), «dorso» (solo los renglones de atrás: los "
@@ -343,13 +343,13 @@ void McpService::registerTotemTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"video", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "clave de video de la app (registro:<k>, …)")}}},
-              {"archivo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "ruta de una imagen (PNG, JPG)")}}},
-              {"imagen_base64", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "una imagen en base64")}}},
-              {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el texto de un código ya leído (sin imagen)")}}},
-              {"formato", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con `texto`: PDF417, QRCode…, MRZ (vacío = cualquiera)")}}},
-              {"lado", {{"type", "string"}, {"enum", {"auto", "frente", "dorso"}}, {"description", ba::i18n::traducir("mcp", "qué leer de la imagen (por defecto auto)")}}},
-              {"tipos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "los tipos aceptados")}}}}}};
+             {{"video", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "clave de video de la app (registro:<k>, …)")}}},
+              {"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "ruta de una imagen (PNG, JPG)")}}},
+              {"imagen_base64", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "una imagen en base64")}}},
+              {"texto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el texto de un código ya leído (sin imagen)")}}},
+              {"formato", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con `texto`: PDF417, QRCode…, MRZ (vacío = cualquiera)")}}},
+              {"lado", {{"type", "string"}, {"enum", {"auto", "frente", "dorso"}}, {"description", QT_TRANSLATE_NOOP("mcp", "qué leer de la imagen (por defecto auto)")}}},
+              {"tipos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", QT_TRANSLATE_NOOP("mcp", "los tipos aceptados")}}}}}};
         t.examples = {R"({"video": "registro:1"})", R"({"archivo": "/ruta/dni.jpg", "tipos": ["dni-ar"]})",
                       R"({"archivo": "/ruta/dorso.jpg", "lado": "dorso"})"};
         auto confirmadores =
@@ -458,15 +458,15 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "El link de atención remota del registro");
         t.category = "totems";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "El link de la página de atención del evento (…/registro-atiende/): quien lo abre (gente del "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El link de la página de atención del evento (…/registro-atiende/): quien lo abre (gente del "
                         "equipo, desde un celular o una compu) ve todas las conversaciones de los tótems, mira y escucha "
                         "una en vivo, la atiende ella (el asistente se calla y su voz le llega solo a ese tótem) y "
                         "completa o corrige los datos. Con `mostrar` le muestra el QR al operador; con `renovar` el link "
                         "viejo deja de andar (y se corta a quien lo tenga abierto). También dice quiénes lo tienen abierto.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"mostrar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "mostrarle el QR al operador")}}},
-                           {"renovar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "token nuevo (el link viejo deja de andar)")}}}}}};
+                          {{"mostrar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "mostrarle el QR al operador")}}},
+                           {"renovar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "token nuevo (el link viejo deja de andar)")}}}}}};
         t.run = [tv, &vm](const json& a, Done done) {
             if (tv() == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay registro por tótem en este proceso.")));
             if (!tv()->hayEvento()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay un evento abierto: la atención es de un evento.")));
@@ -488,18 +488,18 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Atender una conversación de registro");
         t.category = "totems";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Interviene en una conversación de un tótem (el `conn` de totem_estado). `atender`: el guion se "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Interviene en una conversación de un tótem (el `conn` de totem_estado). `atender`: el guion se "
                         "pausa (el asistente se calla y deja de preguntar; la pantalla del tótem dice «Te atiende…»). "
                         "Después: `guardar` (lo guarda ya, como si hubiera terminado: padrón y, si la cara no se "
                         "conocía, la libreta con la mejor foto), `devolver` (sigue el asistente desde el próximo dato que "
                         "falta) o `cancelar`. Una conversación la atiende una persona a la vez.");
-        t.details = ba::i18n::traducir("mcp", "Los datos se completan con `totem_dato`. `guardar` no anda si falta un obligatorio (dice cuál). "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Los datos se completan con `totem_dato`. `guardar` no anda si falta un obligatorio (dice cuál). "
                     "Atender una conexión que todavía no conversa empieza una conversación, callada.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"conn", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la conexión (totem_estado)")}}},
+                          {{"conn", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la conexión (totem_estado)")}}},
                            {"accion", {{"type", "string"}, {"enum", {"atender", "guardar", "devolver", "cancelar"}}}},
-                           {"quien", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el nombre que ve la persona del tótem (vacío = «una persona del equipo»)")}}}}},
+                           {"quien", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el nombre que ve la persona del tótem (vacío = «una persona del equipo»)")}}}}},
                          {"required", {"conn", "accion"}}};
         t.examples = {R"({"conn": "c12", "accion": "atender"})", R"({"conn": "c12", "accion": "guardar"})"};
         t.run = [tv](const json& a, Done done) {
@@ -523,14 +523,14 @@ void McpService::registerTotemTools() {
         t.title = ba::i18n::traducir("mcp", "Completar o corregir un dato del registro");
         t.category = "totems";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pone un dato en una conversación de un tótem (atendida o no), como si la persona lo hubiera "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pone un dato en una conversación de un tótem (atendida o no), como si la persona lo hubiera "
                         "tipeado: sin confirmarlo en voz alta, y se ve en la pantalla del tótem. Vacío lo borra. Si no "
                         "está atendida y es el dato que se le estaba pidiendo, el asistente sigue con el próximo.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"conn", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la conexión (totem_estado)")}}},
-                           {"clave", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la clave del campo (totem_listar)")}}},
-                           {"valor", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "como se escribiría («ana@gmail.com», «11 4567 8901», «sí»)")}}}}},
+                          {{"conn", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la conexión (totem_estado)")}}},
+                           {"clave", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la clave del campo (totem_listar)")}}},
+                           {"valor", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "como se escribiría («ana@gmail.com», «11 4567 8901», «sí»)")}}}}},
                          {"required", {"conn", "clave", "valor"}}};
         t.examples = {R"({"conn": "c12", "clave": "correo", "valor": "ana.gomez@gmail.com"})"};
         t.run = [tv](const json& a, Done done) {

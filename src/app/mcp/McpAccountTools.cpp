@@ -111,7 +111,7 @@ void McpService::registerAccountTools() {
         t.category = "cuentas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Para YouTube, Twitch y Facebook: si hay credencial, si hay cuenta conectada (cual) y el "
+            QT_TRANSLATE_NOOP("mcp", "Para YouTube, Twitch y Facebook: si hay credencial, si hay cuenta conectada (cual) y el "
             "PASO SIGUIENTE (`next`). Nunca devuelve secretos.");
         t.run = [state](const json&, Done done) {
             done(ToolResult().data(json{{"youtube", state("youtube")},
@@ -127,7 +127,7 @@ void McpService::registerAccountTools() {
         t.category = "cuentas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Los pasos (con enlaces) para crear la app/credencial en Google Cloud, Twitch o Meta, los "
+            QT_TRANSLATE_NOOP("mcp", "Los pasos (con enlaces) para crear la app/credencial en Google Cloud, Twitch o Meta, los "
             "VALORES "
             "EXACTOS a pegar (`paste`: URI de redireccion, tipo de cliente...) y que pide el formulario. "
             "Guialo "
@@ -149,7 +149,7 @@ void McpService::registerAccountTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Abre en el navegador de esta maquina el enlace del paso `step` (1, 2...) de la guia de "
+            QT_TRANSLATE_NOOP("mcp", "Abre en el navegador de esta maquina el enlace del paso `step` (1, 2...) de la guia de "
             "la plataforma. Solo abre enlaces de la guia.");
         t.inputSchema = {
             {"type", "object"},
@@ -181,7 +181,7 @@ void McpService::registerAccountTools() {
         t.category = "cuentas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Muestra en la barra del operador un formulario para pegar el ID y el secreto de la plataforma "
+            QT_TRANSLATE_NOOP("mcp", "Muestra en la barra del operador un formulario para pegar el ID y el secreto de la plataforma "
             "(YouTube: tambien importar el JSON de Google, solo o desde Descargas). Se guarda cifrado "
             "directo "
             "desde la app: vos NUNCA ves el secreto. NO le pidas a la persona que pegue secretos en el chat. "
@@ -191,7 +191,7 @@ void McpService::registerAccountTools() {
             {"type", "object"},
             {"properties",
              {{"platform", kPlatformArg},
-              {"text", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Explicacion corta para la persona")}}},
+              {"text", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Explicacion corta para la persona")}}},
               {"timeoutSec", {{"type", "integer"}, {"default", 600}, {"maximum", 1800}}}}},
             {"required", {"platform"}}};
         t.run = [msgs, fb, state](const json& a, Done done) {
@@ -235,7 +235,7 @@ void McpService::registerAccountTools() {
         t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Prueba la conexion de verdad contra la API y explica lo que falte: YouTube (canal, vivo "
+            QT_TRANSLATE_NOOP("mcp", "Prueba la conexion de verdad contra la API y explica lo que falte: YouTube (canal, vivo "
             "habilitado), Twitch (canal, permiso de la clave de transmision), Facebook (permisos otorgados, "
             "paginas, pagina elegida).");
         t.inputSchema = {

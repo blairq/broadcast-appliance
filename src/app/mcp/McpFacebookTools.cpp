@@ -67,7 +67,7 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Si la app de Meta esta configurada (y su URI de redireccion), que cuenta esta conectada, la "
+            QT_TRANSLATE_NOOP("mcp", "Si la app de Meta esta configurada (y su URI de redireccion), que cuenta esta conectada, la "
             "Pagina elegida, el vivo al que transmite la app, de cual se leen comentarios y la subida en "
             "curso.");
         t.run = [fb, &rt](const json&, Done done) {
@@ -92,7 +92,7 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Guarda el ID y la clave secreta de la app de developers.facebook.com, y el puerto de la "
+            QT_TRANSLATE_NOOP("mcp", "Guarda el ID y la clave secreta de la app de developers.facebook.com, y el puerto de la "
             "redireccion (por defecto 8791: la app de Meta tiene que tener http://localhost:<puerto>/ "
             "como URI de OAuth valida). clear=true la borra.");
         t.inputSchema = {
@@ -125,7 +125,7 @@ void McpService::registerFacebookTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Abre el navegador de esta maquina en Facebook para que la PERSONA elija la cuenta, marque "
+            QT_TRANSLATE_NOOP("mcp", "Abre el navegador de esta maquina en Facebook para que la PERSONA elija la cuenta, marque "
             "las Paginas y acepte los permisos. Con wait=true espera a que termine (max. 5 min); si no, "
             "facebook_status dice cuando quedo conectado. cancel=true cancela.");
         t.inputSchema = {
@@ -160,7 +160,7 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Quita el permiso de la app en Facebook y borra los tokens guardados.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Quita el permiso de la app en Facebook y borra los tokens guardados.");
         t.run = [fb](const json&, Done done) {
             fb->logout();
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Cuenta de Facebook desconectada.")));
@@ -174,10 +174,10 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Lista las Paginas que administra la cuenta conectada (id, nombre, categoria) y cual esta "
+            QT_TRANSLATE_NOOP("mcp", "Lista las Paginas que administra la cuenta conectada (id, nombre, categoria) y cual esta "
             "elegida. `select` elige otra (vivos, videos y comentarios van a esa Pagina).");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"select", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id o nombre")}}}}}};
+                         {"properties", {{"select", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id o nombre")}}}}}};
         t.run = [fb](const json& a, Done done) {
             if (!fb->loggedIn()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Primero facebook_login.")));
             const QJsonArray pages = fb->client().pages();
@@ -206,7 +206,7 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Vivos de la Pagina: id, titulo, estado (LIVE, UNPUBLISHED = prueba, LIVE_STOPPED, VOD, "
+            QT_TRANSLATE_NOOP("mcp", "Vivos de la Pagina: id, titulo, estado (LIVE, UNPUBLISHED = prueba, LIVE_STOPPED, VOD, "
             "SCHEDULED_UNPUBLISHED), enlace y vistas. Con `id`, el estado de uno solo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [fb, needPage](const json& a, Done done) {
@@ -225,7 +225,7 @@ void McpService::registerFacebookTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Crea un vivo en la Pagina y empieza a transmitir desde la app (servidor RTMPS y clave solo "
+            QT_TRANSLATE_NOOP("mcp", "Crea un vivo en la Pagina y empieza a transmitir desde la app (servidor RTMPS y clave solo "
             "en memoria). test=true lo deja SIN PUBLICAR (solo lo ve la Pagina en Live Producer: ideal "
             "para probar; despues facebook_live_publish). Con test=false sale publico en el acto.");
         t.inputSchema = {{"type", "object"},
@@ -255,7 +255,7 @@ void McpService::registerFacebookTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Pasa un vivo sin publicar (UNPUBLISHED) a publico en la Pagina, sin cortar la transmision.");
+            QT_TRANSLATE_NOOP("mcp", "Pasa un vivo sin publicar (UNPUBLISHED) a publico en la Pagina, sin cortar la transmision.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [fb, needPage](const json& a, Done done) {
@@ -275,7 +275,7 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Termina el vivo en Facebook (queda como video) y corta la transmision de la app si "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Termina el vivo en Facebook (queda como video) y corta la transmision de la app si "
                         "iba a ese vivo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [fb, needPage](const json& a, Done done) {
@@ -294,7 +294,7 @@ void McpService::registerFacebookTools() {
         t.title = ba::i18n::traducir("mcp", "Videos de la Pagina");
         t.category = "facebook";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Videos de la Pagina (mas nuevos primero): id, titulo, descripcion, enlace, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Videos de la Pagina (mas nuevos primero): id, titulo, descripcion, enlace, "
                         "miniatura, fecha y duracion.");
         t.inputSchema = {
             {"type", "object"},
@@ -313,7 +313,7 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia titulo y/o descripcion de un video (o de un vivo) de la Pagina. delete=true lo borra "
+            QT_TRANSLATE_NOOP("mcp", "Cambia titulo y/o descripcion de un video (o de un vivo) de la Pagina. delete=true lo borra "
             "(no se puede deshacer).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -348,7 +348,7 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Sube un archivo de video a la Pagina (por partes, reanudable). Sin `path`, la grabacion mas "
+            QT_TRANSLATE_NOOP("mcp", "Sube un archivo de video a la Pagina (por partes, reanudable). Sin `path`, la grabacion mas "
             "reciente de la app. Espera a que termine y devuelve el id.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -381,7 +381,7 @@ void McpService::registerFacebookTools() {
         t.category = "facebook";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Comentarios de un vivo de la Pagina: `live` elige de cual leer (lo usa tambien la fuente "
+            QT_TRANSLATE_NOOP("mcp", "Comentarios de un vivo de la Pagina: `live` elige de cual leer (lo usa tambien la fuente "
             "\"Chat en vivo\"; al transmitir se elige solo), `send` comenta como la Pagina, y devuelve "
             "los ultimos `limit` comentarios.");
         t.inputSchema = {

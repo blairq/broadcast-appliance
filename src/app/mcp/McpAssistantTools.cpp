@@ -42,12 +42,12 @@ void McpService::registerAssistantTools() {
         t.category = "asistente";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "La lista de lo que falta para que la asistencia con IA ande entera: el asistente (instalado, "
+            QT_TRANSLATE_NOOP("mcp", "La lista de lo que falta para que la asistencia con IA ande entera: el asistente (instalado, "
             "clave, corriendo, MCP), el modelo local, el dictado y la voz del operador (reconocedor, "
             "micrófono), la voz que contesta, los auriculares, la voz del teleprompter y las traducciones. "
             "Cada problema trae `pagina` y `seccion` (ui_show_page) para llevar al operador a arreglarlo. "
             "Es lo mismo que muestra la pastilla «IA» del encabezado.");
-        t.details = ba::i18n::traducir("mcp", "Usalo primero cuando alguien no sabe por dónde empezar, o algo de voz/IA no responde: "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Usalo primero cuando alguien no sabe por dónde empezar, o algo de voz/IA no responde: "
                     "seguí la guía de puesta en marcha (help {\"topic\": \"puesta-en-marcha\"}) en el orden "
                     "que dice, y volvé a mirar hasta que `todo_bien` sea true.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
@@ -67,10 +67,10 @@ void McpService::registerAssistantTools() {
         t.category = "asistente";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo que ocupan los asistentes (Claude Code, Antigravity, opencode) y su limpieza: los chats guardados "
+            QT_TRANSLATE_NOOP("mcp", "Lo que ocupan los asistentes (Claude Code, Antigravity, opencode) y su limpieza: los chats guardados "
             "que se acumulan, las versiones viejas del programa, o reinstalar si algo falla.");
         t.details =
-            ba::i18n::traducir("mcp", "Sin `accion` (o `ver`): por motor, las versiones instaladas (cuál se usa), lo que ocupa el "
+            QT_TRANSLATE_NOOP("mcp", "Sin `accion` (o `ver`): por motor, las versiones instaladas (cuál se usa), lo que ocupa el "
             "programa, los chats y el perfil entero, y los espacios de trabajo.\n"
             "- `chats`: borra los chats guardados (`motor` vacío = de todos, y los espacios de trabajo). "
             "El login y los ajustes quedan.\n"
@@ -120,7 +120,7 @@ void McpService::registerAssistantTools() {
     };
     const json propAsistente = {{"type", "string"},
                                 {"enum", {"evento", "automatizacion"}},
-                                {"description", ba::i18n::traducir("mcp", "Cuál asistente: el del evento (de fábrica) o el de automatización (las alertas).")}};
+                                {"description", QT_TRANSLATE_NOOP("mcp", "Cuál asistente: el del evento (de fábrica) o el de automatización (las alertas).")}};
     {
         Tool t;
         t.name = "assistant_status";
@@ -128,7 +128,7 @@ void McpService::registerAssistantTools() {
         t.category = "asistente";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.");
+            QT_TRANSLATE_NOOP("mcp", "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"asistente", propAsistente}}}};
         t.run = [elegir](const json& a, Done done) {
             auto* ag = elegir(a);
@@ -153,7 +153,7 @@ void McpService::registerAssistantTools() {
         t.category = "asistente";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia proveedor, modelo, arranque automatico y si los avisos de disparadores van al "
+            QT_TRANSLATE_NOOP("mcp", "Cambia proveedor, modelo, arranque automatico y si los avisos de disparadores van al "
             "chat. `assistant_status` lista los proveedores que hay y los modelos de cada uno. La "
             "clave de API se carga en la pestaña (no por aca).");
         t.inputSchema = {{"type", "object"},
@@ -189,7 +189,7 @@ void McpService::registerAssistantTools() {
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Descarga el agente del proveedor elegido (version fijada, SHA-256) a la carpeta portable. "
+            QT_TRANSLATE_NOOP("mcp", "Descarga el agente del proveedor elegido (version fijada, SHA-256) a la carpeta portable. "
             "Con wait=true espera a que termine (max. 15 min).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"wait", {{"type", "boolean"}, {"default", false}}}, {"asistente", propAsistente}}}};
@@ -219,7 +219,7 @@ void McpService::registerAssistantTools() {
         t.title = ba::i18n::traducir("mcp", "Arrancar / detener el asistente");
         t.category = "asistente";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "action: start | stop | restart.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "action: start | stop | restart.");
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"action", {{"type", "string"}, {"enum", {"start", "stop", "restart"}}}}, {"asistente", propAsistente}}},
@@ -253,7 +253,7 @@ void McpService::registerAssistantTools() {
         t.title = ba::i18n::traducir("mcp", "Mandar un pedido al asistente");
         t.category = "asistente";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe el texto en el prompt del agente de la pestaña y lo manda (como si lo "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe el texto en el prompt del agente de la pestaña y lo manda (como si lo "
                         "tipeara la persona).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"text", {{"type", "string"}}}, {"asistente", propAsistente}}}, {"required", {"text"}}};

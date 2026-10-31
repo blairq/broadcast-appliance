@@ -264,7 +264,7 @@ void McpService::registerAsambleaTools() {
         t.title = ba::i18n::traducir("mcp", "¿Está todo para sesionar?");
         t.category = "asamblea";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Revisa lo que necesita una sesión de asamblea y dice qué falta y cómo se arregla: integrantes con "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Revisa lo que necesita una sesión de asamblea y dice qué falta y cómo se arregla: integrantes con "
                         "banca, la grilla del recinto, el preset de cámara de cada banca, ESCENAS que muestren esas "
                         "cámaras y al remoto con la palabra, las escenas del debate, la central (unidades por banca), la "
                         "banca virtual y el orden del día. Correla antes de dar por armado un evento de asamblea y "
@@ -279,7 +279,7 @@ void McpService::registerAsambleaTools() {
         t.category = "asamblea";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Propone las escenas que necesita una asamblea, armadas con las cámaras y entradas que hay: «Asamblea · "
+            QT_TRANSLATE_NOOP("mcp", "Propone las escenas que necesita una asamblea, armadas con las cámaras y entradas que hay: «Asamblea · "
             "Plano general» (la cámara `general`), «Asamblea · Orador» (la fuente «Banca con la palabra»: la toma de la "
             "banca de quien habla; dar la palabra arma esta), «Asamblea · Remoto» (el remoto con la palabra) y las del "
             "debate: dos remotos lado a lado, sala y remoto lado a lado, y dos de la sala lado a lado (ranuras 1 y 2 de "
@@ -288,7 +288,7 @@ void McpService::registerAsambleaTools() {
             "de crear.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"general", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La cámara del plano general (de fábrica, la que más bancas tiene).")}}},
+                          {{"general", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La cámara del plano general (de fábrica, la que más bancas tiene).")}}},
                            {"crear", {{"type", "boolean"}}}}}};
         t.run = [&vm, &rt](const json& a, Done done) {
             BroadcastEngine& eng = rt.engine();

@@ -106,7 +106,7 @@
 namespace ba::app::mcp {
 
 std::string avisoReiniciaMotor() {
-    return ba::i18n::traducir("mcp", "OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la "
+    return QT_TRANSLATE_NOOP("mcp", "OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la "
                               "sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una "
                               "transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: "
                               "decíselo antes al operador y pedile que confirme.");
@@ -1104,9 +1104,9 @@ void McpService::registerTools() {
             ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la escena '%1'. Escenas: %2."), {s, names}));
     };
     const json sceneProp = {{"type", "string"},
-                            {"description", ba::i18n::traducir("mcp", "Escena (por defecto, la que esta al aire).")}};
+                            {"description", QT_TRANSLATE_NOOP("mcp", "Escena (por defecto, la que esta al aire).")}};
     const json layoutProp = {
-        {"description", ba::i18n::traducir("mcp", "Ubicacion: preset (full, left, right, top, bottom, center, top-left, top-right, "
+        {"description", QT_TRANSLATE_NOOP("mcp", "Ubicacion: preset (full, left, right, top, bottom, center, top-left, top-right, "
                         "bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, "
                         "grid-<n>-<i>) u objeto {x,y,w,h} en fracciones del lienzo (0..1).")}};
 
@@ -1119,7 +1119,7 @@ void McpService::registerTools() {
         t.clase = Clase::Lectura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "La última medición (cada segundo) de la app y del gateway: CPU total en núcleos (1,0 = un núcleo "
+            QT_TRANSLATE_NOOP("mcp", "La última medición (cada segundo) de la app y del gateway: CPU total en núcleos (1,0 = un núcleo "
             "entero), memoria, los hilos que más consumen con su nombre (los de GStreamer se llaman como su "
             "elemento: así se ve qué parte del video gasta) y, en Windows, la GPU del proceso por motor (3D, "
             "VideoDecode, VideoEncode, Copy). El historial está en Logs/perfil-app.jsonl y "
@@ -1151,7 +1151,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Textos de placa y estado");
         t.category = "escenas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los textos de placa de siempre y si ahora hay FTB o placa al aire.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los textos de placa de siempre y si ahora hay FTB o placa al aire.");
         t.run = [this, &vm](const json& a, Done done) {
             json textos = json::array();
             for (const QString& s : vm.salidas().textosPlaca()) textos.push_back(s.toStdString());
@@ -1165,7 +1165,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Ajustes del editor de escenas");
         t.category = "escenas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`corte_directo_editor`: el botón de cada escena en el editor corta directo (true) o la arma "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`corte_directo_editor`: el botón de cada escena en el editor corta directo (true) o la arma "
                         "en el preview para salir con TAKE (false, de fábrica). Sin argumentos, los muestra.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"corte_directo_editor", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
@@ -1180,7 +1180,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Sumar o sacar una herramienta de las de aire");
         t.category = "estado";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`clase`: aire (pide confirmación en vivo) o normal. Las de la lista fija no bajan. Solo "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`clase`: aire (pide confirmación en vivo) o normal. Las de la lista fija no bajan. Solo "
                         "fuera del aire (con la transmisión o la grabación andando, no se cambia).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"herramienta", "clase"}},
@@ -1202,7 +1202,7 @@ void McpService::registerTools() {
         t.category = "estado";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira "
+            QT_TRANSLATE_NOOP("mcp", "El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira "
             "los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la "
             "interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` "
             "(de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire "
@@ -1234,7 +1234,7 @@ void McpService::registerTools() {
         t.clase = Clase::Lectura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "El listado de escenas que existen: cual esta al aire, en que carpeta esta cada una. "
+            QT_TRANSLATE_NOOP("mcp", "El listado de escenas que existen: cual esta al aire, en que carpeta esta cada una. "
             "Para el contenido de UNA escena, capa por capa, no es esta. "
             "Todas las escenas con sus capas (de abajo hacia arriba), cual esta al aire y en que "
             "carpeta esta cada una (`folder`, \"\" = suelta). Las carpetas solo ordenan la lista de la "
@@ -1268,7 +1268,7 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "QUE ES: las carpetas agrupan escenas en la lista de la pestaña Escenas (arbol que se "
+            QT_TRANSLATE_NOOP("mcp", "QUE ES: las carpetas agrupan escenas en la lista de la pestaña Escenas (arbol que se "
             "pliega). PARA QUE: ordenar cuando hay muchas (bloques del programa, placas, invitados). "
             "COMO SE USA: `folder` con el nombre de la carpeta (se crea sola si no existe) o vacio para "
             "sacar la escena de toda carpeta. No cambia nada de la emision ni del contenido de la "
@@ -1293,7 +1293,7 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "QUE ES: cambia el ORDEN de la lista de escenas (y de paso la carpeta). PARA QUE: dejar las "
+            QT_TRANSLATE_NOOP("mcp", "QUE ES: cambia el ORDEN de la lista de escenas (y de paso la carpeta). PARA QUE: dejar las "
             "escenas en el orden del programa. COMO SE USA: `before` es la escena delante de la cual "
             "queda (vacio = al final); ademas hereda su carpeta. No cambia nada de la emision. El orden "
             "que informa `scene_list` es el que ve el operador.");
@@ -1315,7 +1315,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Transicion de entrada de una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "La transicion con la que ENTRA la `escena` al aire (`tipo`: cut, fade, swipe, slide, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "La transicion con la que ENTRA la `escena` al aire (`tipo`: cut, fade, swipe, slide, "
                         "fade_to_color; vacio = la global) y su duracion `ms`. Un take con transicion explicita manda sobre esta.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"escena"}},
@@ -1338,7 +1338,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Audio que sigue al video");
         t.category = "audio";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Con `sigue_video`, la `fuente` sube (a su volumen) cuando entra al aire una escena que la tiene y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Con `sigue_video`, la `fuente` sube (a su volumen) cuando entra al aire una escena que la tiene y "
                         "baja a cero cuando sale, con la duracion de la transicion. Sin `sigue_video`, lista las que lo tienen. "
                         "Es de cada salida: mueve el fader de la fuente en la mezcla de esa `salida`.");
         t.inputSchema = {{"type", "object"},
@@ -1359,7 +1359,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Crear escena vacia");
         t.category = "escenas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Crea una escena vacia. Para crearla con contenido de una vez, usa scene_define.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea una escena vacia. Para crearla con contenido de una vez, usa scene_define.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
         t.run = [&rt, persist](const json& a, Done done) {
@@ -1375,8 +1375,8 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Copiar una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Crea una escena nueva con todas las fuentes de otra.");
-        t.details = ba::i18n::traducir("mcp", "Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea una escena nueva con todas las fuentes de otra.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Es como se arman las escenas parecidas sin repetir el trabajo: se hace UNA bien —la de "
                     "entrevista, con su camara, su zocalo y su fondo— y las demas salen de copiarla y "
                     "cambiarle lo que difiere.\n\n"
                     "Las fuentes se RECREAN, no se comparten: quedan dos escenas de verdad independientes, y "
@@ -1386,8 +1386,8 @@ void McpService::registerTools() {
                     "una escena a medias se arregla a mano, una que desaparecio sin explicacion no.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"from", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La escena que se copia.")}}},
-                           {"to", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de la copia.")}}}}},
+                          {{"from", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La escena que se copia.")}}},
+                           {"to", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre de la copia.")}}}}},
                          {"required", {"from", "to"}}};
         t.run = [&rt, persist](const json& a, Done done) {
             const std::string from = a["from"].get<std::string>();
@@ -1410,8 +1410,8 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Proteger una escena");
         t.category = "escenas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Una escena protegida no se puede borrar ni renombrar.");
-        t.details = ba::i18n::traducir("mcp", "Para la escena BASE de la que se copian las demas —la que si alguien borra se pierde el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Una escena protegida no se puede borrar ni renombrar.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Para la escena BASE de la que se copian las demas —la que si alguien borra se pierde el "
                     "trabajo de todos— y para las que no se tocan en vivo.\n\n"
                     "Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que "
                     "desaparezca o cambie de nombre, que es lo que rompe todo lo que la nombra (el guion, "
@@ -1439,7 +1439,7 @@ void McpService::registerTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "borra una escena");
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra una escena (las fuentes compartidas con otras escenas siguen existiendo).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra una escena (las fuentes compartidas con otras escenas siguen existiendo).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
         t.run = [&rt, persist, sceneExists, noScene](const json& a, Done done) {
@@ -1460,7 +1460,7 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"from", {{"type", "string"}}}, {"to", {{"type", "string"}}}}},
                          {"required", {"from", "to"}}};
-        t.description = ba::i18n::traducir("mcp", "Cambia el nombre de una escena.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el nombre de una escena.");
         t.run = [&rt, persist, sceneExists, noScene](const json& a, Done done) {
             if (!sceneExists(a["from"])) return done(noScene(a["from"]));
             if (!rt.renameScene(a["from"], a["to"])) return done(ToolResult::error(rt.lastError()));
@@ -1477,12 +1477,12 @@ void McpService::registerTools() {
         t.clase = Clase::Lectura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Definicion completa (tipo, settings, ubicacion, visibilidad, volumen) de una escena o de "
+            QT_TRANSLATE_NOOP("mcp", "Definicion completa (tipo, settings, ubicacion, visibilidad, volumen) de una escena o de "
             "todas, en el mismo formato que acepta scene_define: sirve para copiar, versionar o "
             "modificar escenas.");
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Una escena (vacio = todas).")}}}}}};
+            {"properties", {{"name", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Una escena (vacio = todas).")}}}}}};
         t.run = [&rt](const json& a, Done done) {
             const std::string only = a.value("name", std::string());
             json out = json::array();
@@ -1516,13 +1516,13 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Crea (o rehace con replace=true) una escena con todas sus fuentes de una vez, en orden de "
+            QT_TRANSLATE_NOOP("mcp", "Crea (o rehace con replace=true) una escena con todas sus fuentes de una vez, en orden de "
             "abajo hacia arriba. Una fuente con el nombre de otra que ya existe se COMPARTE (misma "
             "camara en dos escenas); si trae settings, se actualizan. Al rehacer, las que vuelven a venir "
             "en la lista se CONSERVAN (con su camara, grafo y filtros): solo se quitan las que no estan. "
             "`layout` en fracciones del lienzo (0..1); si llega en pixeles se convierte y se avisa.");
         t.details =
-            ba::i18n::traducir("mcp", "Cada fuente: {type, name, settings?, layout?, visible?, volume?, muted?}. `type` es el id del "
+            QT_TRANSLATE_NOOP("mcp", "Cada fuente: {type, name, settings?, layout?, visible?, volume?, muted?}. `type` es el id del "
             "tipo (ver source_types): p. ej. image_source {file}, color_source_v3 {color, width, "
             "height}, text_ft2_source_v2 {text, font:{face,size}, color1}, ffmpeg_source {local_file, "
             "looping}, v4l2_input (camara), ba_guest_video {slot, channel: guest|share}, ba_subtitulos "
@@ -1535,7 +1535,7 @@ void McpService::registerTools() {
              {{"name", {{"type", "string"}}},
               {"sources",
                {{"type", "array"},
-                {"description", ba::i18n::traducir("mcp", "Fuentes de abajo hacia arriba.")},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Fuentes de abajo hacia arriba.")},
                 {"items",
                  {{"type", "object"},
                   {"properties",
@@ -1544,15 +1544,15 @@ void McpService::registerTools() {
                     {"settings", {{"type", "object"}}},
                     {"layout", layoutProp},
                     {"visible", {{"type", "boolean"}}},
-                    {"volume", {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "Ganancia lineal (1 = 0 dB).")}}},
+                    {"volume", {{"type", "number"}, {"description", QT_TRANSLATE_NOOP("mcp", "Ganancia lineal (1 = 0 dB).")}}},
                     {"muted", {{"type", "boolean"}}}}},
                   {"required", {"type", "name"}}}}}},
               {"replace",
                {{"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "Si existe, rehacerla (las fuentes que se repiten se conservan).")},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Si existe, rehacerla (las fuentes que se repiten se conservan).")},
                 {"default", false}}},
               {"switch",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Ponerla al aire al terminar.")}, {"default", false}}}}},
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Ponerla al aire al terminar.")}, {"default", false}}}}},
             {"required", {"name", "sources"}}};
         // La tipografia del ejemplo sale de kDefaultFontFace: si aca quedara
         // fija en "Sans", el asistente copiaria el ejemplo y en Windows crearia
@@ -1665,7 +1665,7 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia la transición");
-        t.description = ba::i18n::traducir("mcp", "Tipo y duracion de la transicion al cambiar de escena.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Tipo y duracion de la transicion al cambiar de escena.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -1690,7 +1690,7 @@ void McpService::registerTools() {
         t.clase = Clase::Lectura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Tipos de fuente que esta instalacion puede crear (id, nombre, si tiene video "
+            QT_TRANSLATE_NOOP("mcp", "Tipos de fuente que esta instalacion puede crear (id, nombre, si tiene video "
             "y/o audio). El id es el `type` de crear_fuente / scene_define.");
         t.run = [&rt](const json&, Done done) {
             json out = json::array();
@@ -1708,7 +1708,7 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.clase = Clase::Lectura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Las fuentes que hay ADENTRO de una escena, una por una; no son las capas del DSK. Fuentes de una "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las fuentes que hay ADENTRO de una escena, una por una; no son las capas del DSK. Fuentes de una "
             "escena (de abajo hacia arriba) con tipo, visibilidad, ubicacion en el lienzo, volumen y silencio.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"scene", sceneProp}}}};
         t.run = [&rt, sceneOr, sceneExists, noScene](const json& a, Done done) {
@@ -1738,25 +1738,25 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.clase = Clase::Escritura;
         t.description =
-             ba::i18n::traducir("mcp", "CREA una fuente nueva en una escena: texto, título, zócalo, cámara, color, invitado; un archivo de "
+             QT_TRANSLATE_NOOP("mcp", "CREA una fuente nueva en una escena: texto, título, zócalo, cámara, color, invitado; un archivo de "
             "medios va con medio_poner. Si ya existe una fuente con ese nombre (en otra escena) se agrega LA "
             "MISMA (compartida).");
         t.details =
-            ba::i18n::traducir("mcp", "Settings mas comunes: image_source {file: ruta}, ffmpeg_source {local_file, looping: true}, "
+            QT_TRANSLATE_NOOP("mcp", "Settings mas comunes: image_source {file: ruta}, ffmpeg_source {local_file, looping: true}, "
             "color_source_v3 {color: ABGR entero, width, height}, text_ft2_source_v2 {text, font: {face, "
             "size}, color1}, v4l2_input {device_id}. Para ver todas las opciones de una fuente ya creada: "
             "source_properties.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"scene", sceneProp},
-                           {"type", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Id del tipo (source_types).")}}},
+                           {"type", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Id del tipo (source_types).")}}},
                            {"name", {{"type", "string"}}},
                            {"settings", {{"type", "object"}}},
                            {"layout", layoutProp},
                            {"visible", {{"type", "boolean"}, {"default", true}}},
                            {"efectos",
                             {{"type", "object"},
-                             {"description", ba::i18n::traducir("mcp", "transparencia, borde difuso, esquinas y sombra de entrada (lo mismo que "
+                             {"description", QT_TRANSLATE_NOOP("mcp", "transparencia, borde difuso, esquinas y sombra de entrada (lo mismo que "
                                              "source_update {efectos}).")}}}}},
                          {"required", {"type", "name"}}};
         t.examples = {
@@ -1791,7 +1791,7 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las PANTALLAS conectadas (para screen_capture: su `monitor`) y las VENTANAS de aplicaciones abiertas "
+            QT_TRANSLATE_NOOP("mcp", "Las PANTALLAS conectadas (para screen_capture: su `monitor`) y las VENTANAS de aplicaciones abiertas "
             "(para window_capture: su `ventana`, que es «aplicación\\ntítulo»), y si este sistema puede capturar "
             "una ventana sola. Para elegir antes de crear_fuente.");
         t.examples = {R"({})"};
@@ -1818,7 +1818,7 @@ void McpService::registerTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "borra una fuente (puede estar al aire)");
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Saca la fuente de la escena (si esta en otras escenas, ahi sigue).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca la fuente de la escena (si esta en otras escenas, ahi sigue).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"scene", sceneProp}, {"name", {{"type", "string"}}}}},
                          {"required", {"name"}}};
@@ -1836,7 +1836,7 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia una fuente: mostrar/ocultar, mover o cambiar tamaño (layout), orden (order), cambiar "
+            QT_TRANSLATE_NOOP("mcp", "Cambia una fuente: mostrar/ocultar, mover o cambiar tamaño (layout), orden (order), cambiar "
             "el texto de un titulo o zocalo, la imagen, transparencia, borde difuso o sombra (efectos), etc. "
             "De una vez lo que se indique: visibilidad, ubicacion (layout), orden (order), "
             "settings (se MEZCLAN con los actuales), efectos (se MEZCLAN), volumen, silencio o nombre.");
@@ -1849,15 +1849,15 @@ void McpService::registerTools() {
               {"layout", layoutProp},
               {"order",
                {{"type", json::array({"string", "integer"})},
-                {"description", ba::i18n::traducir("mcp", "top | bottom | up | down | pasos (+ sube).")}}},
-              {"settings", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "Solo las claves a cambiar.")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "top | bottom | up | down | pasos (+ sube).")}}},
+              {"settings", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo las claves a cambiar.")}}},
               {"volumeDb", {{"type", "number"}, {"minimum", -100}, {"maximum", 26}}},
               {"muted", {{"type", "boolean"}}},
-              {"rename", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nuevo nombre (en todas las escenas).")}}},
+              {"rename", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nuevo nombre (en todas las escenas).")}}},
               {"recorte",
                {{"type", "object"},
                 {"description",
-                 ba::i18n::traducir("mcp", "Lo que se ve de la fuente en ESTA escena: {izquierda, arriba, derecha, abajo} en fracciones de "
+                 QT_TRANSLATE_NOOP("mcp", "Lo que se ve de la fuente en ESTA escena: {izquierda, arriba, derecha, abajo} en fracciones de "
                  "su tamaño (0..1). Con el layout, amplía una zona (p. ej. comparar el mismo detalle). Todo en 0 "
                  "lo saca.")},
                 {"properties",
@@ -1868,7 +1868,7 @@ void McpService::registerTools() {
               {"efectos",
                {{"type", "object"},
                 {"description",
-                 ba::i18n::traducir("mcp", "Efectos de la fuente en ESTA escena (solo lo que se indique; lo demas queda). Medidas en pixeles "
+                 QT_TRANSLATE_NOOP("mcp", "Efectos de la fuente en ESTA escena (solo lo que se indique; lo demas queda). Medidas en pixeles "
                  "del lienzo. opacidad 0..1 (transparencia de todo el elemento); borde: borde difuso (pixeles que se "
                  "funden a transparente); esquinas: radio de las esquinas redondeadas; sombra: {activa, color \"#RRGGBB\", alfa 0..1 (su opacidad), difuminado "
                  "(radio), distancia, angulo (hacia donde cae: 0 derecha, 90 abajo, 45 abajo a la derecha), tamano "
@@ -1983,7 +1983,7 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Todas las opciones que la fuente expone (las mismas del panel Propiedades): nombre, "
+            QT_TRANSLATE_NOOP("mcp", "Todas las opciones que la fuente expone (las mismas del panel Propiedades): nombre, "
             "etiqueta, tipo, valor actual, opciones posibles, rango. Sirve para cualquier plugin.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
@@ -2005,13 +2005,13 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia una propiedad de source_properties por su `name` (se aplica en vivo), o aprieta una "
+            QT_TRANSLATE_NOOP("mcp", "Cambia una propiedad de source_properties por su `name` (se aplica en vivo), o aprieta una "
             "propiedad tipo boton (press=true), p. ej. 'refrescar dispositivos'.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"source", {{"type", "string"}}},
                            {"property", {{"type", "string"}}},
-                           {"value", {{"description", ba::i18n::traducir("mcp", "Valor (tipo segun la propiedad).")}}},
+                           {"value", {{"description", QT_TRANSLATE_NOOP("mcp", "Valor (tipo segun la propiedad).")}}},
                            {"press", {{"type", "boolean"}}}}},
                          {"required", {"source", "property"}}};
         PropertiesModel* props = props_.get();
@@ -2039,7 +2039,7 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Agrega la camara (o la pantalla compartida) del invitado del lugar `slot` a una escena. Es "
+            QT_TRANSLATE_NOOP("mcp", "Agrega la camara (o la pantalla compartida) del invitado del lugar `slot` a una escena. Es "
             "la misma fuente en todas las escenas; se ve quien este en ese lugar de la conferencia.");
         t.inputSchema = {
             {"type", "object"},
@@ -2083,7 +2083,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Mezclador");
         t.category = "audio";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Foto de los niveles del mezclador, para leer. "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Foto de los niveles del mezclador, para leer. "
                         "Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor "
                         "(`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del "
                         "programa. -100 = silencio; cerca de 0 = saturando. Cada salida tiene su mezcla: con `salida`, la de esa.");
@@ -2123,7 +2123,7 @@ void McpService::registerTools() {
         t.aireSi = AireSi::MasterOPrograma;
         t.reversible = true;
         t.description =
-            ba::i18n::traducir("mcp", "Silencia, sube o baja el audio de una fuente. Es con lo que se CORTA un acople, se baja lo que "
+            QT_TRANSLATE_NOOP("mcp", "Silencia, sube o baja el audio de una fuente. Es con lo que se CORTA un acople, se baja lo que "
             "satura, se sube lo que no se escucha o se cierra un microfono que quedo abierto. Cambia el "
             "volumen (dB, 0 = sin cambio, negativo baja) y/o silencia una fuente de audio. En la mezcla de la "
             "`salida` (cada una tiene la suya; sin ella, la por omisión).");
@@ -2156,10 +2156,10 @@ void McpService::registerTools() {
         t.category = "audio";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Manda una fuente de audio al monitor del operador para escucharla. NO cambia lo que sale "
+            QT_TRANSLATE_NOOP("mcp", "Manda una fuente de audio al monitor del operador para escucharla. NO cambia lo que sale "
             "al aire: lo que estaba saliendo sigue saliendo igual.");
         t.details =
-            ba::i18n::traducir("mcp", "Es el PFL de una consola: antes de abrir un microfono se lo escucha para ver si esta ahi, "
+            QT_TRANSLATE_NOOP("mcp", "Es el PFL de una consola: antes de abrir un microfono se lo escucha para ver si esta ahi, "
             "si zumba, si el invitado ya volvio. Sin esto habia que ponerlo al aire para enterarse.\n\n"
             "Hay UN solo a la vez: escuchar una reemplaza a la anterior. Sin argumentos se apaga. "
             "`modo` \"pfl\" (de fábrica) es lo que entrega la entrada, antes del fader; \"afl\", con el "
@@ -2176,16 +2176,16 @@ void McpService::registerTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la fuente; vacio o sin esto = apagar")}}},
+             {{"name", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la fuente; vacio o sin esto = apagar")}}},
               {"escuchar",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "false para apagar esta (por defecto true)")}}},
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "false para apagar esta (por defecto true)")}}},
               {"modo",
                {{"type", "string"}, {"enum", {"pfl", "afl"}},
-                {"description", ba::i18n::traducir("mcp", "pfl (antes del fader, por defecto) o afl (con el fader de `salida`)")}}},
-              {"salida", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "afl: de qué salida es el fader (vacío = la por omisión)")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "pfl (antes del fader, por defecto) o afl (con el fader de `salida`)")}}},
+              {"salida", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "afl: de qué salida es el fader (vacío = la por omisión)")}}},
               {"salida_escucha",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "de qué salida son el fader y el mute de la escucha fija (vacío = la por omisión)")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "de qué salida son el fader y el mute de la escucha fija (vacío = la por omisión)")}}}}}};
         t.examples = {R"({"name": "Microfono del atril"})", R"({"name": "Microfono del atril", "modo": "afl", "salida": "b"})",
                       R"({"salida_escucha": "b"})", R"({})"};
         t.run = [&rt, &vm](const json& a, Done done) {
@@ -2236,13 +2236,13 @@ void McpService::registerTools() {
         t.category = "audio";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Mide cuánto hay que atrasar el audio para que coincida con el video, con aplausos frente a la "
+            std::string(QT_TRANSLATE_NOOP("mcp", "Mide cuánto hay que atrasar el audio para que coincida con el video, con aplausos frente a la "
             "cámara: durante `segundos` (de 4 a 30, 10 de fábrica) mira lo que SALE (cuadros del programa y "
             "mezcla de audio) y empareja cada aplauso (pico de audio, cambio brusco en la imagen). La cámara "
             "tiene que estar en el programa y su micrófono sonando. Avisá a la persona que aplauda 4 o 5 veces, "
             "separadas. Con `aplicar_a` (una fuente de audio) y una medición confiable, le suma el retardo "
-            "medido al que ya tenía (audio_sincro). Devuelve retardo_ms, dispersión y si es confiable.") +
-            " " + ba::i18n::traducir("mcp", "Mira el programa de la salida (`salida`).");
+            "medido al que ya tenía (audio_sincro). Devuelve retardo_ms, dispersión y si es confiable.")) +
+            " " + std::string(QT_TRANSLATE_NOOP("mcp", "Mira el programa de la salida (`salida`)."));
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"segundos", {{"type", "integer"}, {"minimum", 4}, {"maximum", 30}}},
@@ -2274,7 +2274,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Balística de los medidores");
         t.category = "audio";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cómo se mueven todos los medidores de la interfaz: `balistica` = pico (instantáneo), ppm "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cómo se mueven todos los medidores de la interfaz: `balistica` = pico (instantáneo), ppm "
                         "(EBU tipo IIb: sube al instante y cae 24 dB en 2,8 s) o vu (integra ~300 ms: el volumen "
                         "percibido). Sin argumentos dice cuál está.");
         t.inputSchema = {{"type", "object"},
@@ -2292,10 +2292,10 @@ void McpService::registerTools() {
         t.category = "audio";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Atrasa el audio de una fuente para que coincida con su video. Sin `ms`, dice el retardo que "
+            QT_TRANSLATE_NOOP("mcp", "Atrasa el audio de una fuente para que coincida con su video. Sin `ms`, dice el retardo que "
             "tiene puesto; '+40' / '-40' lo cambia sobre el que tiene.");
         t.details =
-            ba::i18n::traducir("mcp", "Para que sirve: una camara IP llega con 200 ms a 2 s de retardo (codificacion + red + "
+            QT_TRANSLATE_NOOP("mcp", "Para que sirve: una camara IP llega con 200 ms a 2 s de retardo (codificacion + red + "
             "buffer), mientras que un microfono por la placa de audio llega casi al instante. Se escucha "
             "antes de ver los labios, y eso se nota muchisimo.\n\n"
             "`ms` positivo ATRASA el audio (lo normal con una camara IP); negativo lo adelanta, que sirve "
@@ -2351,7 +2351,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Loudness de lo que sale");
         t.category = "audio";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El loudness del PROGRAMA (la mezcla que va a la transmision y la grabacion), EBU R128 / "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El loudness del PROGRAMA (la mezcla que va a la transmision y la grabacion), EBU R128 / "
                         "BS.1770-4: `m` momentaneo (400 ms), `s` corto (3 s), `i` integrado desde el reset (arranca "
                         "solo al transmitir o grabar), `tp` true peak maximo (dBTP), `lra` rango, `gr_db` lo que "
                         "baja el limitador del master, `objetivo` y `fuera_de_objetivo` (integrado a mas de 2 LU o TP "
@@ -2368,7 +2368,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Reiniciar el integrado del loudness");
         t.category = "audio";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Vuelve a cero el integrado, el LRA y el true peak maximo del programa.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Vuelve a cero el integrado, el LRA y el true peak maximo del programa.");
         t.run = [this, &rt](const json& a, Done done) {
             rt.engine().loudness(core_.salidaDe(a)).reiniciar();
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Reiniciado.")));
@@ -2382,13 +2382,13 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Objetivo de loudness");
         t.category = "audio";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`perfil`: r128 (-23 LUFS / -1 dBTP, de fabrica), a85 (-24 LKFS / -2), plataforma16 (-16 / -1), "
-                        "plataforma14 (-14 / -1) o custom con `lufs` y `tp`.") +
+        t.description = std::string(QT_TRANSLATE_NOOP("mcp", "`perfil`: r128 (-23 LUFS / -1 dBTP, de fabrica), a85 (-24 LKFS / -2), plataforma16 (-16 / -1), "
+                        "plataforma14 (-14 / -1) o custom con `lufs` y `tp`.")) +
                         " " +
-                        ba::i18n::traducir("mcp", "`agc` true: el programa se lleva solo al objetivo, despacio (1 dB por segundo como mucho, "
+                        std::string(QT_TRANSLATE_NOOP("mcp", "`agc` true: el programa se lleva solo al objetivo, despacio (1 dB por segundo como mucho, "
                         "hasta 6 dB arriba o abajo, quieto en las pausas), antes del limitador; de fabrica no. Si una "
-                        "transmision va con AAC por debajo de 128 kbps, el techo baja a -2 dBTP.") +
-                        " " + ba::i18n::traducir("mcp", "Cada salida tiene el suyo (`salida`).");
+                        "transmision va con AAC por debajo de 128 kbps, el techo baja a -2 dBTP.")) +
+                        " " + std::string(QT_TRANSLATE_NOOP("mcp", "Cada salida tiene el suyo (`salida`)."));
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil"}},
                          {"properties",
@@ -2413,7 +2413,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Aprobar el cargo que escribio un invitado");
         t.category = "sala";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Lo que un invitado escribe de si mismo al entrar (`info`) NO sale en el zocalo hasta que una "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo que un invitado escribe de si mismo al entrar (`info`) NO sale en el zocalo hasta que una "
                         "persona lo aprueba: con esto, `participant` (id o nombre) y un `texto` corregido opcional. Si "
                         "esta en el cuerpo (cuerpo_listar), sale de ahi y no hace falta. Confirmalo con el operador.");
         t.inputSchema = {{"type", "object"},
@@ -2434,7 +2434,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Rotar el token del MCP");
         t.category = "config";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cambia ya el token del servidor MCP (el viejo deja de valer). El puente ba-mcp lo relee solo; un "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia ya el token del servidor MCP (el viejo deja de valer). El puente ba-mcp lo relee solo; un "
                         "cliente HTTP directo lo vuelve a pedir con `ba-mcp --token`.");
         t.run = [this](const json&, Done done) {
             const QString nuevo = rotarToken(QString::fromStdWString((ba::platform::credentialsDir()).wstring()));
@@ -2450,7 +2450,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Seguridad: estado y ajustes");
         t.category = "config";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Lo que protege los accesos: si el token del MCP se rota en cada arranque, si la conferencia cambia de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo que protege los accesos: si el token del MCP se rota en cada arranque, si la conferencia cambia de "
                         "PIN al empezar una sesion en vivo en un dia nuevo (el PIN es uno por dia: los reinicios "
                         "del mismo dia lo conservan), y el modo en vivo. Con `rotar_token_mcp` o `pin_por_sesion` "
                         "los cambia (fuera de vivo).");
@@ -2478,7 +2478,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Subtitulos ocultos (CC)");
         t.category = "traduccion";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los subtitulos ocultos de la transmision (el espectador los prende en su reproductor): si estan "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los subtitulos ocultos de la transmision (el espectador los prende en su reproductor): si estan "
                         "prendidos, de que salida de texto salen (texto_flujos), el metodo (608 en el video, la API de "
                         "YouTube, o los dos), cuantas lineas se mandaron y las ultimas.");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(qvToJson(vm.cc().estado()))); };
@@ -2490,7 +2490,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Prender los subtitulos ocultos");
         t.category = "traduccion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`flujo`: la salida de texto (la transcripcion o una traduccion; texto_flujos). `metodo`: 608 (de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`flujo`: la salida de texto (la transcripcion o una traduccion; texto_flujos). `metodo`: 608 (de "
                         "fabrica: CEA-608 dentro del video de la transmision y de cada destino), youtube_http (la API de "
                         "subtitulos de YouTube: `url` de ingesta del evento) o ambos.");
         t.inputSchema = {{"type", "object"},
@@ -2515,7 +2515,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Apagar los subtitulos ocultos");
         t.category = "traduccion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Deja de mandar subtitulos ocultos.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Deja de mandar subtitulos ocultos.");
         t.run = [&vm](const json&, Done done) {
             vm.cc().desactivar();
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Apagados.")));
@@ -2528,7 +2528,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Probar los subtitulos ocultos");
         t.category = "traduccion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Manda un `texto` de prueba por lo configurado (608 necesita una transmision activa).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Manda un `texto` de prueba por lo configurado (608 necesita una transmision activa).");
         t.inputSchema = {{"type", "object"}, {"required", {"texto"}}, {"properties", {{"texto", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             const QString e = vm.cc().probar(QString::fromStdString(a.value("texto", std::string())));
@@ -2543,7 +2543,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Vocabulario de la voz a texto");
         t.category = "traduccion";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los terminos que la transcripcion escribe bien aunque el modelo no los conozca (nombres del "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los terminos que la transcripcion escribe bien aunque el modelo no los conozca (nombres del "
                         "cuerpo, localidades, terminos de asamblea, los del operador), por grupo (activo o no), y los "
                         "ultimos reemplazos hechos. La correccion es por sonido y solo con confianza alta.");
         t.run = [&vm](const json&, Done done) {
@@ -2559,7 +2559,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar un termino al vocabulario");
         t.category = "traduccion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Agrega (o cambia) el `termino` bien escrito, con `variantes` (como lo escribe mal el modelo, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Agrega (o cambia) el `termino` bien escrito, con `variantes` (como lo escribe mal el modelo, "
                         "opcional), en el `grupo` (operador de fabrica; cuerpo, localidades, asamblea u otro nuevo). "
                         "Con `grupo` y `activo` y sin `termino`, prende o apaga el grupo. Con `del_cuerpo`: true, pone "
                         "en el grupo cuerpo los nombres y apellidos de cuerpo_listar.");
@@ -2595,7 +2595,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Quitar un termino del vocabulario");
         t.category = "traduccion";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Saca el `termino` (de cualquier grupo).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca el `termino` (de cualquier grupo).");
         t.inputSchema = {{"type", "object"}, {"required", {"termino"}}, {"properties", {{"termino", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (!vm.vocabulario().quitar(a.value("termino", std::string())))
@@ -2610,7 +2610,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Probar el vocabulario");
         t.category = "traduccion";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Pasa un `texto` (como lo escribiria el modelo) por la correccion y devuelve el resultado y los "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pasa un `texto` (como lo escribiria el modelo) por la correccion y devuelve el resultado y los "
                         "reemplazos.");
         t.inputSchema = {{"type", "object"}, {"required", {"texto"}}, {"properties", {{"texto", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
@@ -2626,7 +2626,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Que hacer si una entrada se cae al aire");
         t.category = "video";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Si la entrada `entrada` se queda sin señal mas de `ms` (de fabrica 1000) estando en la escena al "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Si la entrada `entrada` se queda sin señal mas de `ms` (de fabrica 1000) estando en la escena al "
                         "aire: `al_perder_aire` avisar (de fabrica), armar la `escena` de respaldo en el preview o cortar "
                         "a ella. Sin `al_perder_aire`, muestra lo configurado y las entradas que ahora no tienen señal.");
         t.inputSchema = {{"type", "object"},
@@ -2656,7 +2656,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Bancas y fila de oradores presenciales");
         t.category = "oradores";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los oradores PRESENCIALES del recinto: las bancas, la fila, quién habla y hace cuánto; no son los "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los oradores PRESENCIALES del recinto: las bancas, la fila, quién habla y hace cuánto; no son los "
             "oradores remotos. remotos_fila_ver es la fila de los remotos (invitados conectados).");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.bancas().estadoJson())); };
         core_.addTool(std::move(t));
@@ -2667,7 +2667,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Sumar o sacar una banca de la fila");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`agregar` o `quitar`: banca, id o nombre del cuerpo.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "`agregar` o `quitar`: banca, id o nombre del cuerpo.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"agregar", {{"type", "string"}}}, {"quitar", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
@@ -2688,7 +2688,7 @@ void McpService::registerTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "pone a un orador al aire (en directo corta la escena)");
         t.aireSi = AireSi::BancaDirecto;
-        t.description = ba::i18n::traducir("mcp", "Una banca al aire, en una sola accion: la PTZ va al preset de su banca (solo si esa camara no "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Una banca al aire, en una sola accion: la PTZ va al preset de su banca (solo si esa camara no "
                         "esta al aire), la escena de esa camara queda ARMADA en el preview (`modo` armar, de fabrica: "
                         "sale con TAKE) o se corta (directo), el zocalo toma su nombre y cargo del cuerpo ({orador}), "
                         "arranca su reloj y se abre su microfono (y se cierra el de la anterior). `banca`: banca, id o "
@@ -2719,7 +2719,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Tiempo del que tiene la palabra");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`sumar_s` le suma (o resta, negativo) tiempo al que habla ahora (presencial o remoto: su celular "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`sumar_s` le suma (o resta, negativo) tiempo al que habla ahora (presencial o remoto: su celular "
                         "se actualiza); `asignado_s` cambia el tiempo de cada turno de aca en adelante. A un minuto y al "
                         "terminar avisa al operador, en el celular del remoto y en la unidad de la central.");
         t.inputSchema = {{"type", "object"},
@@ -2737,7 +2737,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Seguir al microfono: estado");
         t.category = "oradores";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Si esta prendido, el modo (proponer o automatico), el umbral y los tiempos, los microfonos de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Si esta prendido, el modo (proponer o automatico), el umbral y los tiempos, los microfonos de "
                         "banca abiertos ahora y la propuesta («Banca 12 – Perez pidio la palabra»), si hay.");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.seguirMicrofono().estado())); };
         core_.addTool(std::move(t));
@@ -2748,7 +2748,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Seguir al microfono abierto");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cuando un microfono de banca (cuerpo: microfono.fuente) pasa `umbral_db` durante `sostener_ms`, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cuando un microfono de banca (cuerpo: microfono.fuente) pasa `umbral_db` durante `sostener_ms`, "
                         "propone poner esa banca al aire. `modo` proponer (de fabrica: el operador acepta) o automatico "
                         "(la arma sola en el preview; nunca corta, y no mueve una camara al aire). `accion` aceptar "
                         "(arma la propuesta) o descartar.");
@@ -2757,7 +2757,7 @@ void McpService::registerTools() {
                           {{"activo", {{"type", "boolean"}}},
                            {"modo", {{"type", "string"}, {"enum", {"proponer", "automatico"}}}},
                            {"fuente", {{"type", "string"}, {"enum", {"niveles", "conferencia"}},
-                                       {"description", ba::i18n::traducir("mcp", "niveles de los microfonos (de fabrica) o el sistema de conferencia del recinto (plugin conferencia-recinto)")}}},
+                                       {"description", QT_TRANSLATE_NOOP("mcp", "niveles de los microfonos (de fabrica) o el sistema de conferencia del recinto (plugin conferencia-recinto)")}}},
                            {"umbral_db", {{"type", "number"}, {"minimum", -60}, {"maximum", 0}}},
                            {"sostener_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}},
                            {"soltar_ms", {{"type", "integer"}, {"minimum", 200}, {"maximum", 30000}}},
@@ -2782,7 +2782,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Cargar el orden del dia");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Carga los puntos de la sesion desde `texto`: una linea por punto («1. Expte. 123/24 – Titulo», "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Carga los puntos de la sesion desde `texto`: una linea por punto («1. Expte. 123/24 – Titulo», "
                         "«2) Titulo») o CSV («n;expediente;titulo»). Reemplaza los que habia (el uso de la palabra sigue). "
                         "Con `limpiar`: true empieza una sesion nueva (borra puntos y tiempos).");
         t.inputSchema = {{"type", "object"},
@@ -2803,7 +2803,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Orden del dia");
         t.category = "oradores";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los puntos con su estado (pendiente, en_tratamiento, votado, comision, retirado), cuando se "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los puntos con su estado (pendiente, en_tratamiento, votado, comision, retirado), cuando se "
                         "trataron y el resultado; el punto actual; el uso de la palabra por orador (y por punto); y, si "
                         "se esta grabando, los capitulos por punto para pegar en YouTube.");
         t.run = [&vm](const json&, Done done) {
@@ -2821,7 +2821,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Cambiar el estado de un punto");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "El punto `n` pasa a `estado` (en_tratamiento: cierra el anterior, pone «Punto N: …» en {punto} "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El punto `n` pasa a `estado` (en_tratamiento: cierra el anterior, pone «Punto N: …» en {punto} "
                         "para los zocalos y lo marca para el acta y los capitulos), con `resultado` opcional («aprobado "
                         "por unanimidad»). Con `siguiente`: true, el proximo pendiente pasa a tratamiento.");
         t.inputSchema = {{"type", "object"},
@@ -2848,9 +2848,9 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Las plantillas del informe del resultado");
         t.category = "oradores";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las plantillas del informe del resultado de la sesión ({id, nombre}) y los campos que "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las plantillas del informe del resultado de la sesión ({id, nombre}) y los campos que "
                         "se pueden usar. Con `id`, también su texto y cómo queda rellenada con lo de ahora (`vista`).");
-        t.details = ba::i18n::traducir("mcp", "Una plantilla es Markdown con campos: {{cuerpo}}, {{evento}}, {{fecha}}, {{hora}}, "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Una plantilla es Markdown con campos: {{cuerpo}}, {{evento}}, {{fecha}}, {{hora}}, "
                     "{{generado}}, {{quorum.estado}}, {{quorum.presentes}}, {{quorum.necesarios}}, {{quorum.miembros}}, "
                     "{{padron.presentes}}, {{padron.total}}. Las listas se repiten entre {{#lista}} y {{/lista}} y adentro se "
                     "usan los campos de cada uno: presentes (nombre, papel, por_donde, hora), puntos (n, expediente, titulo, "
@@ -2881,7 +2881,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Escribir una plantilla del informe del resultado");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe una plantilla del informe del resultado (Markdown con campos: ver "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe una plantilla del informe del resultado (Markdown con campos: ver "
                         "informe_plantillas). Con `id` cambia esa (y su `nombre`, si viene); sin `id` crea una nueva con `nombre`. "
                         "`quitar`: true la borra. El operador la ve y la cambia en Asamblea → Informes → Plantillas.");
         t.inputSchema = {{"type", "object"},
@@ -2917,7 +2917,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Generar el informe del resultado en PDF");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Rellena la plantilla `plantilla` (su id; sin ella, la primera) con lo de ahora y la "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Rellena la plantilla `plantilla` (su id; sin ella, la primera) con lo de ahora y la "
                         "guarda en PDF en la carpeta del evento (informes/), con el Markdown al lado. Con `soloVer`: true "
                         "devuelve el texto sin escribir nada.");
         t.inputSchema = {{"type", "object"},
@@ -2942,7 +2942,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Terminar al orador presencial");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Termina a UN orador presencial: cierra el micrófono de su banca y para su reloj; no calla a los "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Termina a UN orador presencial: cierra el micrófono de su banca y para su reloj; no calla a los "
             "demás.");
         t.run = [&vm](const json&, Done done) {
             vm.bancas().terminar();
@@ -2956,7 +2956,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Silenciar a todos");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Calla a TODOS a la vez: cierra todos los micrófonos de la central menos el de la presidencia y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Calla a TODOS a la vez: cierra todos los micrófonos de la central menos el de la presidencia y "
             "termina al que está hablando. Lo mismo que el botón de prioridad del presidente en su unidad.");
         t.run = [&vm](const json&, Done done) {
             // La misma operación que el botón y las consolas; el error es el de la central.
@@ -2973,7 +2973,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Hablo yo (la presidencia)");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`activo: true` calla a todos (como presidencia_callar_todos) y abre el micrófono de la unidad de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`activo: true` calla a todos (como presidencia_callar_todos) y abre el micrófono de la unidad de "
                         "presidente de la central; false lo cierra. Hace falta la central conectada.");
         t.inputSchema = {{"type", "object"}, {"required", {"activo"}}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
@@ -2997,7 +2997,7 @@ void McpService::registerTools() {
             t.title = ba::i18n::traducir("mcp", "El debate en curso");
             t.category = "oradores";
             t.clase = Clase::Lectura;
-            t.description = ba::i18n::traducir("mcp", "Si hay un debate: los dos (A y B, de la sala o remotos, con el canal de cada remoto), de qué "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Si hay un debate: los dos (A y B, de la sala o remotos, con el canal de cada remoto), de qué "
                             "tipo es (sala_sala, sala_remoto, remoto_remoto), a quién le toca, cuánto le queda y la "
                             "escena; y la configuración (la escena de cada tipo, el tiempo de cada turno).");
             t.run = [deb](const json&, Done done) { done(ToolResult().data(deb->estadoJson())); };
@@ -3010,7 +3010,7 @@ void McpService::registerTools() {
             t.category = "oradores";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Debate entre `a` y `b` (banca, id o nombre del Cuerpo): dos de la sala, dos remotos o uno y uno. Termina "
+                QT_TRANSLATE_NOOP("mcp", "Debate entre `a` y `b` (banca, id o nombre del Cuerpo): dos de la sala, dos remotos o uno y uno. Termina "
                 "al orador que estaba; con alguno de la sala pone la central en modo operador con dos micrófonos (y la "
                 "devuelve como estaba al terminar); a los remotos les da la palabra todo el debate (A por «Remoto con la "
                 "palabra», B por «Remoto con la palabra 2»); lleva las cámaras de los de la sala a su banca y arma la "
@@ -3035,7 +3035,7 @@ void McpService::registerTools() {
             t.title = ba::i18n::traducir("mcp", "Dar el turno en el debate");
             t.category = "oradores";
             t.clase = Clase::Escritura;
-            t.description = ba::i18n::traducir("mcp", "`turno`: a, b, ambos o nadie. Al que no le toca se le cierra el micrófono (en la central, o su "
+            t.description = QT_TRANSLATE_NOOP("mcp", "`turno`: a, b, ambos o nadie. Al que no le toca se le cierra el micrófono (en la central, o su "
                             "audio en la mezcla y en su celular); su imagen sigue. Arranca el reloj del turno. `sumar`: "
                             "segundos de más (o de menos) al turno en curso.");
             t.inputSchema = {{"type", "object"},
@@ -3057,7 +3057,7 @@ void McpService::registerTools() {
             t.title = ba::i18n::traducir("mcp", "Terminar el debate");
             t.category = "oradores";
             t.clase = Clase::Escritura;
-            t.description = ba::i18n::traducir("mcp", "Cierra los micrófonos de los dos, les saca la palabra a los remotos y devuelve la central "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Cierra los micrófonos de los dos, les saca la palabra a los remotos y devuelve la central "
                             "como estaba. La escena no cambia.");
             t.run = [deb](const json&, Done done) {
                 deb->terminar();
@@ -3071,7 +3071,7 @@ void McpService::registerTools() {
             t.title = ba::i18n::traducir("mcp", "Configurar el debate");
             t.category = "oradores";
             t.clase = Clase::Escritura;
-            t.description = ba::i18n::traducir("mcp", "`escenas`: {sala_sala, sala_remoto, remoto_remoto} = la escena que se arma para cada tipo de "
+            t.description = QT_TRANSLATE_NOOP("mcp", "`escenas`: {sala_sala, sala_remoto, remoto_remoto} = la escena que se arma para cada tipo de "
                             "debate (para dos remotos, una que muestre «Remoto con la palabra» y «Remoto con la palabra 2»). "
                             "`turno_s`: segundos de cada turno (0 = sin reloj). `directo`: true corta la escena al aire en "
                             "vez de armarla. Sin argumentos, la muestra.");
@@ -3106,7 +3106,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Integrantes del cuerpo");
         t.category = "evento";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El cuerpo deliberativo: nombre e integrantes con banca, cargo oficial, bloque, distrito, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El cuerpo deliberativo: nombre e integrantes con banca, cargo oficial, bloque, distrito, "
                         "preset PTZ de su banca (camara/posicion), microfono y si estan VALIDADOS (validado_por). Es "
                         "la fuente unica para los zocalos, las bancas de la fila de oradores y el PTZ por banca.");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.cuerpo().cuerpo().todo())); };
@@ -3118,7 +3118,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Nombrar el cuerpo");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pone el nombre del cuerpo (p. ej. «Asamblea 2025-2029»). No borra integrantes.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pone el nombre del cuerpo (p. ej. «Asamblea 2025-2029»). No borra integrantes.");
         t.inputSchema = {{"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             vm.cuerpo().setNombre(QString::fromStdString(a.value("nombre", std::string())));
@@ -3132,7 +3132,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Importar la planilla de integrantes");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Importa una planilla CSV (coma o punto y coma, con encabezado: banca, nombre, cargo, bloque, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Importa una planilla CSV (coma o punto y coma, con encabezado: banca, nombre, cargo, bloque, "
                         "distrito, camara, posicion, microfono). Los que ya estan (por banca o nombre) se actualizan. "
                         "`reemplazar`: borra los de antes. cuerpo_plantilla escribe una de ejemplo.");
         t.inputSchema = {{"type", "object"},
@@ -3150,7 +3150,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Planilla de integrantes de ejemplo");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe una planilla CSV de ejemplo (encabezado y dos filas) en Exportado/ y devuelve la ruta.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe una planilla CSV de ejemplo (encabezado y dos filas) en Exportado/ y devuelve la ruta.");
         t.run = [&vm](const json&, Done done) {
             const QString r = vm.cuerpo().plantilla();
             if (r.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no se pudo escribir la planilla")));
@@ -3164,7 +3164,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un integrante del cuerpo");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Con `id` lo cambia; sin `id`, lo crea (`nombre` obligatorio). Campos: nombre, cargo_oficial, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Con `id` lo cambia; sin `id`, lo crea (`nombre` obligatorio). Campos: nombre, cargo_oficial, "
                         "bloque, distrito, banca (unica), camara + posicion (el preset PTZ de su banca), microfono (la "
                         "fuente de audio de su banca), dcn_unidad (la unidad de la central Bosch DCN de su banca; vacío la "
                         "saca), persona_id (la ficha de Personas), prioridad (número: mayor = antes en una grilla de "
@@ -3198,7 +3198,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Ver un integrante del cuerpo");
         t.category = "evento";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Busca por id, banca o nombre.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Busca por id, banca o nombre.");
         t.inputSchema = {{"type", "object"}, {"required", {"clave"}}, {"properties", {{"clave", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             const json r = vm.cuerpo().cuerpo().buscar(a.value("clave", std::string()));
@@ -3213,7 +3213,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Validar los datos de un integrante");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Marca que una persona revisó el nombre y el cargo de un integrante (lo que sale en el zocalo). "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Marca que una persona revisó el nombre y el cargo de un integrante (lo que sale en el zocalo). "
                         "Confirmalo con el operador: es lo que hace que salga al aire sin aviso.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
@@ -3230,7 +3230,7 @@ void McpService::registerTools() {
         t.category = "evento";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra un integrante (`id`).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un integrante (`id`).");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (!vm.cuerpo().borrar(QString::fromStdString(a.value("id", std::string()))))
@@ -3245,7 +3245,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "La foto de un integrante");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "La foto de un integrante (`banca`, id o nombre), que es la cara de su botón en la botonera: "
+        t.description = QT_TRANSLATE_NOOP("mcp", "La foto de un integrante (`banca`, id o nombre), que es la cara de su botón en la botonera: "
                         "`archivo` (una imagen: se recorta cuadrada) o `capturar: true` (lleva la cámara de su banca a "
                         "su preset, si no está al aire, y toma lo que se ve; tarda unos segundos y el resultado llega "
                         "como aviso). `quitar: true` la saca. `faltantes: true` (sin banca) saca una por una las de "
@@ -3290,7 +3290,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "La grilla del recinto");
         t.category = "evento";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las bancas como se ven desde la cabina: {filas, columnas, bancas: [{banca, fila, columna, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las bancas como se ven desde la cabina: {filas, columnas, bancas: [{banca, fila, columna, "
                         "x?, y?, integrante: {id, nombre, bloque, preset_ptz, validado}}], presidencia?: {banca, integrante}, "
                         "sin_lugar: [bancas del cuerpo que no están en la grilla]}. Fila 0 = la de adelante; columna 0 = "
                         "la izquierda desde la cabina. x, y: la banca se ubicó a mano en el hemiciclo (en anchos de "
@@ -3305,7 +3305,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Armar la grilla del recinto");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cambia la grilla: `filas` y `columnas`; `auto: true` acomoda todas las bancas del cuerpo en "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia la grilla: `filas` y `columnas`; `auto: true` acomoda todas las bancas del cuerpo en "
                         "orden (de adelante para atrás, de izquierda a derecha); `mover: {banca, fila, columna}` una "
                         "sola (fila -1 la saca); `bancas: [{banca, fila, columna}]` reemplaza la lista entera. Si algo "
                         "no cierra (fuera de la grilla, dos en un lugar), no cambia nada y dice por qué. "
@@ -3346,7 +3346,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Apuntar la cámara a una banca");
         t.category = "camaras";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Lleva la PTZ a la toma de la banca (por banca, id o nombre) para tenerla lista, sin armar ni "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lleva la PTZ a la toma de la banca (por banca, id o nombre) para tenerla lista, sin armar ni "
                         "abrir micrófonos. No mueve la cámara que está al aire. Para ponerla al aire: banca_al_aire; "
                         "para pedirlo de palabra (banca, persona o posición): enfocar.");
         t.inputSchema = {{"type", "object"}, {"required", {"banca"}}, {"properties", {{"banca", {{"type", "string"}}}}}};
@@ -3366,7 +3366,7 @@ void McpService::registerTools() {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "lleva una cámara a una banca, persona o posición (si está al aire, se ve)");
         t.aireSi = AireSi::CamaraForzada;
         t.description =
-            ba::i18n::traducir("mcp", "Lleva la cámara a lo que se pida DE PALABRA: «banca 10», «10», el nombre de un integrante "
+            QT_TRANSLATE_NOOP("mcp", "Lleva la cámara a lo que se pida DE PALABRA: «banca 10», «10», el nombre de un integrante "
             "(«Pepito López», o solo «López»; sin importar tildes ni mayúsculas) o el nombre de una "
             "posición de cualquier cámara («Presidencia», «Plano general»). La banca usa SU toma (cámara "
             "y posición de la banca, configuradas en las bancas). Solo apunta: no da la palabra (eso es "
@@ -3377,7 +3377,7 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"que"}},
                          {"properties",
-                          {{"que", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "«banca 10», un nombre o el de una posición")}}},
+                          {{"que", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "«banca 10», un nombre o el de una posición")}}},
                            {"forzar", {{"type", "boolean"}}},
                            {"solo_ver", {{"type", "boolean"}}}}}};
         t.examples = {R"({"que": "banca 10"})", R"({"que": "Pepito López"})", R"({"que": "Presidencia"})"};
@@ -3412,7 +3412,7 @@ void McpService::registerTools() {
         t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Asocia la banca `banca` a una cámara (`camara`, la entrada) y a una de sus posiciones "
+            QT_TRANSLATE_NOOP("mcp", "Asocia la banca `banca` a una cámara (`camara`, la entrada) y a una de sus posiciones "
             "(`posicion`, nombre o id: ptz_posiciones las da). La toma es de la BANCA, no de la persona: "
             "si alguien cambia de banca, queda. La usan banca_al_aire, el debate, enfocar y la fuente "
             "«Banca con la palabra». `camara` vacía la saca.");
@@ -3446,7 +3446,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Lo que oye cada invitado");
         t.category = "sala";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Mix-minus: cada invitado recibe el programa SIN su propia voz (de fabrica), asi no se escucha "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Mix-minus: cada invitado recibe el programa SIN su propia voz (de fabrica), asi no se escucha "
                         "con retardo ni hace eco. `retorno`: mix_minus o programa (el programa entero). Por `slot` "
                         "(1..invitados). Sin `retorno`, dice lo de cada slot.");
         t.inputSchema = {{"type", "object"},
@@ -3468,7 +3468,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Disco de la grabacion");
         t.category = "salidas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Cuanto disco queda y para cuantas horas alcanza al bitrate de todo lo que se graba "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cuanto disco queda y para cuantas horas alcanza al bitrate de todo lo que se graba "
                         "(grabación, copia, señal limpia e ISO de todas las salidas, repartido por disco: manda el que antes "
                         "se llena; sin grabar, lo que sumaría arrancar la grabación); si alguna copia va al mismo disco que su "
                         "grabación (`copia_mismo_volumen`, `mismo_volumen`); y el estado del ultimo pase a MP4 (remux).");
@@ -3484,7 +3484,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "El disco, para la grabacion del programa");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cuando el disco no da abasto (lo grabado espera en memoria para entrar, o el registro no puede "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cuando el disco no da abasto (lo grabado espera en memoria para entrar, o el registro no puede "
                         "escribir): `priorizar` true le da el disco a la grabacion del programa (pausa las ISO, la "
                         "repeticion, la copia si va al mismo disco y la senal limpia a disco; el registro se junta en "
                         "memoria); false sigue con todo. Cuando el disco anda bien 30 s, todo sigue solo. `modo`: "
@@ -3496,7 +3496,7 @@ void McpService::registerTools() {
                            {"modo", {{"type", "string"}, {"enum", {"preguntar", "auto", "nunca"}}}}}}};
         if (rt.config().modoPrueba)
             t.inputSchema["properties"]["probar_trabado_ms"] = {
-                {"type", "integer"}, {"description", ba::i18n::traducir("mcp", "Solo con --test: la grabación del programa, como con el disco trabado tantos ms.")}};
+                {"type", "integer"}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo con --test: la grabación del programa, como con el disco trabado tantos ms.")}};
         t.run = [&rt](const json& a, Done done) {
             if (a.contains("probar_trabado_ms") && rt.config().modoPrueba)
                 rt.engine().simularDiscoTrabado(std::clamp(a.value("probar_trabado_ms", 0), 0, 120000));
@@ -3523,7 +3523,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Probar una caida (solo --test)");
         t.category = "sistema";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "SOLO EN MODO PRUEBA. Tira la app abajo a proposito para probar los volcados: "
+        t.description = QT_TRANSLATE_NOOP("mcp", "SOLO EN MODO PRUEBA. Tira la app abajo a proposito para probar los volcados: "
                         "`tipo` acceso (violacion de acceso), heap (corrupcion del heap) o abort. "
                         "El launcher la relanza; el volcado y su .json quedan en Logs/dumps.");
         t.inputSchema = {{"type", "object"},
@@ -3568,7 +3568,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Trabar la interfaz (solo --test)");
         t.category = "sistema";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "SOLO EN MODO PRUEBA. Traba el hilo de la interfaz `segundos` (1 a 60) con un "
+        t.description = QT_TRANSLATE_NOOP("mcp", "SOLO EN MODO PRUEBA. Traba el hilo de la interfaz `segundos` (1 a 60) con un "
                         "bucle ocupado, medio segundo después de contestar. Mientras dure, nada de la interfaz "
                         "(ni este MCP) contesta.");
         t.inputSchema = {{"type", "object"},
@@ -3593,7 +3593,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Inyectar una falla en una salida (solo --test)");
         t.category = "sistema";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "SOLO EN MODO PRUEBA. Programa una falla: `pieza` codificador (deja de codificar, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "SOLO EN MODO PRUEBA. Programa una falla: `pieza` codificador (deja de codificar, "
                         "como un codificador de placa que se cae) o sumidero (no puede escribir: disco o conexión) de "
                         "`salida` grabacion o transmision, dentro de `en_s` segundos (0 = ya). La primera de ese tipo "
                         "que pase se la lleva, una vez. `salida` video con `pieza` gpu: la GPU del video se pierde (el mezclador "
@@ -3623,7 +3623,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Pasar una grabacion a MP4/MOV");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pasa un `archivo` .mkv a `formato` (mp4, de fabrica, o mov) sin recodificar, en otro hilo "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pasa un `archivo` .mkv a `formato` (mp4, de fabrica, o mov) sin recodificar, en otro hilo "
                         "(record_disco dice como va). `borrar_mkv`: borrar el original si salio bien (de fabrica false).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"archivo"}},
@@ -3647,7 +3647,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Ajustes de la grabacion");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "`contenedor`: mkv (de fabrica, sobrevive a un corte), mp4, mov o flv (mp4/mov se graban en MKV "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`contenedor`: mkv (de fabrica, sobrevive a un corte), mp4, mov o flv (mp4/mov se graban en MKV "
                         "y se pasan al terminar); `remux_al_terminar`. `calidad`: como_stream (comparte el encode de "
                         "la transmisión) o archivo (codificador propio a calidad constante `crf`, 14-28; un encode "
                         "más). `pistas`: las pistas EXTRA de la Matriz (2-6) que se graban aparte, cada una con lo "
@@ -3694,7 +3694,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Destinos de la transmision");
         t.category = "salidas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los destinos adicionales (respaldo, otras plataformas), que comparten los codificadores del "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los destinos adicionales (respaldo, otras plataformas), que comparten los codificadores del "
                         "principal: cada uno con su estado (activo, reconectando, cuadros perdidos) y si tiene clave "
                         "guardada. El principal es el de stream_start sin `destino`.");
         t.run = [&rt](const json&, Done done) {
@@ -3710,7 +3710,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un destino de transmision");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se "
                         "guarda cifrada; mejor que la cargue el operador en Salidas > + Destino…, donde no la ves; en "
                         "SRT es la passphrase, en RTMP la stream key), `respaldo`. SRT: `modo` (caller, listener, "
                         "rendezvous) y `latencia_ms` (120 en LAN, 4× el ping por internet). `url_respaldo`: el punto "
@@ -3744,7 +3744,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Cambiar un destino de transmision");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cambia `nombre`, `url`, `url_respaldo` (el ingest de respaldo, misma clave; "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia `nombre`, `url`, `url_respaldo` (el ingest de respaldo, misma clave; "
                                                   "\"\" lo saca), `clave` o `respaldo` del destino `id`; con `salida`, "
                                                   "lo pasa a tomar el programa de esa salida.");
         t.inputSchema = {{"type", "object"},
@@ -3773,7 +3773,7 @@ void McpService::registerTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "borra un destino (si transmite, lo corta)");
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra el destino `id` (si estaba transmitiendo, lo corta) y su clave guardada.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra el destino `id` (si estaba transmitiendo, lo corta) y su clave guardada.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {
             const std::string e = rt.borrarDestino(a.value("id", std::string()));
@@ -3789,7 +3789,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Repetición: cuántos segundos guardar");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Guarda en memoria los últimos `segundos` del programa (5 a 600; 0 la apaga) para "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Guarda en memoria los últimos `segundos` del programa (5 a 600; 0 la apaga) para "
                         "replay_guardar. Usa el mismo encode que la transmisión. Sin argumentos informa. Cada salida tiene la "
                         "suya (`salida`; la de las demás no queda guardada para el próximo arranque).");
         t.inputSchema = {{"type", "object"},
@@ -3810,7 +3810,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Repetir: guardar los últimos segundos");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe a disco los últimos segundos de la repetición (Recordings/repeticiones/) y "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe a disco los últimos segundos de la repetición (Recordings/repeticiones/) y "
                         "devuelve el archivo. Con `y_armar: true` lo pone en la escena «Repetición» y la deja "
                         "armada para el take (no la saca al aire).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"y_armar", {{"type", "boolean"}}}}}};
@@ -3843,7 +3843,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Señal limpia (clean feed)");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "El programa SIN las capas globales (zócalos DSK, logo) ni la placa de seguridad: lo que "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El programa SIN las capas globales (zócalos DSK, logo) ni la placa de seguridad: lo que "
                         "piden un canal o una cadena que ponen su propia gráfica. Sin argumentos informa. "
                         "`activar: true` la arranca: con `destino` (id de stream_destinos: rtmp/srt/rist, con su "
                         "clave guardada) la manda ahí; sin destino la graba en Recordings/limpia/. `activar: false` "
@@ -3870,7 +3870,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Qué salidas profesionales hay");
         t.category = "salidas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Qué salidas de contribución trae este equipo y cuáles no, para no prometer lo que no hay.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Qué salidas de contribución trae este equipo y cuáles no, para no prometer lo que no hay.");
         t.run = [&rt](const json&, Done done) {
             const bool ts = motor::hayFabrica("mpegtsmux") && motor::hayFabrica("srtsink");
             done(ToolResult().data(json{
@@ -3893,9 +3893,9 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Grabar cada entrada por separado");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Graba una entrada a su propio archivo, ademas del programa.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Graba una entrada a su propio archivo, ademas del programa.");
         t.details =
-            ba::i18n::traducir("mcp", "Para un evento que despues hay que EDITAR: el programa sirve para subirlo esa misma "
+            QT_TRANSLATE_NOOP("mcp", "Para un evento que despues hay que EDITAR: el programa sirve para subirlo esa misma "
             "noche, y los archivos por entrada para armar la version buena sin haber perdido nada.\n\n"
             "Sin argumentos informa que se esta grabando. Con `arrancar` o `parar` (listas de nombres "
             "de fuente) lo cambia. `todas: true` con `arrancar` toma todas las fuentes de video de la "
@@ -3913,9 +3913,9 @@ void McpService::registerTools() {
              {{"arrancar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
               {"parar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
               {"todas",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Con `arrancar`: todas las de la escena al aire.")}}},
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Con `arrancar`: todas las de la escena al aire.")}}},
               {"invitado",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Id o nombre de un invitado de la conferencia: graba su fuente.")}}}}}};
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Id o nombre de un invitado de la conferencia: graba su fuente.")}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
             std::vector<std::string> arrancar;
             if (a.contains("invitado")) {
@@ -3965,7 +3965,7 @@ void McpService::registerTools() {
         t.category = "config";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Todos los ajustes (o los de una seccion) con clave, valor, tipo, opciones, rango, ayuda y "
+            QT_TRANSLATE_NOOP("mcp", "Todos los ajustes (o los de una seccion) con clave, valor, tipo, opciones, rango, ayuda y "
             "alcance (live = en el momento, gateway = reinicia la conferencia, restart = al proximo arranque).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"section", {{"type", "string"}}}}}};
         SettingsModel* settings = settings_.get();
@@ -4001,17 +4001,17 @@ void McpService::registerTools() {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan)");
         t.aireSi = AireSi::AjustesQueCortan;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia uno o varios ajustes por clave y los aplica y guarda. Los de alcance 'gateway' "
+            std::string(QT_TRANSLATE_NOOP("mcp", "Cambia uno o varios ajustes por clave y los aplica y guarda. Los de alcance 'gateway' "
             "reinician la conferencia (los invitados se reconectan solos); los 'motor' (el lienzo, la salida, los "
             "cuadros por segundo, el formato y el color: video.width, video.height, video.outputWidth, "
             "video.outputHeight, video.fps, video.formato, video.color, video.rango) REINICIAN EL MOTOR; los "
-            "'restart', al proximo arranque.") + "\n\n" + avisoReiniciaMotor();
+            "'restart', al proximo arranque.")) + "\n\n" + avisoReiniciaMotor();
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"values", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "{clave: valor} (ver settings_list).")}}},
+             {{"values", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "{clave: valor} (ver settings_list).")}}},
               {"resetSection",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Volver a los valores por defecto de una seccion.")}}}}}};
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Volver a los valores por defecto de una seccion.")}}}}}};
         t.examples = {R"({"values": {"encoder.bitrate": 4500, "video.fps": "30"}})",
                       R"({"values": {"room.lobby": false}})"};
         SettingsModel* settings = settings_.get();
@@ -4084,7 +4084,7 @@ void McpService::registerTools() {
         t.title = ba::i18n::traducir("mcp", "Guardar configuracion");
         t.category = "config";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Guarda escenas y ajustes en disco (las herramientas ya guardan solas; esto fuerza).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Guarda escenas y ajustes en disco (las herramientas ya guardan solas; esto fuerza).");
         t.run = [&rt](const json&, Done done) {
             done(rt.save() ? ToolResult::ok(ba::i18n::traducir("mcp", "Guardado.")) : ToolResult::error(rt.lastError()));
         };

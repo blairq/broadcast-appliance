@@ -35,11 +35,11 @@ void McpService::registerGrillaTools() {
         t.category = "fuentes";
         t.clase = Clase::Lectura;
         t.untrustedOutput = true; // los nombres los escribieron los invitados
-        t.description = ba::i18n::traducir("mcp", "Las fuentes «Grilla de personas» (ba_grilla): a quién muestra cada una ahora, cuántos quedaron en el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las fuentes «Grilla de personas» (ba_grilla): a quién muestra cada una ahora, cuántos quedaron en el "
                         "«+N», su canal y sus ajustes principales; y la gente que puede aparecer (conferencia y asamblea) con "
                         "quién habla, quién ya está al aire (en otra fuente o en una grilla que se ve), quién tiene la "
                         "cámara prendida, en qué grillas está cada uno y lo decidido a mano (fijo, fuera).");
-        t.details = ba::i18n::llenar(ba::i18n::traducir("mcp", "Una grilla crece y se acomoda sola con la gente conectada: los admitidos de la Conferencia (al aire o en la "
+        t.details = ba::i18n::llenar(QT_TRANSLATE_NOOP("mcp", "Una grilla crece y se acomoda sola con la gente conectada: los admitidos de la Conferencia (al aire o en la "
                     "fila de oradores) y los integrantes habilitados de la Asamblea. La misma fuente en dos escenas es la "
                     "misma imagen: para repartir gente entre escenas se crean varias con el mismo `grupo`. Crear una: "
                     "crear_fuente {type: \"ba_grilla\", name, settings: {…}}. Ajustes: %1"), {ajustesAyuda});
@@ -62,13 +62,13 @@ void McpService::registerGrillaTools() {
         t.category = "fuentes";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::llenar(ba::i18n::traducir("mcp", "Cambia los ajustes de una fuente «Grilla de personas» (los mismos de la ventana Propiedades). Solo "
+        t.description = ba::i18n::llenar(QT_TRANSLATE_NOOP("mcp", "Cambia los ajustes de una fuente «Grilla de personas» (los mismos de la ventana Propiedades). Solo "
                         "los que vienen; se validan todos antes de tocar nada. %1"), {ajustesAyuda});
         t.inputSchema = {{"type", "object"},
                          {"required", {"fuente", "ajustes"}},
                          {"properties",
-                          {{"fuente", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el nombre de la fuente ba_grilla")}}},
-                           {"ajustes", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "los ajustes a cambiar")}}}}}};
+                          {{"fuente", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el nombre de la fuente ba_grilla")}}},
+                           {"ajustes", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "los ajustes a cambiar")}}}}}};
         t.examples = {R"({"fuente": "Grilla", "ajustes": {"origen": "asamblea", "orden": "prioridad", "tope": 12}})",
                       R"({"fuente": "Grilla 2", "ajustes": {"grupo": "recinto", "orden_en_grupo": 2, "reparto": "parejo"}})"};
         t.run = [vmp](const json& a, Done done) {
@@ -83,8 +83,8 @@ void McpService::registerGrillaTools() {
 
     // --- A mano: lo mismo que el menú de cada cara en la vista de las grillas ------------
     // (Propiedades de la fuente, Sala, Asamblea). Las claves salen de grilla_personas_estado.
-    const json esquemaClave = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la persona: sala:<id> o asamblea:<id> (ver grilla_personas_estado)")}};
-    const json esquemaFuente = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el nombre de la fuente ba_grilla")}};
+    const json esquemaClave = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la persona: sala:<id> o asamblea:<id> (ver grilla_personas_estado)")}};
+    const json esquemaFuente = {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el nombre de la fuente ba_grilla")}};
     const auto aMano = [this, vmp](const char* nombre, const std::string& titulo, const std::string& descripcion, json props,
                                    std::vector<std::string> requeridos, std::vector<std::string> ejemplos,
                                    std::function<std::string(escenas::ControlGrillas&, const json&)> hacer,
@@ -96,7 +96,7 @@ void McpService::registerGrillaTools() {
         t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description = descripcion;
-        t.details = ba::i18n::traducir("mcp", "Lo decidido a mano vive mientras la app está abierta (las claves son de la conexión de cada uno) y "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Lo decidido a mano vive mientras la app está abierta (las claves son de la conexión de cada uno) y "
                     "se ve en la vista de las grillas: en las Propiedades de la fuente, en la Conferencia y en la Asamblea.");
         t.inputSchema = {{"type", "object"}, {"required", requeridos}, {"properties", props}};
         t.examples = std::move(ejemplos);
@@ -127,8 +127,8 @@ void McpService::registerGrillaTools() {
           ba::i18n::traducir("mcp", "Pasa a una persona de una grilla a otra: la fija en `hacia` y, si las dos son de grupos distintos, la saca de "
           "`desde`."),
           {{"clave", esquemaClave},
-           {"desde", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la grilla donde está")}}},
-           {"hacia", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la grilla adonde va")}}}},
+           {"desde", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la grilla donde está")}}},
+           {"hacia", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la grilla adonde va")}}}},
           {"clave", "desde", "hacia"}, {R"({"clave": "sala:3f2a", "desde": "Grilla", "hacia": "Grilla 2"})"},
           [txt](escenas::ControlGrillas& g, const json& a) { return g.mover(txt(a, "clave"), txt(a, "desde"), txt(a, "hacia")); },
           [txt](const json& a) { return ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: «%1» pasó de «%2» a «%3»."), {txt(a, "clave"), txt(a, "desde"), txt(a, "hacia")}); });

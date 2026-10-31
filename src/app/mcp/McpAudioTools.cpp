@@ -45,8 +45,8 @@ using audio::RackManager;
 
 namespace {
 
-const json kSource{{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de la fuente (audio_sources)")}};
-const json kNode{{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Id del nodo del rack (audio_rack)")}};
+const json kSource{{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre de la fuente (audio_sources)")}};
+const json kNode{{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Id del nodo del rack (audio_rack)")}};
 
 // Nodo por id, o el primero del tipo del catalogo si no se dio.
 std::string resolveNode(AudioRack& rack, const std::string& node, const audio::ModuleType* type) {
@@ -89,7 +89,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "TODO el audio de una vez, como la vista Estudio de la página Audio: cada fuente con su cadena "
+            QT_TRANSLATE_NOOP("mcp", "TODO el audio de una vez, como la vista Estudio de la página Audio: cada fuente con su cadena "
             "entera de izquierda a derecha — origen (micrófono, invitado, red…) → los módulos de su rack → los filtros de su cadena de GStreamer (automixer…) → la mezcla "
             "(volumen, silencio) —, los cables entre fuentes (tarjetas «Entrada») y las mesas del automixer. "
             "Para ver de un vistazo qué pasa por dónde; para cambiar algo, audio_rack / automixer / "
@@ -125,7 +125,7 @@ void McpService::registerAudioTools() {
         t.title = ba::i18n::traducir("mcp", "Grupos del mezclador");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Los grupos de tiras del mezclador (tiras seguidas del mismo tipo: «Invitado 1…N (audio)», los "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los grupos de tiras del mezclador (tiras seguidas del mismo tipo: «Invitado 1…N (audio)», los "
                         "remotos) y cuáles están compactados. Con `grupo` y `compacto`, compacta uno (sin faders: un "
                         "bloque con una casilla por tira) o lo despliega, como el botón de su primera tira; con `grupo` "
                         "y `mudo`, silencia o abre todo el grupo en la mezcla de la `salida` (cada una tiene la suya; "
@@ -135,10 +135,10 @@ void McpService::registerAudioTools() {
         t.porSalida = true;
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"grupo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la clave, como la lista esta herramienta")}}},
+                          {{"grupo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la clave, como la lista esta herramienta")}}},
                            {"compacto", {{"type", "boolean"}}},
                            {"mudo", {{"type", "boolean"}}},
-                           {"volumenDb", {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "de -60 a +12; 0 = sin cambio")}}}}}};
+                           {"volumenDb", {{"type", "number"}, {"description", QT_TRANSLATE_NOOP("mcp", "de -60 a +12; 0 = sin cambio")}}}}}};
         t.run = [vm, this](const json& a, Done done) {
             auto* m = qobject_cast<MixerModel*>(vm->mixer());
             const std::string salida = core_.salidaDe(a); // la pedida, no la que muestra la interfaz
@@ -165,7 +165,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "El inventario de fuentes con SONIDO. "
+            QT_TRANSLATE_NOOP("mcp", "El inventario de fuentes con SONIDO. "
             "Todas las fuentes con audio (microfonos, placas, videos con sonido, invitados...), si tienen "
             "rack, cuantos modulos y el nivel de salida.");
         t.run = [mgr](const json&, Done done) {
@@ -184,10 +184,10 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Guarda el rack de una fuente con nombre, se lo aplica a otra, lo borra, o lo marca como "
+            QT_TRANSLATE_NOOP("mcp", "Guarda el rack de una fuente con nombre, se lo aplica a otra, lo borra, o lo marca como "
             "predeterminado de un tipo de fuente. Sin argumentos, lista las que hay.");
         t.details =
-            ba::i18n::traducir("mcp", "Un rack armado a mano (compuerta, compresor, de-esser, sus parametros y sus cables) es media "
+            QT_TRANSLATE_NOOP("mcp", "Un rack armado a mano (compuerta, compresor, de-esser, sus parametros y sus cables) es media "
             "hora de trabajo. Guardarlo con nombre permite ponerselo a otra fuente en un clic.\n\n"
             "Lo que mas sirve es `porDefecto`: marcada para un tipo de fuente (`ba_guest_audio` son los "
             "invitados), las fuentes NUEVAS de ese tipo la toman solas al crearse. O sea que un invitado "
@@ -200,14 +200,14 @@ void McpService::registerAudioTools() {
             {"type", "object"},
             {"properties",
              {{"guardar",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre con el que guardar el rack de `source`.")}}},
-              {"aplicar", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Plantilla a ponerle a `source`.")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre con el que guardar el rack de `source`.")}}},
+              {"aplicar", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Plantilla a ponerle a `source`.")}}},
               {"borrar", {{"type", "string"}}},
-              {"porDefecto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Plantilla a marcar.")}}},
+              {"porDefecto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Plantilla a marcar.")}}},
               {"paraTipo",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "Tipo de fuente para `porDefecto` (vacio = desmarcar).")}}},
-              {"source", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La fuente, para guardar o aplicar.")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "Tipo de fuente para `porDefecto` (vacio = desmarcar).")}}},
+              {"source", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La fuente, para guardar o aplicar.")}}}}}};
         t.run = [mgr](const json& a, Done done) {
             const std::string src = a.value("source", std::string());
             std::string err;
@@ -235,7 +235,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "El grafo del rack: nodos (in, out, modulos, analizadores, generadores) con sus puertos y "
+            QT_TRANSLATE_NOOP("mcp", "El grafo del rack: nodos (in, out, modulos, analizadores, generadores) con sus puertos y "
             "medidores (entradaDb, salidaDb, cambioDb = lo que el modulo sube o baja) y los cables.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"source", kSource}}}, {"required", {"source"}}};
         t.run = [mgr](const json& a, Done done) {
@@ -253,10 +253,10 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Los seis modulos que el aparato maneja con nombre propio —compuerta, compresor, "
+            QT_TRANSLATE_NOOP("mcp", "Los seis modulos que el aparato maneja con nombre propio —compuerta, compresor, "
             "deesser, ecualizador, multibanda, limitador— con sus parametros explicados, sus rangos "
             "y sus presets. Son los que conviene usar cuando alcanzan.");
-        t.details = ba::i18n::traducir("mcp", "Para cualquier otro de los ~200 instalados, `audio_plugin_buscar`: busca en castellano "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Para cualquier otro de los ~200 instalados, `audio_plugin_buscar`: busca en castellano "
                     "y dice para que sirve cada uno. Aca estaba antes ese buscador, haciendo una busqueda "
                     "literal peor y devolviendo el catalogo entero encima —19 KB para leer diez lineas—. "
                     "Dos buscadores para lo mismo es uno de mas.");
@@ -295,10 +295,10 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Busca EN CASTELLANO entre todos los plugins de audio instalados (~200) y devuelve los "
+            QT_TRANSLATE_NOOP("mcp", "Busca EN CASTELLANO entre todos los plugins de audio instalados (~200) y devuelve los "
             "que sirven para lo que pediste, con para que sirve cada uno y cuantos canales maneja. "
             "El rack no se limita a los seis modulos con interfaz propia.");
-        t.details = ba::i18n::traducir("mcp", "POR QUE HACE FALTA BUSCAR. Los plugins se describen en ingles («performs gating of "
+        t.details = QT_TRANSLATE_NOOP("mcp", "POR QUE HACE FALTA BUSCAR. Los plugins se describen en ingles («performs gating of "
                     "input signal») y son doscientos: ni entran en una lista ni se encuentran pidiendo lo "
                     "que uno quiere. Aca hay un indice hecho a mano con las palabras de una cabina —«que la "
                     "musica baje cuando hablan», «sacale el siseo», «que no pase de cierto volumen»— sobre "
@@ -312,7 +312,7 @@ void McpService::registerAudioTools() {
             {"type", "object"},
             {"required", {"buscar"}},
             {"properties",
-             {{"buscar", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "que necesitas, con tus palabras")}}},
+             {{"buscar", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "que necesitas, con tus palabras")}}},
               {"limite", {{"type", "integer"}, {"default", 10}}}}}};
         t.examples = {R"({"buscar": "que la musica baje cuando hablan"})",
                       R"({"buscar": "sacarle el siseo a la voz"})",
@@ -422,7 +422,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Agrega un modulo al rack de la fuente (lo crea si no tiene): del catalogo (gate, "
+            QT_TRANSLATE_NOOP("mcp", "Agrega un modulo al rack de la fuente (lo crea si no tiene): del catalogo (gate, "
             "compresor, deesser, "
             "eq, multibanda, limitador) o cualquier id LSP. Se inserta en la cadena despues de "
             "`after` (vacio = "
@@ -500,7 +500,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Quita un nodo del rack; lo que entraba se conecta a donde salia (la cadena sigue). "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Quita un nodo del rack; lo que entraba se conecta a donde salia (la cadena sigue). "
                         "`node: \"*\"` quita el rack entero (el audio vuelve a pasar directo).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"source", kSource}, {"node", kNode}}},
@@ -527,7 +527,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "La tarjeta Entrada `node` del rack de `source` pasa a traer el audio de `fuente` (otra entrada "
+        t.description = QT_TRANSLATE_NOOP("mcp", "La tarjeta Entrada `node` del rack de `source` pasa a traer el audio de `fuente` (otra entrada "
                         "con audio), sin perder sus cables. No acepta lazos entre racks.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"source", kSource}, {"node", kNode}, {"fuente", {{"type", "string"}}}}},
@@ -546,7 +546,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Conecta y/o desconecta cables como en JACK: {desde, salida (\"out\"), hacia, entrada "
+            QT_TRANSLATE_NOOP("mcp", "Conecta y/o desconecta cables como en JACK: {desde, salida (\"out\"), hacia, entrada "
             "(\"in\" o \"sc\" para sidechain)}. Varios cables a una entrada se suman (ramas en "
             "paralelo). No se permiten ciclos. Por CANAL: agregar `canalSalida` y `canalEntrada` con "
             "\"L\" o \"R\" (p. ej. la derecha de un modulo a la izquierda de otro, o usar un solo "
@@ -606,7 +606,7 @@ void McpService::registerAudioTools() {
         t.title = ba::i18n::traducir("mcp", "Acomodar las tarjetas del rack");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Acomoda las tarjetas del rack de `source` en la grilla siguiendo el orden de la "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Acomoda las tarjetas del rack de `source` en la grilla siguiendo el orden de la "
                         "cadena (el botón "
                         "«Ordenar» de la página Audio). No cambia ningún cable.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"source", kSource}}}, {"required", {"source"}}};
@@ -626,7 +626,7 @@ void McpService::registerAudioTools() {
         t.title = ba::i18n::traducir("mcp", "Vigia de los modulos de audio");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cada modulo CLAP se mide en cada bloque. Si tarda mas del `umbral_pct` % de lo que dura el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cada modulo CLAP se mide en cada bloque. Si tarda mas del `umbral_pct` % de lo que dura el "
                         "bloque (de fabrica 50) durante `bloques` seguidos (20), queda en bypass automatico (no se lo "
                         "llama mas; el audio pasa sin procesar) hasta audio_module_rearmar. Un modulo que no vuelve en "
                         "200 ms deja el rack «colgado»: la fuente pasa seca. audio_rack muestra ms_ultimo, ms_medio, "
@@ -647,7 +647,7 @@ void McpService::registerAudioTools() {
         t.title = ba::i18n::traducir("mcp", "Rearmar un modulo saltado por lento");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Saca un modulo del bypass automatico (el vigia lo salto por lento) y saca al rack de "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca un modulo del bypass automatico (el vigia lo salto por lento) y saca al rack de "
                         "«colgado». Si sigue lento, el vigia lo vuelve a saltar.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"source", kSource}, {"node", kNode}}},
@@ -668,7 +668,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "bypass=true: el modulo deja pasar el audio sin procesarlo (para comparar antes/despues).");
+            QT_TRANSLATE_NOOP("mcp", "bypass=true: el modulo deja pasar el audio sin procesarlo (para comparar antes/despues).");
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"source", kSource}, {"node", kNode}, {"bypass", {{"type", "boolean"}}}}},
@@ -691,7 +691,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Parametros del modulo con sus valores (en unidades) y medidores. Los del catalogo con sus "
+            QT_TRANSLATE_NOOP("mcp", "Parametros del modulo con sus valores (en unidades) y medidores. Los del catalogo con sus "
             "claves; `todos: true` lista todos los parametros LSP (con opciones o rango).");
         t.inputSchema = {
             {"type", "object"},
@@ -722,7 +722,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia parametros: claves del catalogo (umbral_db, ratio...) o nombres LSP (audio_module_get "
+            QT_TRANSLATE_NOOP("mcp", "Cambia parametros: claves del catalogo (umbral_db, ratio...) o nombres LSP (audio_module_get "
             "todos). Valores en unidades reales: numeros (-30, 20, 4000) o texto (\"20 ms\", \"Bell\", "
             "\"on\"). `preset` aplica uno del catalogo antes.");
         t.inputSchema = {{"type", "object"},
@@ -771,16 +771,16 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         json props{{"source", kSource},
-                   {"node", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nodo (vacio = el primero de este tipo)")}}},
-                   {"crear", {{"type", "boolean"}, {"default", true}, {"description", ba::i18n::traducir("mcp", "Crearlo si no esta")}}},
-                   {"after", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Al crearlo: despues de que nodo")}}},
+                   {"node", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nodo (vacio = el primero de este tipo)")}}},
+                   {"crear", {{"type", "boolean"}, {"default", true}, {"description", QT_TRANSLATE_NOOP("mcp", "Crearlo si no esta")}}},
+                   {"after", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Al crearlo: despues de que nodo")}}},
                    {"preset", {{"type", "string"}}}};
         for (const auto& p : type->params)
-            props[p.key] = {{"description", ba::i18n::traducir("modulos", p.help.c_str())}};
+            props[p.key] = {{"description", p.help}};
         if (type->bandCount > 0) {
             json bandProps{{"banda", {{"type", "integer"}}}};
             for (const auto& p : type->bandParams)
-                bandProps[p.key] = {{"description", ba::i18n::traducir("modulos", p.help.c_str())}};
+                bandProps[p.key] = {{"description", p.help}};
             props["bandas"] = {
                 {"type", "array"},
                 {"items", {{"type", "object"}, {"properties", bandProps}, {"required", {"banda"}}}}};
@@ -792,17 +792,17 @@ void McpService::registerAudioTools() {
         // describe el modulo; esto dice CUANDO se usa, que es lo que el modelo
         // tiene que emparejar con «los graves suenan mal».
         const std::string cuando =
-            std::string(f.module) == "eq"          ? ba::i18n::traducir("mcp", "Ecualiza: cuando los graves o los agudos suenan mal, "
-                                                     "retumba, suena metalico o apagado.") + " "
-            : std::string(f.module) == "gate"      ? ba::i18n::traducir("mcp", "Compuerta: cierra el microfono cuando nadie habla, "
-                                                     "para que no se escuche todo lo de alrededor.") + " "
-            : std::string(f.module) == "limitador" ? ba::i18n::traducir("mcp", "Limitador: para que no sature ni pase de cierto nivel.") + " "
-            : std::string(f.module) == "compresor" ? ba::i18n::traducir("mcp", "Compresor: empareja lo muy fuerte con lo muy bajo.") + " "
+            std::string(f.module) == "eq"          ? std::string(QT_TRANSLATE_NOOP("mcp", "Ecualiza: cuando los graves o los agudos suenan mal, "
+                                                     "retumba, suena metalico o apagado.")) + " "
+            : std::string(f.module) == "gate"      ? std::string(QT_TRANSLATE_NOOP("mcp", "Compuerta: cierra el microfono cuando nadie habla, "
+                                                     "para que no se escuche todo lo de alrededor.")) + " "
+            : std::string(f.module) == "limitador" ? std::string(QT_TRANSLATE_NOOP("mcp", "Limitador: para que no sature ni pase de cierto nivel.")) + " "
+            : std::string(f.module) == "compresor" ? std::string(QT_TRANSLATE_NOOP("mcp", "Compresor: empareja lo muy fuerte con lo muy bajo.")) + " "
                                                    : std::string();
-        t.description = cuando + ba::i18n::traducir("modulos", type->help.c_str()) + " " +
-                        ba::i18n::traducir("mcp", "Sin parametros solo lee. Devuelve valores y medidores (cambioDb = lo que "
-                        "el modulo baja/sube ahora).") +
-                        (presets.empty() ? std::string() : " " + ba::i18n::llenar(ba::i18n::traducir("mcp", "Presets: %1."), {presets}));
+        t.description = cuando + type->help + " " +
+                        std::string(QT_TRANSLATE_NOOP("mcp", "Sin parametros solo lee. Devuelve valores y medidores (cambioDb = lo que "
+                        "el modulo baja/sube ahora).")) +
+                        (presets.empty() ? std::string() : " " + ba::i18n::llenar(QT_TRANSLATE_NOOP("mcp", "Presets: %1."), {presets}));
         t.inputSchema = {{"type", "object"}, {"properties", props}, {"required", {"source"}}};
         t.run = [mgr, type](const json& a, Done done) {
             std::string e;
@@ -841,7 +841,7 @@ void McpService::registerAudioTools() {
         t.category = "audio";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Numeros crudos del espectro en un punto del rack, para verificar un ajuste. "
+            QT_TRANSLATE_NOOP("mcp", "Numeros crudos del espectro en un punto del rack, para verificar un ajuste. "
             "Analiza el audio en un punto del rack (\"in\" = la fuente cruda, \"out\" = lo que sale, o un "
             "nodo "
             "analizador) durante `segundos` (0-30; 0 = lo ya medido): pico, RMS, LUFS (momentaneo, corto, "
@@ -901,7 +901,7 @@ void McpService::registerAudioTools() {
         t.category = "audio";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Que esta pasando con el audio AHORA: es lo primero ante un acople, un pitido, saturacion, un "
+            QT_TRANSLATE_NOOP("mcp", "Que esta pasando con el audio AHORA: es lo primero ante un acople, un pitido, saturacion, un "
             "zumbido, o cuando alguien no se escucha o no se escucha nada al aire. Mide copias de los "
             "modulos con señales de prueba SIN tocar lo que sale al aire: `tipo: "
             "respuesta` "
@@ -933,7 +933,7 @@ void McpService::registerAudioTools() {
         t.title = ba::i18n::traducir("mcp", "Generador de señal de prueba");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Crea o ajusta un generador en el rack: `senal` seno | rosa | blanco | barrido | "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea o ajusta un generador en el rack: `senal` seno | rosa | blanco | barrido | "
                         "silencio, `frecuencia`, "
                         "`nivel_db` (dBFS; ruidos en RMS). Queda SUELTO: para oirlo o medirlo, `conectar_a` "
                         "un nodo (p. ej. un "
@@ -989,7 +989,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "QUE ES: las salidas fisicas de esta maquina (auriculares, parlantes, HDMI), agrupadas por "
+            QT_TRANSLATE_NOOP("mcp", "QUE ES: las salidas fisicas de esta maquina (auriculares, parlantes, HDMI), agrupadas por "
             "placa. PARA QUE: escuchar aparte lo que pasa por cualquier punto del rack de una fuente, sin "
             "tocar lo que sale al aire ni a la mezcla del programa. Con `audio_output_set` se agrega al "
             "grafo una tarjeta con esa salida y despues se le conecta lo que se quiera oir (audio_patch). "
@@ -1007,7 +1007,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo "
+            QT_TRANSLATE_NOOP("mcp", "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo "
             "de esa fuente una tarjeta con el nombre de la salida; el audio recien se oye cuando se le "
             "conecta algo con `audio_patch` (p. ej. {desde: \"in\", hacia: \"salida-audio\"}). No "
             "cambia lo que sale al aire. `grabar: true` graba todo lo que le llega a la tarjeta en un .wav "
@@ -1041,7 +1041,7 @@ void McpService::registerAudioTools() {
         t.category = "audio_rack";
         t.clase = Clase::Ui;
         t.description =
-            ba::i18n::traducir("mcp", "Abre la pestaña Audio en la fuente y (opcional) el nodo: para mostrarle al operador lo que "
+            QT_TRANSLATE_NOOP("mcp", "Abre la pestaña Audio en la fuente y (opcional) el nodo: para mostrarle al operador lo que "
             "estas ajustando (parametros, medidores, espectro).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"source", kSource}, {"node", kNode}}},
@@ -1070,7 +1070,7 @@ void McpService::registerAudioTools() {
         t.title = ba::i18n::traducir("mcp", "Restablecer la interfaz LSP");
         t.category = "audio_rack";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cierra las ventanas de los modulos LSP y vuelve la configuracion de pantalla de LSP "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cierra las ventanas de los modulos LSP y vuelve la configuracion de pantalla de LSP "
                         "(zoom, escala "
                         "del host, letra, zoom por plugin) a la de fabrica, con copia del archivo. Para "
                         "cuando la interfaz "
@@ -1090,7 +1090,7 @@ void McpService::registerAudioTools() {
         t.clase = Clase::Ui;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "Abre (o cierra con abrir=false) la interfaz grafica completa de LSP del modulo en una "
+            QT_TRANSLATE_NOOP("mcp", "Abre (o cierra con abrir=false) la interfaz grafica completa de LSP del modulo en una "
             "ventana (para que la persona ajuste con los graficos del plugin).");
         t.inputSchema = {
             {"type", "object"},

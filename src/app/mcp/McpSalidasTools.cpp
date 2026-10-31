@@ -77,16 +77,14 @@ void McpService::registerSalidasTools() {
         [&rt](const std::string& id) { return rt.engine().haySalidaEn(id); });
 
     const json idProp = {{"type", "string"},
-                         {"description", ba::i18n::traducir("mcp", "Id de la salida (letras, números, - y _).")}};
+                         {"description", QT_TRANSLATE_NOOP("mcp", "Id de la salida (letras, números, - y _).")}};
     {
         Tool t;
         t.name = "salida_crear";
         t.title = ba::i18n::traducir("mcp", "Crear una salida");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir(
-            "mcp",
-            "Una salida nueva, andando en el acto (con su programa, su preview y su mezcla), hasta el tope. Usa las "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Una salida nueva, andando en el acto (con su programa, su preview y su mezcla), hasta el tope. Usa las "
             "mismas entradas y escenas que las demás. Cada salida es otra composición y, al transmitir o grabar, otros "
             "codificadores: la respuesta trae `recursos` (lo de sistema_recursos) y un `aviso` si la máquina ya está "
             "cerca del límite.");
@@ -95,7 +93,7 @@ void McpService::registerSalidasTools() {
                          {"properties",
                           {{"id", idProp},
                            {"nombre", {{"type", "string"}}},
-                           {"color", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "#RRGGBB (tally, multiview).")}}}}}};
+                           {"color", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "#RRGGBB (tally, multiview).")}}}}}};
         t.examples = {R"({"id": "youtube2", "nombre": "YouTube 2", "color": "#2E86DE"})"};
         RecursosViewModel* rec = vm_.recursos();
         t.run = [&rt, &vm, rec](const json& a, Done done) {
@@ -127,9 +125,7 @@ void McpService::registerSalidasTools() {
         t.title = ba::i18n::traducir("mcp", "Cambiar el nombre, el color o el codificador de una salida (o el tope)");
         t.category = "salidas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir(
-            "mcp",
-            "`id` con `nombre`, `color` (#RRGGBB) y/o `codificador` (el de video de esa salida: auto, nvenc, qsv, amf, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "`id` con `nombre`, `color` (#RRGGBB) y/o `codificador` (el de video de esa salida: auto, nvenc, qsv, amf, "
             "vaapi, videotoolbox o x264; vacío = el de la configuración; la por omisión usa siempre el de la "
             "configuración; rige desde lo próximo que arranque en ella). `tope` (1 a 16) cambia cuántas salidas "
             "puede tener el aparato (no baja de las que ya hay: borrá alguna antes).");
@@ -170,9 +166,7 @@ void McpService::registerSalidasTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "borra una salida (corta lo que sale de ella)");
         t.destructive = true;
-        t.description = ba::i18n::traducir(
-            "mcp",
-            "Para todo lo que sale de ella (transmisiones, grabación, repetición, señal limpia) y la saca. La por "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Para todo lo que sale de ella (transmisiones, grabación, repetición, señal limpia) y la saca. La por "
             "omisión no se borra. Si tiene destinos guardados, `destinos` dice qué pasa con ellos: el id de otra "
             "salida (pasan a ella) o «borrar» (se borran con su clave); sin decirlo no se borra nada y el error dice "
             "cuántos tiene. Preguntale al operador antes de borrarlos.");
@@ -182,7 +176,7 @@ void McpService::registerSalidasTools() {
                           {{"id", idProp},
                            {"destinos",
                             {{"type", "string"},
-                             {"description", ba::i18n::traducir("mcp", "Sus destinos guardados: el id de otra salida o «borrar».")}}}}}};
+                             {"description", QT_TRANSLATE_NOOP("mcp", "Sus destinos guardados: el id de otra salida o «borrar».")}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
             if (const std::string e = rt.borrarSalida(a.value("id", std::string()), a.value("destinos", std::string()));
                 !e.empty())
@@ -201,16 +195,14 @@ void McpService::registerSalidasTools() {
         t.category = "interfaz";
         t.clase = Clase::Ui;
         t.idempotent = true;
-        t.description = ba::i18n::traducir(
-            "mcp",
-            "Cambia la salida ACTIVA de la interfaz del operador (la que muestran y manejan Dirección, Escenas y el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia la salida ACTIVA de la interfaz del operador (la que muestran y manejan Dirección, Escenas y el "
             "Mezclador), con `salida` (id o nombre, como en salidas_listar). Sin `salida`, dice cuál es. No toca lo que "
             "sale ni lo que hacen las demás herramientas: esas usan su `salida` (o la por omisión).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"salida",
                             {{"type", "string"},
-                             {"description", ba::i18n::traducir("mcp", "Id o nombre de la salida (salidas_listar).")}}}}}};
+                             {"description", QT_TRANSLATE_NOOP("mcp", "Id o nombre de la salida (salidas_listar).")}}}}}};
         t.run = [this, &vm](const json& a, Done done) {
             SalidasViewModel& s = vm.salidas();
             if (const std::string pedida = a.value("salida", std::string()); !pedida.empty()) {

@@ -154,7 +154,7 @@ void McpService::registerRoomTools() {
         return true;
     };
     const json personProp = {{"type", "string"},
-                             {"description", ba::i18n::traducir("mcp", "Nombre (o prefijo unico) o id de la persona.")}};
+                             {"description", QT_TRANSLATE_NOOP("mcp", "Nombre (o prefijo unico) o id de la persona.")}};
 
     {
         Tool t;
@@ -163,7 +163,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
+            QT_TRANSLATE_NOOP("mcp", "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
             "microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), "
             "archivos compartidos, chat reciente y config de oradores.");
         t.run = [&vm, conf](const json&, Done done) {
@@ -186,7 +186,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Lobby de admision (true = cada invitado espera que lo hagas pasar), conferencia cerrada (nadie "
+            QT_TRANSLATE_NOOP("mcp", "Lobby de admision (true = cada invitado espera que lo hagas pasar), conferencia cerrada (nadie "
             "nuevo puede entrar) y `cupo`: cuántos invitados en el programa (1 a 16), SIN reiniciar la conferencia: los "
             "lugares nuevos se crean andando (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).");
         t.inputSchema = {
@@ -225,10 +225,10 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "PIN nuevo para entrar a la conferencia (sin `pin`: se genera uno). El anterior deja de servir.");
+            QT_TRANSLATE_NOOP("mcp", "PIN nuevo para entrar a la conferencia (sin `pin`: se genera uno). El anterior deja de servir.");
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"pin", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "4 a 32 caracteres.")}}}}}};
+            {"properties", {{"pin", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "4 a 32 caracteres.")}}}}}};
         t.run = [&control](const json& a, Done done) {
             control.cambiarPin(a.value("pin", std::string()), [done](const std::string& err, const json& r) {
                 done(err.empty() ? ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "PIN nuevo: %1"), {r.value("pin", std::string())}))
@@ -244,10 +244,10 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Quién quedó bloqueado por poner mal el PIN y cómo destrabarlo. `accion`: «ver» (de fábrica) o "
+            QT_TRANSLATE_NOOP("mcp", "Quién quedó bloqueado por poner mal el PIN y cómo destrabarlo. `accion`: «ver» (de fábrica) o "
             "«desbloquear» (con `ip`, solo esa; sin `ip`, todas y también el bloqueo global).");
         t.details =
-            ba::i18n::traducir("mcp", "Hay dos bloqueos. POR IP: tras `intentosPorIp` PIN mal desde la misma IP (de fábrica 5), esa IP no "
+            QT_TRANSLATE_NOOP("mcp", "Hay dos bloqueos. POR IP: tras `intentosPorIp` PIN mal desde la misma IP (de fábrica 5), esa IP no "
             "puede entrar por `bloqueoS` segundos (Configuración → Conferencia). GLOBAL: de último recurso, si hay "
             "muchísimos fallos entre todos (un ataque repartido) se cierra la entrada para todos un rato. "
             "Por internet la IP es la real (la pasa ba-web desde el túnel). Desbloquear no cambia el PIN: si "
@@ -256,7 +256,7 @@ void McpService::registerRoomTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"accion", {{"type", "string"}, {"enum", {"ver", "desbloquear"}}}},
-                           {"ip", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Solo esta IP (al desbloquear).")}}}}}};
+                           {"ip", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo esta IP (al desbloquear).")}}}}}};
         t.examples = {R"({})", R"({"accion": "desbloquear"})", R"({"accion": "desbloquear", "ip": "190.12.34.56"})"};
         t.run = [&control](const json& a, Done done) {
             const auto mostrar = [done](const json& r, const std::string& antes) {
@@ -308,7 +308,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Volver a la fila");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Orador que ya hablo: vuelve al final de la fila.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Orador que ya hablo: vuelve al final de la fila.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.examples = {R"({"participant": "Marta"})"};
@@ -325,10 +325,10 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Hacer pasar a alguien del lobby");
         t.category = "sala";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Hace PASAR a alguien que espera en el lobby: entra a la conferencia. Admite a UNA persona "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Hace PASAR a alguien que espera en el lobby: entra a la conferencia. Admite a UNA persona "
                         "que espera: deja el lobby y entra a la conferencia, con su camara y su "
                         "microfono.");
-        t.details = ba::i18n::traducir("mcp", "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
                     "saber quien es, `participant_profile` para dejarle la ficha, `operator_ask` para que "
                     "el operador decida, y esto cuando dijo que si.\n\n"
                     "Si no hay lugar libre en la conferencia (`room_status` -> `slotsFree`) el gateway la deja "
@@ -350,8 +350,8 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Le niega la entrada a quien espera: se le cierra la sesion y sale del lobby.");
-        t.details = ba::i18n::traducir("mcp", "Para el que no tiene que estar. Si solo querés que espere un rato mas, no uses "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Le niega la entrada a quien espera: se le cierra la sesion y sale del lobby.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Para el que no tiene que estar. Si solo querés que espere un rato mas, no uses "
                     "esto: dejala en el lobby y avisale por `chat_send`.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
@@ -370,8 +370,8 @@ void McpService::registerRoomTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "saca a un invitado de la conferencia");
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Saca a alguien que YA esta adentro. Si esta al aire, sale al aire que se fue.");
-        t.details = ba::i18n::traducir("mcp", "Mira `room_status` antes: si esa persona esta en una escena al aire, sacarla se "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca a alguien que YA esta adentro. Si esta al aire, sale al aire que se fue.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Mira `room_status` antes: si esa persona esta en una escena al aire, sacarla se "
                     "ve en la transmision. Pasar el programa a otra escena primero es gratis; "
                     "deshacer esto no.");
         t.inputSchema = {
@@ -389,7 +389,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Admitir a todos");
         t.category = "sala";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Hace pasar a todos los que esperan en el lobby, en orden de llegada.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Hace pasar a todos los que esperan en el lobby, en orden de llegada.");
         t.run = [&gente](const json&, Done done) {
             // La misma operación que el botón «Admitir a todos»: de a uno, en
             // orden de llegada, y corta al primer «sala llena».
@@ -412,7 +412,7 @@ void McpService::registerRoomTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "abre o cierra el micrófono de un invitado");
         t.description =
-            ba::i18n::traducir("mcp", "Con alguien del lobby: on=true le llega tu voz y vos lo escuchas por monitoreo (nadie mas). "
+            QT_TRANSLATE_NOOP("mcp", "Con alguien del lobby: on=true le llega tu voz y vos lo escuchas por monitoreo (nadie mas). "
             "Con alguien de ADENTRO (programa o fila de oradores) es IFB: le llega tu voz mezclada con su "
             "retorno (el programa baja), sin salir al aire. on=false corta.");
         t.inputSchema = {
@@ -433,7 +433,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Proxy por nombre: servicios y certificados");
         t.category = "sala";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El proxy propio (443/80): cada servicio con su nombre (sesion.<dominio>, botonera.<dominio>…), "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El proxy propio (443/80): cada servicio con su nombre (sesion.<dominio>, botonera.<dominio>…), "
                         "a qué va, si es solo de la red local, y su certificado (acme = Let's Encrypt, casa = "
                         "autofirmado) con la fecha en que vence (segundos desde 1970). Más el estado de ACME: último "
                         "error y si está pidiendo ahora.");
@@ -455,7 +455,7 @@ void McpService::registerRoomTools() {
         t.clase = Clase::Lectura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "El túnel de pinggy.io por el que entran los de afuera: `pinggy.estado` (apagado, conectando, listo, "
+            QT_TRANSLATE_NOOP("mcp", "El túnel de pinggy.io por el que entran los de afuera: `pinggy.estado` (apagado, conectando, listo, "
             "reconectando, error), la dirección pública (`pinggy.urlPublica`) y `enlaces` (invitados, sesión remota, "
             "público, botonera), el último `pinggy.error` y el TURN (`pinggy.turn`). `configuracion`: activo, región, "
             "tipo de dirección (azar | pinggy = subdominio fijo | propio = dominio propio), host y destino del CNAME. "
@@ -505,7 +505,7 @@ void McpService::registerRoomTools() {
             t.clase = Clase::Escritura;
             t.idempotent = true;
             t.description =
-                ba::i18n::traducir("mcp", "Guarda CIFRADA en la bóveda (Credenciales/) la clave que te pasó el operador, o la borra. "
+                QT_TRANSLATE_NOOP("mcp", "Guarda CIFRADA en la bóveda (Credenciales/) la clave que te pasó el operador, o la borra. "
                 "`tipo`: \"token\" (el token del PLAN de pinggy: abre el túnel; el del comando …@pro.pinggy.io), \"api_key\" (la "
                 "API key de pinggy: control de la cuenta por API, con acceso_remoto_panel; NO abre túneles) o "
                 "\"cloudflare\" (el token del túnel de Cloudflare, Configuración → Cloudflare). Nunca se devuelve ni se escribe "
@@ -517,7 +517,7 @@ void McpService::registerRoomTools() {
                 {"type", "object"},
                 {"properties",
                  {{"tipo", {{"type", "string"}, {"enum", {"token", "api_key", "cloudflare"}}}},
-                  {"clave", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la clave (no hace falta para borrar)")}}},
+                  {"clave", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la clave (no hace falta para borrar)")}}},
                   {"borrar", {{"type", "boolean"}, {"default", false}}}}},
                 {"required", {"tipo"}}};
             t.run = [acc, &vm](const json& a, Done done) {
@@ -569,7 +569,7 @@ void McpService::registerRoomTools() {
             t.category = "sala";
             t.clase = Clase::Escritura;
             t.description =
-                ba::i18n::traducir("mcp", "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la conferencia (corta a los invitados un momento). "
+                QT_TRANSLATE_NOOP("mcp", "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la conferencia (corta a los invitados un momento). "
                 "Para armarlo de cero con la API key (token, subdominio y puerto de la cuenta) usá acceso_remoto_configurar_con_api_key. "
                 "`direccion`: \"azar\" (la que dé pinggy), \"pinggy\" (subdominio fijo del token) o \"propio\" (dominio "
                 "propio: va con `host` y `cname_destino`).");
@@ -579,13 +579,13 @@ void McpService::registerRoomTools() {
                  {{"activo", {{"type", "boolean"}}},
                   {"region", {{"type", "string"}, {"enum", {"auto", "us", "eu", "ap"}}}},
                   {"direccion", {{"type", "string"}, {"enum", {"azar", "pinggy", "propio"}}}},
-                  {"host", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "subdominio fijo o dominio propio")}}},
-                  {"cname_destino", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que muestra el panel de pinggy")}}},
-                  {"turn", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "video de los invitados de afuera por el túnel")}}},
+                  {"host", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "subdominio fijo o dominio propio")}}},
+                  {"cname_destino", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que muestra el panel de pinggy")}}},
+                  {"turn", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "video de los invitados de afuera por el túnel")}}},
                   {"turn_udp", {{"type", "boolean"}}},
                   {"turn_tcp_puerto", {{"type", "integer"}}},
                   {"turn_udp_puerto", {{"type", "integer"}}},
-                  {"lista_blanca", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "IPs o redes separadas por coma; vacío = todos")}}}}}};
+                  {"lista_blanca", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "IPs o redes separadas por coma; vacío = todos")}}}}}};
             t.examples = {R"({"activo": true, "direccion": "propio", "host": "sala.miorganismo.gob.ar", "cname_destino": "abc.a.pinggy.link"})"};
             SettingsModel* settings = settings_.get();
             t.run = [settings, &vm](const json& a, Done done) {
@@ -621,7 +621,7 @@ void McpService::registerRoomTools() {
             t.title = ba::i18n::traducir("mcp", "Acceso remoto: instrucciones para el DNS");
             t.category = "sala";
             t.clase = Clase::Lectura;
-            t.description = ba::i18n::traducir("mcp", "El texto para mandarle al que administra el DNS (registro CNAME, pasos en el panel de "
+            t.description = QT_TRANSLATE_NOOP("mcp", "El texto para mandarle al que administra el DNS (registro CNAME, pasos en el panel de "
                             "pinggy, comodín, dominio raíz). Sin argumentos, con el dominio y el destino configurados.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
@@ -642,7 +642,7 @@ void McpService::registerRoomTools() {
             t.category = "sala";
             t.clase = Clase::Lectura;
             t.openWorld = true;
-            t.description = ba::i18n::traducir("mcp", "Resuelve el CNAME del dominio y dice si apunta al destino de pinggy (estado: ok, otro, "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Resuelve el CNAME del dominio y dice si apunta al destino de pinggy (estado: ok, otro, "
                             "mal, error). Sin argumentos, con lo configurado.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
@@ -664,7 +664,7 @@ void McpService::registerRoomTools() {
             t.clase = Clase::Lectura;
             t.openWorld = true;
             t.description =
-                ba::i18n::traducir("mcp", "Prueba un subdominio fijo o un dominio propio con el token guardado: abre un túnel de prueba de unos "
+                QT_TRANSLATE_NOOP("mcp", "Prueba un subdominio fijo o un dominio propio con el token guardado: abre un túnel de prueba de unos "
                 "segundos (sin desplazar a otro) y se fija si pinggy da esa dirección. ok = asignada al token y libre; "
                 "mal = no asignada (pinggy dio otra al azar) o en uso por otro túnel (con la API key también mira los "
                 "túneles activos de la cuenta); error = falta el token, el túnel de este equipo está prendido, etc. "
@@ -693,14 +693,14 @@ void McpService::registerRoomTools() {
             t.category = "sala";
             t.clase = Clase::Escritura;
             t.openWorld = true;
-            t.description = ba::i18n::traducir("mcp", "Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a "
                             "la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su "
                             "puerto TCP fijo, y prende el túnel con eso (reinicia la conferencia). Con `subdominio` (solo el "
                             "nombre, solo minúsculas y números, p. ej. \"salaconcejo\") primero lo cambia en la cuenta: queda "
                             "salaconcejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al "
                             "panel de pinggy.");
             t.inputSchema = {{"type", "object"},
-                             {"properties", {{"subdominio", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "opcional: el nombre que se quiere")}}}}}};
+                             {"properties", {{"subdominio", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "opcional: el nombre que se quiere")}}}}}};
             t.run = [acc, esperar, &vm](const json& a, Done done) {
                 if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 if (vm.alAire())
@@ -717,10 +717,10 @@ void McpService::registerRoomTools() {
             t.category = "sala";
             t.clase = Clase::Escritura;
             t.openWorld = true;
-            t.description = ba::i18n::traducir("mcp", "Lo mismo que el botón «Conectar VPN» de la tarjeta Invitados: saca la conferencia a internet por "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Lo mismo que el botón «Conectar VPN» de la tarjeta Invitados: saca la conferencia a internet por "
                             "`via` o la vuelve a dejar solo en la red local (`via`: \"desconectar\"). Sin `via` dice "
                             "cómo está y las formas que hay con lo guardado.");
-            t.details = ba::i18n::traducir("mcp", "Las formas (solo las que se pueden con lo que hay guardado; la lista la da la llamada sin "
+            t.details = QT_TRANSLATE_NOOP("mcp", "Las formas (solo las que se pueden con lo que hay guardado; la lista la da la llamada sin "
                         "`via`): pinggy (el token de la cuenta, con su dirección), pinggy-cuenta (solo la API key: "
                         "arma todo), cloudflare (el token de Cloudflare), pinggy-gratis (sin cuenta, dirección al "
                         "azar, se corta a los 60 min). Conectar por una apaga la otra. Reinicia la conferencia: los "
@@ -754,7 +754,7 @@ void McpService::registerRoomTools() {
             t.clase = Clase::Escritura;
             t.destructive = true;
             t.openWorld = true;
-            t.description = ba::i18n::traducir("mcp", "Con la API key, corta todos los túneles activos de la cuenta de pinggy (p. ej. otro equipo "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Con la API key, corta todos los túneles activos de la cuenta de pinggy (p. ej. otro equipo "
                             "que quedó con el mismo token). El de este equipo, si está prendido, vuelve a conectarse solo.");
             t.run = [acc, esperar](const json&, Done done) {
                 if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
@@ -770,7 +770,7 @@ void McpService::registerRoomTools() {
             t.category = "sala";
             t.clase = Clase::Lectura;
             t.openWorld = true;
-            t.description = ba::i18n::traducir("mcp", "Consulta el panel de pinggy con la API key guardada (acceso_remoto_clave tipo api_key): "
+            t.description = QT_TRANSLATE_NOOP("mcp", "Consulta el panel de pinggy con la API key guardada (acceso_remoto_clave tipo api_key): "
                             "qué túneles tiene activos la cuenta, con qué dominio y puertos. Los secretos que vengan "
                             "en la respuesta salen tapados.");
             t.run = [acc, esperar](const json&, Done done) {
@@ -787,7 +787,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Proxy: pedir los certificados ya");
         t.category = "sala";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pide ya a Let's Encrypt el certificado de `host` (o de todos), aunque no esté por vencer. "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pide ya a Let's Encrypt el certificado de `host` (o de todos), aunque no esté por vencer. "
                         "Tarda; el resultado se ve en proxy_estado (acme.ultimo_error).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"host", {{"type", "string"}}}}}};
         t.run = [&control, contestar](const json& a, Done done) {
@@ -803,7 +803,7 @@ void McpService::registerRoomTools() {
         t.clase = Clase::Aire;
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "reinicia la conferencia (corta a los invitados) con el proxy nuevo");
         t.description =
-            ba::i18n::traducir("mcp", "Configura el proxy por nombre y REINICIA la conferencia (corta a los invitados): `activo`, `dominio` (los "
+            QT_TRANSLATE_NOOP("mcp", "Configura el proxy por nombre y REINICIA la conferencia (corta a los invitados): `activo`, `dominio` (los "
             "servicios quedan en <nombre>.<dominio>: hay que apuntar esos nombres a esta máquina en el DNS), "
             "`puertoTls` (443) y `puertoHttp` (80; en Linux los de menos de 1024 piden permiso), `servicios` "
             "([{nombre, destino, ruta, soloLan}]; sin esto, los de siempre: sala, sesion, presidencia, botonera, "
@@ -835,7 +835,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Con alguien de ADENTRO (programa o fila de oradores): le manda un tono de 1 kHz cortado por su "
+            QT_TRANSLATE_NOOP("mcp", "Con alguien de ADENTRO (programa o fila de oradores): le manda un tono de 1 kHz cortado por su "
             "retorno durante 4 s y mide cuánto vuelve por su micrófono (`eco_db`; más de 10 dB = se escucha el "
             "parlante: auriculares), y lee su red (rtt, pérdida, jitter, semáforo). Mientras dura, el invitado "
             "escucha el tono y el programa más bajo: avisale antes. Devuelve `recomendacion` en castellano.");
@@ -857,7 +857,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Le pide al navegador del invitado: silenciar el microfono, apagar la camara, dejar de "
+            QT_TRANSLATE_NOOP("mcp", "Le pide al navegador del invitado: silenciar el microfono, apagar la camara, dejar de "
             "compartir pantalla o bajar la mano.");
         t.inputSchema = {
             {"type", "object"},
@@ -884,7 +884,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Cuando la red de un invitado no da (room_status: `red.semaforo` ambar o rojo, perdida, jitter, RTT), "
+            QT_TRANSLATE_NOOP("mcp", "Cuando la red de un invitado no da (room_status: `red.semaforo` ambar o rojo, perdida, jitter, RTT), "
             "le pide a su navegador que mande menos: `maximo` 720p (techo 1,5 Mbps) o 360p (0,5 Mbps); 1080p "
             "devuelve la calidad completa. No corta nada: baja resolucion y bitrate.");
         t.inputSchema = {{"type", "object"},
@@ -909,7 +909,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Cambia nombre, informacion y/o contacto de una persona (los ve la produccion y el tablero).");
+            QT_TRANSLATE_NOOP("mcp", "Cambia nombre, informacion y/o contacto de una persona (los ve la produccion y el tablero).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"participant", personProp},
@@ -934,12 +934,12 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Escribir en el chat");
         t.category = "sala";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Mensaje del operador a toda la conferencia o a una persona (también al integrante que espera en "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Mensaje del operador a toda la conferencia o a una persona (también al integrante que espera en "
                         "la sesión remota y se lo atiende hablando: se le dice con la voz del atendedor).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"text", {{"type", "string"}}},
-                           {"to", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "'all' (defecto) o una persona.")}}}}},
+                           {"to", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "'all' (defecto) o una persona.")}}}}},
                          {"required", {"text"}}};
         t.run = [&vm, &control, contestar](const json& a, Done done) {
             std::string to = a.value("to", std::string("all"));
@@ -967,7 +967,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Chat reciente");
         t.category = "sala";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Lee el chat PRIVADO con los invitados de la conferencia (de quién, a quién, texto, hora); no es el chat del "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lee el chat PRIVADO con los invitados de la conferencia (de quién, a quién, texto, hora); no es el chat del "
             "público.");
         t.inputSchema = {
             {"type", "object"},
@@ -1001,7 +1001,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la conferencia y "
+            QT_TRANSLATE_NOOP("mcp", "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la conferencia y "
             "devuelve "
             "sus mensajes nuevos (`timedOut` true y lista vacia si no escribio). Para atender a alguien: una "
             "pregunta con chat_send, un chat_wait, y asi. Si se lo atiende hablando (en el lobby o esperando en "
@@ -1010,7 +1010,7 @@ void McpService::registerRoomTools() {
             {"type", "object"},
             {"required", {"participant"}},
             {"properties",
-             {{"participant", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id o nombre")}}},
+             {{"participant", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id o nombre")}}},
               {"timeoutSec", {{"type", "integer"}, {"minimum", 1}, {"maximum", 120}, {"default", 60}}}}}};
         t.run = [conf, &vm](const json& a, Done done) {
             json p;
@@ -1065,7 +1065,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Archivos que compartieron los invitados (imagen, video, audio) con id, nombre, quien, tamaño.");
+            QT_TRANSLATE_NOOP("mcp", "Archivos que compartieron los invitados (imagen, video, audio) con id, nombre, quien, tamaño.");
         t.run = [&vm](const json&, Done done) {
             done(ToolResult().data(json{{"shares", roomSnapshot(vm).value("shares", json::array())}}));
         };
@@ -1078,7 +1078,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Lectura;
         t.description =
-             ba::i18n::traducir("mcp", "Muestra una imagen que COMPARTIÓ un invitado, para revisarla antes de ponerla al aire. Videos y "
+             QT_TRANSLATE_NOOP("mcp", "Muestra una imagen que COMPARTIÓ un invitado, para revisarla antes de ponerla al aire. Videos y "
             "audios: da sus datos.");
         t.inputSchema = {
             {"type", "object"},
@@ -1107,7 +1107,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Copia el archivo compartido a la carpeta de medios y lo agrega a la escena al aire (imagen, "
+            QT_TRANSLATE_NOOP("mcp", "Copia el archivo compartido a la carpeta de medios y lo agrega a la escena al aire (imagen, "
             "video o audio).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
@@ -1126,7 +1126,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra un archivo compartido del gateway.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra un archivo compartido del gateway.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&control](const json& a, Done done) {
@@ -1143,7 +1143,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Enlace para entrar a la conferencia (target local = misma red; remote = la dirección pública de pinggy, "
+            QT_TRANSLATE_NOOP("mcp", "Enlace para entrar a la conferencia (target local = misma red; remote = la dirección pública de pinggy, "
             "Cloudflare o WireGuard, para los de afuera) con su QR como imagen; con withPin el PIN va incluido. "
             "Con board=true, el del tablero de oradores. La imagen la ves solo vos: para que el operador vea el QR "
             "y lo pueda copiar, después llamá a qr_mostrar con la URL.");
@@ -1184,7 +1184,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Red y acceso de invitados");
         t.category = "sala";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
                         "enlaces y puertos WebRTC del gateway.");
         t.run = [&control](const json&, Done done) {
             control.verRed([done](const std::string& err, const json& r) {
@@ -1200,7 +1200,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Elige con que fuente de video y de audio (por nombre) te ven y oyen los que esperan en el "
+            QT_TRANSLATE_NOOP("mcp", "Elige con que fuente de video y de audio (por nombre) te ven y oyen los que esperan en el "
             "lobby. Vacio = placa de espera / sin voz. Sin argumentos lista las opciones.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"video", {{"type", "string"}}}, {"audio", {{"type", "string"}}}}}};
@@ -1234,7 +1234,7 @@ void McpService::registerRoomTools() {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "reinicia el gateway (corta a los invitados)");
         t.destructive = true;
         t.description =
-            ba::i18n::traducir("mcp", "Reinicia el proceso de la conferencia: se cortan todos (se reconectan solos en segundos si el "
+            QT_TRANSLATE_NOOP("mcp", "Reinicia el proceso de la conferencia: se cortan todos (se reconectan solos en segundos si el "
             "estado se puede recuperar). Solo si algo no responde.");
         t.run = [&rt](const json&, Done done) {
             rt.reiniciarSalaEnElFondo([done](const std::string& e) {
@@ -1254,7 +1254,7 @@ void McpService::registerRoomTools() {
         t.category = "oradores";
         t.clase = Clase::Lectura;
         t.description =
-             ba::i18n::traducir("mcp", "Los oradores REMOTOS (por videollamada): la fila en orden, el estado de cada uno y cuánto le queda "
+             QT_TRANSLATE_NOOP("mcp", "Los oradores REMOTOS (por videollamada): la fila en orden, el estado de cada uno y cuánto le queda "
             "al que habla; no son las bancas del recinto.");
         t.run = [&vm](const json&, Done done) {
             const json s = roomSnapshot(vm);
@@ -1295,7 +1295,7 @@ void McpService::registerRoomTools() {
         t.category = "oradores";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Activa/desactiva el modo oradores y define: tiempo general por orador, al aire uno a la vez "
+            QT_TRANSLATE_NOOP("mcp", "Activa/desactiva el modo oradores y define: tiempo general por orador, al aire uno a la vez "
             "o varios, slot por defecto, carrusel (manual; chain = al sacar entra el siguiente; time = "
             "rota solo pasado el tiempo + margen) y margen.");
         t.inputSchema = {
@@ -1303,7 +1303,7 @@ void McpService::registerRoomTools() {
             {"properties",
              {{"enabled", {{"type", "boolean"}}},
               {"defaultTime",
-               {{"type", json::array({"string", "integer"})}, {"description", ba::i18n::traducir("mcp", "Segundos o 'm:ss'.")}}},
+               {{"type", json::array({"string", "integer"})}, {"description", QT_TRANSLATE_NOOP("mcp", "Segundos o 'm:ss'.")}}},
               {"multi", {{"type", "boolean"}}},
               {"defaultSlot", {{"type", "integer"}, {"minimum", 1}}},
               {"carousel", {{"type", "string"}, {"enum", {"manual", "chain", "time"}}}},
@@ -1331,7 +1331,7 @@ void McpService::registerRoomTools() {
         t.porQueAire = QT_TRANSLATE_NOOP("mcp", "pone o saca oradores del aire");
         t.aireSi = AireSi::SacarDelAire;
         t.description =
-            ba::i18n::traducir("mcp", "Pone al aire a un orador (on=true, arranca su reloj) o lo saca (on=false: vuelve a la fila "
+            QT_TRANSLATE_NOOP("mcp", "Pone al aire a un orador (on=true, arranca su reloj) o lo saca (on=false: vuelve a la fila "
             "como 'hablo', nunca se lo echa).");
         t.inputSchema = {
             {"type", "object"},
@@ -1351,7 +1351,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Siguiente orador");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo "
                         "'uno a la vez', el que estaba sale).");
         t.run = [&oradores, contestar](const json&, Done done) {
             oradores.siguiente(contestar(ba::i18n::traducir("mcp", "Siguiente al aire."), done));
@@ -1364,7 +1364,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Reordenar la fila");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Mueve a una persona a una posicion de la fila (1 = primera).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Mueve a una persona a una posicion de la fila (1 = primera).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"participant", personProp}, {"position", {{"type", "integer"}, {"minimum", 1}}}}},
@@ -1383,7 +1383,7 @@ void McpService::registerRoomTools() {
         t.category = "oradores";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "QUE ES: pone en la FILA de oradores a alguien que ya esta en la conferencia (o devuelve a la fila a "
+            QT_TRANSLATE_NOOP("mcp", "QUE ES: pone en la FILA de oradores a alguien que ya esta en la conferencia (o devuelve a la fila a "
             "quien ya hablo). PARA QUE: en modo oradores todos siguen en la conferencia y la fila es solo el "
             "orden en que se los saca al aire. COMO SE USA: `participant` (nombre o id). Sale del aire "
             "hasta que le toque; `speaker_on_air` o `speaker_next` lo suben. Si era presentador, deja de "
@@ -1404,7 +1404,7 @@ void McpService::registerRoomTools() {
         t.category = "oradores";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "QUE ES: marca a una persona como PRESENTADOR: se queda al aire con su propio lugar mientras "
+            QT_TRANSLATE_NOOP("mcp", "QUE ES: marca a una persona como PRESENTADOR: se queda al aire con su propio lugar mientras "
             "los oradores rotan a su lado. PARA QUE: un conductor remoto fijo con invitados que entran y "
             "salen. COMO SE USA: `participant` (nombre o id) y `on` (true/false). Hay uno solo a la vez; "
             "no entra en la fila y la rotacion no lo saca. Con `on=false` deja de serlo y sale del aire "
@@ -1426,7 +1426,7 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Tiempo de un orador");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Tiempo asignado para hablar de una persona (segundos o 'm:ss'): '+2:00' le suma dos "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Tiempo asignado para hablar de una persona (segundos o 'm:ss'): '+2:00' le suma dos "
                         "minutos, '-30' le saca treinta segundos, '2:30' o '=2:30' lo deja en eso. Se puede "
                         "cambiar estando al aire.");
         t.inputSchema = {

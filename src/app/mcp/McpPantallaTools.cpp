@@ -55,9 +55,9 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Que televisores conoce el sistema y como esta cada uno: libre, ocupado por nosotros, "
+            QT_TRANSLATE_NOOP("mcp", "Que televisores conoce el sistema y como esta cada uno: libre, ocupado por nosotros, "
             "tomado por otra aplicacion, o sin responder.");
-        t.details = ba::i18n::traducir("mcp", "`estado` dice mucho: `ocupada` es que el televisor esta con otra aplicacion (Netflix, "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`estado` dice mucho: `ocupada` es que el televisor esta con otra aplicacion (Netflix, "
                     "YouTube) y mandarle algo se la va a pisar — avisale al operador antes. `apagada` es "
                     "que no contesta: puede estar apagado de verdad o en otra red.\n\n"
                     "`sabeMostrarPaginas`: 1 si, 0 no (un parlante sin pantalla contesta el protocolo "
@@ -100,7 +100,7 @@ void McpService::registerPantallaTools() {
         t.clase = Clase::Lectura;
         t.title = ba::i18n::traducir("mcp", "Buscar televisores en la red");
         t.category = "pantallas";
-        t.description = ba::i18n::traducir("mcp", "Busca Chromecast en la red local (tarda unos segundos). Las que aparezcan quedan "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Busca Chromecast en la red local (tarda unos segundos). Las que aparezcan quedan "
                         "en la lista; volve a mirar con pantalla_listar.");
         t.run = [p](const json&, Done done) {
             p->buscar();
@@ -115,14 +115,14 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un "
+            QT_TRANSLATE_NOOP("mcp", "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un "
             "contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
             "completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel "
             "(una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC), escena (UNA "
             "escena cualquiera de las armadas, en vivo, este o no al aire: `escena` es su nombre) o tally (rojo "
             "si esa camara esta al aire, verde si esta armada). Los campos de cada tipo salen de "
             "pantalla_listar.");
-        t.details = ba::i18n::traducir("mcp", "Ojo con la que este `ocupada`: mostrarle algo le pisa lo que estuviera pasando. Si no "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Ojo con la que este `ocupada`: mostrarle algo le pisa lo que estuviera pasando. Si no "
                     "te lo pidieron explicitamente, preguntale al operador con `operator_ask`.\n\n"
                     "El texto se lee DE LEJOS: frases cortas y pocas palabras. «Volvemos en 10 minutos» "
                     "sirve; un parrafo, no.");
@@ -130,29 +130,29 @@ void McpService::registerPantallaTools() {
             {"type", "object"},
             {"required", {"pantalla", "tipo"}},
             {"properties",
-             {{"pantalla", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id o nombre, como lo da pantalla_listar")}}},
+             {{"pantalla", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id o nombre, como lo da pantalla_listar")}}},
               {"tipo",
                {{"type", "string"},
                 {"enum",
                  {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "escena", "tally",
                   "votacion"}}}},
-              {"carrusel", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "su id, con tipo=carrusel")}}},
+              {"carrusel", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "su id, con tipo=carrusel")}}},
               {"qr",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "con tipo=qr: \"aparato:publico\" (la pagina del publico, con su clave), "
+                {"description", QT_TRANSLATE_NOOP("mcp", "con tipo=qr: \"aparato:publico\" (la pagina del publico, con su clave), "
                                 "\"aparato:sala\", \"aparato:prompter\", \"aparato:rotulos\", o el id de uno GUARDADO (qr_listar los da), que sale "
                                 "con el estilo con el que se diseño. Sin esto se usa `texto` y "
                                 "sale con el estilo de fabrica.")}}},
-              {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "mensaje: lo que dice; qr: lo que codifica")}}},
-              {"pie", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la linea de abajo, mas chica")}}},
-              {"url", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "solo con tipo=url")}}},
+              {"texto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "mensaje: lo que dice; qr: lo que codifica")}}},
+              {"pie", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la linea de abajo, mas chica")}}},
+              {"url", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "solo con tipo=url")}}},
               {"escena",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "con tipo=escena: el nombre de la escena (scene_list las da). Varias "
+                {"description", QT_TRANSLATE_NOOP("mcp", "con tipo=escena: el nombre de la escena (scene_list las da). Varias "
                                 "pantallas pueden mostrar escenas distintas a la vez, hasta 4 distintas")}}},
               {"fuente",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "con tipo=tally: la camara o escena de esa pantalla (vacio = el estado "
+                {"description", QT_TRANSLATE_NOOP("mcp", "con tipo=tally: la camara o escena de esa pantalla (vacio = el estado "
                                 "general, para la cabina)")}}}}}};
         t.examples = {
             R"({"pantalla": "TV del hall", "tipo": "mensaje", "texto": "Volvemos en 10 minutos"})",
@@ -221,10 +221,10 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Deja fijo lo que esa pantalla tiene que mostrar: se lo manda ahora y CADA VEZ que el aparato "
+            QT_TRANSLATE_NOOP("mcp", "Deja fijo lo que esa pantalla tiene que mostrar: se lo manda ahora y CADA VEZ que el aparato "
             "vuelva a aparecer (se apago de noche, se reinicio, le cambio la direccion). Con `quitar` en "
             "true deja de tener algo fijo (no apaga lo que este mostrando).");
-        t.details = ba::i18n::traducir("mcp", "Es para las pantallas que viven puestas: la del hall con el QR de la conferencia, la del "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Es para las pantallas que viven puestas: la del hall con el QR de la conferencia, la del "
                     "fondo con el reloj. Lo fijado se guarda contra el nombre de servicio del aparato, no "
                     "contra su IP, asi que sobrevive a que el router le de otra direccion.");
         t.inputSchema = {
@@ -237,8 +237,8 @@ void McpService::registerPantallaTools() {
               {"texto", {{"type", "string"}}},
               {"pie", {{"type", "string"}}},
               {"url", {{"type", "string"}}},
-              {"escena", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con tipo=escena: su nombre")}}},
-              {"quitar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "deja de tener algo fijo")}}}}}};
+              {"escena", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "con tipo=escena: su nombre")}}},
+              {"quitar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "deja de tener algo fijo")}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
             if (id.isEmpty()) {
@@ -275,7 +275,7 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Saca la pantalla de la lista de conocidas (con su nombre y lo fijado). Si vuelve a aparecer en "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca la pantalla de la lista de conocidas (con su nombre y lo fijado). Si vuelve a aparecer en "
                         "la red, se la ve como nueva.");
         t.inputSchema = {{"type", "object"}, {"required", {"pantalla"}}, {"properties", {{"pantalla", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
@@ -293,7 +293,7 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice mas "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El nombre que pongas gana sobre el que anuncia el aparato: «TV del hall» dice mas "
                         "que «Percee TV», y es como la vas a nombrar despues.");
         t.inputSchema = {
             {"type", "object"},
@@ -317,7 +317,7 @@ void McpService::registerPantallaTools() {
         t.title = ba::i18n::traducir("mcp", "Agregar una pantalla a mano");
         t.category = "pantallas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Para cuando la busqueda en la red no llega (otra VLAN, el firewall): se agrega con "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Para cuando la busqueda en la red no llega (otra VLAN, el firewall): se agrega con "
                         "su direccion IP. Tiene que ser un aparato que hable Google Cast.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"host"}},
@@ -338,7 +338,7 @@ void McpService::registerPantallaTools() {
         t.title = ba::i18n::traducir("mcp", "Los carruseles que hay");
         t.category = "pantallas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Un carrusel es una lista de cosas que rotan en una pantalla, cada una con sus "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Un carrusel es una lista de cosas que rotan en una pantalla, cada una con sus "
                         "segundos. Devuelve los que hay con sus pasos y cuanto dura la vuelta entera.");
         t.run = [p](const json&, Done done) {
             json out = json::array();
@@ -368,10 +368,10 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Crea un carrusel con sus pasos, o le cambia los pasos a uno que ya existe (`id`). Cada paso "
+            QT_TRANSLATE_NOOP("mcp", "Crea un carrusel con sus pasos, o le cambia los pasos a uno que ya existe (`id`). Cada paso "
             "es un `tipo` de contenido (los mismos de pantalla_mostrar) con sus datos y sus `segundos`. "
             "Con `borrar: true` y un `id`, lo saca.");
-        t.details = ba::i18n::traducir("mcp", "Si la pantalla ya lo esta mostrando, NO hace falta volver a mandarselo: la lista vive "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Si la pantalla ya lo esta mostrando, NO hace falta volver a mandarselo: la lista vive "
                     "en el servidor y el televisor la toma sola en la proxima vuelta. Por eso cambiar un "
                     "paso no hace parpadear nada.\n\n"
                     "Duraciones: un QR necesita al menos 15 segundos para que alguien lo saque del "
@@ -379,7 +379,7 @@ void McpService::registerPantallaTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para cambiar uno que ya existe")}}},
+             {{"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "para cambiar uno que ya existe")}}},
               {"nombre", {{"type", "string"}}},
               {"borrar", {{"type", "boolean"}}},
               {"transicion", {{"type", "string"}, {"enum", {"fundido", "corte"}}}},
@@ -458,7 +458,7 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "La pantalla vuelve a lo que tenia antes (su fondo de pantalla).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "La pantalla vuelve a lo que tenia antes (su fondo de pantalla).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"pantalla"}},
                          {"properties", {{"pantalla", {{"type", "string"}}}}}};
@@ -489,9 +489,9 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, "
+            QT_TRANSLATE_NOOP("mcp", "Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, "
             "un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.");
-        t.details = ba::i18n::traducir("mcp", "No es lo mismo que pantalla_listar. Ahi `mostrando` significa «el comando salio "
+        t.details = QT_TRANSLATE_NOOP("mcp", "No es lo mismo que pantalla_listar. Ahi `mostrando` significa «el comando salio "
                     "bien»; aca significa «la pagina contesta». Una pantalla que figura mostrando y NO "
                     "aparece en esta lista es una pantalla que no cargo: eso es lo que hay que mirar "
                     "antes de decirle al operador que ya esta.\n\n"
@@ -524,10 +524,10 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Le cambia a una superficie lo que muestra SIN volver a castearla: viaja por el canal de "
+            QT_TRANSLATE_NOOP("mcp", "Le cambia a una superficie lo que muestra SIN volver a castearla: viaja por el canal de "
             "control que la propia pagina tiene abierto, asi que el cambio es inmediato y sin parpadeo. "
             "Con `recargar` en true la hace recargarse en vez de irse a otra direccion.");
-        t.details = ba::i18n::traducir("mcp", "Sin `a`, va a TODAS las superficies de ese `tipo` (y sin `tipo` tampoco, a todas): "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Sin `a`, va a TODAS las superficies de ese `tipo` (y sin `tipo` tampoco, a todas): "
                     "util para mandar la sala entera a la misma pagina. Los ids y los tipos salen de "
                     "superficie_listar.\n\n"
                     "Si la superficie no esta viva no pasa nada y la cuenta vuelve en 0: eso quiere decir "
@@ -536,11 +536,11 @@ void McpService::registerPantallaTools() {
             {"type", "object"},
             {"properties",
              {{"a",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de la superficie; vacio = todas las de `tipo`")}}},
-              {"tipo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "pantalla, carrusel, programa, prompter...")}}},
-              {"url", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "a donde ir")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id de la superficie; vacio = todas las de `tipo`")}}},
+              {"tipo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "pantalla, carrusel, programa, prompter...")}}},
+              {"url", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "a donde ir")}}},
               {"recargar",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "que se recargue sola, sin cambiar de pagina")}}}}}};
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "que se recargue sola, sin cambiar de pagina")}}}}}};
         t.examples = {R"({"a": "carrusel-ug465j2w", "url": "http://.../pantalla/?tipo=reloj"})",
                       R"({"tipo": "carrusel", "recargar": true})"};
         t.run = [p](const json& a, Done done) {
@@ -583,11 +583,11 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Todo lo que se puede poner en un monitor de la maquina, en una ventana suelta o en una TV de "
+            QT_TRANSLATE_NOOP("mcp", "Todo lo que se puede poner en un monitor de la maquina, en una ventana suelta o en una TV de "
             "la red: el programa, el preview, cada escena, cada multiview, los paneles (padron, preguntas, "
             "votacion, Mezclador, PTZ de cada camara), las tarjetas del tablero, las paginas y lo de fondo "
             "del tablero. Cada cosa con su `id` estable.");
-        t.details = ba::i18n::traducir("mcp", "`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window "
                     "con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no "
                     "viaja). Los ids son estables: «escena:<nombre>», «multiview:<id>», «pagina:<id>», "
                     "«tarjeta:<tipo>», «ptz:<entrada>», «programa», «preview», «fondo», «web:<tipo>» (solo "
@@ -597,7 +597,7 @@ void McpService::registerPantallaTools() {
                           {{"donde",
                             {{"type", "string"},
                              {"enum", {"todo", "monitor", "red"}},
-                             {"description", ba::i18n::traducir("mcp", "filtrar: lo que va a un monitor, lo que va a una TV, o todo")}}}}}};
+                             {"description", QT_TRANSLATE_NOOP("mcp", "filtrar: lo que va a un monitor, lo que va a una TV, o todo")}}}}}};
         t.run = [cat](const json& a, Done done) {
             const std::string donde = a.value("donde", std::string("todo"));
             json cs = json::array();
@@ -622,11 +622,11 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), "
+            QT_TRANSLATE_NOOP("mcp", "Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), "
             "con su id estable, resolucion, si es el principal, y que muestra cada uno (Salidas, "
             "Pantallas, Pantallas conectadas). Tambien los recordados que no estan conectados: esos se "
             "esperan y su contenido no va a otro monitor.");
-        t.details = ba::i18n::traducir("mcp", "`orden` es el numero que se ve en el dibujo de la pagina (y con monitor_identificar en "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`orden` es el numero que se ve en el dibujo de la pagina (y con monitor_identificar en "
                     "cada monitor). `id` es fabricante|modelo|serie: no cambia aunque cambie el cable o el "
                     "orden en que prenden. `muestra` son ids de catalogo_listar.");
         t.run = [mon](const json&, Done done) {
@@ -664,10 +664,10 @@ void McpService::registerPantallaTools() {
         t.clase = Clase::Escritura;
         t.idempotent = true;
         t.description =
-            ba::i18n::traducir("mcp", "Deja FIJO en un monitor de esta maquina una cosa del catalogo (el programa, una escena, una "
+            QT_TRANSLATE_NOOP("mcp", "Deja FIJO en un monitor de esta maquina una cosa del catalogo (el programa, una escena, una "
             "multiview, un panel, una pagina...) o varias, que van en grilla. Se recuerda por monitor: "
             "vuelve sola al reiniciar, y si el monitor no esta se lo espera.");
-        t.details = ba::i18n::traducir("mcp", "`monitor`: su id, su numero de `orden` («2») o su nombre, como los da monitor_listar. "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`monitor`: su id, su numero de `orden` («2») o su nombre, como los da monitor_listar. "
                     "`cosas`: ids de catalogo_listar (con `donde: monitor`); una sola = la pantalla entera. "
                     "Reemplaza lo que tenia. `pantallaCompleta` (si no se dice, queda como estaba; de "
                     "entrada true) la pone a pantalla completa; false = una ventana maximizada en ese "
@@ -677,9 +677,9 @@ void McpService::registerPantallaTools() {
             {"type", "object"},
             {"required", {"monitor", "cosas"}},
             {"properties",
-             {{"monitor", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id, numero de orden o nombre (monitor_listar)")}}},
+             {{"monitor", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id, numero de orden o nombre (monitor_listar)")}}},
               {"cosas",
-               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", ba::i18n::traducir("mcp", "ids de catalogo_listar")}}},
+               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", QT_TRANSLATE_NOOP("mcp", "ids de catalogo_listar")}}},
               {"pantallaCompleta", {{"type", "boolean"}}}}}};
         t.examples = {R"({"monitor": "2", "cosas": ["programa"]})",
                       R"({"monitor": "2", "cosas": ["multiview:principal", "preguntas"], "pantallaCompleta": true})"};
@@ -709,13 +709,13 @@ void McpService::registerPantallaTools() {
         t.category = "pantallas";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Deja un monitor de esta maquina sin nada (se cierra su ventana). Con un monitor "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Deja un monitor de esta maquina sin nada (se cierra su ventana). Con un monitor "
                         "recordado que no esta conectado, ademas deja de esperarlo.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"monitor"}},
             {"properties",
-             {{"monitor", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id, numero de orden o nombre (monitor_listar)")}}}}}};
+             {{"monitor", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id, numero de orden o nombre (monitor_listar)")}}}}}};
         t.run = [mon](const json& a, Done done) {
             const QString id = mon->resolver(QString::fromStdString(a.value("monitor", std::string())));
             if (id.isEmpty())

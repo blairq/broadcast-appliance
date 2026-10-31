@@ -139,10 +139,10 @@ void McpService::registerRostroTools() {
         t.title = ba::i18n::traducir("mcp", "Quien aparece en una camara");
         t.category = "rostros";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Dice QUIÉN es la persona que se ve en un feed (programa, armada, invitado); solo identifica, no "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Dice QUIÉN es la persona que se ve en un feed (programa, armada, invitado); solo identifica, no "
             "mueve la cámara ni pone nada al aire. Busca caras en un video (claves de feeds_list: program, "
             "armada, guest:N...) y dice a quien se parece cada una, con cuanta confianza.");
-        t.details = ba::i18n::traducir("mcp", "`parecido` va de 0 a 1. Por encima de 0.45 es la misma persona con bastante margen "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`parecido` va de 0 a 1. Por encima de 0.45 es la misma persona con bastante margen "
                     "—medido: la misma cara da ~0.86 y dos personas distintas ~0.13—. Abajo de eso viene "
                     "`nombre` vacio: es «no se», no «no es nadie».\n\n"
                     "NO PONE ROTULOS. Dice quien esta; sacarlo al aire lo pide una persona.\n\n"
@@ -153,7 +153,7 @@ void McpService::registerRostroTools() {
              {{"feed",
                {{"type", "string"},
                 {"description",
-                 ba::i18n::traducir("mcp", "clave de feeds_list (por defecto program), o «entrada:<camara>» para una camara del "
+                 QT_TRANSLATE_NOOP("mcp", "clave de feeds_list (por defecto program), o «entrada:<camara>» para una camara del "
                  "estudio (lo mira por su tarjeta Rostros del grafo de video, que se pone sola)")}}}}}};
         t.examples = {R"({"feed": "guest:1"})", R"({})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
@@ -191,10 +191,10 @@ void McpService::registerRostroTools() {
         t.category = "rostros";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Guarda la ficha de una persona (nombre, cargo para el rotulo, nota) y, si se le pasa un "
+            QT_TRANSLATE_NOOP("mcp", "Guarda la ficha de una persona (nombre, cargo para el rotulo, nota) y, si se le pasa un "
             "`feed`, le suma la cara que se vea ahi.");
         t.details =
-            ba::i18n::traducir("mcp", "Con `id` corrige una que ya existe; sin `id`, crea. Corregir la ficha NO borra las caras "
+            QT_TRANSLATE_NOOP("mcp", "Con `id` corrige una que ya existe; sin `id`, crea. Corregir la ficha NO borra las caras "
             "guardadas.\n\n"
             "SUMALE VARIAS CARAS con el tiempo: de frente, de costado, con anteojos y sin. Una sola "
             "reconoce a esa persona con esa luz y ese angulo; varias aguantan el dia real. Se guardan "
@@ -205,14 +205,14 @@ void McpService::registerRostroTools() {
             {"type", "object"},
             {"required", {"nombre"}},
             {"properties",
-             {{"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para corregir una que ya existe")}}},
+             {{"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "para corregir una que ya existe")}}},
               {"nombre", {{"type", "string"}}},
-              {"cargo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que iria en el rotulo")}}},
-              {"nota", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para el operador, no sale al aire")}}},
-              {"feed", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "de donde tomar su cara ahora")}}},
+              {"cargo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que iria en el rotulo")}}},
+              {"nota", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "para el operador, no sale al aire")}}},
+              {"feed", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "de donde tomar su cara ahora")}}},
               {"nuevaFoto",
                {{"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "reemplazar la foto de la ficha por la de ahora (por defecto no)")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "reemplazar la foto de la ficha por la de ahora (por defecto no)")}}}}}};
         t.examples = {R"({"nombre": "Ana Perez", "cargo": "Ministra de Salud", "feed": "guest:1"})"};
         t.run = [pvDe, preparar, this](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
@@ -283,9 +283,9 @@ void McpService::registerRostroTools() {
         t.title = ba::i18n::traducir("mcp", "La libreta de personas");
         t.category = "rostros";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Todas las personas guardadas: nombre, cargo, nota, cuantas caras tiene "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Todas las personas guardadas: nombre, cargo, nota, cuantas caras tiene "
                         "guardadas y cuando se la vio por ultima vez.");
-        t.details = ba::i18n::traducir("mcp", "`caras` en 0 quiere decir que la ficha existe pero nunca se le mostro la cara: "
+        t.details = QT_TRANSLATE_NOOP("mcp", "`caras` en 0 quiere decir que la ficha existe pero nunca se le mostro la cara: "
                     "no se la va a reconocer hasta que se le sume una con `rostro_guardar`.");
         t.run = [pvDe, preparar](const json&, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
@@ -305,7 +305,7 @@ void McpService::registerRostroTools() {
         t.category = "rostros";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Borra la ficha y TODAS sus caras. No se puede deshacer: hay que darla de alta "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra la ficha y TODAS sus caras. No se puede deshacer: hay que darla de alta "
                         "de nuevo y volver a mostrarle la cara al sistema.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
@@ -336,9 +336,9 @@ void McpService::registerRostroTools() {
         t.category = "rostros";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Mide cada cara que se ve en un video y dice si sirve para guardarla, y si no sirve, QUE "
+            QT_TRANSLATE_NOOP("mcp", "Mide cada cara que se ve en un video y dice si sirve para guardarla, y si no sirve, QUE "
             "pedirle a la persona (que se acerque, que mire de frente, que prenda una luz).");
-        t.details = ba::i18n::traducir("mcp", "ESTA ES LA HERRAMIENTA DEL ALTA GUIADA de un invitado que entra por WebRTC. El lazo:\n\n"
+        t.details = QT_TRANSLATE_NOOP("mcp", "ESTA ES LA HERRAMIENTA DEL ALTA GUIADA de un invitado que entra por WebRTC. El lazo:\n\n"
                     "  1. `rostro_calidad {feed}` -> mira `sugerencia`\n"
                     "  2. si `sirve` es false, deci esa frase por `chat_send` al invitado y volve al 1\n"
                     "  3. cuando `sirve` es true, `rostro_guardar` (alta) o `rostro_sumar` (una pose mas)\n"
@@ -355,7 +355,7 @@ void McpService::registerRostroTools() {
              {{"feed",
                {{"type", "string"},
                 {"description",
-                 ba::i18n::traducir("mcp", "clave de feeds_list (por defecto program), o «entrada:<camara>» para una camara del "
+                 QT_TRANSLATE_NOOP("mcp", "clave de feeds_list (por defecto program), o «entrada:<camara>» para una camara del "
                  "estudio (lo mira por su tarjeta Rostros del grafo de video, que se pone sola)")}}}}}};
         t.examples = {R"({"feed": "guest:1"})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
@@ -404,9 +404,9 @@ void McpService::registerRostroTools() {
         t.category = "rostros";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Le suma a una ficha la cara que se vea ahora en un video. Dice si la pose APORTO algo o "
+            QT_TRANSLATE_NOOP("mcp", "Le suma a una ficha la cara que se vea ahora en un video. Dice si la pose APORTO algo o "
             "si ya la tenia, que es lo que hay que saber para pedir otra.");
-        t.details = ba::i18n::traducir("mcp", "PARA QUE SIRVE SUMAR VARIAS. Una sola cara reconoce a esa persona con esa luz y ese "
+        t.details = QT_TRANSLATE_NOOP("mcp", "PARA QUE SIRVE SUMAR VARIAS. Una sola cara reconoce a esa persona con esa luz y ese "
                     "angulo. Cuatro o cinco —de frente, de tres cuartos a cada lado, con anteojos y sin— "
                     "aguantan el dia real. Se guardan hasta 12.\n\n"
                     "`aporto` en false quiere decir que la pose era casi igual a una que ya tenia: no es un "
@@ -418,11 +418,11 @@ void McpService::registerRostroTools() {
             {"type", "object"},
             {"required", {"id", "feed"}},
             {"properties",
-             {{"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "de rostro_listar o persona_identificar")}}},
+             {{"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "de rostro_listar o persona_identificar")}}},
               {"feed", {{"type", "string"}}},
-              {"nuevaFoto", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "ademas, cambiarle la foto")}}},
+              {"nuevaFoto", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "ademas, cambiarle la foto")}}},
               {"igual",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "sumarla aunque la calidad no de (por defecto no)")}}}}}};
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "sumarla aunque la calidad no de (por defecto no)")}}}}}};
         t.examples = {R"({"id": "p20921624be7f", "feed": "guest:1"})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
@@ -486,9 +486,9 @@ void McpService::registerRostroTools() {
         t.title = ba::i18n::traducir("mcp", "Las fichas sin nombre, esperando que alguien diga quien es");
         t.category = "rostros";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Las personas que el sistema anoto solo (interruptor `rostro_autoalta`) y todavia no "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Las personas que el sistema anoto solo (interruptor `rostro_autoalta`) y todavia no "
                         "tienen nombre. Son las que hay que completar con `rostro_guardar {id, nombre}`.");
-        t.details = ba::i18n::traducir("mcp", "Cada una trae su foto en `foto` (archivo al lado de la libreta) para que alguien "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Cada una trae su foto en `foto` (archivo al lado de la libreta) para que alguien "
                     "pueda mirarla y decir quien es. Sin nombre no rotulan nada.");
         t.run = [pvDe, preparar](const json&, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
@@ -512,10 +512,10 @@ void McpService::registerRostroTools() {
         t.category = "rostros";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Pasa las caras de `otro` a `id` y borra `otro`. Para cuando la misma persona quedo "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pasa las caras de `otro` a `id` y borra `otro`. Para cuando la misma persona quedo "
                         "anotada dos veces.");
         t.details =
-            ba::i18n::traducir("mcp", "PASA, Y NO ES UNA FALLA. La misma persona con otra luz, de perfil o con barbijo puede no "
+            QT_TRANSLATE_NOOP("mcp", "PASA, Y NO ES UNA FALLA. La misma persona con otra luz, de perfil o con barbijo puede no "
             "parecerse a si misma lo suficiente, y el alta automatica le abre una ficha nueva. "
             "Fusionar aprovecha las caras de las dos: la ficha resultante reconoce MEJOR que "
             "cualquiera de las dos sueltas. Borrar una tira ese trabajo.\n\n"
@@ -524,8 +524,8 @@ void McpService::registerRostroTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"id", "otro"}},
                          {"properties",
-                          {{"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la que queda")}}},
-                           {"otro", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la que se absorbe")}}}}}};
+                          {{"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la que queda")}}},
+                           {"otro", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "la que se absorbe")}}}}}};
         t.run = [pvDe, preparar](const json& a, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
             PersonasViewModel* pv = pvDe();
@@ -559,10 +559,10 @@ void McpService::registerRostroTools() {
         t.category = "padron";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Prende o apaga la camara de la PUERTA: reconoce a quien entra al lugar y lo marca como "
+            QT_TRANSLATE_NOOP("mcp", "Prende o apaga la camara de la PUERTA: reconoce a quien entra al lugar y lo marca como "
             "llegado en el padron del evento abierto.");
         t.details =
-            ba::i18n::traducir("mcp", "Es la acreditacion presencial, y es la contracara del lobby: el mismo reconocimiento, "
+            QT_TRANSLATE_NOOP("mcp", "Es la acreditacion presencial, y es la contracara del lobby: el mismo reconocimiento, "
             "apuntado al mundo fisico en vez de al remoto. Con las dos prendidas, «quienes estan» "
             "sabe de las dos mitades de la gente, que es de lo que se trata un evento hibrido.\n\n"
             "NO ANOTA A NADIE EN EL PADRON. Si llega alguien que no esta en la lista, lo dice y sigue: "
@@ -584,7 +584,7 @@ void McpService::registerRostroTools() {
               {"feed",
                {{"type", "string"},
                 {"description",
-                 ba::i18n::traducir("mcp", "que camara mira la entrada (clave de feeds_list, o «entrada:<camara>» para una camara del "
+                 QT_TRANSLATE_NOOP("mcp", "que camara mira la entrada (clave de feeds_list, o «entrada:<camara>» para una camara del "
                  "estudio: se le pone sola la tarjeta Rostros en el grafo de video)")}}}}}};
         t.examples = {R"({"activo": true, "feed": "cam:2"})", R"({})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
@@ -614,10 +614,10 @@ void McpService::registerRostroTools() {
         t.category = "rostros";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Prende o apaga el anotado automatico: con el puesto, cada cara que pase por la camara "
+            QT_TRANSLATE_NOOP("mcp", "Prende o apaga el anotado automatico: con el puesto, cada cara que pase por la camara "
             "elegida y no este en la libreta queda anotada SIN NOMBRE y con su foto, y a las que ya "
             "conoce les suma la pose nueva.");
-        t.details = ba::i18n::traducir("mcp", "QUE NO HACE: no le pone nombre a nadie ni saca nada al aire. Una ficha sin nombre no "
+        t.details = QT_TRANSLATE_NOOP("mcp", "QUE NO HACE: no le pone nombre a nadie ni saca nada al aire. Una ficha sin nombre no "
                     "rotula. Despues `rostro_pendientes` las lista y `rostro_guardar {id, nombre}` las "
                     "completa.\n\n"
                     "Anota recien despues de ver la misma cara tres pasadas seguidas: un reflejo o media "
@@ -629,12 +629,12 @@ void McpService::registerRostroTools() {
              {{"activo", {{"type", "boolean"}}},
               {"feed",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "que camara mirar (clave de feeds_list, o «entrada:<camara>» para una camara "
+                {"description", QT_TRANSLATE_NOOP("mcp", "que camara mirar (clave de feeds_list, o «entrada:<camara>» para una camara "
                                 "del estudio), o \"lobby\" para todas las posiciones "
                                 "de espera por turno")}}},
               {"altaAutomatica",
                {{"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "anotar CON NOMBRE a quien lo dio en el lobby (lo escribio al entrar o se lo "
+                {"description", QT_TRANSLATE_NOOP("mcp", "anotar CON NOMBRE a quien lo dio en el lobby (lo escribio al entrar o se lo "
                                 "corrigieron) y tiene una cara que sirve; lo mismo que atencion_configurar")}}}}}};
         t.examples = {R"({"activo": true, "feed": "lobby"})", R"({"activo": true, "feed": "guest:1"})",
                       R"({})"};
@@ -678,10 +678,10 @@ void McpService::registerRostroTools() {
         t.title = ba::i18n::traducir("mcp", "Quien es cada uno de los que estan esperando");
         t.category = "rostros";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Solo IDENTIFICA, no deja entrar a nadie. Para cada posicion del lobby: a quien "
                         "reconoce, si su camara sirve para guardarle la cara, y que pedirle si no.");
         t.details =
-            ba::i18n::traducir("mcp", "EL LOBBY ES EL MOMENTO. La gente llega antes de entrar y se queda quieta frente a su "
+            QT_TRANSLATE_NOOP("mcp", "EL LOBBY ES EL MOMENTO. La gente llega antes de entrar y se queda quieta frente a su "
             "camara esperando: es el unico rato en que hay tiempo de saber quien es sin que nada de "
             "esto salga al aire.\n\n"
             "El lazo del alta asistida de alguien que espera:\n\n"

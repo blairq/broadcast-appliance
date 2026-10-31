@@ -28,16 +28,16 @@ namespace {
 /// los usan las dos herramientas que dibujan.
 json esquemaEstilo() {
     return json{
-        {"primario", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "color del codigo (#000000)")}}},
-        {"secundario", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "si esta, degradado de primario a este")}}},
-        {"fondo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "#FFFFFF o \"transparent\"")}}},
+        {"primario", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "color del codigo (#000000)")}}},
+        {"secundario", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "si esta, degradado de primario a este")}}},
+        {"fondo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "#FFFFFF o \"transparent\"")}}},
         {"puntos",
          {{"type", "string"},
           {"enum", {"cuadrados", "redondeados", "circulos", "separados", "muy-redondeados"}}}},
         {"ojos", {{"type", "string"}, {"enum", {"cuadrados", "redondeados"}}}},
         {"marco", {{"type", "string"}, {"enum", {"ninguno", "simple", "redondeado"}}}},
         {"correccion", {{"type", "string"}, {"enum", {"baja", "media", "alta", "maxima"}}}},
-        {"icono", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de un icono para el centro (qr_listar los da)")}}},
+        {"icono", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id de un icono para el centro (qr_listar los da)")}}},
         {"iconoColor", {{"type", "string"}}}};
 }
 
@@ -70,7 +70,7 @@ void McpService::registerQrTools() {
     json tipos = json::array();
     for (const QVariant& v : q->tipos())
         tipos.push_back(v.toMap().value("id").toString().toStdString());
-    const json esquemaTipo = {{"type", "string"}, {"enum", tipos}, {"description", ba::i18n::traducir("mcp", "uno de qr_listar (enlace para una url)")}};
+    const json esquemaTipo = {{"type", "string"}, {"enum", tipos}, {"description", QT_TRANSLATE_NOOP("mcp", "uno de qr_listar (enlace para una url)")}};
 
     {
         Tool t;
@@ -78,9 +78,9 @@ void McpService::registerQrTools() {
         t.title = ba::i18n::traducir("mcp", "Los codigos guardados, y que se puede generar");
         t.category = "qr";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los codigos de la biblioteca (del aparato y del evento), los TIPOS que se pueden "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los codigos de la biblioteca (del aparato y del evento), los TIPOS que se pueden "
                         "generar con sus campos, y los iconos que pueden ir al centro.");
-        t.details = ba::i18n::traducir("mcp", "Los tipos con `delAparato: true` (sala, prompter, rotulos) NO llevan datos: el "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Los tipos con `delAparato: true` (sala, prompter, rotulos) NO llevan datos: el "
                     "contenido lo arma el sistema con la clave que corresponda en ese momento. Por eso se "
                     "guardan sin texto y salen siempre al dia.\n\n`para_elegir`: lo que acepta `qr` en "
                     "pantalla_mostrar y en una fuente «Código QR» (crear_fuente {type: ba_qr, settings: {qr}}): los del "
@@ -128,7 +128,7 @@ void McpService::registerQrTools() {
         t.category = "qr";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Abre en la pantalla del operador una ventana con el código QR de `texto` (una URL, un enlace de la conferencia, "
+            QT_TRANSLATE_NOOP("mcp", "Abre en la pantalla del operador una ventana con el código QR de `texto` (una URL, un enlace de la conferencia, "
             "un PIN…), una `descripcion` grande, el texto seleccionable y los botones «Copiar al portapapeles» y "
             "«Abrir». USALO SIEMPRE que le pases una URL o un dato largo al operador: desde el chat no lo puede copiar "
             "cómodo; así lo escanea con el celular o lo copia con un clic. `color` (verde, azul, rojo, amarillo, "
@@ -138,12 +138,12 @@ void McpService::registerQrTools() {
             {"type", "object"},
             {"required", {"texto"}},
             {"properties",
-             {{"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que va en el QR (p. ej. la URL)")}}},
-              {"descripcion", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "qué es, en grande (p. ej. «Enlace para los invitados»)")}}},
-              {"mensaje", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "una línea de explicación (opcional)")}}},
+             {{"texto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que va en el QR (p. ej. la URL)")}}},
+              {"descripcion", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "qué es, en grande (p. ej. «Enlace para los invitados»)")}}},
+              {"mensaje", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "una línea de explicación (opcional)")}}},
               {"color",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "verde (de fábrica), azul, rojo, amarillo, naranja, violeta, rosa, celeste, gris o #rrggbb")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "verde (de fábrica), azul, rojo, amarillo, naranja, violeta, rosa, celeste, gris o #rrggbb")}}}}}};
         t.examples = {R"({"texto": "https://sala.ejemplo.com/invitados/#room=sala1", "descripcion": "Enlace para los invitados", "color": "verde"})",
                       R"({"texto": "https://sala.ejemplo.com/sesion/", "descripcion": "Sesión remota", "color": "azul"})"};
         StudioViewModel* vmp = &vm_;
@@ -167,10 +167,10 @@ void McpService::registerQrTools() {
         t.title = ba::i18n::traducir("mcp", "Generar un codigo (sin guardarlo)");
         t.category = "qr";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Arma el codigo y devuelve QUE DICE y su SVG, sin tocar la biblioteca ni lo que el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Arma el codigo y devuelve QUE DICE y su SVG, sin tocar la biblioteca ni lo que el "
                         "operador este diseñando. Para guardarlo: qr_guardar. Para dejarlo en un archivo: "
                         "qr_exportar.");
-        t.details = ba::i18n::traducir("mcp", "El estilo es opcional: sin el sale negro, cuadrado y sin adornos, que es lo que "
+        t.details = QT_TRANSLATE_NOOP("mcp", "El estilo es opcional: sin el sale negro, cuadrado y sin adornos, que es lo que "
                     "siempre se lee.\n\n"
                     "OJO CON EL ESTILO: un icono al centro tapa modulos, asi que sube la correccion de "
                     "errores solo. Y no hay ojos circulares porque NO SE LEEN (se midio: un ojo mas "
@@ -180,7 +180,7 @@ void McpService::registerQrTools() {
             {"required", {"tipo"}},
             {"properties",
              {{"tipo", esquemaTipo},
-              {"datos", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "los campos del tipo (qr_listar)")}}},
+              {"datos", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "los campos del tipo (qr_listar)")}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}}}}};
         t.examples = {
             R"({"tipo": "wifi", "datos": {"red": "Estudio", "clave": "…"}, "estilo": {"icono": "wifi", "primario": "#1d4ed8"}})"};
@@ -210,7 +210,7 @@ void McpService::registerQrTools() {
         t.title = ba::i18n::traducir("mcp", "Guardar un codigo en la biblioteca");
         t.category = "qr";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Lo deja guardado para usarlo despues. `ambito`: \"global\" (del aparato, sirve "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo deja guardado para usarlo despues. `ambito`: \"global\" (del aparato, sirve "
                         "para todos los eventos) o \"evento\" (viaja con este). Con `id` de uno que ya "
                         "existe, lo reemplaza.");
         t.inputSchema = {
@@ -222,7 +222,7 @@ void McpService::registerQrTools() {
               {"ambito", {{"type", "string"}, {"enum", {"global", "evento"}}, {"default", "global"}}},
               {"datos", {{"type", "object"}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
-              {"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "para reemplazar uno que ya existe")}}}}}};
+              {"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "para reemplazar uno que ya existe")}}}}}};
         t.run = [q](const json& a, Done done) {
             // Se arma en el editor y se guarda: el operador ve aparecer lo que
             // el asistente hizo, en la pantalla, sin refrescar nada.
@@ -257,7 +257,7 @@ void McpService::registerQrTools() {
         t.category = "qr";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Lo saca de la biblioteca. No toca lo que ya se haya exportado ni lo que este en "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo saca de la biblioteca. No toca lo que ya se haya exportado ni lo que este en "
                         "una pantalla.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
@@ -277,7 +277,7 @@ void McpService::registerQrTools() {
         t.title = ba::i18n::traducir("mcp", "Dejar un codigo en un archivo");
         t.category = "qr";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe el codigo en Exportado/, como PNG (para pegar en algo) o SVG (para "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe el codigo en Exportado/, como PNG (para pegar en algo) o SVG (para "
                         "imprimir a cualquier tamaño sin que se vea borroso). Con `id` exporta uno "
                         "guardado; si no, se arma con `tipo`/`datos`/`estilo` como en qr_generar.");
         t.inputSchema = {
@@ -287,7 +287,7 @@ void McpService::registerQrTools() {
               {"tipo", esquemaTipo},
               {"datos", {{"type", "object"}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
-              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el del archivo")}}},
+              {"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el del archivo")}}},
               {"formato", {{"type", "string"}, {"enum", {"png", "svg"}}, {"default", "png"}}},
               {"px", {{"type", "integer"}, {"minimum", 64}, {"maximum", 4096}, {"default", 1024}}}}}};
         t.run = [q](const json& a, Done done) {
@@ -331,7 +331,7 @@ void McpService::registerQrTools() {
         t.category = "qr";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Cada servicio web del aparato en una lista: invitados, tablero, público, teleprompter, rótulos, "
+            QT_TRANSLATE_NOOP("mcp", "Cada servicio web del aparato en una lista: invitados, tablero, público, teleprompter, rótulos, "
             "corrección, botonera, Companion, sesión remota, presidencia, web del evento, televisores, túnel y "
             "consola. De cada uno: `led` (ok, aviso, apagado, error) y `estado` en palabras, si se puede "
             "prender o apagar (`activable`, `activo`), el enlace de la red local (`local`) y el de afuera "
@@ -359,7 +359,7 @@ void McpService::registerQrTools() {
         t.category = "qr";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "De dónde sale TODO enlace: lo calcula la conferencia con lo que sabe (dónde escucha, la IP de la máquina, si el "
+            QT_TRANSLATE_NOOP("mcp", "De dónde sale TODO enlace: lo calcula la conferencia con lo que sabe (dónde escucha, la IP de la máquina, si el "
             "túnel está listo). `local`: la IP de la red y el puerto de la conferencia; `remoto`: el túnel (o null). Por "
             "servicio (invitados, sesion, presidencia, botonera, control, prompter, rotulos, correccion, tablero, "
             "publico, pantalla, companion, evento): `local` (la de la red; nunca 127.0.0.1), `remoto` (por el túnel) "
@@ -377,7 +377,7 @@ void McpService::registerQrTools() {
         t.category = "qr";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la "
+            QT_TRANSLATE_NOOP("mcp", "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la "
             "conferencia con llave), `companion` (la API HTTP de la botonera), `satellite` "
             "(Companion Satellite) o `tunel` (la salida a internet: reinicia la conferencia, los invitados se "
             "reconectan). Es el interruptor de la lista de servicios; para ajustar uno con sus opciones: la "

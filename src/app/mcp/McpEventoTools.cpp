@@ -68,7 +68,7 @@ std::string errorDeIdioma(const json& a) {
 /// herramientas (con el idioma del operador ya puesto), no al cargar el programa.
 json idiomaEsquema() {
     return {{"type", "string"},
-    {"description", ba::i18n::traducir("mcp", "idioma del evento: lo que ven y escuchan el público y los invitados (gráficos, tótems, voz, "
+    {"description", QT_TRANSLATE_NOOP("mcp", "idioma del evento: lo que ven y escuchan el público y los invitados (gráficos, tótems, voz, "
                     "la web). Un código (es, en, pt-BR); vacío = el del programa")}};
 }
 
@@ -102,10 +102,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Los guiones guardados DENTRO del evento abierto, con su fecha, su duracion prevista y cuantos cues "
+            QT_TRANSLATE_NOOP("mcp", "Los guiones guardados DENTRO del evento abierto, con su fecha, su duracion prevista y cuantos cues "
             "tiene cada uno. Los eventos (cada uno con sus escenas, medios, asamblea…) son eventos_listar.");
         t.details =
-            ba::i18n::traducir("mcp", "Un evento es el guion de lo que va a pasar: bloques (apertura, discurso, cierre) y dentro "
+            QT_TRANSLATE_NOOP("mcp", "Un evento es el guion de lo que va a pasar: bloques (apertura, discurso, cierre) y dentro "
             "de cada uno los cues concretos (poner una escena, arrancar un tema, dar la palabra).\n\n"
             "Cada evento vive en su propia carpeta dentro de Eventos/, con su musica, sus videos y sus "
             "discursos adentro, para poder llevarselo entero a otra maquina.\n\n"
@@ -116,7 +116,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "(evento_en_curso). Con `grupo` filtra por carpeta (incluye las de adentro).");
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"grupo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Solo los de esta carpeta.")}}}}}};
+            {"properties", {{"grupo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo los de esta carpeta.")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             const std::string grupo = a.value("grupo", std::string());
             json out = json::array();
@@ -155,7 +155,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.clase = Clase::Escritura;
         t.openWorld = true;
         t.description =
-            ba::i18n::traducir("mcp", "El sitio del evento abierto: una página por sección (bloque) del guion, una portada (antes de empezar) "
+            QT_TRANSLATE_NOOP("mcp", "El sitio del evento abierto: una página por sección (bloque) del guion, una portada (antes de empezar) "
             "y un cierre, en la carpeta Web/ del evento (queda en el historial). La raíz de la dirección pública "
             "muestra la página de la sección que se está tratando y cambia sola cuando el guion avanza; los "
             "invitados entran por /invitados/. `accion`: ver | generar {sobrescribir} | leer {pagina} | escribir "
@@ -164,7 +164,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "direccion {subdominio?} (pasa la dirección pública a <subdominio>.a.pinggy.link con la API key; reinicia "
             "la conferencia).");
         t.details =
-            ba::i18n::traducir("mcp", "`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. "
+            QT_TRANSLATE_NOOP("mcp", "`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. "
             "LA PÁGINA SE ARMA SOLA CON LOS DATOS DEL EVENTO: las plantillas del sistema no traen datos escritos; "
             "/evento/_/vivo.js pone el nombre, la fecha, las secciones, el programa, anterior/siguiente, quién habla "
             "y la gente conectada con lo que da /api/v1/evento, así que si cambia el guion la página se actualiza sola. "
@@ -200,7 +200,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                            {"subdominio", {{"type", "string"}}},
                            {"barra", {{"type", "boolean"}}},
                            {"direccion_al_iniciar", {{"type", "boolean"}}},
-                           {"participacion", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "la página ofrece preguntar y votar (/publico/)")}}},
+                           {"participacion", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "la página ofrece preguntar y votar (/publico/)")}}},
                            {"texto", {{"type", "string"}}},
                            {"nivel", {{"type", "string"}, {"enum", {"info", "urgente"}}}},
                            {"vivos", {{"type", "object"},
@@ -271,10 +271,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "El guion completo del evento abierto: bloques con su hora prevista y sus cues, cada uno con "
+            QT_TRANSLATE_NOOP("mcp", "El guion completo del evento abierto: bloques con su hora prevista y sus cues, cada uno con "
             "tipo, duracion, si encadena solo y que le falta para poder ejecutarse.");
         t.details =
-            ba::i18n::traducir("mcp", "`falta` es lo importante: dice por que ese cue no se podria ejecutar (una escena sin nombre, "
+            QT_TRANSLATE_NOOP("mcp", "`falta` es lo importante: dice por que ese cue no se podria ejecutar (una escena sin nombre, "
             "un orador sin tiempo, un video sin archivo). Un guion sano tiene todos los `falta` vacios.\n\n"
             "`offsetSeg` de cada cue son los segundos desde el arranque del evento y `horaPrevista` la "
             "hora («HH:MM») a la que le toca, si el evento tiene `inicio`.\n\n"
@@ -298,21 +298,21 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Abrir o crear un guion (dentro del evento abierto)");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Abre un guion guardado DENTRO del evento abierto (o crea otro guion ahí con `nombre`). NO "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Abre un guion guardado DENTRO del evento abierto (o crea otro guion ahí con `nombre`). NO "
                         "cambia de evento: para pasar a otro evento (sus escenas, mezclador, medios, asamblea) es "
                         "evento_cambiar, y para uno nuevo, evento_nuevo.");
         t.details =
-            ba::i18n::traducir("mcp", "Con `carpeta` abre uno que ya existe (el nombre exacto que devuelve guion_listar).\n"
+            QT_TRANSLATE_NOOP("mcp", "Con `carpeta` abre uno que ya existe (el nombre exacto que devuelve guion_listar).\n"
             "Con `nombre` crea uno nuevo con ese titulo y lo deja abierto; si ya hay uno con ese nombre "
             "NO lo pisa, crea otro al lado.\n\n"
             "Lo que se este editando sin guardar se guarda antes de cambiar de evento.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"carpeta", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Un evento que ya existe.")}}},
-              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Crear uno nuevo con este titulo.")}}},
+             {{"carpeta", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Un evento que ya existe.")}}},
+              {"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Crear uno nuevo con este titulo.")}}},
               {"en_carpeta",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Al crear: en qué carpeta (\"2026/Octubre\"); se crea si no está.")}}}}}};
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Al crear: en qué carpeta (\"2026/Octubre\"); se crea si no está.")}}}}}};
         t.run = [&ev, &vm](const json& a, Done done) {
             if (a.contains("nombre")) {
                 // Con el nombre de otro EVENTO casi seguro querían pasar a él, no un guion con ese título acá.
@@ -345,9 +345,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "El evento en curso");
         t.category = "evento";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Qué evento está en curso: el que recibe todo lo que pasa (grabaciones, vivos, registro).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Qué evento está en curso: el que recibe todo lo que pasa (grabaciones, vivos, registro).");
         t.details =
-            ba::i18n::traducir("mcp", "No es lo mismo que el evento ABIERTO (el que se edita): se puede preparar el de la semana que viene "
+            QT_TRANSLATE_NOOP("mcp", "No es lo mismo que el evento ABIERTO (el que se edita): se puede preparar el de la semana que viene "
             "con el de hoy en curso. Hay uno solo a la vez y sobrevive a un corte de luz.\n\n"
             "Si nadie eligió uno y el automático está prendido (`evento_automatico`), está en curso la jornada "
             "del día («Jornada del 07/10/2026», en la carpeta 2026/Octubre): nada queda sin evento. "
@@ -375,11 +375,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo que pasó durante un evento, en orden: escenas al aire, grabación y transmisión, oradores, "
+            QT_TRANSLATE_NOOP("mcp", "Lo que pasó durante un evento, en orden: escenas al aire, grabación y transmisión, oradores, "
             "votaciones, cada herramienta del MCP que cambió algo, cada botón de la botonera, cada cue del guion, "
             "avisos y errores. Sin `evento`: el en curso.");
         t.details =
-            ba::i18n::traducir("mcp", "Sale de `bitacora.jsonl` en la carpeta del evento (una línea por hecho, se escribe mientras el evento "
+            QT_TRANSLATE_NOOP("mcp", "Sale de `bitacora.jsonl` en la carpeta del evento (una línea por hecho, se escribe mientras el evento "
             "está en curso y sobrevive a un corte de luz). Cada línea: `t` (ms, reloj de pared), `tipo` (bus | mcp "
             "| botonera | guion | aviso | evento), `origen` (el tema del bus, el componente) y `texto` o `valor`. "
             "Filtros: `tipos`, `texto` (busca en toda la línea), `desde`/`hasta` (ms o «HH:MM» del día del "
@@ -387,7 +387,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"evento", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La carpeta del evento (guion_listar).")}}},
+             {{"evento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La carpeta del evento (guion_listar).")}}},
               {"tipos", {{"type", "array"}, {"items", {{"type", "string"}, {"enum", {"bus", "mcp", "botonera", "guion", "aviso", "evento"}}}}}},
               {"texto", {{"type", "string"}}},
               {"desde", {{"type", {"integer", "string"}}}},
@@ -434,11 +434,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Con qué configuración se hizo un evento: la foto de Config/ al entrar en curso (`inicio`), al terminar "
+            QT_TRANSLATE_NOOP("mcp", "Con qué configuración se hizo un evento: la foto de Config/ al entrar en curso (`inicio`), al terminar "
             "(`cierre`) o la última vista (`ultima`, de fábrica). Sin `archivo`: la lista de archivos; con `archivo`: "
             "su contenido. Con `comparar_con`: qué cambió (contra «actual» o contra otro evento).");
         t.details =
-            ba::i18n::traducir("mcp", "Las fotos están en <evento>/config/{inicio,cierre,ultima}.json y nombran cada contenido por su sha256 "
+            QT_TRANSLATE_NOOP("mcp", "Las fotos están en <evento>/config/{inicio,cierre,ultima}.json y nombran cada contenido por su sha256 "
             "(Eventos/.objetos/<sha>.json, guardado una sola vez). Los secretos van tapados («tapado»). Los cambios "
             "durante el evento también quedan en la bitácora (evento_bitacora, tipo `config`), con el JSON Patch. "
             "`comparar_con`: \"actual\" (la configuración de ahora) o {evento, foto}. Volver a una configuración "
@@ -446,10 +446,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"evento", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La carpeta (vacío = el en curso).")}}},
+             {{"evento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La carpeta (vacío = el en curso).")}}},
               {"foto", {{"type", "string"}, {"enum", {"inicio", "cierre", "ultima"}}}},
-              {"archivo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "p. ej. escenas.json")}}},
-              {"comparar_con", {{"description", ba::i18n::traducir("mcp", "\"actual\" o {evento, foto}")}}}}}};
+              {"archivo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "p. ej. escenas.json")}}},
+              {"comparar_con", {{"description", QT_TRANSLATE_NOOP("mcp", "\"actual\" o {evento, foto}")}}}}}};
         t.examples = {R"({})", R"({"archivo": "escenas.json"})", R"({"foto": "inicio", "comparar_con": "actual"})",
                       R"({"evento": "2026/Octubre/Sesion-03", "comparar_con": {"evento": "2026/Octubre/Sesion-10", "foto": "inicio"}})"};
         t.run = [&ev](const json& a, Done done) {
@@ -505,16 +505,16 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo que produjo un evento: cada grabación (archivo, desde/hasta, tamaño y sus capítulos: qué escena "
+            QT_TRANSLATE_NOOP("mcp", "Lo que produjo un evento: cada grabación (archivo, desde/hasta, tamaño y sus capítulos: qué escena "
             "estaba al aire en cada momento), cada vivo (plataforma, URL pública, estudio, caídas) y las "
             "transcripciones. Sin `evento`: el en curso.");
         t.details =
-            ba::i18n::traducir("mcp", "Con un evento en curso, la grabación va a <evento>/Grabaciones/ (y las de entradas y la señal limpia, "
+            QT_TRANSLATE_NOOP("mcp", "Con un evento en curso, la grabación va a <evento>/Grabaciones/ (y las de entradas y la señal limpia, "
             "a sus subcarpetas) y las transcripciones a <evento>/Transcripciones/. Los índices son "
             "grabaciones.json y transmisiones.json en la carpeta del evento. Los capítulos salen de la bitácora "
             "(`aire/escena`), en segundos desde el inicio del archivo. Las claves de transmisión nunca se guardan.");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"evento", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La carpeta (vacío = el en curso).")}}}}}};
+                         {"properties", {{"evento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La carpeta (vacío = el en curso).")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             const std::string carpeta = a.value("evento", std::string());
             const auto dir = ev.carpetaEvento(carpeta);
@@ -575,15 +575,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Compara la carpeta de un evento cerrado con su sellos.json (sha256 de cada archivo al cerrarlo): dice "
+            QT_TRANSLATE_NOOP("mcp", "Compara la carpeta de un evento cerrado con su sellos.json (sha256 de cada archivo al cerrarlo): dice "
             "si está intacto, qué archivos cambiaron, cuáles faltan y cuáles se agregaron después.");
         t.details =
-            ba::i18n::traducir("mcp", "Al dejar de estar en curso, cada evento recibe asamblea/ (copia sin secretos de orden del día, quórum, "
+            QT_TRANSLATE_NOOP("mcp", "Al dejar de estar en curso, cada evento recibe asamblea/ (copia sin secretos de orden del día, quórum, "
             "votaciones, cuerpo, sesión remota…), registro/ (el pedazo de cada log entre su inicio y su fin) y, en "
             "segundo plano, sellos.json. Verificar relee todo, también las grabaciones: con gigas tarda.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"evento"}},
-                         {"properties", {{"evento", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La carpeta (guion_listar).")}}}}}};
+                         {"properties", {{"evento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "La carpeta (guion_listar).")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
             if (dir.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {a.value("evento", std::string())})));
@@ -613,10 +613,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "historico";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Busca un texto en todo el histórico: la bitácora de cada evento (escenas, MCP, botonera, avisos…), las "
+            QT_TRANSLATE_NOOP("mcp", "Busca un texto en todo el histórico: la bitácora de cada evento (escenas, MCP, botonera, avisos…), las "
             "transcripciones, la asamblea (orden del día, votaciones), las actas, los discursos y los guiones. Lo "
             "más nuevo primero.");
-        t.details = ba::i18n::traducir("mcp", "Cada resultado: evento (carpeta), archivo, línea, el texto alrededor y, en la bitácora, la hora. "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Cada resultado: evento (carpeta), archivo, línea, el texto alrededor y, en la bitácora, la hora. "
                     "Para ver el contexto de una línea de la bitácora: evento_bitacora con `texto` o `desde`/`hasta`.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"texto"}},
@@ -646,11 +646,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "historico";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Prepara volver a la configuración que tenía un evento (toda, o solo algunos archivos de Config/), "
+            QT_TRANSLATE_NOOP("mcp", "Prepara volver a la configuración que tenía un evento (toda, o solo algunos archivos de Config/), "
             "para aplicarla al reiniciar la app. Con `cancelar`: descarta lo preparado. Sin argumentos: dice si hay "
             "algo preparado.");
         t.details =
-            ba::i18n::traducir("mcp", "No escribe Config/ con la app andando (cada módulo guardaría encima lo que tiene en memoria): deja todo "
+            QT_TRANSLATE_NOOP("mcp", "No escribe Config/ con la app andando (cada módulo guardaría encima lo que tiene en memoria): deja todo "
             "en Config/.restaurar/ y se aplica al arrancar, antes de que se lea nada; lo de antes queda copiado en "
             "Config/.restaurar/antes-<ms>/. Las claves y tokens, que en las fotos van tapados, toman el valor de "
             "ahora. launcher.json no se toca. Mirá antes qué cambia con evento_config `comparar_con: \"actual\"`.");
@@ -695,10 +695,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "historico";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Le asigna a un evento las grabaciones (Recordings/, con entradas/ y limpia/) y las transcripciones que "
+            QT_TRANSLATE_NOOP("mcp", "Le asigna a un evento las grabaciones (Recordings/, con entradas/ y limpia/) y las transcripciones que "
             "terminaron en su día (el de su inicio, su fecha o el de la jornada), o entre `desde` y `hasta`. De "
             "fábrica quedan donde están y el evento las nombra; con `mover`, pasan a su carpeta.");
-        t.details = ba::i18n::traducir("mcp", "Para lo grabado antes del histórico (o con la jornada automática apagada). Lo que el evento ya "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Para lo grabado antes del histórico (o con la jornada automática apagada). Lo que el evento ya "
                     "tiene no se repite. Las transcripciones se copian (son chicas), o se mueven con `mover`. "
                     "`desde`/`hasta`: ms de reloj de pared.");
         t.inputSchema = {{"type", "object"},
@@ -725,10 +725,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "historico";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Cuánto disco queda para los eventos y qué grabaciones borra la retención (las de eventos terminados "
+            QT_TRANSLATE_NOOP("mcp", "Cuánto disco queda para los eventos y qué grabaciones borra la retención (las de eventos terminados "
             "hace más de `grabaciones_dias`; la bitácora, la configuración, la asamblea, las transcripciones y los "
             "índices quedan). De fábrica SIMULA: dice qué borraría. Con `simular: false`, borra.");
-        t.details = ba::i18n::traducir("mcp", "Se configura con historico_ajustes {retencion: {grabaciones_dias, aviso_disco_pct}}; 0 días = "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Se configura con historico_ajustes {retencion: {grabaciones_dias, aviso_disco_pct}}; 0 días = "
                     "nunca borrar (de fábrica). La app la aplica sola cada hora y avisa cuando el disco pasa del "
                     "porcentaje. Lo borrado queda anotado en grabaciones.json (`borrada_ms`) y en la bitácora del "
                     "evento; sus sellos van a decir que faltan esos archivos.");
@@ -749,15 +749,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "historico";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Copia un evento entero a otra carpeta (de fábrica, Exportados/ al lado de Eventos/), con o sin las "
+            QT_TRANSLATE_NOOP("mcp", "Copia un evento entero a otra carpeta (de fábrica, Exportados/ al lado de Eventos/), con o sin las "
             "grabaciones, junto con los contenidos de sus fotos de configuración: la copia se entiende sola en "
             "otra máquina.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"evento"}},
                          {"properties",
                           {{"evento", {{"type", "string"}}},
-                           {"destino", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Carpeta absoluta (vacío = Exportados/).")}}},
-                           {"grabaciones", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Incluir Grabaciones/ (de fábrica, sí).")}}}}}};
+                           {"destino", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Carpeta absoluta (vacío = Exportados/).")}}},
+                           {"grabaciones", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Incluir Grabaciones/ (de fábrica, sí).")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
             if (dir.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un evento «%1»"), {a.value("evento", std::string())})));
@@ -783,7 +783,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "historico";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Qué entra en la bitácora de cada evento y la jornada automática. Sin argumentos: cómo está. "
+            QT_TRANSLATE_NOOP("mcp", "Qué entra en la bitácora de cada evento y la jornada automática. Sin argumentos: cómo está. "
             "`registrar`: {bus, mcp, botonera, guion, aviso, evento, config} en true/false; `bus_excluir`: "
             "patrones del bus que no se anotan (lo que se repite muchas veces por segundo); `evento_automatico`; "
             "`retencion`: {grabaciones_dias (0 = nunca borrar), aviso_disco_pct} (ver historico_retencion).");
@@ -811,12 +811,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Poner un evento en curso");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Pone un evento en curso (el que estaba se termina): desde ahora todo lo que pasa es de ese evento.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Pone un evento en curso (el que estaba se termina): desde ahora todo lo que pasa es de ese evento.");
         t.details =
-            ba::i18n::traducir("mcp", "`carpeta` es la ruta que da guion_listar. Si el evento ya había empezado antes, conserva cuándo "
+            QT_TRANSLATE_NOOP("mcp", "`carpeta` es la ruta que da guion_listar. Si el evento ya había empezado antes, conserva cuándo "
             "empezó. Para dejar de registrar en uno, evento_terminar.");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"carpeta", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "El evento.")}}}}},
+                         {"properties", {{"carpeta", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "El evento.")}}}}},
                          {"required", {"carpeta"}}};
         t.run = [&ev](const json& a, Done done) {
             const std::string c = a.value("carpeta", std::string());
@@ -833,15 +833,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Terminar el evento en curso");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Termina el evento en curso (queda en el histórico como terminado).");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Termina el evento en curso (queda en el histórico como terminado).");
         t.details =
-            ba::i18n::traducir("mcp", "Con el automático prendido, enseguida queda en curso la jornada del día: lo que pase después no se "
+            QT_TRANSLATE_NOOP("mcp", "Con el automático prendido, enseguida queda en curso la jornada del día: lo que pase después no se "
             "pierde, va ahí. Con `automatico` (true/false) además se prende o apaga eso.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"automatico", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Prender o apagar el evento automático del día.")}}},
-              {"solo_ajuste", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Solo cambiar `automatico`, sin terminar nada.")}}}}}};
+             {{"automatico", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Prender o apagar el evento automático del día.")}}},
+              {"solo_ajuste", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Solo cambiar `automatico`, sin terminar nada.")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("automatico") && a["automatico"].is_boolean()) ev.setEventoAutomatico(a["automatico"].get<bool>());
             if (a.value("solo_ajuste", false))
@@ -867,17 +867,17 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Ordenar los guiones en carpetas");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Crea una carpeta para agrupar guiones (dentro del evento abierto), o mueve un guion a otra carpeta.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Crea una carpeta para agrupar guiones (dentro del evento abierto), o mueve un guion a otra carpeta.");
         t.details =
-            ba::i18n::traducir("mcp", "Las carpetas son carpetas de verdad, anidadas con «/» (\"2026/Octubre\", "
+            QT_TRANSLATE_NOOP("mcp", "Las carpetas son carpetas de verdad, anidadas con «/» (\"2026/Octubre\", "
             "\"Consejo/Ordinarias\"). Con `crear` crea una; con `guion` y `a` lleva ese guion a la carpeta "
             "`a` (se crea si no está; \"\" es la raíz). Mover no cambia nada del guion, ni si está en curso.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"crear", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Carpeta a crear.")}}},
-              {"guion", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Guion a mover (ruta de guion_listar).")}}},
-              {"a", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Carpeta destino.")}}}}}};
+             {{"crear", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Carpeta a crear.")}}},
+              {"guion", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Guion a mover (ruta de guion_listar).")}}},
+              {"a", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Carpeta destino.")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("crear")) {
                 const QString c = ev.crearCarpeta(QString::fromStdString(a.value("crear", std::string())));
@@ -899,15 +899,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "La ficha de un evento");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Lee o cambia la ficha del histórico de un evento: estado, cuándo empezó y terminó, lugar, etiquetas y notas.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lee o cambia la ficha del histórico de un evento: estado, cuándo empezó y terminó, lugar, etiquetas y notas.");
         t.details =
-            ba::i18n::traducir("mcp", "Sin campos, la lee. Con `lugar`, `notas` o `etiquetas` (lista) los cambia; el estado y las horas "
+            QT_TRANSLATE_NOOP("mcp", "Sin campos, la lee. Con `lugar`, `notas` o `etiquetas` (lista) los cambia; el estado y las horas "
             "los pone el sistema (evento_iniciar / evento_terminar). Las etiquetas sirven para cruzar eventos "
             "de distintas carpetas («con votación», «con invitados remotos»).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"carpeta", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "El evento (vacío = el en curso).")}}},
+             {{"carpeta", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "El evento (vacío = el en curso).")}}},
               {"lugar", {{"type", "string"}}},
               {"notas", {{"type", "string"}}},
               {"etiquetas", {{"type", "array"}, {"items", {{"type", "string"}}}}}}}};
@@ -949,18 +949,18 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un bloque");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Agrega un bloque al final del guion, lo renombra, lo mueve o lo saca.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Agrega un bloque al final del guion, lo renombra, lo mueve o lo saca.");
         t.details =
-            ba::i18n::traducir("mcp", "Un bloque es un tramo con nombre propio: «Apertura», «Palabras del intendente», «Cierre». "
+            QT_TRANSLATE_NOOP("mcp", "Un bloque es un tramo con nombre propio: «Apertura», «Palabras del intendente», «Cierre». "
             "Sirve para leer el guion de un vistazo y para que los tiempos se sumen por tramo.\n\n"
             "Sin `indice` agrega uno nuevo al final. Con `indice` (base 0) actua sobre ese: `nombre` lo "
             "renombra, `mover` lo cambia de lugar y `quitar` lo saca con todos sus cues.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"indice", {{"type", "integer"}, {"minimum", 0}, {"description", ba::i18n::traducir("mcp", "Cual bloque (base 0).")}}},
+             {{"indice", {{"type", "integer"}, {"minimum", 0}, {"description", QT_TRANSLATE_NOOP("mcp", "Cual bloque (base 0).")}}},
               {"nombre", {{"type", "string"}}},
-              {"mover", {{"type", "integer"}, {"minimum", 0}, {"description", ba::i18n::traducir("mcp", "Nueva posicion.")}}},
+              {"mover", {{"type", "integer"}, {"minimum", 0}, {"description", QT_TRANSLATE_NOOP("mcp", "Nueva posicion.")}}},
               {"quitar", {{"type", "boolean"}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (!a.contains("indice")) {
@@ -985,9 +985,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Agregar o cambiar un cue");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Agrega un cue a un bloque, le cambia los datos, lo mueve de lugar o lo saca.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Agrega un cue a un bloque, le cambia los datos, lo mueve de lugar o lo saca.");
         t.details =
-            ba::i18n::traducir("mcp", "Un cue es una cosa concreta que pasa. Los tipos y lo que necesita cada uno en `datos`:\n\n"
+            QT_TRANSLATE_NOOP("mcp", "Un cue es una cosa concreta que pasa. Los tipos y lo que necesita cada uno en `datos`:\n\n"
             "  escena        {escena}              pone esa escena al aire\n"
             "  musica        {archivo, accion, repetir}  accion: arrancar (por defecto) o parar;\n"
             "                                        el archivo: uno de los medios del evento (media_list)\n"
@@ -1048,14 +1048,14 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             {"properties",
              {{"bloque", {{"type", "integer"}, {"minimum", 0}}},
               {"cue",
-               {{"type", "integer"}, {"minimum", 0}, {"description", ba::i18n::traducir("mcp", "Cual cue del bloque (base 0).")}}},
+               {{"type", "integer"}, {"minimum", 0}, {"description", QT_TRANSLATE_NOOP("mcp", "Cual cue del bloque (base 0).")}}},
               {"tipo",
                {{"type", "string"},
                 {"enum",
                  {"escena", "musica", "video", "teleprompter", "orador", "grafico", "carrusel", "pantalla",
                   "audio", "pausa", "espera", "nota"}}}},
-              {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Lo que lee el operador.")}}},
-              {"datos", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "Lo propio del tipo (ver la ayuda).")}}},
+              {"texto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Lo que lee el operador.")}}},
+              {"datos", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "Lo propio del tipo (ver la ayuda).")}}},
               {"duracionSeg", {{"type", "integer"}, {"minimum", 0}}},
               {"automatico", {{"type", "boolean"}}},
               {"moverABloque", {{"type", "integer"}, {"minimum", 0}}},
@@ -1158,9 +1158,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Guardar el guion");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe el guion en la carpeta del evento, respaldando antes el que estaba.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe el guion en la carpeta del evento, respaldando antes el que estaba.");
         t.details =
-            ba::i18n::traducir("mcp", "Guarda en Eventos/<carpeta>/evento.json. El guion anterior queda en Respaldos/ con la fecha, "
+            QT_TRANSLATE_NOOP("mcp", "Guarda en Eventos/<carpeta>/evento.json. El guion anterior queda en Respaldos/ con la fecha, "
             "asi que guardar nunca pierde lo que habia.\n\n"
             "Tambien se puede cambiar el titulo del evento y CUANDO es: `fecha` (YYYY-MM-DD), `inicio` "
             "(HH:MM) y `huso` (nombre IANA, por ejemplo America/Argentina/Buenos_Aires).\n\n"
@@ -1176,15 +1176,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             {"type", "object"},
             {"properties",
              {{"nombre", {{"type", "string"}}},
-              {"fecha", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "YYYY-MM-DD, el dia del evento.")}}},
-              {"inicio", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "HH:MM, hora prevista de arranque.")}}},
+              {"fecha", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "YYYY-MM-DD, el dia del evento.")}}},
+              {"inicio", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "HH:MM, hora prevista de arranque.")}}},
               {"huso",
                {{"type", "string"},
-                {"description", ba::i18n::traducir("mcp", "Nombre IANA del huso, p. ej. America/Argentina/Buenos_Aires.")}}},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Nombre IANA del huso, p. ej. America/Argentina/Buenos_Aires.")}}},
               {"idioma", idiomaEsquema()},
-              {"invitados", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "el evento usa invitados en la conferencia (la página ofrece entrar)")}}},
-              {"preguntas", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "el público puede preguntar y votar (/publico/)")}}},
-              {"asamblea", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "es una sesión de asamblea: la página muestra integrantes, quórum, orden del día y votaciones")}}}}}};
+              {"invitados", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "el evento usa invitados en la conferencia (la página ofrece entrar)")}}},
+              {"preguntas", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "el público puede preguntar y votar (/publico/)")}}},
+              {"asamblea", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "es una sesión de asamblea: la página muestra integrantes, quórum, orden del día y votaciones")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             // Se valida ANTES de tocar nada: si la fecha esta mal, el nombre
             // tampoco se cambia. Guardar a medias deja al operador sin saber
@@ -1227,10 +1227,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Busca lo que impide correr el guion: cues incompletos, escenas que no existen, bloques "
+            QT_TRANSLATE_NOOP("mcp", "Busca lo que impide correr el guion: cues incompletos, escenas que no existen, bloques "
             "vacios, cadenas largas de cues automaticos.");
         t.details =
-            ba::i18n::traducir("mcp", "Es lo que evita los problemas del dia del evento. Corrila despues de armar el guion y de "
+            QT_TRANSLATE_NOOP("mcp", "Es lo que evita los problemas del dia del evento. Corrila despues de armar el guion y de "
             "nuevo antes de empezar.\n\n"
             "Cada reparo dice donde esta (`bloque`, `cue`) y si es `grave` (asi no se puede correr) o "
             "solo algo para mirar.\n\n"
@@ -1277,7 +1277,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Marca un ítem de la lista de chequeo manual del evento abierto (`item`: ptz, casteo, caida, "
+            QT_TRANSLATE_NOOP("mcp", "Marca un ítem de la lista de chequeo manual del evento abierto (`item`: ptz, casteo, caida, "
             "glosario, respaldo, auriculares, sonido, o uno nuevo con ese nombre), `hecho` y una `nota`. Es lo "
             "que no se puede medir solo: confirmalo con el operador antes de marcarlo.");
         t.inputSchema = {{"type", "object"},
@@ -1286,7 +1286,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                           {{"item", {{"type", "string"}}},
                            {"hecho", {{"type", "boolean"}}},
                            {"nota", {{"type", "string"}}},
-                           {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que ve la persona, para un ítem nuevo")}}}}}};
+                           {"texto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que ve la persona, para un ítem nuevo")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (!ev.marcarChequeo(QString::fromStdString(a.value("item", std::string())), a.value("hecho", false),
                                   QString::fromStdString(a.value("nota", std::string())),
@@ -1302,7 +1302,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Ver la lista de chequeo del evento");
         t.category = "evento";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "La lista de chequeo manual del evento abierto: cada ítem con si está hecho, la nota y cuándo.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "La lista de chequeo manual del evento abierto: cada ítem con si está hecho, la nota y cuándo.");
         t.run = [&ev](const json&, Done done) {
             json out = json::array();
             for (const QVariant& v : ev.chequeo()) {
@@ -1323,10 +1323,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Ensayo acelerado");
         t.category = "evento";
         t.description =
-            ba::i18n::traducir("mcp", "Recorre el guion ENTERO de una, sin esperar las duraciones y sin tocar nada, y dice de cada "
+            QT_TRANSLATE_NOOP("mcp", "Recorre el guion ENTERO de una, sin esperar las duraciones y sin tocar nada, y dice de cada "
             "cue si se podria ejecutar.");
         t.details =
-            ba::i18n::traducir("mcp", "La diferencia con evento_revisar es que esto CAMINA el recorrido de verdad: sigue el orden "
+            QT_TRANSLATE_NOOP("mcp", "La diferencia con evento_revisar es que esto CAMINA el recorrido de verdad: sigue el orden "
             "real de los cues cruzando de bloque en bloque, asi que ademas de los cues incompletos "
             "muestra los bloques vacios que nadie pisa y los cues de un tipo que todavia no se ejecuta.\n\n"
             "No sale al aire nunca, ni siquiera con el ensayo apagado. Es lo que conviene correr despues "
@@ -1355,9 +1355,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo que realmente paso: por bloque y por cue, cuanto estaba previsto y cuanto duro de verdad.");
+            QT_TRANSLATE_NOOP("mcp", "Lo que realmente paso: por bloque y por cue, cuanto estaba previsto y cuanto duro de verdad.");
         t.details =
-            ba::i18n::traducir("mcp", "Es la materia prima para el evento siguiente: con los desvios reales, las duraciones "
+            QT_TRANSLATE_NOOP("mcp", "Es la materia prima para el evento siguiente: con los desvios reales, las duraciones "
             "previstas de la proxima vez dejan de ser una adivinanza.\n\n"
             "Se arma del recorrido que el guion fue guardando, asi que solo tiene sentido despues de "
             "correrlo (o de ensayarlo, y en ese caso `ensayo` viene en true). Si no se corrio, viene "
@@ -1387,10 +1387,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Correr el guion");
         t.category = "evento";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Arranca el guion, avanza al cue siguiente, vuelve atras, salta a uno, pausa, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Arranca el guion, avanza al cue siguiente, vuelve atras, salta a uno, pausa, "
                         "frena el avance automatico (HOLD) o para. Con `ensayo` recorre todo SIN salir al aire.");
         t.details =
-            ba::i18n::traducir("mcp", "Esto SALE AL AIRE salvo que `ensayo` este prendido: los cues de escena cambian lo que se ve "
+            QT_TRANSLATE_NOOP("mcp", "Esto SALE AL AIRE salvo que `ensayo` este prendido: los cues de escena cambian lo que se ve "
             "y los de orador le dan la palabra a alguien de verdad. Por eso no es de solo lectura y "
             "conviene que el operador sepa lo que se va a hacer.\n\n"
             "`accion`:\n"
@@ -1423,11 +1423,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
              {{"accion",
                {{"type", "string"},
                 {"enum", {"arrancar", "siguiente", "atras", "ir", "pausar", "reanudar", "hold", "parar"}}}},
-              {"hold", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "con accion hold: true lo frena, false lo suelta; sin esto, alterna")}}},
+              {"hold", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "con accion hold: true lo frena, false lo suelta; sin esto, alterna")}}},
               {"bloque", {{"type", "integer"}, {"minimum", 0}}},
               {"cue", {{"type", "integer"}, {"minimum", 0}}},
-              {"ensayo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Recorrer sin salir al aire.")}}},
-              {"forzar", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "arrancar aunque la revisión encuentre problemas graves")}}}}},
+              {"ensayo", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Recorrer sin salir al aire.")}}},
+              {"forzar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "arrancar aunque la revisión encuentre problemas graves")}}}}},
             {"required", {"accion"}}};
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("ensayo")) ev.setEnsayo(a["ensayo"].get<bool>());
@@ -1491,7 +1491,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "Los tipos de evento y sus guías");
         t.category = "evento";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los escenarios para los que hay guía de preparación (reunión chica, clase híbrida, sesión de un "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los escenarios para los que hay guía de preparación (reunión chica, clase híbrida, sesión de un "
                         "cuerpo deliberativo, asamblea con votación, streaming de juegos, acto, audiencia pública…): id, "
                         "título y para qué sirve. ANTES de preparar un evento nuevo, elegí el que corresponde y leelo con "
                         "evento_escenario.");
@@ -1508,7 +1508,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.title = ba::i18n::traducir("mcp", "La guía para preparar un tipo de evento");
         t.category = "evento";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El protocolo para preparar CUALQUIER evento (entrevistar antes de armar, el orden de armado, qué "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El protocolo para preparar CUALQUIER evento (entrevistar antes de armar, el orden de armado, qué "
                         "verificar antes de invitar, el ensayo y qué entregar al final) más la guía del escenario `id` "
                         "(evento_escenarios): sus preguntas propias, qué armar, qué verificar. Seguilo paso a paso.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
@@ -1535,10 +1535,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Crea el evento con su fecha, sus bloques con tiempos y su lista de gente, todo en una "
+            QT_TRANSLATE_NOOP("mcp", "Crea el evento con su fecha, sus bloques con tiempos y su lista de gente, todo en una "
             "llamada.");
         t.details =
-            ba::i18n::traducir("mcp", "ANTES: la guía del tipo de evento (evento_escenarios / evento_escenario): qué preguntar y qué "
+            QT_TRANSLATE_NOOP("mcp", "ANTES: la guía del tipo de evento (evento_escenarios / evento_escenario): qué preguntar y qué "
             "verificar.\n\n"
             "ES PARA ARMAR CONVERSANDO. El que organiza cuenta lo que va a pasar —«asamblea del "
             "consorcio, el jueves 8 a las 19, dos horas, presencial y por videollamada, hay que votar "
@@ -1568,12 +1568,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
              {{"nombre", {{"type", "string"}}},
               {"fecha", {{"type", "string"}, {"description", "YYYY-MM-DD"}}},
               {"inicio", {{"type", "string"}, {"description", "HH:MM"}}},
-              {"huso", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "nombre IANA")}}},
+              {"huso", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "nombre IANA")}}},
               {"idioma", idiomaEsquema()},
               {"nota", {{"type", "string"}}},
-              {"invitados", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "usa invitados en la conferencia (videoconferencia por WebRTC)")}}},
-              {"preguntas", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "el público puede preguntar y votar")}}},
-              {"asamblea", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "es una sesión de asamblea")}}},
+              {"invitados", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "usa invitados en la conferencia (videoconferencia por WebRTC)")}}},
+              {"preguntas", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "el público puede preguntar y votar")}}},
+              {"asamblea", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "es una sesión de asamblea")}}},
               {"bloques",
                {{"type", "array"},
                 {"items",
@@ -1588,12 +1588,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         {"properties",
                          {{"tipo",
                            {{"type", "string"},
-                            {"description", ba::i18n::traducir("mcp", "escena, musica, video, teleprompter, orador, grafico, "
+                            {"description", QT_TRANSLATE_NOOP("mcp", "escena, musica, video, teleprompter, orador, grafico, "
                                             "carrusel, pantalla, audio, pausa, espera o nota")}}},
-                          {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que lee el operador")}}},
+                          {"texto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo que lee el operador")}}},
                           {"duracionSeg", {{"type", "integer"}}},
                           {"automatico", {{"type", "boolean"}}},
-                          {"datos", {{"type", "object"}, {"description", ba::i18n::traducir("mcp", "lo propio del tipo")}}}}}}}}}}}}}}},
+                          {"datos", {{"type", "object"}, {"description", QT_TRANSLATE_NOOP("mcp", "lo propio del tipo")}}}}}}}}}}}}}}},
               {"gente",
                {{"type", "array"},
                 {"items",
@@ -1704,10 +1704,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las marcas de tiempo de cada bloque del evento, listas para pegar en la descripcion del "
+            QT_TRANSLATE_NOOP("mcp", "Las marcas de tiempo de cada bloque del evento, listas para pegar en la descripcion del "
             "video.");
         t.details =
-            ba::i18n::traducir("mcp", "Salen del recorrido REAL que el guion fue guardando, no de lo previsto: si el operador "
+            QT_TRANSLATE_NOOP("mcp", "Salen del recorrido REAL que el guion fue guardando, no de lo previsto: si el operador "
             "salto o repitio un bloque, las marcas lo reflejan.\n\n"
             "SE MIDEN DESDE QUE ARRANCO LA GRABACION, no desde el arranque del evento. Casi siempre "
             "se aprieta grabar antes de empezar, y contar desde el evento dejaria todas las marcas "
@@ -1839,10 +1839,10 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.category = "padron";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "La lista de quien viene al evento abierto, con su papel y su estado, mas el recuento de "
+            QT_TRANSLATE_NOOP("mcp", "La lista de quien viene al evento abierto, con su papel y su estado, mas el recuento de "
             "cuantos llegaron.");
         t.details =
-            ba::i18n::traducir("mcp", "ESTO CONTESTA \"quienes estan\", que en un evento hibrido es LA pregunta y hasta ahora no "
+            QT_TRANSLATE_NOOP("mcp", "ESTO CONTESTA \"quienes estan\", que en un evento hibrido es LA pregunta y hasta ahora no "
             "tenia quien la contestara: los de la conferencia se veian con participant_* y los que entran por "
             "la puerta no se veian en ningun lado. El padron es UNO para los dos mundos.\n\n"
             "Cada persona trae:\n"
@@ -1871,7 +1871,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
               {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
               {"solos",
                {{"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "Solo los que entran a la conferencia sin que el operador apruebe.")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "Solo los que entran a la conferencia sin que el operador apruebe.")}}}}}};
         t.run = [&ev, listaDe, resumenDe, sinEvento](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
             json gente = json::array();
@@ -1894,9 +1894,9 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.title = ba::i18n::traducir("mcp", "Anotar a alguien en el evento");
         t.category = "padron";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Suma a una persona a la lista del evento abierto, con su papel y por donde asiste.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Suma a una persona a la lista del evento abierto, con su papel y por donde asiste.");
         t.details =
-            ba::i18n::traducir("mcp", "Es como se arma la lista ANTES del evento, y tambien como se agrega al que aparece sin "
+            QT_TRANSLATE_NOOP("mcp", "Es como se arma la lista ANTES del evento, y tambien como se agrega al que aparece sin "
             "estar anotado.\n\n"
             "Lo unico obligatorio es el `nombre`. El resto se puede completar despues con "
             "padron_cambiar: una lista a medias sirve, una lista que no se pudo empezar no.\n\n"
@@ -1916,14 +1916,14 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
                {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
               {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
               {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
-              {"personaId", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Su ficha en la libreta de rostros.")}}},
-              {"contacto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Mail o telefono, para convocar.")}}},
+              {"personaId", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Su ficha en la libreta de rostros.")}}},
+              {"contacto", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Mail o telefono, para convocar.")}}},
               {"nota", {{"type", "string"}}},
-              {"vota", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Si cuenta para el quorum.")}}},
+              {"vota", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Si cuenta para el quorum.")}}},
               {"dejarPasarSolo",
                {{"type", "boolean"},
                 {"description",
-                 ba::i18n::traducir("mcp", "Entra a la conferencia sin que el operador apruebe. Exige `personaId`: se lo reconoce por "
+                 QT_TRANSLATE_NOOP("mcp", "Entra a la conferencia sin que el operador apruebe. Exige `personaId`: se lo reconoce por "
                  "la CARA, no por el nombre que escriba al entrar.")}}}}}};
         t.run = [&ev, aMapaQt, resumenDe, sinEvento, fichaFalla](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
@@ -1945,9 +1945,9 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.title = ba::i18n::traducir("mcp", "Cambiarle los datos a alguien del padron");
         t.category = "padron";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Cambia el papel, el canal, el estado o los datos de una persona ya anotada.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia el papel, el canal, el estado o los datos de una persona ya anotada.");
         t.details =
-            ba::i18n::traducir("mcp", "Cambia SOLO lo que se le manda y deja el resto. Mandar `nota` en vacio la borra; no "
+            QT_TRANSLATE_NOOP("mcp", "Cambia SOLO lo que se le manda y deja el resto. Mandar `nota` en vacio la borra; no "
             "mandarla la deja como estaba.\n\n"
             "Es donde se le engancha la ficha de rostro (`personaId`) al que se anoto antes de tenerla, "
             "que es lo normal: la lista se arma con nombres y las caras aparecen despues.\n\n"
@@ -1959,7 +1959,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             {"type", "object"},
             {"required", {"id"}},
             {"properties",
-             {{"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "El id que devolvio padron_anotar o padron_ver.")}}},
+             {{"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "El id que devolvio padron_anotar o padron_ver.")}}},
               {"nombre", {{"type", "string"}}},
               {"papel",
                {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
@@ -1989,9 +1989,9 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.category = "padron";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Deja constancia de que una persona esta en el evento, con la hora y por donde entro.");
+            QT_TRANSLATE_NOOP("mcp", "Deja constancia de que una persona esta en el evento, con la hora y por donde entro.");
         t.details =
-            ba::i18n::traducir("mcp", "Es la acreditacion, y vale igual para el que entra por la puerta y para el que entra por "
+            QT_TRANSLATE_NOOP("mcp", "Es la acreditacion, y vale igual para el que entra por la puerta y para el que entra por "
             "la conferencia: una sola lista para los dos mundos.\n\n"
             "Se puede identificar de tres maneras, en este orden de confianza:\n"
             "- `id`: el del padron, cuando ya se sabe quien es.\n"
@@ -2013,8 +2013,8 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
               {"porDonde",
                {{"type", "string"},
                 {"enum", {"rostro", "qr", "mostrador", "lobby"}},
-                {"description", ba::i18n::traducir("mcp", "Por donde se lo acredito. Sirve para saber en que confiar.")}}},
-              {"se_fue", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Marca la salida en vez de la llegada.")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "Por donde se lo acredito. Sirve para saber en que confiar.")}}},
+              {"se_fue", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Marca la salida en vez de la llegada.")}}}}}};
         t.run = [&ev, resumenDe, sinEvento](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
             QString id = QString::fromStdString(a.value("id", std::string()));
@@ -2045,10 +2045,10 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.category = "padron";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "El texto de la invitacion de alguien del padron y el enlace con QR que le sirve para "
+            QT_TRANSLATE_NOOP("mcp", "El texto de la invitacion de alguien del padron y el enlace con QR que le sirve para "
             "acreditarse, preguntar y votar.");
         t.details =
-            ba::i18n::traducir("mcp", "EL SISTEMA GENERA, NO MANDA. No tiene correo ni mensajeria, y es a proposito: esto corre "
+            QT_TRANSLATE_NOOP("mcp", "EL SISTEMA GENERA, NO MANDA. No tiene correo ni mensajeria, y es a proposito: esto corre "
             "portable desde un pendrive y no depende de los servicios de nadie. Se arma la invitacion "
             "y la manda el que convoca, por donde ya manda todo.\n\n"
             "EL QR HACE TRES COSAS CON UN SOLO ESCANEO:\n"
@@ -2064,11 +2064,11 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"id", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "el del padron")}}},
-              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "o su nombre, como esta escrito")}}},
+             {{"id", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "el del padron")}}},
+              {"nombre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "o su nombre, como esta escrito")}}},
               {"remoto",
                {{"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "el enlace por internet en vez del de la red local")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "el enlace por internet en vez del de la red local")}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay evento abierto.")));
             QString id = QString::fromStdString(a.value("id", std::string()));
@@ -2111,9 +2111,9 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
         t.title = ba::i18n::traducir("mcp", "Sacar a alguien del padron");
         t.category = "padron";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Borra a una persona de la lista del evento abierto.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Borra a una persona de la lista del evento abierto.");
         t.details =
-            ba::i18n::traducir("mcp", "Es para el que se anoto dos veces o el que no venia a este evento. Para el que aviso que "
+            QT_TRANSLATE_NOOP("mcp", "Es para el que se anoto dos veces o el que no venia a este evento. Para el que aviso que "
             "no viene, mejor dejarlo con `estado` en invitado: el que no esta en la lista no se "
             "distingue del que nunca se invito, y eso se nota al armar el evento siguiente.\n\n"
             "No toca la libreta de rostros: la ficha de la persona queda donde estaba.");

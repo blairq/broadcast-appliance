@@ -86,7 +86,7 @@ void McpService::registerOperatorTools() {
         {"type", "string"},
         {"enum", {"info", "success", "warning", "critical"}},
         {"default", "info"},
-        {"description", ba::i18n::traducir("mcp", "info = azul, success = verde, warning = ambar, critical = rojo (queda fijo).")}};
+        {"description", QT_TRANSLATE_NOOP("mcp", "info = azul, success = verde, warning = ambar, critical = rojo (queda fijo).")}};
     {
         Tool t;
         t.name = "operator_message";
@@ -94,7 +94,7 @@ void McpService::registerOperatorTools() {
         t.category = "operador";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Muestra un mensaje en la barra de abajo de la app, con el color de la prioridad. Los "
+            QT_TRANSLATE_NOOP("mcp", "Muestra un mensaje en la barra de abajo de la app, con el color de la prioridad. Los "
             "info/success/warning se van solos a los `ttlSec` (30 por defecto); critical queda hasta que "
             "lo cierren. Corto y claro: el operador esta en vivo.");
         t.inputSchema = {{"type", "object"},
@@ -120,7 +120,7 @@ void McpService::registerOperatorTools() {
         t.clase = Clase::Escritura;
         //: no traducir [OPERADOR] ni [RESPUESTA DEL OPERADOR]
         t.description =
-            ba::i18n::traducir("mcp", "Le hace una pregunta al operador en la barra de abajo: con `options` (botones) y/o texto libre "
+            QT_TRANSLATE_NOOP("mcp", "Le hace una pregunta al operador en la barra de abajo: con `options` (botones) y/o texto libre "
             "(`allowText`). Espera la respuesta hasta `timeoutSec` (60 por defecto, max. 600) y la devuelve; "
             "si no "
             "contesta a tiempo, la pregunta queda en la barra y la respuesta te llega despues a tu chat como "
@@ -140,7 +140,7 @@ void McpService::registerOperatorTools() {
               {"photoOf",
                {{"type", "string"},
                 {"description",
-                 ba::i18n::traducir("mcp", "Nombre o id de una persona de la conferencia: adjunta su foto (la ultima que mando su "
+                 QT_TRANSLATE_NOOP("mcp", "Nombre o id de una persona de la conferencia: adjunta su foto (la ultima que mando su "
                  "camara) a la tarjeta que ve el operador.")}}}}},
             {"required", {"text"}}};
         t.examples = {
@@ -179,7 +179,7 @@ void McpService::registerOperatorTools() {
         t.category = "operador";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Lo que esta en la barra ahora (y con `history`, lo ya contestado/cerrado con sus respuestas).");
+            QT_TRANSLATE_NOOP("mcp", "Lo que esta en la barra ahora (y con `history`, lo ya contestado/cerrado con sus respuestas).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"history", {{"type", "boolean"}, {"default", false}}}}}};
         t.run = [msgs](const json& a, Done done) {
@@ -199,7 +199,7 @@ void McpService::registerOperatorTools() {
         t.category = "operador";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Conversaciones del chat de la conferencia donde un invitado escribio y el operador todavia no "
+            QT_TRANSLATE_NOOP("mcp", "Conversaciones del chat de la conferencia donde un invitado escribio y el operador todavia no "
             "contesto (privadas al operador y la general), con los mensajes pendientes.");
         t.run = [&vm](const json&, Done done) {
             const json p = pendingGuestChat(vm);
@@ -217,7 +217,7 @@ void McpService::registerOperatorTools() {
         t.title = ba::i18n::traducir("mcp", "Sugerir respuestas a un invitado");
         t.category = "operador";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Muestra en la barra del operador el mensaje de un invitado con 1 a 4 respuestas "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Muestra en la barra del operador el mensaje de un invitado con 1 a 4 respuestas "
                         "sugeridas: el operador "
                         "toca una (o la edita) y se le manda al invitado (en privado si el invitado escribio "
                         "en privado; si no, "
@@ -227,16 +227,16 @@ void McpService::registerOperatorTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"participant", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre o id del invitado.")}}},
+             {{"participant", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Nombre o id del invitado.")}}},
               {"guestText",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Lo que escribio (por defecto su ultimo mensaje).")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Lo que escribio (por defecto su ultimo mensaje).")}}},
               {"suggestions",
                {{"type", "array"},
                 {"items", {{"type", "string"}, {"maxLength", 300}}},
                 {"minItems", 1},
                 {"maxItems", 4}}},
               {"public",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "Responder en el chat general en vez de en privado.")}}},
+               {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "Responder en el chat general en vez de en privado.")}}},
               {"priority", prioProp}}},
             {"required", {"participant", "suggestions"}}};
         t.run = [&vm, msgs](const json& a, Done done) {

@@ -60,7 +60,7 @@ std::string elegir(PrompterViewModel& p, const json& a) {
 
 json argPrompter() {
     return {{"type", "string"},
-            {"description", ba::i18n::traducir("mcp", "cuál teleprompter (su id, de prompter_lista); sin esto, el que está elegido en la página")}};
+            {"description", QT_TRANSLATE_NOOP("mcp", "cuál teleprompter (su id, de prompter_lista); sin esto, el que está elegido en la página")}};
 }
 
 } // namespace
@@ -78,7 +78,7 @@ void McpService::registerPrompterTools() {
         t.title = ba::i18n::traducir("mcp", "Los teleprompters (varios, cada uno con su texto y su página)");
         t.category = "prompter";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Sin argumentos: los teleprompters del evento ({id, nombre, titulo cargado, corriendo, oradores}) "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Sin argumentos: los teleprompters del evento ({id, nombre, titulo cargado, corriendo, oradores}) "
                         "y cuál está elegido. Cada uno tiene su texto, su velocidad y su página: el principal en /prompter/, "
                         "los demás en /prompter/<id>/ (el enlace y el QR, en la página Teleprompter). `agregar: nombre` crea "
                         "uno (queda elegido); `quitar: id` lo saca; `renombrar: {id, nombre}`; `elegir: id` lo elige. Las "
@@ -119,9 +119,9 @@ void McpService::registerPrompterTools() {
         t.title = ba::i18n::traducir("mcp", "Como esta el teleprompter");
         t.category = "prompter";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Que discurso esta cargado, si esta corriendo, por donde va, a que velocidad, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Que discurso esta cargado, si esta corriendo, por donde va, a que velocidad, "
                         "cuanto falta, y que pantallas hay conectadas (atril y control).");
-        t.details = ba::i18n::traducir("mcp", "Antes de que alguien suba al atril, lo que importa es `oradores`: si es 0, la tablet "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Antes de que alguien suba al atril, lo que importa es `oradores`: si es 0, la tablet "
                     "esta apagada o nadie abrio el enlace. Eso conviene decirlo AHORA, no con el orador "
                     "parado ahi.");
         // Se le pregunta al gateway ANTES de contestar: la pagina solo consulta
@@ -140,7 +140,7 @@ void McpService::registerPrompterTools() {
         t.title = ba::i18n::traducir("mcp", "Los discursos que hay");
         t.category = "prompter";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Los discursos de una carpeta de Discursos/ (del evento abierto), con cuantas "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Los discursos de una carpeta de Discursos/ (del evento abierto), con cuantas "
                         "palabras tienen y cuanto dura leerlos. Sin `carpeta`, los de la raiz.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"carpeta", {{"type", "string"}, {"default", ""}}}}}};
@@ -174,7 +174,7 @@ void McpService::registerPrompterTools() {
         t.title = ba::i18n::traducir("mcp", "Leer un discurso");
         t.category = "prompter";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "El texto completo de un discurso, por su ruta relativa "
+        t.description = QT_TRANSLATE_NOOP("mcp", "El texto completo de un discurso, por su ruta relativa "
                         "(\"intendente.txt\" o \"Apertura/intendente.txt\").");
         t.inputSchema = {
             {"type", "object"}, {"required", {"rel"}}, {"properties", {{"rel", {{"type", "string"}}}}}};
@@ -203,9 +203,9 @@ void McpService::registerPrompterTools() {
         t.title = ba::i18n::traducir("mcp", "Escribir un discurso");
         t.category = "prompter";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Escribe (o crea) un discurso y lo guarda en la carpeta del evento. PISA lo que "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Escribe (o crea) un discurso y lo guarda en la carpeta del evento. PISA lo que "
                         "hubiera. No lo manda al teleprompter: eso es prompter_cargar.");
-        t.details = ba::i18n::traducir("mcp", "Para escribir o acortar un discurso: prompter_leer, contar cuanto dura "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Para escribir o acortar un discurso: prompter_leer, contar cuanto dura "
                     "(140 palabras por minuto), reescribir y guardar. Un renglon vacio separa parrafos, "
                     "y el control del operador puede saltar de parrafo en parrafo: conviene que cada uno "
                     "sea una idea. Nada de markdown ni asteriscos: esto se lee en voz alta y en la tablet "
@@ -240,7 +240,7 @@ void McpService::registerPrompterTools() {
         t.title = ba::i18n::traducir("mcp", "Ordenar los discursos");
         t.category = "prompter";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Lo mismo que la lista de la página Prompter: `accion` carpeta (crea `nombre`), renombrar "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Lo mismo que la lista de la página Prompter: `accion` carpeta (crea `nombre`), renombrar "
                         "(`rel` → `nombre`), mover (`rel` a la carpeta `carpeta`, \"\" = la raíz) o borrar (`rel`).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"accion"}},
@@ -269,7 +269,7 @@ void McpService::registerPrompterTools() {
         t.title = ba::i18n::traducir("mcp", "Mandar un discurso al teleprompter");
         t.category = "prompter";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Manda un discurso a la pantalla del orador. Queda LISTO pero PARADO: arrancarlo "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Manda un discurso a la pantalla del orador. Queda LISTO pero PARADO: arrancarlo "
                         "es otra cosa (prompter_control).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"rel"}},
@@ -293,9 +293,9 @@ void McpService::registerPrompterTools() {
         t.clase = Clase::Escritura;
         t.reversible = true;
         t.description =
-            ba::i18n::traducir("mcp", "Arranca o para el texto, cambia la velocidad, salta a una parte o le escribe un aviso al "
+            QT_TRANSLATE_NOOP("mcp", "Arranca o para el texto, cambia la velocidad, salta a una parte o le escribe un aviso al "
             "orador. Lo que no se manda, no se toca. `panico` para en seco sin mover la posicion.");
-        t.details = ba::i18n::traducir("mcp", "Cuidado con `corriendo`: del otro lado hay una persona leyendo en voz alta. Arrancar "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Cuidado con `corriendo`: del otro lado hay una persona leyendo en voz alta. Arrancar "
                     "o parar el texto sin que lo pida es de las pocas cosas que se notan al aire al "
                     "instante. La velocidad de fabrica (140 ppm) es la de una lectura normal en "
                     "castellano; si el orador va mas lento, bajala de a 10.");
@@ -305,9 +305,9 @@ void McpService::registerPrompterTools() {
                            {"ppm", {{"type", "integer"}, {"minimum", 40}, {"maximum", 400}}},
                            {"avancePct", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}},
                            {"parrafo", {{"type", "integer"}, {"minimum", 0}}},
-                           {"aviso", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "vacio lo saca")}}},
+                           {"aviso", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "vacio lo saca")}}},
                            {"panico", {{"type", "boolean"}}},
-                           {"espejo", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "texto espejado (para el vidrio del prompter)")}}},
+                           {"espejo", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "texto espejado (para el vidrio del prompter)")}}},
                            {"prompter", argPrompter()}}}};
         t.examples = {R"({"aviso": "Redondeá"})", R"({"ppm": 130})", R"({"prompter": "atril-invitado", "corriendo": true})"};
         t.run = [p](const json& a, Done done) {

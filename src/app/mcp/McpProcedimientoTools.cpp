@@ -206,11 +206,11 @@ void McpService::registerProcedimientoTools() {
         t.category = "evento";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "Arma la señal de ajuste (barras con la hora, tono de 1 kHz y el nombre del evento), la placa «Antes de "
+            QT_TRANSLATE_NOOP("mcp", "Arma la señal de ajuste (barras con la hora, tono de 1 kHz y el nombre del evento), la placa «Antes de "
             "empezar» con la hora de inicio, la de «Fin de transmisión» y los bloques «Previa» y «Cierre» del guion. "
             "Con `al_aire`, deja la señal de ajuste en el programa (lo que se transmite al prender).");
         t.details =
-            ba::i18n::traducir("mcp", "Es el paso de los procedimientos estándar (help procedimiento_salon / procedimiento_asamblea) que deja "
+            QT_TRANSLATE_NOOP("mcp", "Es el paso de los procedimientos estándar (help procedimiento_salon / procedimiento_asamblea) que deja "
             "un evento listo para su inicio. Se puede correr las veces que haga falta: lo que ya existe no se duplica "
             "(las escenas y fuentes se reusan; las placas se vuelven a dibujar con los datos de ahora; los bloques "
             "«Previa» y «Cierre» solo se agregan si no están).\n\n"
@@ -228,13 +228,13 @@ void McpService::registerProcedimientoTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"musica_espera", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "archivo de Medios/ para la previa")}}},
-              {"musica_cierre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "archivo de Medios/ para el cierre")}}},
-              {"bajada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "fecha, lugar o dónde seguirlo (placa de espera)")}}},
-              {"cierre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "bajada de la placa de fin (dónde queda la grabación)")}}},
-              {"acento", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "color del evento (#rrggbb)")}}},
-              {"guion", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "agregar los bloques Previa y Cierre (de fábrica, sí)")}}},
-              {"al_aire", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "poner la señal de ajuste en el programa")}}}}}};
+             {{"musica_espera", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "archivo de Medios/ para la previa")}}},
+              {"musica_cierre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "archivo de Medios/ para el cierre")}}},
+              {"bajada", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "fecha, lugar o dónde seguirlo (placa de espera)")}}},
+              {"cierre", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "bajada de la placa de fin (dónde queda la grabación)")}}},
+              {"acento", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "color del evento (#rrggbb)")}}},
+              {"guion", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "agregar los bloques Previa y Cierre (de fábrica, sí)")}}},
+              {"al_aire", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "poner la señal de ajuste en el programa")}}}}}};
         t.examples = {R"({})", R"({"musica_espera": "espera.mp3", "musica_cierre": "cierre.mp3", "al_aire": true})"};
         t.run = [&core](const json& a, Done done) {
             leerVarias(core,
@@ -413,11 +413,11 @@ void McpService::registerProcedimientoTools() {
         t.category = "evento";
         t.clase = Clase::Escritura;
         t.description =
-            ba::i18n::traducir("mcp", "La lista de control del evento abierto según su tipo (`tipo`: salon o asamblea; de fábrica, lo dice el "
+            QT_TRANSLATE_NOOP("mcp", "La lista de control del evento abierto según su tipo (`tipo`: salon o asamblea; de fábrica, lo dice el "
             "guion): revisa sola lo que se puede revisar, dice qué falta y cómo se arregla, y anota en la lista de "
             "chequeo lo que solo puede confirmar una persona.");
         t.details =
-            ba::i18n::traducir("mcp", "Es el control del final de los procedimientos estándar (help procedimiento_salon / procedimiento_asamblea). "
+            QT_TRANSLATE_NOOP("mcp", "Es el control del final de los procedimientos estándar (help procedimiento_salon / procedimiento_asamblea). "
             "Cada ítem trae `estado`: «ok», «falta» (así no se puede salir: arreglalo con lo que dice `como`), «aviso» "
             "(conviene mirarlo) o «a_mano» (solo lo confirma una persona: PEDÍSELO, y cuando te diga que sí, marcalo "
             "con evento_chequeo {item, hecho: true}).\n\n"

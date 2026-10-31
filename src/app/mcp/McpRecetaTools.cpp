@@ -97,8 +97,8 @@ void McpService::registerRecetaTools() {
         t.title = ba::i18n::traducir("mcp", "Recetas que hay");
         t.category = "recetas";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Que recetas hay disponibles para correr, con su nombre.");
-        t.details = ba::i18n::traducir("mcp", "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Que recetas hay disponibles para correr, con su nombre.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
                     "despues nadie sabe cual es la buena.");
         t.run = [&rt](const json&, Done done) { done(ToolResult().data(json{{"recetas", leer(rt)}})); };
         core_.addTool(std::move(t));
@@ -110,9 +110,9 @@ void McpService::registerRecetaTools() {
         t.title = ba::i18n::traducir("mcp", "Guardar una receta");
         t.category = "recetas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "GUARDA una receta: una secuencia de pasos para repetirla despues igual. Guarda (o "
+        t.description = QT_TRANSLATE_NOOP("mcp", "GUARDA una receta: una secuencia de pasos para repetirla despues igual. Guarda (o "
                         "reemplaza) una serie de pasos con un nombre.");
-        t.details = ba::i18n::traducir("mcp", "Un paso es `{ \"tool\": \"<herramienta>\", \"args\": { ... } }`. Los pasos corren EN "
+        t.details = QT_TRANSLATE_NOOP("mcp", "Un paso es `{ \"tool\": \"<herramienta>\", \"args\": { ... } }`. Los pasos corren EN "
                     "ORDEN y si uno falla la receta se frena ahi.\n\n"
                     "Los textos de `args` aceptan `{parametros}` entre llaves, que se reemplazan al "
                     "correrla: asi una misma receta sirve para todos los casos en vez de una por orador.\n\n"
@@ -132,9 +132,9 @@ void McpService::registerRecetaTools() {
             {"type", "object"},
             {"properties",
              {{"id",
-               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Corto y sin espacios. Si ya existe, la reemplaza.")}}},
+               {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Corto y sin espacios. Si ya existe, la reemplaza.")}}},
               {"nombre", {{"type", "string"}}},
-              {"descripcion", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Que hace y cuando conviene usarla.")}}},
+              {"descripcion", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "Que hace y cuando conviene usarla.")}}},
               {"pasos", {{"type", "array"}, {"items", {{"type", "object"}}}}}}},
             {"required", {"id", "pasos"}}};
         t.run = [&rt, &core](const json& a, Done done) {
@@ -185,7 +185,7 @@ void McpService::registerRecetaTools() {
         t.category = "recetas";
         t.clase = Clase::Escritura;
         t.destructive = true;
-        t.description = ba::i18n::traducir("mcp", "Saca una receta de la lista.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Saca una receta de la lista.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&rt](const json& a, Done done) {
@@ -208,8 +208,8 @@ void McpService::registerRecetaTools() {
         t.title = ba::i18n::traducir("mcp", "Correr una receta");
         t.category = "recetas";
         t.clase = Clase::Escritura;
-        t.description = ba::i18n::traducir("mcp", "Ejecuta los pasos de una receta, en orden.");
-        t.details = ba::i18n::traducir("mcp", "Si un paso falla, SE FRENA AHI y te dice cual y por que: en vivo, seguir dejaria el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Ejecuta los pasos de una receta, en orden.");
+        t.details = QT_TRANSLATE_NOOP("mcp", "Si un paso falla, SE FRENA AHI y te dice cual y por que: en vivo, seguir dejaria el "
                     "sistema a mitad de camino y sin que nadie sepa donde.\n\n"
                     "`parametros` reemplaza los `{...}` de los pasos.\n\n"
                     "Cada paso pasa por el mismo camino que si lo llamaras vos: se validan los argumentos, "

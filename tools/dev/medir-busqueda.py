@@ -16,17 +16,30 @@ entre 8: el modelo grande recibe las ocho). Con --por-herramienta, las peores
 (de las frases de cabina) y quien les gana.
 
 EL BUSCADOR es el de src/app/mcp/McpIndice.cpp portado tal cual (mismos pesos,
-idf, prefijos, imperativos y vacias), sobre docs/mcp.json: nombre, etiquetas
-(familias + propias), titulo y descripcion (la app suma ademas `details`, que
-el inventario no tiene). Si se toca McpIndice.cpp, hay que tocar esto igual:
---arnes compila tools/dev/medir-busqueda-arnes.cpp contra el McpIndice.cpp de
-verdad y compara los numeros (tienen que dar iguales).
+idf, prefijos, imperativos y vacias, leidos del campo «buscador» del perfil del
+idioma), sobre docs/mcp.json: nombre, etiquetas (familias + propias), titulo y
+descripcion (la app suma ademas `details`, que el inventario no tiene). Si se
+toca McpIndice.cpp, hay que tocar esto igual: --arnes compila
+tools/dev/medir-busqueda-arnes.cpp contra el McpIndice.cpp de verdad y compara
+los numeros (tienen que dar iguales).
+
+--idioma <código> mide como lo ve un operador en ese idioma: el titulo traducido
+(i18n/ba_<código>.ts), las etiquetas del original MAS las traducidas, la
+descripcion en el original (es lo que se registra, ver traducirParaVer) y las
+reglas del idioma con las del original sumadas (McpIndice.cpp, sumarDelOriginal).
+Los conjuntos siguen en castellano; --preguntas ARCHIVO mide con otras
+([[frase, herramienta], ...]).
+
+--sin-etiquetas mide lo que ve un buscador que solo lee nombre, titulo y
+descripcion (el tool_search de un cliente con exposicion diferida);
+--palabras-clave le suma a la descripcion la linea de etiquetas propias.
 
     tools/docs/mcp-inventario.py --desde-codigo $PWD/docs/mcp.json   # despues de tocar etiquetas
-    tools/dev/medir-busqueda.py [--por-herramienta] [--arnes --nlohmann DIR]
+    tools/dev/medir-busqueda.py [--por-herramienta] [--idioma en] [--arnes --nlohmann DIR]
 """
 import argparse
 import bisect
+import html
 import json
 import math
 import re
@@ -37,49 +50,143 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
+PERFILES = RAIZ / "assets" / "idiomas"
 
 # --- el buscador (McpIndice.cpp) -------------------------------------------------
 PESO_NOMBRE, PESO_ETIQUETA, PESO_TITULO, PESO_CUERPO = 6.0, 5.0, 3.0, 0.6
 DESCUENTO_PREFIJO, PREFIJO_MINIMO, FRACCION_INUTIL = 0.45, 4, 0.4
-VACIAS = {"el", "la", "lo", "los", "las", "un", "una", "unos", "unas", "de", "del", "al", "es", "son", "en", "y",
-          "o", "que", "con", "por", "su", "sus", "mi", "mis", "tu", "tus", "ya", "muy", "pero", "porque", "porfa",
-          "dale", "che", "eh", "ahi", "aca", "aqui", "alla", "asi", "mas"}
-TILDES = str.maketrans("áéíóúüñ", "aeiouun")
-AGUDA = {"á": "a", "é": "e", "í": "i"}
-NO_IMPERATIVO = {"está", "estás"}
-PEGADOS_IMP = ["selos", "selas", "selo", "sela", "melos", "melas", "melo", "mela",
-               "les", "nos", "los", "las", "le", "me", "lo", "la"]
-PEGADOS_BUSCAR = ["selos", "selas", "selo", "sela", "nos", "les", "los", "las", "me", "te", "le", "lo", "la", "se"]
+
+
+def perfil(codigo):
+    return json.loads((PERFILES / f"{codigo}.json").read_text(encoding="utf-8"))
+
+
+def buscador_de(p):
+    """El campo «buscador» del perfil o el del primero de sus respaldos (buscadorDe)."""
+    b = p.get("buscador")
+    for r in p.get("respaldo", []):
+        if isinstance(b, dict):
+            break
+        b = perfil(r).get("buscador")
+    return b if isinstance(b, dict) else {}
+
+
+class Reglas:
+    """Las del campo «buscador» (reglasDe)."""
+
+    def __init__(self, b):
+        im = b.get("imperativo", {}) if isinstance(b.get("imperativo"), dict) else {}
+        self.letras = dict(b.get("letras", {}))
+        self.sin_tildes = list(b.get("sinTildes", {}).items())
+        self.vacias = set(b.get("vacias", []))
+        self.excepciones = set(im.get("excepciones", []))
+        self.agudas = list(im.get("agudas", {}).items())
+        self.sufijo = im.get("sufijo", "")
+        self.letras_minimas = im.get("letrasMinimas", 3)
+        self.pronombres = im.get("pronombres", [])
+        self.pronombres_sin_tilde = set(im.get("pronombresSinTilde", []))
+        self.vocales_sin_tilde = {v for v in im.get("vocalesSinTilde", []) if len(v) == 1}
+        self.letras_del_verbo = im.get("letrasDelVerbo", 4)
+        self.infinitivo = b.get("infinitivo", [])
+        self.pegados = b.get("pegados", [])
+
+    def es_infinitivo(self, t):
+        return any(t.endswith(f) for f in self.infinitivo)
+
+    def sumar_del_original(self, o):
+        """sumarDelOriginal: las letras, las tildes y las vacías del original."""
+        if self.letras:
+            for k, v in o.letras.items():
+                self.letras.setdefault(k, v)
+        for par in o.sin_tildes:
+            if all(x[0] != par[0] for x in self.sin_tildes):
+                self.sin_tildes.append(par)
+        self.vacias |= o.vacias
+
+
+def reglas(codigo):
+    p = perfil(codigo)
+    r = Reglas(buscador_de(p))
+    if not p.get("fuente") and not p.get("pseudo"):
+        for f in sorted(PERFILES.glob("*.json")):
+            o = json.loads(f.read_text(encoding="utf-8"))
+            if o.get("fuente"):
+                r.sumar_del_original(Reglas(buscador_de(o)))
+    return r
+
+
+R = reglas("es")
+
+
+def bytes_(s):
+    return len(s.encode("utf-8"))
+
+
+def letra_unicode(c):
+    cp = ord(c)
+    if cp <= 0xBF or cp in (0xD7, 0xF7):
+        return False
+    return not (0x2000 <= cp <= 0x2BFF or 0x3000 <= cp <= 0x303F or 0xFE30 <= cp <= 0xFE4F or 0xFF00 <= cp <= 0xFF0F)
+
+
+def minuscula(s):
+    return "".join(chr(ord(c) + 32) if "A" <= c <= "Z" else c for c in s)
+
+
+def sin_tildes(s):
+    s = minuscula(s)
+    for de, a in R.sin_tildes:
+        s = s.replace(de, a)
+    return s
 
 
 def imperativo(w):
-    """pará -> parar, poné -> poner, bajale -> bajar, mostrámela -> mostrar."""
-    if w in NO_IMPERATIVO:
+    """pará -> parar, poné -> poner, bajale -> bajar, mostrámela -> mostrar (con las del perfil)."""
+    if not R.agudas or w in R.excepciones:
         return w
-    if len(w) >= 3 and w[-1] in AGUDA:
-        return w[:-1] + AGUDA[w[-1]] + "r"
-    for p in PEGADOS_IMP:
-        if not w.endswith(p) or len(w) < len(p) + 4:
+    for t, v in R.agudas:
+        if len(w) >= R.letras_minimas and w.endswith(t):
+            return w[:-len(t)] + v + R.sufijo
+    for p in R.pronombres:
+        if not w.endswith(p) or len(w) < len(p) + R.letras_del_verbo:
             continue
         base = w[:-len(p)]
-        if base[-1] in AGUDA:
-            return base[:-1] + AGUDA[base[-1]] + "r"
-        if p in ("le", "les", "me", "nos") and base[-1] in "aei":
-            return base + "r"
+        for t, v in R.agudas:
+            if base.endswith(t):
+                return base[:-len(t)] + v + R.sufijo
+        if p in R.pronombres_sin_tilde and base[-1] in R.vocales_sin_tilde:
+            return base + R.sufijo
         return w
     return w
 
 
 def terminos_marcados(s):
     """[(termino, salio_de_un_imperativo)], como terminosMarcados()."""
-    out = []
-    for w in re.split(r"[^a-z0-9áéíóúüñ]+", s.lower()):
-        if not w:
-            continue
-        antes = w.translate(TILDES)
-        t = imperativo(w).translate(TILDES)
-        if antes not in VACIAS and len(t) >= 2 and t not in VACIAS:
-            out.append((t, t != antes))
+    out, cur = [], []
+
+    def cerrar():
+        if cur:
+            w = "".join(cur)
+            antes = sin_tildes(w)
+            t = sin_tildes(imperativo(w))
+            if antes not in R.vacias and bytes_(t) >= 2 and t not in R.vacias:
+                out.append((t, t != antes))
+        cur.clear()
+    for c in minuscula(s):
+        if "a" <= c <= "z" or "0" <= c <= "9":
+            cur.append(c)
+        elif ord(c) < 0x80:
+            cerrar()
+        elif not R.letras:
+            if letra_unicode(c):
+                cur.append(c)
+            else:
+                cerrar()
+        elif c in R.letras:
+            cur.append(R.letras[c])
+        else:
+            cerrar()
+    cerrar()
     return out
 
 
@@ -131,7 +238,7 @@ class Indice:
             if t in vistos:
                 continue
             vistos.add(t)
-            if t in derivados and len(t) >= 5 and t[-1] == "r":
+            if t in derivados and bytes_(t) >= 5 and R.es_infinitivo(t):
                 por_prefijo(t[:-1])
                 continue
             if t in self.inv:
@@ -143,14 +250,14 @@ class Indice:
                     punt[doc] += p * w
                     porque[doc].add(t)
                 continue
-            if len(t) < PREFIJO_MINIMO:
+            if bytes_(t) < PREFIJO_MINIMO:
                 continue
             if por_prefijo(t):
                 continue
-            if len(t) >= 5 and t[-1] == "r" and t[-2] in "aei" and por_prefijo(t[:-1]):
+            if bytes_(t) >= 5 and R.es_infinitivo(t) and por_prefijo(t[:-1]):
                 continue
-            for p in PEGADOS_BUSCAR:
-                if len(t) >= len(p) + PREFIJO_MINIMO and t.endswith(p) and por_prefijo(t[:-len(p)]):
+            for p in R.pegados:
+                if bytes_(t) >= bytes_(p) + PREFIJO_MINIMO and t.endswith(p) and por_prefijo(t[:-len(p)]):
                     break
         exacta = next((i for i in range(n) if self.nombre_t[i] == q), None)
         res = []
@@ -165,20 +272,58 @@ class Indice:
         return res[:tope]
 
 
-def indice(ruta):
+def catalogo(codigo):
+    """{contexto: {original: traducción}} de i18n/ba_<código>.ts (solo las terminadas)."""
+    tr = defaultdict(dict)
+    ts = RAIZ / "i18n" / f"ba_{codigo}.ts"
+    if not ts.exists():
+        return tr
+    for ctx, cuerpo in re.findall(r"<context>\s*<name>([^<]+)</name>(.*?)</context>", ts.read_text(encoding="utf-8"), re.S):
+        for src, attrs, t in re.findall(r"<source>(.*?)</source>.*?<translation([^>]*)>(.*?)</translation>", cuerpo, re.S):
+            if "unfinished" not in attrs and "obsolete" not in attrs and "vanished" not in attrs and t:
+                tr[ctx][html.unescape(src)] = html.unescape(t)
+    return tr
+
+
+def filas_etiquetas():
+    """{clave: [fila, ...]} de McpEtiquetas.cpp, fila por fila (se traducen de a una)."""
+    sys.path.insert(0, str(RAIZ / "tools" / "docs"))
+    import mcp_codigo  # noqa: E402
+    txt = (RAIZ / "src/app/mcp/McpEtiquetas.cpp").read_text(encoding="utf-8")
+    toks = mcp_codigo.tokens(txt)
+    resolver = mcp_codigo._resolvedor(txt, toks)
+    fam, prop = defaultdict(list), defaultdict(list)
+    for tabla, destino in (("kFamilias", fam), ("kPropias", prop)):
+        for f in mcp_codigo.tabla(txt, toks, resolver, tabla, "Fila"):
+            if isinstance(f.get("clave"), str) and isinstance(f.get("terminos"), str):
+                destino[f["clave"]].append(f["terminos"])
+    return fam, prop
+
+
+def indice(ruta, idioma="es", sin_etiquetas=False, palabras_clave=False):
+    tr = catalogo(idioma) if idioma != "es" else defaultdict(dict)
+    fam, prop = filas_etiquetas() if idioma != "es" else ({}, {})
     docs = []
     for h in json.loads(Path(ruta).read_text())["herramientas"]:
         e = h.get("etiquetas", {})
-        docs.append({"id": h["nombre"], "nombre": h["nombre"], "titulo": h.get("titulo", ""),
-                     "etiquetas": [e.get("porPrefijo", "").replace("·", " "), e.get("propias", "")],
-                     "cuerpo": h.get("descripcion", "")})
+        etiquetas = [e.get("porPrefijo", "").replace("·", " "), e.get("propias", "")]
+        if idioma != "es":
+            # las del original MAS las traducidas, fila por fila (etiquetasDe)
+            filas = [f for pre, fs in fam.items() if h["nombre"].startswith(pre) for f in fs] + prop.get(h["nombre"], [])
+            etiquetas += [tr["mcp-etiquetas"].get(f, "") for f in filas]
+        titulo = h.get("titulo", "")
+        cuerpo = h.get("descripcion", "")
+        if palabras_clave and e.get("propias"):
+            cuerpo += "\n" + e["propias"]
+        docs.append({"id": h["nombre"], "nombre": h["nombre"], "titulo": tr["mcp"].get(titulo, titulo),
+                     "etiquetas": [] if sin_etiquetas else etiquetas, "cuerpo": cuerpo})
     return Indice(docs)
 
 
 # --- los conjuntos ---------------------------------------------------------------
 def conjuntos(nombres):
-    perfil = json.loads((RAIZ / "datos/perfiles/vivo6.json").read_text())
-    ren = perfil.get("renombres_anteriores", {})
+    perfil_ = json.loads((RAIZ / "datos/perfiles/vivo6.json").read_text())
+    ren = perfil_.get("renombres_anteriores", {})
 
     def limpiar(casos):
         out = []
@@ -220,14 +365,23 @@ def medir(idx, casos):
 
 
 def main():
+    global R
     ap = argparse.ArgumentParser()
     ap.add_argument("--inventario", default=str(RAIZ / "docs/mcp.json"))
     ap.add_argument("--por-herramienta", action="store_true", help="las peores de las frases de cabina, y quien les gana")
+    ap.add_argument("--idioma", default="es", help="medir como lo ve un operador en ese idioma (código de assets/idiomas)")
+    ap.add_argument("--preguntas", help="otro conjunto: JSON [[frase, herramienta], ...]")
+    ap.add_argument("--sin-etiquetas", action="store_true", help="solo nombre, titulo y descripcion")
+    ap.add_argument("--palabras-clave", action="store_true", help="la descripcion con la linea de etiquetas propias")
     ap.add_argument("--arnes", action="store_true", help="comparar con el McpIndice.cpp de verdad (compila con g++)")
     ap.add_argument("--nlohmann", help="carpeta con nlohmann/json.hpp (para --arnes)")
     args = ap.parse_args()
-    idx = indice(args.inventario)
+    R = reglas(args.idioma)
+    idx = indice(args.inventario, args.idioma, args.sin_etiquetas, args.palabras_clave)
     sets = conjuntos({d["id"] for d in idx.docs})
+    if args.preguntas:
+        sets = {Path(args.preguntas).stem: [(f, [h] if isinstance(h, str) else h)
+                                            for f, h in json.loads(Path(args.preguntas).read_text())]}
     res = {}
     for nombre, casos in sets.items():
         c, por_h, malos = medir(idx, casos)

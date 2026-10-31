@@ -496,8 +496,8 @@ void ControlWeb::enviarAuth(const std::string& cid) {
             herramientas.push_back({{"name", t.name},
                                     {"title", t.title},
                                     {"category", t.category},
-                                    {"description", t.description},
-                                    {"inputSchema", t.inputSchema},
+                                    {"description", mcp::traducirParaVer(t.description)},
+                                    {"inputSchema", mcp::esquemaParaVer(t.inputSchema)},
                                     {"readOnly", t.readOnly},
                                     {"destructive", t.destructive},
                                     {"aire", core_->aire().clase(t.name) != mcp::ClaseAire::Normal}});

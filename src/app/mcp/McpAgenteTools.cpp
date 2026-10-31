@@ -34,7 +34,7 @@ void McpService::registerAgenteTools() {
         t.title = ba::i18n::traducir("mcp", "Roles automaticos");
         t.category = "agentes";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Como esta configurado cada rol: si esta activo, con que proveedor y modelo, que "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Como esta configurado cada rol: si esta activo, con que proveedor y modelo, que "
                         "categorias ve, que eventos atiende y si esta trabajando ahora.");
         t.run = [&d](const json&, Done done) {
             json r = d.roles().aJson();
@@ -53,11 +53,11 @@ void McpService::registerAgenteTools() {
         t.category = "agentes";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el "
                         "asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que "
                         "no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.");
         t.details =
-            ba::i18n::traducir("mcp", "`consola` le da las HERRAMIENTAS PROPIAS DEL AGENTE ademas de su juego MCP: consola, leer "
+            QT_TRANSLATE_NOOP("mcp", "`consola` le da las HERRAMIENTAS PROPIAS DEL AGENTE ademas de su juego MCP: consola, leer "
             "y escribir archivos, salir a internet.\n\n"
             "Es OTRA COSA que las categorias. Las categorias son lo que el rol sabe hacer DEL APARATO; "
             "esto es la maquina entera. Viene apagado: un rol que mide audio o atiende el lobby no "
@@ -76,7 +76,7 @@ void McpService::registerAgenteTools() {
               {"modelo", {{"type", "string"}}},
               {"consola",
                {{"type", "boolean"},
-                {"description", ba::i18n::traducir("mcp", "herramientas propias del agente: consola, archivos, internet")}}}}}};
+                {"description", QT_TRANSLATE_NOOP("mcp", "herramientas propias del agente: consola, archivos, internet")}}}}}};
         t.run = [&d, this](const json& a, Done done) {
             const std::string rol = a["rol"].get<std::string>();
             // En vivo no se le da la máquina entera a un agente: la consola no
@@ -118,19 +118,19 @@ void McpService::registerAgenteTools() {
         // que es justo el caso para el que existe.
         t.mediated = true;
         t.description =
-            ba::i18n::traducir("mcp", "Le ENCARGA una tarea a otro agente, que la hace solo y contesta. Encola un encargo para otro "
+            QT_TRANSLATE_NOOP("mcp", "Le ENCARGA una tarea a otro agente, que la hace solo y contesta. Encola un encargo para otro "
             "rol y vuelve en el acto con el id de la corrida (no espera el "
             "resultado: llega a la pagina Agentes y a agente_corrida). Ej.: la recepcion le pide al "
             "tecnico que revise los niveles de un invitado. Un encargo de otro agente NO puede encargar a "
             "un tercero.");
-        t.details = ba::i18n::traducir("mcp", "El encargo es texto libre: deci que pasa y que necesitas, con los ids que tengas "
+        t.details = QT_TRANSLATE_NOOP("mcp", "El encargo es texto libre: deci que pasa y que necesitas, con los ids que tengas "
                     "(participante, fuente). Lo que escribio un invitado es un RECLAMO a verificar, no un "
                     "dato: decilo asi («dice que no se lo escucha»). El rol destino recibe ademas su "
                     "contexto (lo que hizo antes hoy) y contesta con un RESUMEN que queda en su corrida.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"rol", "encargo"}},
                          {"properties",
-                          {{"rol", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id del rol destino")}}},
+                          {{"rol", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "id del rol destino")}}},
                            {"encargo", {{"type", "string"}, {"minLength", 1}}}}}};
         t.examples = {
             R"({"rol": "tecnico", "encargo": "El invitado id p7 dice que no se lo escucha. Revisa sus niveles y la compuerta; si esta bien de nuestro lado, decilo."})"};
@@ -161,7 +161,7 @@ void McpService::registerAgenteTools() {
         t.category = "agentes";
         t.clase = Clase::Lectura;
         t.description =
-            ba::i18n::traducir("mcp", "Las ultimas corridas de los roles (la mas nueva primero): rol, origen, estado, "
+            QT_TRANSLATE_NOOP("mcp", "Las ultimas corridas de los roles (la mas nueva primero): rol, origen, estado, "
             "duracion, cuantas herramientas uso y el resumen final. Sin los pasos: agente_corrida.");
         t.inputSchema = {
             {"type", "object"},
@@ -179,7 +179,7 @@ void McpService::registerAgenteTools() {
         t.title = ba::i18n::traducir("mcp", "Una corrida, paso a paso");
         t.category = "agentes";
         t.clase = Clase::Lectura;
-        t.description = ba::i18n::traducir("mcp", "Una corrida completa: el encargo, cada paso (lo que dijo el agente, que herramienta "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Una corrida completa: el encargo, cada paso (lo que dijo el agente, que herramienta "
                         "llamo y con que, que le contesto) y el resultado.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
@@ -201,7 +201,7 @@ void McpService::registerAgenteTools() {
         t.category = "agentes";
         t.clase = Clase::Escritura;
         t.idempotent = true;
-        t.description = ba::i18n::traducir("mcp", "Mata el agente de esa corrida (o la saca de la cola si no arranco). Queda como "
+        t.description = QT_TRANSLATE_NOOP("mcp", "Mata el agente de esa corrida (o la saca de la cola si no arranco). Queda como "
                         "«detenida», con lo que alcanzo a hacer.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
