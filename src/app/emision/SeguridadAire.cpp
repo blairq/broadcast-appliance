@@ -13,11 +13,13 @@ void SeguridadAire::guardar() {
     // Es estado de aire: la sección de las salidas del documento de aire (F3-04). El
     // runtime la vuelve a poner con lo que dice el motor; la escribe el dueño del documento.
     rt_.aireCambio();
-    if (cambio_) cambio_();
+    // Quien lo muestra es del dueño: desde el plano de control, encolado (F3-03).
+    if (cambio_) rt_.enDueno(cambio_);
 }
 
 std::string SeguridadAire::ftb(bool activar, int ms, const std::string& audio, const std::string& salida) {
     if (audio != "bajar" && audio != "mantener") return ba::i18n::traducir("emision", "audio: bajar o mantener");
+    const TurnoMotor::Guarda turno(rt_.engine().turno()); // el negro y su lugar en el documento, juntos
     if (!rt_.engine().ftb(activar, ms, audio == "bajar", salida)) return rt_.engine().lastError();
     guardar();
     return {};
@@ -25,6 +27,7 @@ std::string SeguridadAire::ftb(bool activar, int ms, const std::string& audio, c
 
 std::string SeguridadAire::placa(bool activar, const std::string& texto, const std::string& imagen, int ms,
                                  const std::string& salida) {
+    const TurnoMotor::Guarda turno(rt_.engine().turno());
     if (!rt_.engine().placa(activar, texto, imagen, ms, salida)) return rt_.engine().lastError();
     guardar();
     return {};

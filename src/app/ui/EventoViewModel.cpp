@@ -3487,8 +3487,9 @@ void EventoViewModel::enchufar() {
     // El aire de cada salida: lo hecho «a mano» y las PTZ que esperan una cámara.
     if (primeraVez(s.conmutadores)) {
         const auto seguir = [this](escenas::Conmutador* c) {
+            // La salida por su id (no el puntero): el aviso puede llegar encolado (F3-03).
             connect(c, &escenas::Conmutador::alAireCambio, this,
-                    [this, c](const QString& escena) { alAireCambio(c->salida(), escena.toStdString()); });
+                    [this, salida = c->salida()](const QString& escena) { alAireCambio(salida, escena.toStdString()); });
         };
         for (escenas::Conmutador* c : s.conmutadores->todos())
             seguir(c);

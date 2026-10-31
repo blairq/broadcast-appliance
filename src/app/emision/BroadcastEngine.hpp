@@ -38,12 +38,17 @@
 // del gateway sigue como el de cualquier salida. Apagar o rearmar el motor no le pide
 // parar nada: lo para el operador, o el cierre ordenado del launcher.
 //
-// Modelo de threading: todo desde el hilo de control (la UI o el arranque
-// headless). El motor tiene sus hilos; lo que llega de ellos (cuadros, audio)
-// solo toca estructuras con su propio lock.
+// Modelo de threading (F3-03): EL TURNO (emision/TurnoMotor.hpp). Lo usan el dueño (la
+// interfaz o el arranque headless) y el plano de control (las acciones de aire del MCP con
+// la interfaz trabada), de a uno: cada método de la API toma el turno al entrar, salvo los
+// que dicen DESDE CUALQUIER HILO (fotos y medidas con su propio candado). El motor tiene sus
+// hilos (el de salidas, el de los cuadros, los de GStreamer): no toman el turno; lo que
+// llega de ellos solo toca estructuras con su propio candado. Una operación compuesta de
+// afuera (AppRuntime, escenas::Conmutador) toma el turno por todo lo que dura (turno()).
 //
 // Estrategia de errores: no lanza. Cada operacion devuelve bool y deja el
-// motivo en `lastError()`.
+// motivo en `lastError()`, que es DEL HILO que llamó (como errno): lo que falló en el
+// control no pisa el error que la interfaz está por leer.
 // ============================================================================
 #pragma once
 
@@ -71,6 +76,7 @@
 #include "ipc/CanalesEscena.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "emision/TurnoMotor.hpp"
 
 namespace ba::motor {
 class Motor;
@@ -319,8 +325,9 @@ class BroadcastEngine {
     std::vector<std::string> sceneNames() const;
     /// Pone `name` al aire en la salida con la transicion configurada (setTransition).
     bool setCurrentScene(const std::string& name, const std::string& salida = "");
-    /// Escena al aire en la salida ("" si no hay o no existe la salida).
-    const std::string& currentScene(const std::string& salida = "") const;
+    /// Escena al aire en la salida ("" si no hay o no existe la salida). Una copia: la
+    /// referencia de antes se la podía cambiar el otro que tiene el turno.
+    std::string currentScene(const std::string& salida = "") const;
     /// Tipo ("cut", "fade", "swipe", "slide", "fade_to_color", "wipe") y duracion.
     bool setTransition(const std::string& type, int durationMs);
     /// Pone `name` al aire con OTRA transición solo esta vez (`ms` < 0 = la global).
@@ -498,7 +505,10 @@ class BroadcastEngine {
     /// «<fuente>:video»). Ambos vacíos = lo suyo. Rearma las escenas que la usan.
     void setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor);
     /// ¿Existe la fuente?
-    bool sourceExists(const std::string& name) const { return sources_.count(name) > 0; }
+    bool sourceExists(const std::string& name) const {
+        const TurnoMotor::Guarda turno(turno_);
+        return sources_.count(name) > 0;
+    }
     /// Lo que mide el motor de la entrada (tamaño, latencia, filtros, error...); null si no existe.
     nlohmann::json estadoEntrada(const std::string& name) const;
     /// Lo visible de una escena: (fuente, rectángulo en fracciones del lienzo), de abajo hacia arriba.
@@ -551,7 +561,10 @@ class BroadcastEngine {
     int adoptPendingAudio();
     bool removeGlobalAudio(const std::string& name);
     /// Nombres de las entradas de audio del equipo (sin los invitados).
-    std::vector<std::string> globalAudioInputs() const { return micInputs_; }
+    std::vector<std::string> globalAudioInputs() const {
+        const TurnoMotor::Guarda turno(turno_);
+        return micInputs_;
+    }
     bool addGuestVideo(int slot);
     bool addGuestVideo(int slot, const CanvasRect& rect);
 
@@ -599,13 +612,22 @@ class BroadcastEngine {
     /// El solo: `modo` "pfl" o "afl" (`salida`: de cuál es el fader del AFL; "" = la por
     /// omisión). `name` "" lo suelta. Falla si la fuente o la salida no existen.
     bool setPfl(const std::string& name, const std::string& modo = "pfl", const std::string& salida = "");
-    std::string pfl() const { return pfl_; }
+    std::string pfl() const {
+        const TurnoMotor::Guarda turno(turno_);
+        return pfl_;
+    }
     /// "pfl" o "afl" (lo del solo prendido; "" sin solo).
-    std::string pflModo() const { return pfl_.empty() ? std::string() : pflModo_; }
+    std::string pflModo() const {
+        const TurnoMotor::Guarda turno(turno_);
+        return pfl_.empty() ? std::string() : pflModo_;
+    }
     /// La salida de la escucha fija: de cuál son su fader y su mute (su id; "" al pedirla =
     /// la por omisión). No se guarda. Falla si no existe.
     bool setSalidaEscucha(const std::string& salida);
-    std::string salidaEscucha() const { return salidaEscucha_; }
+    std::string salidaEscucha() const {
+        const TurnoMotor::Guarda turno(turno_);
+        return salidaEscucha_;
+    }
     /// Atrasa (ms > 0) o adelanta la fuente para que su audio coincida con su video.
     bool setSourceSyncOffset(const std::string& name, int ms);
     int sourceSyncOffset(const std::string& name) const;
@@ -662,7 +684,11 @@ class BroadcastEngine {
     bool resetVideo(const VideoConfig& video, const std::function<VideoConfig()>& conElMotorApagado = {});
     /// Compatibilidad: los codificadores se crean por salida. Solo sin salidas activas.
     bool resetEncoders();
-    const VideoConfig& videoConfig() const { return video_; }
+    /// Una copia (ver currentScene).
+    VideoConfig videoConfig() const {
+        const TurnoMotor::Guarda turno(turno_);
+        return video_;
+    }
     /// Codificadores de video en el orden en que se probarían para `enc` (el último, x264enc).
     std::vector<std::string> videoEncoderCandidates(const EncoderConfig& enc) const;
 
@@ -718,7 +744,8 @@ class BroadcastEngine {
     bool startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente = false,
                         const std::string& salida = "");
     enum class Inicio { Iniciado, YaIgual, YaOtroDestino, Error };
-    Inicio ultimoInicio() const { return ultimoInicio_; }
+    /// Lo que hizo el último startStreaming DE ESTE HILO (como lastError).
+    Inicio ultimoInicio() const;
     /// El destino al aire, enmascarado (servidor y los últimos 4 de la clave).
     std::string destinoActivo(const std::string& salida = "") const;
 
@@ -785,7 +812,10 @@ class BroadcastEngine {
     bool empezarMedicionSincro(const std::string& salida = "");
     /// {ok, retardo_ms, dispersion_ms, aplausos, confiable, problema, golpes_audio, golpes_video}.
     nlohmann::json terminarMedicionSincro();
-    bool midiendoSincro() const { return medSincro_ != nullptr; }
+    bool midiendoSincro() const {
+        const TurnoMotor::Guarda turno(turno_);
+        return medSincro_ != nullptr;
+    }
     /// Las pistas (máscara: bit 1..5 = pistas 2..6) que usa la grabación del programa.
     int pistasGrabacionMask() const;
 
@@ -839,11 +869,18 @@ class BroadcastEngine {
 
     /// Estado actual (para la UI y el HealthBlock).
     EngineStatus status() const;
-    const std::string& lastError() const { return lastError_; }
+    /// El último error DE ESTE HILO (ver «Estrategia de errores»).
+    const std::string& lastError() const;
+    /// DESDE CUALQUIER HILO.
     bool ready() const { return started_; }
     /// El arranque falló porque este programa no tiene GStreamer (build sin motor, bundle
     /// incompleto). Una marca y no el texto de lastError(), que sale traducido.
     bool sinGStreamer() const { return sinGStreamer_; }
+
+    /// EL TURNO (emision/TurnoMotor.hpp): lo toma cada método de la API; quien hace varias
+    /// cosas seguidas que tienen que verse juntas (AppRuntime, los conmutadores) lo toma por
+    /// todo lo que dura, y el plano de control lo pide con tope (TurnoMotor::tomarHasta).
+    const TurnoMotor& turno() const { return turno_; }
 
     /// Lo que oye el invitado del slot: "mix_minus" (de fábrica) o "programa".
     void setRetornoInvitado(int slot, const std::string& modo);
@@ -918,9 +955,12 @@ class BroadcastEngine {
     /// El estado del motor, cacheado (las consultas de la UI llegan muy seguido).
     const nlohmann::json& estadoMotor() const;
 
-    bool started_ = false;
-    bool sinGStreamer_ = false;
-    std::string lastError_;
+    TurnoMotor turno_;
+    std::atomic<bool> started_{false};
+    std::atomic<bool> sinGStreamer_{false};
+    /// El último error de cualquier hilo (el de status(); el de lastError() es de cada uno).
+    mutable std::mutex errorM_;
+    std::string ultimoError_;
     EnginePaths paths_;
     VideoConfig video_;
     std::string relojTipo_ = "sistema", relojServidor_;
@@ -972,7 +1012,6 @@ class BroadcastEngine {
     // cada salida está en su Salida (los campos «pedido»), también bajo pedidosM_.
     mutable std::mutex pedidosM_;
     std::set<std::string> individualesPedidas_;
-    Inicio ultimoInicio_ = Inicio::Iniciado;
     struct Extra {
         std::string server, key, serverRespaldo;
         std::unique_ptr<motor::Transmision> tx;
@@ -1010,11 +1049,12 @@ class BroadcastEngine {
     /// que se pueden leer desde cualquier hilo sin buscar en salidas_.
     std::shared_ptr<Medidas> medidasPrograma_;
     struct CanalEmisor; ///< el canal de video de una salida a su emisor (BroadcastEngineEmisor.cpp)
-    /// Una salida (ver LAS SALIDAS arriba). Cada campo es de un solo hilo: el de la
-    /// interfaz (lo del aire), el de salidas (lo que sale) o, bajo pedidosM_, los dos.
+    /// Una salida (ver LAS SALIDAS arriba). Cada campo es de uno: del que tiene el turno
+    /// (lo del aire: la interfaz o el plano de control), del hilo de salidas (lo que sale)
+    /// o, bajo pedidosM_, de los dos.
     struct Salida {
         std::string id, nombre;
-        // --- Del hilo de la interfaz ---
+        // --- Del que tiene el turno ---
         std::string alAire; ///< la escena al aire
         std::string armada; ///< la escena en su PREVIEW (ver armar)
         Dsk dsk[4];
@@ -1077,8 +1117,8 @@ class BroadcastEngine {
         std::string claveRetorno() const;
         std::wstring canalRetorno() const;
     };
-    /// Todas, por id. La interfaz es la única que cambia el mapa (con salidasM_
-    /// tomado); el hilo de salidas lo recorre con salidasM_ (ver lasSalidas). La
+    /// Todas, por id. Solo lo cambia el que tiene el turno (con salidasM_ tomado); el
+    /// hilo de salidas lo recorre con salidasM_ (ver lasSalidas). La
     /// por omisión existe siempre (desde el constructor).
     std::map<std::string, std::shared_ptr<Salida>> salidas_;
     std::vector<std::string> ordenSalidas_; ///< la por omisión primera

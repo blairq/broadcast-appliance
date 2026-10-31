@@ -10,6 +10,9 @@
 //
 // Cada salida tiene su negro y su placa (PLAN-SALIDAS): `salida` "" = la por
 // omisión; cada una vuelve igual (si la salida existe al restaurar).
+//
+// Desde la interfaz o el plano de control (F3-03: aire_ftb y aire_placa con la interfaz
+// trabada): toma el turno del motor y alCambiar llega siempre en el hilo dueño.
 // ============================================================================
 #pragma once
 
@@ -28,7 +31,7 @@ class SeguridadAire {
    public:
     explicit SeguridadAire(AppRuntime& rt);
 
-    /// Cuando cambió el FTB o la placa (para mostrarlo).
+    /// Cuando cambió el FTB o la placa (para mostrarlo): en el hilo dueño.
     void alCambiar(std::function<void()> f) { cambio_ = std::move(f); }
 
     /// `audio`: "bajar" (el audio baja con el negro) o "mantener". "" o el error.

@@ -12,14 +12,20 @@
 //   reinicio sin que la interfaz toque JSON.
 //
 // Modelo de threading:
-//   Todo desde el hilo dueño del motor (el de la interfaz o el bucle de la consola),
-//   salvo lo que dice «desde cualquier hilo»: ticControl (lo corre el plano de control
-//   en su hilo, arranque/PlanoControl), el documento de aire, salidasPublicadas,
-//   avisosPersistencia y el latido. `requestStop()` es async-signal-safe (un atomic).
+//   Del hilo dueño del motor (el de la interfaz o el bucle de la consola), salvo lo que
+//   dice «desde cualquier hilo»: ticControl (lo corre el plano de control en su hilo,
+//   arranque/PlanoControl), el documento de aire, salidasPublicadas, avisosPersistencia y
+//   el latido. `requestStop()` es async-signal-safe (un atomic).
+//   LO QUE SALE (F3-03), también desde el plano de control: grabar, transmitir, los
+//   destinos, poner una escena al aire (setScene…), el negro y la placa (aireCambio).
+//   Toman el turno del motor (emision/TurnoMotor.hpp) por todo lo que duran, leen la
+//   configuración de ajustesAire() (cfg_ es del dueño) y lo que avisan (observar, el vivo
+//   manual, guardar app.json) le llega al dueño encolado, en su hilo (enDueno).
 //
 // Estrategia de errores:
 //   No lanza. `start` devuelve el codigo de salida si no se puede arrancar;
-//   las acciones devuelven bool y dejan el motivo en `lastError()`.
+//   las acciones devuelven bool y dejan el motivo en `lastError()`, que es DEL HILO que
+//   llamó (como errno: lo que falló en el control no pisa lo de la interfaz).
 // ============================================================================
 
 #pragma once
@@ -75,6 +81,30 @@ class AppRuntime {
     /// [{id, nombre, por_omision}] de las salidas, como estaban en la última vuelta del
     /// motor. Desde cualquier hilo (el MCP en el plano de control).
     nlohmann::json salidasPublicadas() const;
+
+    // --- El hilo dueño y los demás (F3-03) ---------------------------------------
+    /// Cómo se le encarga algo al hilo dueño desde otro (la interfaz: su bucle, ver
+    /// PlanoControl::encolarEnDueno). Vacío (la consola, al cerrar): en el acto.
+    void setEncolarEnDueno(std::function<void(std::function<void()>)> encolar);
+    /// ¿El que llama es el dueño? (Antes de start, todos lo son.)
+    bool esDueno() const;
+    /// `fn` en el hilo dueño: en el acto si el que llama es él (o no hay a quién
+    /// encolar); si no, encolada y sin esperar. Lo que es solo suyo (cfg_, los avisos a
+    /// las vistas) se toca por acá cuando la operación vino del plano de control.
+    void enDueno(std::function<void()> fn) const;
+    /// Lo de la configuración que usan las operaciones de aire (grabar, transmitir, cortar
+    /// una escena), para poder hacerlas en el plano de control sin leer cfg_: el dueño la
+    /// lee fresca (y deja la copia, también en cada vuelta del motor); los demás, la copia.
+    /// Con la interfaz trabada no cambió: los ajustes los cambia ella.
+    struct AjustesAire {
+        RecordConfig rec;
+        EncoderConfig encoder;
+        StreamConfig stream;
+        std::string claveEnv; ///< la variable de entorno de la clave (cfg_.streamKeyEnv)
+        int transicionMs = 300;
+        std::filesystem::path carpetaEvento; ///< la del evento abierto ("" = ninguno)
+    };
+    AjustesAire ajustesAire() const;
 
     /// Detiene salidas y motor y marca la salud como terminada. Idempotente.
     void stop();
@@ -136,6 +166,7 @@ class AppRuntime {
     /// sola sin evento abierto (con evento, la llama setCarpetaDelEvento).
     void retomarGrabaciones();
     /// Dónde va la próxima grabación: <evento>/Grabaciones o la de la configuración.
+    /// Desde cualquier hilo (ajustesAire).
     std::string carpetaGrabacion() const;
     /// Dónde buscar grabaciones (para subir, listar): la del evento y Recordings/.
     std::vector<std::string> carpetasDeGrabaciones() const;
@@ -222,6 +253,9 @@ class AppRuntime {
     bool setScene(const std::string& name, const std::string& salida = "");
     /// Al aire con otra transición solo esta vez (ver BroadcastEngine::setCurrentSceneCon).
     bool setSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida = "");
+    /// La escena ya quedó al aire en el motor (la T-bar que llegó): se anota como en
+    /// setScene (app.json, el documento de aire, el aviso).
+    void anotarEscenaAlAire(const std::string& name, const std::string& salida);
     bool setTransition(const std::string& type, int durationMs);
     bool addSource(const std::string& scene, const SourceSpec& spec);
     bool removeSource(const std::string& scene, const std::string& name);
@@ -248,7 +282,9 @@ class AppRuntime {
     /// Aplica video/codificacion en caliente (sin salidas activas).
     bool applyVideo(const VideoConfig& v);
     bool applyEncoder(const EncoderConfig& e);
-    /// Guarda app.json, gateway.json y launcher.json.
+    /// Guarda app.json, gateway.json y launcher.json. Desde otro hilo (el plano de
+    /// control), se lo encarga al dueño (la configuración es suya) y devuelve true: lo que
+    /// no puede esperar, lo que sale, ya está en el documento de aire.
     bool save();
     /// Reinicia B (el launcher lo relanza con gateway.json nuevo). BLOQUEA hasta
     /// ~4 s (espera que B se cierre): desde la interfaz o el MCP, usar
@@ -267,7 +303,8 @@ class AppRuntime {
     BroadcastEngine& engine() { return engine_; }
     /// El latido del supervisor que mira el motor (la UI trabada no corta el aire).
     LatidoAire& latido() { return latido_; }
-    const std::string& lastError() const { return lastError_; }
+    /// El último error DE ESTE HILO (ver «Estrategia de errores»).
+    const std::string& lastError() const;
     /// true si el ultimo corte de la transmision / grabacion lo PIDIO alguien
     /// (operador, plataforma, MCP). Si la salida se detiene con esto en false,
     /// se cayo sola (red, servidor, disco lleno) y hay que avisar fuerte.
@@ -346,7 +383,10 @@ class AppRuntime {
     void ajustarInvitados(int n);
 
    private:
+    /// A los que observan, en el hilo dueño (ver enDueno).
     void avisar(Cambio c) const;
+    /// El último error del hilo que llama (lastError).
+    static std::string& errorDelHilo();
     /// Anota en Config/salidas.json el fader y el mute que tiene ahora `fuente` en la
     /// salida `salida` (otra que la por omisión): vuelven al arrancar.
     void guardarMando(const std::string& salida, const std::string& fuente);
@@ -400,7 +440,6 @@ class AppRuntime {
     LatidoAire latido_;
     ba::ipc::ControlService control_;
     OperatorFeed operator_; // vive mientras libobs este arriba (ver stop)
-    std::string lastError_;
     std::thread reinicioSala_;              ///< reiniciarSalaEnElFondo
     std::function<void(const std::string&)> alVivoManual_;
     std::atomic<bool> reiniciandoSala_{false};
@@ -426,7 +465,11 @@ class AppRuntime {
     bool cerrando_ = false;           ///< stop(): al-aire.json dice «cerrado»
     bool emergenciaEnergia_ = false;  ///< cerrarGrabacionesPorEnergia: un cierre es un corte
     std::set<std::string> porEnergia_; ///< las salidas cuya grabación cerró el corte (vuelven)
-    mutable int keySaved_ = -1;   // cache de streamKeySaved (-1 = sin consultar)
+    mutable std::atomic<int> keySaved_{-1}; // cache de streamKeySaved (-1 = sin consultar)
+    std::atomic<std::thread::id> dueno_{};  ///< el hilo que hizo start (ver esDueno)
+    std::function<void(std::function<void()>)> encolarEnDueno_;
+    mutable std::mutex ajustesAireMu_;
+    mutable AjustesAire ajustesAire_; ///< la copia para los demás hilos (ver ajustesAire)
     bool safeBackupDone_ = false; // app.json resguardado antes de guardar en modo seguro
     bool started_ = false;
 };

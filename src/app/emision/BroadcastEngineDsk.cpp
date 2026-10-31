@@ -78,6 +78,7 @@ void BroadcastEngine::publicarCapas(Salida& s, int ms) {
 }
 
 bool BroadcastEngine::ftb(bool activar, int ms, bool bajarAudio, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
@@ -100,6 +101,7 @@ bool BroadcastEngine::ftb(bool activar, int ms, bool bajarAudio, const std::stri
 
 bool BroadcastEngine::placa(bool activar, const std::string& texto, const std::string& imagen, int ms,
                             const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
@@ -136,6 +138,7 @@ bool BroadcastEngine::placa(bool activar, const std::string& texto, const std::s
 }
 
 nlohmann::json BroadcastEngine::estadoPlaca(const std::string& salida) const {
+    const TurnoMotor::Guarda turno(turno_);
     const Salida* s = laSalida(salida);
     if (s == nullptr) return json::object();
     return {{"ftb", s->ftb}, {"ftb_audio", s->ftbAudio}, {"placa", s->placa}, {"placa_texto", s->placaTexto},
@@ -144,6 +147,7 @@ nlohmann::json BroadcastEngine::estadoPlaca(const std::string& salida) const {
 
 bool BroadcastEngine::dskArmar(int capa, const std::vector<std::string>& contenido, const nlohmann::json& recuadro,
                                const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     if (capa < 1 || capa > 4) {
         setError(ba::i18n::traducir("emision", "la capa va de 1 a 4"));
         return false;
@@ -166,6 +170,7 @@ bool BroadcastEngine::dskArmar(int capa, const std::vector<std::string>& conteni
 }
 
 bool BroadcastEngine::dskMostrar(int capa, bool visible, int ms, const std::string& salida) {
+    const TurnoMotor::Guarda turno(turno_);
     if (capa < 1 || capa > 4) {
         setError(ba::i18n::traducir("emision", "la capa va de 1 a 4"));
         return false;
@@ -182,6 +187,7 @@ bool BroadcastEngine::dskMostrar(int capa, bool visible, int ms, const std::stri
 }
 
 nlohmann::json BroadcastEngine::dskEstado(const std::string& salida) const {
+    const TurnoMotor::Guarda turno(turno_);
     nlohmann::json out = nlohmann::json::array();
     const Salida* s = laSalida(salida);
     if (s == nullptr) return out;
@@ -194,6 +200,7 @@ nlohmann::json BroadcastEngine::dskEstado(const std::string& salida) const {
 }
 
 std::vector<std::string> BroadcastEngine::fuentesDsk(const std::string& salida) const {
+    const TurnoMotor::Guarda turno(turno_);
     std::vector<std::string> out;
     const Salida* s = laSalida(salida);
     if (s == nullptr) return out;
@@ -212,6 +219,7 @@ std::vector<std::string> BroadcastEngine::fuentesDsk(const std::string& salida) 
 }
 
 bool BroadcastEngine::textoGlobal(const std::string& nombre, const std::string& texto) {
+    const TurnoMotor::Guarda turno(turno_);
     if (!started_) {
         setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;

@@ -319,7 +319,11 @@ int runGui(int argc, char** argv) {
     plano.setCierre([]() { return AppRuntime::stopRequested(); });
     // El documento de aire lo vuelca su dueño, en su hilo (y en cada vuelta del control).
     rt.setDuenoDelAire([&plano, &rt]() { plano.encolar([&rt]() { rt.documentoAire().volcar(); }); });
+    // Lo de aire que se hace en el plano de control (el MCP con la interfaz trabada) le
+    // avisa a la interfaz por su bucle; y el control se turna el motor con ella (F3-03).
+    rt.setEncolarEnDueno([&plano](std::function<void()> fn) { plano.encolarEnDueno(std::move(fn)); });
     plano.arrancar();
+    plano.encolar([]() { TurnoMotor::participar("control"); });
 
     int result = 0;
     {
@@ -367,6 +371,7 @@ int runGui(int argc, char** argv) {
             std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "no se pudo cargar la interfaz QML").c_str());
             plano.detener();
             rt.setDuenoDelAire({});
+            rt.setEncolarEnDueno({});
             rt.stop();
             return 3;
         }
@@ -575,9 +580,11 @@ int runGui(int argc, char** argv) {
         // borren sus dueños; el documento de aire lo vuelca rt.stop en el acto.
         plano.detener();
         rt.setDuenoDelAire({});
+        rt.setEncolarEnDueno({});
     }
     plano.detener();
     rt.setDuenoDelAire({});
+    rt.setEncolarEnDueno({});
     rt.stop();
     return result;
 }

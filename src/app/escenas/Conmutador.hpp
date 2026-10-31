@@ -24,6 +24,13 @@
 // las demás va en `salidas: {<id>: {afv, afv_niveles}}`.
 // Avisan con señales (alAire, armadaCambio, afvCambio): los view models se
 // actualizan con ellas; el conmutador no sabe nada de la interfaz.
+//
+// HILOS (F3-03): los usan la interfaz y el plano de control (el MCP corta, arma y hace
+// TAKE con la interfaz trabada). Cada operación toma el turno del motor por todo lo que
+// dura (emision/TurnoMotor.hpp: nadie ve un corte a medias, ni la armada de una salida
+// que se está sacando) y las señales salen SIEMPRE en el hilo dueño (encoladas si la
+// operación vino del control, AppRuntime::enDueno): los view models son de él. El
+// fundido del AFV corre en el hilo que cortó.
 // ============================================================================
 #pragma once
 
@@ -34,6 +41,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -66,10 +74,10 @@ class Conmutador : public QObject {
     /// La T-bar: `t` de 0 a 1 hacia la armada; `soltar` la termina. "" o por qué no.
     std::string tbar(double t, bool soltar);
     /// Por dónde va la T-bar (0…1; 0 = quieta). Para mostrarla (el bus: aire/<salida>/tbar).
-    double tbarPosicion() const { return tbarPos_; }
+    double tbarPosicion() const;
 
     std::string alAire() const;
-    std::string armada() const { return armada_; }
+    std::string armada() const;
 
     /// La transición con la que entra `escena` cuando no se pide otra (de la escena:
     /// la misma en todas las salidas). `tipo`: cut, fade, swipe, slide, fade_to_color;
@@ -79,9 +87,10 @@ class Conmutador : public QObject {
 
     /// Audio que sigue al video EN ESTA salida: la fuente sube con la escena que la tiene.
     void setAfv(const std::string& fuente, bool sigue);
-    bool afv(const std::string& fuente) const { return afv_.fuentes.count(fuente) > 0; }
+    bool afv(const std::string& fuente) const;
     std::vector<std::string> afvFuentes() const;
-    const Afv& afvEstado() const { return afv_; }
+    /// Una copia (la lee el registro al guardar).
+    Afv afvEstado() const;
 
    signals:
     /// Cambió la escena al aire (ya guardada).
@@ -95,6 +104,8 @@ class Conmutador : public QObject {
     std::string cortar(const std::string& escena, const std::string& tipo, int ms, const char* via);
     void aplicarAfv(const std::string& destino, int ms);
     void setArmadaYAvisar(const std::string& escena);
+    /// `emitir` (una señal de este conmutador) en el hilo dueño, si sigue vivo.
+    void avisarEnDueno(std::function<void(Conmutador&)> emitir);
 
     AppRuntime& rt_;
     Conmutadores& registro_;

@@ -249,6 +249,12 @@ void AppRuntime::dejarDeObservar(int id) {
 }
 
 void AppRuntime::avisar(Cambio c) const {
+    // Los que escuchan son del dueño (los view models): lo que cambió el plano de control
+    // les llega encolado, en su hilo (F3-03).
+    if (!esDueno() && encolarEnDueno_) {
+        enDueno([this, c]() { avisar(c); });
+        return;
+    }
     // Sobre una copia: quien escucha puede darse de baja mientras se le avisa.
     const auto lista = observadores_;
     for (const auto& [id, fn] : lista)
@@ -256,6 +262,44 @@ void AppRuntime::avisar(Cambio c) const {
 }
 
 std::uint32_t AppRuntime::pid() const { return currentPid(); }
+
+std::string& AppRuntime::errorDelHilo() {
+    thread_local std::string e;
+    return e;
+}
+
+const std::string& AppRuntime::lastError() const { return errorDelHilo(); }
+
+void AppRuntime::setEncolarEnDueno(std::function<void(std::function<void()>)> encolar) {
+    encolarEnDueno_ = std::move(encolar);
+}
+
+bool AppRuntime::esDueno() const {
+    const std::thread::id d = dueno_.load();
+    return d == std::thread::id() || d == std::this_thread::get_id();
+}
+
+void AppRuntime::enDueno(std::function<void()> fn) const {
+    if (esDueno() || !encolarEnDueno_) return fn();
+    encolarEnDueno_(std::move(fn));
+}
+
+AppRuntime::AjustesAire AppRuntime::ajustesAire() const {
+    if (!esDueno()) {
+        std::lock_guard<std::mutex> l(ajustesAireMu_);
+        return ajustesAire_;
+    }
+    AjustesAire a;
+    a.rec = cfg_.rec;
+    a.encoder = cfg_.encoder;
+    a.stream = cfg_.streamCfg;
+    a.claveEnv = cfg_.streamKeyEnv;
+    a.transicionMs = cfg_.transition.durationMs;
+    a.carpetaEvento = carpetaDelEvento_ ? carpetaDelEvento_() : fs::path();
+    std::lock_guard<std::mutex> l(ajustesAireMu_);
+    ajustesAire_ = a;
+    return a;
+}
 
 void AppRuntime::configure(int argc, char** argv) {
     // Binarios de la raiz del bundle; datos del disco real (BA_DATA_ROOT).
@@ -320,7 +364,7 @@ bool AppRuntime::addAudioInput(const SourceSpec& pedida) {
     SourceSpec spec = pedida;
     inputs::alMotor(spec); // se guarda con el tipo del motor (esquema 2 de app.json)
     if (!engine_.addGlobalAudio(spec)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     const auto it = std::find_if(cfg_.audioInputs.begin(), cfg_.audioInputs.end(),
@@ -365,7 +409,7 @@ void AppRuntime::ajustarInvitados(int n) {
                 spec.visible = false;
                 if (!addSource(cfg_.scenes.front().name, spec))
                     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "«%1» omitido: %2"),
-                                                                 {spec.name, lastError_})
+                                                                 {spec.name, errorDelHilo()})
                                                     .c_str());
             }
     }
@@ -483,6 +527,10 @@ void AppRuntime::addGuests() {
 }
 
 int AppRuntime::start() {
+    // El que arranca es el dueño del motor (la interfaz o el bucle de la consola): toma el
+    // turno al usarlo, como el plano de control (F3-03, emision/TurnoMotor.hpp).
+    dueno_ = std::this_thread::get_id();
+    TurnoMotor::participar("dueño");
     // Lo que dejó la corrida anterior, ANTES de que nada lo pise (--record y --stream
     // escriben el documento apenas arrancan): hasta que termine de volver como estaba,
     // en el disco sigue diciendo lo de antes (writeOnAirState espera a aireListo_).
@@ -615,9 +663,9 @@ int AppRuntime::start() {
     grilla::registrarTipo();
     marca(ba::i18n::traducir("arranque", "el reloj y los tipos de fuente"));
     if (!engine_.startup(paths, cfg_.video, AudioConfig{})) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         std::printf("ba-app: %s\n",
-                    ba::i18n::llenar(ba::i18n::traducir("arranque", "el motor no arranco: %1"), {lastError_}).c_str());
+                    ba::i18n::llenar(ba::i18n::traducir("arranque", "el motor no arranco: %1"), {errorDelHilo()}).c_str());
         if (health_.valid()) {
             health_.setState(kHealthSlot, ba::ipc::ProcessState::Terminated);
         }
@@ -788,6 +836,7 @@ void AppRuntime::ticMotor() {
     if (started_) {
         const EngineStatus st = engine_.status();
         latido_.uiTick(st.streaming || st.recording);
+        ajustesAire(); // la copia de los ajustes de aire, para el plano de control
         // (Un codificador que se cae en el aire, una grabación o una transmisión que se
         // cortan: las atiende el hilo de salidas del motor, ver BroadcastEngine::ticSalidas.)
         // Lo que sale de cada salida (la escena, el negro y la placa), para volver tras un
@@ -820,7 +869,7 @@ bool AppRuntime::setOperatorFeed(const std::string& videoSource, const std::stri
     const bool ok = operator_.configure(engine_, videoSource, audioSource);
     cfg_.operatorVideo = videoSource;
     cfg_.operatorAudio = audioSource;
-    if (!ok) lastError_ = ba::i18n::traducir("arranque", "no existe la fuente elegida para el operador");
+    if (!ok) errorDelHilo() = ba::i18n::traducir("arranque", "no existe la fuente elegida para el operador");
     return ok;
 }
 
@@ -831,6 +880,7 @@ bool AppRuntime::gatewayAlive() const {
 std::uint32_t AppRuntime::gatewayPid() const { return health_.valid() ? health_.read(0).pid : 0; }
 
 void AppRuntime::stop() {
+    const TurnoMotor::Guarda turno(engine_.turno());
     if (!started_) {
         return;
     }
@@ -869,8 +919,8 @@ void AppRuntime::stop() {
 }
 
 std::string AppRuntime::carpetaGrabacion() const {
-    const fs::path ev = carpetaDelEvento_ ? carpetaDelEvento_() : fs::path();
-    return ev.empty() ? cfg_.rec.directory : (ev / "Grabaciones").string();
+    const AjustesAire a = ajustesAire();
+    return a.carpetaEvento.empty() ? a.rec.directory : (a.carpetaEvento / "Grabaciones").string();
 }
 
 std::vector<std::string> AppRuntime::carpetasDeGrabaciones() const {
@@ -880,18 +930,20 @@ std::vector<std::string> AppRuntime::carpetasDeGrabaciones() const {
 }
 
 bool AppRuntime::startRecording(const std::string& salida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
         return false;
     }
     const bool porOmision = id == salidas::kPorOmision;
     std::error_code ec;
-    RecordConfig rec = cfg_.rec;
+    const AjustesAire a = ajustesAire();
+    RecordConfig rec = a.rec;
     rec.directory = carpetaGrabacion();
     // La copia en el otro disco, también por evento: <copia>/Eventos/<evento>/Grabaciones.
-    if (!rec.copiaDir.empty() && carpetaDelEvento_) {
-        const fs::path ev = carpetaDelEvento_();
+    if (!rec.copiaDir.empty()) {
+        const fs::path& ev = a.carpetaEvento;
         std::error_code e2;
         const fs::path rel = ev.empty() ? fs::path() : fs::relative(ev, root_ / "Eventos", e2);
         if (!ev.empty() && !e2 && !rel.empty() && rel.string().rfind("..", 0) != 0)
@@ -901,9 +953,9 @@ bool AppRuntime::startRecording(const std::string& salida) {
     fs::create_directories(rec.directory, ec);
     const EngineStatus antes = engine_.status();
     if (!engine_.startRecording(rec, codificadorDe(id), id)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         std::printf("ba-app: %s\n",
-                    ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabacion no arranco: %1"), {lastError_}).c_str());
+                    ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabacion no arranco: %1"), {errorDelHilo()}).c_str());
         return false;
     }
     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("grabacion", "grabando en %1"), {rec.directory}).c_str());
@@ -928,7 +980,7 @@ bool AppRuntime::startSourceRecording(const std::string& source) {
     const std::string dir = carpetaGrabacion() + "/entradas";
     fs::create_directories(dir, ec);
     if (!engine_.startSourceRecording(source, dir, cfg_.encoder)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
@@ -939,7 +991,7 @@ bool AppRuntime::startSourceRecording(const std::string& source) {
 
 bool AppRuntime::stopSourceRecording(const std::string& source) {
     if (!engine_.stopSourceRecording(source)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
@@ -954,6 +1006,7 @@ void AppRuntime::stopAllSourceRecordings() {
 }
 
 std::vector<std::string> AppRuntime::cerrarGrabacionesPorEnergia() {
+    const TurnoMotor::Guarda turno(engine_.turno());
     emergenciaEnergia_ = true;
     std::vector<std::string> cerradas;
     for (const std::string& id : engine_.salidaIds()) {
@@ -969,6 +1022,7 @@ std::vector<std::string> AppRuntime::cerrarGrabacionesPorEnergia() {
 }
 
 void AppRuntime::retomarGrabacionesPorEnergia() {
+    const TurnoMotor::Guarda turno(engine_.turno());
     emergenciaEnergia_ = false;
     const std::set<std::string> volver = std::move(porEnergia_);
     porEnergia_.clear();
@@ -977,6 +1031,7 @@ void AppRuntime::retomarGrabacionesPorEnergia() {
 }
 
 void AppRuntime::stopRecording(const std::string& salida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) return;
     if (id == salidas::kPorOmision)
@@ -1024,6 +1079,7 @@ bool AppRuntime::streamKeySaved() const {
 }
 
 salidas::AlAire AppRuntime::aireActual() const {
+    const TurnoMotor::Guarda turno(engine_.turno());
     // Cada salida con su escena, lo que transmite (la principal y sus destinos) y si
     // graba; la por omisión además en los campos de siempre (salidas::aJson), que es
     // lo que lee un arranque de antes de las salidas.
@@ -1046,6 +1102,7 @@ salidas::AlAire AppRuntime::aireActual() const {
 }
 
 void AppRuntime::writeOnAirState() {
+    const TurnoMotor::Guarda turno(engine_.turno());
     // Mientras vuelve como estaba, el documento sigue diciendo lo de la corrida anterior:
     // un corte en pleno arranque vuelve a eso, no a un arranque a medias.
     if (!aireListo_) return;
@@ -1110,6 +1167,7 @@ void AppRuntime::setCarpetaDelEvento(std::function<fs::path()> fn) {
 }
 
 void AppRuntime::retomarGrabaciones() {
+    const TurnoMotor::Guarda turno(engine_.turno());
     if (!grabacionesPorRetomar_) return;
     grabacionesPorRetomar_ = false;
     for (const auto& [id, s] : aireAnterior_.salidas) {
@@ -1119,11 +1177,12 @@ void AppRuntime::retomarGrabaciones() {
                                    ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación de la salida «%1»"), {id}));
         if (!startRecording(id))
             ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
-                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la grabación de la salida «%1» no se pudo retomar: %2"), {id, lastError_}));
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la grabación de la salida «%1» no se pudo retomar: %2"), {id, errorDelHilo()}));
     }
 }
 
 void AppRuntime::restaurarAire() {
+    const TurnoMotor::Guarda turno(engine_.turno());
     const salidas::AlAire& aire = aireAnterior_;
     // La escena que estaba al aire (app.json puede tener una vieja: no se guarda en cada
     // corte). También con --test: no sale nada al aire.
@@ -1138,7 +1197,7 @@ void AppRuntime::restaurarAire() {
         if (id != salidas::kPorOmision && !e.empty() && !setScene(e, id))
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                        ba::i18n::llenar(ba::i18n::traducir("arranque", "la salida «%1» no pudo volver a «%2»: %3"),
-                                                        {id, e, lastError_}));
+                                                        {id, e, errorDelHilo()}));
     }
     // El negro y la placa vuelven siempre (son de la máquina, no de la corrida): si la app
     // se cerró o se cayó con la placa puesta, vuelve con la placa puesta.
@@ -1175,6 +1234,7 @@ bool AppRuntime::restaurarPlacas(const salidas::AlAire& aire) {
 }
 
 void AppRuntime::restoreOutputs(bool deEstaCorrida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     const salidas::AlAire& aire = aireAnterior_;
     if (aire.cerrado || aire.salidas.empty()) return; // se cerró en orden: nada al aire
     // La escena sí; las salidas de una corrida anterior, nunca con --test (salvo el banco de
@@ -1198,7 +1258,7 @@ void AppRuntime::restoreOutputs(bool deEstaCorrida) {
             if (!ok)
                 ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
                                            ba::i18n::llenar(ba::i18n::traducir("arranque", "la transmisión de la salida «%1» no se pudo retomar: %2"),
-                                                            {id, key.empty() && !po ? ba::i18n::traducir("arranque", "no quedó guardada su clave") : lastError_}));
+                                                            {id, key.empty() && !po ? ba::i18n::traducir("arranque", "no quedó guardada su clave") : errorDelHilo()}));
         }
         for (const std::string& destino : s.destinos) {
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
@@ -1218,25 +1278,29 @@ std::string AppRuntime::grabarAparte(const std::string& fuente) {
     if (static_cast<int>(engine_.sourceRecordings().size()) >= BroadcastEngine::kMaxIndividuales)
         return ba::i18n::llenar(ba::i18n::traducir("grabacion", "Ya se graban %1 aparte (el tope): pará alguna."),
                                 {std::to_string(BroadcastEngine::kMaxIndividuales)});
-    if (!startSourceRecording(fuente)) return lastError_;
+    if (!startSourceRecording(fuente)) return errorDelHilo();
     return {};
 }
 
 bool AppRuntime::salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente,
                                    const std::string& salida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     if (!startStreaming(server, key, cambiarEnCaliente, salida)) return false;
     if (engine_.ultimoInicio() != BroadcastEngine::Inicio::YaIgual && alVivoManual_) {
-        const std::string srv = server.empty() ? cfg_.streamCfg.server : server;
-        if (!srv.empty()) alVivoManual_(srv);
+        const std::string srv = server.empty() ? ajustesAire().stream.server : server;
+        // Lo anotan el bus y el histórico, que son del dueño.
+        if (!srv.empty()) enDueno([f = alVivoManual_, srv]() { f(srv); });
     }
     return true;
 }
 
 bool AppRuntime::startStreaming(const std::string& server, const std::string& key, bool cambiarEnCaliente,
                                 const std::string& salida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
+    const AjustesAire a = ajustesAire();
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
         return false;
     }
     // Otra salida: su transmisión principal va a lo que se pida (la clave de la
@@ -1245,16 +1309,16 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
     // aparte, solo para retomarla tras un corte.
     if (id != salidas::kPorOmision) {
         if (server.empty() || key.empty()) {
-            lastError_ = ba::i18n::traducir("salidas", "para otra salida, pasá el servidor y la clave (o usá un destino "
+            errorDelHilo() = ba::i18n::traducir("salidas", "para otra salida, pasá el servidor y la clave (o usá un destino "
                                                        "guardado con esa salida)");
             return false;
         }
-        StreamConfig sc = cfg_.streamCfg;
+        StreamConfig sc = a.stream;
         sc.server = server;
         sc.key = key;
         const bool salia = engine_.haySalidaEn(id);
         if (!engine_.startStreaming(sc, codificadorDe(id), cambiarEnCaliente, id)) {
-            lastError_ = engine_.lastError();
+            errorDelHilo() = engine_.lastError();
             return false;
         }
         if (!salia) engine_.loudness(id).reiniciar();
@@ -1266,14 +1330,14 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         avisar(Cambio::Salidas);
         return true;
     }
-    StreamConfig sc = cfg_.streamCfg;
+    StreamConfig sc = a.stream;
     if (!server.empty()) {
         sc.server = server;
     }
     if (!key.empty()) {
         sc.key = key;
     } else {
-        const char* envKey = std::getenv(cfg_.streamKeyEnv.c_str());
+        const char* envKey = std::getenv(a.claveEnv.c_str());
         sc.key = envKey != nullptr ? envKey : "";
         if (sc.key.empty()) {
             // Sin clave tipeada ni en el entorno: la de la ultima salida al aire.
@@ -1284,14 +1348,14 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         }
     }
     if (sc.server.empty()) {
-        lastError_ = ba::i18n::traducir("salidas", "no hay servidor de transmision configurado");
+        errorDelHilo() = ba::i18n::traducir("salidas", "no hay servidor de transmision configurado");
         return false;
     }
     const EngineStatus antes = engine_.status();
-    if (!engine_.startStreaming(sc, cfg_.encoder, cambiarEnCaliente)) {
-        lastError_ = engine_.lastError();
+    if (!engine_.startStreaming(sc, a.encoder, cambiarEnCaliente)) {
+        errorDelHilo() = engine_.lastError();
         std::printf("ba-app: %s\n",
-                    ba::i18n::llenar(ba::i18n::traducir("salidas", "la transmision no arranco: %1"), {lastError_}).c_str());
+                    ba::i18n::llenar(ba::i18n::traducir("salidas", "la transmision no arranco: %1"), {errorDelHilo()}).c_str());
         return false;
     }
     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("salidas", "transmitiendo a %1"), {sc.server}).c_str());
@@ -1308,6 +1372,7 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
 }
 
 void AppRuntime::stopStreaming(const std::string& salida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty()) return;
     if (id == salidas::kPorOmision)
@@ -1485,6 +1550,7 @@ std::string AppRuntime::iniciarSenalLimpia(const std::string& destino, const std
 }
 
 std::string AppRuntime::borrarDestino(const std::string& id) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     nlohmann::json lista = leerDestinos(root_), nueva = nlohmann::json::array();
     for (const auto& x : lista)
         if (x.value("id", std::string()) != id) nueva.push_back(x);
@@ -1498,6 +1564,7 @@ std::string AppRuntime::borrarDestino(const std::string& id) {
 }
 
 std::string AppRuntime::iniciarDestino(const std::string& id) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     std::string errores;
     bool alguno = false;
     for (const auto& d : leerDestinos(root_)) {
@@ -1521,8 +1588,11 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
 }
 
 nlohmann::json AppRuntime::discoGrabacion() const {
+    const TurnoMotor::Guarda turno(engine_.turno());
+    const AjustesAire a = ajustesAire();
+    const RecordConfig& rec = a.rec;
     std::error_code ec;
-    fs::create_directories(cfg_.rec.directory, ec);
+    fs::create_directories(rec.directory, ec);
     // Lo que ya escribe el motor (todas las salidas: grabación, copia, señal limpia, ISO)
     // y, si la de la por omisión no graba, lo que sumaría al arrancarla (con su copia):
     // el disco se reparte entre todo lo que va a él.
@@ -1533,27 +1603,28 @@ nlohmann::json AppRuntime::discoGrabacion() const {
         for (const nlohmann::json& q : v.value("que", nlohmann::json::array())) que += (que.empty() ? "" : ", ") + q.get<std::string>();
         e.push_back({que, v.value("carpeta", std::string()), v.value("kbps", 0.0)});
     }
-    const int kbps = BroadcastEngine::kbpsGrabacion(cfg_.rec, cfg_.encoder);
+    const int kbps = BroadcastEngine::kbpsGrabacion(rec, a.encoder);
     const bool graba = engine_.grabacionEstado().value("activa", false);
     if (!graba) {
-        e.push_back({ba::i18n::traducir("emision", "grabación"), cfg_.rec.directory, static_cast<double>(kbps)});
-        if (!cfg_.rec.copiaDir.empty())
-            e.push_back({ba::i18n::traducir("emision", "copia de la grabación"), cfg_.rec.copiaDir, static_cast<double>(kbps)});
+        e.push_back({ba::i18n::traducir("emision", "grabación"), rec.directory, static_cast<double>(kbps)});
+        if (!rec.copiaDir.empty())
+            e.push_back({ba::i18n::traducir("emision", "copia de la grabación"), rec.copiaDir, static_cast<double>(kbps)});
     }
     nlohmann::json d = ba::platform::aJson(ba::platform::discoRestante(e));
-    d["carpeta"] = cfg_.rec.directory;
+    d["carpeta"] = rec.directory;
     d["kbps_grabacion"] = kbps;
     // La copia en el mismo disco que la grabación no es una copia: lo que graba ahora
     // (el motor lo mide) o, sin grabar, lo que está configurado.
     nlohmann::json mismo = estado.value("mismo_volumen", nlohmann::json::array());
-    if (!graba && !cfg_.rec.copiaDir.empty() && ba::platform::mismoVolumen(cfg_.rec.directory, cfg_.rec.copiaDir))
-        mismo.push_back({{"salida", std::string(BroadcastEngine::kSalidaPorOmision)}, {"grabacion", cfg_.rec.directory}, {"copia", cfg_.rec.copiaDir}});
+    if (!graba && !rec.copiaDir.empty() && ba::platform::mismoVolumen(rec.directory, rec.copiaDir))
+        mismo.push_back({{"salida", std::string(BroadcastEngine::kSalidaPorOmision)}, {"grabacion", rec.directory}, {"copia", rec.copiaDir}});
     d["copia_mismo_volumen"] = !mismo.empty();
     d["mismo_volumen"] = std::move(mismo);
     return d;
 }
 
 void AppRuntime::detenerDestino(const std::string& id) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     if (id == "todos")
         destinosAlAire_.clear();
     else
@@ -1570,7 +1641,7 @@ void AppRuntime::detenerDestino(const std::string& id) {
 
 bool AppRuntime::addScene(const std::string& name) {
     if (!engine_.createScene(name)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     cfg_.scenes.push_back(SceneConfig{name, {}});
@@ -1579,25 +1650,25 @@ bool AppRuntime::addScene(const std::string& name) {
 }
 
 bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
-    // `lastError_` es pegajoso: guarda lo ultimo que fallo, de cuando sea. Como
+    // `errorDelHilo()` es pegajoso: guarda lo ultimo que fallo, de cuando sea. Como
     // aca se lo usa DESPUES de haber salido bien —para contar que una fuente no
     // se pudo recrear— hay que limpiarlo al entrar, o la copia informa como
     // propio un error de otra operacion anterior.
-    lastError_.clear();
+    errorDelHilo().clear();
     const SceneConfig* origen = nullptr;
     for (const SceneConfig& s : cfg_.scenes)
         if (s.name == from) origen = &s;
     if (origen == nullptr) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena \"%1\""), {from});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena \"%1\""), {from});
         return false;
     }
     for (const SceneConfig& s : cfg_.scenes)
         if (s.name == to) {
-            lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "ya hay una escena llamada \"%1\""), {to});
+            errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "ya hay una escena llamada \"%1\""), {to});
             return false;
         }
     if (!engine_.createScene(to)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     // Se copia la CONFIGURACION, no las fuentes del motor: compartirlas haria que
@@ -1614,9 +1685,9 @@ bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
             // Lo que no se pudo recrear se dice, pero no se deshace todo: una
             // escena copiada a medias se arregla a mano; una que desaparecio
             // sin explicacion, no.
-            lastError_ = ba::i18n::llenar(
+            errorDelHilo() = ba::i18n::llenar(
                 ba::i18n::traducir("escenas", "la escena se copio, pero la fuente \"%1\" no se pudo recrear: %2"),
-                {spec.name, lastError_});
+                {spec.name, errorDelHilo()});
         }
     }
     avisar(Cambio::Escenas);
@@ -1630,7 +1701,7 @@ bool AppRuntime::setSceneProtected(const std::string& name, bool protegida) {
             avisar(Cambio::Escenas);
             return true;
         }
-    lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena \"%1\""), {name});
+    errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena \"%1\""), {name});
     return false;
 }
 
@@ -1642,11 +1713,11 @@ bool AppRuntime::sceneProtected(const std::string& name) const {
 
 bool AppRuntime::removeScene(const std::string& name) {
     if (sceneProtected(name)) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "la escena \"%1\" esta protegida: sacale la proteccion primero"), {name});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "la escena \"%1\" esta protegida: sacale la proteccion primero"), {name});
         return false;
     }
     if (!engine_.removeScene(name)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     cfg_.scenes.erase(std::remove_if(cfg_.scenes.begin(), cfg_.scenes.end(),
@@ -1659,11 +1730,11 @@ bool AppRuntime::removeScene(const std::string& name) {
 
 bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
     if (sceneProtected(from)) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "la escena \"%1\" esta protegida: sacale la proteccion primero"), {from});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "la escena \"%1\" esta protegida: sacale la proteccion primero"), {from});
         return false;
     }
     if (!engine_.renameScene(from, to)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     if (SceneConfig* sc = findScene(cfg_, from)) {
@@ -1682,7 +1753,7 @@ std::string AppRuntime::sceneFolder(const std::string& name) const {
 bool AppRuntime::setSceneFolder(const std::string& name, const std::string& folder) {
     SceneConfig* sc = findScene(cfg_, name);
     if (sc == nullptr) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena '%1'"), {name});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena '%1'"), {name});
         return false;
     }
     sc->folder = folder;
@@ -1713,7 +1784,7 @@ bool AppRuntime::moveScene(const std::string& name, const std::string& before) {
     const auto it = std::find_if(cfg_.scenes.begin(), cfg_.scenes.end(),
                                  [&](const SceneConfig& s) { return s.name == name; });
     if (it == cfg_.scenes.end()) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena '%1'"), {name});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena '%1'"), {name});
         return false;
     }
     SceneConfig moved = *it;
@@ -1730,22 +1801,33 @@ bool AppRuntime::moveScene(const std::string& name, const std::string& before) {
 }
 
 bool AppRuntime::setScene(const std::string& name, const std::string& salida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     return anotarAire(engine_.setCurrentScene(name, salida), name, salida);
 }
 
 bool AppRuntime::setSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     return anotarAire(engine_.setCurrentSceneCon(name, tipo, ms, salida), name, salida);
 }
 
 bool AppRuntime::anotarAire(bool ok, const std::string& name, const std::string& salida) {
     if (!ok) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
-    // La de la por omisión va también en app.json (la de las demás, solo en al-aire.json).
-    if (engine_.idDeSalida(salida) == salidas::kPorOmision) cfg_.currentScene = name;
-    avisar(Cambio::Aire);
+    anotarEscenaAlAire(name, salida);
     return true;
+}
+
+void AppRuntime::anotarEscenaAlAire(const std::string& name, const std::string& salida) {
+    const TurnoMotor::Guarda turno(engine_.turno());
+    // La de la por omisión va también en app.json (la de las demás, solo en al-aire.json);
+    // la configuración es del dueño: se la anota él.
+    if (engine_.idDeSalida(salida) == salidas::kPorOmision) enDueno([this, name]() { cfg_.currentScene = name; });
+    // El documento de aire, ya: con la interfaz trabada, la vuelta del motor (que lo
+    // pone en cada una) no llega, y lo que sale tiene que volver igual tras un corte.
+    writeOnAirState();
+    avisar(Cambio::Aire);
 }
 
 // --- Las salidas del aparato ----------------------------------------------------
@@ -1778,7 +1860,7 @@ void AppRuntime::crearSalidasGuardadas() {
 }
 
 EncoderConfig AppRuntime::codificadorDe(const std::string& salida) const {
-    EncoderConfig e = cfg_.encoder;
+    EncoderConfig e = ajustesAire().encoder;
     const std::string id = engine_.idDeSalida(salida);
     if (id.empty() || id == salidas::kPorOmision) return e;
     const salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
@@ -1835,6 +1917,7 @@ std::string AppRuntime::editarSalida(const std::string& id, const nlohmann::json
 }
 
 std::string AppRuntime::borrarSalida(const std::string& id, const std::string& susDestinos) {
+    const TurnoMotor::Guarda turno(engine_.turno());
     salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
     // Sus destinos: a otra salida o borrados, lo que se decidió (antes de tocar nada).
     nlohmann::json destinos = leerDestinos(root_);
@@ -1877,7 +1960,7 @@ std::string AppRuntime::setTopeSalidas(int tope) {
 
 bool AppRuntime::setTransition(const std::string& type, int durationMs) {
     if (!engine_.setTransition(type, durationMs)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     cfg_.transition = TransitionConfig{type, durationMs};
@@ -1900,7 +1983,7 @@ bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
     spec.settingsJson = conRutasDeAhora(spec.settingsJson);
     inputs::alMotor(spec); // se guarda con el tipo del motor (esquema 2 de app.json)
     if (!engine_.addSource(scene, spec)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     if (SceneConfig* sc = findScene(cfg_, scene)) {
@@ -1914,7 +1997,7 @@ bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
 
 bool AppRuntime::removeSource(const std::string& scene, const std::string& name) {
     if (!engine_.removeSource(scene, name)) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la fuente '%1' en '%2'"), {name, scene});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la fuente '%1' en '%2'"), {name, scene});
         return false;
     }
     if (SceneConfig* sc = findScene(cfg_, scene)) {
@@ -1929,7 +2012,7 @@ bool AppRuntime::removeSource(const std::string& scene, const std::string& name)
 bool AppRuntime::setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba,
                                float derecha, float abajo) {
     if (!engine_.setSourceCrop(scene, name, izquierda, arriba, derecha, abajo)) {
-        lastError_ = ba::i18n::llenar(
+        errorDelHilo() = ba::i18n::llenar(
             ba::i18n::traducir("escenas", "no se pudo recortar '%1' en '%2' (¿recorte más grande que la imagen?)"), {name, scene});
         return false;
     }
@@ -1945,7 +2028,7 @@ bool AppRuntime::setSourceCrop(const std::string& scene, const std::string& name
 
 bool AppRuntime::setSourceEfectos(const std::string& scene, const std::string& name, const EfectosCapa& efectos) {
     if (!engine_.setSourceEfectos(scene, name, efectos)) {
-        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la fuente '%1' en '%2'"), {name, scene});
+        errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la fuente '%1' en '%2'"), {name, scene});
         return false;
     }
     if (SourceSpec* s = findSpec(scene, name)) s->efectos = efectos;
@@ -1975,7 +2058,7 @@ bool AppRuntime::moveSource(const std::string& scene, const std::string& name, i
 
 bool AppRuntime::renameSource(const std::string& from, const std::string& to) {
     if (!engine_.renameSource(from, to)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     // La misma fuente puede estar en varias escenas, y entre las entradas de audio.
@@ -2012,7 +2095,7 @@ bool AppRuntime::setSourceRect(const std::string& scene, const std::string& name
 
 bool AppRuntime::updateSourceSettings(const std::string& name, const std::string& settingsJson) {
     if (!engine_.updateSourceSettings(name, conRutasDeAhora(settingsJson))) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     // La misma fuente puede estar en varias escenas: se sincronizan todas.
@@ -2097,7 +2180,7 @@ bool AppRuntime::setMuted(const std::string& name, bool muted, const std::string
 
 bool AppRuntime::applyVideo(const VideoConfig& v) {
     if (!engine_.resetVideo(v)) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     cfg_.video = v;
@@ -2131,6 +2214,7 @@ VideoConfig videoParaCpu(VideoConfig v) {
 } // namespace
 
 void AppRuntime::rearmarPorGpu() {
+    const TurnoMotor::Guarda turno(engine_.turno());
     const auto desde = std::chrono::steady_clock::now();
     const nlohmann::json antes = ba::motor::estadoGpu();
     ba::diag::registro().linea(ba::diag::Nivel::Error, "motor", 0,
@@ -2181,7 +2265,7 @@ void AppRuntime::rearmarPorGpu() {
 
 bool AppRuntime::applyEncoder(const EncoderConfig& e) {
     if (!engine_.resetEncoders()) {
-        lastError_ = engine_.lastError();
+        errorDelHilo() = engine_.lastError();
         return false;
     }
     cfg_.encoder = e;
@@ -2189,6 +2273,12 @@ bool AppRuntime::applyEncoder(const EncoderConfig& e) {
 }
 
 bool AppRuntime::save() {
+    // La configuración es del dueño: desde el plano de control se la encarga (lo que sale
+    // ya quedó en el documento de aire, que no espera a nadie).
+    if (!esDueno()) {
+        enDueno([this]() { save(); });
+        return true;
+    }
     std::string err;
     // EN MODO SEGURO NO SE GUARDA. Es un estado degradado y transitorio: lo
     // que haya en memoria vale para esta corrida y nada mas. Escribirlo seria
@@ -2218,7 +2308,7 @@ bool AppRuntime::save() {
     if (!saveAppConfig(cfg_.configPath, cfg_, root_, &err) ||
         !saveGatewaySettings(gatewayConfigPath(root_), gateway_, &err) ||
         !saveLauncherSettings(launcherConfigPath(root_), launcher_, &err)) {
-        lastError_ = err;
+        errorDelHilo() = err;
         return false;
     }
     return true;
@@ -2267,7 +2357,7 @@ bool pedirReinicioGateway(std::string& error) {
 bool AppRuntime::restartGateway() {
     std::string e;
     const bool ok = pedirReinicioGateway(e);
-    if (!ok) lastError_ = e;
+    if (!ok) errorDelHilo() = e;
     return ok;
 }
 
