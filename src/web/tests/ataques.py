@@ -1,11 +1,14 @@
 # Banco de ataques contra ba-web (docs/funciones/BA-WEB.md, «Seguridad»).
-# Uso: python3 src/web/tests/ataques.py <binario de ba-web> [--fuzz N]
+# Uso: python3 src/web/tests/ataques.py <binario de ba-web> [--fuzz N] [--gateway <binario de ba-gateway>]
 # Mejor contra una versión con ASan/UBSan (ver el doc): un error de memoria aborta el worker
 # y el banco lo cuenta. Levanta un gateway de mentira y prueba cada ataque; imprime una tabla.
-import os, sys, socket, threading, time, subprocess, random, resource, signal, shutil
+# Con --gateway, además, lo mismo contra el gateway DE VERDAD detrás de ba-web (F3-07): todo
+# lo de afuera pasa por ba-web y el gateway tiene que seguir vivo y atendiendo (0 caídas).
+import os, sys, socket, threading, time, subprocess, random, resource, signal, shutil, json
 
 BIN = sys.argv[1]
 FUZZ = int(sys.argv[sys.argv.index("--fuzz") + 1]) if "--fuzz" in sys.argv else 3000
+GATEWAY = sys.argv[sys.argv.index("--gateway") + 1] if "--gateway" in sys.argv else None
 AQUI = os.path.dirname(os.path.abspath(__file__))
 D = os.path.join(os.environ.get("TMPDIR", "/tmp"), "ba-web-banco-%d" % os.getpid())
 shutil.rmtree(D, ignore_errors=True)
@@ -21,6 +24,7 @@ def libre():
 
 UP, PORT = libre(), libre()
 vistos_up = []  # (primera línea, host, linea proxy)
+cabeceras_up = []  # la cabecera entera que llegó al gateway (sin la línea PROXY)
 
 def gateway():
     ls = socket.socket(); ls.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -41,6 +45,7 @@ def gateway():
             for l in b.split(b"\r\n"):
                 if l.lower().startswith(b"host:"): host = l[5:].strip().decode(errors="replace")
             vistos_up.append((linea, host, proxy))
+            cabeceras_up.append(b.split(b"\r\n\r\n", 1)[0])
             cuerpo = b'{"ok":true}' if b"/api/" in b else b"gateway"
             if b"/lento" in b: time.sleep(4)
             c.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s" % (len(cuerpo), cuerpo))
@@ -251,6 +256,32 @@ res("límite de pedidos al gateway por IP", dos > 0, f"{dos} de 80 con 429")
 ok_otro = status(pedir(b"PROXY TCP4 198.51.100.3 127.0.0.1 1 2\r\nGET /gw HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")) == 200
 res("otra IP no se ve afectada", ok_otro)
 
+# 9b. Al gateway le llega una cabecera ARMADA por ba-web (F3-07): sin las de la IP que mande
+#     el visitante, con los blancos recortados, y nada «chunked» (el gateway no lo entiende).
+parar(); arrancar(conf(pp=""))
+cabeceras_up.clear(); vistos_up.clear()
+pedir(b"GET /n HTTP/1.1\r\nHost: x\r\nX-Forwarded-For: 6.6.6.6\r\nForwarded: for=6.6.6.6\r\nX-Real-IP: 6.6.6.6\r\n"
+      b"X-Raro:    con blancos   \r\nConnection: close\r\n\r\n")
+time.sleep(0.2)
+cab = cabeceras_up[-1] if cabeceras_up else b""
+res("al gateway no le llegan las cabeceras de IP del visitante", cab and b"6.6.6.6" not in cab, repr(cab[:200]))
+res("al gateway le llega la cabecera normalizada (blancos recortados)", b"X-Raro: con blancos\r\n" in cab + b"\r\n", repr(cab[:200]))
+res("la IP va siempre en PROXY (aunque sea de esta máquina)", any(p.startswith("PROXY TCP4 127.0.0.1") for (l, h, p) in vistos_up), str(vistos_up[-1:]))
+cabeceras_up.clear()
+b = pedir(b"POST /c HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\nhola!\r\n0\r\n\r\n")
+time.sleep(0.2)
+res("cuerpo chunked: 411 y no llega al gateway", status(b) == 411 and not cabeceras_up, f"status {status(b)}")
+# El tope de conexiones al gateway (upstream_max_conns, por worker): con lo que tarda
+# /lento, la tercera a la vez recibe 503 de ba-web (no se apila en el gateway).
+parar(); arrancar(conf(extra="worker_processes 1;\nupstream_max_conns 2;\n").replace("worker_processes 2;\n", ""))
+hilos, estados = [], []
+def lento():
+    estados.append(status(pedir(b"POST /lento HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", timeout=8)))
+for i in range(5):
+    t = threading.Thread(target=lento); t.start(); hilos.append(t); time.sleep(0.05)
+for t in hilos: t.join()
+res("tope de conexiones al gateway: lo que sobra, 503 (no se le apila)", estados.count(503) >= 2 and estados.count(200) >= 1, str(sorted(estados)))
+
 # 10. Sin descriptores (ulimit -n 64): que no gire al 100 %
 parar(); arrancar(conf(), nofile=64)
 socks = []
@@ -305,5 +336,74 @@ vivo = status(pedir(b"GET /s/a.txt HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\
 res(f"fuzz de {FUZZ} pedidos rotos: sin caídas ni errores de memoria", caidas() == 0 and vivo, f"caídas/ASan={caidas()}")
 
 parar()
+
+# 12. Contra el gateway DE VERDAD, detrás de ba-web (F3-07): lo de afuera solo llega por
+#     ba-web. Inundación, contrabando, slowloris, WebSocket roto y el fuzz entero: el
+#     gateway sigue vivo, atiende a los de adentro y no anotó ninguna caída.
+if GATEWAY:
+    G = D + "/gw"
+    os.makedirs(G + "/Config")
+    GP, GA = libre(), libre()
+    json.dump({"port": GP, "adminPort": GA, "bindAddress": "127.0.0.1", "https": False, "tunnel": False,
+               "controlLanPort": 0, "puertaHttpPort": 0, "metricsPort": libre(), "pinggy": {"activo": False},
+               "ajustes": {"room.maxConexiones": 64, "room.cabeceraMs": 3000}},
+              open(G + "/Config/gateway.json", "w"))
+    glog = open(G + "/gateway.salida", "w")
+    gw = subprocess.Popen([GATEWAY, "--port", str(GP), "--admin-port", str(GA), "--no-tunnel", "--logs", G + "/Logs"],
+                          stdout=glog, stderr=subprocess.STDOUT, env=dict(os.environ, BA_DATA_ROOT=G))
+    for _ in range(100):
+        try:
+            socket.create_connection(("127.0.0.1", GA), timeout=0.2).close(); break
+        except OSError:
+            time.sleep(0.1)
+    # ba-web adelante, como en el túnel: todo al gateway; upstream_max_conns como lo escribe
+    # el gateway (su cupo de 64 repartido entre los 2 workers).
+    UP_REAL = UP
+    UP = GP
+    arrancar(conf(extra="upstream_max_conns 32;\nlimit_tunnels_per_ip 16;\n"))
+    def vivo():
+        try:
+            s = socket.create_connection(("127.0.0.1", GA), timeout=2)
+            s.sendall(b"GET /healthz HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
+            r = s.recv(200); s.close()
+            return gw.poll() is None and r.startswith(b"HTTP/1.1 200")
+        except OSError:
+            return False
+    res("gateway real: arrancó detrás de ba-web", vivo())
+    # Inundación de conexiones lentas por ba-web: el gateway no se queda sin lugares para lo de adentro.
+    lentas = []
+    for i in range(300):
+        try:
+            s = socket.create_connection(("127.0.0.1", PORT), timeout=1)
+            s.sendall(b"PROXY TCP4 203.0.113.%d 127.0.0.1 1 2\r\nGET / HTTP/1.1\r\nHost: x\r\n" % (i % 250 + 1))
+            lentas.append(s)
+        except OSError:
+            break
+    time.sleep(0.5)
+    res("gateway real: 300 conexiones lentas por ba-web y sigue vivo", vivo(), f"{len(lentas)} abiertas")
+    for s in lentas: s.close()
+    ataques = [b"POST /api/join HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET /x HTTP/1.1\r\n\r\n",
+               b"POST /api/join HTTP/1.1\r\nHost: x\r\nContent-Length: 99999999\r\n\r\n{",
+               b"GET /ws HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: x\r\nSec-WebSocket-Version: 13\r\n\r\n" + os.urandom(4000),
+               b"POST /api/join HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: 40\r\n\r\n{\"pin\": [1,2,{\"a\":null}], \"name\": 7.5e400}",
+               b"POST /api/v1/files?x=" + b"%" * 3000 + b" HTTP/1.1\r\nHost: x\r\nContent-Length: 10\r\n\r\n0123456789",
+               b"GET /invitados/../../../../etc/passwd HTTP/1.1\r\nHost: x\r\n\r\n",
+               b"OPTIONS * HTTP/1.1\r\nHost: x\r\n\r\n"]
+    for a in ataques:
+        pedir(a, timeout=3)
+    res("gateway real: contrabando, cuerpos rotos, WebSocket basura: sigue vivo", vivo())
+    with ThreadPoolExecutor(8) as ex:
+        list(ex.map(un_fuzz, range(FUZZ)))
+    time.sleep(1)
+    salida_gw = open(G + "/gateway.salida", errors="replace").read()
+    caidas_gw = salida_gw.count("ERROR: AddressSanitizer") + salida_gw.count("Segmentation") + salida_gw.count("terminate called")
+    res(f"gateway real: fuzz de {FUZZ} pedidos rotos por ba-web: 0 caídas", vivo() and caidas_gw == 0 and caidas() == 0,
+        f"vivo={vivo()} caídas={caidas_gw}")
+    parar()
+    UP = UP_REAL
+    gw.send_signal(signal.SIGTERM)
+    try: gw.wait(10)
+    except Exception: gw.kill()
+
 mal = [r for r in resultados if not r[1]]
 print(f"\n{len(resultados) - len(mal)} de {len(resultados)} bien")

@@ -73,7 +73,8 @@ Lo que puede intentar alguien desde internet y qué hace ba-web:
 | Pipelining en cascada (miles de pedidos en un paquete) | una cola: un pedido por conexión y por vuelta del bucle; `keepalive_requests` 1000 |
 | Contrabando de pedidos (request smuggling) | CRLF estricto (ni CR ni LF sueltos, ni controles), CL+TE o dos CL distintos → 400; al gateway, una conexión nueva por pedido (nunca se mezclan dos visitantes) |
 | IP falsa (para saltear el límite de intentos de PIN del gateway) | la línea PROXY se acepta solo si pinggy la manda (sin TURN), desde loopback y con una IP válida; la IP real es la última de `X-Forwarded-For` (la pone pinggy); al gateway ba-web le manda su propia línea PROXY, nunca la del visitante |
-| Tapar al gateway (hilo por conexión) | `upstream_max_conns` (503), pedidos al gateway por IP con balde de fichas (`limit_upstream_rate`, 429), túneles por IP (`limit_tunnels_per_ip`) |
+| Tapar al gateway (hilo por conexión) | `upstream_max_conns` por destino (503; también el microcaché), pedidos al gateway por IP con balde de fichas (`limit_upstream_rate`, 429), túneles por IP (`limit_tunnels_per_ip`). Los dos topes los escribe el gateway desde SUS cupos (`room.maxConexiones` por escucha, `room.maxConexionesPorIp`) repartidos entre los workers: ba-web nunca le pide más de lo que acepta |
+| Que el gateway entienda otra cosa que ba-web (contrabando, cabeceras raras) | al gateway le llega una cabecera ARMADA por ba-web con lo que validó (línea de pedido y «Nombre: valor» recortados), sin `X-Forwarded-For`/`Forwarded`/`X-Real-IP` del visitante; la IP va siempre en la línea PROXY de ba-web; un cuerpo `chunked` (el gateway lee solo Content-Length) se corta con 411 |
 | Envenenar el microcaché | el pedido del caché no lleva nada del visitante (ni su `Host`) |
 | Inflar el «N mirando» | pocos ids de mirada por IP y por ventana (`ba_vistos_per_ip`) |
 | Rutas | `..`, `%2e%2e`, `%2f`, `%00`, `\`, controles codificados → 400; enlaces que salen de la raíz, archivos ocultos (`.env`, `.git`), `::$DATA`, `CON`/`NUL`/`COM1`, nombres 8.3 (`SECRET~1`), `nombre.` → 404 sin preguntarle al gateway |
@@ -82,13 +83,15 @@ Lo que puede intentar alguien desde internet y qué hace ba-web:
 | Sin descriptores (EMFILE) | se sube el tope al arrancar (o se achica `worker_connections`); si igual falta, se pausa aceptar 100 ms en vez de girar al 100 % |
 | Memoria | cabecera hasta 16 KiB, 64 KiB por sentido en túneles, caché de archivos con tope, sin multipart en `Range` |
 
-**Probado** con `src/web/tests/ataques.py` (29 ataques y un fuzz de pedidos rotos) contra una versión
-compilada con AddressSanitizer y UBSan:
+**Probado** con `src/web/tests/ataques.py` (34 ataques y un fuzz de pedidos rotos) contra una versión
+compilada con AddressSanitizer y UBSan, y con `--gateway` contra el gateway DE VERDAD detrás de
+ba-web (inundación de 300 conexiones lentas, contrabando, cuerpos rotos, WebSocket basura y el
+fuzz entero: el gateway sigue vivo y atendiendo, 0 caídas):
 
 ```
 clang -std=c11 -g -O1 -fsanitize=address,undefined -Iextern/libdeflate src/web/*.c \
       build/_deps/libdeflate-build/libdeflate.a -o /tmp/ba-web-asan
-python3 src/web/tests/ataques.py /tmp/ba-web-asan --fuzz 20000
+python3 src/web/tests/ataques.py /tmp/ba-web-asan --fuzz 20000 --gateway build/src/gateway/ba-gateway
 ```
 
 29 de 29 y 20 000 pedidos rotos sin errores de memoria. Con 3 000 conexiones mudas encima

@@ -146,6 +146,7 @@ typedef struct up {
     int tipo;
     bw_sock fd;
     int slot;
+    int destino; /* a qué upstream (índice de g_nups_de) */
     int ev_rd, ev_wr;
     int muerto;
     conn* c;
@@ -190,7 +191,12 @@ static void** g_cementerio = NULL;
 static int g_ncem = 0, g_capcem = 0;
 static conn** g_cola = NULL; /* conexiones con pedidos ya recibidos (pipelining) */
 static int g_ncola = 0, g_capcola = 0;
-static int g_nups = 0;        /* conexiones al gateway abiertas */
+/* Las conexiones abiertas a cada upstream: el general (índice BW_MAX_LISTEN) y el propio de
+   cada escucha (índice de la escucha). Cada uno con su tope (upstream_max_conns), que es el
+   cupo de UNA escucha del gateway repartido entre los workers: lo calcula el gateway al
+   escribir la configuración (BaWeb.cpp), así ba-web nunca le pide más de lo que acepta. */
+static int g_nups_de[BW_MAX_LISTEN + 1];
+static int g_up_lleno = 0; /* el último up_nuevo no abrió por el tope (503, no 502) */
 static int64_t g_accept_pausa = 0; /* sin descriptores: no aceptar hasta acá */
 static lst* g_lst[BW_MAX_LISTEN];
 static int g_nlst = 0;
@@ -914,6 +920,9 @@ static int servir_estatico(conn* c, const bw_location* l) {
    del gateway que el túnel), o al general. */
 static up* up_nuevo(const bw_listen* lc) {
     const int propio = lc && lc->up_port > 0;
+    const int destino = propio ? (int)(lc - C->listen) : BW_MAX_LISTEN;
+    g_up_lleno = g_nups_de[destino] >= C->upstream_max_conns;
+    if (g_up_lleno) return NULL;
     bw_sock s = sock_connect(propio ? lc->up_host : C->upstream_host, propio ? lc->up_port : C->upstream_port);
     if (s == BW_BAD) return NULL;
     up* u = (up*)calloc(1, sizeof *u);
@@ -922,6 +931,7 @@ static up* up_nuevo(const bw_listen* lc) {
         return NULL;
     }
     u->tipo = O_UP;
+    u->destino = destino;
     u->fd = s;
     u->clen = -1;
     u->deadline = g_now + C->proxy_connect_ms;
@@ -934,7 +944,7 @@ static up* up_nuevo(const bw_listen* lc) {
     u->next = g_ups;
     if (g_ups) g_ups->prev = u;
     g_ups = u;
-    g_nups++;
+    g_nups_de[destino]++;
     return u;
 }
 
@@ -947,34 +957,82 @@ static void up_close(up* u) {
     else g_ups = u->next;
     if (u->next) u->next->prev = u->prev;
     if (u->c && u->c->up == u) u->c->up = NULL;
-    g_nups--;
+    g_nups_de[u->destino]--;
     buf_free(&u->out);
     buf_free(&u->in);
     enterrar(u);
 }
 
+/* La cabecera que va al gateway, ARMADA DE NUEVO con lo que ya se validó (parsear): la
+   línea de pedido y cada «Nombre: valor» con los blancos de los bordes recortados, sin las
+   cabeceras de la IP (X-Forwarded-For, Forwarded, X-Real-IP: la IP real va en la línea
+   PROXY, verificada) ni las de un proxy. Así el gateway nunca analiza bytes de afuera tal
+   cual llegaron: lo que ve es siempre lo que ba-web entendió (F3-07). */
+static void cabecera_al_gateway(const conn* c, bw_buf* o) {
+    const req* r = &c->r;
+    buf_printf(o, "%s %s HTTP/1.%d\r\n", r->metodo, r->target, r->v11 ? 1 : 0);
+    const char* p = c->in.p + r->ini;
+    const char* fin = p + r->head_len;
+    p = memchr(p, '\n', (size_t)(fin - p)); /* después de la línea de pedido */
+    if (!p) {
+        buf_adds(o, "\r\n");
+        return;
+    }
+    p++;
+    while (p < fin) {
+        const char* eol = memchr(p, '\n', (size_t)(fin - p));
+        if (!eol) break;
+        const char* e = eol;
+        if (e > p && e[-1] == '\r') e--;
+        if (e == p) break; /* la línea vacía: fin de la cabecera */
+        const char* dp = memchr(p, ':', (size_t)(e - p));
+        if (dp) {
+            const size_t nn = (size_t)(dp - p);
+#define ES(x) (nn == sizeof(x) - 1 && !strncasecmp(p, x, nn))
+            const int saltar = ES("X-Forwarded-For") || ES("Forwarded") || ES("X-Real-IP") || ES("Proxy-Connection") ||
+                               ES("Proxy-Authorization");
+#undef ES
+            if (!saltar) {
+                const char* v = dp + 1;
+                while (v < e && (*v == ' ' || *v == '\t')) v++;
+                const char* ve = e;
+                while (ve > v && (ve[-1] == ' ' || ve[-1] == '\t')) ve--;
+                buf_add(o, p, nn);
+                buf_adds(o, ": ");
+                buf_add(o, v, (size_t)(ve - v));
+                buf_adds(o, "\r\n");
+            }
+        }
+        p = eol + 1;
+    }
+    buf_adds(o, "\r\n");
+}
+
 static void proxy_iniciar(conn* c, int tunel) {
     up* u = up_nuevo(c->lc);
     if (!u) {
-        respuesta_simple(c, 502, NULL, "502 Bad Gateway\n", 1);
+        if (g_up_lleno) respuesta_simple(c, 503, "Retry-After: 2\r\n", NULL, 1);
+        else respuesta_simple(c, 502, NULL, "502 Bad Gateway\n", 1);
         return;
     }
     u->c = c;
     c->up = u;
     /* La línea PROXY al gateway la arma ba-web con la IP real ya verificada (nunca se pasa
-       una que haya mandado el cliente): el gateway cuenta los intentos de PIN por IP. */
-    if (c->ipe && c->ipe != &g_ip_desborde && !es_loopback(c->ipe->ip))
+       una que haya mandado el cliente): el gateway cuenta los intentos de PIN y sus cupos
+       por IP. Siempre que se sepa (también la de esta máquina): el gateway nunca adivina
+       la IP por una cabecera. */
+    if (c->ipe && c->ipe != &g_ip_desborde)
         buf_printf(&u->out, "PROXY %s %s 127.0.0.1 0 0\r\n", strchr(c->ipe->ip, ':') ? "TCP6" : "TCP4", c->ipe->ip);
+    cabecera_al_gateway(c, &u->out);
     if (tunel) {
-        /* todo lo que mandó el cliente, tal cual (cuerpo y lo que venga después) */
-        buf_add(&u->out, c->in.p + c->r.ini, c->in.len - c->r.ini);
+        /* el cuerpo y lo que venga después, tal cual (WebSocket, POST) */
+        buf_add(&u->out, c->in.p + c->r.ini + c->r.head_len, c->in.len - c->r.ini - c->r.head_len);
         c->in.len = 0;
         u->modo = U_TUNNEL;
         c->state = C_TUNNEL;
         c->cerrar_despues = 1;
         CONN_IO(c, 1, 0);
     } else {
-        buf_add(&u->out, c->in.p + c->r.ini, c->r.head_len);
         u->modo = U_BUF;
         c->state = C_PROXY;
         CONN_IO(c, 0, 0);
@@ -1783,8 +1841,10 @@ static void conn_write(conn* c) {
 /* Todo lo que va al gateway pasa por acá: el gateway tiene un hilo por conexión, así que
    se le cuida la cantidad (por worker), los pedidos por segundo de cada IP y sus túneles. */
 static void ir_al_gateway(conn* c, int tunel) {
-    if (g_nups >= C->upstream_max_conns) {
-        respuesta_simple(c, 503, "Retry-After: 2\r\n", NULL, 1);
+    /* Un cuerpo «chunked»: el gateway solo lee Content-Length, así que los dos entenderían
+       distinto dónde termina el pedido. Se corta acá (RFC 9112 §6.3: 411). */
+    if (c->r.chunked) {
+        respuesta_simple(c, 411, NULL, NULL, 1);
         return;
     }
     if (c->ipe && !ip_ficha(c->ipe)) {
