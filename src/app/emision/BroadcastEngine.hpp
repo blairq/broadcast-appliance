@@ -577,17 +577,26 @@ class BroadcastEngine {
     /// Los auriculares del operador tienen dos cosas distintas:
     /// - la ESCUCHA FIJA: lo que la matriz manda ahí a propósito (la voz del
     ///   asistente, la del teleprompter). Varias juntas; se guarda (audio-matriz.json).
-    /// - el PFL: escuchar UN canal un rato. Uno solo a la vez; se SUMA a la escucha
-    ///   fija sin tocarla (apagarlo saca solo lo que sumó) y no se guarda.
-    /// Lo que suena es la unión de las dos (sourceMonitoring).
+    ///   Suena con el fader y el mute de la salida de la escucha (setSalidaEscucha).
+    /// - el SOLO: escuchar UN canal un rato, solo él (la escucha del motor en «pfl» o
+    ///   «afl», F2-03). PFL: lo que entrega la entrada, antes del fader y del bus; AFL: con
+    ///   el fader y el mute de una salida (la que muestra el Mezclador). Uno solo a la vez;
+    ///   mientras dura, la escucha fija espera sin tocarse (vuelve al soltarlo) y no se guarda.
     bool setSourceMonitoring(const std::string& name, bool on);
-    /// Si suena en los auriculares (escucha fija o PFL).
+    /// Si suena en los auriculares (escucha fija o solo).
     bool sourceMonitoring(const std::string& name) const;
     /// Solo la escucha fija (lo que muestra y guarda la matriz).
     bool sourceEscuchaFija(const std::string& name) const;
-    /// El PFL: "" lo apaga. Falla si la fuente no existe.
-    bool setPfl(const std::string& name);
+    /// El solo: `modo` "pfl" o "afl" (`salida`: de cuál es el fader del AFL; "" = la por
+    /// omisión). `name` "" lo suelta. Falla si la fuente o la salida no existen.
+    bool setPfl(const std::string& name, const std::string& modo = "pfl", const std::string& salida = "");
     std::string pfl() const { return pfl_; }
+    /// "pfl" o "afl" (lo del solo prendido; "" sin solo).
+    std::string pflModo() const { return pfl_.empty() ? std::string() : pflModo_; }
+    /// La salida de la escucha fija: de cuál son su fader y su mute (su id; "" al pedirla =
+    /// la por omisión). No se guarda. Falla si no existe.
+    bool setSalidaEscucha(const std::string& salida);
+    std::string salidaEscucha() const { return salidaEscucha_; }
     /// Atrasa (ms > 0) o adelanta la fuente para que su audio coincida con su video.
     bool setSourceSyncOffset(const std::string& name, int ms);
     int sourceSyncOffset(const std::string& name) const;
@@ -1182,7 +1191,12 @@ class BroadcastEngine {
     std::map<std::string, float> gananciaGrupo_; ///< los VCA: grupo -> ganancia (solo los que no son 1)
     /// Lo que va al control de nivel del motor: el fader de la fuente por la ganancia de su grupo.
     float nivelAplicado(const std::string& name, float volumen) const;
-    std::string pfl_; ///< el canal en PFL ("" = ninguno); no se guarda
+    std::string pfl_; ///< el canal en solo ("" = ninguno); no se guarda
+    std::string pflModo_ = "pfl"; ///< el solo: "pfl" o "afl"
+    std::string pflSalida_ = kSalidaPorOmision;     ///< la salida del fader del AFL
+    std::string salidaEscucha_ = kSalidaPorOmision; ///< la salida del fader de la escucha fija
+    /// Lo que pide la app a la escucha del motor: el solo, o la escucha fija con su salida.
+    std::string aplicarEscucha();
     void enviarEscena(int k, const motor::Cuadro& c);
 
     mutable std::shared_ptr<const nlohmann::json> estadoFoto_;

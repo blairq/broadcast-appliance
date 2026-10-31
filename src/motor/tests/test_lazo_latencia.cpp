@@ -145,7 +145,13 @@ int main() {
     CHECK(motor.escuchar("afl", "pulso", "b").empty(), "escucha afl con el fader de la salida b");
     esperar(600);
     const Lazo lAfl = lazo("escucha afl (salida b)", esc);
-    CHECK(motor.ponerEscucha("pulso", true).empty(), "escucha selección");
+    // Marcar una entrada con un solo prendido no lo pisa: la selección vuelve al soltarlo.
+    CHECK(motor.ponerEscucha("pulso", true).empty(), "marcada para la selección");
+    motor.esperarCola();
+    CHECK(motor.estado()["escucha"].value("modo", "") == "afl", "con el afl prendido, marcar no lo pisa");
+    CHECK(motor.escuchar("seleccion", "", "b").empty(), "soltar el solo: vuelve la selección (salida b)");
+    motor.esperarCola();
+    CHECK(motor.estado()["escucha"].value("modo", "") == "seleccion", "la selección, de vuelta");
     esperar(600);
     const Lazo lSel = lazo("escucha selección", esc);
     CHECK(motor.escuchar("programa").empty(), "escucha programa");

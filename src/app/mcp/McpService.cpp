@@ -2225,7 +2225,8 @@ void McpService::registerTools() {
                                    // invisible: queda una fuente sonando en
                                    // los auriculares y nadie sabe cual.
                                    {"escuchando", rt.engine().sourceMonitoring(n)},
-                                   {"pfl", rt.engine().pfl() == n},
+                                   {"pfl", rt.engine().pfl() == n && rt.engine().pflModo() == "pfl"},
+                                   {"afl", rt.engine().pfl() == n && rt.engine().pflModo() == "afl"},
                                    {"peakDb", rt.engine().sourcePeakDb(n)}});
             }
             // El pico de la por omisión lo lee la vista (leerlo acá se lo robaría); el de
@@ -2285,9 +2286,13 @@ void McpService::registerTools() {
         t.details =
             ba::i18n::traducir("mcp", "Es el PFL de una consola: antes de abrir un microfono se lo escucha para ver si esta ahi, "
             "si zumba, si el invitado ya volvio. Sin esto habia que ponerlo al aire para enterarse.\n\n"
-            "Hay UN PFL a la vez: escuchar una reemplaza a la anterior. Sin argumentos se apaga. "
-            "Se SUMA a la escucha fija (lo que la matriz manda a los auriculares a propósito, como la "
-            "voz del asistente): esa no se toca y sigue sonando. El PFL no se guarda.\n\n"
+            "Hay UN solo a la vez: escuchar una reemplaza a la anterior. Sin argumentos se apaga. "
+            "`modo` \"pfl\" (de fábrica) es lo que entrega la entrada, antes del fader; \"afl\", con el "
+            "fader y el mute de `salida` (la por omisión si no se dice). Mientras dura suena SOLO esa: "
+            "la escucha fija (lo que la matriz manda a los auriculares a propósito, como la voz del "
+            "asistente) no se toca y vuelve al soltarlo. No se guarda.\n\n"
+            "`salida_escucha` elige de qué salida son el fader y el mute de la escucha fija (vacío = la "
+            "por omisión); se puede mandar solo, sin `name`.\n\n"
             "OJO: una fuente SILENCIADA (`audio_set muted`) no suena ni por el monitor —el silencio es "
             "antes de todo—. Para probar un microfono cerrado hay que quitarle el silencio "
             "y bajarle el volumen, no silenciarlo.\n\n"
@@ -2298,13 +2303,30 @@ void McpService::registerTools() {
             {"properties",
              {{"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la fuente; vacio o sin esto = apagar")}}},
               {"escuchar",
-               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "false para apagar esta (por defecto true)")}}}}}};
-        t.examples = {R"({"name": "Microfono del atril"})", R"({})"};
+               {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "false para apagar esta (por defecto true)")}}},
+              {"modo",
+               {{"type", "string"}, {"enum", {"pfl", "afl"}},
+                {"description", ba::i18n::traducir("mcp", "pfl (antes del fader, por defecto) o afl (con el fader de `salida`)")}}},
+              {"salida", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "afl: de qué salida es el fader (vacío = la por omisión)")}}},
+              {"salida_escucha",
+               {{"type", "string"},
+                {"description", ba::i18n::traducir("mcp", "de qué salida son el fader y el mute de la escucha fija (vacío = la por omisión)")}}}}}};
+        t.examples = {R"({"name": "Microfono del atril"})", R"({"name": "Microfono del atril", "modo": "afl", "salida": "b"})",
+                      R"({"salida_escucha": "b"})", R"({})"};
         t.run = [&rt, &vm](const json& a, Done done) {
             const std::string n = a.value("name", std::string());
             const bool on = a.value("escuchar", true) && !n.empty();
             auto* matriz = qobject_cast<audio::Matriz*>(vm.matriz());
             if (matriz == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La matriz de audio no está disponible.")));
+            if (a.contains("salida_escucha")) {
+                const std::string s = a.value("salida_escucha", std::string());
+                if (const QString e = matriz->ponerSalidaEscucha(QString::fromStdString(s)); !e.isEmpty())
+                    return done(ToolResult::error(e.toStdString()));
+                if (!a.contains("name"))
+                    return done(ToolResult::ok(
+                        s.empty() ? ba::i18n::traducir("mcp", "La escucha fija sigue el fader de la salida por omisión.")
+                                  : ba::i18n::llenar(ba::i18n::traducir("mcp", "La escucha fija sigue el fader de la salida «%1»."), {s})));
+            }
             // El PFL es uno solo y no toca la escucha fija: la regla es de la Matriz (la
             // misma del botón PFL de la interfaz); acá solo se arma la respuesta.
             const std::string antes = rt.engine().pfl();
@@ -2316,7 +2338,10 @@ void McpService::registerTools() {
             if (!rt.engine().sourceExists(n))
                 return done(
                     ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente de audio '%1' (audio_sources las lista)."), {n})));
-            if (const QString e = matriz->ponerPfl(QString::fromStdString(n)); !e.isEmpty())
+            const std::string modo = a.value("modo", std::string("pfl"));
+            if (const QString e = matriz->ponerPfl(QString::fromStdString(n), QString::fromStdString(modo),
+                                                   QString::fromStdString(a.value("salida", std::string())));
+                !e.isEmpty())
                 return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok(
                 antes.empty() || antes == n

@@ -376,6 +376,7 @@ std::string Motor::borrarSalidaYa(const std::string& id) {
     auto it = salidas_.find(id);
     if (it == salidas_.end()) return noHaySalida(id);
     if ((escuchaModo_ == "programa" && escuchaId_ == id) || escuchaSalida_ == id) escuchar("apagado");
+    if (seleccionSalida_ == id) seleccionSalida_.clear();
     std::shared_future<void> f = desarmarSalida(it->second, true);
     {
         std::lock_guard<std::mutex> l(desarmandoM_);
@@ -704,7 +705,8 @@ std::string Motor::quitarEntradaYa(const std::string& id) {
     if (directo_) directo_->quitar(id);
     if (seleccion_) seleccion_->quitar(id);
     if (afl_) afl_->quitar(id);
-    if ((escuchaModo_ == "pfl" || escuchaModo_ == "afl") && escuchaId_ == id) escuchar("apagado");
+    // Se fue la que estaba en solo: vuelve la selección (o se apaga, sin ninguna marcada).
+    if ((escuchaModo_ == "pfl" || escuchaModo_ == "afl") && escuchaId_ == id) escuchar("seleccion", "", seleccionSalida_);
     indexarDeApp(id, nullptr);
     std::shared_ptr<Entrada> e = std::move(it->second.entrada);
     canales_.erase(it);
@@ -1677,6 +1679,12 @@ std::string Motor::escucharYa(const std::string& modo, const std::string& id, co
     Salida* s = laSalida(salida);
     if (s == nullptr) return noHaySalida(salida);
     const std::string sid = salida == porOmision_ ? std::string() : salida;
+    if (modo == "seleccion") {
+        seleccionSalida_ = sid;
+        bool alguna = false;
+        for (const auto& [cid, c] : canales_) alguna = alguna || c.escucha;
+        if (!alguna) return escucharYa("apagado", "", "");
+    }
     if (modo == "afl") {
         auto it = canales_.find(id);
         if (it == canales_.end()) return llenar(traducir("motor", "no hay una entrada «%1»"), {id});
@@ -1719,8 +1727,10 @@ std::string Motor::ponerEscuchaYa(const std::string& id, bool on) {
     it->second.escucha = on;
     bool alguna = false;
     for (const auto& [cid, c] : canales_) alguna = alguna || c.escucha;
+    // Un solo (pfl, afl) no se pisa: la selección vuelve cuando lo sueltan.
+    if (escuchaModo_ == "pfl" || escuchaModo_ == "afl") return {};
     if (!alguna) return escuchaModo_ == "seleccion" ? escuchar("apagado") : std::string();
-    if (escuchaModo_ != "seleccion") return escuchar("seleccion");
+    if (escuchaModo_ != "seleccion") return escuchar("seleccion", "", seleccionSalida_);
     enSeleccion(id, it->second);
     return {};
 }

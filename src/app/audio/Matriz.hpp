@@ -125,11 +125,16 @@ class Matriz : public QObject {
     /// Prender o apagar un cruce. Devuelve el error o "".
     Q_INVOKABLE QString alternar(const QString& fuente, const QString& bus);
     Q_INVOKABLE QString setCruce(const QString& fuente, const QString& bus, bool activo);
-    /// PFL: sumar UN canal a los auriculares un rato ("" lo apaga). Reemplaza al PFL
-    /// anterior, pero NO toca la escucha fija (el cruce Escucha: la voz del asistente
-    /// sigue sonando). Lo usan el Mezclador, la tarjeta y audio_escuchar; el aviso
-    /// llega por el motor y la matriz, las tiras y el PFL lo ven.
-    Q_INVOKABLE QString ponerPfl(const QString& fuente);
+    /// El solo: escuchar UN canal un rato, solo él ("" lo suelta). `modo` "pfl" (antes del
+    /// fader) o "afl" (con el fader y el mute de `salida`). Reemplaza al anterior y NO toca
+    /// la escucha fija (el cruce Escucha): espera y vuelve al soltarlo
+    /// (BroadcastEngine::setPfl). Lo usan el Mezclador, la tarjeta y audio_escuchar; el
+    /// aviso llega por el motor y la matriz, las tiras y el PFL lo ven.
+    Q_INVOKABLE QString ponerPfl(const QString& fuente, const QString& modo = QStringLiteral("pfl"),
+                                 const QString& salida = {});
+    /// La salida de la escucha fija: de cuál son su fader y su mute ("" = la por omisión;
+    /// BroadcastEngine::setSalidaEscucha). No se guarda. Avisa con cambio(). "" o el error.
+    Q_INVOKABLE QString ponerSalidaEscucha(const QString& salida);
     /// El motor cambió el audio de una fuente (BroadcastEngine::alCambiarAudioFuente:
     /// escucha, pistas, volumen, mute, retardo o «alta»), lo haya pedido quien sea.
     /// Desde cualquier hilo; los de una misma vuelta se atienden juntos en el hilo de

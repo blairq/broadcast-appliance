@@ -87,7 +87,7 @@ bool escucha(const std::string& f) {
     BroadcastEngine* e = motor();
     return e != nullptr && e->sourceEscuchaFija(f);
 }
-/// Lo que suena en los auriculares: la escucha fija o el PFL.
+/// Lo que suena en los auriculares: la escucha fija o el solo (PFL/AFL).
 bool suenaEnEscucha(const std::string& f) {
     BroadcastEngine* e = motor();
     return e != nullptr && e->sourceMonitoring(f);
@@ -401,15 +401,24 @@ bool Matriz::haceLazo(const std::string& fuente, const std::string& bus) const {
     return false;
 }
 
-QString Matriz::ponerPfl(const QString& fuenteQ) {
+QString Matriz::ponerPfl(const QString& fuenteQ, const QString& modo, const QString& salida) {
     BroadcastEngine* e = motor();
     if (e == nullptr) return tr("el motor no está listo");
     const std::string pedida = fuenteQ.toStdString();
     if (!pedida.empty() && !e->sourceExists(pedida)) return tr("No existe la fuente de audio «%1».").arg(fuenteQ);
-    if (!e->setPfl(pedida)) return QString::fromStdString(e->lastError());
+    if (!e->setPfl(pedida, modo.toStdString(), salida.toStdString())) return QString::fromStdString(e->lastError());
     // Una entrada de placa en PFL tiene que estar abierta (y la que salió, quizás no).
     // El cambio() lo trae el aviso del motor (avisarFuente). No se guarda: el PFL es de un rato.
     usarEquipo();
+    return {};
+}
+
+QString Matriz::ponerSalidaEscucha(const QString& salida) {
+    BroadcastEngine* e = motor();
+    if (e == nullptr) return tr("el motor no está listo");
+    const std::string antes = e->salidaEscucha();
+    if (!e->setSalidaEscucha(salida.toStdString())) return QString::fromStdString(e->lastError());
+    if (e->salidaEscucha() != antes) emit cambio();
     return {};
 }
 

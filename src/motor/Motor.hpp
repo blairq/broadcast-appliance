@@ -230,10 +230,13 @@ class Motor {
     /// modo: programa | directo | pfl | afl | seleccion | apagado; `id` = la entrada (pfl,
     /// afl) o la salida (programa; "" = la por omisión). `salida`: de qué salida son el
     /// fader y el mute en directo, afl y seleccion ("" = la por omisión).
-    /// «seleccion»: la suma de las entradas marcadas con ponerEscucha.
+    /// «seleccion»: la suma de las entradas marcadas con ponerEscucha (sin ninguna marcada,
+    /// se apaga); su `salida` queda para cuando la escucha vuelve sola a la selección.
     std::string escuchar(const std::string& modo, const std::string& id = "", const std::string& salida = "");
     /// Marca (o desmarca) una entrada para la escucha «selección». Con alguna
-    /// marcada la escucha pasa a «seleccion»; sin ninguna, se apaga.
+    /// marcada la escucha pasa a «seleccion»; sin ninguna, se apaga. Con un solo
+    /// prendido (pfl, afl: escuchar UNA entrada un rato) solo la marca: la selección
+    /// vuelve cuando se suelta el solo (escuchar("seleccion")).
     std::string ponerEscucha(const std::string& id, bool on);
     void escuchaDispositivo(const std::string& id);
     void escuchaNivel(double lineal);
@@ -606,6 +609,7 @@ class Motor {
     std::string escuchaModo_ = "apagado";
     std::string escuchaId_; ///< la entrada (pfl, afl) o la salida (programa; "" = la por omisión)
     std::string escuchaSalida_; ///< de qué salida son el fader y el mute en directo, afl y seleccion ("" = la por omisión)
+    std::string seleccionSalida_; ///< la salida de la selección cuando la escucha vuelve sola a ella (ponerEscucha)
     std::thread hilo_;
     std::atomic<bool> seguir_{false};
 };
