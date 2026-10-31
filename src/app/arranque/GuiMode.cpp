@@ -39,6 +39,7 @@
 #include <memory>
 
 #include "agent/AgentViewModel.hpp"
+#include "agent/HijosDeLaApp.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "agent/AlertEngine.hpp"
@@ -298,6 +299,8 @@ int runGui(int argc, char** argv) {
         ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: la configuración, %1 ms"),
                                                    {std::to_string(reloj.elapsed())}));
     }
+    // Los servidores (OpenCode, el modelo local) de una corrida que murió sin pararlos.
+    ba::app::agent::hijos::barrerHuerfanos();
     const int rc = rt.start();
     if (rc != 0) {
         std::printf("ba-app: %s\n",

@@ -9,8 +9,8 @@
 // conecta con `--server <url>` desde SU carpeta de trabajo (el servidor toma la
 // configuración —proveedores, MCP— de la carpeta de cada sesión: probado). Lo
 // levanta la primera pestaña que lo pide y se apaga cuando la última lo suelta o
-// al cerrar la app. Los roles automáticos (agentes de un tiro) no lo usan: van
-// con su --standalone.
+// al cerrar la app (y si la app muere sin cerrar, igual: agent/HijosDeLaApp). Los
+// roles automáticos (agentes de un tiro) no lo usan: van con su --standalone.
 // ============================================================================
 #pragma once
 
