@@ -66,4 +66,32 @@ QtObject {
         const d = Math.round(s / 86400)
         return qsTr("%n día", "", d)
     }
+
+    /// Una duración en reloj: «4:05», «1:02:05», «-0:12» (para las cuentas y las columnas).
+    function mmss(seg) {
+        const neg = seg < 0
+        const t = Math.abs(Math.round(seg || 0))
+        const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = String(t % 60).padStart(2, "0")
+        return (neg ? "-" : "") + (h > 0 ? h + ":" + String(m).padStart(2, "0") : m) + ":" + s
+    }
+
+    /// El color de cada tipo de cue o pieza (la franja de la fila, el chip, el bloque de la línea).
+    function colorDeTipo(tipo) {
+        switch (tipo) {
+        case "escena": return accent
+        case "orador": return "#5aa9e6"
+        case "grafico": return "#c792ea"
+        case "musica": return "#b98cf0"
+        case "video": return "#b98cf0"
+        case "teleprompter": return "#4fc3a1"
+        case "pantalla": return "#4fc3a1"
+        case "audio": return amber
+        case "espera": return live
+        case "dsk": return "#e6a15a"
+        case "ptz": return "#5ad1e6"
+        case "asamblea": return "#e6d35a"
+        case "asistente": return "#8be65a"
+        default: return textFaint
+        }
+    }
 }

@@ -437,7 +437,11 @@ QString LineaViewModel::resultado(const std::string& error) {
     return QString::fromStdString(error);
 }
 
-QString LineaViewModel::go() { return resultado(ev_.lineaGo(salidaEfectiva())); }
+QString LineaViewModel::go() {
+    // Arrancar es otra cosa (con la revisión previa): un Espacio suelto no saca la línea al aire.
+    if (!corriendo()) return tr("La línea no está corriendo: arrancala con «Arrancar».");
+    return resultado(ev_.lineaGo(salidaEfectiva()));
+}
 QString LineaViewModel::hold() { return resultado(ev_.lineaHold(salidaEfectiva(), std::nullopt)); }
 QString LineaViewModel::siguiente() { return resultado(ev_.lineaMoverProximo(salidaEfectiva(), 1)); }
 QString LineaViewModel::anterior() { return resultado(ev_.lineaMoverProximo(salidaEfectiva(), -1)); }
