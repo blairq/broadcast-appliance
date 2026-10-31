@@ -398,6 +398,11 @@ class BroadcastEngine {
     /// El loudness de lo que sale por la salida: M/S/I, true peak, LRA (EBU R128).
     /// El de la por omisión vive lo que el BroadcastEngine (se puede guardar la referencia).
     audio::LoudnessPrograma& loudness(const std::string& salida = "");
+    /// Lleva el objetivo de loudness (el de la por omisión: Config/loudness.json) al
+    /// motor, en cada salida: el AGC lento si está pedido y el techo del limitador (el
+    /// del objetivo; −2 dBTP si esa salida transmite AAC por debajo de 128 kbps, AES
+    /// TD1004). Al cambiar el objetivo, al crear una salida y al empezar a transmitir.
+    void aplicarLoudness();
     /// El programa en imagen, para las alarmas: brillo medio (0–255) y cuántos
     /// segundos lleva sin cambiar. `valido` false si todavía no llegó ningún cuadro.
     struct ProgramaVideo {
@@ -970,6 +975,9 @@ class BroadcastEngine {
         std::string recordPath, recordCopyPath;
         std::string fuenteVideo; ///< el productor del video de su programa: la lista negra de codificadores es suya
         int kbpsRec = 0; ///< lo que escriben la grabación y (otro tanto) la copia (kbpsGrabacion)
+        /// El AAC más chico con que se transmitió por acá (0: ninguno): debajo de 128 kbps el
+        /// techo baja a −2 dBTP (aplicarLoudness). Lo escribe el hilo de salidas.
+        std::atomic<int> kbpsAac{0};
         std::string remuxSal; ///< a qué pasar la grabación al pararla
         bool remuxAlTerminarSal = true;
         std::unique_ptr<SourceRec> clean;
@@ -1006,6 +1014,8 @@ class BroadcastEngine {
     std::vector<std::shared_ptr<Salida>> lasSalidas() const;
     /// Empieza a medir su audio (loudness, picos y, la por omisión, la sincronía).
     void medirSalida(Salida& s);
+    /// Una transmisión de `s` con AAC a `kbps`: si es la más chica y baja de 128, otro techo.
+    void anotarAac(Salida& s, int kbps);
     void dejarDeMedir(Salida& s);
     /// Su canal al gateway publicado y (si alguien mira el retorno) su vista pedida.
     bool publicarRetorno(const std::shared_ptr<Salida>& s);

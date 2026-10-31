@@ -266,6 +266,7 @@ bool BroadcastEngine::crearSalida(const std::string& id, const std::string& nomb
     }
     medirSalida(*s);
     if (returnFeedsActive_) publicarRetorno(s);
+    aplicarLoudness();
     return true;
 }
 
@@ -351,6 +352,27 @@ void BroadcastEngine::dejarDeMedir(Salida& s) {
 audio::LoudnessPrograma& BroadcastEngine::loudness(const std::string& salida) {
     const Salida* s = laSalida(salida);
     return (s != nullptr ? *s : porOmision()).medidas->loudness;
+}
+
+void BroadcastEngine::anotarAac(Salida& s, int kbps) {
+    const int antes = s.kbpsAac.load();
+    if (kbps <= 0 || (antes > 0 && antes <= kbps)) return;
+    s.kbpsAac = kbps;
+    if (kbps < 128 && (antes == 0 || antes >= 128)) aplicarLoudness(); // cambia el techo
+}
+
+void BroadcastEngine::aplicarLoudness() {
+    if (!motor_) return;
+    const audio::LoudnessPrograma::Objetivo ob = porOmision().medidas->loudness.objetivo();
+    for (const auto& s : lasSalidas()) {
+        double techo = ob.tp;
+        // AES TD1004: un códec con pérdida a poca tasa reconstruye picos por encima de
+        // lo que entró; con AAC por debajo de 128 kbps, 1 dB más de margen.
+        const int kbps = s->kbpsAac.load();
+        if (kbps > 0 && kbps < 128) techo = std::min(techo, -2.0);
+        // En la cola del motor: un error vuelve por alFallar.
+        motor_->ponerLoudness(ob.agc, ob.lufs, techo, s->porOmision() ? std::string() : s->id);
+    }
 }
 
 int BroadcastEngine::pistasGrabacionMask() const { return porOmision().pistasGrabacionMask; }
@@ -1487,6 +1509,7 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
 }
 
 std::string BroadcastEngine::startStreamingYa(Salida& s, const StreamConfig& stream, const EncoderConfig& enc) {
+    anotarAac(s, enc.audioBitrateKbps);
     auto tx = std::make_unique<motor::Transmision>(motor_->reloj(), configTransmision(urlConClave(stream.server, stream.key), enc, video_,
                                                                                       videoEncoderCandidates(enc)));
     const motor::Fuentes f = fuentesDelPrograma(*motor_, s.id, {});
@@ -1546,6 +1569,7 @@ std::string BroadcastEngine::startExtraYa(Salida& s, const std::string& id, cons
         if (it->second.tx) it->second.tx->parar();
         s.extras.erase(it);
     }
+    anotarAac(s, enc.audioBitrateKbps);
     motor::Transmision::Config c = configTransmision(urlConClave(server, key), enc, video_, videoEncoderCandidates(enc));
     // El punto de ingest de respaldo, con la misma clave: otra rama del mismo codificador.
     if (!serverRespaldo.empty()) c.urlRespaldo = urlConClave(serverRespaldo, key);

@@ -40,6 +40,7 @@
 #include "ui/InputsViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "Piezas.hpp" // motor::derivaDePlacas
 
 #if defined(__linux__)
 #include <sys/sysinfo.h>
@@ -309,7 +310,15 @@ void McpService::registerSystemTools() {
             "audio y canal de video que lee el gateway de la app, en la última ventana de 10 s: `ocupacion_max` "
             "(bloques de 10 ms sin leer; lo normal es 1 a 3), `descartados` (lo que se perdió porque el gateway no "
             "llegaba; en video, cuadros salteados), `faltantes` (bloques de audio que no llegaron), `edad_p50_ms` y "
-            "`edad_p99_ms` (cuánto hace que se selló lo leído), los totales y `anomalia`.");
+            "`edad_p99_ms` (cuánto hace que se selló lo leído), los totales y `anomalia`.") +
+            " " +
+            ba::i18n::traducir(
+                "mcp",
+                "`deriva_placas`: cada placa de audio abierta (micrófonos, interfaces) contra el reloj del estudio: `ppm` "
+                "(cuánto se aparta: positivo, va rápida; una placa sana, menos de 100), `reanclajes_sin_corregir` (los "
+                "saltos de 50 ms que habría sin corrección), `corregida` (la sigue un remuestreador variable), "
+                "`enganchada`, `desfase_ms` y `reanclajes` (los cortes que llegaron al programa: tiene que ser 0). Dos "
+                "placas con word clock o PTP del mismo dominio tienen que dar la misma ppm.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -336,6 +345,7 @@ void McpService::registerSystemTools() {
             if (out.value("muestras", 0) == 0)
                 out["nota"] = ba::i18n::traducir("mcp", "Todavía no hay mediciones (se mide una vez por segundo desde el arranque).");
             out["bucle_ui"] = ba::diag::VigiaBucle::interfaz().informe();
+            out["deriva_placas"] = ba::motor::derivaDePlacas();
             done(ToolResult().data(out));
         };
         core_.addTool(std::move(t));

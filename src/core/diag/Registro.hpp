@@ -31,7 +31,11 @@
 // (ver LectorDeLogs). La hora es UTC para poder entrelazar los archivos de los
 // tres procesos sin pensar en husos.
 //
-// NO LANZA NUNCA, y no es para el hilo de audio: escribe a disco.
+// NO LANZA NUNCA Y NO TRABA: `linea()` solo mete los datos en una cola acotada
+// sin candado; un hilo escritor propio arma la línea y la lleva a stderr, al
+// archivo, al anillo y a los oyentes. Se puede llamar desde un hilo de audio
+// con plazo (el costo es copiar dos strings). Si el escritor está trabado y la
+// cola se llena, la línea se descarta y se cuenta en `perdidas()`.
 // ============================================================================
 #pragma once
 
@@ -118,14 +122,22 @@ class Registro {
     /// lee el visor: sin tocar el disco y sin parsear nada.
     std::vector<Registrado> ultimas(std::size_t cuantas = 500) const;
     /// Cuántas líneas se registraron desde que arrancó el proceso (incluye las
-    /// que ya salieron del anillo). El visor lo usa para saber si hay algo
+    /// que ya salieron del anillo; cuenta las que ya pasó el escritor). El visor lo usa para saber si hay algo
     /// nuevo sin copiarse la lista entera.
     std::uint64_t cuenta() const;
     /// Cuántas se descartaron por estar bajo el nivel mínimo. Que esto sea
     /// visible evita la pregunta «¿no pasó nada o no lo estaba mirando?».
     std::uint64_t descartadas() const;
+    /// Cuántas se perdieron porque la cola hacia el escritor estaba llena (el
+    /// disco o un oyente lo tenían trabado). Tiene que ser 0; si no, se ve.
+    std::uint64_t perdidas() const;
 
-    /// Se llama con cada línea registrada, desde el hilo que la registró. Es
+    /// Espera (hasta `ms`) a que el escritor haya pasado todo lo registrado
+    /// hasta ahora. Para salir, antes de un volcado y en las pruebas.
+    /// :returns: false si no llegó a tiempo (o si lo llama un oyente).
+    bool vaciar(int ms = 1000);
+
+    /// Se llama con cada línea registrada, desde el hilo escritor. Es
     /// para que la interfaz se entere sin preguntar. Tiene que ser barato y no
     /// puede volver a llamar al registro.
     void setOyente(std::function<void(const Registrado&)> fn);

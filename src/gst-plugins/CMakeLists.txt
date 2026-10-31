@@ -7,7 +7,8 @@
 #
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
 #   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal, baptz, bamejora, ba360, basombra (tarjetas de imagen, legalizador, PTZ digital, mejorar imagen, vista 360, sombra).
-#   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster).
+#   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster),
+#              baderiva (la placa al reloj del estudio).
 #   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida)
 #              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
 #   plugin/    baplugins: baplugin (tarjeta de un plugin de Python) y bapluginsrc (su entrada).
@@ -51,9 +52,14 @@ if(WIN32)
 endif()
 
 # El DSP del núcleo va compilado adentro (sin enlazar todo ba_core).
-add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp audio/limitador.cpp "${CMAKE_SOURCE_DIR}/src/core/dsp/Automixer.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/dsp/LimitadorTP.cpp")
+# baderiva: libsamplerate (vendoreada) estática adentro del plugin.
+add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp audio/limitador.cpp audio/deriva.cpp
+    "${CMAKE_SOURCE_DIR}/src/core/dsp/Automixer.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/LimitadorTP.cpp"
+    "${CMAKE_SOURCE_DIR}/src/core/dsp/Deriva.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/Resampler.cpp"
+    "${CMAKE_SOURCE_DIR}/src/core/dsp/AgcLoudness.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/PonderacionK.cpp")
 target_include_directories(gstbaaudio PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
+set_target_properties(samplerate PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(gstbaaudio PRIVATE samplerate)
 ba_plugin_gst(gstbaaudio)
 
 add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/video.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"

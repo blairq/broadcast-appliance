@@ -4,6 +4,11 @@
 // pasa tal cual, con uno publicado le llega todo el audio en bloques planares
 // de hasta 1024 muestras y lo que devuelve sale (acá: la mitad, -6 dB), y al
 // retirarlo vuelve a pasar tal cual sin parar la cadena.
+//
+// LATENCIA (F2-07): con un anfitrión que declara 256 muestras (como el rack
+// con un limitador con lookahead), `barack` la suma a la consulta LATENCY,
+// avisa con un mensaje de latencia y adelanta el sello de lo que sale 256
+// muestras (5,333 ms).
 
 #include "audio/GstRack.hpp"
 #include "video/CatalogoGst.hpp"
@@ -38,6 +43,79 @@ struct Mitad : gstrack::Anfitrion {
         if (n > mayorBloque) mayorBloque = n;
     }
 };
+
+/// Declara 256 muestras de latencia (no toca el audio: lo que se mira es el sello).
+struct Retardo256 : gstrack::Anfitrion {
+    void procesar(float* const*, int, std::uint32_t) override {}
+    std::uint32_t latenciaMuestras() const override { return 256; }
+};
+
+struct Sellos {
+    std::atomic<std::int64_t> entra{-1}, sale{-1}; ///< PTS del primer buffer después del 10.º
+    std::atomic<int> nEntra{0}, nSale{0};
+};
+
+GstPadProbeReturn anotar(GstPad*, GstPadProbeInfo* info, gpointer datos) {
+    auto* par = static_cast<std::pair<std::atomic<std::int64_t>*, std::atomic<int>*>*>(datos);
+    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (++*par->second == 10) par->first->store(static_cast<std::int64_t>(GST_BUFFER_PTS(b)));
+    return GST_PAD_PROBE_OK;
+}
+
+/// En vivo: la latencia que contesta la tubería (min, ns), si se vio el mensaje
+/// de latencia, y cuánto adelantó `barack` el sello del 10.º buffer.
+struct Latencia {
+    GstClockTime min = 0;
+    bool mensaje = false;
+    std::int64_t adelanto = 0;
+};
+Latencia medirLatencia(const char* fuente) {
+    const std::string desc = std::string("audiotestsrc is-live=true samplesperbuffer=480 ! "
+                                         "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! "
+                                         "barack name=r fuente=\"") + fuente + "\" ! fakesink name=s sync=true";
+    Latencia out;
+    GError* err = nullptr;
+    GstElement* p = gst_parse_launch(desc.c_str(), &err);
+    if (err != nullptr) {
+        g_error_free(err);
+        return out;
+    }
+    Sellos se;
+    std::pair<std::atomic<std::int64_t>*, std::atomic<int>*> pe{&se.entra, &se.nEntra}, ps{&se.sale, &se.nSale};
+    GstElement* r = gst_bin_get_by_name(GST_BIN(p), "r");
+    GstPad* sink = gst_element_get_static_pad(r, "sink");
+    GstPad* src = gst_element_get_static_pad(r, "src");
+    gst_pad_add_probe(sink, GST_PAD_PROBE_TYPE_BUFFER, anotar, &pe, nullptr);
+    gst_pad_add_probe(src, GST_PAD_PROBE_TYPE_BUFFER, anotar, &ps, nullptr);
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    GstBus* bus = gst_element_get_bus(p);
+    const gint64 hasta = g_get_monotonic_time() + 3 * G_USEC_PER_SEC;
+    while (g_get_monotonic_time() < hasta && se.nSale < 30) {
+        GstMessage* m = gst_bus_timed_pop_filtered(bus, 50 * GST_MSECOND,
+                                                   static_cast<GstMessageType>(GST_MESSAGE_LATENCY | GST_MESSAGE_ERROR));
+        if (m == nullptr) continue;
+        if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_LATENCY && GST_MESSAGE_SRC(m) == GST_OBJECT(r)) {
+            out.mensaje = true;
+            gst_bin_recalculate_latency(GST_BIN(p));
+        }
+        gst_message_unref(m);
+    }
+    GstQuery* q = gst_query_new_latency();
+    if (gst_element_query(p, q)) {
+        gboolean vivo = FALSE;
+        GstClockTime max = 0;
+        gst_query_parse_latency(q, &vivo, &out.min, &max);
+    }
+    gst_query_unref(q);
+    out.adelanto = se.entra.load() - se.sale.load();
+    gst_element_set_state(p, GST_STATE_NULL);
+    gst_object_unref(bus);
+    gst_object_unref(sink);
+    gst_object_unref(src);
+    gst_object_unref(r);
+    gst_object_unref(p);
+    return out;
+}
 
 /// El RMS (dBFS, canal izquierdo) de lo que sale de la cadena con `n` bloques de 4096.
 double medir(const char* fuente) {
@@ -109,6 +187,19 @@ int main() {
     gstrack::retirar("Micrófono 1");
     const double sinRack = medir("Micrófono 1");
     CHECK(std::fabs(sinRack - seco) < 0.1, "al retirarlo vuelve a pasar tal cual");
+
+    // Latencia: sin anfitrión, nada; con uno de 256 muestras, 5,333 ms más.
+    const Latencia sin = medirLatencia("Con lookahead");
+    gstrack::publicar("Con lookahead", std::make_shared<Retardo256>());
+    const Latencia con = medirLatencia("Con lookahead");
+    gstrack::retirar("Con lookahead");
+    const GstClockTime k256 = gst_util_uint64_scale_int(256, GST_SECOND, 48000);
+    std::printf("latencia: sin rack %.3f ms, con rack %.3f ms; sello adelantado %.3f ms; mensaje %s\n",
+                sin.min / 1e6, con.min / 1e6, con.adelanto / 1e6, con.mensaje ? "si" : "no");
+    CHECK(sin.adelanto == 0, "sin latencia, el sello no se toca");
+    CHECK(con.min == sin.min + k256, "LATENCY suma las 256 muestras del rack");
+    CHECK(con.adelanto == static_cast<std::int64_t>(k256), "el sello sale adelantado esas 256 muestras");
+    CHECK(con.mensaje, "avisa con un mensaje de latencia al cambiar");
 
     if (fallos == 0) std::printf("test_gst_rack: OK\n");
     return fallos == 0 ? 0 : 1;

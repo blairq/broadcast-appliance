@@ -722,12 +722,40 @@ void sinRelojPropio(GstElement* pipeline) {
 }
 
 namespace {
+// LA DERIVA DE CADA PLACA (docs/arquitectura/04-plan-unificado.md, F2-10). Lo que mide
+// el sondeo de abajo (cuántas ppm se aparta la placa del reloj del estudio y cuántas
+// veces hubo que reanclar su hora) y, si está, el `baderiva` que la corrige. Se publica
+// en `sistema_recursos` (derivaDePlacas): una placa que deriva mucho, o dos que
+// deberían estar enganchadas (word clock, PTP) y no lo están, se ven antes del evento.
+struct EstadoPlaca {
+    std::string entrada, dispositivo;
+    std::atomic<double> ppm{0};         ///< de la placa cruda (lo que contó contra el reloj)
+    std::atomic<guint64> reanclajes{0}; ///< los del sondeo: los saltos que habría sin corregir
+    std::atomic<double> medidoS{0};     ///< sobre cuántos segundos se midió la ppm
+    GWeakRef deriva;                    ///< el baderiva de esta placa (si hay)
+    EstadoPlaca() { g_weak_ref_init(&deriva, nullptr); }
+    ~EstadoPlaca() { g_weak_ref_clear(&deriva); }
+};
+std::mutex& placasMu() {
+    static auto* m = new std::mutex;
+    return *m;
+}
+std::vector<std::weak_ptr<EstadoPlaca>>& placas() {
+    static auto* v = new std::vector<std::weak_ptr<EstadoPlaca>>;
+    return *v;
+}
+
 // La hora de captura de una fuente de audio, contada por muestras desde el primer bloque
 // (no tiembla) y anclada al reloj del pipeline (el del estudio); si se aleja más de
 // kReanclarNs de lo que da el reloj, se reancla (la placa y el reloj derivan un poco).
+// Con `baderiva` detrás, este sello ya no llega al programa (baderiva pone el suyo, sin
+// saltos): queda como medición de la placa cruda.
 struct HoraAudio {
     GstClockTime ancla = GST_CLOCK_TIME_NONE; ///< la hora del primer bloque desde el último anclaje
     guint64 muestras = 0;                     ///< las que pasaron desde el anclaje
+    GstClockTime desde = GST_CLOCK_TIME_NONE; ///< para la ppm: la hora del primer bloque de todos
+    guint64 total = 0;                        ///< y las muestras desde ahí
+    std::shared_ptr<EstadoPlaca> placa;
     static constexpr GstClockTime kReanclarNs = 50 * GST_MSECOND;
 };
 
@@ -745,18 +773,16 @@ GstPadProbeReturn ponerHoraAudio(GstPad* pad, GstPadProbeInfo* info, gpointer d)
     if (reloj == nullptr) return GST_PAD_PROBE_OK;
     const GstClockTime ahora = gst_clock_get_time(reloj);
     gst_object_unref(reloj);
-    gint rate = 0, canales = 0, bytesPorMuestra = 0;
+    gint rate = 0, bytesPorMuestra = 0;
     if (GstCaps* c = gst_pad_get_current_caps(pad)) {
         GstAudioInfo ai;
         if (gst_audio_info_from_caps(&ai, c)) {
             rate = GST_AUDIO_INFO_RATE(&ai);
-            canales = GST_AUDIO_INFO_CHANNELS(&ai);
             bytesPorMuestra = GST_AUDIO_INFO_BPF(&ai);
         }
         gst_caps_unref(c);
     }
     if (rate <= 0 || bytesPorMuestra <= 0 || ahora < base) return GST_PAD_PROBE_OK;
-    (void)canales;
     const guint64 n = gst_buffer_get_size(b) / static_cast<guint64>(bytesPorMuestra);
     const GstClockTime dur = gst_util_uint64_scale(n, GST_SECOND, static_cast<guint64>(rate));
     const GstClockTime real = ahora - base > dur ? ahora - base - dur : 0; // cuándo empezó a capturarse
@@ -764,17 +790,74 @@ GstPadProbeReturn ponerHoraAudio(GstPad* pad, GstPadProbeInfo* info, gpointer d)
                            ? h->ancla + gst_util_uint64_scale(h->muestras, GST_SECOND, static_cast<guint64>(rate))
                            : GST_CLOCK_TIME_NONE;
     if (!GST_CLOCK_TIME_IS_VALID(pts) || (pts > real ? pts - real : real - pts) > HoraAudio::kReanclarNs) {
+        if (GST_CLOCK_TIME_IS_VALID(pts) && h->placa) h->placa->reanclajes.fetch_add(1);
         h->ancla = real;
         h->muestras = 0;
         pts = real;
     }
     h->muestras += n;
+    // La ppm de la placa cruda: lo que contó contra lo que pasó en el reloj desde el
+    // primer bloque (el temblor de la llegada pesa cada vez menos). Desde un minuto.
+    if (!GST_CLOCK_TIME_IS_VALID(h->desde)) h->desde = real;
+    h->total += n;
+    const double transcurrido = static_cast<double>(real + dur - h->desde) / GST_SECOND;
+    if (h->placa && transcurrido >= 60) {
+        h->placa->ppm = (static_cast<double>(h->total) / rate / transcurrido - 1.0) * 1e6;
+        h->placa->medidoS = transcurrido;
+    }
     b = gst_buffer_make_writable(b);
     GST_PAD_PROBE_INFO_DATA(info) = b;
     GST_BUFFER_PTS(b) = pts;
     GST_BUFFER_DTS(b) = GST_CLOCK_TIME_NONE;
     GST_BUFFER_DURATION(b) = dur;
     return GST_PAD_PROBE_OK;
+}
+
+/// El texto de una propiedad cualquiera (el `device` es un número en osxaudiosrc y un
+/// texto en wasapi2src o pulsesrc), o "".
+std::string propiedadComoTexto(GstElement* e, const char* nombre) {
+    GParamSpec* ps = g_object_class_find_property(G_OBJECT_GET_CLASS(e), nombre);
+    if (ps == nullptr || !g_value_type_transformable(ps->value_type, G_TYPE_STRING)) return {};
+    GValue v = G_VALUE_INIT, t = G_VALUE_INIT;
+    g_value_init(&v, ps->value_type);
+    g_object_get_property(G_OBJECT(e), nombre, &v);
+    g_value_init(&t, G_TYPE_STRING);
+    std::string out;
+    if (g_value_transform(&v, &t) && g_value_get_string(&t) != nullptr) out = g_value_get_string(&t);
+    g_value_unset(&v);
+    g_value_unset(&t);
+    return out;
+}
+
+/// `baderiva` entre la fuente y lo que la seguía. nullptr si no se pudo (sin el
+/// plugin, o la fuente no estaba enlazada): queda como estaba, con el reanclaje.
+GstElement* meterDeriva(GstElement* fuente) {
+    if (!hayFabrica("baderiva")) return nullptr;
+    GstObject* bin = gst_object_get_parent(GST_OBJECT(fuente));
+    GstPad* src = gst_element_get_static_pad(fuente, "src");
+    GstPad* par = src != nullptr ? gst_pad_get_peer(src) : nullptr;
+    GstElement* d = nullptr;
+    if (bin != nullptr && GST_IS_BIN(bin) && par != nullptr && gst_pad_unlink(src, par)) {
+        d = gst_element_factory_make("baderiva", nullptr);
+        const bool adentro = d != nullptr && gst_bin_add(GST_BIN(bin), d);
+        GstPad* dSink = adentro ? gst_element_get_static_pad(d, "sink") : nullptr;
+        GstPad* dSrc = adentro ? gst_element_get_static_pad(d, "src") : nullptr;
+        const bool ok = adentro && gst_pad_link(src, dSink) == GST_PAD_LINK_OK && gst_pad_link(dSrc, par) == GST_PAD_LINK_OK;
+        if (dSink != nullptr) gst_object_unref(dSink);
+        if (dSrc != nullptr) gst_object_unref(dSrc);
+        if (!ok) {
+            if (adentro)
+                gst_bin_remove(GST_BIN(bin), d); // lo suelta el bin (y con él los enlaces a medias)
+            else if (d != nullptr)
+                gst_object_unref(d);
+            if (!gst_pad_is_linked(src)) gst_pad_link(src, par);
+            d = nullptr;
+        }
+    }
+    if (par != nullptr) gst_object_unref(par);
+    if (src != nullptr) gst_object_unref(src);
+    if (bin != nullptr) gst_object_unref(bin);
+    return d;
 }
 } // namespace
 
@@ -784,24 +867,87 @@ int horaDeCapturaEnAudio(GstElement* pipeline) {
     // mezcla lo veía cada vez más atrasado). Ni slave-method ni do-timestamp lo arreglan.
     const GType fuenteDeAudio = g_type_from_name("GstAudioBaseSrc");
     if (fuenteDeAudio == 0) return 0;
-    int n = 0;
+    // Las fuentes primero; después se toca el pipeline (meter baderiva cambia el bin que
+    // se está recorriendo).
+    std::vector<GstElement*> fuentes;
     GstIterator* it = gst_bin_iterate_recurse(GST_BIN(pipeline));
     if (it == nullptr) return 0;
     GValue v = G_VALUE_INIT;
     while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
         auto* e = GST_ELEMENT(g_value_get_object(&v));
-        if (g_type_is_a(G_OBJECT_TYPE(e), fuenteDeAudio))
-            if (GstPad* p = gst_element_get_static_pad(e, "src")) {
-                gst_pad_add_probe(p, GST_PAD_PROBE_TYPE_BUFFER, &ponerHoraAudio, new HoraAudio(),
-                                  [](gpointer d) { delete static_cast<HoraAudio*>(d); });
-                gst_object_unref(p);
-                ++n;
-            }
+        if (g_type_is_a(G_OBJECT_TYPE(e), fuenteDeAudio)) fuentes.push_back(GST_ELEMENT(gst_object_ref(e)));
         g_value_reset(&v);
     }
     g_value_unset(&v);
     gst_iterator_free(it);
+    // De qué entrada es (Entrada pone `ba_ia` con producer-name «<id>:audio»).
+    std::string entrada;
+    if (GstElement* ia = gst_bin_get_by_name(GST_BIN(pipeline), "ba_ia")) {
+        entrada = propiedadComoTexto(ia, "producer-name");
+        if (const auto k = entrada.rfind(":audio"); k != std::string::npos) entrada.resize(k);
+        gst_object_unref(ia);
+    }
+    int n = 0;
+    for (GstElement* e : fuentes) {
+        if (GstPad* p = gst_element_get_static_pad(e, "src")) {
+            auto placa = std::make_shared<EstadoPlaca>();
+            placa->entrada = entrada;
+            placa->dispositivo = propiedadComoTexto(e, "device");
+            // La corrección de la deriva, justo después de la fuente; el sondeo sigue en
+            // la fuente (mide la placa cruda).
+            if (GstElement* d = meterDeriva(e)) g_weak_ref_set(&placa->deriva, d);
+            {
+                std::lock_guard<std::mutex> l(placasMu());
+                auto& todas = placas();
+                todas.erase(std::remove_if(todas.begin(), todas.end(), [](const auto& w) { return w.expired(); }),
+                            todas.end());
+                todas.push_back(placa);
+            }
+            auto* h = new HoraAudio();
+            h->placa = std::move(placa);
+            gst_pad_add_probe(p, GST_PAD_PROBE_TYPE_BUFFER, &ponerHoraAudio, h,
+                              [](gpointer d) { delete static_cast<HoraAudio*>(d); });
+            gst_object_unref(p);
+            ++n;
+        }
+        gst_object_unref(e);
+    }
     return n;
+}
+
+json derivaDePlacas() {
+    std::vector<std::shared_ptr<EstadoPlaca>> vivas;
+    {
+        std::lock_guard<std::mutex> l(placasMu());
+        for (const auto& w : placas())
+            if (auto p = w.lock()) vivas.push_back(std::move(p));
+    }
+    json out = json::array();
+    for (const auto& p : vivas) {
+        json j{{"entrada", p->entrada},
+               {"dispositivo", p->dispositivo},
+               {"ppm", std::round(p->ppm.load() * 10) / 10},
+               {"medido_s", std::round(p->medidoS.load())},
+               {"reanclajes_sin_corregir", p->reanclajes.load()}};
+        if (auto* d = static_cast<GstElement*>(g_weak_ref_get(&p->deriva))) {
+            double ppm = 0, desfase = 0;
+            guint64 reanclajes = 0;
+            gboolean enganchado = FALSE, activo = FALSE;
+            g_object_get(d, "ppm", &ppm, "desfase-ms", &desfase, "reanclajes", &reanclajes, "enganchado", &enganchado,
+                         "activo", &activo, nullptr);
+            gst_object_unref(d);
+            j["corregida"] = activo == TRUE;
+            j["ppm_lazo"] = std::round(ppm * 10) / 10;
+            j["desfase_ms"] = std::round(desfase * 100) / 100;
+            j["reanclajes"] = reanclajes; // los que llegan al programa: tiene que ser 0
+            j["enganchada"] = enganchado == TRUE;
+        } else {
+            j["corregida"] = false;
+            j["reanclajes"] = p->reanclajes.load(); // sin baderiva, los del sondeo llegan al programa
+        }
+        out.push_back(std::move(j));
+    }
+    return out;
 }
 
 void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes) {

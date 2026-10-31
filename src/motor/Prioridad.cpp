@@ -9,10 +9,14 @@
 #include "platform/Energia.hpp"
 #include "platform/Hilo.hpp"
 
+#include "platform/TiempoReal.hpp"
+
+#include <gst/audio/gstaudioaggregator.h>
 #include <gst/base/gstaggregator.h>
 
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 #include <map>
 #include <mutex>
 #include <string>
@@ -264,6 +268,42 @@ std::string nombreGst(GstObject* o, bool esPipeline) {
     return s;
 }
 
+bool deFabrica(GstElement* e, const char* nombre) {
+    GstElementFactory* f = e != nullptr ? gst_element_get_factory(e) : nullptr;
+    return f != nullptr && std::strcmp(GST_OBJECT_NAME(f), nombre) == 0;
+}
+
+/// ¿El hilo de este elemento mueve audio con plazo? La salida de un mezclador de audio
+/// (cada bus: lo que sigue —volumen, limitador, medidores, el anillo— corre en ese
+/// hilo), el que trae el audio del gateway (baanillo) y el que se lo lleva (la cola de
+/// adelante de un baanillosink). Los demás, aunque sean de audio, tienen colchón.
+bool audioConPlazo(GstElement* dueno) {
+    if (dueno == nullptr) return false;
+    if (GST_IS_AUDIO_AGGREGATOR(dueno) || deFabrica(dueno, "baanillo")) return true;
+    // Desde el dueño hacia abajo, hasta otro hilo (una cola, un aggregator) o un sumidero.
+    GstElement* e = GST_ELEMENT(gst_object_ref(dueno));
+    for (int paso = 0; paso < 8; ++paso) {
+        if (deFabrica(e, "baanillosink")) {
+            gst_object_unref(e);
+            return true;
+        }
+        GstPad* src = gst_element_get_static_pad(e, "src");
+        GstPad* par = src != nullptr ? gst_pad_get_peer(src) : nullptr;
+        GstElement* sig = par != nullptr ? gst_pad_get_parent_element(par) : nullptr;
+        if (par != nullptr) gst_object_unref(par);
+        if (src != nullptr) gst_object_unref(src);
+        gst_object_unref(e);
+        if (sig == nullptr) return false;
+        if (GST_IS_AGGREGATOR(sig) || deFabrica(sig, "queue")) {
+            gst_object_unref(sig);
+            return false;
+        }
+        e = sig;
+    }
+    gst_object_unref(e);
+    return false;
+}
+
 GstBusSyncReply alMensaje(GstBus*, GstMessage* m, gpointer pipeline) {
     if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_STREAM_STATUS) {
         GstStreamStatusType t;
@@ -276,7 +316,12 @@ GstBusSyncReply alMensaje(GstBus*, GstMessage* m, gpointer pipeline) {
         // el que marca el ritmo.
         if (t == GST_STREAM_STATUS_TYPE_ENTER) {
             ba::platform::nombrarHilo(nombreGst(GST_OBJECT(pipeline), true) + "/" + nombreGst(GST_OBJECT(dueno), false));
-            prioridadDelHilo(dueno != nullptr && GST_IS_AGGREGATOR(dueno) ? ClaseHilo::Critico : ClaseHilo::Medios);
+            prioridadDelHilo(audioConPlazo(dueno)                             ? ClaseHilo::Audio
+                             : dueno != nullptr && GST_IS_AGGREGATOR(dueno) ? ClaseHilo::Critico
+                                                                            : ClaseHilo::Medios);
+        } else if (t == GST_STREAM_STATUS_TYPE_LEAVE) {
+            // El hilo vuelve al pool de GStreamer y puede tocarle video: sin tiempo real.
+            ba::platform::soltarTiempoReal();
         }
     }
     return GST_BUS_PASS;
@@ -294,6 +339,16 @@ void prioridadDelHilo(ClaseHilo c) {
 #endif
     }
     if (!g_activa.load(std::memory_order_relaxed)) return;
+    if (c == ClaseHilo::Audio) {
+        if (ba::platform::tiempoRealAudio(10)) return;
+        // El sistema no dejó (Linux sin RLIMIT_RTPRIO ni RLIMIT_NICE, Windows sin
+        // MMCSS): como los que marcan el ritmo. Se avisa una vez.
+        static std::atomic<bool> avisado{false};
+        if (!avisado.exchange(true))
+            registrar(Nivel::Info, traducir("motor", "procesador: los hilos del audio no pueden pasar a tiempo real "
+                                                     "(en Linux hace falta RLIMIT_RTPRIO o RLIMIT_NICE)"));
+        c = ClaseHilo::Critico;
+    }
 #if defined(__APPLE__)
     // En macOS solo los Critico suben (QoS interactiva: prefieren los núcleos de
     // rendimiento). Medido en la M1 Pro (2026-10-20, contadores del kernel, misma versión):
@@ -362,8 +417,14 @@ void prioridadDelProceso() {
 }
 
 json topologiaCpu() {
-    std::lock_guard<std::mutex> l(g_topoMu);
-    return g_topo;
+    json t;
+    {
+        std::lock_guard<std::mutex> l(g_topoMu);
+        t = g_topo;
+    }
+    const auto rt = ba::platform::estadoTiempoReal();
+    t["tiempo_real"] = {{"hilos", rt.hilos}, {"fallidos", rt.fallidos}, {"modo", rt.modo}};
+    return t;
 }
 
 } // namespace ba::motor

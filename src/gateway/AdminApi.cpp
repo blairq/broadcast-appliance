@@ -918,6 +918,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200,
                      json{{"nivel", ba::diag::nombreDeNivel(reg.nivel())},
                           {"descartadas", reg.descartadas()},
+                          {"perdidas", reg.perdidas()},
                           {"registradas", reg.cuenta()}});
             return;
         }

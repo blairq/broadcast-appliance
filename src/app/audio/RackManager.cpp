@@ -217,6 +217,7 @@ struct RackManager::Filter : gstrack::Anfitrion {
     void procesar(float* const* planos, int canales, uint32_t frames) override {
         procesarCon(planos, canales, frames, 48000, ba::app::ahoraNs());
     }
+    std::uint32_t latenciaMuestras() const override { return rack ? rack->latenciaMuestras() : 0; }
 };
 
 namespace {

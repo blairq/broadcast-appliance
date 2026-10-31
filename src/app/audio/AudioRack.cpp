@@ -158,6 +158,13 @@ struct AudioRack::Plan {
         int modo = 0;
         std::vector<float> txt;
         uint32_t txtFrames = 0;
+        // Módulo con latencia: su entrada pasa siempre por una línea de retardo
+        // de esa latencia, y cuando está anulado (a mano o por el vigía) sale
+        // ESO en vez de la entrada seca. Así anular no cambia la latencia del
+        // rack (ni salta el sello ni se desfasa contra las otras ramas), y como
+        // la línea se llena también con el módulo andando, el paso no tiene hueco.
+        std::vector<float> puente[2];
+        uint32_t puentePos = 0;
     };
     std::vector<std::unique_ptr<Buf>> bufs;
     std::vector<Step> steps;
@@ -862,6 +869,7 @@ void AudioRack::rebuild() {
     // entrada más lenta más la propia. En una mezcla, las ramas más rápidas se
     // atrasan para llegar juntas (así un compresor con lookahead en paralelo no
     // hace filtro peine con la señal seca).
+    uint32_t total = 0;
     for (Node* n : order) {
         uint32_t entra = 0;
         for (const auto& c : conns_)
@@ -869,7 +877,7 @@ void AudioRack::rebuild() {
                 if (const Node* a = find(c.from)) entra = std::max(entra, a->latenciaSalida);
         n->latencia = n->kind == "plugin" && n->clap ? n->clap->latencia() : 0;
         n->latenciaSalida = entra + n->latencia;
-        if (n->kind == "out") latenciaTotal_ = entra;
+        if (n->kind == "out") total = entra;
     }
     // Tope de la compensación de latencia entre ramas (2 s a 48 kHz: más es un error).
     const uint32_t kMaxRetardo = static_cast<uint32_t>(std::max(0, ajustes::entero("audio.compensacionMaxMs", 2000))) * 48u;
@@ -938,6 +946,11 @@ void AudioRack::rebuild() {
             st.modo = n->modo == "continuo" ? 2 : 1;
             st.txt.assign(kMonitorCap, 0.0f);
         }
+        if (n->kind == "plugin" && n->latencia > 0) {
+            const uint32_t lat = std::min(n->latencia, kMaxRetardo);
+            st.puente[0].assign(lat, 0.0f);
+            st.puente[1].assign(lat, 0.0f);
+        }
         if (n->kind == "in") plan->inBuf = st.outs[0];
         if (n->kind == "out") plan->outRead = st.ins[0].buf;
         plan->steps.push_back(std::move(st));
@@ -955,6 +968,9 @@ void AudioRack::rebuild() {
         old = std::move(plan_);
         plan_ = std::move(plan);
     }
+    // Después del plan nuevo: barack lee esto en cada bloque y con eso corrige
+    // el sello y la latencia que informa (GstRack.cpp).
+    latenciaTotal_ = total;
 }
 
 namespace {
@@ -1141,16 +1157,38 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                 node.gen->render(st.outArr[0], 2, n);
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
             } else if (node.kind == "plugin") {
-                if (node.bypass.load(std::memory_order_relaxed) || node.bypassAuto.load(std::memory_order_relaxed)) {
+                const bool anulado =
+                    node.bypass.load(std::memory_order_relaxed) || node.bypassAuto.load(std::memory_order_relaxed);
+                // La línea de retardo equivalente (ver Step::puente): se llena
+                // siempre; anulado, sale lo de hace `latencia` muestras.
+                const auto lat = static_cast<uint32_t>(st.puente[0].size());
+                if (lat > 0 && !st.inArr.empty()) {
+                    uint32_t pos = st.puentePos;
+                    for (int c = 0; c < 2; ++c) {
+                        pos = st.puentePos;
+                        float* linea = st.puente[c].data();
+                        const float* entra = st.inArr[0][c];
+                        float* sale = st.outArr.empty() ? nullptr : st.outArr[0][c];
+                        for (uint32_t i = 0; i < n; ++i) {
+                            const float viejo = linea[pos];
+                            linea[pos] = entra[i];
+                            if (anulado && sale != nullptr) sale[i] = viejo;
+                            if (++pos == lat) pos = 0;
+                        }
+                    }
+                    st.puentePos = pos;
+                }
+                if (anulado) {
                     // Anulado (a mano o por el vigía): NO se llama al módulo —un
                     // módulo trabado o lento no puede tocar el aire— y sale la
-                    // entrada tal cual.
+                    // entrada tal cual (con su retardo equivalente, si tiene).
                     for (size_t p = 0; p < st.outArr.size(); ++p)
                         for (int c = 0; c < 2; ++c) {
-                            if (p == 0 && !st.inArr.empty())
-                                std::memcpy(st.outArr[p][c], st.inArr[0][c], n * sizeof(float));
-                            else
+                            if (p == 0 && !st.inArr.empty()) {
+                                if (lat == 0) std::memcpy(st.outArr[p][c], st.inArr[0][c], n * sizeof(float));
+                            } else {
                                 std::memset(st.outArr[p][c], 0, n * sizeof(float));
+                            }
                         }
                 } else {
                     const std::int64_t t0 = ahoraNsRack();

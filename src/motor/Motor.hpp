@@ -234,6 +234,10 @@ class Motor {
     /// los números no se repiten entre motores).
     bool tomaViva(int toma) const;
     bool ponerLimitador(bool activo, double techoDb, const std::string& salida = "");
+    /// El loudness de lo que sale por `salida`: el AGC lento hacia `objetivoLufs`
+    /// (opcional) y el techo del limitador (dBTP); la por omisión, también el techo de
+    /// las pistas 2-6. En la cola del motor: "" o el error.
+    std::string ponerLoudness(bool agc, double objetivoLufs, double techoDb, const std::string& salida = "");
     void ponerTopeEstudio(std::int64_t ms);
 
     // --- Multiview (M2.4) ---
@@ -334,6 +338,9 @@ class Motor {
         /// El mix-minus de cada invitado en esta salida (buses de oído): retorno<n>[:<id>]
         /// → BA.Audio.Return[.<id>].<n>. Uno por cada retorno de `retornos_` que no está apagado.
         std::map<int, std::unique_ptr<Mezcla>> retornos;
+        // El loudness (ponerLoudness): queda acá para que un bus rearmado lo vuelva a tener.
+        bool agc = false;
+        double objetivoLufs = -23, techoDb = -1;
     };
     /// Lo que pidió el invitado n (vale en todas las salidas: sus buses están en cada Salida).
     struct Retorno {
@@ -397,6 +404,7 @@ class Motor {
     std::unique_ptr<Mezcla> seleccion_; ///< la escucha «selección»
     std::unique_ptr<Mezcla> afl_;       ///< la escucha «afl»
     std::map<int, std::unique_ptr<Mezcla>> pistas_;
+    double techoPistas_ = -1.0; ///< el techo de sus limitadores (lo pone ponerLoudness)
     std::map<int, Retorno> retornos_;
     std::unique_ptr<Escucha> escucha_;
     std::unique_ptr<Vistas> vistas_;
@@ -490,6 +498,7 @@ class Motor {
     void escuchaNivelYa(double lineal);
     void masterVolumenYa(double lineal, int ms, const std::string& salida);
     bool ponerLimitadorYa(bool activo, double techoDb, const std::string& salida);
+    std::string ponerLoudnessYa(bool agc, double objetivoLufs, double techoDb, const std::string& salida);
     std::string multiviewYa(bool activo, int ancho, int alto);
     std::string verPedirYa(const std::string& clave, int ancho, int alto);
     void verSoltarYa(const std::string& clave);

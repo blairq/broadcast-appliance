@@ -839,7 +839,7 @@ void Matriz::armarPlan() {
 }
 
 void Matriz::bucleMezcla() {
-    motor::prioridadDelHilo(motor::ClaseHilo::Critico); // mezcla en tiempo real: marca el ritmo
+    motor::prioridadDelHilo(motor::ClaseHilo::Audio); // mezcla con plazo de 10 ms: tiempo real
     std::vector<float> al(kBloque), ar(kBloque), ml(kBloque), mr(kBloque);
     // Un bloque cada 10 ms con plazo absoluto (en Windows, con el temporizador fino:
     // platform/Ritmo); un atraso de hasta 100 ms se recupera, más ya no.

@@ -11,6 +11,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "dsp/PonderacionK.hpp"
+
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -34,6 +36,9 @@ class LoudnessPrograma {
     struct Objetivo {
         std::string perfil = "r128"; ///< r128 | a85 | plataforma16 | plataforma14 | custom
         double lufs = -23, tp = -1;
+        /// Control lento de ganancia hacia `lufs` antes del limitador del máster
+        /// (dsp/AgcLoudness, en balimitador): opcional, de fábrica no.
+        bool agc = false;
     };
 
     explicit LoudnessPrograma(double tasa = 48000);
@@ -50,21 +55,9 @@ class LoudnessPrograma {
 
    private:
     void resetInterno();
-    void cerrarBloque();
-    struct Biquad {
-        double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
-        double paso(double x) {
-            const double y = b0 * x + z1;
-            z1 = b1 * x - a1 * y + z2;
-            z2 = b2 * x - a2 * y;
-            return y;
-        }
-    };
+    void cerrarBloque(double energia);
     double tasa_;
-    std::array<Biquad, 2> estante_, pasaAltos_;
-    std::uint32_t porBloque_; ///< muestras de 100 ms
-    std::uint32_t enBloque_ = 0;
-    double suma_[2] = {0, 0};
+    ba::dsp::PonderacionK k_; ///< la ponderación K y los bloques de 100 ms
     std::deque<double> bloques_; ///< energía media de cada bloque de 100 ms (los últimos 30)
     // Histogramas de 0,1 LU entre -70 y +30 LUFS (como libebur128): el integrado y
     // el LRA salen de acá sin guardar cada bloque de una sesión de horas.

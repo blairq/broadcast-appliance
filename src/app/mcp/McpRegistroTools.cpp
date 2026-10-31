@@ -103,6 +103,7 @@ void McpService::registerRegistroTools() {
                      {"modulos", modulos},
                      {"nivelDelProceso", ba::diag::nombreDeNivel(ba::diag::registro().nivel())},
                      {"descartadasPorNivel", ba::diag::registro().descartadas()},
+                     {"perdidasPorCola", ba::diag::registro().perdidas()},
                      {"carpeta", dir.string()}}));
         };
         core_.addTool(std::move(t));

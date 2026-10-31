@@ -24,11 +24,10 @@
 //   despues de `configure()`; solo recorre el buffer y escribe en la salida.
 //
 // Estrategia de errores:
-//   No lanza. `resample()` devuelve `false` ante un error de libsamplerate
-//   (p. ej. buffer de salida demasiado chico) y deja `*outFrames` en 0; ante
-//   un buffer de salida insuficiente devuelve `false` y deja `*outFrames` con
-//   la cantidad de frames que HUBIERA escrito (para que el llamador sepa cuanto
-//   ampliar). `configure()` aplica clamps defensivos: `inRate`/`outRate` deben
+//   No lanza. `resample()` devuelve `false` ante un error de libsamplerate y
+//   deja `*outFrames` en 0. Con un buffer de salida chico libsamplerate no da
+//   error: lo llena y `*outFrames` es lo que entró (el resto de la entrada se
+//   pierde: hay que dimensionar la salida con margen). `configure()` aplica clamps defensivos: `inRate`/`outRate` deben
 //   ser > 0 y `channels` >= 1; si no, se corrigen a valores validos (48000 y
 //   1) para que el objeto quede siempre en un estado util.
 #pragma once
@@ -48,10 +47,12 @@ namespace ba::dsp {
 /// Niveles de calidad del re-muestreo, mapeados 1:1 a los interpoladores de
 /// libsamplerate. A mayor calidad, mejor fidelidad espectral y mas CPU.
 ///   - `Linear`     -> SRC_LINEAR: interpolacion lineal, la mas barata.
+///   - `SincFastest`-> SRC_SINC_FASTEST: Sinc rápido (97 dB de SNR): el de la
+///                     corrección de deriva, que corre en cada placa todo el día.
 ///   - `SincMedium` -> SRC_SINC_MEDIUM_QUALITY: Sinc de calidad media.
 ///   - `SincBest`   -> SRC_SINC_BEST_QUALITY: Sinc de mejor calidad (el
 ///                     default recomendado para audio de difusion).
-enum class Quality { Linear, SincMedium, SincBest };
+enum class Quality { Linear, SincFastest, SincMedium, SincBest };
 
 /// Re-muestreador de audio (cambio de frecuencia de muestreo) sobre
 /// libsamplerate. Objeto RAII: el destructor libera el estado interno.
@@ -106,11 +107,18 @@ class Resampler {
     ///             floats.
     /// :param maxOutFrames: capacidad (en frames) del buffer `out`.
     /// :param outFrames: [out] numero de frames realmente escritos en `out`.
-    ///                   Ante un error se deja en 0; ante buffer insuficiente
-    ///                   se deja con la cantidad que habria escrito.
+    ///                   Ante un error se deja en 0.
     /// :returns: `true` si re-muestreo todo el bloque con exito; `false` si
     ///           fallo (error de libsamplerate o buffer de salida insuficiente).
     bool resample(const float* in, size_t inFrames, float* out, size_t maxOutFrames, size_t* outFrames);
+
+    /// Cambia la razón salida/entrada EN MARCHA (remuestreo variable: la
+    /// corrección de deriva de una placa, dsp/Deriva). libsamplerate pasa de la
+    /// razón anterior a la nueva a lo largo del bloque siguiente, sin saltos.
+    void setRatio(double ratio) { ratio_ = ratio; }
+    double ratio() const { return ratio_; }
+    /// Olvida lo que tenía adentro (después de un corte): src_reset.
+    void reset();
 
    private:
     // Estado interno de libsamplerate. Se crea en configure() y se libera en el

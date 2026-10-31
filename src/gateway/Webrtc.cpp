@@ -38,6 +38,7 @@
 #include "Webrtc.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/TiempoReal.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -200,7 +201,11 @@ class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::Aud
     }
     int32_t StartPlayout() override {
         if (playing_.exchange(true)) return 0;
-        thread_ = std::thread([this]() { ba::platform::nombrarHilo("webrtc-playout"); loop(); });
+        thread_ = std::thread([this]() {
+            ba::platform::nombrarHilo("webrtc-playout");
+            ba::platform::tiempoRealAudio(10); // tira del audio cada 10 ms: con plazo
+            loop();
+        });
         return 0;
     }
     int32_t StopPlayout() override {

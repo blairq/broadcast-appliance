@@ -100,6 +100,7 @@ struct _BaRack {
     std::uint64_t generacion; ///< la del registro cuando se buscó el anfitrión
     std::int64_t avisadoMs;   ///< último aviso de «procesando» al registro
     float* planos[2];         ///< kBloque muestras cada uno
+    gint latencia;            ///< muestras; la escribe el hilo de audio, la lee la consulta (g_atomic_int)
 };
 
 G_DEFINE_TYPE(BaRack, ba_rack, GST_TYPE_AUDIO_FILTER)
@@ -128,6 +129,18 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* buf) {
         }
     }
     const std::shared_ptr<Anfitrion>& a = *r->anfitrion;
+    // La latencia del rack: si cambió, se avisa para que la tubería la vuelva
+    // a consultar (consulta() la suma). Y el sello de lo que sale se adelanta
+    // eso: lo que sale ahora es lo que entró hace `latencia` muestras.
+    const auto lat = static_cast<gint>(a ? a->latenciaMuestras() : 0);
+    if (lat != g_atomic_int_get(&r->latencia)) {
+        g_atomic_int_set(&r->latencia, lat);
+        gst_element_post_message(GST_ELEMENT(r), gst_message_new_latency(GST_OBJECT(r)));
+    }
+    if (lat > 0 && GST_BUFFER_PTS_IS_VALID(buf)) {
+        const GstClockTime atraso = gst_util_uint64_scale_int(static_cast<guint64>(lat), GST_SECOND, 48000);
+        GST_BUFFER_PTS(buf) = GST_BUFFER_PTS(buf) > atraso ? GST_BUFFER_PTS(buf) - atraso : 0;
+    }
     if (!a || GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_GAP)) return GST_FLOW_OK;
     const int canales = GST_AUDIO_INFO_CHANNELS(&GST_AUDIO_FILTER(r)->info);
     if (canales != 2) return GST_FLOW_OK;
@@ -161,6 +174,25 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* buf) {
         }
     }
     return GST_FLOW_OK;
+}
+
+/// LATENCY: lo de arriba más lo que atrasa el rack. Solo en vivo: sin una
+/// fuente en vivo no hay latencia que informar (el sello corregido alcanza).
+static gboolean consulta(GstBaseTransform* bt, GstPadDirection dir, GstQuery* q) {
+    if (!GST_BASE_TRANSFORM_CLASS(ba_rack_parent_class)->query(bt, dir, q)) return FALSE;
+    if (dir == GST_PAD_SRC && GST_QUERY_TYPE(q) == GST_QUERY_LATENCY) {
+        gboolean vivo = FALSE;
+        GstClockTime min = 0, max = GST_CLOCK_TIME_NONE;
+        gst_query_parse_latency(q, &vivo, &min, &max);
+        const gint lat = g_atomic_int_get(&BA_RACK(bt)->latencia);
+        if (vivo && lat > 0) {
+            const GstClockTime atraso = gst_util_uint64_scale_int(static_cast<guint64>(lat), GST_SECOND, 48000);
+            min += atraso;
+            if (GST_CLOCK_TIME_IS_VALID(max)) max += atraso;
+            gst_query_set_latency(q, vivo, min, max);
+        }
+    }
+    return TRUE;
 }
 
 static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
@@ -224,6 +256,7 @@ static void ba_rack_class_init(BaRackClass* k) {
     gst_caps_unref(caps);
     bt->transform_ip = transformar;
     bt->transform_ip_on_passthrough = FALSE;
+    bt->query = consulta;
 }
 
 static void ba_rack_init(BaRack* r) {
@@ -232,6 +265,7 @@ static void ba_rack_init(BaRack* r) {
     r->anfitrion = new std::shared_ptr<Anfitrion>();
     r->generacion = 0;
     r->avisadoMs = 0;
+    r->latencia = 0;
     r->planos[0] = new float[kBloque]();
     r->planos[1] = new float[kBloque]();
     gst_base_transform_set_in_place(GST_BASE_TRANSFORM(r), TRUE);
