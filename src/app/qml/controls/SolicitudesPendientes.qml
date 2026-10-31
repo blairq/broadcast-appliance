@@ -31,13 +31,6 @@ ColumnLayout {
     visible: solicitudes.length > 0
     spacing: 6
 
-    function hace(ms, ahora) {
-        if (!ms) return ""
-        const s = Math.max(0, Math.round((ahora - ms) / 1000))
-        if (s < 60) return qsTr("recién")
-        const m = Math.round(s / 60)
-        return m < 60 ? qsTr("hace %1 min").arg(m) : qsTr("hace %1 h %2 min").arg(Math.floor(m / 60)).arg(m % 60)
-    }
 
     // Para que «hace N min» avance mientras se mira (el Reloj corre solo mientras se lee).
     readonly property double ahora: raiz.visible ? Reloj.ahora : 0
@@ -70,7 +63,7 @@ ColumnLayout {
                         wrapMode: Text.WordWrap
                     }
                     Text {
-                        readonly property var partes: [sol.modelData.ip || "", raiz.hace(sol.modelData.ms, raiz.ahora)]
+                        readonly property var partes: [sol.modelData.ip || "", sol.modelData.ms ? qsTr("hace %1").arg(Theme.hace((raiz.ahora - sol.modelData.ms) / 1000)) : ""]
                                                       .filter(t => t !== "")
                         visible: partes.length > 0
                         text: partes.join(" · ")

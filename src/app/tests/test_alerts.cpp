@@ -532,6 +532,20 @@ int main(int argc, char** argv) {
         CHECK(nov.size() == 6, "novedades: sin cambios, nada");
     }
 
+    // --- Las críticas por reconocer: una sola regla (la franja, el control web, el MCP) ---
+    {
+        const json ninguna = json::array({{{"sonido", "aviso"}, {"ruleId", "a"}}});
+        const auto c0 = AlertEngine::criticasDe(ninguna);
+        CHECK(!c0.hay && !c0.silenciadas && !c0.sonando, "criticas: un aviso no es crítica");
+        const json mezcla = json::array({{{"sonido", "critico"}, {"ruleId", "a"}, {"silenciada", true}},
+                                         {{"sonido", "critico"}, {"ruleId", "b"}}});
+        const auto c1 = AlertEngine::criticasDe(mezcla);
+        CHECK(c1.hay && !c1.silenciadas && c1.sonando, "criticas: una suena, no están todas silenciadas");
+        const json calladas = json::array({{{"sonido", "critico"}, {"ruleId", "a"}, {"silenciada", true}}});
+        const auto c2 = AlertEngine::criticasDe(calladas);
+        CHECK(c2.hay && c2.silenciadas && !c2.sonando, "criticas: silenciada sigue habiendo (la franja), sin sonar");
+    }
+
     if (g_failures == 0) std::printf("test_alerts: OK\n");
     return g_failures == 0 ? 0 : 1;
 }

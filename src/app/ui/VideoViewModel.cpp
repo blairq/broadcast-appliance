@@ -6,10 +6,13 @@
 #include "video/CatalogoGst.hpp"
 #include "video/VideoGrafos.hpp"
 
+#include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUrl>
+
+#include <vector>
 
 namespace ba::app {
 
@@ -36,6 +39,117 @@ QStringList listaDeTextos(const json& j) {
 const json& vacio() {
     static const json v = json::object();
     return v;
+}
+
+// Los textos son los que estaban en la página (mismo contexto: VideoPage), así siguen
+// con sus traducciones.
+QString t(const char* s) { return QCoreApplication::translate("VideoPage", s); }
+QString tn(const char* s, int n) { return QCoreApplication::translate("VideoPage", s, "", n); }
+QString num(double v, int dec = 2) { return QString::number(v, 'f', dec); }
+QString texto(const json& j) {
+    if (j.is_string()) return q(j.get<std::string>());
+    if (j.is_number_integer()) return QString::number(j.get<long long>());
+    if (j.is_number()) {
+        QString s = QString::number(j.get<double>(), 'f', 2);
+        while (s.contains('.') && (s.endsWith('0') || s.endsWith('.'))) s.chop(1);
+        return s;
+    }
+    return j.is_null() ? QString() : q(j.dump());
+}
+double dbl(const json& p, const char* k, double d = 0) {
+    const auto it = p.find(k);
+    return it != p.end() && it->is_number() ? it->get<double>() : d;
+}
+
+/// Lo que se lee de un nodo en su tarjeta (abajo del nombre): qué hace, con lo principal
+/// de sus ajustes. `conectadas`: los cables que le llegan (para una mezcla).
+QString resumenDeNodo(const json& n, int conectadas) {
+    const json p = n.value("params", json::object());
+    const std::string tipo = n.value("tipo", std::string());
+    if (n.contains("error") && !n["error"].is_null() && !texto(n["error"]).isEmpty()) return "⚠ " + texto(n["error"]);
+    const QString enEscena = n.value("publicada", false) ? t(" · en escena") : QString();
+    if (tipo == "entrada") return t("La cámara (ya encuadrada por el PTZ)");
+    if (tipo == "escena") return t("Lo que ve la escena");
+    if (tipo == "obs") return t("Filtro de OBS · %1").arg(texto(p.value("filtro", json(""))));
+    if (tipo == "control") {
+        const std::string tarjeta = p.value("tarjeta", std::string());
+        const json pp = p.value("params", json::object());
+        return t("Controlador · %1").arg(tarjeta == "gst" ? texto(pp.value("elemento", json(""))) : tarjeta == "obs" ? texto(pp.value("filtro", json(""))) : q(tarjeta));
+    }
+    if (n.value("controlador", false) || (n.contains("controlador") && n["controlador"].is_string() && !n["controlador"].get<std::string>().empty()))
+        return p.value("local", json::object()).empty() ? t("↳ del controlador") : t("↳ del controlador · con ajuste propio");
+    if (tipo == "gst") {
+        const json pr = p.value("propiedades", json::object());
+        QStringList ks;
+        for (const auto& [k, v] : pr.items()) {
+            if (ks.size() == 2) break;
+            ks << q(k) + "=" + texto(v);
+        }
+        return "GStreamer · " + texto(p.value("elemento", json(""))) + (ks.isEmpty() ? QString() : " · " + ks.join(' '));
+    }
+    if (tipo == "compositor") {
+        const int ent = static_cast<int>(n.value("entradas", json::array()).size()) - 1;
+        return tn("%n entrada · %1", ent).arg(dbl(p, "ancho") > 0 ? texto(p["ancho"]) + "×" + texto(p.value("alto", json(0))) : t("lienzo del estudio")) + enEscena;
+    }
+    if (tipo == "mezcla") return tn("GStreamer · %1 · %n conectada", conectadas).arg(texto(p.value("elemento", json("")))) + enEscena;
+    if (tipo == "color")
+        return t("brillo %1 · contraste %2 · saturación %3").arg(num(dbl(p, "brillo")), num(dbl(p, "contraste")), num(dbl(p, "saturacion")));
+    if (tipo == "croma")
+        return t("fondo %1 · similitud %2").arg("#" + QString::number(static_cast<qint64>(dbl(p, "clave")), 16).rightJustified(6, '0').right(6).toUpper(), num(dbl(p, "similitud")));
+    if (tipo == "recorte") {
+        QStringList partes;
+        if (dbl(p, "izquierda") > 0 || dbl(p, "arriba") > 0 || dbl(p, "derecha") > 0 || dbl(p, "abajo") > 0) partes << t("bordes recortados");
+        if (p.value("espejoH", false)) partes << t("espejo ↔");
+        if (p.value("espejoV", false)) partes << t("espejo ↕");
+        return partes.isEmpty() ? t("sin cambios") : partes.join(" · ");
+    }
+    if (tipo == "vista360" || tipo == "panoramica") {
+        const std::string ver = p.value("ver", std::string());
+        if (ver == "entrada") return t("calibrando: la entrada con los círculos");
+        if (ver == "tira")
+            return (dbl(p, "ancho") > 0 ? t("la tira %1×%2").arg(texto(p["ancho"]), texto(p.value("alto", json(0)))) : t("la tira (la suma de las cámaras)")) + enEscena;
+        if (ver == "panorama") {
+            const std::string guia = p.value("guia", std::string());
+            return !guia.empty() && guia != "ninguna" ? t("el panorama 360 · guía %1").arg(q(guia)) : t("el panorama 360");
+        }
+        const QString mira = t("mira %1° · %2° · abre %3°").arg(qRound(dbl(p, "yaw"))).arg(qRound(dbl(p, "pitch"))).arg(qRound(dbl(p, "fov", 90)));
+        if (tipo != "panoramica") return mira + enEscena;
+        int camaras = 0;
+        for (const auto& e : n.value("entradas", json::array()))
+            if (!e.value("pedido", false)) ++camaras;
+        return tn("%n cámara · %1", camaras).arg(mira) + enEscena;
+    }
+    if (tipo == "salida") return t("«%1»").arg(texto(p.value("nombre", json("")))) + enEscena;
+    if (tipo == "retardo") return tn("%n cuadro de atraso", static_cast<int>(dbl(p, "cuadros")));
+    if (tipo == "ptz") return p.value("activo", true) == false ? t("Apagado") : t("Pan, tilt y zoom digital (Cámaras PTZ)");
+    if (tipo == "seguir") {
+        if (p.value("activo", true) == false) return t("Apagado");
+        const QString obj = texto(p.value("objetivo", json("")));
+        return !obj.isEmpty() ? t("Sigue: %1").arg(obj) : t("Sin nadie elegido");
+    }
+    if (tipo == "rostros") {
+        const std::string uso = p.value("uso", std::string());
+        QString s = uso == "mirar" ? t("Personas mira") : uso == "autoalta" ? t("Personas anota sola") : uso == "puerta" ? t("Puerta: acredita")
+                    : uso == "seguir" ? t("Sigue a una cara") : t("Caras");
+        if (p.value("marcar", false)) s += " · " + (p.contains("estilo") && p["estilo"].is_string() ? q(p["estilo"].get<std::string>()) : QStringLiteral("recuadro"));
+        if (const QString tx = texto(p.value("texto", json(""))); !tx.isEmpty()) s += " · «" + tx + "»";
+        return s;
+    }
+    return {};
+}
+
+/// El grafo (o el estudio) con el `resumen` de cada nodo, para la vista.
+json conResumenes(json g) {
+    if (!g.is_object() || !g.contains("nodos") || !g["nodos"].is_array()) return g;
+    const json cables = g.value("cables", json::array());
+    for (json& n : g["nodos"]) {
+        if (!n.is_object()) continue;
+        int conectadas = 0;
+        for (const auto& c : cables)
+            if (c.is_object() && c.value("hacia", json()) == n.value("id", json())) ++conectadas;
+        n["resumen"] = resumenDeNodo(n, conectadas).toStdString();
+    }
+    return g;
 }
 
 } // namespace
@@ -66,42 +180,52 @@ void VideoViewModel::releer() {
     // Lo que redibuja el patchbay (entradas y grafos), aparte de lo que se mueve siempre.
     const auto difiere = [&](const char* k) { return x.value(k, json()) != antes_.value(k, json()); };
     const bool estructura = difiere("entradas") || difiere("info") || difiere("grafos") || difiere("estudio");
-    const bool estado = difiere("estados") || difiere("red") || difiere("diagnostico") || difiere("eventos") ||
-                        difiere("programador") || difiere("reloj") || difiere("latencia") || difiere("automixer") ||
-                        difiere("filtros_audio") || difiere("escenas") || difiere("hay_superres");
+    // Lo que se mueve: cada propiedad avisa sola (el reloj o la red no redibujan el automixer).
+    std::vector<void (VideoViewModel::*)()> avisar;
+    const auto poner = [&](const char* k, auto& campo, auto nuevo, void (VideoViewModel::*senal)()) {
+        if (!difiere(k) || campo == nuevo) return;
+        campo = std::move(nuevo);
+        avisar.push_back(senal);
+    };
+    poner("red", estadoRed_, aVariant(x.value("red", json::array())).toList(), &VideoViewModel::redCambio);
+    poner("diagnostico", diagnostico_, aVariant(x.value("diagnostico", json::array())).toList(), &VideoViewModel::diagnosticoCambio);
+    poner("programador", programador_, aVariant(x.value("programador", json::object())).toMap(), &VideoViewModel::programadorCambio);
+    poner("reloj", reloj_, aVariant(x.value("reloj", json::object())).toMap(), &VideoViewModel::relojCambio);
+    poner("latencia", latencia_, aVariant(x.value("latencia", json::object())).toMap(), &VideoViewModel::latenciaCambio);
+    poner("automixer", automixer_, aVariant(x.value("automixer", json::object())).toMap(), &VideoViewModel::automixerCambio);
+    poner("filtros_audio", filtrosAudio_, aVariant(x.value("filtros_audio", json::object())).toMap(), &VideoViewModel::filtrosAudioCambio);
+    poner("escenas", escenas_, listaDeTextos(x.value("escenas", json::array())), &VideoViewModel::escenasCambio);
+    poner("hay_superres", haySuperres_, x.value("hay_superres", false), &VideoViewModel::haySuperresCambio);
+    const bool eventos = difiere("eventos");
     antes_ = x;
     if (estructura) {
         entradas_ = listaDeTextos(x.value("entradas", json::array()));
         entradasInfo_ = aVariant(x.value("info", json::array())).toList();
-        estudio_ = aVariant(x.value("estudio", json::object())).toMap();
+        estudio_ = aVariant(conResumenes(x.value("estudio", json::object()))).toMap();
         // La elegida: la que se eligió acá; si no hay o se fue, la primera.
         if ((entrada_.isEmpty() || !entradas_.contains(entrada_)) && !entradas_.isEmpty()) entrada_ = entradas_.first();
         grafo_ = entrada_.isEmpty() ? QVariantMap{}
-                                    : aVariant(x.value("grafos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
+                                    : aVariant(conResumenes(x.value("grafos", json::object()).value(entrada_.toStdString(), json::object()))).toMap();
     }
-    if (estado || estructura) {
-        estadoRed_ = aVariant(x.value("red", json::array())).toList();
-        diagnostico_ = aVariant(x.value("diagnostico", json::array())).toList();
-        eventos_ = aVariant(x.value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
-        programador_ = aVariant(x.value("programador", json::object())).toMap();
-        reloj_ = aVariant(x.value("reloj", json::object())).toMap();
-        latencia_ = aVariant(x.value("latencia", json::object())).toMap();
-        automixer_ = aVariant(x.value("automixer", json::object())).toMap();
-        filtrosAudio_ = aVariant(x.value("filtros_audio", json::object())).toMap();
-        escenas_ = listaDeTextos(x.value("escenas", json::array()));
-        haySuperres_ = x.value("hay_superres", false);
+    // Los eventos son los de la elegida (que puede haber cambiado con la estructura).
+    if (eventos || estructura) {
+        QVariantMap e = aVariant(x.value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
+        if (e != eventos_) {
+            eventos_ = std::move(e);
+            avisar.push_back(&VideoViewModel::eventosCambio);
+        }
     }
     if (estructura) emit cambio();
-    if (estado || estructura) emit estadoCambio();
+    for (const auto senal : avisar) emit(this->*senal)();
 }
 
 void VideoViewModel::seleccionar(const QString& entrada) {
     if (entrada == entrada_) return;
     entrada_ = entrada;
-    grafo_ = aVariant(v().value("grafos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
+    grafo_ = aVariant(conResumenes(v().value("grafos", json::object()).value(entrada_.toStdString(), json::object()))).toMap();
     eventos_ = aVariant(v().value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
     emit cambio();
-    emit estadoCambio();
+    emit eventosCambio();
     // VideoGrafos también la sabe: las herramientas sin entrada usan la elegida.
     ventanilla_.pedir("video_elegir", [&g = grafos_, e = entrada]() { g.seleccionar(e); });
 }

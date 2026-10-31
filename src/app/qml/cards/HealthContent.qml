@@ -10,10 +10,6 @@ import "../controls"
 Item {
     id: tarjeta
     readonly property var rec: Studio.recursos
-    function colorDe(estado) {
-        return estado === "critico" ? Theme.live : estado === "aviso" ? Theme.amber
-             : estado === "normal" ? Theme.ok : Theme.textFaint
-    }
 
     Flickable {
         anchors.fill: parent
@@ -34,14 +30,14 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 6
-                    Rectangle { width: 8; height: 8; radius: 4; color: tarjeta.colorDe(tarjeta.rec ? tarjeta.rec.estado : "") }
+                    Rectangle { width: 8; height: 8; radius: 4; color: Theme.colorDeEstado(tarjeta.rec ? tarjeta.rec.estado : "") }
                     Text { text: qsTr("Recursos"); color: Theme.textFaint; font.pixelSize: 11 }
                     Item { Layout.fillWidth: true }
                     // Lo que le queda al más cargado: con varias salidas, lo que dice si entra otra.
                     Text {
                         visible: !!tarjeta.rec && tarjeta.rec.margen >= 0
                         text: tarjeta.rec ? qsTr("margen %1 % (%2)").arg(Math.round(tarjeta.rec.margen)).arg(tarjeta.rec.limita) : ""
-                        color: tarjeta.colorDe(tarjeta.rec ? tarjeta.rec.estado : "")
+                        color: Theme.colorDeEstado(tarjeta.rec ? tarjeta.rec.estado : "")
                         font.pixelSize: 11
                     }
                 }
@@ -52,7 +48,7 @@ Item {
                         id: filaRec
                         required property int index
                         readonly property var f: tarjeta.rec.filas[index] || ({})
-                        readonly property color tono: tarjeta.colorDe(f.estado)
+                        readonly property color tono: Theme.colorDeEstado(f.estado)
                         Layout.fillWidth: true
                         spacing: 6
                         onFChanged: chispa.requestPaint()
@@ -135,7 +131,7 @@ Item {
                     Layout.fillWidth: true
                     visible: !!tarjeta.rec && !!tarjeta.rec.termica.texto && tarjeta.rec.termica.nivel !== "desconocido"
                     text: tarjeta.rec ? qsTr("Térmica: %1").arg(tarjeta.rec.termica.texto || "") : ""
-                    color: tarjeta.colorDe(tarjeta.rec ? tarjeta.rec.termica.estado : ""); font.pixelSize: 10; elide: Text.ElideRight
+                    color: Theme.colorDeEstado(tarjeta.rec ? tarjeta.rec.termica.estado : ""); font.pixelSize: 10; elide: Text.ElideRight
                 }
             }
 
@@ -144,11 +140,11 @@ Item {
                 columns: 2
                 columnSpacing: 10; rowSpacing: 6
                 Text { text: "FPS"; color: Theme.textFaint; font.pixelSize: 11 }
-                Text { text: Studio.fps.toFixed(1); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: Studio.aire.fps.toFixed(1); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Text { text: qsTr("Codificador"); color: Theme.textFaint; font.pixelSize: 11 }
-                Text { text: Studio.encoder || qsTr("se elige al grabar o transmitir"); color: Studio.encoder ? Theme.text : Theme.textFaint; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 12 }
+                Text { text: Studio.aire.encoder || qsTr("se elige al grabar o transmitir"); color: Studio.aire.encoder ? Theme.text : Theme.textFaint; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 12 }
                 Text { text: qsTr("Perdidos"); color: Theme.textFaint; font.pixelSize: 11 }
-                Text { text: Studio.droppedFrames + " / " + Studio.totalFrames; color: Studio.droppedFrames > 0 ? Theme.warn : Theme.text; font.pixelSize: 12 }
+                Text { text: Studio.aire.droppedFrames + " / " + Studio.aire.totalFrames; color: Studio.aire.droppedFrames > 0 ? Theme.warn : Theme.text; font.pixelSize: 12 }
                 Text { text: qsTr("Lienzo"); color: Theme.textFaint; font.pixelSize: 11 }
                 Text { text: Studio.canvasLabel; color: Theme.text; font.pixelSize: 12 }
                 Text { text: "Gateway"; color: Theme.textFaint; font.pixelSize: 11 }

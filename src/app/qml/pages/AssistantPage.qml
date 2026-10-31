@@ -385,10 +385,9 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: limpiezaCol.implicitHeight + 64
                     title: qsTr("Limpieza")
-                    function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.round(b / 1048576) + " MB" }
                     function aviso(r, hecho) {
                         if (r.ok === false) ApplicationWindow.window.toast(r.error, "error")
-                        else ApplicationWindow.window.toast(qsTr("%1: se liberaron %2").arg(hecho).arg(mb(r.bytes || 0)), "ok")
+                        else ApplicationWindow.window.toast(qsTr("%1: se liberaron %2").arg(hecho).arg(Theme.tamano(r.bytes || 0)), "ok")
                     }
                     Component.onCompleted: ag.revisarLimpieza()
                     onVisibleChanged: if (visible) ag.revisarLimpieza()
@@ -417,14 +416,14 @@ Rectangle {
                                     color: Theme.textDim; font.pixelSize: 11
                                     text: modelData.versiones.length > 0
                                           ? qsTr("Programa %1 (%2) · chats %3 · perfil %4")
-                                                .arg(limpiezaPanel.mb(modelData.bytesPrograma))
+                                                .arg(Theme.tamano(modelData.bytesPrograma))
                                                 .arg(modelData.versiones.map(v => v.enUso ? qsTr("%1 en uso").arg(v.version) : v.version).join(", "))
-                                                .arg(limpiezaPanel.mb(modelData.bytesChats))
-                                                .arg(limpiezaPanel.mb(modelData.bytesPerfil))
+                                                .arg(Theme.tamano(modelData.bytesChats))
+                                                .arg(Theme.tamano(modelData.bytesPerfil))
                                           : qsTr("Programa %1 · chats %2 · perfil %3")
-                                                .arg(limpiezaPanel.mb(modelData.bytesPrograma))
-                                                .arg(limpiezaPanel.mb(modelData.bytesChats))
-                                                .arg(limpiezaPanel.mb(modelData.bytesPerfil))
+                                                .arg(Theme.tamano(modelData.bytesPrograma))
+                                                .arg(Theme.tamano(modelData.bytesChats))
+                                                .arg(Theme.tamano(modelData.bytesPerfil))
                                 }
                                 Flow {
                                     Layout.fillWidth: true
@@ -434,7 +433,7 @@ Rectangle {
                                         enabled: !ag.running && modelData.bytesChats > 0
                                         onClicked: ApplicationWindow.window.confirm({
                                             title: qsTr("¿Borrar los chats de %1?").arg(modelData.runtime),
-                                            text: qsTr("%1 de conversaciones guardadas. El login y los ajustes quedan.").arg(limpiezaPanel.mb(modelData.bytesChats)),
+                                            text: qsTr("%1 de conversaciones guardadas. El login y los ajustes quedan.").arg(Theme.tamano(modelData.bytesChats)),
                                             accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
                                             action: function() { limpiezaPanel.aviso(ag.borrarChats(modelData.runtime), qsTr("Chats borrados")) }
                                         })
@@ -478,7 +477,7 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true; Layout.maximumWidth: limpiezaCol.width; wrapMode: Text.WordWrap
                             readonly property var esp: ag.limpieza.find(m => m.runtime === "espacios")
-                            text: qsTr("Espacios de trabajo de los agentes: %1 (se rehacen solos al arrancar)").arg(limpiezaPanel.mb(esp ? esp.bytesChats : 0))
+                            text: qsTr("Espacios de trabajo de los agentes: %1 (se rehacen solos al arrancar)").arg(Theme.tamano(esp ? esp.bytesChats : 0))
                             color: Theme.textFaint; font.pixelSize: 11
                         }
                         Flow {

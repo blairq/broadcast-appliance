@@ -39,9 +39,18 @@ Rectangle {
     readonly property int portH: 22
     readonly property var nodes: au && au.graph.nodos ? au.graph.nodos : []
     readonly property var cables: au && au.graph.cables ? au.graph.cables : []
-    // Posiciones mientras se arrastra un nodo (los cables las siguen en vivo).
-    property var livePos: ({})
-    property int liveTick: 0
+    // Dónde está cada tarjeta y cada puerto (los puntos L/R de los estéreo), la curva de
+    // los cables y la entrada a la que va uno que se suelta: la misma geometría que el
+    // patchbay genérico (controls/GeometriaPatchbay).
+    readonly property GeometriaPatchbay geo: GeometriaPatchbay {
+        nodos: page.nodes
+        nodeW: page.nodeW
+        headH: page.headH
+        grid: page.grid
+        altoFila: function(id) { return page.rowH(id) }
+        altoCuerpo: function(n) { return 30 }
+        separacion: function(id) { return page.chOff(id) }
+    }
     // Cable en construccion: {from, out, x0, y0, x1, y1}
     property var wire: null
     // Entrada candidata mientras se arrastra un cable: {node, port}
@@ -52,44 +61,15 @@ Rectangle {
     property bool draggingNode: false  // mientras se mueve un nodo se ve igual
     // Tarjetas en modo completo (nombres reales de los puertos, mono/estereo).
     property var expanded: ({})
-    property int expandTick: 0
-    function isExpanded(id) { expandTick; return !!expanded[id] }
+    function isExpanded(id) { return !!expanded[id] }
     // Con la tarjeta expandida las filas son mas altas y los puntos L/R mas
     // grandes: asi se agarran bien y entran los nombres de los puertos.
     function rowH(id) { return isExpanded(id) ? 48 : 28 }
     function chOff(id) { return isExpanded(id) ? 14 : 8 }   // separacion del centro
     function chW(id) { return isExpanded(id) ? 28 : 18 }
     function chH(id) { return isExpanded(id) ? 18 : 10 }
-    function toggleExpanded(id) { expanded[id] = !expanded[id]; expandTick++ }
-    function snap(v) { return Math.round(v / grid) * grid }
+    function toggleExpanded(id) { const e = Object.assign({}, expanded); e[id] = !e[id]; expanded = e }
 
-    function nodeOf(id) {
-        for (let i = 0; i < nodes.length; ++i) if (nodes[i].id === id) return nodes[i]
-        return null
-    }
-    function nodeH(n) {
-        const rows = Math.max(n.entradas.length, n.salidas.length, 1)
-        return headH + rows * rowH(n.id) + 30
-    }
-    function posOf(n) {
-        liveTick // dependencia
-        const p = livePos[n.id]
-        return p ? p : Qt.point(n.x, n.y)
-    }
-    // `ch`: -1 el puerto entero, 0 el punto L, 1 el punto R (los estereo se
-    // dibujan como dos puntitos, 5 px arriba y abajo del centro).
-    function portPos(nodeId, port, isIn, ch) {
-        const n = nodeOf(nodeId)
-        if (!n) return Qt.point(0, 0)
-        const list = isIn ? n.entradas : n.salidas
-        const i = Math.max(0, list.indexOf(port))
-        const p = posOf(n)
-        const info = ((isIn ? n.puertosEntrada : n.puertosSalida) || [])[i] || ({})
-        const off = chOff(nodeId)
-        const dy = (info.canales === 2 && ch !== undefined && ch >= 0) ? (ch === 0 ? -off : off) : 0
-        const h = rowH(nodeId)
-        return Qt.point(p.x + (isIn ? 0 : nodeW), p.y + headH + i * h + h / 2 + dy)
-    }
     function kindColor(t) {
         if (t === "in" || t === "out") return "#64748b"
         if (t === "analyzer") return "#0ea5e9"
@@ -102,54 +82,14 @@ Rectangle {
         return Theme.accent
     }
     function fmtDb(v) { return (v === undefined || v === null || v <= -139) ? "—" : (Math.round(v * 10) / 10).toFixed(1) }
-    // Entrada a la que iria a parar un cable soltado en (x, y): el puerto mas
-    // cercano (con margen ancho) o, si se solto sobre una tarjeta, su primera
-    // entrada. Asi no hay que apuntarle justo al puntito.
-    function inputAt(x, y) {
-        let best = null, bd = 70
-        for (let i = 0; i < nodes.length; ++i) {
-            const n = nodes[i]
-            for (let k = 0; k < n.entradas.length; ++k) {
-                const info = (n.puertosEntrada || [])[k] || ({})
-                // En un puerto estereo se apunta al canal mas cercano; el punto
-                // del medio (sin canal) sigue valiendo para el puerto entero.
-                const opciones = info.canales === 2 ? [-1, 0, 1] : [-1]
-                for (const ch of opciones) {
-                    const p = portPos(n.id, n.entradas[k], true, ch)
-                    const d = Math.hypot(p.x - x, p.y - y)
-                    if (d < bd) { bd = d; best = { node: n.id, port: n.entradas[k], ch: ch } }
-                }
-            }
-        }
-        if (best) return best
-        for (let i = 0; i < nodes.length; ++i) {
-            const n = nodes[i]
-            if (n.entradas.length === 0) continue
-            const p = posOf(n)
-            if (x >= p.x && x <= p.x + nodeW && y >= p.y && y <= p.y + nodeH(n))
-                return { node: n.id, port: n.entradas[0], ch: -1 }
-        }
-        return null
-    }
     function chName(ch) { return ch === 0 ? "L" : ch === 1 ? "R" : "" }
-    // Cable curvo: sale hacia la derecha y entra por la izquierda. Los puntos
-    // de control se separan segun la distancia, asi la curva no se aplasta.
-    function cableCtl(a, b) { return Math.max(40, Math.min(160, Math.abs(b.x - a.x) / 2 + 20)) }
-    // Punto medio REAL de la curva (Bezier cubica en t = 0.5): la ✕ tiene que
-    // caer sobre el cable, no en el medio de una recta entre las dos puntas.
-    function cableMid(a, b) {
-        const d = cableCtl(a, b)
-        return Qt.point((a.x + 3 * (a.x + d) + 3 * (b.x - d) + b.x) / 8, (a.y + 3 * a.y + 3 * b.y + b.y) / 8)
-    }
 
     // Arbol de fuentes: un encabezado por grupo y debajo sus fuentes, en el
     // orden en que el motor las informa.
     property var collapsed: ({})
-    property int groupTick: 0
-    function groupOpen(g) { groupTick; return !collapsed[g] }
-    function toggleGroup(g) { collapsed[g] = !collapsed[g]; groupTick++ }
+    function groupOpen(g) { return !collapsed[g] }
+    function toggleGroup(g) { const c = Object.assign({}, collapsed); c[g] = !c[g]; collapsed = c }
     readonly property var sourceTree: {
-        groupTick
         const src = au ? au.sources : []
         const orden = ["Conferencia", "Asamblea", "Micrófonos y líneas del equipo", "Entradas del equipo (placas)", "Voces (texto a audio)",
                        "Audio del equipo (lo que suena)", "Medios y red", "Otras fuentes"]
@@ -496,85 +436,33 @@ Rectangle {
                             }
                         }
 
-                        // Cables
+                        // Cables (el de sidechain en ámbar; uno de canal suelto, más fino y con sus canales)
                         Repeater {
                             model: page.cables
-                            delegate: Item {
-                                id: cab
+                            delegate: CablePatchbay {
                                 required property var modelData
-                                readonly property point a: page.portPos(modelData.desde, modelData.salida, false, modelData.canalSalida)
-                                readonly property point b: page.portPos(modelData.hacia, modelData.entrada, true, modelData.canalEntrada)
-                                readonly property real ctl: page.cableCtl(a, b)
-                                readonly property point mid: page.cableMid(a, b)
                                 anchors.fill: parent
-                                Shape {
-                                    anchors.fill: parent
-                                    preferredRendererType: Shape.CurveRenderer
-                                    ShapePath {
-                                        strokeColor: modelData.entrada === "sc" ? "#f59e0b" : Qt.rgba(0.55, 0.75, 1, 0.9)
-                                        // Un cable de canal suelto se dibuja mas fino que uno de puerto entero.
-                                        strokeWidth: cab.modelData.canalSalida >= 0 ? 2 : 3
-                                        capStyle: ShapePath.RoundCap
-                                        fillColor: "transparent"
-                                        startX: cab.a.x; startY: cab.a.y
-                                        PathCubic {
-                                            x: cab.b.x; y: cab.b.y
-                                            control1X: cab.a.x + cab.ctl; control1Y: cab.a.y
-                                            control2X: cab.b.x - cab.ctl; control2Y: cab.b.y
-                                        }
-                                    }
-                                }
-                                Rectangle {
-                                    x: cab.mid.x - 10
-                                    y: cab.mid.y - 10
-                                    width: 20; height: 20; radius: 10
-                                    color: xMa.containsMouse ? Theme.live : Qt.rgba(0.1, 0.12, 0.18, 0.9)
-                                    border.color: Qt.rgba(1, 1, 1, 0.3)
-                                    Text { anchors.centerIn: parent; text: "✕"; color: "white"; font.pixelSize: 10 }
-                                    // Que canal lleva, cuando no es el puerto entero.
-                                    Text {
-                                        anchors { bottom: parent.top; horizontalCenter: parent.horizontalCenter }
-                                        visible: cab.modelData.canalSalida >= 0
-                                        text: page.chName(cab.modelData.canalSalida) + "→" + page.chName(cab.modelData.canalEntrada)
-                                        color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold }
-                                    }
-                                    MouseArea {
-                                        id: xMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: page.au.disconnectPorts(cab.modelData.desde, cab.modelData.salida, cab.modelData.hacia, cab.modelData.entrada, cab.modelData.canalSalida, cab.modelData.canalEntrada)
-                                        ToolTip.visible: containsMouse; ToolTip.text: qsTr("Quitar el cable")
-                                    }
-                                }
+                                geo: page.geo
+                                a: page.geo.portPos(modelData.desde, modelData.salida, false, modelData.canalSalida)
+                                b: page.geo.portPos(modelData.hacia, modelData.entrada, true, modelData.canalEntrada)
+                                color: modelData.entrada === "sc" ? "#f59e0b" : Qt.rgba(0.55, 0.75, 1, 0.9)
+                                grosor: modelData.canalSalida >= 0 ? 2 : 3
+                                etiqueta: modelData.canalSalida >= 0 ? page.chName(modelData.canalSalida) + "→" + page.chName(modelData.canalEntrada) : ""
+                                onQuitar: page.au.disconnectPorts(modelData.desde, modelData.salida, modelData.hacia, modelData.entrada,
+                                                                  modelData.canalSalida, modelData.canalEntrada)
                             }
                         }
 
-                        // Cable en construccion
-                        Shape {
+                        // Cable en construcción
+                        CablePatchbay {
                             anchors.fill: parent
                             visible: page.wire !== null
-                            preferredRendererType: Shape.CurveRenderer
-                            ShapePath {
-                                strokeColor: Theme.ok
-                                strokeWidth: 3
-                                strokeStyle: ShapePath.DashLine
-                                fillColor: "transparent"
-                                capStyle: ShapePath.RoundCap
-                                startX: page.wire ? page.wire.x0 : 0
-                                startY: page.wire ? page.wire.y0 : 0
-                                PathCubic {
-                                    readonly property real d: page.wire
-                                        ? page.cableCtl(Qt.point(page.wire.x0, page.wire.y0),
-                                                        Qt.point(page.wire.x1, page.wire.y1)) : 60
-                                    x: page.wire ? page.wire.x1 : 0
-                                    y: page.wire ? page.wire.y1 : 0
-                                    control1X: page.wire ? page.wire.x0 + d : 0
-                                    control1Y: page.wire ? page.wire.y0 : 0
-                                    control2X: page.wire ? page.wire.x1 - d : 0
-                                    control2Y: page.wire ? page.wire.y1 : 0
-                                }
-                            }
+                            geo: page.geo
+                            quitable: false
+                            punteado: true
+                            color: Theme.ok
+                            a: page.wire ? Qt.point(page.wire.x0, page.wire.y0) : Qt.point(0, 0)
+                            b: page.wire ? Qt.point(page.wire.x1, page.wire.y1) : Qt.point(0, 0)
                         }
 
                         // Nodos
@@ -587,14 +475,14 @@ Rectangle {
                                 x: modelData.x
                                 y: modelData.y
                                 width: page.nodeW
-                                height: page.nodeH(modelData)
+                                height: page.geo.nodeH(modelData)
                                 radius: 12
                                 color: Qt.rgba(0.08, 0.1, 0.15, 0.96)
                                 border.width: page.au && page.au.selected === modelData.id ? 2 : 1
                                 border.color: page.au && page.au.selected === modelData.id ? Theme.accent : Qt.rgba(1, 1, 1, 0.14)
                                 opacity: modelData.bypass ? 0.55 : 1
-                                onXChanged: { page.livePos[modelData.id] = Qt.point(x, y); page.liveTick++ }
-                                onYChanged: { page.livePos[modelData.id] = Qt.point(x, y); page.liveTick++ }
+                                onXChanged: page.geo.mover(modelData.id, x, y)
+                                onYChanged: page.geo.mover(modelData.id, x, y)
 
                                 // Un clic en cualquier lado de la tarjeta la elige (y el panel muestra
                                 // Quitar, Anular…). Va primero: los puertos y la cabecera quedan encima.
@@ -655,8 +543,8 @@ Rectangle {
                                         drag.onActiveChanged: {
                                             page.draggingNode = drag.active
                                             if (drag.active) return
-                                            nd.x = page.snap(nd.x)
-                                            nd.y = page.snap(nd.y)
+                                            nd.x = page.geo.snap(nd.x)
+                                            nd.y = page.geo.snap(nd.y)
                                             page.au.moveNode(nd.modelData.id, nd.x, nd.y)
                                         }
                                         onClicked: page.au.select(nd.modelData.id)
@@ -666,8 +554,8 @@ Rectangle {
                                 // Celda donde va a quedar al soltar.
                                 Rectangle {
                                     visible: headMa.drag.active
-                                    x: page.snap(nd.x) - nd.x
-                                    y: page.snap(nd.y) - nd.y
+                                    x: page.geo.snap(nd.x) - nd.x
+                                    y: page.geo.snap(nd.y) - nd.y
                                     width: nd.width
                                     height: nd.height
                                     z: -1
@@ -845,7 +733,7 @@ Rectangle {
                                                         ToolTip.delay: 600
                                                         ToolTip.text: qsTr("Canal %1: arrastralo a la entrada que quieras").arg(page.chName(chDot.modelData))
                                                         onPressed: (ev) => {
-                                                            const p = page.portPos(nd.modelData.id, op.modelData, false, chDot.modelData)
+                                                            const p = page.geo.portPos(nd.modelData.id, op.modelData, false, chDot.modelData)
                                                             page.wire = { from: nd.modelData.id, out: op.modelData, ch: chDot.modelData,
                                                                           x0: p.x, y0: p.y, x1: p.x, y1: p.y }
                                                             page.wireTarget = null
@@ -853,9 +741,9 @@ Rectangle {
                                                         onPositionChanged: (ev) => {
                                                             if (!page.wire) return
                                                             const q = mapToItem(canvas, ev.x, ev.y)
-                                                            const t = page.inputAt(q.x, q.y)
+                                                            const t = page.geo.inputAt(q.x, q.y, null, 70)
                                                             page.wireTarget = t
-                                                            const end = t ? page.portPos(t.node, t.port, true, t.ch) : q
+                                                            const end = t ? page.geo.portPos(t.node, t.port, true, t.ch) : q
                                                             page.wire = Object.assign({}, page.wire, { x1: end.x, y1: end.y })
                                                         }
                                                         onReleased: (ev) => {
@@ -882,7 +770,7 @@ Rectangle {
                                             ToolTip.text: qsTr("Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar")
                                             hoverEnabled: true
                                             onPressed: (ev) => {
-                                                const p = page.portPos(nd.modelData.id, op.modelData, false)
+                                                const p = page.geo.portPos(nd.modelData.id, op.modelData, false)
                                                 page.wire = { from: nd.modelData.id, out: op.modelData, x0: p.x, y0: p.y, x1: p.x, y1: p.y }
                                                 page.wireTarget = null
                                             }
@@ -890,9 +778,9 @@ Rectangle {
                                                 if (!page.wire) return
                                                 const q = mapToItem(canvas, ev.x, ev.y)
                                                 // El cable se pega a la entrada candidata: se ve a donde va.
-                                                const t = page.inputAt(q.x, q.y)
+                                                const t = page.geo.inputAt(q.x, q.y, null, 70)
                                                 page.wireTarget = t
-                                                const end = t ? page.portPos(t.node, t.port, true) : q
+                                                const end = t ? page.geo.portPos(t.node, t.port, true) : q
                                                 page.wire = Object.assign({}, page.wire, { x1: end.x, y1: end.y })
                                             }
                                             onReleased: (ev) => {
@@ -1553,10 +1441,10 @@ Rectangle {
 
             ListView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(260, 46 * Math.max(1, (page.au ? page.au.plantillas().length : 0)))
+                Layout.preferredHeight: Math.min(260, 46 * Math.max(1, (page.au ? page.au.plantillas.length : 0)))
                 clip: true
                 spacing: 4
-                model: page.au ? page.au.plantillas() : []
+                model: page.au ? page.au.plantillas : []
                 delegate: RowLayout {
                     required property var modelData
                     width: ListView.view.width
@@ -1601,7 +1489,7 @@ Rectangle {
             }
 
             Text {
-                visible: page.au && page.au.plantillas().length === 0
+                visible: page.au && page.au.plantillas.length === 0
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 text: qsTr("Todavía no guardaste ninguna.")

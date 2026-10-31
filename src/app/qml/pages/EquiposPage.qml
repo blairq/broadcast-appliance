@@ -403,13 +403,9 @@ Rectangle {
                                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.descripcion
                                     onClicked: {
                                         page.resultado = null
-                                        if (modelData.parametros.length === 0) { page.accionAbierta = null; page.valores = ({}); page.correr(modelData) }
-                                        else {
-                                            const v = {}
-                                            for (const p of modelData.parametros) if (p.defecto !== undefined) v[p.clave] = p.defecto
-                                            page.valores = v
-                                            page.accionAbierta = modelData
-                                        }
+                                        page.valores = ({})
+                                        if (modelData.parametros.length === 0) { page.accionAbierta = null; page.correr(modelData) }
+                                        else page.accionAbierta = modelData
                                     }
                                 }
                             }
@@ -423,46 +419,16 @@ Rectangle {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 text: page.accionAbierta ? page.accionAbierta.descripcion : ""; color: Theme.textDim; font.pixelSize: 11
                             }
-                            Repeater {
-                                model: page.accionAbierta ? page.accionAbierta.parametros : []
-                                delegate: RowLayout {
-                                    id: fila
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    spacing: 8
-                                    Text {
-                                        text: fila.modelData.etiqueta + (fila.modelData.obligatorio ? " *" : "")
-                                        color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 150; wrapMode: Text.WordWrap
-                                    }
-                                    TextField {
-                                        visible: fila.modelData.tipo === "texto" || fila.modelData.tipo === "clave" || fila.modelData.tipo === "numero"
-                                        Layout.fillWidth: true
-                                        echoMode: fila.modelData.tipo === "clave" ? TextInput.Password : TextInput.Normal
-                                        placeholderText: fila.modelData.ayuda || ""
-                                        text: page.valores[fila.modelData.clave] !== undefined ? String(page.valores[fila.modelData.clave]) : ""
-                                        onTextEdited: { const v = page.valores; v[fila.modelData.clave] = fila.modelData.tipo === "numero" ? Number(text) : text; page.valores = v }
-                                    }
-                                    ScrollView {
-                                        visible: fila.modelData.tipo === "json"
-                                        Layout.fillWidth: true; Layout.preferredHeight: 80
-                                        TextArea {
-                                            font.family: "Menlo"; font.pixelSize: 11; color: Theme.text
-                                            onTextChanged: { const v = page.valores; try { v[fila.modelData.clave] = JSON.parse(text) } catch (e) {} ; page.valores = v }
-                                        }
-                                    }
-                                    ComboBox {
-                                        visible: fila.modelData.tipo === "opcion"
-                                        Layout.fillWidth: true
-                                        model: fila.modelData.opciones || []
-                                        currentIndex: Math.max(0, (fila.modelData.opciones || []).indexOf(page.valores[fila.modelData.clave]))
-                                        onActivated: (i) => { const v = page.valores; v[fila.modelData.clave] = fila.modelData.opciones[i]; page.valores = v }
-                                    }
-                                    Switch {
-                                        visible: fila.modelData.tipo === "si_no"
-                                        checked: page.valores[fila.modelData.clave] === true
-                                        onToggled: { const v = page.valores; v[fila.modelData.clave] = checked; page.valores = v }
-                                    }
-                                }
+                            // El formulario de los parámetros: los campos (con su tipo y lo de fábrica)
+                            // los arma el modelo, y lo escrito lo convierte y valida él al correr.
+                            FormularioPropiedades {
+                                Layout.fillWidth: true
+                                props: page.accionAbierta ? page.accionAbierta.campos.map(c => page.valores[c.name] !== undefined
+                                                                                          ? Object.assign({}, c, { value: page.valores[c.name] }) : c) : []
+                                vacio: ""
+                                etiquetaAlCostado: true
+                                alEscribir: true
+                                onCambio: (nombre, valor) => page.valores = Object.assign({}, page.valores, { [nombre]: valor })
                             }
                             RowLayout {
                                 Item { Layout.fillWidth: true }

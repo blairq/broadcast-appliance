@@ -31,7 +31,7 @@
 // ============================================================================
 #pragma once
 
-#include "pantallas/ListaConClave.hpp"
+#include "ui/ListaConClave.hpp"
 
 #include <QRect>
 #include <QRectF>

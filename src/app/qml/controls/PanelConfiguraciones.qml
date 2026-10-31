@@ -13,7 +13,6 @@ ColumnLayout {
     spacing: 10
     readonly property var cf: Studio.configuraciones
     function avisar(e) { if (e) Studio.notify(e, "error") }
-    function tamano(b) { return b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : b > 1e6 ? Math.round(b / 1e6) + " MB" : Math.round(b / 1e3) + " KB" }
 
     Text { text: qsTr("Eventos"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
     Text {
@@ -43,8 +42,8 @@ ColumnLayout {
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 11
                            text: (modelData.descripcion ? modelData.descripcion + " · " : "") +
                                  (modelData.midiendo ? qsTr("midiendo…")
-                                  : modelData.bytes_grabaciones > 0 ? qsTr("ocupa %1 (%2 de grabaciones)").arg(pc.tamano(modelData.bytes)).arg(pc.tamano(modelData.bytes_grabaciones))
-                                  : qsTr("ocupa %1").arg(pc.tamano(modelData.bytes))) +
+                                  : modelData.bytes_grabaciones > 0 ? qsTr("ocupa %1 (%2 de grabaciones)").arg(Theme.tamano(modelData.bytes)).arg(Theme.tamano(modelData.bytes_grabaciones))
+                                  : qsTr("ocupa %1").arg(Theme.tamano(modelData.bytes))) +
                                  (modelData.desde ? qsTr(" · desde %1").arg(modelData.desde) : "") }
                 }
                 GlassButton { compact: true; text: qsTr("Abrir"); visible: !modelData.activa; active: true
@@ -80,7 +79,7 @@ ColumnLayout {
         property string desde: "cero"
         readonly property var opciones: {
             const l = [{ t: qsTr("Desde cero (de fábrica)"), v: "cero" }, { t: qsTr("Copia total del abierto"), v: "actual" }]
-            for (const d of (pc.cf ? pc.cf.plantillasUi() : [])) l.push({ t: qsTr("Plantilla: %1").arg(d.nombre), v: "plantilla:" + (d.carpeta || d.nombre) })
+            for (const d of (pc.cf ? pc.cf.plantillas : [])) l.push({ t: qsTr("Plantilla: %1").arg(d.nombre), v: "plantilla:" + (d.carpeta || d.nombre) })
             for (const c of (pc.cf ? pc.cf.lista : [])) if (!c.activa) l.push({ t: qsTr("Copia total de %1").arg(c.nombre), v: c.nombre })
             return l
         }
@@ -125,7 +124,7 @@ ColumnLayout {
             GlassButton {
                 compact: true
                 text: (papelera.abierta ? "▾ " : "▸ ") + qsTr("Papelera (%1)").arg(pc.cf ? pc.cf.papelera.length : 0) +
-                      (papelera.ocupa > 0 ? " · " + pc.tamano(papelera.ocupa) : "")
+                      (papelera.ocupa > 0 ? " · " + Theme.tamano(papelera.ocupa) : "")
                 onClicked: papelera.abierta = !papelera.abierta
             }
             GlassButton {
@@ -133,7 +132,7 @@ ColumnLayout {
                 visible: papelera.abierta; enabled: pc.cf && !pc.cf.vaciando
                 onClicked: ApplicationWindow.window.confirm({
                     title: qsTr("¿Vaciar la papelera?"),
-                    text: papelera.ocupa > 0 ? qsTr("Se borra todo de verdad (%1): ya no se puede recuperar.").arg(pc.tamano(papelera.ocupa))
+                    text: papelera.ocupa > 0 ? qsTr("Se borra todo de verdad (%1): ya no se puede recuperar.").arg(Theme.tamano(papelera.ocupa))
                                               : qsTr("Se borra todo de verdad: ya no se puede recuperar."),
                     accept: qsTr("Vaciar"), reject: qsTr("Cancelar"),
                     action: function() { pc.avisar(pc.cf.vaciarPapeleraUi("")) } })
@@ -149,7 +148,7 @@ ColumnLayout {
                 Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textDim; font.pixelSize: 12
                        text: modelData.nombre + (modelData.borrado_ms > 1 ? qsTr("  · borrado el %1").arg(
                              new Date(modelData.borrado_ms).toLocaleString(Qt.locale(), "d/M/yyyy HH:mm")) : qsTr("  · a medio borrar")) +
-                             (modelData.bytes ? " · " + pc.tamano(modelData.bytes) : "") }
+                             (modelData.bytes ? " · " + Theme.tamano(modelData.bytes) : "") }
                 GlassButton { compact: true; text: qsTr("Recuperar"); visible: modelData.borrado_ms !== 1; onClicked: pc.avisar(pc.cf.recuperarUi(modelData.id)) }
             }
         }

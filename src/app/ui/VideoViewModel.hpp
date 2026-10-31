@@ -7,9 +7,9 @@
 //
 //   LEER: su vista viaja en la foto del motor (FotoMotor::video, parte Video). Al llegar,
 //         se avisa: `cambio` si cambiaron las entradas o los grafos (lo que redibuja el
-//         patchbay) y `estadoCambio` si cambió lo que se mueve (estados, programador,
-//         latencia…). Lo que antes se sondeaba (estadoRed(), programadorUi()…) son
-//         propiedades.
+//         patchbay) y, de lo que se mueve (la red, el programador, la latencia…), el
+//         aviso de cada propiedad, solo si cambió lo suyo. Lo que antes se sondeaba
+//         (estadoRed(), programadorUi()…) son propiedades.
 //   PEDIR: cada edición va por la ventanilla a VideoGrafos (en el dueño, con el turno) y
 //         vuelve la vista al día; los Q_INVOKABLE que devolvían el error devuelven "" y el
 //         error llega por `notify`.
@@ -54,13 +54,17 @@ class VideoViewModel : public QObject {
     Q_OBJECT
     /// Las entradas de video que hay.
     Q_PROPERTY(QStringList entradas READ entradas NOTIFY cambio)
+    /// Las entradas virtuales que se pueden crear: [{id, nombre, descripcion, pipeline}]
+    /// (un catálogo fijo).
+    Q_PROPERTY(QVariantList virtuales READ virtuales CONSTANT)
     /// Las mismas, agrupadas como en el audio: [{nombre, grupo («Cámaras», «Red», «NDI»),
     /// tarjetas (cuántas tiene)}].
     Q_PROPERTY(QVariantList entradasInfo READ entradasInfo NOTIFY cambio)
     /// La que se está editando.
     Q_PROPERTY(QString entrada READ entrada WRITE seleccionar NOTIFY cambio)
-    /// Su sub-grafo: {nodos:[{id,tipo,titulo,etiqueta,grupo,x,y,params,externo,
-    /// entradas:[{id,tipo,pedido}],salidas:[…]}], cables:[{desde,salida,hacia,entrada}], trivial}
+    /// Su sub-grafo: {nodos:[{id,tipo,titulo,etiqueta,grupo,x,y,params,externo,resumen,
+    /// entradas:[{id,tipo,pedido}],salidas:[…]}], cables:[{desde,salida,hacia,entrada}], trivial}.
+    /// `resumen`: lo que se lee en la tarjeta del nodo (qué hace, con sus ajustes principales).
     Q_PROPERTY(QVariantMap grafo READ grafo NOTIFY cambio)
     /// Todo el estudio (mismo formato).
     Q_PROPERTY(QVariantMap estudio READ estudio NOTIFY cambio)
@@ -69,26 +73,26 @@ class VideoViewModel : public QObject {
     /// Las tarjetas propias: [{tipo,titulo,descripcion,params,ambito}].
     Q_PROPERTY(QVariantList catalogo READ catalogo CONSTANT)
     /// Las entradas de GStreamer (red y plugins) con su estado y diagnóstico.
-    Q_PROPERTY(QVariantList estadoRed READ estadoRed NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantList estadoRed READ estadoRed NOTIFY redCambio)
     /// Las entradas con algo que decir: [{entrada, diagnostico}].
-    Q_PROPERTY(QVariantList diagnostico READ diagnostico NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantList diagnostico READ diagnostico NOTIFY diagnosticoCambio)
     /// Los eventos «ba/*» de las tarjetas de la entrada elegida: {tarjeta: [{evento,
     /// direccion, n, hace_ms}]}.
-    Q_PROPERTY(QVariantMap eventos READ eventos NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantMap eventos READ eventos NOTIFY eventosCambio)
     /// El programador de superresolución (su configuración y el estado por entrada).
-    Q_PROPERTY(QVariantMap programador READ programador NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantMap programador READ programador NOTIFY programadorCambio)
     /// El reloj del estudio.
-    Q_PROPERTY(QVariantMap reloj READ reloj NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantMap reloj READ reloj NOTIFY relojCambio)
     /// La latencia del estudio: {latencia_ms, tope_ms, automatico, tarde}.
-    Q_PROPERTY(QVariantMap latencia READ latencia NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantMap latencia READ latencia NOTIFY latenciaCambio)
     /// La mesa del automixer: {mesas, microfonos}.
-    Q_PROPERTY(QVariantMap automixer READ automixer NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantMap automixer READ automixer NOTIFY automixerCambio)
     /// Los filtros de audio de cada entrada de GStreamer: {entrada: [{id, elemento, propiedades}]}.
-    Q_PROPERTY(QVariantMap filtrosAudio READ filtrosAudio NOTIFY estadoCambio)
+    Q_PROPERTY(QVariantMap filtrosAudio READ filtrosAudio NOTIFY filtrosAudioCambio)
     /// Las escenas (para elegir dónde poner algo).
-    Q_PROPERTY(QStringList escenas READ escenas NOTIFY estadoCambio)
+    Q_PROPERTY(QStringList escenas READ escenas NOTIFY escenasCambio)
     /// Si este sistema tiene superresolución de Apple.
-    Q_PROPERTY(bool haySuperres READ haySuperres NOTIFY estadoCambio)
+    Q_PROPERTY(bool haySuperres READ haySuperres NOTIFY haySuperresCambio)
     /// Los módulos de video de GStreamer (CatalogoGst::modulos), los de audio y la versión.
     Q_PROPERTY(QVariantList modulosGst READ modulosGst NOTIFY gstListo)
     Q_PROPERTY(QVariantList modulosAudio READ modulosAudio NOTIFY gstListo)
@@ -130,8 +134,7 @@ class VideoViewModel : public QObject {
     /// Los de un módulo, para el detalle del catálogo (con estos valores puestos).
     Q_INVOKABLE QVariantList propiedadesModulo(const QString& elemento) const;
     Q_INVOKABLE QVariantList propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const;
-    /// Las entradas virtuales que se pueden crear: [{id, nombre, descripcion, pipeline}].
-    Q_INVOKABLE static QVariantList virtuales();
+    static QVariantList virtuales();
 
     // --- Lo que pide QML ("" siempre: el error llega por notify) ------------------------
     Q_INVOKABLE QString agregar(const QString& tipo, const QString& despues);
@@ -209,7 +212,17 @@ class VideoViewModel : public QObject {
    signals:
     void cambio();
     void vistaCambio();
-    void estadoCambio();
+    // Lo que se mueve, cada cosa con su aviso (sale solo si cambió lo suyo).
+    void redCambio();
+    void diagnosticoCambio();
+    void eventosCambio();
+    void programadorCambio();
+    void relojCambio();
+    void latenciaCambio();
+    void automixerCambio();
+    void filtrosAudioCambio();
+    void escenasCambio();
+    void haySuperresCambio();
     void gstListo();
     /// El resultado de medirUi.
     void medicion(const QVariantMap& resultado);

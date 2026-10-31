@@ -786,7 +786,6 @@ Item {
                 id: pgm
                 readonly property int i: m.indiceSalida("pista1")
                 readonly property var obj: m.lu.objetivo || ({})
-                readonly property real objetivo: obj.lufs !== undefined ? obj.lufs : -23
                 Layout.fillHeight: true
                 Layout.preferredWidth: 196
                 radius: 12
@@ -821,15 +820,17 @@ Item {
                                 Text { text: parent.valor; color: parent.tinte; font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold } }
                             }
                             function lufs(v) { return v === undefined || v <= -70 ? "—" : v.toFixed(1) }
-                            Dato { etiqueta: qsTr("MOMENTÁNEO"); valor: parent.lufs(m.lu.momentaneo) }
-                            Dato { etiqueta: qsTr("CORTO (3 s)"); valor: parent.lufs(m.lu.corto)
-                                   tinte: m.lu.corto !== undefined && m.lu.corto > pgm.objetivo + 2 ? Theme.amber : Theme.text }
-                            Dato { etiqueta: qsTr("INTEGRADO"); valor: parent.lufs(m.lu.integrado)
-                                   tinte: m.lu.integrado !== undefined && Math.abs(m.lu.integrado - pgm.objetivo) <= 1 ? Theme.ok : Theme.text }
+                            // Las claves y el estado contra el objetivo (estado_*), del modelo del
+                            // loudness (audio/LoudnessPrograma::json): la misma regla que la tarjeta.
+                            Dato { etiqueta: qsTr("MOMENTÁNEO"); valor: parent.lufs(m.lu.m) }
+                            Dato { etiqueta: qsTr("CORTO (3 s)"); valor: parent.lufs(m.lu.s)
+                                   tinte: m.lu.estado_corto === "aviso" ? Theme.colorDeEstado("aviso") : Theme.text }
+                            Dato { etiqueta: qsTr("INTEGRADO"); valor: parent.lufs(m.lu.i)
+                                   tinte: m.lu.estado_integrado ? Theme.colorDeEstado(m.lu.estado_integrado) : Theme.text }
                             Dato { etiqueta: "LRA"; valor: m.lu.lra !== undefined ? m.lu.lra.toFixed(1) : "—" }
-                            Dato { etiqueta: "TRUE PEAK"; valor: m.lu.true_peak_db !== undefined && m.lu.true_peak_db > -70 ? m.lu.true_peak_db.toFixed(1) : "—"
-                                   tinte: m.lu.true_peak_db !== undefined && m.lu.true_peak_db > -1 ? Theme.live : Theme.text }
-                            Text { text: qsTr("Objetivo %1 LUFS").arg(pgm.objetivo.toFixed(0)); color: Theme.textFaint; font { family: Theme.font; pixelSize: 10 } }
+                            Dato { etiqueta: "TRUE PEAK"; valor: m.lu.tp !== undefined && m.lu.tp > -70 ? m.lu.tp.toFixed(1) : "—"
+                                   tinte: m.lu.estado_tp === "excedido" ? Theme.colorDeEstado("excedido") : Theme.text }
+                            Text { visible: pgm.obj.lufs !== undefined; text: qsTr("Objetivo %1 LUFS").arg(Number(pgm.obj.lufs).toFixed(0)); color: Theme.textFaint; font { family: Theme.font; pixelSize: 10 } }
                         }
                     }
                 }

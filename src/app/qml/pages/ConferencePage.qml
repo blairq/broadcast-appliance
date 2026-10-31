@@ -52,7 +52,6 @@ Rectangle {
     function since(ms) {
         return Theme.hace((page.now - ms) / 1000)
     }
-    function mb(bytes) { return (bytes / 1048576).toFixed(1) + " MB" }
     /// kbit/s a algo que se lea de un vistazo.
     function mbits(kbps) {
         const k = kbps || 0
@@ -89,7 +88,7 @@ Rectangle {
                             Layout.preferredWidth: 64
                             text: conf.speakerCfg.defaultTexto || ""
                             font.pixelSize: 12
-                            ToolTip.visible: hovered; ToolTip.text: qsTr("Tiempo general para cada orador: «m:ss», segundos o «3m»")
+                            ToolTip.visible: hovered; ToolTip.text: qsTr("Tiempo general para cada orador (m:ss o minutos)")
                             onEditingFinished: { const e = conf.setTiempoGeneral(text); if (e !== "") Studio.notify(e, "error") }
                         }
                         ComboBox {
@@ -1202,7 +1201,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: 2
                                     Text { text: name; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                                    Text { text: qsTr("%1 · %2 · hace %3").arg(participantName).arg(page.mb(bytes)).arg(page.since(atMs)); color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                    Text { text: qsTr("%1 · %2 · hace %3").arg(participantName).arg(Theme.tamano(bytes)).arg(page.since(atMs)); color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                                     RowLayout {
                                         spacing: 6
                                         GlassButton { text: qsTr("Tomar"); compact: true; active: true; onClicked: conf.takeShare(uid) }

@@ -4,6 +4,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "emision/FuentePdf.hpp"
 #include "emision/FuentesApp.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "evento/Documentos.hpp"
 
 #include <QFileInfo>
@@ -29,7 +30,8 @@ QColor colorDe(std::int64_t v) {
 }
 } // namespace
 
-PdfEscena::PdfEscena(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+PdfEscena::PdfEscena(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
+    : QObject(parent), rt_(rt), ventanilla_(ventanilla) {
     refrescarDocumentos();
     // La lista «Qué PDF» de Propiedades: la documentación del evento.
     fuentespdf::ponerOpciones([this]() {
@@ -248,29 +250,43 @@ QString PdfEscena::mover(const QString& fuente, double dx, double dy) {
     return tr("no está la fuente");
 }
 
-QString PdfEscena::crearEscena(const QString& nombre) {
+void PdfEscena::crearEscena(const QString& nombre) {
+    crearEscena(nombre, [this](const QString& e) {
+        if (!e.isEmpty()) emit notify(e, "error");
+    });
+}
+
+void PdfEscena::crearEscena(const QString& nombre, std::function<void(const QString&)> listo) {
     const std::string esc = nombre.trimmed().isEmpty() ? std::string("PDF") : nombre.trimmed().toStdString();
-    const auto escenas = rt_.engine().sceneNames();
-    if (std::find(escenas.begin(), escenas.end(), esc) == escenas.end() && !rt_.addScene(esc))
-        return rt_.lastError().empty() ? tr("no se pudo crear la escena") : QString::fromStdString(rt_.lastError());
+    // El primer documento del evento (la lista es de la interfaz): el resto, en el dueño.
+    const std::string doc = documentos_.isEmpty() ? std::string() : documentos_.first().toMap().value("id").toString().toStdString();
+    ventanilla_.pedir(
+        this, "pdf_crear_escena", [&rt = rt_, esc, doc]() { return armarEscena(rt, esc, doc); },
+        [this, listo = std::move(listo)](const QString& e) {
+            if (e.isEmpty()) tic(); // la fuente nueva, ya en la lista
+            listo(e);
+        });
+}
+
+QString PdfEscena::armarEscena(AppRuntime& rt, const std::string& esc, const std::string& documento) {
+    const auto escenas = rt.engine().sceneNames();
+    if (std::find(escenas.begin(), escenas.end(), esc) == escenas.end() && !rt.addScene(esc))
+        return rt.lastError().empty() ? tr("no se pudo crear la escena") : QString::fromStdString(rt.lastError());
     // Ya tiene una fuente PDF: listo.
-    const auto ss = rt_.engine().sceneSources(esc);
-    for (const auto& f : fuentes::de(fuentespdf::kTipo))
-        if (std::find(ss.begin(), ss.end(), f.nombre) != ss.end()) return {};
+    const auto ss = rt.engine().sceneSources(esc);
+    for (const auto& n : ss)
+        if (rt.engine().sourceTypeId(n) == fuentespdf::kTipo) return {};
     SourceSpec s;
     s.id = fuentespdf::kTipo;
     // Un nombre que no esté (las fuentes tienen nombre único).
     std::string fn = "PDF";
-    for (int i = 2; std::find(ss.begin(), ss.end(), fn) != ss.end() || !rt_.engine().sourceTypeId(fn).empty(); ++i)
+    for (int i = 2; std::find(ss.begin(), ss.end(), fn) != ss.end() || !rt.engine().sourceTypeId(fn).empty(); ++i)
         fn = "PDF " + std::to_string(i);
     s.name = fn;
-    s.settingsJson = json{{"documento", documentos_.isEmpty() ? std::string() : documentos_.first().toMap().value("id").toString().toStdString()},
-                          {"pagina", 1}}
-                         .dump();
+    s.settingsJson = json{{"documento", documento}, {"pagina", 1}}.dump();
     s.rect = CanvasRect{0, 0, 1, 1};
-    if (!rt_.addSource(esc, s))
-        return rt_.lastError().empty() ? tr("no se pudo agregar la fuente PDF") : QString::fromStdString(rt_.lastError());
-    tic();
+    if (!rt.addSource(esc, s))
+        return rt.lastError().empty() ? tr("no se pudo agregar la fuente PDF") : QString::fromStdString(rt.lastError());
     return {};
 }
 

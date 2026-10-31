@@ -18,6 +18,7 @@
 #include "platform/Paths.hpp"
 #include "ptz/ControlCamaras.hpp"
 #include "ptz/PtzPlugin.hpp"
+#include "ui/Formulario.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "video/CatalogoGst.hpp"
 #include "ui/VideoViewModel.hpp"
@@ -1677,7 +1678,43 @@ print(json.dumps(out, ensure_ascii=False, default=str))
 
 // --- Para la interfaz -------------------------------------------------------------------------------
 
-QVariantList Plugins::listaQml() const { return qv(listar()).toList(); }
+QVariantList Plugins::listaQml() const {
+    json l = listar();
+    // Cada control con su formulario (los parámetros que declara, con el tipo del ejemplo).
+    for (json& p : l)
+        for (json& c : p["controles"])
+            if (c.is_object()) c["campos"] = dejson(camposDeControl(c.value("parametros", json::object())));
+    return qv(l).toList();
+}
+
+QVariantList Plugins::camposDeControl(const json& parametros) {
+    namespace f = formulario;
+    QVariantList out;
+    if (!parametros.is_object()) return out;
+    for (const auto& [k, ej] : parametros.items()) {
+        const QString n = q(k);
+        const QString kind = ej.is_boolean() ? "bool" : ej.is_number() ? "number" : ej.is_string() ? "text" : "json";
+        QVariantMap c = f::campo(n, n, kind, QVariant());
+        // Un ejemplo numérico es el valor de fábrica; un texto, cómo se escribe.
+        c["placeholder"] = ej.is_string() ? q(ej.get<std::string>()) : q(ej.dump());
+        out << c;
+    }
+    return out;
+}
+
+void Plugins::controlCamposUi(const QString& id, const QString& control, const QVariantMap& escrito) {
+    json parametros = json::object();
+    for (const json& p : listar())
+        if (p.value("id", std::string()) == id.toStdString())
+            for (const json& c : p.value("controles", json::array()))
+                if (c.value("nombre", std::string()) == control.toStdString()) parametros = c.value("parametros", json::object());
+    QVariantMap args;
+    if (const QString e = formulario::convertirTodos(camposDeControl(parametros), escrito, &args); !e.isEmpty()) {
+        emit respuesta(id, control, e, false);
+        return;
+    }
+    controlUi(id, control, q(dejson(args).dump()));
+}
 QVariantList Plugins::ejemplosQml() const { return qv(ejemplosDisponibles()).toList(); }
 QVariantList Plugins::tarjetasVideoQml() const {
     // Solo las de los que corren: una tarjeta de un plugin apagado no tiene quién la
@@ -1762,6 +1799,69 @@ QString Plugins::guardarConfig(const QString& id, const QString& texto) {
     enviar(id.toStdString(), {{"t", "config"}, {"config", c}});
     emit cambio();
     return {};
+}
+
+QVariantList Plugins::camposDe(const json& config) const {
+    namespace f = formulario;
+    const auto termina = [](const std::string& k, const char* fin) {
+        const std::string s(fin);
+        return k == s.substr(1) || (k.size() > s.size() && k.compare(k.size() - s.size(), s.size(), s) == 0);
+    };
+    QVariantList escenas;
+    if (const auto foto = rt_.ultimaFoto())
+        for (const FotoMotor::Escena& e : foto->escenas) escenas << QVariantMap{{"value", q(e.nombre)}, {"label", q(e.nombre)}};
+    QVariantList camaras{QVariantMap{{"value", QString()}, {"label", tr("La primera que haya")}}};
+    if (opcionesDispositivo_)
+        for (const QVariant& d : opcionesDispositivo_())
+            camaras << QVariantMap{{"value", d.toMap().value("value")}, {"label", d.toMap().value("name")}};
+    QVariantList out;
+    if (!config.is_object()) return out;
+    for (const auto& [k, v] : config.items()) {
+        const QString n = q(k);
+        const bool textoONada = v.is_string() || v.is_null();
+        if (textoONada && termina(k, "_escena")) out << f::campo(n, n, "list", qv(v), {}, escenas);
+        else if (textoONada && termina(k, "_dispositivo")) out << f::campo(n, n, "list", v.is_null() ? QVariant(QString()) : qv(v), {}, camaras);
+        else if (v.is_boolean()) out << f::campo(n, n, "bool", v.get<bool>());
+        else if (v.is_number()) out << f::campo(n, n, "number", qv(v));
+        else if (v.is_string()) out << f::campo(n, n, "text", qv(v));
+        else out << f::campo(n, n, "json", qv(v));
+    }
+    return out;
+}
+
+QVariantMap Plugins::esquemaConfig(const QString& id, const QString& texto) const {
+    json c;
+    if (texto.trimmed().isEmpty()) {
+        c = leerJson(carpetaDe(id.toStdString()) / "plugin.json").value("config", json::object());
+    } else {
+        c = json::parse(texto.toStdString(), nullptr, false);
+        if (c.is_discarded() || !c.is_object()) return {{"campos", QVariantList{}}, {"error", tr("No es un JSON válido (tiene que ser un objeto: { … })")}};
+    }
+    return {{"campos", camposDe(c)}, {"error", QString()}};
+}
+
+QString Plugins::configConCampos(const std::string& id, const json& config, const QVariantMap& cambios, json* out) const {
+    (void)id;
+    QVariantMap valores;
+    if (const QString e = formulario::convertirTodos(camposDe(config), cambios, &valores); !e.isEmpty()) return e;
+    *out = config.is_object() ? config : json::object();
+    for (auto it = valores.cbegin(); it != valores.cend(); ++it) (*out)[it.key().toStdString()] = dejson(it.value());
+    return {};
+}
+
+QString Plugins::guardarConfigCampos(const QString& id, const QVariantMap& cambios) {
+    json c;
+    const json antes = leerJson(carpetaDe(id.toStdString()) / "plugin.json").value("config", json::object());
+    if (const QString e = configConCampos(id.toStdString(), antes, cambios, &c); !e.isEmpty()) return e;
+    return guardarConfig(id, q(c.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+}
+
+QVariantMap Plugins::configConCambios(const QString& id, const QVariantMap& cambios) const {
+    json c;
+    const json antes = leerJson(carpetaDe(id.toStdString()) / "plugin.json").value("config", json::object());
+    if (const QString e = configConCampos(id.toStdString(), antes, cambios, &c); !e.isEmpty())
+        return {{"texto", QString()}, {"error", e}};
+    return {{"texto", q(c.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))}, {"error", QString()}};
 }
 
 void Plugins::controlUi(const QString& id, const QString& control, const QString& argsJson) {
@@ -1903,16 +2003,6 @@ QString Plugins::tarjetaUi(const QString& id, const QString& tarjeta, const QStr
     return {};
 }
 
-QStringList Plugins::entradasVideo() const { return video_ ? video_->entradas() : QStringList{}; }
-
-QStringList Plugins::fuentesConAudio() const {
-    QStringList out;
-    for (const auto& n : rt_.engine().audioSources())
-        out.append(QString::fromStdString(n));
-    out.sort(Qt::CaseInsensitive);
-    return out;
-}
-
 void Plugins::buscarEquipos() {
     if (buscandoEquipos_) return;
     dispositivos([](json) {});
@@ -1939,10 +2029,6 @@ json Plugins::secretosDe(const std::string& id) const {
                        {"cargada", cred::exists(credenciales_, ("plugin-" + id + "-" + clave).c_str())}});
     }
     return out;
-}
-
-QVariantList Plugins::secretosUi(const QString& id) const {
-    return qv(secretosDe(id.toStdString())).toList();
 }
 
 QString Plugins::guardarSecreto(const QString& id, const QString& nombre, const QString& valor) {

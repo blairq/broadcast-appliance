@@ -1271,7 +1271,8 @@ void McpService::registerRoomTools() {
             {"properties",
              {{"enabled", {{"type", "boolean"}}},
               {"defaultTime",
-               {{"type", json::array({"string", "integer"})}, {"description", QT_TRANSLATE_NOOP("mcp", "Segundos o 'm:ss'.")}}},
+               {{"type", json::array({"string", "integer"})},
+                {"description", QT_TRANSLATE_NOOP("mcp", "Un número solo son minutos ('3' = 3 minutos); '45s' o '0:45' = segundos.")}}},
               {"multi", {{"type", "boolean"}}},
               {"defaultSlot", {{"type", "integer"}, {"minimum", 1}}},
               {"carousel", {{"type", "string"}, {"enum", {"manual", "chain", "time"}}}},
@@ -1396,18 +1397,22 @@ void McpService::registerRoomTools() {
         t.title = ba::i18n::traducir("mcp", "Tiempo de un orador");
         t.category = "oradores";
         t.clase = Clase::Escritura;
-        t.description = QT_TRANSLATE_NOOP("mcp", "Tiempo asignado para hablar de una persona (segundos o 'm:ss'): '+2:00' le suma dos "
-                        "minutos, '-30' le saca treinta segundos, '2:30' o '=2:30' lo deja en eso. Se puede "
-                        "cambiar estando al aire.");
+        t.description = QT_TRANSLATE_NOOP("mcp", "Tiempo asignado para hablar de una persona. Un número solo son MINUTOS ('3' = tres "
+                        "minutos); 'm:ss' ('0:45') o con 's' ('45s') para segundos. '+2' le suma dos minutos, "
+                        "'-30s' le saca treinta segundos, '2:30' o '=2:30' lo deja en eso. Se puede cambiar "
+                        "estando al aire.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"participant", personProp}, {"time", {{"type", json::array({"string", "integer"})}}}}},
+             {{"participant", personProp},
+              {"time",
+               {{"type", json::array({"string", "integer"})},
+                {"description", QT_TRANSLATE_NOOP("mcp", "'3' = 3 minutos; '45s' o '0:45' = 45 segundos; '+2' / '-30s' suman o restan.")}}}}},
             {"required", {"participant", "time"}}};
         t.run = [withPerson, &oradores, &vm, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            // «+2:00» / «-30»: sobre lo que ya tiene (el suyo, o el general si no tiene uno);
+            // «+2:00» / «-30s»: sobre lo que ya tiene (el suyo, o el general si no tiene uno);
             // «=2:30» o «2:30»: eso. La misma lectura que la interfaz (OradoresSala::leerTiempo).
             int base = p.value("allottedSec", 0);
             if (base <= 0) base = roomSnapshot(vm).value("speakers", json::object()).value("defaultSec", 0);

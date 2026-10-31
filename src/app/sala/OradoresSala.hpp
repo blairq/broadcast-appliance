@@ -8,8 +8,8 @@
 // speaker_*) pasan por acá, con las mismas reglas: un tiempo tiene que ser de
 // más de cero segundos; el lugar en la fila empieza en 0.
 //
-// Un tiempo escrito ("2:30", "90", "90s", "3m", "+2:00", "-30", "=2:30") se lee acá
-// (leerTiempo), igual para la interfaz y el MCP: los números solos son SEGUNDOS. Y la
+// Un tiempo escrito ("2:30", "3", "45s", "3m", "+2:00", "-30s", "=2:30") se lee acá
+// (leerTiempo), igual para la interfaz y el MCP: un número solo son MINUTOS. Y la
 // regla del reloj de quien habla (reloj: los últimos 10 s avisan, pasado cero se
 // excede) y la fila en orden (fila) también: la página, la tarjeta, el reloj flotante y
 // remotos_fila_ver muestran lo mismo.
@@ -37,9 +37,10 @@ class OradoresSala {
     static Reloj reloj(int asignadoS, double alAireDesdeMs, double ahoraMs);
     /// "m:ss" de `ms` ("+m:ss" si es negativo).
     static std::string textoTiempo(double ms);
-    /// Lee un tiempo escrito: "2:30", "90", "90s", "3m", "1,5m"; "+2:00" / "-30" suman o
-    /// restan a `actual`; "=2:30" lo deja en eso. Un número solo son segundos. "" o el
-    /// error (ya traducido); en `segundos`, el resultado (más de cero).
+    /// Lee un tiempo escrito: "2:30", "3" (minutos), "1,5" (minutos), "45s", "3m"; "+2:00" /
+    /// "-30s" suman o restan a `actual`; "=2:30" lo deja en eso. Un número solo son MINUTOS
+    /// (lo que escribe el operador). "" o el error (ya traducido); en `segundos`, el
+    /// resultado (más de cero).
     static std::string leerTiempo(const std::string& texto, int actual, int& segundos);
     /// La fila de una foto de la sala, en orden: cada participante tal cual, con
     /// `position` (desde 1) si espera su turno.

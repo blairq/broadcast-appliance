@@ -9,7 +9,6 @@ Item {
     id: pp
     readonly property var pl: Studio.playlist
     readonly property var est: pl ? pl.estado : ({})
-    function mmss(s) { s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2) }
 
     ColumnLayout {
         anchors.fill: parent
@@ -35,7 +34,7 @@ Item {
             Text { text: qsTr("AL AIRE"); color: Theme.live; font.pixelSize: 11; font.weight: Font.Bold }
             Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 15
                    text: pp.est.indice >= 0 && pp.pl.items[pp.est.indice] ? (pp.est.indice + 1) + ". " + pp.pl.items[pp.est.indice].nombre : "" }
-            Text { text: "−" + pp.mmss(pp.est.restante_s); color: (pp.est.restante_s || 0) <= 10 ? Theme.live : Theme.text
+            Text { text: "−" + Theme.mmss(pp.est.restante_s); color: (pp.est.restante_s || 0) <= 10 ? Theme.live : Theme.text
                    font.pixelSize: 22; font.weight: Font.DemiBold; font.family: "Menlo" }
         }
         Text { visible: !pp.pl || pp.pl.items.length === 0; color: Theme.textFaint; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap
@@ -61,7 +60,7 @@ Item {
                     spacing: 8
                     Text { text: (index + 1) + "."; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 26 }
                     Text { text: modelData.nombre; color: Theme.text; font.pixelSize: 13; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Text { text: (modelData.in_s > 0 ? qsTr("in %1").arg(pp.mmss(modelData.in_s)) + "  " : "") + (modelData.out_s > 0 ? qsTr("out %1").arg(pp.mmss(modelData.out_s)) : "")
+                    Text { text: (modelData.in_s > 0 ? qsTr("in %1").arg(Theme.mmss(modelData.in_s)) + "  " : "") + (modelData.out_s > 0 ? qsTr("out %1").arg(Theme.mmss(modelData.out_s)) : "")
                            color: Theme.textFaint; font.pixelSize: 11 }
                     GlassButton { compact: true; text: "↑"; enabled: index > 0; onClicked: pp.pl.moverUi(index, index - 1) }
                     GlassButton { compact: true; text: "↓"; enabled: index < pp.pl.items.length - 1; onClicked: pp.pl.moverUi(index, index + 1) }

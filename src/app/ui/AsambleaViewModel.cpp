@@ -21,6 +21,7 @@
 #include "evento/APdf.hpp"
 #include "i18n/I18n.hpp"
 #include "ptz/ControlCamaras.hpp"
+#include "asamblea/RecintoModel.hpp"
 #include "sala/Direcciones.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -118,6 +119,23 @@ AsambleaViewModel::AsambleaViewModel(Partes p, QObject* parent) : QObject(parent
     connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, ranuras);
     connect(&p_.camaras, &ptz::ControlCamaras::cambio, this, ranuras);
     QTimer::singleShot(0, this, ranuras);
+    // El recinto (lo que muestra cada banca), cruzado una vez por cambio de sus fuentes.
+    asamblea::RecintoModel::Fuentes rf{
+        .recinto = [this]() { return cuerpo_->recinto(); },
+        .oradores = [this]() { return bancas_->estado(); },
+        .central = [this]() { return dcn_->estadoUi(); },
+        .centralConectada = [this]() { return dcn_->conectada(); },
+        .participantes = [this]() { return sesionRemota_->participantesUi(); },
+        .fotoRemota = [this](const QString& id) { return sesionRemota_->fotoUrl(id); },
+        .camaras = [this]() { return p_.camaras.camaras(); }};
+    recinto_ = std::make_unique<asamblea::RecintoModel>(std::move(rf));
+    asamblea::RecintoModel* rec = recinto_.get();
+    connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, rec, &asamblea::RecintoModel::pedirRecalculo);
+    connect(bancas_.get(), &asamblea::Bancas::cambio, rec, &asamblea::RecintoModel::pedirRecalculo);
+    connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, rec, &asamblea::RecintoModel::pedirRecalculo);
+    connect(sesionRemota_.get(), &asamblea::SesionRemota::cambio, rec, &asamblea::RecintoModel::pedirRecalculo);
+    connect(sesionRemota_.get(), &asamblea::SesionRemota::fotoLista, rec, &asamblea::RecintoModel::pedirRecalculo);
+    connect(&p_.camaras, &ptz::ControlCamaras::cambio, rec, &asamblea::RecintoModel::pedirRecalculo);
 }
 
 AsambleaViewModel::~AsambleaViewModel() = default;
@@ -422,6 +440,7 @@ void AsambleaViewModel::armarInformes() {
 }
 
 QObject* AsambleaViewModel::cuerpoQml() const { return deCpp(cuerpo_.get()); }
+QObject* AsambleaViewModel::recintoQml() const { return deCpp(recinto_.get()); }
 QObject* AsambleaViewModel::bancasQml() const { return deCpp(bancas_.get()); }
 QObject* AsambleaViewModel::debateQml() const { return deCpp(debate_.get()); }
 QObject* AsambleaViewModel::dcnQml() const { return deCpp(dcn_.get()); }

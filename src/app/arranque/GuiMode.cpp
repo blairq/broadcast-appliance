@@ -62,6 +62,8 @@
 #include "ui/VigiaInterfaz.hpp"
 #include "ui/Vumetro.hpp"
 #include "ui/ImagenViva.hpp"
+#include "ui/FiltroCatalogo.hpp"
+#include "ui/ListaObjetos.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/QrViewModel.hpp"
@@ -423,6 +425,8 @@ int runGui(int argc, char** argv) {
         qmlRegisterType<ImagenViva>("BA", 1, 0, "ImagenViva");
         qmlRegisterType<control::MonitorBus>("BA", 1, 0, "MonitorBus");
         qmlRegisterType<ScopeVista>("BA", 1, 0, "Scope");
+        qmlRegisterType<ListaObjetos>("BA", 1, 0, "ListaConClave");
+        qmlRegisterType<FiltroCatalogo>("BA", 1, 0, "FiltroCatalogo");
         // Fuente de la terminal del Asistente (viaja en el bundle: data/fonts).
         for (const QString& dir :
              {QString::fromStdWString((ba::platform::bundleRoot() / "data" / "fonts").wstring()),

@@ -2,8 +2,8 @@
 //
 //   la regla del reloj (los últimos 10 s avisan, pasado cero se excede, lo que queda se
 //   redondea para arriba), el texto «m:ss» / «+m:ss», la lectura de un tiempo escrito
-//   (un número solo son segundos, en los dos: antes la interfaz lo leía como minutos) y la
-//   fila en orden.
+//   (un número solo son MINUTOS, en la interfaz y en el MCP: lo que escribe el operador)
+//   y la fila en orden.
 
 #include <cstdio>
 #include <string>
@@ -61,16 +61,19 @@ int main() {
     CHECK(OradoresSala::textoTiempo(0) == "0:00", "texto: cero");
     // --- Leer un tiempo --------------------------------------------------------------------
     CHECK(leer("2:30", 0) == 150, "leer: m:ss");
-    CHECK(leer("90", 0) == 90, "leer: un número solo son segundos");
+    CHECK(leer("3", 0) == 180, "leer: un número solo son minutos");
+    CHECK(leer("1,5", 0) == 90, "leer: 1,5 son minutos y medio");
+    CHECK(leer("45s", 0) == 45, "leer: 45s son segundos");
     CHECK(leer(" 90s ", 0) == 90, "leer: 90s (con espacios)");
     CHECK(leer("3m", 0) == 180, "leer: 3m");
     CHECK(leer("1,5m", 0) == 90, "leer: 1,5m (coma)");
     CHECK(leer("1.5 min", 0) == 90, "leer: 1.5 min");
     CHECK(leer("+2:00", 60) == 180, "leer: +2:00 suma a lo que tenía");
-    CHECK(leer("-30", 60) == 30, "leer: -30 resta segundos");
+    CHECK(leer("-30s", 60) == 30, "leer: -30s resta segundos");
+    CHECK(leer("+1", 60) == 120, "leer: +1 suma un minuto");
     CHECK(leer("=2:30", 60) == 150, "leer: =2:30 lo deja en eso");
     std::string e;
-    CHECK(leer("-90", 60, &e) == -1 && !e.empty(), "leer: no puede quedar en cero o menos");
+    CHECK(leer("-90s", 60, &e) == -1 && !e.empty(), "leer: no puede quedar en cero o menos");
     CHECK(leer("0", 0, &e) == -1 && !e.empty(), "leer: cero no vale");
     CHECK(leer("abc", 0, &e) == -1 && !e.empty(), "leer: lo que no se entiende es error");
     CHECK(leer("99999999999999", 0, &e) == -1, "leer: un número enorme es error (no excepción)");

@@ -976,6 +976,7 @@ void SesionRemota::pedirFotos() {
 }
 
 QByteArray SesionRemota::fotoJpeg(const QString& id) const { return FotosPersonas::las().jpeg("integrante:" + id); }
+QString SesionRemota::fotoUrl(const QString& id) const { return FotosPersonas::las().url("integrante:" + id); }
 
 void SesionRemota::ponerFoto(const QString& id, const QByteArray& jpeg) {
     if (jpeg.size() < 4 || static_cast<unsigned char>(jpeg[0]) != 0xFF) return;

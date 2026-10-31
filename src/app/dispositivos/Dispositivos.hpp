@@ -56,6 +56,8 @@ struct Parametro {
     QString ayuda;
     QVariant defecto;
     QVariantMap mapa() const;
+    /// El mismo parámetro como campo de formulario (ui/Formulario).
+    QVariantMap campo() const;
 };
 
 struct Accion {

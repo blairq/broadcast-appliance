@@ -1639,7 +1639,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "`antesDeGrabar` cuenta los bloques que pasaron antes de apretar grabar: esos no estan en "
             "el video y no se les inventa una marca.");
         t.run = [&ev, &vm](const json&, Done done) {
-            const QVariantMap c = ev.capitulos(vm.recordStartMs());
+            const QVariantMap c = ev.capitulos(vm.aire().recordStartMs());
             if (c.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay evento abierto o el guion no se corrio.")));
             json out = json{{"ok", c.value("ok").toBool()},
                             {"texto", c.value("texto").toString().toStdString()},

@@ -30,6 +30,12 @@ class SystemViewModel : public QObject {
     /// La tarjeta de preparación (F1-11): qué falta para volver solo tras un corte,
     /// leído del sistema: [{id, estado (ok|falta|revisar|no_aplica), titulo, detalle, como}].
     Q_PROPERTY(QVariantList preparacion READ preparacion NOTIFY changed)
+    /// Arrancar al encender el equipo (InicioConElSistema): {activo, abre, notas, preparacion}.
+    /// Se lee del sistema aparte (no en el hilo de la interfaz): al crear y con refresh().
+    Q_PROPERTY(QVariantMap inicio READ inicio NOTIFY changed)
+    /// Los elementos de GStreamer que faltan: [{elemento, para, imprescindible}]. Recorre el
+    /// registro de GStreamer aparte, una vez (no cambia con el programa abierto).
+    Q_PROPERTY(QVariantList faltantes READ faltantes NOTIFY faltantesChanged)
    public:
     explicit SystemViewModel(QObject* parent = nullptr);
 
@@ -46,13 +52,12 @@ class SystemViewModel : public QObject {
     /// deriva), que van al final de la preparación. Los arma quien tiene el motor.
     void alEquipo(std::function<QVariantList()> f) { equipo_ = std::move(f); }
 
+    /// Vuelve a leer lo del sistema (el inicio, la preparación).
     Q_INVOKABLE void refresh();
-    /// Arrancar al encender el equipo (InicioConElSistema): {activo, abre, notas}.
-    Q_INVOKABLE QVariantMap inicioEstado() const;
-    /// "" o el error.
+    QVariantMap inicio() const { return inicio_; }
+    /// "" o el error (y se relee `inicio`).
     Q_INVOKABLE QString inicioPoner(bool activo);
-    /// Los elementos de GStreamer que faltan: [{elemento, para, imprescindible}].
-    Q_INVOKABLE QVariantList elementosQueFaltan() const;
+    QVariantList faltantes() const;
     /// "" si `folder` (ruta o file://) es una version instalable; si no, por que no.
     Q_INVOKABLE QString checkUpdate(const QString& folder) const;
     /// Lanza la actualizacion y pide cerrar la app. Devuelve "" o el error.
@@ -68,11 +73,20 @@ class SystemViewModel : public QObject {
 
    signals:
     void changed();
+    void faltantesChanged();
     /// La app tiene que cerrarse para que el launcher actualice (o la reabra con otro evento).
     void quitForUpdate(const QString& aviso);
 
    private:
+    /// Lee el inicio en otro hilo y, al volver, lo pone y avisa `changed`.
+    void leerInicio();
+    /// Ídem con los elementos de GStreamer que faltan (faltantesChanged).
+    void leerFaltantes();
+
     std::function<QVariantList()> equipo_;
+    QVariantMap inicio_;
+    QVariantList faltantes_;
+    mutable bool faltantesPedidos_ = false;
 };
 
 /// Ruta local desde una URL file:// o una ruta.

@@ -6,6 +6,7 @@
 #include "platform/GstEntorno.hpp"
 
 #include <algorithm>
+#include <map>
 #include <cstdlib>
 #include <fstream>
 #include <mutex>
@@ -57,6 +58,20 @@ std::string categoriaDe(const std::string& elemento, const std::string& clase) {
         return "Formato";
     if (tiene(clase, "Converter")) return "Formato";
     return "Efectos";
+}
+
+/// El color de cada categoría (la tarjeta, el chip y el detalle del catálogo de módulos).
+std::string colorDeCategoria(const std::string& c) {
+    static const std::map<std::string, std::string> colores{
+        {"Color", "#f59e0b"}, {"Llaves y transparencia", "#22c55e"}, {"Geometría", "#38bdf8"},
+        {"Nitidez, ruido y desenfoque", "#94a3b8"}, {"Formato y entrelazado", "#64748b"}, {"Formato", "#64748b"},
+        {"Textos y superposiciones", "#e879f9"}, {"Análisis y medición", "#10b981"}, {"Análisis", "#10b981"},
+        {"Efectos artísticos", "#ec4899"}, {"Distorsión", "#a78bfa"}, {"Transiciones", "#f97316"},
+        {"OpenGL (en la GPU)", "#ef4444"}, {"OpenGL", "#ef4444"}, {"Subtítulos (closed captions)", "#eab308"},
+        {"Fuentes", "#14b8a6"}, {"Salidas", "#0891b2"}, {"Mezcla y composición", "#f472b6"},
+        {"Internos (no van como tarjeta)", "#475569"}};
+    const auto it = colores.find(c);
+    return it != colores.end() ? it->second : std::string();
 }
 
 #if defined(BA_HAVE_GST)
@@ -298,6 +313,9 @@ const json& CatalogoGst::modulos() const {
         m["mezcla"] = m.value("comoTarjeta", std::string()).empty() && m.value("categoria", std::string()).rfind("Internos", 0) != 0 &&
                       (pedido || ents.size() >= 2);
         if (m["mezcla"].get<bool>()) m["tarjeta"] = false;
+        // Se puede agregar (como tarjeta, como tarjeta propia o como mezcla).
+        m["va"] = m.value("tarjeta", false) || !m.value("comoTarjeta", std::string()).empty() || m["mezcla"].get<bool>();
+        m["color"] = colorDeCategoria(m.value("categoria", std::string()));
         out.push_back(std::move(m));
     }
     gst_plugin_feature_list_free(lista);

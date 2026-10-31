@@ -75,8 +75,9 @@ class SettingsModel : public QAbstractListModel {
         AvanzadoRole ///< de los «avanzados» (ajustes/Registro): se ven con «Mostrar ajustes avanzados»
     };
 
-    /// `ventanilla`: el motor y la configuración, por la foto y los pedidos (nullptr: directo).
-    explicit SettingsModel(AppRuntime& rt, VentanillaMotor* ventanilla = nullptr, QObject* parent = nullptr);
+    /// `ventanilla`: el motor y la configuración, por la foto y los pedidos (el plano de
+    /// control es el dueño: nada se lee ni se aplica directo).
+    SettingsModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~SettingsModel() override;
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -138,8 +139,6 @@ class SettingsModel : public QAbstractListModel {
    private:
     std::function<std::string(int)> cupoEnCaliente_;
     sala::ConfigSala* configSala_ = nullptr;
-    int observador_ = 0;     ///< el aviso «Ajustes» del runtime (otro formulario aplicó)
-    bool aplicando_ = false; ///< apply() en curso: su propio aviso no lo recarga
     bool fallo_ = false;     ///< el último apply() no aplicó o no guardó (fallo())
     struct Field {
         QString key;
@@ -194,7 +193,7 @@ class SettingsModel : public QAbstractListModel {
     int rowOfKey(const QString& key) const;
 
     AppRuntime& rt_;
-    VentanillaMotor* v_ = nullptr;
+    VentanillaMotor* v_; ///< nunca nula
     bool aplicandoEnDueno_ = false; ///< un aplicar() esperando al dueño: la foto no recarga
     std::function<bool()> enVivo_;
     std::string idiomaAlArrancar_; ///< el guardado al abrir el programa (idiomaPendiente)

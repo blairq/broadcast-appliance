@@ -45,8 +45,9 @@ std::string OradoresSala::leerTiempo(const std::string& textoEntero, int actual,
     }
     std::replace(t.begin(), t.end(), ',', '.');
     static const std::regex mss(R"(^(\d{1,5}):(\d{1,2})$)");
-    static const std::regex seg(R"(^(\d{1,6})(?:\.(\d{1,3}))?\s*(s|seg|segundos?)?$)", std::regex::icase);
-    static const std::regex min(R"(^(\d{1,5})(?:\.(\d{1,3}))?\s*(m|min|minutos?)$)", std::regex::icase);
+    static const std::regex seg(R"(^(\d{1,6})(?:\.(\d{1,3}))?\s*(s|seg|segundos?)$)", std::regex::icase);
+    // Un número solo son MINUTOS (lo que escribe el operador: «3» es un tiempo de tres minutos).
+    static const std::regex min(R"(^(\d{1,5})(?:\.(\d{1,3}))?\s*(m|min|minutos?)?$)", std::regex::icase);
     // (Sin stod: depende del locale, y con el de la interfaz «1.5» sería 1.)
     const auto numero = [](const std::string& entero, const std::string& decimales) {
         double v = std::stoi(entero), escala = 0.1;
@@ -61,7 +62,7 @@ std::string OradoresSala::leerTiempo(const std::string& textoEntero, int actual,
     if (std::regex_match(t, m, mss)) valor = std::stoi(m[1]) * 60 + std::stoi(m[2]);
     else if (std::regex_match(t, m, min)) valor = numero(m[1], m[2]) * 60;
     else if (std::regex_match(t, m, seg)) valor = numero(m[1], m[2]);
-    else return ba::i18n::traducir("sala", "no se entiende el tiempo: segundos, «m:ss» o «3m» (con + o - suma o resta)");
+    else return ba::i18n::traducir("sala", "no se entiende el tiempo: minutos («3»), «m:ss» («0:45») o segundos («45s»); con + o - suma o resta");
     const int s = static_cast<int>(std::lround(valor));
     segundos = signo == 0 ? s : actual + signo * s;
     if (segundos <= 0) return ba::i18n::traducir("sala", "el tiempo tiene que ser de más de cero segundos");

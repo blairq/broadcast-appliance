@@ -219,6 +219,9 @@ class SesionRemota : public QObject {
     /// La misma foto, en bytes (JPEG; vacía si no llegó): para compararle la
     /// cara con su ficha (ui/AtencionViewModel).
     QByteArray fotoJpeg(const QString& integrante) const;
+    /// La URL de esa foto para las vistas (image://personas/…, cambia con cada foto
+    /// nueva); "" si no llegó ninguna.
+    QString fotoUrl(const QString& integrante) const;
     /// Los canales que el remoto puede mirar en su celular (ver setVistas), con el nombre
     /// que escribió el operador ("" = el automático, que va en `nombreAuto`): si el panel
     /// mostrara el automático como texto, al guardar quedaría fijo y no seguiría a la escena.

@@ -49,6 +49,9 @@ class PersonasViewModel : public QObject {
     Q_OBJECT
     /// [{id, nombre, cargo, nota, foto (url), caras, vistaSeg}]
     Q_PROPERTY(QVariantList personas READ personas NOTIFY cambio)
+    /// Las claves de video que se pueden mirar: [{clave, etiqueta}] (los cuadros que hay y
+    /// las cámaras del estudio).
+    Q_PROPERTY(QVariantList fuentes READ fuentes NOTIFY fuentesCambio)
     /// Si el reconocimiento está disponible (modelos vendoreados presentes).
     Q_PROPERTY(bool disponible READ disponible CONSTANT)
     /// Lo que no se pudo hacer, para mostrarlo donde se pidió.
@@ -161,12 +164,20 @@ class PersonasViewModel : public QObject {
     /// Pide mirar quién hay en `feed`. La respuesta llega en `vistos`, más
     /// tarde: el reconocimiento no corre en el hilo de la interfaz.
     Q_INVOKABLE void mirar(const QString& feed);
+    /// Prende o apaga el anotado automático mirando `fuente`, de una vez (la cámara y el
+    /// interruptor juntos: con dos escrituras sueltas, si la segunda no podía, la primera
+    /// quedaba hecha). Si no se puede prender, no cambia nada y lo dice `notify`.
+    Q_INVOKABLE void activarAutoalta(const QString& fuente, bool activo);
+    /// Lo mismo con la acreditación de la puerta.
+    Q_INVOKABLE void activarPuerta(const QString& fuente, bool activo);
     /// Una cámara del estudio que se analiza o se sigue (PTZ): lleva su
     /// tarjeta «Rostros» mientras `usar` (ver Seguidor).
     void usarCamara(const QString& entrada, bool usar);
 
-    /// Las claves de video que se pueden mirar, con su etiqueta.
-    Q_INVOKABLE QVariantList fuentes() const;
+    /// Las claves de video que se pueden mirar, con su etiqueta (propiedad `fuentes`).
+    QVariantList fuentes() const { return fuentes_; }
+    /// Las rearma (cambiaron los cuadros que hay o las cámaras del estudio) y avisa si cambiaron.
+    void revisarFuentes();
     /// El nombre legible de una clave de video ("Programa", "Invitado 2").
     Q_INVOKABLE QString etiquetaDe(const QString& feed) const;
 
@@ -207,6 +218,7 @@ class PersonasViewModel : public QObject {
     void autoaltaCambio();
     void vistosCambio();
     void enLobbyCambio();
+    void fuentesCambio();
     void notify(const QString& texto, const QString& tipo);
 
    private:
@@ -253,6 +265,7 @@ class PersonasViewModel : public QObject {
 #endif
     struct Impl;
     std::unique_ptr<Impl> d_;
+    QVariantList fuentes_; ///< revisarFuentes
 };
 
 } // namespace ba::app

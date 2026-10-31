@@ -29,41 +29,16 @@ Item {
         for (const c of raiz.tv.conexiones) m[c.conn] = c
         return m
     }
-    readonly property var porRegistrado: {
-        const m = {}
-        for (const r of raiz.tv.registrados) m[r.id] = r
-        return m
-    }
 
-    // Las listas que cambian seguido van en ListModel con clave y se actualizan
-    // en su lugar: cada fila lee lo suyo del mapa de arriba (como VistaGrillas).
-    function sincronizar(modelo, lista, clave) {
-        for (let i = modelo.count - 1; i >= 0; --i)
-            if (!lista.some(x => x[clave] === modelo.get(i)[clave])) modelo.remove(i)
-        for (let j = 0; j < lista.length; ++j) {
-            let k = -1
-            for (let i = 0; i < modelo.count; ++i) if (modelo.get(i)[clave] === lista[j][clave]) { k = i; break }
-            if (k < 0) modelo.insert(Math.min(j, modelo.count), lista[j])
-            else if (k !== j && j < modelo.count) modelo.move(k, j, 1)
-        }
-    }
-    ListModel { id: filasTotems }
-    ListModel { id: filasConexiones }
-    ListModel { id: filasRegistrados }
-    function sincronizarTodo() {
-        raiz.sincronizar(filasTotems, raiz.tv.totems.map(t => ({ clave: t.id })), "clave")
-        raiz.sincronizar(filasConexiones, raiz.tv.conexiones.map(c => ({ conn: c.conn })), "conn")
-        raiz.sincronizar(filasRegistrados, raiz.tv.registrados.map(r => ({ clave: r.id })), "clave")
+    // Las listas que cambian seguido vienen como modelos que se actualizan en su lugar
+    // (Studio.totems.filas*: ui/ListaObjetos); cada fila trae su objeto en `datos`.
+    // Lo elegido, si se borró o todavía no hay: el primero.
+    function elegirSiHaceFalta() {
         if (raiz.elegido === "" || !raiz.porId[raiz.elegido])
             raiz.elegido = raiz.tv.totems.length > 0 ? raiz.tv.totems[0].id : ""
     }
-    Connections {
-        target: raiz.tv
-        function onCambio() { raiz.sincronizarTodo() }
-        function onVivoCambio() { raiz.sincronizarTodo() }
-        function onRegistradosCambio() { raiz.sincronizarTodo() }
-    }
-    Component.onCompleted: raiz.sincronizarTodo()
+    onPorIdChanged: raiz.elegirSiHaceFalta()
+    Component.onCompleted: raiz.elegirSiHaceFalta()
 
     function cambiar(clave, valor) {
         if (!raiz.totem) return
@@ -124,11 +99,12 @@ Item {
                     text: qsTr("Todavía no hay ninguno. «Nuevo» arma uno que pide nombre y correo.")
                 }
                 Repeater {
-                    model: filasTotems
+                    model: raiz.tv.filasTotems
                     delegate: Rectangle {
                         id: filaT
-                        required property string clave
-                        readonly property var t: raiz.porId[filaT.clave] || ({})
+                        required property var datos
+                        readonly property var t: filaT.datos
+                        readonly property string clave: filaT.t.id
                         Layout.fillWidth: true
                         implicitHeight: 46
                         radius: 10
@@ -213,7 +189,7 @@ Item {
                     text: qsTr("%1 Sin eso, la página muestra el texto y se puede tipear.").arg(raiz.tv.hablarFalta)
                 }
                 Text {
-                    visible: filasConexiones.count === 0
+                    visible: raiz.tv.filasConexiones.count === 0
                     color: Theme.textFaint; font.pixelSize: 11
                     text: raiz.tv.enLinea ? qsTr("Nadie.") : qsTr("El servidor no responde.")
                 }
@@ -227,11 +203,12 @@ Item {
                         width: scConn.availableWidth
                         spacing: 6
                         Repeater {
-                            model: filasConexiones
+                            model: raiz.tv.filasConexiones
                             delegate: Rectangle {
                                 id: filaC
                                 required property string conn
-                                readonly property var c: raiz.porConn[filaC.conn] || ({})
+                                required property var datos
+                                readonly property var c: filaC.datos
                                 Layout.fillWidth: true
                                 implicitHeight: colC.implicitHeight + 14
                                 radius: 8
@@ -647,12 +624,12 @@ Item {
                 anchors.fill: parent
                 spacing: 8
                 Text {
-                    text: qsTr("Registrados en este evento (%1)").arg(filasRegistrados.count)
+                    text: qsTr("Registrados en este evento (%1)").arg(raiz.tv.filasRegistrados.count)
                     color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
                 }
                 Text {
                     Layout.fillWidth: true
-                    visible: filasRegistrados.count === 0
+                    visible: raiz.tv.filasRegistrados.count === 0
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint; font.pixelSize: 11
                     text: qsTr("Nadie todavía. Quedan en el padrón del evento, con lo que contestaron.")
@@ -667,11 +644,11 @@ Item {
                         width: scReg.availableWidth
                         spacing: 6
                         Repeater {
-                            model: filasRegistrados
+                            model: raiz.tv.filasRegistrados
                             delegate: Rectangle {
                                 id: filaR
-                                required property string clave
-                                readonly property var r: raiz.porRegistrado[filaR.clave] || ({})
+                                required property var datos
+                                readonly property var r: filaR.datos
                                 readonly property var claves: Object.keys(filaR.r.datos || {})
                                 Layout.fillWidth: true
                                 implicitHeight: colR.implicitHeight + 14

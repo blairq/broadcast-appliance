@@ -23,15 +23,6 @@ Rectangle {
     property string abierta: ""      // id de la corrida desplegada
     property var detalle: ({})       // su contenido (con pasos)
 
-    function colorDeEstado(e) {
-        switch (e) {
-        case "corriendo": return Theme.accent
-        case "ok": return Theme.ok
-        case "error": return Theme.live
-        case "detenida": return Theme.warn
-        default: return Theme.textFaint
-        }
-    }
     // El estado es una clave ("corriendo", "ok"...): se compara; lo que se lee es esto.
     function etiquetaDeEstado(e) {
         switch (e) {
@@ -337,7 +328,7 @@ Rectangle {
                             id: cab
                             Layout.fillWidth: true
                             spacing: 10
-                            Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: page.colorDeEstado(item.modelData.estado) }
+                            Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: Theme.colorDeEstado(item.modelData.estado) }
                             Text { text: item.modelData.creada; color: Theme.textDim; font { pixelSize: 11; family: "JetBrains Mono" } }
                             Text { text: item.modelData.rolTitulo; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } Layout.preferredWidth: 90 }
                             Text { text: item.modelData.origen; color: Theme.textFaint; font.pixelSize: 11; Layout.preferredWidth: 150; elide: Text.ElideRight }
@@ -351,7 +342,7 @@ Rectangle {
                             Text {
                                 text: item.modelData.inicio !== "" ? qsTr("%1 · %2 s · %3 herr.").arg(page.etiquetaDeEstado(item.modelData.estado)).arg(item.modelData.duracionS).arg(item.modelData.herramientas)
                                                                     : page.etiquetaDeEstado(item.modelData.estado)
-                                color: page.colorDeEstado(item.modelData.estado); font.pixelSize: 11
+                                color: Theme.colorDeEstado(item.modelData.estado); font.pixelSize: 11
                             }
                             GlassButton {
                                 compact: true; text: qsTr("Detener")

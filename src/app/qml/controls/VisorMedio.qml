@@ -30,20 +30,34 @@ Popup {
     readonly property var m: Studio.medios
     /// El índice dentro de lo que la grilla está mostrando.
     property int indice: -1
-    readonly property var actual: (indice >= 0 && indice < m.archivos.length)
-                                  ? m.archivos[indice] : null
+    /// La fila que se ve (se toma al abrir o pasar, y si cambia la lista).
+    property var actual: null
     readonly property string tipo: actual ? actual.tipo : ""
 
+    function tomar() {
+        const f = visor.m.archivos.fila(visor.indice)
+        visor.actual = f.relativa !== undefined ? f : null
+    }
+    // La lista cambió (un filtro, se movió o borró algo): lo que se ve sale de nuevo.
+    Connections {
+        target: visor.m.archivos
+        function onRowsInserted() { visor.tomar() }
+        function onRowsRemoved() { visor.tomar() }
+        function onModelReset() { visor.tomar() }
+        function onDataChanged() { visor.tomar() }
+    }
     function abrir(i) {
         visor.indice = i
+        visor.tomar()
         visor.open()
     }
     function pasar(cuanto) {
-        const n = visor.m.archivos.length
+        const n = visor.m.archivos.count
         if (n === 0) return
         // Da la vuelta: al llegar al final sigue por el principio, como el
         // carrusel. Frenar seco obliga a pensar dónde está uno.
         visor.indice = (visor.indice + cuanto + n) % n
+        visor.tomar()
     }
 
     modal: true
@@ -119,7 +133,7 @@ Popup {
             }
             Text {
                 text: visor.actual
-                      ? qsTr("%1 de %2 · %3").arg(visor.indice + 1).arg(visor.m.archivos.length).arg(visor.actual.carpeta)
+                      ? qsTr("%1 de %2 · %3").arg(visor.indice + 1).arg(visor.m.archivos.count).arg(visor.actual.carpeta)
                       : ""
                 color: Theme.textFaint
                 font.pixelSize: 11

@@ -111,7 +111,7 @@ Item {
             etiqueta: t.aire.transmitiendo ? qsTr("TRANSMITIENDO") : qsTr("TRANSMISIÓN")
             reloj: t.aire.tiempoTransmision
             detalle: !t.porOmision ? qsTr("por sus destinos (página Salidas)")
-                     : t.aire.transmitiendo ? Studio.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor configurado"))
+                     : t.aire.transmitiendo ? Studio.aire.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor configurado"))
             prendida: !!t.aire.transmitiendo
             tono: Theme.live
             accion: !t.porOmision ? "" : t.aire.transmitiendo ? qsTr("Cortar") : qsTr("Salir al aire")
@@ -126,7 +126,7 @@ Item {
             accion: t.aire.grabando ? qsTr("Detener") : qsTr("Grabar")
             // La de la por omisión con lo suyo de siempre (el aviso del disco); las demás, la de su salida.
             function grabar(si) {
-                if (t.porOmision) { if (si !== Studio.recording) Studio.emision.toggleRecording(); return }
+                if (t.porOmision) { if (si !== Studio.aire.recording) Studio.emision.toggleRecording(); return }
                 const e = Studio.salidas.grabar(Studio.salidas.activa, si)
                 if (e !== "") Studio.notify(e, "error")
             }

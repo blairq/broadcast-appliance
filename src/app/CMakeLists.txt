@@ -547,8 +547,32 @@ endif()
     target_link_libraries(test_dashboard_model PRIVATE ba_core Qt6::Core Qt6::Gui)
     set_target_properties(test_dashboard_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dashboard_model COMMAND test_dashboard_model)
+    # La lista que se actualiza en su lugar por clave (ui/ListaObjetos, sobre ui/ListaConClave): avisa lo justo.
+    add_executable(test_lista_con_clave tests/test_lista_con_clave.cpp ui/ListaObjetos.cpp)
+    target_include_directories(test_lista_con_clave PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_lista_con_clave PRIVATE Qt6::Core)
+    set_target_properties(test_lista_con_clave PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_lista_con_clave COMMAND test_lista_con_clave)
+    # La única búsqueda de los catálogos (ui/FiltroCatalogo).
+    add_executable(test_filtro_catalogo tests/test_filtro_catalogo.cpp ui/FiltroCatalogo.cpp ui/ListaObjetos.cpp)
+    target_include_directories(test_filtro_catalogo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_filtro_catalogo PRIVATE Qt6::Core)
+    set_target_properties(test_filtro_catalogo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_filtro_catalogo COMMAND test_filtro_catalogo)
+    # El recinto: una fila por banca con lo de sus cinco fuentes ya cruzado.
+    add_executable(test_recinto_model tests/test_recinto_model.cpp asamblea/RecintoModel.cpp ui/ListaObjetos.cpp)
+    target_include_directories(test_recinto_model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_recinto_model PRIVATE Qt6::Core)
+    set_target_properties(test_recinto_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_recinto_model COMMAND test_recinto_model)
+    # Los formularios por esquema: el tipo de cada campo y sus errores (ui/Formulario).
+    add_executable(test_formulario tests/test_formulario.cpp ui/Formulario.cpp)
+    target_include_directories(test_formulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_formulario PRIVATE Qt6::Core)
+    set_target_properties(test_formulario PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_formulario COMMAND test_formulario)
     # El registro de dispositivos de la máquina: nombres del operador, ausentes, persistencia.
-    add_executable(test_dispositivos tests/test_dispositivos.cpp dispositivos/Dispositivos.cpp dispositivos/Conocidos.cpp)
+    add_executable(test_dispositivos tests/test_dispositivos.cpp dispositivos/Dispositivos.cpp dispositivos/Conocidos.cpp ui/Formulario.cpp)
     target_include_directories(test_dispositivos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_dispositivos PRIVATE ba_core Qt6::Core)
     set_target_properties(test_dispositivos PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -635,6 +659,14 @@ endif()
     target_link_libraries(test_plano_control PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
+    # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
+    # andaba y los avisos por grupo, con una ventanilla sintética.
+    add_executable(test_estado_aire tests/test_estado_aire.cpp ui/EstadoAireViewModel.cpp ui/EstadoAireViewModel.hpp
+                   emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp)
+    target_include_directories(test_estado_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_estado_aire PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_estado_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_estado_aire COMMAND test_estado_aire)
     add_test(NAME test_mcp COMMAND test_mcp)
     # Los servidores que lanza la app (OpenCode, llama-server) mueren con ella.
     add_executable(test_hijos_app tests/test_hijos_app.cpp agent/HijosDeLaApp.cpp agent/HijosDeLaApp.hpp)
@@ -1053,6 +1085,10 @@ endif()
     # ba_core: los tipos de documento (documentos/Documento, el DNI) del paso «documento».
     target_link_libraries(test_registro_conversacion PRIVATE nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_registro_conversacion COMMAND test_registro_conversacion)
+    # El ritmo de la conversación (fin del turno, esperas, silencio), con la hora a mano.
+    add_executable(test_registro_ritmo tests/test_registro_ritmo.cpp registro/RitmoTotem.cpp)
+    target_include_directories(test_registro_ritmo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_registro_ritmo COMMAND test_registro_ritmo)
     # La conversación atendida por una persona (la atención remota del registro).
     add_executable(test_registro_atencion tests/test_registro_atencion.cpp registro/Conversacion.cpp registro/Totems.cpp)
     target_include_directories(test_registro_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -1470,15 +1506,16 @@ endif()
     add_test(NAME test_facebook COMMAND test_facebook)
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
     # propiedades asignadas dos veces, tipos o ids que no existen).
-    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp ui/Reloj.cpp ui/Reloj.hpp
-                   ui/FotosPersonas.cpp ui/FotosPersonas.hpp)
+    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp ui/ListaObjetos.cpp ui/FiltroCatalogo.cpp
+                   ui/Reloj.cpp ui/Reloj.hpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp)
     target_include_directories(test_qml_carga PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_qml_carga PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_qml_carga COMMAND test_qml_carga)
     # El selector de herramientas de la Botonera: busca y filtra por sección.
-    add_executable(test_selector_herramientas tests/test_selector_herramientas.cpp)
+    add_executable(test_selector_herramientas tests/test_selector_herramientas.cpp ui/ListaObjetos.cpp ui/FiltroCatalogo.cpp)
+    target_include_directories(test_selector_herramientas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_selector_herramientas PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_selector_herramientas PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_selector_herramientas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

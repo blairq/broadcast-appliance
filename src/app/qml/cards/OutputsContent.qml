@@ -45,13 +45,13 @@ Item {
         }
 
         OutputRow {
-            label: Studio.streaming ? qsTr("AL AIRE") : qsTr("TRANSMISION")
-            time: Studio.streamTime
-            detail: Studio.streaming ? Studio.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor"))
-            on: Studio.streaming
+            label: Studio.aire.streaming ? qsTr("AL AIRE") : qsTr("TRANSMISION")
+            time: Studio.aire.streamTime
+            detail: Studio.aire.streaming ? Studio.aire.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor"))
+            on: Studio.aire.streaming
             tone: Theme.live
-            action: Studio.streaming ? qsTr("Cortar") : qsTr("Salir al aire")
-            onTriggered: Studio.streaming ? ApplicationWindow.window.confirmStopStream() : ApplicationWindow.window.openStreamDialog()
+            action: Studio.aire.streaming ? qsTr("Cortar") : qsTr("Salir al aire")
+            onTriggered: Studio.aire.streaming ? ApplicationWindow.window.confirmStopStream() : ApplicationWindow.window.openStreamDialog()
         }
         // Destinos adicionales (respaldo, otras plataformas): mismos codificadores.
         ColumnLayout {
@@ -215,8 +215,7 @@ Item {
             id: disco
             property var d: Studio.emision.disco
             property var r: Studio.emision.remux
-            // El disco que queda lo lee el dueño del motor (lee el disco): se le pide cada tanto.
-            Timer { interval: 5000; running: disco.visible; repeat: true; triggeredOnStart: true; onTriggered: Studio.emision.pedirDisco() }
+            // El disco que queda: lo trae el modelo cada tanto (más seguido grabando).
             Layout.fillWidth: true; elide: Text.ElideRight
             text: {
                 // Las horas son de todo lo que se graba (copia e ISO incluidas), en el disco que antes se llena.
@@ -232,24 +231,24 @@ Item {
             font.pixelSize: 10
         }
         OutputRow {
-            label: Studio.recording ? qsTr("GRABANDO") : qsTr("GRABACION")
-            time: Studio.recordTime
+            label: Studio.aire.recording ? qsTr("GRABANDO") : qsTr("GRABACION")
+            time: Studio.aire.recordTime
             detail: ""
-            on: Studio.recording
+            on: Studio.aire.recording
             tone: Theme.accent
-            action: Studio.recording ? qsTr("Detener") : qsTr("Grabar")
-            glyph: Studio.recording ? "■" : "●"
+            action: Studio.aire.recording ? qsTr("Detener") : qsTr("Grabar")
+            glyph: Studio.aire.recording ? "■" : "●"
             // Grabar arranca directo; detener pide confirmacion (un clic cortaba el respaldo).
             onTriggered: {
-                if (!Studio.recording) { Studio.emision.toggleRecording(); return }
+                if (!Studio.aire.recording) { Studio.emision.toggleRecording(); return }
                 ApplicationWindow.window.confirm({
                     title: qsTr("¿Detener la grabación?"),
-                    text: Studio.streaming ? qsTr("El archivo se cierra y lo que siga no queda grabado. La transmisión sigue al aire.")
+                    text: Studio.aire.streaming ? qsTr("El archivo se cierra y lo que siga no queda grabado. La transmisión sigue al aire.")
                                            : qsTr("El archivo se cierra y lo que siga no queda grabado."),
                     accept: qsTr("Detener"),
                     reject: qsTr("Seguir grabando"),
                     // toggleRecording alterna: si ya se detuvo sola con el dialogo abierto, no volver a grabar.
-                    action: function() { if (Studio.recording) Studio.emision.toggleRecording() }
+                    action: function() { if (Studio.aire.recording) Studio.emision.toggleRecording() }
                 })
             }
         }

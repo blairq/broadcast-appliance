@@ -47,6 +47,8 @@ class AudioViewModel : public QObject {
     /// segundos, bytes, conCable, carpeta}. Al día mientras alguna vista la usa:
     /// usar(vista, si, "grabacion").
     Q_PROPERTY(QVariantMap grabacion READ grabacion NOTIFY grabacionCambio)
+    /// Las plantillas de rack guardadas: [{nombre, modulos, paraTipo}].
+    Q_PROPERTY(QVariantList plantillas READ plantillas NOTIFY changed)
    public:
     explicit AudioViewModel(RackManager& mgr, QObject* parent = nullptr);
 
@@ -108,7 +110,7 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QVariantList catalogoLsp() const;
 
     // --- Plantillas -------------------------------------------------------------
-    Q_INVOKABLE QVariantList plantillas() const;
+    QVariantList plantillas() const;
     Q_INVOKABLE QString guardarPlantilla(const QString& nombre);
     Q_INVOKABLE QString aplicarPlantilla(const QString& nombre);
     Q_INVOKABLE QString borrarPlantilla(const QString& nombre);

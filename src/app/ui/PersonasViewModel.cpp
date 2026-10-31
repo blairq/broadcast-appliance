@@ -25,6 +25,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "ui/FrameService.hpp"
+#include "emision/VentanillaMotor.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #if BA_HAVE_ROSTROS
@@ -147,7 +148,7 @@ void PersonasViewModel::sincronizarRostros() {}
 void PersonasViewModel::usarCamara(const QString&, bool) {}
 void PersonasViewModel::analizar(const QString&, bool, const QString&) {}
 QVariantList PersonasViewModel::vistos() const { return {}; }
-QVariantList PersonasViewModel::fuentes() const { return {}; }
+void PersonasViewModel::revisarFuentes() {}
 QString PersonasViewModel::etiquetaDe(const QString& feed) const { return feed; }
 bool PersonasViewModel::autoalta() const { return false; }
 void PersonasViewModel::setAutoalta(bool) {}
@@ -183,6 +184,10 @@ void PersonasViewModel::setLobbyAuto(bool activo) {
 QVariantMap PersonasViewModel::enLobby() const { return {}; }
 QString PersonasViewModel::feedAuto() const { return d_->feedAuto; }
 void PersonasViewModel::setFeedAuto(const QString&) {}
+void PersonasViewModel::activarAutoalta(const QString&, bool activo) {
+    if (activo) emit notify(d_->aviso, "error");
+}
+void PersonasViewModel::activarPuerta(const QString&, bool) {}
 int PersonasViewModel::sinNombre() const { return 0; }
 #else
 
@@ -367,7 +372,10 @@ void PersonasViewModel::alRostros(const QString& entrada, const std::string& js,
         const std::string texto = etiquetas.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (hayVectores && d_->etiquetasDe[feed] != texto) {
             d_->etiquetasDe[feed] = texto;
-            d_->rt.engine().controlEntrada(entrada.toStdString(), {{"rostros_etiquetas", texto}});
+            // El dibujo de las etiquetas es de la entrada (motor): se le pide al dueño.
+            d_->vm.ventanilla().pedir("rostros_etiquetas", [&rt = d_->rt, e = entrada.toStdString(), texto]() {
+                rt.engine().controlEntrada(e, {{"rostros_etiquetas", texto}});
+            });
         }
     }
     auto it = d_->esperas.find(feed);
@@ -841,6 +849,44 @@ void PersonasViewModel::setFeedAuto(const QString& feed) {
     emit autoaltaCambio();
 }
 
+void PersonasViewModel::activarAutoalta(const QString& fuente, bool activo) {
+    if (activo && !d_->listo) {
+        emit notify(d_->aviso, "error");
+        return;
+    }
+    bool cambio = false;
+    if (!fuente.isEmpty() && fuente != d_->feedAuto) {
+        d_->feedAuto = fuente;
+        cambio = true;
+    }
+    if (activo != d_->autoalta) {
+        d_->autoalta = activo;
+        cambio = true;
+    }
+    if (!cambio) return;
+    d_->pendientes.clear(); // lo que estaba a medio ver (o de otra cámara) no se arrastra
+    revisarRonda();
+    sincronizarRostros();
+    emit autoaltaCambio();
+}
+
+void PersonasViewModel::activarPuerta(const QString& fuente, bool activo) {
+    bool cambio = false;
+    if (!fuente.isEmpty() && fuente != d_->feedPuerta) {
+        d_->feedPuerta = fuente;
+        cambio = true;
+    }
+    if (activo != d_->puertaAuto) {
+        d_->puertaAuto = activo;
+        cambio = true;
+    }
+    if (!cambio) return;
+    d_->avisadosPuerta.clear(); // otra cámara (o volver a mirar) es otra puerta
+    revisarRonda();
+    sincronizarRostros();
+    emit autoaltaCambio();
+}
+
 int PersonasViewModel::sinNombre() const {
     int n = 0;
     for (const auto& p : d_->libreta.todas())
@@ -1208,7 +1254,7 @@ QString PersonasViewModel::etiquetaDe(const QString& feed) const {
     return static_cast<FrameService*>(d_->vm.frames())->label(feed);
 }
 
-QVariantList PersonasViewModel::fuentes() const {
+void PersonasViewModel::revisarFuentes() {
     QVariantList out;
     auto* frames = static_cast<FrameService*>(d_->vm.frames());
     for (const QString& k : frames->keys())
@@ -1217,7 +1263,9 @@ QVariantList PersonasViewModel::fuentes() const {
     if (auto* vg = d_->vm.videoVista())
         for (const QString& e : vg->entradas())
             out.append(QVariantMap{{"clave", "entrada:" + e}, {"etiqueta", tr("Cámara · %1").arg(e)}});
-    return out;
+    if (out == fuentes_) return;
+    fuentes_ = out;
+    emit fuentesCambio();
 }
 #endif // BA_HAVE_ROSTROS
 

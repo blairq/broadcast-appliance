@@ -170,6 +170,11 @@ nlohmann::json LoudnessPrograma::json() const {
     const Foto f = foto();
     const Objetivo o = objetivo();
     const auto r = [](double x) { return std::round(x * 10.0) / 10.0; };
+    // Cómo está cada medida contra el objetivo (una sola regla: la tarjeta, el mezclador,
+    // el control web y las alarmas la leen de acá): "ok", "aviso", "excedido" o "" sin dato.
+    const std::string integrado = f.i <= -70 ? "" : std::abs(f.i - o.lufs) > 2.0 ? "aviso" : "ok";
+    const std::string corto = f.s <= -70 ? "" : f.s > o.lufs + 2.0 ? "aviso" : "ok";
+    const std::string tp = f.tp <= -100 ? "" : f.tp > o.tp ? "excedido" : "ok";
     return {{"m", r(f.m)},
             {"s", r(f.s)},
             {"i", r(f.i)},
@@ -179,7 +184,10 @@ nlohmann::json LoudnessPrograma::json() const {
             {"segundos", std::round(f.segundos)},
             {"gr_db", r(f.grDb)},
             {"objetivo", {{"perfil", o.perfil}, {"lufs", o.lufs}, {"tp", o.tp}, {"agc", o.agc}}},
-            {"fuera_de_objetivo", f.i > -70 && (std::abs(f.i - o.lufs) > 2.0 || f.tp > o.tp)}};
+            {"estado_integrado", integrado},
+            {"estado_corto", corto},
+            {"estado_tp", tp},
+            {"fuera_de_objetivo", integrado == "aviso" || (!integrado.empty() && tp == "excedido")}};
 }
 
 } // namespace ba::app::audio

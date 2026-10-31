@@ -449,8 +449,8 @@ json modelRows(const QAbstractItemModel& m) {
 // ============================================================================
 
 McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
-    : QObject(parent), rt_(rt), vm_(vm), props_(std::make_unique<PropertiesModel>(rt)),
-      settings_(std::make_unique<SettingsModel>(rt, &vm.ventanilla())) {
+    : QObject(parent), rt_(rt), vm_(vm),
+      settings_(std::make_unique<SettingsModel>(rt, vm.ventanilla())) {
     // El cupo en caliente, como en la GUI: sin esto, settings_set con el cupo
     // reiniciaba la sala (y cortaba a todos los invitados).
     settings_->setCupoEnCaliente([this](int n) { return vm_.cupoSala().cambiar(n); });
@@ -821,8 +821,10 @@ void McpService::applySecurity() {
             const json j{{"hay_aire", core_.hayAire()}, {"herramientas", core_.aire().lista()}};
             return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
         });
-        // Si sale algo o no cambia con el estado de lo que sale.
-        QObject::connect(&vm_, &StudioViewModel::statusChanged, ag, &agent::AgentViewModel::aireCambio);
+        // Si sale algo o no cambia con lo que sale (grabar, transmitir: Studio.aire).
+        QObject::connect(&vm_.aire(), &EstadoAireViewModel::aireChanged, ag, &agent::AgentViewModel::aireCambio);
+        // (Y las demás salidas: cada una con lo suyo, en la lista de salidas.)
+        QObject::connect(&vm_.salidas(), &SalidasViewModel::cambio, ag, &agent::AgentViewModel::aireCambio);
     }
     core_.setApprover(
         [this](const Tool& t, const json& args, const std::string& reason, std::function<void(bool)> decide) {
@@ -1012,12 +1014,12 @@ FuentesDeFoto McpService::fuentesDeFoto() {
         return json{{"currentScene", po != nullptr ? po->alAire : std::string()},
                     {"transition", {{"type", fo.ajustes.transicion}, {"ms", fo.ajustes.transicionMs}}},
                     {"streaming", st.transmite},
-                    {"streamTime", vm.streamTime().toStdString()},
-                    {"streamKbps", vm.streamKbps()},
+                    {"streamTime", vm.aire().streamTime().toStdString()},
+                    {"streamKbps", vm.aire().streamKbps()},
                     {"streamServer", vm.streamServer().toStdString()},
                     {"streamKeyAvailable", vm.streamKeyAvailable()},
                     {"recording", st.graba},
-                    {"recordTime", vm.recordTime().toStdString()},
+                    {"recordTime", vm.aire().recordTime().toStdString()},
                     // EN VIVO = sale algo de verdad (transmisión, señal limpia o la grabación si
                     // el modo en vivo la cuenta): lo mismo que usan la app y los bloqueos. El
                     // guion del evento corriendo sin transmitir NO es estar en vivo.
@@ -2103,14 +2105,16 @@ void McpService::registerTools() {
             "etiqueta, tipo, valor actual, opciones posibles, rango. Sirve para cualquier plugin.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
-        PropertiesModel* props = props_.get();
-        t.run = [&rt, props](const json& a, Done done) {
-            if (rt.engine().sourceTypeId(a["name"]).empty())
-                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente '%1'."), {a["name"].get<std::string>()})));
-            props->setSourceName(QString::fromStdString(a["name"]));
-            done(ToolResult().data(json{{"source", a["name"]},
-                                        {"type", rt.engine().sourceTypeId(a["name"])},
-                                        {"properties", modelRows(*props)}}));
+        // Las mismas filas que el panel (leídas en el dueño del motor), sin tocar el panel.
+        t.run = [this, &rt](const json& a, Done done) {
+            const std::string n = a["name"];
+            PropertiesModel::leerFilas(vm_.ventanilla(), rt, this, n,
+                                       [n, done](const PropertiesModel::Lectura& l, std::vector<PropertiesModel::Row> filas) {
+                if (!l.existe)
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente '%1'."), {n})));
+                done(ToolResult().data(
+                    json{{"source", n}, {"type", l.tipo}, {"properties", PropertiesModel::filasJson(filas)}}));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -2130,20 +2134,17 @@ void McpService::registerTools() {
                            {"value", {{"description", QT_TRANSLATE_NOOP("mcp", "Valor (tipo segun la propiedad).")}}},
                            {"press", {{"type", "boolean"}}}}},
                          {"required", {"source", "property"}}};
-        PropertiesModel* props = props_.get();
-        t.run = [&rt, props](const json& a, Done done) {
-            if (rt.engine().sourceTypeId(a["source"]).empty())
-                return done(
-                    ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente '%1'."), {a["source"].get<std::string>()})));
-            props->setSourceName(QString::fromStdString(a["source"]));
-            const QString prop = QString::fromStdString(a["property"]);
-            if (a.value("press", false)) {
-                props->press(prop);
-            } else {
-                if (!a.contains("value")) return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `value` (o press=true).")));
-                props->setValue(prop, jsonToQv(a["value"]));
-            }
-            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho. Settings ahora: %1"), {rt.engine().sourceSettingsJson(a["source"])})));
+        // Como el panel (las reglas de PropertiesModel; el cambio, en el dueño del motor).
+        t.run = [this, &rt](const json& a, Done done) {
+            const bool apretar = a.value("press", false);
+            if (!apretar && !a.contains("value"))
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "Falta `value` (o press=true).")));
+            PropertiesModel::cambiar(vm_.ventanilla(), rt, this, a["source"], a["property"],
+                                     apretar ? QVariant() : jsonToQv(a["value"]), apretar,
+                                     [done](const std::string& e, const std::string& ajustes) {
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho. Settings ahora: %1"), {ajustes})));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -2933,7 +2934,7 @@ void McpService::registerTools() {
             done(ToolResult().data({{"puntos", o.puntos()},
                                     {"actual", o.actual()},
                                     {"tiempos_palabra", o.tiemposPalabra(vm.asamblea().remotosPalabra())},
-                                    {"capitulos", o.capitulosTexto(vm.recordStartMs())}}));
+                                    {"capitulos", o.capitulosTexto(vm.aire().recordStartMs())}}));
         };
         core_.addTool(std::move(t));
     }

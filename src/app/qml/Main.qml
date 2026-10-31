@@ -89,7 +89,7 @@ ApplicationWindow {
     property int paginaPermitida: 0
     onPageChanged: {
         const id = Studio.riel.idDePagina(page)
-        if (Studio.app.paginaBloqueada(id)) {
+        if (Studio.app.paginasBloqueadas.indexOf(id) >= 0) {
             desbloqueo.pagina = page
             desbloqueo.idPagina = id
             page = paginaPermitida
@@ -540,26 +540,26 @@ ApplicationWindow {
         Row {
             id: airState
             spacing: 8
-            // Al aire = sale algo (Studio.alAire): lo mismo que miran la PTZ, las
+            // Al aire = sale algo (Studio.aire.alAire): lo mismo que miran la PTZ, las
             // alertas y los candados. Solo grabando también cuenta, y lo dice.
             // Reconectando gana: la salida sigue activa, pero no esta llegando nada
             // y el operador tiene que saberlo.
             StatusPill {
                 height: 16
-                text: Studio.reconnecting ? qsTr("RECONECTANDO")
-                      : Studio.transmitiendo ? (Studio.streaming ? qsTr("AL AIRE  %1").arg(Studio.streamTime) : qsTr("AL AIRE"))
-                      : Studio.alAire ? (Studio.recording ? qsTr("AL AIRE · GRABANDO  %1").arg(Studio.recordTime) : qsTr("AL AIRE · GRABANDO"))
+                text: Studio.aire.reconnecting ? qsTr("RECONECTANDO")
+                      : Studio.aire.transmitiendo ? (Studio.aire.streaming ? qsTr("AL AIRE  %1").arg(Studio.aire.streamTime) : qsTr("AL AIRE"))
+                      : Studio.aire.alAire ? (Studio.aire.recording ? qsTr("AL AIRE · GRABANDO  %1").arg(Studio.aire.recordTime) : qsTr("AL AIRE · GRABANDO"))
                       : qsTr("FUERA DEL AIRE")
-                dot: Studio.reconnecting ? Theme.amber : Theme.live
-                on: Studio.alAire || Studio.reconnecting
+                dot: Studio.aire.reconnecting ? Theme.amber : Theme.live
+                on: Studio.aire.alAire || Studio.aire.reconnecting
                 pulse: true
                 ToolTip.visible: pillMa.containsMouse
-                ToolTip.text: Studio.outputProblem !== "" ? Studio.outputProblem
-                              : Studio.alAire ? qsTr("Sale el programa: la PTZ de una cámara que se ve pide confirmar y las páginas protegidas, %1.").arg(desbloqueo.palabra)
+                ToolTip.text: Studio.aire.outputProblem !== "" ? Studio.aire.outputProblem
+                              : Studio.aire.alAire ? qsTr("Sale el programa: la PTZ de una cámara que se ve pide confirmar y las páginas protegidas, %1.").arg(desbloqueo.palabra)
                               : qsTr("No sale nada (ni transmisión ni grabación): se puede mover y tocar todo sin avisos de aire.")
                 MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
             }
-            StatusPill { height: 16; visible: Studio.recording && Studio.transmitiendo; text: qsTr("REC  %1").arg(Studio.recordTime); dot: Theme.accent; pulse: true }
+            StatusPill { height: 16; visible: Studio.aire.recording && Studio.aire.transmitiendo; text: qsTr("REC  %1").arg(Studio.aire.recordTime); dot: Theme.accent; pulse: true }
             // En las otras páginas, solo si algo de la IA no anda.
             PastillaIA { height: 16; visible: total > 0 }
         }
@@ -588,16 +588,9 @@ ApplicationWindow {
         id: franjaAlarma
         // Enlazada a la propiedad del área de las alarmas: se entera por el modelo.
         readonly property var activas: Studio.alarmas.activas
-        // Las críticas sin reconocer, suenen o no (silenciar corta el sonido, no la franja).
-        readonly property var criticas: activas.filter(a => a.sonido === "critico")
-        readonly property bool critica: criticas.length > 0
-        readonly property bool todasSilenciadas: criticas.length > 0 && criticas.every(a => !!a.silenciada)
-        function silenciar(si) {
-            const vistos = {}
-            for (const a of criticas)
-                if (!vistos[a.ruleId]) { vistos[a.ruleId] = true; Studio.alarmas.silenciar(a.ruleId, si) }
-        }
-        visible: critica
+        // Las críticas sin reconocer, suenen o no (silenciar corta el sonido, no la franja):
+        // la regla es del vigía, la misma que usan el control web y el MCP.
+        visible: Studio.alarmas.hayCritica
         z: 70
         anchors { left: parent.left; right: parent.right; top: parent.top
                   leftMargin: win.libreIzq; rightMargin: win.libreDer; topMargin: win.libreArr }
@@ -624,15 +617,15 @@ ApplicationWindow {
             // franja sigue hasta Reconocer). Apretado otra vez, les devuelve el sonido.
             GlassButton {
                 compact: true
-                text: franjaAlarma.todasSilenciadas ? qsTr("🔇 Silenciada") : qsTr("Silenciar")
-                onClicked: franjaAlarma.silenciar(!franjaAlarma.todasSilenciadas)
+                text: Studio.alarmas.criticasSilenciadas ? qsTr("🔇 Silenciada") : qsTr("Silenciar")
+                onClicked: Studio.alarmas.silenciarCriticas(!Studio.alarmas.criticasSilenciadas)
             }
             GlassButton { compact: true; text: qsTr("Reconocer (R)"); onClicked: Studio.alarmas.reconocer(0) }
         }
     }
     Shortcut {
         sequence: "R"
-        enabled: franjaAlarma.critica
+        enabled: Studio.alarmas.hayCritica
         onActivated: Studio.alarmas.reconocer(0)
     }
     // Los atajos que configuró el operador (página Botonera → Atajos). Los

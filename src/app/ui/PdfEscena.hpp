@@ -20,6 +20,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <functional>
 #include <map>
 #include <memory>
 
@@ -28,6 +29,7 @@ class QPdfDocument;
 namespace ba::app {
 
 class AppRuntime;
+class VentanillaMotor;
 
 class PdfEscena : public QObject {
     Q_OBJECT
@@ -38,7 +40,7 @@ class PdfEscena : public QObject {
 
    public:
     using json = nlohmann::json;
-    explicit PdfEscena(AppRuntime& rt, QObject* parent = nullptr);
+    PdfEscena(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent = nullptr);
     ~PdfEscena() override;
 
     QVariantList fuentes() const;
@@ -61,17 +63,23 @@ class PdfEscena : public QObject {
     /// Corre lo que se ve (`dx`, `dy`: fracciones de lo visible; positivo = derecha / abajo),
     /// sin salirse de la página. Para el joystick.
     Q_INVOKABLE QString mover(const QString& fuente, double dx, double dy);
-    /// Arma la escena `nombre` con una fuente PDF a pantalla completa (si no
-    /// existe). Devuelve el error, o "" (y la fuente queda lista para elegir).
-    Q_INVOKABLE QString crearEscena(const QString& nombre);
+    /// Arma la escena `nombre` con una fuente PDF a pantalla completa (si no existe):
+    /// lo pide al dueño del motor; el error vuelve con `notify` (y la fuente, en `fuentes`).
+    Q_INVOKABLE void crearEscena(const QString& nombre);
+    /// Lo mismo, con lo que vuelva ("" o el error) en `listo` (el MCP).
+    void crearEscena(const QString& nombre, std::function<void(const QString&)> listo);
     /// La documentación cambió (agregaron o quitaron un PDF).
     Q_INVOKABLE void refrescarDocumentos();
 
    signals:
     void cambio();
     void documentosCambio();
+    /// Para el operador (ya traducido).
+    void notify(const QString& texto, const QString& nivel);
 
    private:
+    /// EN EL DUEÑO DEL MOTOR: la escena `esc` con su fuente PDF (mostrando `documento`). "" o el error.
+    static QString armarEscena(AppRuntime& rt, const std::string& esc, const std::string& documento);
     void tic();
     /// El nombre de la fuente pedida ("" = la primera), o "" si no hay ninguna.
     std::string resolver(const QString& fuente, QString* error) const;
@@ -86,6 +94,7 @@ class PdfEscena : public QObject {
     Geometria geometria(const nlohmann::json& ajustes);
 
     AppRuntime& rt_;
+    VentanillaMotor& ventanilla_;
     QTimer timer_;
     std::map<std::uint64_t, std::size_t> firmas_; ///< lo último que se pintó, por fuente
     std::size_t firmaLista_ = 0;                  ///< para avisar `cambio` solo si cambió algo

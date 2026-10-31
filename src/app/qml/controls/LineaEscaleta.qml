@@ -18,9 +18,10 @@ Item {
     property bool storyboard: false
     readonly property var lv: Studio.linea
 
-    function colorDeEstado(e) {
-        return e === "alAire" ? Qt.rgba(1, 0.23, 0.19, 0.22) : e === "proximo" ? Qt.rgba(0.96, 0.72, 0.24, 0.18)
-             : e === "pasado" || e === "salteado" ? Qt.rgba(1, 1, 1, 0.02) : Qt.rgba(1, 1, 1, 0.05)
+    /// El fondo de un paso: el color de su estado, apenas (lo que viene y lo que va, casi nada).
+    function fondoDeEstado(e) {
+        return Qt.alpha(e === "alAire" || e === "proximo" ? Theme.colorDeEstado(e) : Theme.text,
+                        e === "alAire" ? 0.22 : e === "proximo" ? 0.18 : e === "pasado" || e === "salteado" ? 0.02 : 0.05)
     }
     function textoEntrada(p) {
         switch (p.entra) {
@@ -238,7 +239,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
                     radius: 5
-                    color: esc.colorDeEstado(p.estado)
+                    color: esc.fondoDeEstado(p.estado)
                     border.width: p.estado === "alAire" || p.estado === "proximo" || p.pendiente ? 1 : 0
                     border.color: p.estado === "alAire" ? Theme.live : p.estado === "proximo" ? Theme.amber : Theme.accentSoft
                     opacity: p.estado === "salteado" ? 0.45 : 1
@@ -426,7 +427,7 @@ Item {
             Rectangle {
                 anchors { fill: parent; margins: 5 }
                 radius: 6
-                color: esc.colorDeEstado(celda.modelData.estado)
+                color: esc.fondoDeEstado(celda.modelData.estado)
                 border.width: celda.modelData.estado === "futuro" ? 0 : 2
                 border.color: celda.modelData.estado === "alAire" ? Theme.live : Theme.amber
                 ColumnLayout {

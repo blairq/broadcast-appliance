@@ -74,12 +74,12 @@ Item {
             Text { text: qsTr("Escena: %1   ·   %2").arg(Studio.currentScene).arg(Studio.canvasLabel); color: Theme.textDim; font.pixelSize: 12 }
         }
         Item { Layout.fillWidth: true }
-        // Al aire = sale algo (Studio.alAire), igual que el cartel de arriba de las otras páginas.
-        StatusPill { text: Studio.reconnecting ? qsTr("RECONECTANDO")
-                           : Studio.transmitiendo ? (Studio.streaming ? qsTr("AL AIRE  %1").arg(Studio.streamTime) : qsTr("AL AIRE"))
-                           : Studio.alAire ? qsTr("AL AIRE · GRABANDO") : qsTr("FUERA DEL AIRE")
-                     dot: Studio.reconnecting ? Theme.amber : Theme.live; on: Studio.alAire || Studio.reconnecting; pulse: true }
-        StatusPill { text: Studio.recording ? "REC  " + Studio.recordTime : "REC"; dot: Theme.accent; on: Studio.recording; pulse: true }
+        // Al aire = sale algo (Studio.aire.alAire), igual que el cartel de arriba de las otras páginas.
+        StatusPill { text: Studio.aire.reconnecting ? qsTr("RECONECTANDO")
+                           : Studio.aire.transmitiendo ? (Studio.aire.streaming ? qsTr("AL AIRE  %1").arg(Studio.aire.streamTime) : qsTr("AL AIRE"))
+                           : Studio.aire.alAire ? qsTr("AL AIRE · GRABANDO") : qsTr("FUERA DEL AIRE")
+                     dot: Studio.aire.reconnecting ? Theme.amber : Theme.live; on: Studio.aire.alAire || Studio.aire.reconnecting; pulse: true }
+        StatusPill { text: Studio.aire.recording ? "REC  " + Studio.aire.recordTime : "REC"; dot: Theme.accent; on: Studio.aire.recording; pulse: true }
         // Se mide por «CPU 100%» y no por su propio texto: si no, al pasar de
         // una cifra a dos se ensancha y encoge varias veces por segundo,
         // moviendo todas las pildoras de al lado.
@@ -116,7 +116,7 @@ Item {
                 ItemsDeMenu {
                     menu: addMenu
                     despuesDe: sepExtensiones
-                    model: Studio.extensiones ? Studio.extensiones.kinds() : []
+                    model: Studio.extensiones ? Studio.extensiones.kinds : []
                     delegate: MenuItem {
                         required property string modelData
                         text: Studio.extensiones.tituloDeKind(modelData)

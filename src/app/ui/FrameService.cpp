@@ -360,6 +360,7 @@ std::vector<std::wstring> FrameService::channelsOf(const QString& key) {
 
 bool FrameService::latest(const QString& clave, QImage& out, std::uint64_t& serial) const {
     const QString key = clavePropia(clave);
+    leidoUs_ = ahoraUs();
     // La vista de otra salida se pide sola mientras alguien la lea (ver poll).
     if (key.startsWith("program:") || key.startsWith("armada:")) salidasPedidas_[key] = ahoraUs();
     auto it = slots_.find(key);
@@ -371,6 +372,8 @@ bool FrameService::latest(const QString& clave, QImage& out, std::uint64_t& seri
     serial = it->second.serial;
     return true;
 }
+
+bool FrameService::mirado() const { return ahoraUs() - leidoUs_ <= 1'000'000; }
 
 void FrameService::poll() {
     const std::int64_t t0 = ahoraUs();

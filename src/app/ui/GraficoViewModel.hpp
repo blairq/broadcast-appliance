@@ -22,6 +22,7 @@
 
 #include <memory>
 
+#include <QAbstractItemModel>
 #include <QImage>
 #include <QObject>
 #include <QString>
@@ -41,7 +42,10 @@ class GraficoViewModel : public QObject {
     Q_PROPERTY(bool disponible READ disponible CONSTANT)
     Q_PROPERTY(QVariantList graficos READ graficos NOTIFY listaChanged)
     Q_PROPERTY(QString abierto READ abierto NOTIFY abiertoChanged)
-    /// El texto que se está editando (QML, o el JSON de la descripción).
+    /// El texto que se está editando (QML, o el JSON de la descripción). El editor NO se
+    /// enlaza a esto (con la primera tecla el enlace se rompe): toma el texto al arrancar y
+    /// con `fuenteRecargada`, que avisa cuando cambió por otro lado (se abrió otro gráfico,
+    /// o el archivo cambió en el disco: el asistente lo reescribió).
     Q_PROPERTY(QString fuente READ fuente WRITE setFuente NOTIFY fuenteChanged)
     Q_PROPERTY(bool declarativo READ declarativo NOTIFY abiertoChanged)
     /// Lo dibuja un plugin ("" si no): no tiene texto que editar, su código es el del plugin.
@@ -73,6 +77,9 @@ class GraficoViewModel : public QObject {
     /// [{fuente, x, y, ancho, alto, alfa, arriba}] en fracciones del gráfico. La vista previa
     /// dibuja ahí un recuadro (el video no se dibuja: es en vivo).
     Q_PROPERTY(QVariantList recuadros READ recuadros NOTIFY recuadrosChanged)
+    /// Los mismos recuadros como modelo que se actualiza en su lugar (por `fuente`): cambian
+    /// en cada cuadro al reproducir y la vista no rearma los delegados (ui/ListaObjetos).
+    Q_PROPERTY(QAbstractItemModel* filasRecuadros READ filasRecuadros CONSTANT)
     /// Ancho/alto del cuadro de la vista previa (para ubicar los recuadros encima).
     Q_PROPERTY(double aspecto READ aspecto NOTIFY imagenChanged)
 
@@ -103,6 +110,7 @@ class GraficoViewModel : public QObject {
     bool importando() const;
     QVariantList enEscena() const;
     QVariantList recuadros() const;
+    QAbstractItemModel* filasRecuadros();
     double aspecto() const;
 
     Q_INVOKABLE void refrescar();
@@ -128,6 +136,8 @@ class GraficoViewModel : public QObject {
     void listaChanged();
     void abiertoChanged();
     void fuenteChanged();
+    /// El texto cambió y NO lo escribió el editor: tiene que tomarlo de nuevo.
+    void fuenteRecargada();
     void sucioChanged();
     void valoresChanged();
     void imagenChanged();
@@ -141,6 +151,9 @@ class GraficoViewModel : public QObject {
 
    private:
     void avanzarReproduccion();
+    /// Mira los archivos del gráfico abierto (lo que el asistente reescribe).
+    void vigilarAbierto();
+    void alCambiarEnDisco();
     struct Impl;
     std::unique_ptr<Impl> d_;
 };
