@@ -29915,47 +29915,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>L'application s'est fermée plusieurs fois de suite et a démarré en mode sans échec : vos scènes n'ont pas été chargées (elles n'ont pas été supprimées). Fermez et rouvrez pour tenter un démarrage normal.</translation>
     </message>
     <message>
-        <location line="+204" />
-        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
-        <translation>l'emplacement %1 de la conférence est vide (le carton s'affiche)</translation>
-    </message>
-    <message>
-        <location line="+51" />
-        <location line="+5" />
-        <source>el motor no está andando</source>
-        <translation>le moteur ne tourne pas</translation>
-    </message>
-    <message>
-        <location line="+25" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
-        <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3) : passée en mode économique</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
-        <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3)</translation>
-    </message>
-    <message>
-        <location line="+15" />
-        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
-        <translation>Disque : il reste %1 Go, moins d'une heure d'enregistrement</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Disco: alcanza para ~%1 h de grabación</source>
-        <translation>Disque : de quoi enregistrer ~%1 h</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No hay destino de transmisión configurado (servidor y clave)</source>
-        <translation>Aucune destination de diffusion configurée (serveur et clé)</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>La entrada «%1» no tiene señal ahora</source>
-        <translation>L'entrée « %1 » n'a pas de signal pour l'instant</translation>
-    </message>
-    <message>
         <location line="+45" />
         <source>no contestó</source>
         <translation>n'a pas répondu</translation>
@@ -30152,16 +30111,6 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>mesure déjà en cours</translation>
     </message>
     <message>
-        <location line="+27" />
-        <source>tipo desconocido</source>
-        <translation>type inconnu</translation>
-    </message>
-    <message>
-        <location line="+50" />
-        <source>modo desconocido</source>
-        <translation>mode inconnu</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>Le ralenti n'a pas pu être écrit à temps.</translation>
@@ -30285,6 +30234,49 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1 : %2 ferme l'application et %3.</translation>
+    </message>
+</context>
+<context>
+    <name>ImagenViewModel</name>
+    <message>
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation>l'emplacement %1 de la conférence est vide (le carton s'affiche)</translation>
+    </message>
+    <message>
+        <source>el motor no está andando</source>
+        <translation>le moteur ne tourne pas</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3) : passée en mode économique</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation>La super-résolution de « %1 » ne suit pas (%2 ms par image de %3)</translation>
+    </message>
+    <message>
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation>Disque : il reste %1 Go, moins d'une heure d'enregistrement</translation>
+    </message>
+    <message>
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation>Disque : de quoi enregistrer ~%1 h</translation>
+    </message>
+    <message>
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation>Aucune destination de diffusion configurée (serveur et clé)</translation>
+    </message>
+    <message>
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation>L'entrée « %1 » n'a pas de signal pour l'instant</translation>
+    </message>
+    <message>
+        <source>tipo desconocido</source>
+        <translation>type inconnu</translation>
+    </message>
+    <message>
+        <source>modo desconocido</source>
+        <translation>mode inconnu</translation>
     </message>
 </context>
 <context>

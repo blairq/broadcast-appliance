@@ -29796,47 +29796,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>应用连续多次关闭，已以安全模式启动：您的场景未载入（并未删除）。请关闭后重新打开，尝试正常启动。</translation>
     </message>
     <message>
-        <location line="+204" />
-        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
-        <translation>会议位置 %1 为空（显示垫片画面）</translation>
-    </message>
-    <message>
-        <location line="+51" />
-        <location line="+5" />
-        <source>el motor no está andando</source>
-        <translation>引擎未运行</translation>
-    </message>
-    <message>
-        <location line="+25" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
-        <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）：已降为经济模式</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
-        <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）</translation>
-    </message>
-    <message>
-        <location line="+15" />
-        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
-        <translation>磁盘：剩余 %1 GB，录制时间不足一小时</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Disco: alcanza para ~%1 h de grabación</source>
-        <translation>磁盘：约可录制 %1 小时</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No hay destino de transmisión configurado (servidor y clave)</source>
-        <translation>未配置推流目标（服务器和密钥）</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>La entrada «%1» no tiene señal ahora</source>
-        <translation>输入「%1」当前无信号</translation>
-    </message>
-    <message>
         <location line="+45" />
         <source>no contestó</source>
         <translation>无响应</translation>
@@ -30033,16 +29992,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>已在测量中</translation>
     </message>
     <message>
-        <location line="+27" />
-        <source>tipo desconocido</source>
-        <translation>未知类型</translation>
-    </message>
-    <message>
-        <location line="+50" />
-        <source>modo desconocido</source>
-        <translation>未知模式</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>回放未能及时写入。</translation>
@@ -30163,6 +30112,49 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1：%2 会关闭应用，并%3。</translation>
+    </message>
+</context>
+<context>
+    <name>ImagenViewModel</name>
+    <message>
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation>会议位置 %1 为空（显示垫片画面）</translation>
+    </message>
+    <message>
+        <source>el motor no está andando</source>
+        <translation>引擎未运行</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）：已降为经济模式</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation>「%1」的超分辨率跟不上（%3 的帧耗时 %2 毫秒）</translation>
+    </message>
+    <message>
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation>磁盘：剩余 %1 GB，录制时间不足一小时</translation>
+    </message>
+    <message>
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation>磁盘：约可录制 %1 小时</translation>
+    </message>
+    <message>
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation>未配置推流目标（服务器和密钥）</translation>
+    </message>
+    <message>
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation>输入「%1」当前无信号</translation>
+    </message>
+    <message>
+        <source>tipo desconocido</source>
+        <translation>未知类型</translation>
+    </message>
+    <message>
+        <source>modo desconocido</source>
+        <translation>未知模式</translation>
     </message>
 </context>
 <context>

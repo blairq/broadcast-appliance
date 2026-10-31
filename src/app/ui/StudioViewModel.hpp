@@ -15,7 +15,6 @@
 #include <thread>
 #include <atomic>
 #include <QHash>
-#include <QImage>
 #include <QSet>
 #include <QDateTime>
 #include <QObject>
@@ -33,6 +32,7 @@
 #include "ui/AsistenteViewModel.hpp"
 #include "ui/ControlViewModel.hpp"
 #include "ui/EmisionViewModel.hpp"
+#include "ui/ImagenViewModel.hpp"
 #include "ui/SalidasViewModel.hpp"
 #include "ui/MultiviewViewModel.hpp"
 
@@ -428,6 +428,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* matriz READ matriz CONSTANT)
     /// El Mezclador (la ventana propia): audio/Mezclador.hpp.
     Q_PROPERTY(QObject* mezclador READ mezcladorQml CONSTANT)
+    /// El área de la imagen (ui/ImagenViewModel): los scopes y el legalizador.
+    Q_PROPERTY(QObject* imagen READ imagenQml CONSTANT)
     /// El PTZ de cada entrada de video (digital + hardware) y Mejorar imagen:
     /// ptz/ControlCamaras.hpp.
     Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
@@ -634,11 +636,6 @@ class StudioViewModel : public QObject {
     QString medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo);
     /// Lo mismo para la GUI: el resultado llega por medicionSincroLista(resultado).
     Q_INVOKABLE QString medirSincroUi(int segundos);
-    /// Un scope (onda|parade|vector|histograma) de `fuente` ("" = programa):
-    /// {imagen: data URL PNG, legalidad: {...}, legalizador} o {error}.
-    Q_INVOKABLE QVariantMap scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const;
-    /// Legalizar para TV: no | pal | ntsc | rango. "" o el error.
-    Q_INVOKABLE QString legalizarUi(const QString& modo);
     /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
     /// en la escena «Repetición» (lista para el take). "" o el error.
     Q_INVOKABLE QString repetirUi();
@@ -751,18 +748,18 @@ class StudioViewModel : public QObject {
     QObject* mezcladorQml() const;
     QObject* camaras() const;
     QObject* tiempos() const;
-    tiempos::TiemposModel* tiemposModel() const { return tiempos_.get(); }
+    tiempos::TiemposModel* tiemposModel() const { return &imagen_->tiempos(); }
     QObject* resolucion() const;
-    resolucion::ResolucionModel* resolucionModel() const { return resolucion_.get(); }
+    resolucion::ResolucionModel* resolucionModel() const { return &imagen_->resolucion(); }
     QObject* video() const;
-    video::VideoGrafos* videoGrafos() const { return video_.get(); }
+    video::VideoGrafos* videoGrafos() const { return &imagen_->video(); }
     QObject* red() const;
-    red::Red* redEquipos() const { return red_.get(); }
+    red::Red* redEquipos() const { return &imagen_->red(); }
     /// Los plugins de Python (docs/funciones/PLUGINS.md).
     plugins::Plugins* plugins() const { return plugins_.get(); }
     QObject* pluginsQml() const;
     QObject* seguidor() const;
-    Seguidor* seguidorPtz() const { return seguidor_.get(); }
+    Seguidor* seguidorPtz() const { return &imagen_->seguidor(); }
     QObject* dispositivosQml() const;
     dispositivos::Dispositivos* equipos() const { return dispositivos_.get(); }
     QObject* flujos() const;
@@ -776,8 +773,11 @@ class StudioViewModel : public QObject {
     agent::EstadoIA* estadoIAModelo() const { return &asistente_->estadoIA(); }
     QObject* superres() const;
     QObject* bancoSrObj() const;
-    video::BancoSuperRes* bancoSr() const { return bancoSr_.get(); }
-    video::SuperRes* superresVideo() const { return superres_.get(); }
+    video::BancoSuperRes* bancoSr() const { return &imagen_->bancoSr(); }
+    video::SuperRes* superresVideo() const { return &imagen_->superres(); }
+    /// El área de la imagen (las cámaras, los grafos de video, la superresolución, los scopes).
+    ImagenViewModel& imagen() { return *imagen_; }
+    QObject* imagenQml() const;
     agent::Traductor* traductorAgent() const { return asistente_->traductor(); }
     agent::ModelosLocales* modelosLocales() const { return &asistente_->modelos(); }
     QObject* messages() const;
@@ -985,11 +985,6 @@ class StudioViewModel : public QObject {
     std::unique_ptr<GraficoViewModel> grafico_;
     std::unique_ptr<RotuladorViewModel> rotulador_;
     std::unique_ptr<PrompterViewModel> prompter_;
-    // El scope de una fuente que no es el programa: el último cuadro que llegó
-    // (scopeUi lo pide aparte; la interfaz no espera el cuadro).
-    mutable bool scopeCapturando_ = false;
-    mutable QString scopeFuente_, scopeError_;
-    mutable QImage scopeCuadro_;
     std::unique_ptr<PantallasViewModel> pantallas_;
     std::unique_ptr<QrViewModel> qr_;
     std::unique_ptr<TemaEventoViewModel> temaEvento_; ///< usa evento_ y conference_: va después
@@ -1014,19 +1009,17 @@ class StudioViewModel : public QObject {
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::Matriz> matriz_;
     std::unique_ptr<audio::Mezclador> mezclador_;
-    std::unique_ptr<ptz::ControlCamaras> camaras_;
-    std::unique_ptr<tiempos::TiemposModel> tiempos_;
-    std::unique_ptr<resolucion::ResolucionModel> resolucion_;
-    std::unique_ptr<video::VideoGrafos> video_;
-    std::unique_ptr<red::Red> red_;
+#endif
+    /// Las cámaras, los grafos de video, la superresolución, los tiempos, la resolución,
+    /// los equipos de la red y seguir caras (ui/ImagenViewModel). Los plugins y los
+    /// equipos los usan: van después (se destruyen antes).
+    std::unique_ptr<ImagenViewModel> imagen_;
+#if defined(BA_HAVE_CLAP)
     std::unique_ptr<plugins::Plugins> plugins_;
-    std::unique_ptr<Seguidor> seguidor_;
     std::unique_ptr<dispositivos::Dispositivos> dispositivos_;
     bool modoTest_ = false;
     std::unique_ptr<DocumentosViewModel> documentos_;
     std::unique_ptr<PdfEscena> pdfEscena_;
-    std::unique_ptr<video::SuperRes> superres_;
-    std::unique_ptr<video::BancoSuperRes> bancoSr_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
     std::unique_ptr<CuentasViewModel> cuentas_; ///< YouTube, Twitch y Facebook (ui/CuentasViewModel)
@@ -1089,7 +1082,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
-    std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y el conmutador de la por omisión
+    std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa los grafos de video y el conmutador de la por omisión
     void revisarSenales();
     /// Los asistentes, la voz, las salidas de texto y la barra de mensajes
     /// (ui/AsistenteViewModel). Usa las alarmas (su vigía) y la sala; la atención y los

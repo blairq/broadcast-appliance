@@ -29915,47 +29915,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>O aplicativo fechou várias vezes seguidas e iniciou em modo seguro: suas cenas não foram carregadas (não foram apagadas). Feche e abra de novo para tentar a inicialização normal.</translation>
     </message>
     <message>
-        <location line="+204" />
-        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
-        <translation>o lugar %1 da conferência está vazio (aparece a cartela)</translation>
-    </message>
-    <message>
-        <location line="+51" />
-        <location line="+5" />
-        <source>el motor no está andando</source>
-        <translation>o motor não está rodando</translation>
-    </message>
-    <message>
-        <location line="+25" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
-        <translation>A super-resolução de “%1” não dá conta (%2 ms por quadro de %3): passou para o modo econômico</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
-        <translation>A super-resolução de “%1” não dá conta (%2 ms por quadro de %3)</translation>
-    </message>
-    <message>
-        <location line="+15" />
-        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
-        <translation>Disco: restam %1 GB, menos de uma hora de gravação</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Disco: alcanza para ~%1 h de grabación</source>
-        <translation>Disco: dá para ~%1 h de gravação</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No hay destino de transmisión configurado (servidor y clave)</source>
-        <translation>Não há destino de transmissão configurado (servidor e chave)</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>La entrada «%1» no tiene señal ahora</source>
-        <translation>A entrada “%1” está sem sinal agora</translation>
-    </message>
-    <message>
         <location line="+45" />
         <source>no contestó</source>
         <translation>não respondeu</translation>
@@ -30152,16 +30111,6 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>já está sendo medido</translation>
     </message>
     <message>
-        <location line="+27" />
-        <source>tipo desconocido</source>
-        <translation>tipo desconhecido</translation>
-    </message>
-    <message>
-        <location line="+50" />
-        <source>modo desconocido</source>
-        <translation>modo desconhecido</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>O replay não chegou a ser gravado.</translation>
@@ -30285,6 +30234,49 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 fecha o aplicativo e %3.</translation>
+    </message>
+</context>
+<context>
+    <name>ImagenViewModel</name>
+    <message>
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation>o lugar %1 da conferência está vazio (aparece a cartela)</translation>
+    </message>
+    <message>
+        <source>el motor no está andando</source>
+        <translation>o motor não está rodando</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation>A super-resolução de “%1” não dá conta (%2 ms por quadro de %3): passou para o modo econômico</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation>A super-resolução de “%1” não dá conta (%2 ms por quadro de %3)</translation>
+    </message>
+    <message>
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation>Disco: restam %1 GB, menos de uma hora de gravação</translation>
+    </message>
+    <message>
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation>Disco: dá para ~%1 h de gravação</translation>
+    </message>
+    <message>
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation>Não há destino de transmissão configurado (servidor e chave)</translation>
+    </message>
+    <message>
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation>A entrada “%1” está sem sinal agora</translation>
+    </message>
+    <message>
+        <source>tipo desconocido</source>
+        <translation>tipo desconhecido</translation>
+    </message>
+    <message>
+        <source>modo desconocido</source>
+        <translation>modo desconhecido</translation>
     </message>
 </context>
 <context>

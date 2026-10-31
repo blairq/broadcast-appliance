@@ -30034,47 +30034,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Приложение несколько раз подряд закрылось и запустилось в безопасном режиме: ваши сцены не загружены (но и не удалены). Закройте и откройте снова, чтобы попробовать обычный запуск.</translation>
     </message>
     <message>
-        <location line="+204" />
-        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
-        <translation>место %1 конференции пустое (показывается заставка)</translation>
-    </message>
-    <message>
-        <location line="+51" />
-        <location line="+5" />
-        <source>el motor no está andando</source>
-        <translation>движок не работает</translation>
-    </message>
-    <message>
-        <location line="+25" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
-        <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3): переведено в экономичный режим</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
-        <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3)</translation>
-    </message>
-    <message>
-        <location line="+15" />
-        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
-        <translation>Диск: осталось %1 ГБ, меньше часа записи</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Disco: alcanza para ~%1 h de grabación</source>
-        <translation>Диск: хватит на ~%1 ч записи</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No hay destino de transmisión configurado (servidor y clave)</source>
-        <translation>Не настроено назначение трансляции (сервер и ключ)</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>La entrada «%1» no tiene señal ahora</source>
-        <translation>У входа «%1» сейчас нет сигнала</translation>
-    </message>
-    <message>
         <location line="+45" />
         <source>no contestó</source>
         <translation>не ответил</translation>
@@ -30271,16 +30230,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>уже измеряется</translation>
     </message>
     <message>
-        <location line="+27" />
-        <source>tipo desconocido</source>
-        <translation>неизвестный тип</translation>
-    </message>
-    <message>
-        <location line="+50" />
-        <source>modo desconocido</source>
-        <translation>неизвестный режим</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>Повтор не успел записаться.</translation>
@@ -30407,6 +30356,49 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 закрывает приложение и %3.</translation>
+    </message>
+</context>
+<context>
+    <name>ImagenViewModel</name>
+    <message>
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation>место %1 конференции пустое (показывается заставка)</translation>
+    </message>
+    <message>
+        <source>el motor no está andando</source>
+        <translation>движок не работает</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3): переведено в экономичный режим</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation>Сверхразрешение «%1» не успевает (%2 мс на кадр %3)</translation>
+    </message>
+    <message>
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation>Диск: осталось %1 ГБ, меньше часа записи</translation>
+    </message>
+    <message>
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation>Диск: хватит на ~%1 ч записи</translation>
+    </message>
+    <message>
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation>Не настроено назначение трансляции (сервер и ключ)</translation>
+    </message>
+    <message>
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation>У входа «%1» сейчас нет сигнала</translation>
+    </message>
+    <message>
+        <source>tipo desconocido</source>
+        <translation>неизвестный тип</translation>
+    </message>
+    <message>
+        <source>modo desconocido</source>
+        <translation>неизвестный режим</translation>
     </message>
 </context>
 <context>

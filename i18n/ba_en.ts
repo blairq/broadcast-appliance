@@ -29915,47 +29915,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The application closed several times in a row and started in safe mode: your scenes weren't loaded (they weren't deleted). Close and reopen to try a normal startup.</translation>
     </message>
     <message>
-        <location line="+204" />
-        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
-        <translation>conference slot %1 is empty (the slate is shown)</translation>
-    </message>
-    <message>
-        <location line="+51" />
-        <location line="+5" />
-        <source>el motor no está andando</source>
-        <translation>the engine isn't running</translation>
-    </message>
-    <message>
-        <location line="+25" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
-        <translation>Super-resolution on “%1” can't keep up (%2 ms per %3 frame): fell back to cheap</translation>
-    </message>
-    <message>
-        <location line="+1" />
-        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
-        <translation>Super-resolution on “%1” can't keep up (%2 ms per %3 frame)</translation>
-    </message>
-    <message>
-        <location line="+15" />
-        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
-        <translation>Disk: %1 GB left, less than an hour of recording</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Disco: alcanza para ~%1 h de grabación</source>
-        <translation>Disk: enough for ~%1 h of recording</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>No hay destino de transmisión configurado (servidor y clave)</source>
-        <translation>No stream destination configured (server and key)</translation>
-    </message>
-    <message>
-        <location line="+12" />
-        <source>La entrada «%1» no tiene señal ahora</source>
-        <translation>Input “%1” has no signal right now</translation>
-    </message>
-    <message>
         <location line="+45" />
         <source>no contestó</source>
         <translation>didn't respond</translation>
@@ -30152,16 +30111,6 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>already being measured</translation>
     </message>
     <message>
-        <location line="+27" />
-        <source>tipo desconocido</source>
-        <translation>unknown type</translation>
-    </message>
-    <message>
-        <location line="+50" />
-        <source>modo desconocido</source>
-        <translation>unknown mode</translation>
-    </message>
-    <message>
         <location line="+20" />
         <source>La repetición no llegó a escribirse.</source>
         <translation>The replay wasn't written in time.</translation>
@@ -30285,6 +30234,49 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+1" />
         <source>%1: %2 cierra la aplicación y %3.</source>
         <translation>%1: %2 closes the application and %3.</translation>
+    </message>
+</context>
+<context>
+    <name>ImagenViewModel</name>
+    <message>
+        <source>el lugar %1 de la conferencia está vacío (llega la placa)</source>
+        <translation>conference slot %1 is empty (the slate is shown)</translation>
+    </message>
+    <message>
+        <source>el motor no está andando</source>
+        <translation>the engine isn't running</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato</source>
+        <translation>Super-resolution on “%1” can't keep up (%2 ms per %3 frame): fell back to cheap</translation>
+    </message>
+    <message>
+        <source>La superresolución de «%1» no llega (%2 ms por cuadro de %3)</source>
+        <translation>Super-resolution on “%1” can't keep up (%2 ms per %3 frame)</translation>
+    </message>
+    <message>
+        <source>Disco: quedan %1 GB, menos de una hora de grabación</source>
+        <translation>Disk: %1 GB left, less than an hour of recording</translation>
+    </message>
+    <message>
+        <source>Disco: alcanza para ~%1 h de grabación</source>
+        <translation>Disk: enough for ~%1 h of recording</translation>
+    </message>
+    <message>
+        <source>No hay destino de transmisión configurado (servidor y clave)</source>
+        <translation>No stream destination configured (server and key)</translation>
+    </message>
+    <message>
+        <source>La entrada «%1» no tiene señal ahora</source>
+        <translation>Input “%1” has no signal right now</translation>
+    </message>
+    <message>
+        <source>tipo desconocido</source>
+        <translation>unknown type</translation>
+    </message>
+    <message>
+        <source>modo desconocido</source>
+        <translation>unknown mode</translation>
     </message>
 </context>
 <context>
