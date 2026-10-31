@@ -68,6 +68,11 @@ namespace ba::app {
 
 class ImagenViewModel : public QObject {
     Q_OBJECT
+    /// La red eléctrica del país del sistema contra el lienzo (F2-17): {hz (50, 60; 0 = no
+    /// se sabe), aviso ("" si el lienzo no parpadea con esa red), cadencias: [{valor (el de
+    /// video.fps: "25", "30000/1001"), texto ("25", "29,97")}] (las que no parpadean)}. Se
+    /// avisa y se ofrece, no se cambia solo. Cambia al aplicar la configuración.
+    Q_PROPERTY(QVariantMap redElectrica READ redElectrica NOTIFY redElectricaChanged)
    public:
     struct Partes {
         AppRuntime& rt;
@@ -101,6 +106,7 @@ class ImagenViewModel : public QObject {
 
     /// Se aplicó la configuración: Mejorar imagen general y el legalizador rigen ya.
     void ajustesAplicados();
+    QVariantMap redElectrica() const;
     /// Lo que la revisión previa del evento mira del aparato: [{grave, texto}] (el disco,
     /// si hay destino de transmisión, las entradas sin señal).
     QVariantList chequeosDelAparato(bool hayDestino) const;
@@ -114,6 +120,7 @@ class ImagenViewModel : public QObject {
    signals:
     /// Para el operador (ya traducido).
     void notify(const QString& texto, const QString& nivel);
+    void redElectricaChanged();
 
    private:
     void armarTiempos();

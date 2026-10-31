@@ -287,6 +287,10 @@ Rectangle {
                             }
                             Text { Layout.fillWidth: true; text: modelData.scenes.length > 0 ? qsTr("En: %1").arg(modelData.scenes.join(", ")) : qsTr("No está en ninguna escena")
                                    color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight }
+                            // Una cámara a otra cadencia casi igual que el lienzo (29,97 en 30): el
+                            // salto periódico de videorate (F2-17). Del modelo (InputsViewModel).
+                            Text { Layout.fillWidth: true; visible: !!modelData.aviso; text: "⚠ " + (modelData.aviso || "")
+                                   color: Theme.warn; font.pixelSize: 11; wrapMode: Text.WordWrap }
                         }
                     }
                 }

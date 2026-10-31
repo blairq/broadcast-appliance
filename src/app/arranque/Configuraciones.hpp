@@ -76,12 +76,15 @@ class Configuraciones : public QObject {
     /// "actual", otra carpeta o "plantilla:<nombre>": COPIA TOTAL (web, guion, medios,
     /// historial, grabaciones; ver copiarTodo); "evento:<carpeta>/<foto>": la foto de
     /// ajustes de un evento cerrado. No la activa. "" o el error. (En este hilo.)
-    std::string nuevoEvento(const std::string& nombre, const std::string& desde, const std::string& descripcion = {});
+    /// `cps`: los cuadros por segundo de su lienzo, como video.fps ("25", "30000/1001"; ""
+    /// = los que traiga): las plantillas por región (F2-17: con una red de 50 Hz, 25 o 50).
+    std::string nuevoEvento(const std::string& nombre, const std::string& desde, const std::string& descripcion = {},
+                            const std::string& cps = {});
     /// Lo mismo en otro hilo (una copia puede tardar): progreso en `copia`; al terminar,
     /// nuevoEventoListo y `listo(error)` en el hilo principal; con `abrir`, pasa a él
     /// (reinicia). "" si arrancó, o el error de entrada.
     QString nuevoEventoAparte(const QString& nombre, const QString& desde, bool abrir,
-                              std::function<void(QString)> listo);
+                              std::function<void(QString)> listo, const QString& cps = {});
     QVariantMap copia() const {
         QVariantMap c = copia_;
         if (!c.isEmpty() && copiaContador_) c["hechos"] = static_cast<double>(copiaContador_->load());
@@ -138,7 +141,7 @@ class Configuraciones : public QObject {
     QVariantList demosUi() const;
     Q_INVOKABLE QString crearUi(const QString& nombre, const QString& desde, const QString& descripcion);
     /// Evento nuevo y, si `abrir`, pasar a él (reinicia).
-    Q_INVOKABLE QString nuevoEventoUi(const QString& nombre, const QString& desde, bool abrir);
+    Q_INVOKABLE QString nuevoEventoUi(const QString& nombre, const QString& desde, bool abrir, const QString& cps = {});
     Q_INVOKABLE QString marcarPlantillaUi(const QString& nombre, bool plantilla);
     Q_INVOKABLE QVariantList plantillasUi() const;
     Q_INVOKABLE QVariantList plantillasAdminUi() const;
@@ -188,7 +191,7 @@ class Configuraciones : public QObject {
                                bool conGrabaciones = false);
     /// El trabajo de nuevoEvento, sin avisar (se puede llamar desde otro hilo).
     std::string crearEvento(const std::string& nombre, const std::string& desde, const std::string& descripcion,
-                            std::atomic<std::uintmax_t>* hechos);
+                            std::atomic<std::uintmax_t>* hechos, const std::string& cps = {});
     /// La carpeta de donde se copia `desde` ("" en `de` si no se copia nada). "" o el error.
     std::string origenDe(const std::string& desde, std::filesystem::path* de) const;
     QVariantMap copia_;

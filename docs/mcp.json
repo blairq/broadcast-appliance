@@ -11136,7 +11136,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 216
+        "linea": 221
       },
       "roles": [
         "asistente"
@@ -11183,7 +11183,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 189
+        "linea": 194
       },
       "roles": [
         "asistente"
@@ -11226,7 +11226,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 236
+        "linea": 241
       },
       "roles": [
         "asistente"
@@ -11252,7 +11252,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 176
+        "linea": 181
       },
       "roles": [
         "asistente"
@@ -16537,7 +16537,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 112
+        "linea": 117
       },
       "roles": [
         "asistente"
@@ -16573,7 +16573,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 86
+        "linea": 91
       },
       "roles": [
         "asistente"
@@ -16587,7 +16587,7 @@
       "nombre": "evento_nuevo",
       "titulo": "Crear un evento nuevo (arrancar de cero o desde otro)",
       "categoria": "eventos",
-      "descripcion": "Crea un evento APARTE con todo lo suyo, sin tocar el abierto (antes de prepararlo: la guía de su tipo, evento_escenarios / evento_escenario). Es lo que corresponde cuando piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica, vacío), «actual» (COPIA TOTAL del abierto: escenas, mezclador, medios, asamblea, página web, guion, padrón, orden del día, votaciones, historial y grabaciones), el nombre de otro evento (copia total de ese), «plantilla:<nombre>» (copia total de una plantilla; eventos_listar dice cuáles) o «evento:<carpeta>/<inicio|cierre|ultima>» (solo los ajustes con que se hizo un evento cerrado). Una copia puede tardar (grabaciones): la respuesta llega al terminar. Si no dijeron desde dónde, preguntá. `abrir: true` pasa a él (reinicia la app: no con algo al aire).",
+      "descripcion": "Crea un evento APARTE con todo lo suyo, sin tocar el abierto (antes de prepararlo: la guía de su tipo, evento_escenarios / evento_escenario). Es lo que corresponde cuando piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica, vacío), «actual» (COPIA TOTAL del abierto: escenas, mezclador, medios, asamblea, página web, guion, padrón, orden del día, votaciones, historial y grabaciones), el nombre de otro evento (copia total de ese), «plantilla:<nombre>» (copia total de una plantilla; eventos_listar dice cuáles) o «evento:<carpeta>/<inicio|cierre|ultima>» (solo los ajustes con que se hizo un evento cerrado). Una copia puede tardar (grabaciones): la respuesta llega al terminar. Si no dijeron desde dónde, preguntá. `abrir: true` pasa a él (reinicia la app: no con algo al aire). `cps`: los cuadros por segundo de su lienzo («25», «50», «30000/1001»; sin esto, los que traiga): con una red eléctrica de 50 Hz el lienzo de fábrica (30) puede parpadear con luces LED; video_estado (lienzo) dice la red y sus cadencias. Ofrecelo, no lo elijas solo.",
       "esquema": {
         "type": "object",
         "required": [
@@ -16607,6 +16607,9 @@
           },
           "abrir": {
             "type": "boolean"
+          },
+          "cps": {
+            "type": "string"
           }
         }
       },
@@ -16651,7 +16654,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 159
+        "linea": 164
       },
       "roles": [
         "asistente"
@@ -16684,7 +16687,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 140
+        "linea": 145
       },
       "roles": [
         "asistente"
@@ -16760,7 +16763,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 275
+        "linea": 280
       },
       "roles": [
         "asistente"
@@ -16786,7 +16789,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 263
+        "linea": 268
       },
       "roles": [
         "asistente"
