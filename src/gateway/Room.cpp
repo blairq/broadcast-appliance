@@ -811,8 +811,12 @@ json Room::snapshotLocked() const {
     json people = json::array();
     int admitted = 0;
     for (const Participant& p : people_) {
-        people.push_back(toJson(p));
-        if (p.state == State::Admitted && p.slot > 0) ++admitted;
+        json j = toJson(p);
+        if (p.state == State::Admitted && p.slot > 0) {
+            ++admitted;
+            j["retorno"] = std::binary_search(sinRetorno_.begin(), sinRetorno_.end(), p.slot) ? "apagado" : "ok";
+        }
+        people.push_back(std::move(j));
     }
     json shares = json::array();
     for (const Share& s : shares_)
@@ -850,6 +854,18 @@ void Room::setUsage(const json& u) {
             usageSentMs_ = lastNowMs_;
             out.roomChanged = true;
         }
+    }
+    flush(out);
+}
+
+void Room::setSinRetorno(std::vector<int> lugares) {
+    std::sort(lugares.begin(), lugares.end());
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        if (lugares == sinRetorno_) return;
+        sinRetorno_ = std::move(lugares);
+        out.roomChanged = true;
     }
     flush(out);
 }

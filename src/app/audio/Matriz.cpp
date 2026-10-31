@@ -19,6 +19,7 @@
 #include "Motor.hpp"
 #include "Prioridad.hpp"
 #include "audio/GstVoz.hpp"
+#include "platform/Ritmo.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -808,9 +809,10 @@ void Matriz::armarPlan() {
 
 void Matriz::bucleMezcla() {
     motor::prioridadDelHilo(motor::ClaseHilo::Critico); // mezcla en tiempo real: marca el ritmo
-    using reloj = std::chrono::steady_clock;
     std::vector<float> al(kBloque), ar(kBloque), ml(kBloque), mr(kBloque);
-    auto proximo = reloj::now();
+    // Un bloque cada 10 ms con plazo absoluto (en Windows, con el temporizador fino:
+    // platform/Ritmo); un atraso de hasta 100 ms se recupera, más ya no.
+    ba::platform::Ritmo ritmo{std::chrono::milliseconds(10), std::chrono::milliseconds(100)};
     while (!salir_) {
         // Sin ningún bus que mezclar (lo común: nadie usa la matriz), espera a que haya
         // uno en vez de despertarse cada 10 ms para nada.
@@ -818,13 +820,11 @@ void Matriz::bucleMezcla() {
             std::unique_lock<std::mutex> g(planLock_);
             if (!plan_ || plan_->buses.empty()) {
                 planCv_.wait(g, [this]() { return salir_.load() || (plan_ && !plan_->buses.empty()); });
-                proximo = reloj::now();
+                ritmo.reiniciar();
                 if (salir_) break;
             }
         }
-        proximo += std::chrono::milliseconds(10);
-        std::this_thread::sleep_until(proximo);
-        if (reloj::now() - proximo > std::chrono::milliseconds(100)) proximo = reloj::now(); // se atrasó
+        ritmo.esperar();
         std::shared_ptr<const Plan> p;
         {
             std::lock_guard<std::mutex> g(planLock_);

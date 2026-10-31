@@ -64,19 +64,30 @@ Despierta::~Despierta() {
 bool Despierta::activa() const { return d_ != nullptr && d_->sistema; }
 const std::string& Despierta::detalle() const { return d_->detalle; }
 
+namespace {
+// PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION (processthreadsapi.h, Windows 11).
+constexpr ULONG kIgnorarResolucion = 0x4;
+} // namespace
+
 std::string sinAhorroDeEnergia() {
     // EcoQoS: Windows 11 (y 10 desde 1709) baja la velocidad de lo que considera de fondo
     // —la notebook con la tapa cerrada contra un monitor, la ventana minimizada—. Un
     // estudio en vivo no es de fondo. StateMask 0 con el bit en ControlMask = «nunca».
     PROCESS_POWER_THROTTLING_STATE e{};
     e.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-    e.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-#ifdef PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
-    // Y que respete la resolución de reloj que pide (el audio la necesita fina).
-    e.ControlMask |= PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
-#endif
+    // Y que respete la resolución de reloj que pide (el audio la necesita fina: platform/Ritmo).
+    // Siempre, aunque el encabezado no traiga el nombre (SDK anteriores a 10.0.22000, mingw):
+    // con el #ifdef de antes, compilado así, Windows 11 seguía ignorando el reloj fino.
+    e.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED | kIgnorarResolucion;
     e.StateMask = 0;
-    if (SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &e, sizeof(e)) == FALSE)
+    // Un Windows 10 que no conoce el bit puede rechazar el pedido entero: ahí, sin él (lo
+    // de EcoQoS sí lo conoce, y su reloj no ignora la resolución).
+    bool ok = SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &e, sizeof(e)) != FALSE;
+    if (!ok) {
+        e.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        ok = SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &e, sizeof(e)) != FALSE;
+    }
+    if (!ok)
         return ba::i18n::llenar(ba::i18n::traducir("energia", "no se pudo sacar del modo eficiencia (error %1)"),
                                 {std::to_string(GetLastError())});
     return ba::i18n::traducir("energia", "fuera del modo eficiencia (EcoQoS)");

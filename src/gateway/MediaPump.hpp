@@ -57,6 +57,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <deque>
 #include <cstddef>
 #include <cstdint>
@@ -71,6 +72,7 @@
 #include <nlohmann/json.hpp>
 
 #include "dsp/Resampler.hpp"
+#include "ipc/MedidaTransporte.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
 #include "MediaRoute.hpp"
@@ -85,8 +87,9 @@ class MediaPump {
     struct Cfg {
         std::wstring returnAudioName;   // BA.Audio.ContentForReturn (A->B)
         // Mix-minus por slot (A->B): el programa sin la voz de ese invitado.
-        // Indexado por slot, [0] reservado. Si el de un slot no está, ese
-        // invitado recibe el retorno común.
+        // Indexado por slot, [0] reservado. Si el de un slot no está abierto, ese
+        // invitado NO recibe el retorno común (tiene su voz: eco) sino silencio,
+        // «retorno apagado» (RetornoLugar.hpp). Vacío = sin mix-minus (los tests).
         std::vector<std::wstring> returnSlotNames; // BA.Audio.Return.<n>
         std::wstring programVideoName;  // BA.Program (A->B)
         std::wstring operatorVideoName; // BA.Operator (A->B, para el lobby)
@@ -172,6 +175,15 @@ class MediaPump {
     void ampliar(int slots);
     /// Cuántos lugares tienen canales.
     int lugares() const;
+
+    /// Los lugares del programa con un invitado adentro que no recibe retorno: su mix-minus
+    /// (BA.Audio.Return.<n>) no está abierto, y el programa entero no se le manda porque
+    /// tiene su propia voz (RetornoLugar.hpp). La sala lo publica en su participante.
+    std::vector<int> lugaresSinRetorno() const;
+    /// Cómo andan los anillos de audio y los canales de video que lee el gateway: la foto
+    /// de la última ventana de 10 s de cada uno (ipc/MedidaTransporte). Va al uso de la sala
+    /// (la foto de B que lee la app) y de ahí a `sistema_recursos`.
+    nlohmann::json transporte() const;
 
     /// Ruta de la sesion `session` (1..hub.sessions()).
     void setRoute(int session, const MediaRoute& route);
@@ -264,6 +276,12 @@ class MediaPump {
     void operatorVideoThread();
     void plateThread();
 
+    /// Cada 10 s (de `desde`), la foto de la ventana de `m` a transporte_; al registro solo si
+    /// hubo algo raro (o al volver a la normalidad), con `registrar`. Desde el hilo dueño de `m`.
+    /// true si cerró la ventana (y la foto, en `fuera` si no es nullptr).
+    bool cerrarVentana(ba::ipc::MedidaTransporte& m, std::chrono::steady_clock::time_point& desde, bool registrar,
+                       ba::ipc::FotoTransporte* fuera = nullptr);
+
     std::unique_ptr<VideoOut> crearVideo(const std::wstring& nombre, int w, int h);
     std::unique_ptr<AudioOut> crearAudio(const std::wstring& nombre);
 
@@ -328,6 +346,17 @@ class MediaPump {
     double pruebaFase_ = 0;
     std::mutex pruebaLock_;
     std::vector<double> pruebaBins_;
+
+    // El mix-minus de cada lugar abierto (lo escribe el hilo del retorno por omisión).
+    std::array<std::atomic<bool>, kMaxInvitados + 1> mixMinusAbierto_{};
+    // La última foto de cada canal que se lee, por nombre, y si estaba anómala (para avisar
+    // una sola vez cuando vuelve a la normalidad).
+    struct FotoCanal {
+        ba::ipc::FotoTransporte foto;
+        bool anomala = false;
+    };
+    mutable std::mutex transporteLock_;
+    std::map<std::string, FotoCanal> transporte_;
 
     mutable std::mutex routesLock_;
     std::vector<MediaRoute> routes_;  // por sesion, [0] reservado: la vigente (con la salida que baja)
