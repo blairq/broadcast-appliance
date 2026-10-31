@@ -528,7 +528,7 @@ void McpService::registerPantallaTools() {
                     }
                     ss.push_back(o);
                 }
-                done(ToolResult::ok(json{{"superficies", ss}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+                done(ToolResult().data(json{{"superficies", ss}})); // el mismo texto, y además estructurado
             });
         };
         core_.addTool(std::move(t));

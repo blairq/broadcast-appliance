@@ -3179,12 +3179,11 @@ void McpService::registerTools() {
                                    {"remoto_remoto", {{"type", "string"}}}}}}},
                                {"turno_s", {{"type", "integer"}, {"minimum", 0}}},
                                {"directo", {{"type", "boolean"}}}}}};
-            t.run = [deb, &rt](const json& a, Done done) {
+            t.run = [deb, &vm](const json& a, Done done) {
                 if (a.contains("escenas") && a["escenas"].is_object()) {
-                    const auto n = rt.engine().sceneNames();
+                    const FotoMotor& foto = vm.ventanilla().foto(); // la interfaz no entra al motor
                     for (const auto& [k, v] : a["escenas"].items())
-                        if (v.is_string() && !v.get<std::string>().empty() &&
-                            std::find(n.begin(), n.end(), v.get<std::string>()) == n.end())
+                        if (v.is_string() && !v.get<std::string>().empty() && foto.escena(v.get<std::string>()) == nullptr)
                             return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay ninguna escena «%1» (scene_list)"), {v.get<std::string>()})));
                 }
                 if (!a.empty())
@@ -3926,25 +3925,18 @@ void McpService::registerTools() {
                         "devuelve el archivo. Con `y_armar: true` lo pone en la escena «Repetición» y la deja "
                         "armada para el take (no la saca al aire).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"y_armar", {{"type", "boolean"}}}}}};
-        t.run = [this, &rt, &vm](const json& a, Done done) {
-            const std::string salida = core_.salidaDe(a);
-            const std::string antes = rt.engine().ultimoReplay(salida);
-            if (!rt.engine().guardarReplay(salida)) return done(ToolResult::error(rt.engine().lastError()));
-            const bool armar = a.value("y_armar", false);
-            vm.escenas().esperarReplay(
-                antes, 8000,
-                [&vm, armar, done, salida](const QString& f) {
-                    if (f.isEmpty())
-                        return done(ToolResult::error(ba::i18n::traducir("mcp", "el clip no llegó a escribirse en 8 s")));
-                    json r{{"archivo", f.toStdString()}};
-                    if (!armar) return done(ToolResult().data(r));
-                    vm.escenas().armarRepeticion(f, salida, [done, r](const QString& e) mutable {
-                        r["armada"] = e.isEmpty();
-                        if (!e.isEmpty()) r["error_al_armar"] = e.toStdString();
-                        done(ToolResult().data(r));
-                    });
-                },
-                salida);
+        t.run = [this, &vm](const json& a, Done done) {
+            // La misma operación que «Repetir» de la interfaz (por la ventanilla del motor).
+            vm.escenas().repetir(core_.salidaDe(a), a.value("y_armar", false),
+                                 [done, armar = a.value("y_armar", false)](const QString& f, const QString& e, bool armada) {
+                                     if (f.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                                     json r{{"archivo", f.toStdString()}};
+                                     if (armar) {
+                                         r["armada"] = armada;
+                                         if (!e.isEmpty()) r["error_al_armar"] = e.toStdString();
+                                     }
+                                     done(ToolResult().data(r));
+                                 });
         };
         core_.addTool(std::move(t));
     }
@@ -4043,33 +4035,45 @@ void McpService::registerTools() {
             if (a.contains("arrancar") && a["arrancar"].is_array())
                 for (const json& s : a["arrancar"])
                     if (s.is_string()) arrancar.push_back(s.get<std::string>());
-            if (a.value("todas", false))
-                for (const std::string& s : rt.engine().sceneSources(rt.engine().currentScene()))
-                    arrancar.push_back(s);
-
-            json fallaron = json::array();
-            // Con las reglas del modelo (disco, tope), las mismas que la GUI.
-            for (const std::string& s : arrancar)
-                if (const std::string e = rt.grabarAparte(s); !e.empty())
-                    fallaron.push_back(json{{"fuente", s}, {"motivo", e}});
+            std::vector<std::string> parar;
             if (a.contains("parar") && a["parar"].is_array())
                 for (const json& s : a["parar"])
-                    if (s.is_string()) rt.stopSourceRecording(s.get<std::string>());
-
-            json grabando = json::array();
-            for (const auto& g : rt.engine().sourceRecordings())
-                grabando.push_back(json{{"fuente", g.source},
-                                        {"archivo", g.path},
-                                        {"mb", [&]() {
-                                             std::error_code ec;
-                                             const auto b = std::filesystem::file_size(g.path, ec);
-                                             return ec ? 0.0 : static_cast<double>(b) / 1e6;
-                                         }()},
-                                        {"audioPropio", g.audioPropio},
-                                        {"activa", g.activa}});
-            done(ToolResult().data(json{{"grabando", grabando},
-                                        {"noSePudo", fallaron},
-                                        {"tope", BroadcastEngine::kMaxIndividuales}}));
+                    if (s.is_string()) parar.push_back(s.get<std::string>());
+            // El invitado se resolvió acá (es de la interfaz); lo demás es del dueño del motor:
+            // se le pide por la ventanilla (desde acá eran entradas directas).
+            vm.ventanilla().pedir(
+                &vm, "grabacion_individual",
+                [&rt, arrancar, parar, todas = a.value("todas", false)]() mutable {
+                    BroadcastEngine& e = rt.engine();
+                    if (todas) {
+                        // Las de la escena al aire que NO se están grabando ya (como «grabar todas» de la
+                        // interfaz): pedirlas de nuevo daba un error por cada una.
+                        std::set<std::string> ya;
+                        for (const auto& g : e.sourceRecordings())
+                            if (g.activa) ya.insert(g.source);
+                        for (const std::string& s : e.sceneSources(e.currentScene()))
+                            if (ya.count(s) == 0) arrancar.push_back(s);
+                    }
+                    json fallaron = json::array();
+                    // Con las reglas del modelo (disco, tope), las mismas que la GUI.
+                    for (const std::string& s : arrancar)
+                        if (const std::string err = rt.grabarAparte(s); !err.empty())
+                            fallaron.push_back(json{{"fuente", s}, {"motivo", err}});
+                    for (const std::string& s : parar) rt.stopSourceRecording(s);
+                    json grabando = json::array();
+                    for (const auto& g : e.sourceRecordings())
+                        grabando.push_back(json{{"fuente", g.source},
+                                                {"archivo", g.path},
+                                                {"mb", [&]() {
+                                                     std::error_code ec;
+                                                     const auto bytes = std::filesystem::file_size(g.path, ec);
+                                                     return ec ? 0.0 : static_cast<double>(bytes) / 1e6;
+                                                 }()},
+                                                {"audioPropio", g.audioPropio},
+                                                {"activa", g.activa}});
+                    return json{{"grabando", grabando}, {"noSePudo", fallaron}, {"tope", BroadcastEngine::kMaxIndividuales}};
+                },
+                [done](const json& r) { done(ToolResult().data(r)); });
         };
         core_.addTool(std::move(t));
     }

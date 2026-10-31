@@ -965,6 +965,10 @@ EXCEPCIONES_CUERPO = {
     ("escena_transicion", "usa el StudioViewModel (`vm`)"): "vm.conmutador() es del dueño (adoptado por la ventanilla)",
     ("web_tema", "usa un view model"): "ControlViewModel::guardarTemaWeb es estática: no toca la vista",
     ("aire_placas_listar", "usa un view model"): "SalidasViewModel::textosDePlaca es estática: no toca la vista",
+    # Sin el registro de dispositivos (la consola, sin interfaz) se cae al motor: no hay carrera.
+    ("audio_devices", "entra directo al motor (rt.engine())"): "solo sin registro (consola): sin interfaz",
+    ("video_devices", "entra directo al motor (rt.engine())"): "solo sin registro (consola): sin interfaz",
+    ("system_hardware", "entra directo al motor (rt.engine())"): "solo sin registro (consola): sin interfaz",
 }
 
 
