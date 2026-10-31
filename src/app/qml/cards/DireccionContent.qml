@@ -37,10 +37,6 @@ Item {
     readonly property var reloj: ev ? ev.reloj : ({})
     readonly property bool corriendo: ev && ev.estado === "corriendo"
 
-    function mmss(s) {
-        const n = Math.max(0, Math.round(Math.abs(s)))
-        return (s < 0 ? "−" : "") + Math.floor(n / 60) + ":" + String(n % 60).padStart(2, "0")
-    }
 
     QrControlEscenas { id: qrEscenas; parent: Overlay.overlay }
 
@@ -267,7 +263,7 @@ Item {
                 Text { text: qsTr("VAS"); color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
                 Text { text: qsTr("TERMINA"); color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
                 Text {
-                    text: tarjeta.mmss(tarjeta.reloj.transcurridoSeg || 0) + " / " + tarjeta.mmss(tarjeta.reloj.totalPrevistoSeg || 0)
+                    text: Theme.mmss(tarjeta.reloj.transcurridoSeg || 0) + " / " + Theme.mmss(tarjeta.reloj.totalPrevistoSeg || 0)
                     color: Theme.text; font { family: "JetBrains Mono"; pixelSize: 14 }
                     ToolTip.visible: llevaMa.containsMouse; ToolTip.text: qsTr("Lo que lleva el guion (sin las pausas) de lo previsto en total")
                     MouseArea { id: llevaMa; anchors.fill: parent; hoverEnabled: true }
@@ -275,7 +271,7 @@ Item {
                 Text {
                     // El desvío: positivo = vas tarde, negativo = adelantado.
                     readonly property int d: tarjeta.reloj.desvioSeg || 0
-                    text: Math.abs(d) < 5 ? qsTr("en hora") : (d > 0 ? qsTr("%1 tarde").arg(tarjeta.mmss(d)) : qsTr("%1 antes").arg(tarjeta.mmss(-d)))
+                    text: Math.abs(d) < 5 ? qsTr("en hora") : (d > 0 ? qsTr("%1 tarde").arg(Theme.mmss(d)) : qsTr("%1 antes").arg(Theme.mmss(-d)))
                     color: d > 20 ? Theme.live : (d < -20 ? Theme.amber : Theme.ok)
                     font { family: "JetBrains Mono"; pixelSize: 14; weight: Font.DemiBold }
                 }
@@ -297,7 +293,7 @@ Item {
                     font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
                 }
                 Text {
-                    text: tarjeta.mmss(tarjeta.reloj.restanteSeg || 0)
+                    text: Theme.mmss(tarjeta.reloj.restanteSeg || 0)
                     color: (tarjeta.reloj.restanteSeg || 0) <= 10 ? Theme.live : Theme.text
                     font { family: "JetBrains Mono"; pixelSize: 22; weight: Font.DemiBold }
                 }

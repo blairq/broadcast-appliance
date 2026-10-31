@@ -35,13 +35,6 @@ Rectangle {
     Binding { target: page.h; when: !!page.h; property: "archivoConfig"; value: cfg.archivo }
 
     function toast(t, n) { ApplicationWindow.window.toast(t, n || "info") }
-    function bytes(b) {
-        if (b === undefined || b === null) return ""
-        if (b > 1e9) return (b / 1e9).toFixed(1) + " GB"
-        if (b > 1e6) return (b / 1e6).toFixed(1) + " MB"
-        if (b > 1e3) return Math.round(b / 1e3) + " kB"
-        return b + " B"
-    }
     function colorEstado(e) { return e === "en_curso" ? Theme.live : e === "terminado" ? Theme.ok : Theme.textFaint }
     function textoEstado(e) { return e === "en_curso" ? qsTr("EN CURSO") : e === "terminado" ? qsTr("terminado") : qsTr("planificado") }
     function colorTipo(t) {
@@ -194,14 +187,14 @@ Rectangle {
                                     color: Theme.textFaint; font.pixelSize: 10
                                     text: !modelData.ev ? "" : modelData.ev.midiendo ? qsTr("midiendo…")
                                           : modelData.ev.bytes_grabaciones > 0
-                                                ? qsTr("%1 · %2 de grabaciones").arg(page.bytes(modelData.ev.bytes)).arg(page.bytes(modelData.ev.bytes_grabaciones))
-                                                : page.bytes(modelData.ev.bytes)
+                                                ? qsTr("%1 · %2 de grabaciones").arg(Theme.tamano(modelData.ev.bytes)).arg(Theme.tamano(modelData.ev.bytes_grabaciones))
+                                                : Theme.tamano(modelData.ev.bytes)
                                 }
                             }
                             MouseArea { anchors.fill: parent; onClicked: page.grupo = modelData.grupo }
                             ToolTip.visible: hov.hovered && !!modelData.ev; ToolTip.delay: 500
                             ToolTip.text: modelData.ev ? qsTr("«%1»: todo lo suyo (escenas, medios, grabaciones…) ocupa %2")
-                                                         .arg(modelData.ev.nombre).arg(page.bytes(modelData.ev.bytes)) : ""
+                                                         .arg(modelData.ev.nombre).arg(Theme.tamano(modelData.ev.bytes)) : ""
                             HoverHandler { id: hov }
                         }
                     }
@@ -261,7 +254,7 @@ Rectangle {
                                           + (modelData.resumen && modelData.resumen.transmisiones ? " · 📡 " + modelData.resumen.transmisiones : "")
                                           + (modelData.resumen && modelData.resumen.sellado ? qsTr(" · sellado ✓") : "")
                                           + (modelData.resumen && modelData.resumen.acta ? qsTr(" · acta") : "")
-                                          + (modelData.resumen ? " · " + page.bytes((modelData.resumen.bytes || 0) + (modelData.resumen.bytes_grabaciones || 0)) : "")
+                                          + (modelData.resumen ? " · " + Theme.tamano((modelData.resumen.bytes || 0) + (modelData.resumen.bytes_grabaciones || 0)) : "")
                                 }
                             }
                             MouseArea { anchors.fill: parent; onClicked: page.sel = modelData.carpeta }
@@ -363,8 +356,8 @@ Rectangle {
                                             [qsTr("Sellado"), page.resumen.sellado ? qsTr("sí (Verificar sellos)") : (page.resumen.enCurso ? qsTr("se sella al terminar") : qsTr("no"))],
                                             [qsTr("Acta"), page.resumen.acta ? qsTr("sí") : qsTr("no")],
                                             [qsTr("Evento"), (page.resumen.evento || "—") + (page.resumen.abierto === false ? qsTr(" (no es el abierto)") : "")],
-                                            [qsTr("Ocupa"), page.bytes((page.resumen.bytes || 0) + (page.resumen.bytes_grabaciones || 0)) +
-                                                      (page.resumen.bytes_grabaciones ? qsTr(" (%1 de grabaciones)").arg(page.bytes(page.resumen.bytes_grabaciones)) : "")]
+                                            [qsTr("Ocupa"), Theme.tamano((page.resumen.bytes || 0) + (page.resumen.bytes_grabaciones || 0)) +
+                                                      (page.resumen.bytes_grabaciones ? qsTr(" (%1 de grabaciones)").arg(Theme.tamano(page.resumen.bytes_grabaciones)) : "")]
                                         ]
                                         delegate: RowLayout {
                                             required property var modelData
@@ -527,7 +520,7 @@ Rectangle {
                                                 Text {
                                                     text: modelData.desde + (modelData.duracion_seg !== undefined
                                                           ? " · " + Math.floor(modelData.duracion_seg / 60) + ":" + String(modelData.duracion_seg % 60).padStart(2, "0")
-                                                          : qsTr(" · grabando")) + " · " + page.bytes(modelData.bytes)
+                                                          : qsTr(" · grabando")) + " · " + Theme.tamano(modelData.bytes)
                                                     color: Theme.textDim; font.pixelSize: 11
                                                 }
                                                 GlassButton { compact: true; text: qsTr("Abrir"); enabled: !!modelData.existe; onClicked: page.h.abrirArchivo(modelData.archivo) }
@@ -568,7 +561,7 @@ Rectangle {
                                     delegate: RowLayout {
                                         required property var modelData
                                         Text { Layout.fillWidth: true; text: modelData.archivo; color: Theme.text; font.pixelSize: 12 }
-                                        Text { text: page.bytes(modelData.bytes); color: Theme.textDim; font.pixelSize: 11 }
+                                        Text { text: Theme.tamano(modelData.bytes); color: Theme.textDim; font.pixelSize: 11 }
                                         GlassButton { compact: true; text: qsTr("Abrir"); onClicked: page.h.abrirArchivo(modelData.ruta) }
                                     }
                                 }
@@ -683,7 +676,7 @@ Rectangle {
                                 required property var modelData
                                 width: ListView.view.width
                                 Text { Layout.fillWidth: true; text: modelData.archivo; elide: Text.ElideMiddle; color: Theme.text; font.pixelSize: 12 }
-                                Text { text: page.bytes(modelData.bytes); color: Theme.textDim; font.pixelSize: 11 }
+                                Text { text: Theme.tamano(modelData.bytes); color: Theme.textDim; font.pixelSize: 11 }
                                 GlassButton {
                                     compact: true; text: qsTr("Abrir")
                                     onClicked: page.h.abrirArchivo(page.resumen.ruta + "/" + modelData.archivo)

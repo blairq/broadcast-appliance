@@ -637,6 +637,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     configuraciones()->setAlAire([this]() { return alAire(); });
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
     plugins_ = std::make_unique<plugins::Plugins>(rt, &imagen_->videoVm(), &imagen_->camaras(), &asistente_->mensajes());
+    // Las cámaras para elegir en la configuración de un plugin: las de Entradas.
+    plugins_->setOpcionesDispositivo([this] { return inputs_->devices(); });
     // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)
     // y los temas de la app les llegan a los que escuchan.
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });

@@ -5,7 +5,10 @@
 
 #include <algorithm>
 
+#include <QDir>
 #include <QElapsedTimer>
+#include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QPointer>
@@ -18,6 +21,7 @@
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Medios.hpp"
 #include "graficos/VideoEnGrafico.hpp"
+#include "ui/ListaObjetos.hpp"
 
 namespace ba::app {
 
@@ -36,6 +40,10 @@ struct GraficoViewModel::Impl {
     QString abierto;
     QString fuente; ///< lo que está en el editor
     QString fuenteEnDisco;
+    /// El texto como lo devuelve el catálogo la última vez que se leyó o guardó (la
+    /// descripción vuelve con otro sangrado que el que se escribió): para saber si el
+    /// archivo cambió de verdad cuando avisa el vigía.
+    QString leidoDelDisco;
     QJsonObject ficha;   ///< grafico.json
     QJsonObject valores; ///< valores actuales de los parámetros
     QImage vista;
@@ -48,6 +56,8 @@ struct GraficoViewModel::Impl {
     QTimer reloj;
     QElapsedTimer desde;
     int desdeMs = 0;
+    ListaObjetos filasRecuadros{QStringLiteral("fuente"), {QStringLiteral("alfa")}};
+    QFileSystemWatcher vigia;
 
     Impl(AppRuntime& r, graficos::Emisor& e) : rt(r), em(e) {}
     graficos::GraficoProceso& proc() const { return em.proceso(); }
@@ -78,6 +88,8 @@ GraficoViewModel::GraficoViewModel(AppRuntime& rt, graficos::Emisor& emisor, QOb
         }
     });
     connect(&emisor.medios(), &graficos::Medios::importandoChanged, this, &GraficoViewModel::importandoChanged);
+    connect(this, &GraficoViewModel::recuadrosChanged, this, [this] { d_->filasRecuadros.poner(recuadros()); });
+    connect(&d_->vigia, &QFileSystemWatcher::fileChanged, this, &GraficoViewModel::alCambiarEnDisco);
 }
 
 GraficoViewModel::~GraficoViewModel() = default;
@@ -133,6 +145,8 @@ QVariantList GraficoViewModel::recuadros() const {
     }
     return out;
 }
+
+QAbstractItemModel* GraficoViewModel::filasRecuadros() { return &d_->filasRecuadros; }
 
 double GraficoViewModel::aspecto() const {
     if (d_->vista.isNull() || d_->vista.height() <= 0) return 0;
@@ -229,6 +243,7 @@ bool GraficoViewModel::abrir(const QString& nombre) {
     d_->ficha = d_->catalogo().ficha(nombre);
     d_->fuente = d_->catalogo().texto(nombre);
     d_->fuenteEnDisco = d_->fuente;
+    d_->leidoDelDisco = d_->fuente;
     // Los valores arrancan en los que el gráfico declara por defecto.
     d_->valores = graficos::Catalogo::valoresPorDefecto(d_->ficha);
     d_->momentoMs = 0;
@@ -243,8 +258,48 @@ bool GraficoViewModel::abrir(const QString& nombre) {
     emit mediosChanged();
     emit vistaChanged();
     emit recuadrosChanged();
+    emit fuenteRecargada();
+    vigilarAbierto();
     redibujar();
     return true;
+}
+
+void GraficoViewModel::vigilarAbierto() {
+    if (!d_->vigia.files().isEmpty()) d_->vigia.removePaths(d_->vigia.files());
+    const QString c = d_->abierto.isEmpty() ? QString() : d_->catalogo().carpeta(d_->abierto);
+    if (c.isEmpty()) return;
+    // Los dos que pueden tener el texto (la descripción o el QML). Se vuelven a agregar
+    // después de cada cambio: quien escribe reemplazando el archivo lo saca de la vigilancia.
+    for (const char* f : {"grafico.json", "grafico.qml"}) {
+        const QString ruta = QDir(c).filePath(QString::fromLatin1(f));
+        if (QFileInfo::exists(ruta)) d_->vigia.addPath(ruta);
+    }
+}
+
+void GraficoViewModel::alCambiarEnDisco() {
+    vigilarAbierto();
+    if (d_->abierto.isEmpty() || !d_->plugin().isEmpty()) return;
+    const QString enDisco = d_->catalogo().texto(d_->abierto);
+    if (enDisco == d_->leidoDelDisco) return; // lo guardamos nosotros (o no cambió el texto)
+    const bool estabaSucio = sucio();
+    d_->leidoDelDisco = enDisco;
+    d_->fuenteEnDisco = enDisco;
+    d_->ficha = d_->catalogo().ficha(d_->abierto);
+    if (estabaSucio) {
+        // Lo del editor no se pisa: queda sin guardar contra lo nuevo, y se avisa.
+        emit sucioChanged();
+        emit notify(tr("«%1» cambió en el disco y lo que escribiste no está guardado: guardá para quedarte con lo tuyo "
+                       "o volvé a abrirlo para tomar lo nuevo.")
+                        .arg(d_->abierto),
+                    "warn");
+        return;
+    }
+    d_->fuente = enDisco;
+    emit fuenteChanged();
+    emit fuenteRecargada();
+    emit sucioChanged();
+    emit recuadrosChanged();
+    redibujar();
 }
 
 QString GraficoViewModel::crear(const QString& nombre, bool declarativo) {
@@ -265,6 +320,7 @@ bool GraficoViewModel::guardar() {
     }
     d_->ficha = d_->catalogo().ficha(d_->abierto);
     d_->fuenteEnDisco = d_->fuente;
+    d_->leidoDelDisco = d_->catalogo().texto(d_->abierto);
     emit sucioChanged();
     emit recuadrosChanged();
     emit notify(tr("Gráfico guardado"), "ok");

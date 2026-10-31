@@ -58,15 +58,6 @@ Rectangle {
             if (p.contenidos[i].id === page.tipo) return p.contenidos[i]
         return null
     }
-    function colorDeEstado(e) {
-        switch (e) {
-        case "mostrando": return Theme.live
-        case "libre": return Theme.ok
-        case "ocupada": return Theme.warn
-        case "error": case "apagada": return Theme.textFaint
-        default: return Theme.textFaint
-        }
-    }
     function textoDeEstado(d) {
         if (d.trabajando) return "…"
         switch (d.estado) {
@@ -171,7 +162,7 @@ Rectangle {
                                         spacing: 10
                                         Rectangle {
                                             Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4
-                                            color: page.colorDeEstado(fila.modelData.estado)
+                                            color: Theme.colorDeEstado(fila.modelData.estado)
                                         }
                                         ColumnLayout {
                                             Layout.fillWidth: true

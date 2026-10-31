@@ -1137,6 +1137,36 @@ json AlertEngine::activas() const {
     return json(activas_);
 }
 
+AlertEngine::Criticas AlertEngine::criticasDe(const json& activas) {
+    Criticas c;
+    bool todas = true;
+    for (const json& e : activas) {
+        if (!e.is_object() || e.value("sonido", std::string()) != "critico") continue;
+        c.hay = true;
+        if (e.value("silenciada", false)) continue;
+        todas = false;
+        c.sonando = true;
+    }
+    c.silenciadas = c.hay && todas;
+    return c;
+}
+
+AlertEngine::Criticas AlertEngine::criticas() const { return criticasDe(activas()); }
+
+int AlertEngine::silenciarCriticas(bool silenciar) {
+    std::vector<std::string> disparadores;
+    for (const json& e : activas()) {
+        if (!e.is_object() || e.value("sonido", std::string()) != "critico") continue;
+        const json& r = e["ruleId"];
+        const std::string id = r.is_string() ? r.get<std::string>() : r.dump();
+        if (std::find(disparadores.begin(), disparadores.end(), id) == disparadores.end()) disparadores.push_back(id);
+    }
+    int n = 0;
+    for (const std::string& id : disparadores)
+        if (!update(id, json{{"silenciada", silenciar}}).contains("error")) ++n;
+    return n;
+}
+
 int AlertEngine::reconocer(std::uint64_t id) {
     const std::lock_guard<std::recursive_mutex> candado(mu_);
     const auto antes = activas_.size();

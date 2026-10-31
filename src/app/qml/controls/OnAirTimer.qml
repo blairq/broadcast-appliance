@@ -12,11 +12,6 @@ Rectangle {
     property double clock: Date.now() + conf.clockOffset
     signal clicked()
 
-    function fmt(ms) {
-        const neg = ms < 0
-        const t = Math.floor(Math.abs(ms) / 1000)
-        return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
     function leftOf(s) { return s.allottedSec * 1000 - (clock - s.onAirSinceMs) }
     // El mas apurado manda el color del marco.
     readonly property double worst: {
@@ -53,7 +48,7 @@ Rectangle {
                 Text { text: modelData.name; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                 Text {
                     id: t
-                    text: remaining >= 0 ? timer.fmt(Math.ceil(remaining / 1000) * 1000) : timer.fmt(remaining)
+                    text: remaining >= 0 ? Theme.cuentaOrador(Math.ceil(remaining / 1000) * 1000) : Theme.cuentaOrador(remaining)
                     color: remaining < 0 ? Theme.live : remaining <= 10000 ? Theme.accent : Theme.text
                     font { pixelSize: remaining <= 10000 ? 30 : 22; weight: Font.Black; family: Theme.font }
                     Behavior on font.pixelSize { NumberAnimation { duration: 200 } }

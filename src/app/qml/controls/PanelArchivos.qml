@@ -33,12 +33,6 @@ Item {
     /// El último tocado, para las acciones de una sola cosa (renombrar).
     property var ultimo: null
 
-    function tamano(bytes) {
-        if (bytes < 1024) return bytes + " B"
-        if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB"
-        if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + " MB"
-        return (bytes / 1024 / 1024 / 1024).toFixed(1) + " GB"
-    }
 
     // El bulto que sigue al mouse mientras se arrastra. Uno solo para toda la
     // grilla: son cuarenta archivos moviéndose juntos, no cuarenta bultos.
@@ -392,7 +386,7 @@ Item {
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: celda.fila.carpeta + " · " + raiz.tamano(celda.fila.bytes)
+                                    text: celda.fila.carpeta + " · " + Theme.tamano(celda.fila.bytes)
                                     color: Theme.textFaint
                                     font.pixelSize: 10
                                     elide: Text.ElideRight
@@ -575,7 +569,7 @@ Item {
             // Se dice a dónde van: si no, nadie toca el botón por las dudas.
             text: qsTr("%n archivo (%1) van a Papelera/.\n\n"
                        + "No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y listo.", "", raiz.m.cuantosElegidos)
-                      .arg(raiz.tamano(raiz.m.bytesElegidos))
+                      .arg(Theme.tamano(raiz.m.bytesElegidos))
         }
     }
 }

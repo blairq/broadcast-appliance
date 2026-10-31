@@ -116,7 +116,7 @@ Item {
                 ItemsDeMenu {
                     menu: addMenu
                     despuesDe: sepExtensiones
-                    model: Studio.extensiones ? Studio.extensiones.kinds() : []
+                    model: Studio.extensiones ? Studio.extensiones.kinds : []
                     delegate: MenuItem {
                         required property string modelData
                         text: Studio.extensiones.tituloDeKind(modelData)

@@ -33,11 +33,6 @@ Rectangle {
     readonly property bool over: onAir && leftMs < 0
     readonly property var conf: Studio.conference
 
-    function fmt(ms) {
-        const neg = ms < 0
-        const t = Math.floor(Math.abs(ms) / 1000)
-        return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
 
     width: 210
     height: col.implicitHeight + 20
@@ -98,8 +93,8 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             Text {
-                text: card.onAir ? (card.leftMs >= 0 ? card.fmt(Math.ceil(card.leftMs / 1000) * 1000) : card.fmt(card.leftMs))
-                      : card.speaker === "done" ? qsTr("usó %1").arg(card.fmt(card.usedMs)) : card.fmt(card.allottedSec * 1000)
+                text: card.onAir ? (card.leftMs >= 0 ? Theme.cuentaOrador(Math.ceil(card.leftMs / 1000) * 1000) : Theme.cuentaOrador(card.leftMs))
+                      : card.speaker === "done" ? qsTr("usó %1").arg(Theme.cuentaOrador(card.usedMs)) : Theme.cuentaOrador(card.allottedSec * 1000)
                 color: card.over ? Theme.live : card.warn ? Theme.accent : Theme.text
                 font { pixelSize: card.warn || card.over ? 26 : 20; weight: Font.Black; family: Theme.font }
                 Layout.fillWidth: true

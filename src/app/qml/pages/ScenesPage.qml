@@ -24,45 +24,8 @@ Rectangle {
     }
 
     // --- Carpetas de escenas --------------------------------------------------
-    // Solo ordenan la lista (el motor no las usa). El arbol se arma leyendo el
-    // modelo de escenas, que informa la carpeta de cada una.
-    property var closedFolders: ({})
-    property int folderTick: 0
-    property int scenesTick: 0
-    function folderOpen(f) { folderTick; return !closedFolders[f] }
-    function toggleFolder(f) { closedFolders[f] = !closedFolders[f]; folderTick++ }
-    readonly property var sceneTree: {
-        folderTick; scenesTick
-        const m = Studio.scenes
-        const sueltas = [], carpetas = [], porCarpeta = {}
-        for (let i = 0; i < m.rowCount(); ++i) {
-            const idx = m.index(i, 0)
-            const fila = { fila: "escena",
-                           nombre: m.data(idx, 257),   // NameRole
-                           live: m.data(idx, 258),     // LiveRole
-                           carpeta: m.data(idx, 259) } // FolderRole
-            if (!fila.carpeta) { sueltas.push(fila); continue }
-            if (!porCarpeta[fila.carpeta]) { porCarpeta[fila.carpeta] = []; carpetas.push(fila.carpeta) }
-            porCarpeta[fila.carpeta].push(fila)
-        }
-        const filas = []
-        if (carpetas.length > 0) {
-            filas.push({ fila: "carpeta", carpeta: "", cuantas: sueltas.length })
-            if (folderOpen("")) for (const f of sueltas) filas.push(f)
-        } else {
-            for (const f of sueltas) filas.push(f)
-        }
-        for (const c of carpetas) {
-            filas.push({ fila: "carpeta", carpeta: c, cuantas: porCarpeta[c].length })
-            if (folderOpen(c)) for (const f of porCarpeta[c]) filas.push(f)
-        }
-        return filas
-    }
-    Connections {
-        target: Studio.scenes
-        function onModelReset() { page.scenesTick++ }
-        function onDataChanged() { page.scenesTick++ }
-    }
+    // Solo ordenan la lista (el motor no las usa). El árbol (un encabezado por carpeta,
+    // que se pliega, y sus escenas) lo arma el modelo: Studio.escenas.arbol.
 
     // El motor renderiza la escena que se edita solo mientras esta pagina esta
     // a la vista: fuera de aca no se gasta GPU en ella.
@@ -109,16 +72,21 @@ Rectangle {
                     spacing: 6
                     // Arbol: un encabezado por carpeta (se pliega) y debajo sus
                     // escenas. Las que no tienen carpeta van primero, sueltas.
-                    model: page.sceneTree
+                    model: Studio.escenas.arbol
                     delegate: Item {
-                        required property var modelData
+                        id: filaArbol
+                        required property string fila
+                        required property string nombre
+                        required property string carpeta
+                        required property int cuantas
+                        required property bool abierta
                         width: ListView.view.width
-                        height: modelData.fila === "carpeta" ? 28 : 46
+                        height: filaArbol.fila === "carpeta" ? 28 : 46
 
                         Rectangle {
                             id: folderRow
                             anchors.fill: parent
-                            visible: modelData.fila === "carpeta"
+                            visible: filaArbol.fila === "carpeta"
                             radius: 8
                             // Se ilumina cuando se le arrastra una escena encima.
                             color: dropHere.containsDrag ? Qt.rgba(1, 0.42, 0.17, 0.18) : "transparent"
@@ -128,7 +96,7 @@ Rectangle {
                                 // Un poco mas alta que el encabezado: es facil
                                 // pasarse con el mouse.
                                 anchors { fill: parent; topMargin: -6; bottomMargin: -6 }
-                                property string folderName: modelData.carpeta
+                                property string folderName: filaArbol.carpeta
                                 // El que se solto es el fantasma de la fila (su
                                 // `escena` dice cual es).
                                 onDropped: (ev) => {
@@ -140,34 +108,31 @@ Rectangle {
                                 anchors { fill: parent; leftMargin: 2; rightMargin: 6 }
                                 spacing: 6
                                 Text {
-                                    text: page.folderOpen(modelData.carpeta) ? "▾" : "▸"
+                                    text: filaArbol.abierta ? "▾" : "▸"
                                     color: Theme.textFaint; font.pixelSize: 11
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: modelData.carpeta || qsTr("Sin carpeta")
+                                    text: filaArbol.carpeta || qsTr("Sin carpeta")
                                     color: Theme.textDim
                                     font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
                                     elide: Text.ElideRight
                                 }
-                                // `cuantas` puede no venir en una fila recién creada:
-                                // sin el respaldo, Qt avisa «Unable to assign [undefined]
-                                // to QString» en cada redibujo.
-                                Text { text: modelData.cuantas !== undefined ? String(modelData.cuantas) : ""
+                                Text { text: String(filaArbol.cuantas)
                                        color: Theme.textFaint; font.pixelSize: 11 }
                             }
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: page.toggleFolder(modelData.carpeta)
+                                onClicked: Studio.escenas.alternarCarpeta(filaArbol.carpeta)
                             }
                         }
 
                         Rectangle {
-                            anchors { fill: parent; leftMargin: modelData.carpeta ? 12 : 0 }
-                            visible: modelData.fila === "escena"
-                            readonly property string name: modelData.nombre || ""
-                            readonly property bool live: !!modelData.live
+                            anchors { fill: parent; leftMargin: filaArbol.carpeta ? 12 : 0 }
+                            visible: filaArbol.fila === "escena"
+                            readonly property string name: filaArbol.nombre
+                            readonly property bool live: filaArbol.nombre === Studio.currentScene
                             radius: 12
                             color: name === page.editScene ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
                             border.color: live ? Theme.accent : "transparent"
@@ -697,7 +662,7 @@ Rectangle {
                 Layout.preferredWidth: 320
                 spacing: 6
                 Repeater {
-                    model: Studio.escenas.sceneFolders()
+                    model: Studio.escenas.sceneFolders
                     delegate: GlassButton {
                         required property string modelData
                         compact: true

@@ -77,15 +77,6 @@ Rectangle {
         ApplicationWindow.window.pedirAlAsistente(texto)
     }
 
-    function bytesLegibles(b) {
-        if (b === undefined || b === null) return ""
-        return b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.round(b / 1e3) + " kB"
-    }
-    function mmss(s) {
-        const neg = s < 0
-        const t = Math.abs(Math.round(s))
-        return (neg ? "-" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
     // La hora prevista de un cue: la de arranque del evento mas su offset.
     /// El "cuando" para el boton del encabezado: corto, y diciendo lo que
     /// falta cuando falta.
@@ -188,7 +179,7 @@ Rectangle {
 
                 Text {
                     visible: page.ev.abierto !== ""
-                    text: qsTr("%1 cues · %2").arg(page.ev.guion.cues).arg(page.mmss(page.ev.guion.duracionSeg))
+                    text: qsTr("%1 cues · %2").arg(page.ev.guion.cues).arg(Theme.mmss(page.ev.guion.duracionSeg))
                     color: Theme.textDim
                     font.pixelSize: 12
                     elide: Text.ElideRight
@@ -244,8 +235,8 @@ Rectangle {
                     text: c.total > 0
                           ? qsTr("Copiando «%1»… %2 % (%3 de %4)").arg(c.nombre || "")
                                 .arg(Math.min(100, Math.round(100 * c.hechos / c.total)))
-                                .arg(page.bytesLegibles(c.hechos)).arg(page.bytesLegibles(c.total))
-                          : qsTr("Copiando «%1»… %2").arg(c.nombre || "").arg(page.bytesLegibles(c.hechos))
+                                .arg(Theme.tamano(c.hechos)).arg(Theme.tamano(c.total))
+                          : qsTr("Copiando «%1»… %2").arg(c.nombre || "").arg(Theme.tamano(c.hechos))
                 }
             }
         }
@@ -417,7 +408,7 @@ Rectangle {
                         color: Theme.textDim
                         font.pixelSize: 12
                         text: qsTr("Quedó abierto «%1»: %n bloque, %2 cues, %3.", "", page.ev.guion.bloques.length)
-                                  .arg(page.ev.abierto).arg(page.ev.guion.cues).arg(page.mmss(page.ev.guion.duracionSeg)) +
+                                  .arg(page.ev.abierto).arg(page.ev.guion.cues).arg(Theme.mmss(page.ev.guion.duracionSeg)) +
                               (page.ev.reparos.length > 0
                                ? " " + qsTr("%n cosa para mirar.", "", page.ev.reparos.length)
                                : "")
@@ -727,8 +718,8 @@ Rectangle {
                                             Text {
                                                 // La hora la calcula el modelo (la misma que lee el asistente).
                                                 text: (modelData.horaPrevista || "") !== ""
-                                                      ? modelData.horaPrevista + " · " + page.mmss(modelData.duracionSeg)
-                                                      : page.mmss(modelData.duracionSeg)
+                                                      ? modelData.horaPrevista + " · " + Theme.mmss(modelData.duracionSeg)
+                                                      : Theme.mmss(modelData.duracionSeg)
                                                 color: Theme.textDim
                                                 font { family: Theme.mono; pixelSize: 12 }
                                             }
@@ -831,7 +822,7 @@ Rectangle {
                                                     font.pixelSize: 10
                                                 }
                                                 Text {
-                                                    text: page.mmss(modelData.duracionSeg)
+                                                    text: Theme.mmss(modelData.duracionSeg)
                                                     color: Theme.textDim
                                                     font { family: Theme.mono; pixelSize: 11 }
                                                 }
@@ -1000,7 +991,7 @@ Rectangle {
                                     }
                                 }
                                 Text {
-                                    text: page.selCue ? (page.selCue.automatico ? qsTr("%1 · encadena solo").arg(page.mmss(page.selCue.duracionSeg)) : page.mmss(page.selCue.duracionSeg)) : ""
+                                    text: page.selCue ? (page.selCue.automatico ? qsTr("%1 · encadena solo").arg(Theme.mmss(page.selCue.duracionSeg)) : Theme.mmss(page.selCue.duracionSeg)) : ""
                                     color: Theme.textDim; font { family: Theme.mono; pixelSize: 11 }
                                 }
                             }
@@ -1208,8 +1199,8 @@ Rectangle {
                 text: page.informe && page.informe.bloques
                       ? (page.informe.desvioSeg >= 0 ? qsTr("Previsto %1 · real %2 · nos pasamos %3")
                                                      : qsTr("Previsto %1 · real %2 · sobró %3"))
-                            .arg(page.mmss(page.informe.previstoSeg)).arg(page.mmss(page.informe.realSeg))
-                            .arg(page.mmss(Math.abs(page.informe.desvioSeg))) +
+                            .arg(Theme.mmss(page.informe.previstoSeg)).arg(Theme.mmss(page.informe.realSeg))
+                            .arg(Theme.mmss(Math.abs(page.informe.desvioSeg))) +
                         (page.informe.ensayo ? qsTr("  (fue un ensayo)") : "")
                       : qsTr("El guion todavía no se corrió.")
             }
@@ -1232,14 +1223,14 @@ Rectangle {
                         font.pixelSize: 13
                     }
                     Text {
-                        text: page.mmss(modelData.previstoSeg) + " → " + page.mmss(modelData.realSeg)
+                        text: Theme.mmss(modelData.previstoSeg) + " → " + Theme.mmss(modelData.realSeg)
                         color: Theme.textDim
                         font { family: Theme.mono; pixelSize: 12 }
                     }
                     Text {
                         Layout.preferredWidth: 70
                         horizontalAlignment: Text.AlignRight
-                        text: (modelData.desvioSeg > 0 ? "+" : "") + page.mmss(modelData.desvioSeg)
+                        text: (modelData.desvioSeg > 0 ? "+" : "") + Theme.mmss(modelData.desvioSeg)
                         color: Math.abs(modelData.desvioSeg) < 15 ? Theme.ok
                                : (Math.abs(modelData.desvioSeg) < 60 ? Theme.amber : Theme.live)
                         font { family: Theme.mono; pixelSize: 12; weight: Font.DemiBold }
@@ -1435,7 +1426,7 @@ Rectangle {
                     Layout.fillWidth: true
                     enabled: nuevoEventoDlg.modo === "plantilla"
                     // El nombre que se ve; se crea con la carpeta (puede tener otro nombre visible).
-                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.plantillasUi() : []
+                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.plantillas : []
                     textRole: "nombre"
                     valueRole: "carpeta"
                 }
@@ -1502,7 +1493,7 @@ Rectangle {
         title: qsTr("Preparar un evento con el asistente")
         onAboutToShow: {
             elegido = ""; plantillaElegida = ""; notasEvt.text = ""
-            tipos = (Studio.configuraciones ? Studio.configuraciones.plantillasUi() : []).filter(p => p.escenario !== "")
+            tipos = (Studio.configuraciones ? Studio.configuraciones.plantillas : []).filter(p => p.escenario !== "")
         }
         ColumnLayout {
             anchors.fill: parent
@@ -1599,7 +1590,7 @@ Rectangle {
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 13
                            text: modelData.nombre + (modelData.activa ? qsTr("  ● abierto") : "") + (modelData.plantilla ? qsTr("  (plantilla)") : "") }
                     Text { color: Theme.textFaint; font.pixelSize: 11
-                           text: modelData.midiendo ? qsTr("midiendo…") : page.bytesLegibles(modelData.bytes) }
+                           text: modelData.midiendo ? qsTr("midiendo…") : Theme.tamano(modelData.bytes) }
                     GlassButton {
                         compact: true; text: qsTr("Abrir"); visible: !modelData.activa
                         enabled: !(Studio.aire.streaming || Studio.aire.recording)

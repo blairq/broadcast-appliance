@@ -54,13 +54,17 @@ class VideoViewModel : public QObject {
     Q_OBJECT
     /// Las entradas de video que hay.
     Q_PROPERTY(QStringList entradas READ entradas NOTIFY cambio)
+    /// Las entradas virtuales que se pueden crear: [{id, nombre, descripcion, pipeline}]
+    /// (un catálogo fijo).
+    Q_PROPERTY(QVariantList virtuales READ virtuales CONSTANT)
     /// Las mismas, agrupadas como en el audio: [{nombre, grupo («Cámaras», «Red», «NDI»),
     /// tarjetas (cuántas tiene)}].
     Q_PROPERTY(QVariantList entradasInfo READ entradasInfo NOTIFY cambio)
     /// La que se está editando.
     Q_PROPERTY(QString entrada READ entrada WRITE seleccionar NOTIFY cambio)
-    /// Su sub-grafo: {nodos:[{id,tipo,titulo,etiqueta,grupo,x,y,params,externo,
-    /// entradas:[{id,tipo,pedido}],salidas:[…]}], cables:[{desde,salida,hacia,entrada}], trivial}
+    /// Su sub-grafo: {nodos:[{id,tipo,titulo,etiqueta,grupo,x,y,params,externo,resumen,
+    /// entradas:[{id,tipo,pedido}],salidas:[…]}], cables:[{desde,salida,hacia,entrada}], trivial}.
+    /// `resumen`: lo que se lee en la tarjeta del nodo (qué hace, con sus ajustes principales).
     Q_PROPERTY(QVariantMap grafo READ grafo NOTIFY cambio)
     /// Todo el estudio (mismo formato).
     Q_PROPERTY(QVariantMap estudio READ estudio NOTIFY cambio)
@@ -130,8 +134,7 @@ class VideoViewModel : public QObject {
     /// Los de un módulo, para el detalle del catálogo (con estos valores puestos).
     Q_INVOKABLE QVariantList propiedadesModulo(const QString& elemento) const;
     Q_INVOKABLE QVariantList propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const;
-    /// Las entradas virtuales que se pueden crear: [{id, nombre, descripcion, pipeline}].
-    Q_INVOKABLE static QVariantList virtuales();
+    static QVariantList virtuales();
 
     // --- Lo que pide QML ("" siempre: el error llega por notify) ------------------------
     Q_INVOKABLE QString agregar(const QString& tipo, const QString& despues);

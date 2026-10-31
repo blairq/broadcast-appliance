@@ -12,6 +12,18 @@
   "Generadores",
   "Instrumentos"
  ],
+ "colores": {
+  "Dinámica": "#ff6a2b",
+  "Ecualizadores": "#0ea5e9",
+  "Multibanda": "#f59e0b",
+  "Retardo": "#a78bfa",
+  "Reverberación": "#8b5cf6",
+  "Modulación": "#ec4899",
+  "Análisis": "#22c55e",
+  "Utilidades": "#64748b",
+  "Generadores": "#eab308",
+  "Instrumentos": "#14b8a6"
+ },
  "familias": [
   {
    "clave": "compressor",

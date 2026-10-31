@@ -137,6 +137,17 @@ class AlertEngine : public QObject {
     json activas() const;
     /// Reconoce una (por id de evento) o todas (0). Devuelve cuántas.
     int reconocer(std::uint64_t eventoId);
+    /// Las críticas por reconocer (la franja roja de la app, el control web, el MCP: una
+    /// sola regla). `hay`: alguna, suene o no (silenciar corta el sonido, no la alarma);
+    /// `silenciadas`: hay y todas están silenciadas; `sonando`: alguna suena.
+    struct Criticas {
+        bool hay = false, silenciadas = false, sonando = false;
+    };
+    Criticas criticas() const;
+    static Criticas criticasDe(const json& activas);
+    /// Silencia (o les devuelve el sonido a) los disparadores de todas las críticas por
+    /// reconocer, una vez cada uno. Devuelve cuántos disparadores tocó.
+    int silenciarCriticas(bool silenciar);
     /// El resultado de lo que hizo un disparo (lo anota quien ejecuta las acciones).
     void anotarResultado(std::uint64_t eventoId, const std::string& herramienta, bool ok, const std::string& texto,
                          bool bloqueadaPorRol);

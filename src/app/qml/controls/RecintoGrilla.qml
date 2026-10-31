@@ -1,7 +1,8 @@
 // El recinto: las bancas como se ven desde la cabina, para tocar. Fuente:
-// Studio.cuerpo.recinto (asamblea/Cuerpo), Studio.bancas (la fila de
-// oradores presenciales), Studio.dcn (la central) y Studio.sesionRemota (los que
-// entran desde el navegador, en la sala o afuera).
+// Studio.asamblea.recinto (asamblea/RecintoModel): cada banca con lo que muestra ya
+// cruzado de Studio.cuerpo.recinto (asamblea/Cuerpo), Studio.bancas (la fila de
+// oradores presenciales), Studio.dcn (la central), Studio.sesionRemota (los que
+// entran desde el navegador, en la sala o afuera) y las fotos de las cámaras PTZ.
 //
 // TRES DISTRIBUCIONES (se elige arriba y queda guardada): la GRILLA de filas y
 // columnas, el HEMICICLO (cada fila es un arco alrededor de la presidencia) y la
@@ -42,39 +43,18 @@ ColumnLayout {
     readonly property var d: Studio.dcn ? Studio.dcn.estado : ({})
     readonly property bool conCentral: !!(Studio.dcn && Studio.dcn.conectada)
     readonly property var sr: Studio.sesionRemota
-    // id → participante de la sesión remota (conectado, estado, lugar…).
-    readonly property var remotos: {
-        const m = {}
-        for (const p of (rec.sr ? rec.sr.participantes : [])) m[p.id] = p
-        return m
-    }
-    property int fotosVersion: 0
+    readonly property var rm: Studio.asamblea.recinto
     // Titileo de 1 Hz para «le toca» y los que esperan que los habiliten.
     property bool fase: false
     Timer { interval: 500; repeat: true; running: rec.visible && (rec.conCentral || rec.hayEsperando); onTriggered: rec.fase = !rec.fase }
-    readonly property bool hayEsperando: (rec.sr ? rec.sr.participantes : []).some(p => p.estado === "esperando")
+    readonly property bool hayEsperando: rec.rm.hayEsperando
     // Las caras de los conectados, cada 3 s mientras se ve.
     Timer {
         interval: 3000; repeat: true; triggeredOnStart: true
         running: rec.visible && !!rec.sr && rec.sr.conectados > 0
         onTriggered: { for (const p of rec.sr.participantes) if (p.conectado) rec.sr.pedirFoto(p.id) }
     }
-    Connections {
-        target: rec.sr
-        enabled: !!rec.sr
-        function onFotoLista(id) { rec.fotosVersion++ }
-    }
 
-    function unidadDe(banca) {
-        const l = rec.d.unidades || []
-        for (let i = 0; i < l.length; ++i) if (l[i].banca === banca) return l[i]
-        return null
-    }
-    function turnoCentral(banca) {
-        const l = rec.d.pedidos || []
-        for (let i = 0; i < l.length; ++i) if (l[i].banca === banca) return l[i].turno
-        return 0
-    }
     function microfono(banca, abrir, confirmar) {
         Studio.dcn.pedirUi("microfono", "microfono", {banca: banca, abierto: abrir, confirmar: !!confirmar})
     }
@@ -96,16 +76,8 @@ ColumnLayout {
         rec.editar({presidencia: rec.elegida})
         rec.elegida = ""
     }
-    function lugar(f, c) {
-        const l = r.bancas || []
-        for (let i = 0; i < l.length; ++i) if (l[i].fila === f && l[i].columna === c) return l[i]
-        return null
-    }
-    function turno(id) {
-        const c = b.cola || []
-        for (let i = 0; i < c.length; ++i) if (c[i].id === id) return i + 1
-        return 0
-    }
+    /// La banca de ese lugar de la grilla (con todo lo suyo), o null.
+    function lugar(f, c) { return rec.rm.porLugar[f + "," + c] || null }
     // Un color estable por bloque (sin tabla que mantener).
     function colorBloque(bloque) {
         if (!bloque) return Qt.rgba(1, 1, 1, 0.25)
@@ -117,30 +89,6 @@ ColumnLayout {
         const e = Studio.cuerpo.editarRecinto(cambios)
         rec.aviso = e
         return e === ""
-    }
-    // La foto de cada posición PTZ ("cámara/posición" -> url), para las bancas sin foto.
-    readonly property var fotosPtz: {
-        const m = {}
-        for (const c of (Studio.camaras ? Studio.camaras.camaras : []))
-            for (const p of (c.posiciones || []))
-                if (p.miniatura_url) {
-                    m[c.entrada + "/" + p.id] = p.miniatura_url
-                    if (p.nombre) m[c.entrada + "/" + p.nombre] = p.miniatura_url
-                }
-        return m
-    }
-    // La cara: en vivo si está conectado por el navegador; si no, su foto del Cuerpo;
-    // si no tiene, lo que muestra la cámara de su banca (la foto de su posición PTZ).
-    function cara(i) {
-        if (!i) return ""
-        const p = rec.remotos[i.id]
-        if (p && p.conectado && rec.fotosVersion >= 0) {
-            const u = rec.sr.fotoUrl(i.id)
-            if (u !== "") return u
-        }
-        if (i.foto_url) return i.foto_url
-        const pp = i.preset_ptz || {}
-        return pp.camara && pp.posicion ? (rec.fotosPtz[pp.camara + "/" + pp.posicion] || "") : ""
     }
     // El resultado de cada foto (la de una banca o la tanda de las que faltan).
     Connections {
@@ -290,22 +238,23 @@ ColumnLayout {
         signal soltada()
         // Chica (hemiciclo de una sala grande): la cara, el número y lo que pasa; sin nombre.
         readonly property bool chica: !ancha && width < 104
+        // Lo que pasa en la banca, ya cruzado por el modelo (asamblea/RecintoModel).
         readonly property var i: l && l.integrante ? l.integrante : null
-        readonly property bool alAire: i !== null && !!rec.b.al_aire && rec.b.al_aire.id === i.id
-        readonly property int turno: i !== null ? rec.turno(i.id) : 0
+        readonly property bool alAire: !!l && !!l.alAire
+        readonly property int turno: l ? (l.turno || 0) : 0
         // La central de conferencia.
-        readonly property var uni: rec.conCentral && l !== null ? rec.unidadDe(l.banca) : null
-        readonly property bool micAbierto: rec.conCentral && l !== null && (rec.d.abiertos || []).indexOf(l.banca) >= 0
-        readonly property int turnoCcu: rec.conCentral && l !== null ? rec.turnoCentral(l.banca) : 0
-        readonly property bool leToca: rec.conCentral && l !== null && rec.d.siguiente === l.banca
-        readonly property bool presidente: uni !== null && uni.tipo === "presidente"
-        readonly property bool sinUnidad: rec.conCentral && l !== null && (uni === null || !uni.conectada)
+        readonly property var uni: l && l.unidad ? l.unidad : null
+        readonly property bool micAbierto: !!l && !!l.micAbierto
+        readonly property int turnoCcu: l ? (l.turnoCentral || 0) : 0
+        readonly property bool leToca: !!l && !!l.leToca
+        readonly property bool presidente: !!l && !!l.presidente
+        readonly property bool sinUnidad: !!l && !!l.sinUnidad
         // La sesión remota.
-        readonly property var rem: i !== null ? rec.remotos[i.id] : undefined
-        readonly property bool conectado: !!rem && rem.conectado
-        readonly property bool esperando: !!rem && rem.estado === "esperando"
-        readonly property bool habilitado: !!rem && rem.estado === "habilitado"
-        readonly property string fotoCara: rec.cara(i)
+        readonly property var rem: l && l.remoto ? l.remoto : undefined
+        readonly property bool conectado: !!l && !!l.conectado
+        readonly property bool esperando: !!l && !!l.esperando
+        readonly property bool habilitado: !!l && !!l.habilitado
+        readonly property string fotoCara: l && l.fotoCara ? l.fotoCara : ""
         radius: 8
         color: l === null ? "transparent"
                : micAbierto ? Qt.rgba(0.78, 0.16, 0.16, 0.85)
@@ -421,7 +370,7 @@ ColumnLayout {
         MouseArea { anchors.fill: parent; enabled: rec.editando && rec.elegida !== ""; onClicked: rec.tocarPresidencia() }
         Celda {
             visible: !!rec.pres
-            l: rec.pres
+            l: rec.pres ? rec.rm.presidencia : null
             width: mesa.anchoBanca; height: mesa.altoBanca
             anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 4 }
         }
@@ -520,18 +469,18 @@ ColumnLayout {
             }
         }
         Repeater {
-            model: rec.distribucion === "hemiciclo" ? (rec.r.bancas || []) : []
+            model: rec.distribucion === "hemiciclo" ? rec.rm.bancas : null
             delegate: Celda {
                 id: enArco
-                required property var modelData
-                l: modelData
+                required property var datos
+                l: datos
                 // La fila 0 (adelante) en el arco de adentro; las columnas de izquierda a derecha.
                 // Si se ubicó a mano, donde la dejaron (en anchos de banca desde la presidencia).
-                readonly property real radio: hemi.r0 + hemi.paso * modelData.fila
-                readonly property real ang: Math.PI * (1 - (modelData.columna + 0.5) / Math.max(1, rec.columnas))
-                readonly property bool aMano: modelData.x !== undefined
-                readonly property real centroX: aMano ? hemi.cx + modelData.x * hemi.cw : hemi.cx + radio * Math.cos(ang)
-                readonly property real centroY: aMano ? hemi.cy + modelData.y * hemi.cw : hemi.cy - radio * Math.sin(ang)
+                readonly property real radio: hemi.r0 + hemi.paso * datos.fila
+                readonly property real ang: Math.PI * (1 - (datos.columna + 0.5) / Math.max(1, rec.columnas))
+                readonly property bool aMano: datos.x !== undefined
+                readonly property real centroX: aMano ? hemi.cx + datos.x * hemi.cw : hemi.cx + radio * Math.cos(ang)
+                readonly property real centroY: aMano ? hemi.cy + datos.y * hemi.cw : hemi.cy - radio * Math.sin(ang)
                 width: hemi.cw; height: hemi.ch
                 x: centroX - width / 2 + corrido.x
                 y: centroY - height / 2 + corrido.y
@@ -543,7 +492,7 @@ ColumnLayout {
                     const cx = Math.max(width / 2, Math.min(hemi.width - width / 2, x + width / 2))
                     const cy = Math.max(height / 2, Math.min(hemi.cy - height / 2, y + height / 2))
                     const q = v => Math.round(v * 4) / 4
-                    rec.editar({posicion: {banca: modelData.banca, x: q((cx - hemi.cx) / hemi.cw), y: q((cy - hemi.cy) / hemi.cw)}})
+                    rec.editar({posicion: {banca: datos.banca, x: q((cx - hemi.cx) / hemi.cw), y: q((cy - hemi.cy) / hemi.cw)}})
                 }
             }
         }
@@ -555,12 +504,11 @@ ColumnLayout {
         visible: rec.distribucion === "lista" && !rec.sinNadie
         spacing: 4
         Repeater {
-            model: rec.distribucion === "lista"
-                   ? (rec.r.bancas || []).slice().sort((x, y) => String(x.banca).localeCompare(String(y.banca), undefined, {numeric: true}))
-                   : []
+            // Por número de banca (ya ordenadas por el modelo).
+            model: rec.distribucion === "lista" ? rec.rm.bancas : null
             delegate: Celda {
-                required property var modelData
-                l: modelData
+                required property var datos
+                l: datos
                 ancha: true
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
@@ -615,7 +563,7 @@ ColumnLayout {
         id: menu
         property var l: null
         readonly property var i: menu.l && menu.l.integrante ? menu.l.integrante : null
-        readonly property var rem: menu.i ? rec.remotos[menu.i.id] : undefined
+        readonly property var rem: menu.l && menu.l.remoto ? menu.l.remoto : undefined
         function abrir(l, item) { menu.l = l; popup(item, 0, item.height) }
         // La sesión remota primero: si alguien espera, es lo que se busca.
         MenuItem { text: qsTr("Habilitar (lo vi por la cámara)"); visible: !!menu.rem && menu.rem.estado === "esperando"; height: visible ? implicitHeight : 0
@@ -642,7 +590,7 @@ ColumnLayout {
                    onTriggered: { const e = Studio.bancas.alAire(menu.l.banca, "armar"); rec.aviso = e !== "" ? e : Studio.bancas.ultimoAviso() } }
         MenuItem { text: qsTr("Sumar a la fila"); enabled: menu.i !== null
                    onTriggered: rec.aviso = Studio.bancas.agregar(menu.l.banca) }
-        MenuItem { text: qsTr("Sacar de la fila"); enabled: menu.i !== null && rec.turno(menu.i.id) > 0
+        MenuItem { text: qsTr("Sacar de la fila"); enabled: menu.i !== null && !!menu.l && menu.l.turno > 0
                    onTriggered: Studio.bancas.quitar(menu.l.banca) }
         MenuItem { text: qsTr("Terminar (cierra su micrófono)")
                    enabled: menu.i !== null && rec.b.al_aire && rec.b.al_aire.id === menu.i.id

@@ -1181,7 +1181,6 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 6
                     readonly property var viejos: ml.instalados.filter(m => m.viejo)
-                    function gb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + " GB" : Math.round(b / 1048576) + " MB" }
                     function suma(l) { let t = 0; for (const m of l) t += m.bytes; return t }
                     Component.onCompleted: ml.revisarDisco()
                     RowLayout {
@@ -1193,14 +1192,14 @@ Rectangle {
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: qsTr("%n modelo · %1", "", ml.instalados.length).arg(disco.gb(disco.suma(ml.instalados)))
+                            text: qsTr("%n modelo · %1", "", ml.instalados.length).arg(Theme.tamano(disco.suma(ml.instalados)))
                             color: Theme.textDim; font.pixelSize: 12
                         }
                         GlassButton { compact: true; text: qsTr("Revisar"); onClicked: ml.revisarDisco() }
                         GlassButton {
                             compact: true
                             visible: disco.viejos.length > 0
-                            text: qsTr("Borrar los viejos (%1 · %2)").arg(disco.viejos.length).arg(disco.gb(disco.suma(disco.viejos)))
+                            text: qsTr("Borrar los viejos (%1 · %2)").arg(disco.viejos.length).arg(Theme.tamano(disco.suma(disco.viejos)))
                             active: true
                             onClicked: ApplicationWindow.window.confirm({
                                 title: qsTr("¿Borrar los modelos viejos?"),
@@ -1213,7 +1212,7 @@ Rectangle {
                         GlassButton {
                             compact: true
                             visible: (ml.restos.cuantas || 0) > 0
-                            text: qsTr("Borrar descargas cortadas (%1)").arg(disco.gb(ml.restos.bytes || 0))
+                            text: qsTr("Borrar descargas cortadas (%1)").arg(Theme.tamano(ml.restos.bytes || 0))
                             onClicked: ml.limpiarRestos()
                         }
                     }
@@ -1225,7 +1224,7 @@ Rectangle {
                             spacing: 8
                             Text {
                                 Layout.preferredWidth: 70
-                                text: disco.gb(modelData.bytes)
+                                text: Theme.tamano(modelData.bytes)
                                 horizontalAlignment: Text.AlignRight
                                 color: Theme.textDim; font.pixelSize: 12
                             }
@@ -1249,7 +1248,7 @@ Rectangle {
                                 text: qsTr("Borrar")
                                 onClicked: ApplicationWindow.window.confirm({
                                     title: qsTr("¿Borrar «%1»?").arg(modelData.repo),
-                                    text: (modelData.activo ? qsTr("%1. Es el que está en uso: se apaga.").arg(disco.gb(modelData.bytes)) : disco.gb(modelData.bytes) + ".") + " " +
+                                    text: (modelData.activo ? qsTr("%1. Es el que está en uso: se apaga.").arg(Theme.tamano(modelData.bytes)) : Theme.tamano(modelData.bytes) + ".") + " " +
                                           (modelData.enCatalogo ? qsTr("Se puede volver a bajar.") : qsTr("Ya no está en el catálogo: no se puede volver a bajar desde acá.")),
                                     accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
                                     action: function() { ml.borrarCarpeta(modelData.carpeta) }

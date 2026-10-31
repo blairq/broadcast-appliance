@@ -34,7 +34,6 @@ Item {
     readonly property color colorMedio: nodo.medio === "audio" ? "#ffb347" : nodo.medio === "video" ? "#4fd8ff" : "#c38bff"
     readonly property string icono: ({ entrada: "◉", tarjeta: "▣", modulo: "🎚", escena: "▦", mezcla: "◎",
                                        transmision: "📡", grabacion: "⏺", pantalla: "🖵", derivacion: "✎" })[nodo.tipo] || "•"
-    function ms(v) { return v === null || v === undefined ? "—" : (v >= 1000 ? (v / 1000).toFixed(2) + " s" : Number(v).toFixed(v < 10 ? 1 : 0) + " ms") }
 
     // --- La inclinación que sigue al puntero (y se endereza sola) -----------------------
     property real inclX: 0
@@ -150,13 +149,13 @@ Item {
                     }
                 }
                 Text {
-                    text: t.ms(t.nodo.ms)
+                    text: Theme.ms(t.nodo.ms)
                     color: t.nodo.ms === null ? Theme.textFaint : Theme.text
                     font { pixelSize: 25; weight: Font.Light; family: "Helvetica Neue" }
                 }
                 Text {
-                    text: (t.nodo.p95_ms !== null && t.nodo.p95_ms !== undefined ? qsTr("p95 %1").arg(t.ms(t.nodo.p95_ms)) + "   " : "") +
-                          (t.nodo.acumulado_ms !== null && t.nodo.acumulado_ms !== undefined ? qsTr("desde la captura %1").arg(t.ms(t.nodo.acumulado_ms)) : "")
+                    text: (t.nodo.p95_ms !== null && t.nodo.p95_ms !== undefined ? qsTr("p95 %1").arg(Theme.ms(t.nodo.p95_ms)) + "   " : "") +
+                          (t.nodo.acumulado_ms !== null && t.nodo.acumulado_ms !== undefined ? qsTr("desde la captura %1").arg(Theme.ms(t.nodo.acumulado_ms)) : "")
                     color: Theme.textDim
                     font.pixelSize: 9
                 }

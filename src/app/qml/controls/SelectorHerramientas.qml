@@ -12,7 +12,9 @@
 // otro, en el mismo orden. Con una sección elegida, busca adentro de esa.
 //
 // Fuente: Studio.botonera.catalogoUi() (McpCore::catalogo) y buscarUi()
-// (McpCore::buscarHerramientas).
+// (McpCore::buscarHerramientas). Filtrar, contar y ordenar lo hace el modelo
+// (FiltroCatalogo, el mismo de los catálogos de filtros y de módulos): si el buscador
+// no devuelve nada, la búsqueda simple (todas las palabras, sin tildes).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -27,12 +29,41 @@ Popup {
 
     property var catalogo: []
     property string seccion: ""     // "" = todas
-    property var filas: []          // lo que se ve: [{sec, secTitulo, ..., nombre, titulo, descripcion}]
-    property var enSeccion: ({})    // buscando: cuántas coinciden en cada sección
     readonly property var porSeccion: {
         const m = {}
         for (const c of sel.catalogo) m[c.titulo] = c
         return m
+    }
+    /// Lo que se ve: una fila por herramienta, con su sección (las cuentas, el orden y por
+    /// qué salió, del modelo).
+    readonly property alias filas: modelo
+    FiltroCatalogo {
+        id: modelo
+        clave: "nombre"
+        roles: ["secTitulo"]
+        fuente: {
+            const l = []
+            for (const c of sel.catalogo)
+                for (const h of c.herramientas)
+                    l.push({ sec: c.id, secTitulo: c.titulo, nombre: h.nombre, titulo: h.titulo, descripcion: h.descripcion,
+                             etiquetas: h.etiquetas, ejemplo: h.ejemplo || "", soloLectura: !!h.solo_lectura,
+                             destructiva: !!h.destructiva })
+            return l
+        }
+        campoCategoria: "sec"
+        camposCabeza: ["titulo", "nombre"]
+        campos: ["descripcion", "etiquetas", "secTitulo"]
+        texto: buscar.text
+        categoria: sel.seccion
+        agrupar: true
+        // El índice del asistente: cuáles y en qué orden (y por qué).
+        puntajes: {
+            const t = buscar.text.trim()
+            if (t === "" || !Studio.botonera.buscarUi) return ({})
+            const m = {}
+            for (const r of Studio.botonera.buscarUi(t)) m[r.nombre] = r
+            return m
+        }
     }
 
     modal: true
@@ -50,86 +81,22 @@ Popup {
         catalogo = Studio.botonera.catalogoUi()
         buscar.text = busqueda || ""
         seccion = ""
-        filtrar()
         open()
         buscar.forceActiveFocus()
-        // Arranca en la que está puesta.
+        // Arranca en la que está puesta (el modelo filtra al terminar la vuelta).
         Qt.callLater(function() {
-            for (let i = 0; i < filas.length; ++i)
-                if (filas[i].nombre === actual) { lista.positionViewAtIndex(i, ListView.Center); lista.currentIndex = i; return }
+            const i = modelo.indiceDe(actual)
+            if (i >= 0) { lista.positionViewAtIndex(i, ListView.Center); lista.currentIndex = i; return }
             lista.positionViewAtBeginning()
         })
     }
-
-    /// Sin acentos ni mayúsculas, para buscar «camara» y encontrar «Cámara».
-    function plano(s) {
-        s = (s || "").toLowerCase()
-        const de = "áàäâéèëêíìïîóòöôúùüûñç", a = "aaaaeeeeiiiioooouuuunc"
-        let out = ""
-        for (let i = 0; i < s.length; ++i) {
-            const k = de.indexOf(s[i])
-            out += k >= 0 ? a[k] : s[i]
-        }
-        return out.replace(/_/g, " ")
-    }
-
-    function filtrar() {
-        const texto = buscar.text.trim()
-        // Buscando: el índice del asistente dice cuáles y en qué orden (y por qué).
-        let hallados = null
-        if (texto !== "" && Studio.botonera.buscarUi) {
-            hallados = {}
-            const r = Studio.botonera.buscarUi(texto)
-            for (let i = 0; i < r.length; ++i)
-                hallados[r[i].nombre] = { puntos: r[i].puntaje, porque: (r[i].porque || []).join(", ") }
-        }
-        // Si no está (o no devolvió nada), la búsqueda simple: todas las palabras, sin tildes.
-        const palabras = hallados === null || Object.keys(hallados).length === 0
-                         ? plano(texto).split(/\s+/).filter(p => p.length > 0) : []
-        const out = []
-        const cuenta = {}
-        for (const c of catalogo) {
-            for (const h of c.herramientas) {
-                let puntos = 0, porque = ""
-                if (texto !== "") {
-                    if (palabras.length === 0) {
-                        const e = hallados[h.nombre]
-                        if (!e) continue
-                        puntos = e.puntos
-                        porque = e.porque
-                    } else {
-                        const cabeza = plano(h.titulo + " " + h.nombre)
-                        const todo = cabeza + " " + plano(h.descripcion + " " + h.etiquetas + " " + c.titulo)
-                        let todas = true
-                        for (const p of palabras) {
-                            if (todo.indexOf(p) < 0) { todas = false; break }
-                            puntos += cabeza.indexOf(p) >= 0 ? 3 : 1
-                        }
-                        if (!todas) continue
-                    }
-                    cuenta[c.id] = (cuenta[c.id] || 0) + 1
-                }
-                // La sección elegida filtra siempre (también buscando).
-                if (seccion !== "" && c.id !== seccion) continue
-                out.push({ sec: c.id, secTitulo: c.titulo, nombre: h.nombre, titulo: h.titulo,
-                           descripcion: h.descripcion, ejemplo: h.ejemplo || "", porque: porque,
-                           soloLectura: !!h.solo_lectura, destructiva: !!h.destructiva, puntos: puntos })
-            }
-        }
-        // Buscando: la sección con la mejor primero y adentro por puntos (una
-        // sección no se puede partir en dos: el encabezado saldría repetido).
-        if (texto !== "") {
-            const mejor = {}
-            for (const f of out) mejor[f.secTitulo] = Math.max(mejor[f.secTitulo] || 0, f.puntos)
-            out.sort((x, y) => (mejor[y.secTitulo] - mejor[x.secTitulo]) ||
-                               x.secTitulo.localeCompare(y.secTitulo) || (y.puntos - x.puntos))
-        }
-        enSeccion = cuenta
-        filas = out
+    function elegir(i) {
+        const f = modelo.fila(i)
+        sel.elegida(f.nombre, f.ejemplo); sel.close()
     }
 
     function cuantasEn(id) {
-        if (buscar.text.trim() !== "") return enSeccion[id] || 0
+        if (buscar.text.trim() !== "") return modelo.cuentas[id] || 0
         for (const c of catalogo) if (c.id === id) return c.herramientas.length
         return 0
     }
@@ -152,15 +119,11 @@ Popup {
                 color: Theme.text
                 placeholderText: sel.seccion === "" ? qsTr("Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…")
                                                     : qsTr("Buscar en «%1» (o elegí «Todas»)").arg((sel.catalogo.find(c => c.id === sel.seccion) || {}).titulo || sel.seccion)
-                onTextChanged: sel.filtrar()
                 Keys.onDownPressed: { lista.forceActiveFocus(); if (lista.currentIndex < 0) lista.currentIndex = 0 }
-                Keys.onReturnPressed: if (sel.filas.length > 0) {
-                    const f = sel.filas[Math.max(0, lista.currentIndex)]
-                    sel.elegida(f.nombre, f.ejemplo); sel.close()
-                }
+                Keys.onReturnPressed: if (modelo.count > 0) sel.elegir(Math.max(0, lista.currentIndex))
             }
             Text {
-                text: qsTr("%n herramienta", "", sel.filas.length)
+                text: qsTr("%n herramienta", "", modelo.count)
                 color: Theme.textDim
                 font.pixelSize: 12
             }
@@ -212,7 +175,6 @@ Popup {
                         onClicked: {
                             // Lo escrito se queda: la sección acota la búsqueda.
                             sel.seccion = modelData.id
-                            sel.filtrar()
                             lista.positionViewAtBeginning()
                         }
                     }
@@ -229,13 +191,10 @@ Popup {
                 clip: true
                 spacing: 4
                 currentIndex: -1
-                model: sel.filas
+                model: modelo
                 keyNavigationEnabled: true
                 ScrollBar.vertical: ScrollBar {}
-                Keys.onReturnPressed: if (currentIndex >= 0) {
-                    const f = sel.filas[currentIndex]
-                    sel.elegida(f.nombre, f.ejemplo); sel.close()
-                }
+                Keys.onReturnPressed: if (currentIndex >= 0) sel.elegir(currentIndex)
 
                 section.property: "secTitulo"
                 section.criteria: ViewSection.FullString
@@ -287,12 +246,12 @@ Popup {
 
                 delegate: Rectangle {
                     id: fila
-                    required property var modelData
+                    required property var datos
                     required property int index
                     width: lista.width - 12
                     height: col.implicitHeight + 16
                     radius: 8
-                    readonly property bool puesta: modelData.nombre === sel.actual
+                    readonly property bool puesta: datos.nombre === sel.actual
                     color: lista.currentIndex === index ? Qt.rgba(1, 0.42, 0.17, 0.16)
                          : maFila.containsMouse ? Theme.glassHighlight : Qt.rgba(1, 1, 1, 0.03)
                     border.color: puesta ? Theme.accent : "transparent"
@@ -304,24 +263,24 @@ Popup {
                             Layout.fillWidth: true
                             spacing: 8
                             Text {
-                                text: modelData.titulo
+                                text: datos.titulo
                                 color: Theme.text
                                 font { pixelSize: 14; weight: Font.DemiBold }
                             }
                             Text {
-                                text: modelData.nombre
+                                text: datos.nombre
                                 color: Theme.textFaint
                                 font { family: Theme.mono; pixelSize: 11 }
                             }
                             Item { Layout.fillWidth: true }
                             Text {
-                                visible: modelData.soloLectura
+                                visible: datos.soloLectura
                                 text: qsTr("solo mira")
                                 color: Theme.ok
                                 font.pixelSize: 10
                             }
                             Text {
-                                visible: modelData.destructiva
+                                visible: datos.destructiva
                                 text: qsTr("borra o cambia")
                                 color: Theme.amber
                                 font.pixelSize: 10
@@ -335,14 +294,14 @@ Popup {
                         }
                         // Por qué salió (las palabras que engancharon): para corregir la búsqueda, no probar a ciegas.
                         Text {
-                            visible: (modelData.porque || "") !== ""
-                            text: qsTr("por: %1").arg(modelData.porque)
+                            visible: (datos.porque || "") !== ""
+                            text: qsTr("por: %1").arg(datos.porque)
                             color: Theme.textFaint
                             font.pixelSize: 10
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: modelData.descripcion
+                            text: datos.descripcion
                             wrapMode: Text.WordWrap
                             maximumLineCount: lista.currentIndex === index ? 12 : 3
                             elide: Text.ElideRight
@@ -355,13 +314,13 @@ Popup {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: lista.currentIndex = index
-                        onDoubleClicked: { sel.elegida(modelData.nombre, modelData.ejemplo); sel.close() }
+                        onDoubleClicked: { sel.elegida(datos.nombre, datos.ejemplo); sel.close() }
                     }
                 }
 
                 Text {
                     anchors.centerIn: parent
-                    visible: sel.filas.length === 0
+                    visible: modelo.count === 0
                     text: qsTr("Nada con eso. Probá con otras palabras (lo que querés que pase, no el nombre técnico).")
                     color: Theme.textFaint
                     font.pixelSize: 13
@@ -378,9 +337,10 @@ Popup {
                 elide: Text.ElideRight
                 color: Theme.textDim
                 font.pixelSize: 12
-                text: lista.currentIndex >= 0 && lista.currentIndex < sel.filas.length
-                      ? (sel.filas[lista.currentIndex].ejemplo ? qsTr("«%1» · trae argumentos de ejemplo · doble clic o Enter para usarla")
-                                                               : qsTr("«%1» · doble clic o Enter para usarla")).arg(sel.filas[lista.currentIndex].titulo)
+                readonly property var actual: lista.currentItem ? lista.currentItem.datos : null
+                text: actual
+                      ? (actual.ejemplo ? qsTr("«%1» · trae argumentos de ejemplo · doble clic o Enter para usarla")
+                                        : qsTr("«%1» · doble clic o Enter para usarla")).arg(actual.titulo)
                       : qsTr("Tocá una para leer todo lo que hace; doble clic o Enter para usarla.")
             }
             GlassButton {
@@ -392,11 +352,8 @@ Popup {
                 compact: true
                 active: true
                 text: qsTr("Usar esta")
-                enabled: lista.currentIndex >= 0 && lista.currentIndex < sel.filas.length
-                onClicked: {
-                    const f = sel.filas[lista.currentIndex]
-                    sel.elegida(f.nombre, f.ejemplo); sel.close()
-                }
+                enabled: lista.currentIndex >= 0 && lista.currentIndex < modelo.count
+                onClicked: sel.elegir(lista.currentIndex)
             }
         }
     }

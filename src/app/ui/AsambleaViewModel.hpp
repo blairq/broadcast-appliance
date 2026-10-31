@@ -76,6 +76,7 @@ class SeguirMicrofono;
 class OrdenDelDia;
 class InformesResultado;
 class Quorum;
+class RecintoModel;
 } // namespace ba::app::asamblea
 
 namespace ba::app {
@@ -84,6 +85,8 @@ class AsambleaViewModel : public QObject {
     Q_OBJECT
     /// La presidencia tiene el micrófono abierto en la central («Hablo yo»).
     Q_PROPERTY(bool presidenciaHabla READ presidenciaHabla NOTIFY presidenciaHablaChanged)
+    /// El recinto, una fila por banca con todo lo que muestra ya cruzado (asamblea/RecintoModel).
+    Q_PROPERTY(QObject* recinto READ recintoQml CONSTANT)
    public:
     /// Lo que el área usa del resto de la app.
     struct Partes {
@@ -123,6 +126,7 @@ class AsambleaViewModel : public QObject {
     QObject* ordenDelDiaQml() const;
     QObject* informesQml() const;
     QObject* quorumQml() const;
+    QObject* recintoQml() const;
 
     bool presidenciaHabla() const;
     /// «Apretar para hablar» desde la app (asamblea::Presidencia): mientras `activo`, el
@@ -174,6 +178,7 @@ class AsambleaViewModel : public QObject {
     std::unique_ptr<asamblea::SesionRemota> sesionRemota_;
     std::unique_ptr<asamblea::Votaciones> votaciones_; ///< usa sesionRemota_, dcn_, quorum_ y el bus
     std::unique_ptr<asamblea::Presidencia> presidencia_; ///< usa casi todo lo de arriba
+    std::unique_ptr<asamblea::RecintoModel> recinto_;    ///< lee el cuerpo, la fila, la central, la sesión y las cámaras
     /// El orador presencial cuyo tiempo se lleva en la central (banca@desde) y los avisos ya dados.
     std::string dcnOrador_;
     int dcnAvisos_ = 0;

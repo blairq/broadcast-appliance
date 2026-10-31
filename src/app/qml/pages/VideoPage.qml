@@ -66,46 +66,6 @@ Rectangle {
     }
     function f2(v) { return Number(v).toFixed(2) }
     function hex(n) { return "#" + ("000000" + Number(n).toString(16)).slice(-6).toUpperCase() }
-    function resumen(n) {
-        const p = n.params || {}
-        if (n.error) return "⚠ " + n.error
-        const enEscena = n.publicada ? qsTr(" · en escena") : ""
-        if (n.tipo === "entrada") return qsTr("La cámara (ya encuadrada por el PTZ)")
-        if (n.tipo === "escena") return qsTr("Lo que ve la escena")
-        if (n.tipo === "obs") return qsTr("Filtro de OBS · %1").arg(p.filtro || "")
-        if (n.tipo === "control") return qsTr("Controlador · %1").arg(p.tarjeta === "gst" ? (p.params || {}).elemento : p.tarjeta === "obs" ? (p.params || {}).filtro : p.tarjeta)
-        if (n.controlador) return Object.keys(p.local || {}).length ? qsTr("↳ del controlador · con ajuste propio") : qsTr("↳ del controlador")
-        if (n.tipo === "gst") {
-            const pr = p.propiedades || {}
-            const ks = Object.keys(pr)
-            return "GStreamer · " + (p.elemento || "") + (ks.length ? " · " + ks.slice(0, 2).map(k => k + "=" + (typeof pr[k] === "number" ? Number(pr[k]).toFixed(2).replace(/\.?0+$/, "") : pr[k])).join(" ") : "")
-        }
-        if (n.tipo === "compositor") return qsTr("%n entrada · %1", "", (n.entradas || []).length - 1).arg(p.ancho > 0 ? p.ancho + "×" + p.alto : qsTr("lienzo del estudio")) + enEscena
-        if (n.tipo === "mezcla") return qsTr("GStreamer · %1 · %n conectada", "", ((page.vista === "estudio" ? page.est.cables : page.g.cables) || []).filter(c => c.hacia === n.id).length).arg(p.elemento || "") + enEscena
-        if (n.tipo === "color") return qsTr("brillo %1 · contraste %2 · saturación %3").arg(f2(p.brillo)).arg(f2(p.contraste)).arg(f2(p.saturacion))
-        if (n.tipo === "croma") return qsTr("fondo %1 · similitud %2").arg(hex(p.clave)).arg(f2(p.similitud))
-        if (n.tipo === "recorte") {
-            const partes = []
-            if (p.izquierda > 0 || p.arriba > 0 || p.derecha > 0 || p.abajo > 0) partes.push(qsTr("bordes recortados"))
-            if (p.espejoH) partes.push(qsTr("espejo ↔"))
-            if (p.espejoV) partes.push(qsTr("espejo ↕"))
-            return partes.length ? partes.join(" · ") : qsTr("sin cambios")
-        }
-        if (n.tipo === "vista360" || n.tipo === "panoramica") {
-            if (p.ver === "entrada") return qsTr("calibrando: la entrada con los círculos")
-            if (p.ver === "tira") return (p.ancho > 0 ? qsTr("la tira %1×%2").arg(p.ancho).arg(p.alto) : qsTr("la tira (la suma de las cámaras)")) + enEscena
-            if (p.ver === "panorama") return p.guia && p.guia !== "ninguna" ? qsTr("el panorama 360 · guía %1").arg(p.guia) : qsTr("el panorama 360")
-            const mira = qsTr("mira %1° · %2° · abre %3°").arg(Math.round(p.yaw || 0)).arg(Math.round(p.pitch || 0)).arg(Math.round(p.fov || 90))
-            return (n.tipo === "panoramica" ? qsTr("%n cámara · %1", "", (n.entradas || []).filter(e => !e.pedido).length).arg(mira) : mira) + enEscena
-        }
-        if (n.tipo === "salida") return qsTr("«%1»").arg(p.nombre || "") + enEscena
-        if (n.tipo === "retardo") return qsTr("%n cuadro de atraso", "", p.cuadros || 0)
-        if (n.tipo === "ptz") return p.activo === false ? qsTr("Apagado") : qsTr("Pan, tilt y zoom digital (Cámaras PTZ)")
-        if (n.tipo === "seguir") return p.activo === false ? qsTr("Apagado") : (p.objetivo ? qsTr("Sigue: %1").arg(p.objetivo) : qsTr("Sin nadie elegido"))
-        if (n.tipo === "rostros") return (({ mirar: qsTr("Personas mira"), autoalta: qsTr("Personas anota sola"), puerta: qsTr("Puerta: acredita"), seguir: qsTr("Sigue a una cara") })[p.uso] || qsTr("Caras")) +
-                                          (p.marcar ? " · " + (p.estilo || "recuadro") : "") + (p.texto ? " · «" + p.texto + "»" : "")
-        return ""
-    }
     // Los nodos de afuera (otra entrada, el estudio) en una columna a la
     // derecha: su posición es la de su propia vista.
     // EN «RACKS», LAS TARJETAS DE LA ENTRADA EMPIEZAN ARRIBA A LA IZQUIERDA. Las
@@ -154,7 +114,7 @@ Rectangle {
         let yExt = 20
         for (let i = 0; i < l.length; ++i) {
             const ev = page.eventosTexto(l[i].id)
-            const n = Object.assign({}, l[i], { resumen: page.resumen(l[i]) + (ev ? "\n" + ev : "") })
+            const n = Object.assign({}, l[i], { resumen: (l[i].resumen || "") + (ev ? "\n" + ev : "") })
             if (n.externo) { n.x = maxX + 260; n.y = yExt; yExt += 140 }
             else { n.x = n.x - dx; n.y = n.y - dy }
             out.push(n)
@@ -166,7 +126,7 @@ Rectangle {
         const l = page.est.nodos || []
         const out = []
         // Un margen arriba: el nombre de la primera franja tiene que entrar.
-        for (let i = 0; i < l.length; ++i) out.push(Object.assign({}, l[i], { resumen: page.resumen(l[i]), externo: false, y: l[i].y + 30 }))
+        for (let i = 0; i < l.length; ++i) out.push(Object.assign({}, l[i], { externo: false, y: l[i].y + 30 }))
         return out
     }
     readonly property var franjasEstudio: {
@@ -194,9 +154,7 @@ Rectangle {
     }
     // El árbol de entradas, agrupado como el de las fuentes del audio.
     property var plegados: ({})
-    property int plegTick: 0
     readonly property var arbol: {
-        plegTick
         const info = page.vg ? page.vg.entradasInfo : []
         // Los grupos vienen de C++ (VideoGrafos) en español: son la clave; se muestran con qsTr.
         const orden = [QT_TR_NOOP("Cámaras"), QT_TR_NOOP("Conferencia"), QT_TR_NOOP("Asamblea"), QT_TR_NOOP("Red"),
@@ -235,7 +193,7 @@ Rectangle {
         aplicarFiltro.restart()
     }
     function ajustar(id, clave, valor) {
-        const p = page.pendiente && page.pendiente.id === id ? page.pendiente.p : {}
+        const p = Object.assign({}, page.pendiente && page.pendiente.id === id ? page.pendiente.p : {})
         p[clave] = valor
         page.pendiente = { id: id, p: p }
         aplicar.restart()
@@ -286,7 +244,7 @@ Rectangle {
                         visible: modelData.fila === "grupo"
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: { page.plegados[modelData.grupo] = !page.plegados[modelData.grupo]; page.plegTick++ }
+                        onClicked: { const p = Object.assign({}, page.plegados); p[modelData.grupo] = !p[modelData.grupo]; page.plegados = p }
                     }
                     // Una entrada.
                     Rectangle {
@@ -684,59 +642,14 @@ Rectangle {
                             }
                         }
 
-                        // Una tarjeta de OBS: sus controles, de las propiedades del filtro.
-                        Repeater {
-                            model: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst" || page.tipoEf === "mezcla") ? page.vg.propiedades(page.sel) : []
-                            delegate: ColumnLayout {
-                                id: prop
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text {
-                                    visible: prop.modelData.kind !== "bool"
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    text: prop.modelData.label + ((prop.modelData.kind === "float" || prop.modelData.kind === "int")
-                                          ? "  " + Number(deslP.value).toFixed(prop.modelData.kind === "int" ? 0 : 2) + (prop.modelData.suffix || "") : "")
-                                    color: prop.modelData.kind === "header" ? Theme.text : prop.modelData.kind === "info" ? Theme.textFaint : Theme.textDim
-                                    font.pixelSize: prop.modelData.kind === "header" ? 13 : 12
-                                }
-                                Slider {
-                                    id: deslP
-                                    visible: prop.modelData.kind === "float" || prop.modelData.kind === "int"
-                                    Layout.fillWidth: true
-                                    from: prop.modelData.min !== undefined ? prop.modelData.min : 0
-                                    to: prop.modelData.max !== undefined ? prop.modelData.max : 1
-                                    stepSize: prop.modelData.step || 0
-                                    value: typeof prop.modelData.value === "number" ? prop.modelData.value : 0
-                                    onMoved: page.ajustarFiltro(page.sel, prop.modelData.name, prop.modelData.kind === "int" ? Math.round(value) : value)
-                                }
-                                CheckBox {
-                                    visible: prop.modelData.kind === "bool"
-                                    text: prop.modelData.label
-                                    checked: prop.modelData.value === true
-                                    onToggled: page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, checked))
-                                }
-                                ComboBox {
-                                    visible: prop.modelData.kind === "list"
-                                    Layout.fillWidth: true
-                                    model: prop.modelData.options || []
-                                    textRole: "label"
-                                    currentIndex: {
-                                        const o = prop.modelData.options || []
-                                        for (let i = 0; i < o.length; ++i) if (o[i].value === prop.modelData.value) return i
-                                        return -1
-                                    }
-                                    onActivated: (i) => page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, prop.modelData.options[i].value))
-                                }
-                                TextField {
-                                    visible: prop.modelData.kind === "text" || prop.modelData.kind === "path" || prop.modelData.kind === "color"
-                                    Layout.fillWidth: true
-                                    text: prop.modelData.value !== undefined ? String(prop.modelData.value) : ""
-                                    placeholderText: prop.modelData.kind === "path" ? qsTr("Ruta del archivo") : prop.modelData.kind === "color" ? "#RRGGBB" : ""
-                                    onEditingFinished: if (text !== String(prop.modelData.value)) page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, text))
-                                }
-                            }
+                        // Una tarjeta de OBS (o un módulo de GStreamer): sus controles, de las
+                        // propiedades del filtro. Los deslizadores aplican mientras se mueven.
+                        FormularioPropiedades {
+                            Layout.fillWidth: true
+                            vacio: ""
+                            props: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst" || page.tipoEf === "mezcla") ? page.vg.propiedades(page.sel) : []
+                            onCambio: (nombre, valor) => typeof valor === "number" ? page.ajustarFiltro(page.sel, nombre, valor)
+                                                                                 : page.avisar(page.vg.ajustarFiltro(page.sel, nombre, valor))
                         }
 
                         // Vista 360 y Cámara 360: la vista, las lentes y la guía para calibrar.
@@ -1301,56 +1214,16 @@ Rectangle {
                                     // Las propiedades de este pad (de la introspección del módulo), con sus valores.
                                     readonly property var props: page.nodo ? page.vg.propiedadesPad(page.sel, modelData) : []
                                     Text { text: mezclaPanel.origen(padCol.modelData) + "  (" + padCol.modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
-                                    Text {
-                                        visible: padCol.props.length === 0
-                                        text: qsTr("Esta entrada no tiene propiedades propias."); color: Theme.textFaint; font.pixelSize: 11
-                                    }
-                                    Repeater {
-                                        model: padCol.props
-                                        delegate: ColumnLayout {
-                                            id: pp
-                                            required property var modelData
-                                            Layout.fillWidth: true
-                                            spacing: 0
-                                            Text {
-                                                visible: pp.modelData.kind !== "bool"
-                                                Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                                text: pp.modelData.label + ((pp.modelData.kind === "float" || pp.modelData.kind === "int")
-                                                      ? "  " + Number(deslPad.value).toFixed(pp.modelData.kind === "int" ? 0 : 2) : "")
-                                                color: Theme.textDim; font.pixelSize: 11
-                                            }
-                                            Slider {
-                                                id: deslPad
-                                                visible: pp.modelData.kind === "float" || pp.modelData.kind === "int"
-                                                Layout.fillWidth: true
-                                                // Las posiciones y tamaños vienen con rangos enormes: hasta el doble del lienzo alcanza.
-                                                from: Math.max(pp.modelData.min !== undefined ? pp.modelData.min : 0, -8192)
-                                                to: Math.min(pp.modelData.max !== undefined ? pp.modelData.max : 1, 8192)
-                                                stepSize: pp.modelData.step || 0
-                                                value: typeof pp.modelData.value === "number" ? pp.modelData.value : 0
-                                                onMoved: page.ajustarPad(page.sel, padCol.modelData, pp.modelData.name, pp.modelData.kind === "int" ? Math.round(value) : value)
-                                            }
-                                            CheckBox {
-                                                visible: pp.modelData.kind === "bool"
-                                                text: pp.modelData.label
-                                                checked: pp.modelData.value === true
-                                                onToggled: page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, pp.modelData.name, checked))
-                                            }
-                                            ComboBox {
-                                                visible: pp.modelData.kind === "list"
-                                                Layout.fillWidth: true
-                                                model: pp.modelData.options || []
-                                                textRole: "label"
-                                                currentIndex: (pp.modelData.options || []).findIndex(o => o.value === pp.modelData.value)
-                                                onActivated: (i) => page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, pp.modelData.name, pp.modelData.options[i].value))
-                                            }
-                                            TextField {
-                                                visible: pp.modelData.kind === "text"
-                                                Layout.fillWidth: true
-                                                text: pp.modelData.value !== undefined ? String(pp.modelData.value) : ""
-                                                onEditingFinished: if (text !== String(pp.modelData.value)) page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, pp.modelData.name, text))
-                                            }
-                                        }
+                                    // Las posiciones y tamaños vienen con rangos enormes: hasta el doble del lienzo alcanza.
+                                    FormularioPropiedades {
+                                        Layout.fillWidth: true
+                                        props: padCol.props
+                                        piso: -8192; tope: 8192
+                                        tamano: 11
+                                        spacing: 0
+                                        vacio: qsTr("Esta entrada no tiene propiedades propias.")
+                                        onCambio: (nombre, valor) => typeof valor === "number" ? page.ajustarPad(page.sel, padCol.modelData, nombre, valor)
+                                                                                             : page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, nombre, valor))
                                     }
                                 }
                             }
@@ -1547,7 +1420,7 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 5
                 Repeater {
-                    model: page.vg ? page.vg.virtuales() : []
+                    model: page.vg ? page.vg.virtuales : []
                     delegate: GlassButton {
                         required property var modelData
                         compact: true

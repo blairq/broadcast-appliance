@@ -132,7 +132,8 @@ Item {
             // El de la salida que maneja esta interfaz (la activa).
             property var l: Studio.emision.loudnessUi(Studio.salidas.activa)
             Timer { interval: 300; running: ld.visible; repeat: true; onTriggered: ld.l = Studio.emision.loudnessUi(Studio.salidas.activa) }
-            readonly property var ob: l.objetivo || ({ lufs: -23, tp: -1, perfil: "r128" })
+            // El objetivo y cómo está cada medida contra él vienen del modelo (estado_*).
+            readonly property var ob: l.objetivo || ({})
             Layout.fillHeight: true
             Layout.fillWidth: false
             Layout.preferredWidth: 96
@@ -148,12 +149,12 @@ Item {
                 ColumnLayout {
                     spacing: 0
                     Text { text: ld.l.i > -70 ? Number(ld.l.i).toFixed(1) : "—"; font { pixelSize: 20; weight: Font.DemiBold }
-                           color: ld.l.i > -70 && Math.abs(ld.l.i - ld.ob.lufs) > 2 ? Theme.amber : Theme.text }
+                           color: ld.l.estado_integrado === "aviso" ? Theme.colorDeEstado("aviso") : Theme.text }
                     Text { text: "LUFS I"; color: Theme.textFaint; font.pixelSize: 9 }
                     Text { text: "TP " + (ld.l.tp > -100 ? Number(ld.l.tp).toFixed(1) : "—"); font.pixelSize: 11
-                           color: ld.l.tp > ld.ob.tp ? Theme.live : Theme.textDim }
+                           color: ld.l.estado_tp === "excedido" ? Theme.colorDeEstado("excedido") : Theme.textDim }
                     Text { text: "LRA " + Number(ld.l.lra || 0).toFixed(1); color: Theme.textDim; font.pixelSize: 11 }
-                    Text { text: qsTr("obj. %1 / %2").arg(ld.ob.lufs).arg(ld.ob.tp); color: Theme.textFaint; font.pixelSize: 9 }
+                    Text { visible: ld.ob.lufs !== undefined; text: qsTr("obj. %1 / %2").arg(ld.ob.lufs).arg(ld.ob.tp); color: Theme.textFaint; font.pixelSize: 9 }
                     Text { visible: (ld.l.gr_db || 0) < -0.1; text: "LIM " + Number(ld.l.gr_db).toFixed(1); color: Theme.amber; font.pixelSize: 10 }
                 }
             }

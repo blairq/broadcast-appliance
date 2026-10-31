@@ -59,8 +59,13 @@ class AlarmasViewModel : public QObject {
     Q_OBJECT
     /// Las alarmas que esperan que alguien las reconozca (los eventos con `reconocer`).
     Q_PROPERTY(QVariantList activas READ activas NOTIFY cambio)
-    /// Hay una crítica sin reconocer ni silenciar (la franja roja de arriba).
+    /// Hay una crítica sin reconocer ni silenciar (suena).
     Q_PROPERTY(bool critica READ critica NOTIFY cambio)
+    /// Hay una crítica sin reconocer, suene o no (la franja roja de arriba: silenciar corta
+    /// el sonido, no la franja). La regla es del vigía (AlertEngine::criticas).
+    Q_PROPERTY(bool hayCritica READ hayCritica NOTIFY cambio)
+    /// Las críticas por reconocer están todas silenciadas.
+    Q_PROPERTY(bool criticasSilenciadas READ criticasSilenciadas NOTIFY cambio)
     /// El sonido de las alarmas (volumen, dispositivo, probar).
     Q_PROPERTY(QObject* sonido READ sonido CONSTANT)
    public:
@@ -91,13 +96,17 @@ class AlarmasViewModel : public QObject {
     void setPublicar(std::function<void(const std::string& tema, const nlohmann::json& datos)> f) { publicar_ = std::move(f); }
 
     QVariantList activas() const { return activas_; }
-    bool critica() const { return critica_; }
+    bool critica() const { return criticas_.sonando; }
+    bool hayCritica() const { return criticas_.hay; }
+    bool criticasSilenciadas() const { return criticas_.silenciadas; }
     QObject* sonido() const;
 
     /// Reconoce una (por id de evento) o todas (0). Cuántas.
     Q_INVOKABLE int reconocer(qint64 id);
     /// Le saca (o le devuelve) el sonido a un disparador: sus alarmas siguen, sin sonar.
     Q_INVOKABLE bool silenciar(const QString& disparador, bool silenciar);
+    /// Silencia (o les devuelve el sonido a) todas las críticas por reconocer.
+    Q_INVOKABLE void silenciarCriticas(bool silenciar);
 
    signals:
     void cambio();
@@ -123,7 +132,7 @@ class AlarmasViewModel : public QObject {
     std::atomic<AvisoFueraDeUi*> aviso_{nullptr}; ///< lo lee el hilo del vigía
     std::function<void(const std::string&, const nlohmann::json&)> publicar_;
     QVariantList activas_;
-    bool critica_ = false;
+    agent::AlertEngine::Criticas criticas_;
 };
 
 } // namespace ba::app

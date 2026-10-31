@@ -693,6 +693,11 @@ QVariantList AudioViewModel::catalogoLsp() const {
             if (original.empty()) original = p.description;
         }
         v["variantes"] = variantes;
+        // Lo que filtra el catálogo (FiltroCatalogo: «con versión estéreo», «con sidechain»).
+        v["estereo"] = std::any_of(variantes.begin(), variantes.end(), [](const QVariant& x) { return x.toMap().value("estereo").toBool(); });
+        v["sidechain"] = std::any_of(variantes.begin(), variantes.end(), [](const QVariant& x) { return x.toMap().value("sidechain").toBool(); });
+        // El color de su categoría (datos/lsp-catalogo.json: «colores»).
+        v["color"] = QString::fromStdString(cat.value("colores", json::object()).value(fam.value("categoria", std::string()), std::string()));
         v["descripcionOriginal"] = QString::fromStdString(original);
         v["esFiltro"] = fam.value("categoria", std::string()) != "Instrumentos";
         // La captura del módulo (assets/lsp-capturas), si la hay.

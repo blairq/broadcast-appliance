@@ -8,7 +8,7 @@
 // MCP: grilla_personas_fijar / _sacar / _mover / _devolver.
 //
 // La gente entra, sale y habla todo el tiempo: las listas se actualizan EN SU
-// LUGAR, por clave (ListModel con clave), para que no salten mientras se las mira.
+// LUGAR, por clave (ListaConClave), para que no salten mientras se las mira.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -31,28 +31,8 @@ ColumnLayout {
 
     function avisar(e) { if (e !== "") Studio.notify(e, "error") }
 
-    // Sincroniza un ListModel con una lista de objetos, por `clave` (o la que se diga), en su lugar.
-    function sincronizar(modelo, lista, clave) {
-        for (let i = modelo.count - 1; i >= 0; --i)
-            if (!lista.some(x => x[clave] === modelo.get(i)[clave])) modelo.remove(i)
-        for (let j = 0; j < lista.length; ++j) {
-            let k = -1
-            for (let i = 0; i < modelo.count; ++i) if (modelo.get(i)[clave] === lista[j][clave]) { k = i; break }
-            if (k < 0) modelo.insert(Math.min(j, modelo.count), lista[j])
-            else {
-                modelo.set(k, lista[j])
-                if (k !== j && j < modelo.count) modelo.move(k, j, 1)
-            }
-        }
-    }
-
-    // Una fila por grilla: solo lo que no cambia seguido (las caras las lleva cada fila).
-    ListModel { id: filas }
-    function sincronizarFilas() {
-        vg.sincronizar(filas, vg.mias.map(g => ({ fuente: g.fuente })), "fuente")
-    }
-    onMiasChanged: sincronizarFilas()
-    Component.onCompleted: sincronizarFilas()
+    // Una fila por grilla (las caras las lleva cada fila).
+    ListaConClave { id: filas; clave: "fuente"; lista: vg.mias }
 
     Text {
         Layout.fillWidth: true
@@ -70,19 +50,22 @@ ColumnLayout {
             required property string fuente
             Layout.fillWidth: true
             spacing: 6
-            readonly property var datos: vg.todas.find(g => g.fuente === fila.fuente) || ({ personas: [], fuera: [], mas: 0 })
+            required property var datos
             readonly property var personas: fila.datos.personas || []
             readonly property var fuera: fila.datos.fuera || []
 
-            ListModel { id: caras }
-            ListModel { id: sacados }
-            function sincronizarCaras() {
-                vg.sincronizar(caras, fila.personas.map(p => ({ clave: p.clave, nombre: p.nombre || p.clave,
-                                                                fijo: !!p.fijo, hablando: !!p.hablando })), "clave")
-                vg.sincronizar(sacados, fila.fuera.map(p => ({ clave: p.clave, nombre: p.nombre || p.clave })), "clave")
+            ListaConClave {
+                id: caras
+                clave: "clave"
+                roles: ["nombre", "fijo", "hablando"]
+                lista: fila.personas.map(p => ({ clave: p.clave, nombre: p.nombre || p.clave, fijo: !!p.fijo, hablando: !!p.hablando }))
             }
-            onDatosChanged: sincronizarCaras()
-            Component.onCompleted: sincronizarCaras()
+            ListaConClave {
+                id: sacados
+                clave: "clave"
+                roles: ["nombre"]
+                lista: fila.fuera.map(p => ({ clave: p.clave, nombre: p.nombre || p.clave }))
+            }
 
             RowLayout {
                 Layout.fillWidth: true

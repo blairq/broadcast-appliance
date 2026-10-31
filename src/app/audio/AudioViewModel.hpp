@@ -40,6 +40,8 @@ class AudioViewModel : public QObject {
     /// Salidas de audio del equipo, agrupadas por dispositivo:
     /// [{dispositivo, salidas: [{id, nombre}]}].
     Q_PROPERTY(QVariantList outputDevices READ outputDevices NOTIFY changed)
+    /// Las plantillas de rack guardadas: [{nombre, modulos, paraTipo}].
+    Q_PROPERTY(QVariantList plantillas READ plantillas NOTIFY changed)
    public:
     explicit AudioViewModel(RackManager& mgr, QObject* parent = nullptr);
 
@@ -101,7 +103,7 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QVariantList catalogoLsp() const;
 
     // --- Plantillas -------------------------------------------------------------
-    Q_INVOKABLE QVariantList plantillas() const;
+    QVariantList plantillas() const;
     Q_INVOKABLE QString guardarPlantilla(const QString& nombre);
     Q_INVOKABLE QString aplicarPlantilla(const QString& nombre);
     Q_INVOKABLE QString borrarPlantilla(const QString& nombre);

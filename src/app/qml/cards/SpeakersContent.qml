@@ -25,11 +25,6 @@ Item {
     }
     property double clock: Date.now() + conf.clockOffset
     Timer { interval: 250; running: root.visible && (conf.speakers.count > 0 || !!root.bst.al_aire); repeat: true; onTriggered: root.clock = Date.now() + root.conf.clockOffset }
-    function fmt(ms) {
-        const neg = ms < 0
-        const t = Math.floor(Math.abs(ms) / 1000)
-        return (neg ? "+" : "") + Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
-    }
 
     // Remotos (los invitados conectados) o Bancas (los presenciales del cuerpo).
     property string vista: "remotos"
@@ -58,7 +53,7 @@ Item {
                 Text {
                     property double usado: (root.clock - (root.bst.desde_ms || root.clock)) / 1000
                     readonly property double resta: (root.bst.asignado_s || 0) - usado
-                    text: fmt(resta * 1000)
+                    text: Theme.cuentaOrador(resta * 1000)
                     color: resta < 0 ? Theme.live : resta <= 10 ? Theme.accent : Theme.text
                     font { pixelSize: 28; weight: Font.Black }
                 }
@@ -186,7 +181,7 @@ Item {
                 Layout.fillWidth: true
                 Text { text: modelData.name; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                 Text {
-                    text: remaining >= 0 ? fmt(Math.ceil(remaining / 1000) * 1000) : fmt(remaining)
+                    text: remaining >= 0 ? Theme.cuentaOrador(Math.ceil(remaining / 1000) * 1000) : Theme.cuentaOrador(remaining)
                     color: remaining < 0 ? Theme.live : remaining <= 10000 ? Theme.accent : Theme.text
                     font { pixelSize: remaining <= 10000 ? 40 : 32; weight: Font.Black }
                 }
@@ -210,7 +205,7 @@ Item {
                 height: visible ? implicitHeight : 0
                 width: ListView.view.width
                 Text { text: position + ". " + name; color: position === 1 ? Theme.accentSoft : Theme.textDim; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
-                Text { text: fmt(allottedSec * 1000); color: Theme.textFaint; font.pixelSize: 12 }
+                Text { text: Theme.cuentaOrador(allottedSec * 1000); color: Theme.textFaint; font.pixelSize: 12 }
                 GlassButton { text: qsTr("Al aire"); compact: true; onClicked: conf.speakerOnAir(uid, true) }
             }
         }

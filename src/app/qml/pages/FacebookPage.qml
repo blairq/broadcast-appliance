@@ -14,7 +14,6 @@ Rectangle {
     readonly property var fb: Studio.facebook
     readonly property color blue: "#1877f2"
     function day(iso) { return iso ? new Date(iso).toLocaleString(Qt.locale(), "dd/MM/yyyy HH:mm") : "" }
-    function mb(b) { return (b / 1048576).toFixed(1) + " MB" }
     readonly property var statusNames: ({ "LIVE": qsTr("EN VIVO"), "UNPUBLISHED": qsTr("Prueba (sin publicar)"), "LIVE_STOPPED": qsTr("Detenido"), "VOD": qsTr("Terminado"),
                                           "SCHEDULED_UNPUBLISHED": qsTr("Programado"), "PROCESSING": qsTr("Procesando") })
     // Confirmaciones. Reciben copias (id, nombre): el delegate que las pide puede destruirse con el dialogo abierto.
@@ -313,7 +312,7 @@ Rectangle {
                         RowLayout {
                             anchors { fill: parent; margins: 10 }
                             Text { text: name; color: Theme.text; font.pixelSize: 13; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                            Text { text: page.mb(size) + "  ·  " + modified; color: Theme.textFaint; font.pixelSize: 12 }
+                            Text { text: Theme.tamano(size) + "  ·  " + modified; color: Theme.textFaint; font.pixelSize: 12 }
                             GlassButton { compact: true; text: qsTr("Subir a la Página"); enabled: fb.upload.path === undefined
                                           onClicked: fb.uploadRecording(path, name.replace(/\.[^.]+$/, ""), "") }
                         }

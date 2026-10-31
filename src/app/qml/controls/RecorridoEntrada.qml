@@ -30,7 +30,6 @@ Rectangle {
         for (const e of elementos) m = Math.max(m, e.agrega_ms || 0)
         return m
     }
-    function ms(v) { return v === null || v === undefined ? "—" : (v >= 1000 ? (v / 1000).toFixed(2) + " s" : Number(v).toFixed(v < 10 ? 1 : 0) + " ms") }
     function nombreMemoria(m) {
         return ({ gl: "GPU · GL", d3d12: "GPU · D3D12", d3d11: "GPU · D3D11", cuda: "GPU · CUDA", va: "GPU · VA",
                   dmabuf: "GPU · DMABuf", sistema: "RAM" })[m] || (m ? m : "—")
@@ -79,7 +78,7 @@ Rectangle {
             wrapMode: Text.WordWrap
             readonly property real captura: { let c = 0; for (const e of r.elementos) if (e.fuente && !String(e.nombre).startsWith("salida/")) c = Math.max(c, e.agrega_ms || 0); return c }
             readonly property real resto: { let t = 0; for (const e of r.elementos) if (!e.fuente) t += (e.agrega_ms || 0); return t }
-            text: qsTr("Edad al salir ≈ %1  =  captura %2  +  elementos %3").arg(r.ms(captura + resto)).arg(r.ms(captura)).arg(r.ms(resto))
+            text: qsTr("Edad al salir ≈ %1  =  captura %2  +  elementos %3").arg(Theme.ms(captura + resto)).arg(Theme.ms(captura)).arg(Theme.ms(resto))
             color: Theme.text; font.pixelSize: 11
         }
         // El resumen y lo que se ve (del modelo: tiempos::diagnosticar).
@@ -90,7 +89,7 @@ Rectangle {
             textFormat: Text.RichText
             text: {
                 const s = r.diag.resumen || {}
-                const partes = [qsTr("%n elemento", "", r.elementos.length), qsTr("%1 en total").arg(r.ms(s.total_ms))]
+                const partes = [qsTr("%n elemento", "", r.elementos.length), qsTr("%1 en total").arg(Theme.ms(s.total_ms))]
                 partes.push(!s.cruces ? qsTr("sin cruces de memoria") : qsTr("%n cruce de memoria", "", s.cruces))
                 if (r.pl.rearmada) partes.push("<font color='" + Theme.amber + "'>" + qsTr("la entrada se rearmó en medio del análisis") + "</font>")
                 if (r.pl.t_ms) partes.push(qsTr("hace %1 s").arg(Math.max(0, Math.round((Date.now() - r.pl.t_ms) / 1000))))
@@ -160,9 +159,9 @@ Rectangle {
                         // Lo que antes iba en un globo al pasar el mouse: escrito, a la vista.
                         Text {
                             width: parent.width
-                            text: qsTr("p95 %1").arg(r.ms(fila.modelData.agrega_p95_ms))
-                                  + (fila.modelData.declara_ms !== undefined ? " · " + qsTr("declara %1").arg(r.ms(fila.modelData.declara_ms)) : "")
-                                  + (fila.modelData.nivel_cola_ms !== undefined ? " · " + qsTr("la cola guarda %1").arg(r.ms(fila.modelData.nivel_cola_ms)) : "")
+                            text: qsTr("p95 %1").arg(Theme.ms(fila.modelData.agrega_p95_ms))
+                                  + (fila.modelData.declara_ms !== undefined ? " · " + qsTr("declara %1").arg(Theme.ms(fila.modelData.declara_ms)) : "")
+                                  + (fila.modelData.nivel_cola_ms !== undefined ? " · " + qsTr("la cola guarda %1").arg(Theme.ms(fila.modelData.nivel_cola_ms)) : "")
                                   + ((fila.modelData.puede_entrada || []).length ? " · " + qsTr("acepta %1").arg(fila.modelData.puede_entrada.map(r.nombreMemoria).join(", ")) : "")
                             color: Theme.textFaint; font.pixelSize: 8
                             elide: Text.ElideRight
@@ -184,7 +183,7 @@ Rectangle {
                     Text {
                         Layout.preferredWidth: 58
                         horizontalAlignment: Text.AlignRight
-                        text: fila.modelData.agrega_ms === undefined ? "—" : r.ms(fila.modelData.agrega_ms)
+                        text: fila.modelData.agrega_ms === undefined ? "—" : Theme.ms(fila.modelData.agrega_ms)
                         color: (fila.modelData.agrega_ms || 0) > 40 ? Theme.amber : Theme.text
                         font { pixelSize: 11; family: "Helvetica Neue" }
                     }

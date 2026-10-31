@@ -76,7 +76,6 @@ Item {
                     for (const e of (lat.entradas || [])) m = Math.max(m, (e.pide_ms || 0) + (e.retraso_propio_ms || 0))
                     return m * 1.15
                 }
-                function ms(v) { return Math.round(v || 0) + " ms" }
                 /// Cambia la clase: la latencia nueva llega con la vista (la entrada se rearma).
                 function cambiarClase(entrada, clase) {
                     pop.avisar(pop.vg.claseSincroniaUi(entrada, clase),
@@ -147,14 +146,14 @@ Item {
                             Layout.preferredWidth: 96
                             Text {
                                 anchors.right: parent.right
-                                text: latPanel.ms(fila.modelData.pide_ms)
+                                text: Theme.ms(fila.modelData.pide_ms)
                                 color: fila.tono; font { pixelSize: 15; weight: Font.DemiBold }
                             }
                             Text {
                                 anchors.right: parent.right
-                                text: ((fila.modelData.retraso_propio_ms || 0) > 0 ? qsTr("+%1 propios").arg(latPanel.ms(fila.modelData.retraso_propio_ms))
-                                                                                   : qsTr("tarda %1 · tiembla %2").arg(latPanel.ms(fila.modelData.edad_p50_ms))
-                                                                                                                   .arg(latPanel.ms(fila.modelData.tiembla_ms))) +
+                                text: ((fila.modelData.retraso_propio_ms || 0) > 0 ? qsTr("+%1 propios").arg(Theme.ms(fila.modelData.retraso_propio_ms))
+                                                                                   : qsTr("tarda %1 · tiembla %2").arg(Theme.ms(fila.modelData.edad_p50_ms))
+                                                                                                                   .arg(Theme.ms(fila.modelData.tiembla_ms))) +
                                       ((fila.modelData.cuadros_tarde_60s || 0) > 0 ? " · " + qsTr("%1 tarde").arg(fila.modelData.cuadros_tarde_60s) : "")
                                 color: (fila.modelData.cuadros_tarde_60s || 0) > 0 ? Theme.live : Theme.textFaint
                                 font.pixelSize: 9
@@ -207,12 +206,12 @@ Item {
                         Column {
                             Text { text: qsTr("El programa sale con"); color: Theme.textDim; font.pixelSize: 12 }
                             Text {
-                                text: pop.programaMs >= 0 ? latPanel.ms(pop.programaMs)
-                                                          : "~" + latPanel.ms((latPanel.lat.latencia_ms || 0) + (latPanel.lat.margen_ms || 0))
+                                text: pop.programaMs >= 0 ? Theme.ms(pop.programaMs)
+                                                          : "~" + Theme.ms((latPanel.lat.latencia_ms || 0) + (latPanel.lat.margen_ms || 0))
                                 color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold }
                             }
                             Text {
-                                text: pop.programaMs >= 0 ? qsTr("medido desde la captura") : qsTr("+%1 del compositor (estimado)").arg(latPanel.ms(latPanel.lat.margen_ms))
+                                text: pop.programaMs >= 0 ? qsTr("medido desde la captura") : qsTr("+%1 del compositor (estimado)").arg(Theme.ms(latPanel.lat.margen_ms))
                                 color: Theme.textFaint; font.pixelSize: 9
                             }
                         }
@@ -231,9 +230,9 @@ Item {
                             }
                             GlassButton {
                                 visible: latPanel.lat.puede_bajarse === true
-                                text: qsTr("Bajar a %1").arg(latPanel.ms(latPanel.lat.objetivo_ms))
+                                text: qsTr("Bajar a %1").arg(Theme.ms(latPanel.lat.objetivo_ms))
                                 icon: "↓"; active: true
-                                onClicked: pop.avisar(pop.vg.bajarLatenciaUi(), qsTr("Latencia del estudio: %1").arg(latPanel.ms(latPanel.lat.objetivo_ms)))
+                                onClicked: pop.avisar(pop.vg.bajarLatenciaUi(), qsTr("Latencia del estudio: %1").arg(Theme.ms(latPanel.lat.objetivo_ms)))
                                 ToolTip.visible: hovered; ToolTip.delay: 300
                                 ToolTip.text: latPanel.lat.baja_sola ? qsTr("Baja a lo que piden las sincronizadas")
                                                                      : qsTr("Con algo al aire, bajarla es un salto en todas las salidas")
